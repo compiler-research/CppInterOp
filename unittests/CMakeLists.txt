@@ -1,7 +1,10 @@
 set(CTEST_BUILD_NAME ${CMAKE_SYSTEM_NAME}-${CMAKE_HOST_SYSTEM_PROCESSOR}-${CMAKE_BUILD_TYPE})
 enable_testing()
 
-include(GoogleTest)
+# LLVM builds (not installed llvm) provides gtest.
+if (NOT TARGET gtest)
+  include(GoogleTest)
+endif()
 
 add_custom_target(CppInterOpUnitTests)
 set_target_properties(CppInterOpUnitTests PROPERTIES FOLDER "CppInterOp tests")
@@ -16,3 +19,5 @@ endfunction()
  
 add_subdirectory(CppInterOp)
 
+add_dependencies(CppInterOpUnitTests clangCppInterOp)
+add_dependencies(CppInterOpTests clangCppInterOp)
