@@ -73,6 +73,11 @@ bool IsAbstract(TCppType_t klass) {
 
   return false;
 }
+
+bool IsEnum(TCppScope_t handle) {
+  auto *D = (clang::Decl *)handle;
+  return llvm::isa_and_nonnull<clang::EnumDecl>(D);
+}
 }
 } // namespace Cpp
 
@@ -236,4 +241,23 @@ TEST(ScopeReflectionTest, IsAbstract) {
   GetAllTopLevelDecls(code, Decls);
   EXPECT_FALSE(Cpp::IsAbstract(Decls[0]));
   EXPECT_TRUE(Cpp::IsAbstract(Decls[1]));
+}
+
+TEST(ScopeReflectionTest, IsEnum) {
+  std::vector<Decl *> Decls;
+  std::string code = R"(
+    enum Switch {
+      OFF,
+      ON
+    };
+
+    Switch s = Switch::OFF;
+
+    int i = Switch::ON;
+  )";
+
+  GetAllTopLevelDecls(code, Decls);
+  EXPECT_TRUE(Cpp::IsEnum(Decls[0]));
+  EXPECT_FALSE(Cpp::IsEnum(Decls[1]));
+  EXPECT_FALSE(Cpp::IsEnum(Decls[2]));
 }
