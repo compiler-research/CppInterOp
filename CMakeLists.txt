@@ -10,13 +10,18 @@ set(CMAKE_MODULE_PATH
 # project, using LLVM as an external library:
 if( CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR )
   project(InterOp)
-
+  if (USE_CLING)
+    find_package(LLVM REQUIRED CONFIG HINTS ${Cling_DIR}/lib/cmake/llvm/)
+    find_package(Clang REQUIRED CONFIG HINTS ${Cling_DIR}/lib/cmake/clang/)
+    find_package(Cling REQUIRED CONFIG HINTS ${Cling_DIR}/lib/cmake/cling/)
+    include_directories(${CLING_INCLUDE_DIRS})
+  endif()
   ## Define supported version of clang and llvm
 
   set(CLANG_MIN_SUPPORTED 13.0)
   set(CLANG_MAX_SUPPORTED "14.0.x")
   set(CLANG_VERSION_UPPER_BOUND 15.1.0)
-  set(LLVM_MIN_SUPPORTED 5.0)
+  set(LLVM_MIN_SUPPORTED 13.0)
   set(LLVM_MAX_SUPPORTED "15.0.x")
   set(LLVM_VERSION_UPPER_BOUND 15.1.0)
 

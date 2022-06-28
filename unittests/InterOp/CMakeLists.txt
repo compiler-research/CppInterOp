@@ -6,9 +6,10 @@ add_interop_unittest(InterOpTests
   ScopeReflectionTest.cpp
   )
 
-clang_target_link_libraries(InterOpTests
+target_link_libraries(InterOpTests
   PRIVATE
   clingInterpreter
+  clangInterOp
   clangAST
   clangBasic
   clangLex

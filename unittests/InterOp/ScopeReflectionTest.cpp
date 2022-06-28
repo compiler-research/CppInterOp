@@ -1,113 +1,24 @@
 
 #include "cling/Interpreter/Interpreter.h"
 #include "cling/Interpreter/Transaction.h"
+#include "clang/Interpreter/InterOp.h"
 
 #include "clang/AST/Decl.h"
 #include "clang/AST/DeclCXX.h"
-#include "clang/AST/RecordLayout.h"
 #include "clang/Basic/Version.h"
 #include "clang/Config/config.h"
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Sema/Sema.h"
 
 #include "llvm/ADT/StringRef.h"
-#include "llvm/Support/Casting.h"
+#include "llvm/Support/FileSystem.h"
+#include "llvm/Support/Path.h"
 
 #include "gtest/gtest.h"
 
+using namespace cling;
 using namespace clang;
 using namespace llvm;
-namespace InterOp {
-using TCppScope_t = void *;
-using TCppType_t = void *;
-
-bool IsNamespace(TCppScope_t scope) {
-  Decl *D = static_cast<Decl *>(scope);
-  return isa<NamespaceDecl>(D);
-}
-// See TClingClassInfo::IsLoaded
-bool IsComplete(TCppScope_t scope) {
-  if (!scope)
-    return false;
-  Decl *D = static_cast<Decl *>(scope);
-  if (auto *CXXRD = dyn_cast<CXXRecordDecl>(D))
-    return CXXRD->hasDefinition();
-  else if (auto *TD = dyn_cast<TagDecl>(D))
-    return TD->getDefinition();
-
-  // Everything else is considered complete.
-  return true;
-}
-
-size_t SizeOf(TCppScope_t scope) {
-  assert(scope);
-  if (!IsComplete(scope))
-    return 0;
-
-  if (auto *RD = dyn_cast<RecordDecl>(static_cast<Decl *>(scope))) {
-    ASTContext &Context = RD->getASTContext();
-    const ASTRecordLayout &Layout = Context.getASTRecordLayout(RD);
-    return Layout.getSize().getQuantity();
-  }
-
-  return 0;
-}
-
-bool IsBuiltin(TCppType_t type) {
-  QualType Ty = QualType::getFromOpaquePtr(type);
-  if (Ty->isBuiltinType() || Ty->isAnyComplexType())
-    return true;
-  // FIXME: Figure out how to avoid the string comparison.
-  return llvm::StringRef(Ty.getAsString()).contains("complex");
-}
-
-bool IsTemplate(TCppScope_t handle) {
-  auto *D = (clang::Decl *)handle;
-  return llvm::isa_and_nonnull<clang::TemplateDecl>(D);
-}
-
-bool IsAbstract(TCppType_t klass) {
-  auto *D = (clang::Decl *)klass;
-  if (auto *CXXRD = llvm::dyn_cast_or_null<clang::CXXRecordDecl>(D))
-    return CXXRD->isAbstract();
-
-  return false;
-}
-
-bool IsEnum(TCppScope_t handle) {
-  auto *D = (clang::Decl *)handle;
-  return llvm::isa_and_nonnull<clang::EnumDecl>(D);
-}
-
-bool IsVariable(TCppScope_t scope) {
-  auto *D = (clang::Decl *)scope;
-  return llvm::isa_and_nonnull<clang::VarDecl>(D);
-}
-
-std::string GetName(TCppType_t klass) {
-  // In cppyy GlobalScope is represented by empty string
-  // if (klass == Cppyy::NewGetGlobalScope())
-  //     return "";
-
-  auto *D = (clang::NamedDecl *)klass;
-  return D->getNameAsString();
-}
-
-std::vector<TCppScope_t> GetUsingNamespaces(TCppScope_t scope) {
-  auto *D = (clang::Decl *)scope;
-
-  if (auto *DC = llvm::dyn_cast_or_null<clang::DeclContext>(D)) {
-    std::vector<TCppScope_t> namespaces;
-    for (auto UD : DC->using_directives()) {
-      namespaces.push_back((TCppScope_t)UD->getNominatedNamespace());
-    }
-    return namespaces;
-  }
-
-  return {};
-}
-}
-} // namespace InterOp
 
 // This function isn't referenced outside its translation unit, but it
 // can't use the "static" keyword because its address is used for
@@ -138,24 +49,24 @@ static std::string MakeResourcesPath() {
   return std::string(P.str());
 }
 
-static std::unique_ptr<cling::Interpreter> createInterpreter() {
+static std::unique_ptr<Interpreter> createInterpreter() {
   std::string MainExecutableName =
       llvm::sys::fs::getMainExecutable(nullptr, nullptr);
   std::string ResourceDir = MakeResourcesPath();
   std::vector<const char *> ClingArgv = {"-resource-dir", ResourceDir.c_str()};
   ClingArgv.insert(ClingArgv.begin(), MainExecutableName.c_str());
-  return llvm::make_unique<cling::Interpreter>(ClingArgv.size(), &ClingArgv[0]);
+  return llvm::make_unique<Interpreter>(ClingArgv.size(), &ClingArgv[0]);
 }
 
-std::unique_ptr<cling::Interpreter> Interp;
+std::unique_ptr<Interpreter> Interp;
 
 static void GetAllTopLevelDecls(const std::string &code,
                                 std::vector<Decl *> &Decls) {
   Interp = createInterpreter();
-  cling::Transaction *T = nullptr;
+  Transaction *T = nullptr;
   Interp->declare(code, &T);
   for (auto DCI = T->decls_begin(), E = T->decls_end(); DCI != E; ++DCI) {
-    if (DCI->m_Call != cling::Transaction::kCCIHandleTopLevelDecl)
+    if (DCI->m_Call != Transaction::kCCIHandleTopLevelDecl)
       continue;
     assert(DCI->m_DGR.isSingleDecl());
     Decls.push_back(DCI->m_DGR.getSingleDecl());

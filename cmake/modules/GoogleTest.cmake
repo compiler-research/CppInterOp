@@ -19,6 +19,7 @@ elseif(APPLE)
   set(EXTRA_GTEST_OPTS -DCMAKE_OSX_SYSROOT=${CMAKE_OSX_SYSROOT})
 endif()
 
+include(ExternalProject)
 ExternalProject_Add(
   googletest
   GIT_REPOSITORY https://github.com/google/googletest.git
