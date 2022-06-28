@@ -92,6 +92,20 @@ std::string GetName(TCppType_t klass) {
   auto *D = (clang::NamedDecl *)klass;
   return D->getNameAsString();
 }
+
+std::vector<TCppScope_t> GetUsingNamespaces(TCppScope_t scope) {
+  auto *D = (clang::Decl *)scope;
+
+  if (auto *DC = llvm::dyn_cast_or_null<clang::DeclContext>(D)) {
+    std::vector<TCppScope_t> namespaces;
+    for (auto UD : DC->using_directives()) {
+      namespaces.push_back((TCppScope_t)UD->getNominatedNamespace());
+    }
+    return namespaces;
+  }
+
+  return {};
+}
 }
 } // namespace InterOp
 
@@ -322,4 +336,28 @@ TEST(ScopeReflectionTest, GetName) {
   EXPECT_EQ(InterOp::GetName(Decls[5]), "U");
   EXPECT_EQ(InterOp::GetName(Decls[6]), "Size4");
   EXPECT_EQ(InterOp::GetName(Decls[7]), "Size16");
+}
+
+TEST(ScopeReflectionTest, GetUsingNamespaces) {
+  std::vector<Decl *> Decls;
+  std::string code = R"(
+    namespace abc {
+
+    class C {};
+
+    }
+    using namespace std;
+    using namespace abc;
+
+    using I = int;
+  )";
+
+  GetAllTopLevelDecls(code, Decls);
+  std::vector<void *> usingNamespaces;
+  usingNamespaces = InterOp::GetUsingNamespaces(
+          Decls[0]->getASTContext().getTranslationUnitDecl());
+
+  EXPECT_EQ(InterOp::GetName(usingNamespaces[0]), "runtime");
+  EXPECT_EQ(InterOp::GetName(usingNamespaces[1]), "std");
+  EXPECT_EQ(InterOp::GetName(usingNamespaces[2]), "abc");
 }
