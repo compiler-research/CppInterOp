@@ -60,6 +60,11 @@ bool IsBuiltin(TCppType_t type) {
   // FIXME: Figure out how to avoid the string comparison.
   return llvm::StringRef(Ty.getAsString()).contains("complex");
 }
+
+bool IsTemplate(TCppScope_t handle) {
+  auto *D = (clang::Decl *)handle;
+  return llvm::isa_and_nonnull<clang::TemplateDecl>(D);
+}
 } // namespace Cpp
 
 // This function isn't referenced outside its translation unit, but it
@@ -181,4 +186,30 @@ TEST(ScopeReflectionTest, IsBuiltin) {
   auto *CTD = cast<ClassTemplateDecl>(lookup.front());
   for (ClassTemplateSpecializationDecl *CTSD : CTD->specializations())
     EXPECT_TRUE(Cpp::IsBuiltin(C.getTypeDeclType(CTSD).getAsOpaquePtr()));
+}
+
+TEST(ScopeReflectionTest, IsTemplate) {
+  std::vector<Decl *> Decls;
+  std::string code = R"(template<typename T>
+                        class A{};
+
+                        class C{
+                          template<typename T>
+                          int func(T t) {
+                            return 0;
+                          }
+                        };
+
+                        template<typename T>
+                        T f(T t) {
+                          return t;
+                        }
+
+                        void g() {} )";
+
+  GetAllTopLevelDecls(code, Decls);
+  EXPECT_TRUE(Cpp::IsTemplate(Decls[0]));
+  EXPECT_FALSE(Cpp::IsTemplate(Decls[1]));
+  EXPECT_TRUE(Cpp::IsTemplate(Decls[2]));
+  EXPECT_FALSE(Cpp::IsTemplate(Decls[3]));
 }
