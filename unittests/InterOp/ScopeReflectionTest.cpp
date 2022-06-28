@@ -83,6 +83,15 @@ bool IsVariable(TCppScope_t scope) {
   auto *D = (clang::Decl *)scope;
   return llvm::isa_and_nonnull<clang::VarDecl>(D);
 }
+
+std::string GetName(TCppType_t klass) {
+  // In cppyy GlobalScope is represented by empty string
+  // if (klass == Cppyy::NewGetGlobalScope())
+  //     return "";
+
+  auto *D = (clang::NamedDecl *)klass;
+  return D->getNameAsString();
+}
 }
 } // namespace InterOp
 
@@ -296,4 +305,21 @@ TEST(ScopeReflectionTest, IsVariable) {
   EXPECT_FALSE(InterOp::IsVariable(SubDecls[1]));
   EXPECT_FALSE(InterOp::IsVariable(SubDecls[2]));
   EXPECT_TRUE(InterOp::IsVariable(SubDecls[3]));
+}
+
+TEST(ScopeReflectionTest, GetName) {
+  std::vector<Decl*> Decls;
+  std::string code = R"(namespace N {} class C{}; int I; struct S;
+                        enum E : int; union U{}; class Size4{int i;};
+                        struct Size16 {short a; double b;};
+                       )";
+  GetAllTopLevelDecls(code, Decls);
+  EXPECT_EQ(InterOp::GetName(Decls[0]), "N");
+  EXPECT_EQ(InterOp::GetName(Decls[1]), "C");
+  EXPECT_EQ(InterOp::GetName(Decls[2]), "I");
+  EXPECT_EQ(InterOp::GetName(Decls[3]), "S");
+  EXPECT_EQ(InterOp::GetName(Decls[4]), "E");
+  EXPECT_EQ(InterOp::GetName(Decls[5]), "U");
+  EXPECT_EQ(InterOp::GetName(Decls[6]), "Size4");
+  EXPECT_EQ(InterOp::GetName(Decls[7]), "Size16");
 }
