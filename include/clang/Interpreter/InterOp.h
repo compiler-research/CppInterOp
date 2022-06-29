@@ -52,6 +52,8 @@ namespace InterOp {
                        TCppScope_t parent);
 
   TCppScope_t GetParentScope(TCppScope_t scope);
+
+  TCppScope_t GetScopeFromType(TCppType_t type);
 } // end namespace InterOp
 
 } // end namespace cling
