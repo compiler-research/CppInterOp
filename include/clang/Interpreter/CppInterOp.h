@@ -41,6 +41,9 @@ namespace Cpp {
   std::vector<TCppScope_t> GetUsingNamespaces(TCppScope_t scope);
 
   TCppScope_t GetGlobalScope(TCppSema_t sema);
+
+  TCppScope_t GetScope(TCppSema_t sema, const std::string &name,
+                       TCppScope_t parent);
 } // end namespace Cpp
 
 } // end namespace cling
