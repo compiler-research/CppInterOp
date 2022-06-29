@@ -11,6 +11,7 @@
 #define CLING_INTERPRETER_CPPINTEROP_H
 
 #include <string>
+#include <vector>
 
 namespace cling {
 namespace Cpp {
