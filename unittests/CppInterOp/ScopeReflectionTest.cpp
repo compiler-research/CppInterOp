@@ -74,6 +74,8 @@ static void GetAllTopLevelDecls(const std::string &code,
 }
 
 static void GetAllSubDecls(Decl *D, std::vector<Decl *> &SubDecls) {
+  if (!llvm::isa_and_nonnull<DeclContext>(D))
+    return;
   DeclContext *DC = Decl::castToDeclContext(D);
   for (auto DCI = DC->decls_begin(), E = DC->decls_end(); DCI != E; ++DCI) {
     SubDecls.push_back(*DCI);
