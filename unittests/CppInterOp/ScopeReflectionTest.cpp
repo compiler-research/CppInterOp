@@ -444,3 +444,27 @@ TEST(ScopeReflectionTest, GetParentScope) {
   EXPECT_EQ(Cpp::GetCompleteName(Cpp::GetParentScope(en_A)), "N1::N2::C::E");
   EXPECT_EQ(Cpp::GetCompleteName(Cpp::GetParentScope(en_B)), "N1::N2::C::E");
 }
+
+TEST(ScopeReflectionTest, GetScopeFromType) {
+  std::vector<Decl *> Decls;
+  std::string code = R"(
+    namespace N {
+    class C {};
+    struct S {};
+    }
+
+    N::C c;
+
+    N::S s;
+
+    int i;
+  )";
+
+  GetAllTopLevelDecls(code, Decls);
+  QualType QT1 = llvm::dyn_cast<VarDecl>(Decls[1])->getType();
+  QualType QT2 = llvm::dyn_cast<VarDecl>(Decls[2])->getType();
+  QualType QT3 = llvm::dyn_cast<VarDecl>(Decls[3])->getType();
+  EXPECT_EQ(Cpp::GetCompleteName(Cpp::GetScopeFromType(&QT1)), "N::C");
+  EXPECT_EQ(Cpp::GetCompleteName(Cpp::GetScopeFromType(&QT2)), "N::S");
+  EXPECT_EQ(Cpp::GetScopeFromType(&QT3), (cling::Cpp::TCppScope_t)0);
+}
