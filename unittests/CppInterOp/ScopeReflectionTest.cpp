@@ -355,3 +355,27 @@ TEST(ScopeReflectionTest, GetScope) {
   EXPECT_EQ(Cpp::GetCompleteName(ns_N), "N");
   EXPECT_EQ(Cpp::GetCompleteName(cl_C), "N::C");
 }
+
+TEST(ScopeReflectionTest, GetScopefromCompleteName) {
+  std::vector<Decl *> Decls;
+  std::string code = R"(namespace N1 {
+                        namespace N2 {
+                          class C {
+                            struct S {};
+                          };
+                        }
+                        }
+                       )";
+
+  Interp = createInterpreter();
+  Interp->declare(code);
+  Sema *S = &Interp->getCI()->getSema();
+  EXPECT_EQ(Cpp::GetCompleteName(Cpp::GetScopeFromCompleteName(S, "N1")), "N1");
+  EXPECT_EQ(Cpp::GetCompleteName(Cpp::GetScopeFromCompleteName(S, "N1::N2")),
+            "N1::N2");
+  EXPECT_EQ(Cpp::GetCompleteName(Cpp::GetScopeFromCompleteName(S, "N1::N2::C")),
+            "N1::N2::C");
+  EXPECT_EQ(
+      Cpp::GetCompleteName(Cpp::GetScopeFromCompleteName(S, "N1::N2::C::S")),
+      "N1::N2::C::S");
+}
