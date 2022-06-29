@@ -326,3 +326,10 @@ TEST(ScopeReflectionTest, GetUsingNamespaces) {
   EXPECT_EQ(Cpp::GetName(usingNamespaces[1]), "std");
   EXPECT_EQ(Cpp::GetName(usingNamespaces[2]), "abc");
 }
+
+TEST(ScopeReflectionTest, GetGlobalScope) {
+  Interp = createInterpreter();
+  Sema *S = &Interp->getCI()->getSema();
+
+  EXPECT_EQ(Cpp::GetCompleteName(Cpp::GetGlobalScope(S)), "");
+}

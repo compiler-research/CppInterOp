@@ -12,6 +12,7 @@
 #include "clang/AST/Decl.h"
 #include "clang/AST/DeclCXX.h"
 #include "clang/AST/RecordLayout.h"
+#include "clang/Sema/Lookup.h"
 #include "clang/Sema/Sema.h"
 
 #include "llvm/ADT/StringRef.h"
@@ -121,6 +122,13 @@ namespace Cpp {
 
     return {};
   }
+
+  TCppScope_t GetGlobalScope(TCppSema_t sema) {
+    auto *S = (Sema *)sema;
+    return S->getASTContext().getTranslationUnitDecl();
+  }
   } // end namespace Cpp
+
+  } // end namespace cling
 
   } // end namespace cling
