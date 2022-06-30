@@ -66,6 +66,8 @@ namespace Cpp {
   std::vector<TCppFunction_t> GetFunctionsUsingName(TCppSema_t sema,
                                                     TCppScope_t scope,
                                                     const std::string &name);
+
+  std::string GetFunctionReturnTypeAsString(TCppFunction_t func);
 } // end namespace Cpp
 
 } // end namespace cling
