@@ -70,6 +70,8 @@ namespace Cpp {
   std::string GetFunctionReturnTypeAsString(TCppFunction_t func);
 
   TCppIndex_t GetFunctionNumArgs(TCppFunction_t func);
+
+  TCppIndex_t GetFunctionRequiredArgs(TCppFunction_t func);
 } // end namespace Cpp
 
 } // end namespace cling
