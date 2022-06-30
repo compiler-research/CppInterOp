@@ -18,6 +18,7 @@ namespace Cpp {
   using TCppIndex_t = size_t;
   using TCppScope_t = void*;
   using TCppType_t = void*;
+  using TCppFunction_t = void*;
   using TCppSema_t = void *;
 
   bool IsNamespace(TCppScope_t scope);
@@ -59,6 +60,8 @@ namespace Cpp {
   TCppScope_t GetBaseClass(TCppType_t klass, TCppIndex_t ibase);
 
   bool IsSubclass(TCppScope_t derived, TCppScope_t base);
+
+  std::vector<TCppFunction_t> GetClassMethods(TCppScope_t klass);
 } // end namespace Cpp
 
 } // end namespace cling
