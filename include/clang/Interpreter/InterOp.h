@@ -68,6 +68,8 @@ namespace InterOp {
                                                     const std::string &name);
 
   std::string GetFunctionReturnTypeAsString(TCppFunction_t func);
+
+  TCppIndex_t GetFunctionNumArgs(TCppFunction_t func);
 } // end namespace InterOp
 
 } // end namespace cling
