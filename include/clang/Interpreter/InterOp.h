@@ -66,6 +66,8 @@ namespace InterOp {
   std::vector<TCppFunction_t> GetFunctionsUsingName(TCppSema_t sema,
                                                     TCppScope_t scope,
                                                     const std::string &name);
+
+  std::string GetFunctionReturnTypeAsString(TCppFunction_t func);
 } // end namespace InterOp
 
 } // end namespace cling
