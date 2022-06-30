@@ -57,6 +57,8 @@ namespace Cpp {
   TCppScope_t GetScopeFromType(TCppType_t type);
 
   TCppScope_t GetBaseClass(TCppType_t klass, TCppIndex_t ibase);
+
+  bool IsSubclass(TCppScope_t derived, TCppScope_t base);
 } // end namespace Cpp
 
 } // end namespace cling
