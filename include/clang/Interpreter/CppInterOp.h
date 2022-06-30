@@ -15,6 +15,7 @@
 
 namespace cling {
 namespace Cpp {
+  using TCppIndex_t = size_t;
   using TCppScope_t = void*;
   using TCppType_t = void*;
   using TCppSema_t = void *;
@@ -54,6 +55,8 @@ namespace Cpp {
   TCppScope_t GetParentScope(TCppScope_t scope);
 
   TCppScope_t GetScopeFromType(TCppType_t type);
+
+  TCppScope_t GetBaseClass(TCppType_t klass, TCppIndex_t ibase);
 } // end namespace Cpp
 
 } // end namespace cling
