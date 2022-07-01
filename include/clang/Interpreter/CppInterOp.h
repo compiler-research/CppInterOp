@@ -72,6 +72,10 @@ namespace Cpp {
   TCppIndex_t GetFunctionNumArgs(TCppFunction_t func);
 
   TCppIndex_t GetFunctionRequiredArgs(TCppFunction_t func);
+
+  std::string GetFunctionSignature(TCppFunction_t func,
+                                   bool show_formal_args = false,
+                                   TCppIndex_t max_args = -1);
 } // end namespace Cpp
 
 } // end namespace cling
