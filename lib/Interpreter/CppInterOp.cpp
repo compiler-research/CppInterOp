@@ -540,6 +540,11 @@ namespace Cpp {
   {
     return CheckVariableAccess(var, AccessSpecifier::AS_protected);
   }
+
+  bool IsPrivateVariable(TCppScope_t var)
+  {
+    return CheckVariableAccess(var, AccessSpecifier::AS_private);
+  }
   } // end namespace Cpp
 
   } // end namespace cling
