@@ -435,6 +435,11 @@ namespace InterOp {
   {
     return CheckMethodAccess(method, AccessSpecifier::AS_private);
   }
+
+  bool IsConstructor(TCppFunction_t method) {
+    auto *D = (Decl *)method;
+    return llvm::isa_and_nonnull<CXXConstructorDecl>(D);
+  }
   } // end namespace InterOp
 
   } // end namespace cling

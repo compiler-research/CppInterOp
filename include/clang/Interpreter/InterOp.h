@@ -90,6 +90,8 @@ namespace InterOp {
   bool IsProtectedMethod(TCppFunction_t method);
 
   bool IsPrivateMethod(TCppFunction_t method);
+
+  bool IsConstructor(TCppFunction_t method);
 } // end namespace InterOp
 
 } // end namespace cling
