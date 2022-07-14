@@ -20,6 +20,7 @@ namespace Cpp {
   using TCppType_t = void*;
   using TCppFunction_t = void*;
   using TCppSema_t = void *;
+  using TInterp_t = void*;
 
   bool IsNamespace(TCppScope_t scope);
   // See TClingClassInfo::IsLoaded
@@ -100,6 +101,8 @@ namespace Cpp {
   std::vector<TCppScope_t> GetDatamembers(TCppScope_t scope);
 
   std::string GetVariableTypeAsString(TCppScope_t var);
+
+  intptr_t GetVariableOffset(TInterp_t interp, TCppScope_t var);
 } // end namespace Cpp
 
 } // end namespace cling
