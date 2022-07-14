@@ -409,6 +409,21 @@ namespace Cpp {
 
     return true;
   }
+
+  bool CheckMethodAccess(TCppFunction_t method, AccessSpecifier AS)
+  {
+    auto *D = (Decl *) method;
+    if (auto *CXXMD = llvm::dyn_cast_or_null<CXXMethodDecl>(D)) {
+      return CXXMD->getAccess() == AS;
+    }
+
+    return false;
+  }
+
+  bool IsPublicMethod(TCppFunction_t method)
+  {
+    return CheckMethodAccess(method, AccessSpecifier::AS_public);
+  }
   } // end namespace Cpp
 
   } // end namespace cling
