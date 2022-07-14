@@ -439,6 +439,11 @@ namespace Cpp {
     auto *D = (Decl *)method;
     return llvm::isa_and_nonnull<CXXConstructorDecl>(D);
   }
+
+  bool IsDestructor(TCppFunction_t method) {
+    auto *D = (Decl *)method;
+    return llvm::isa_and_nonnull<CXXDestructorDecl>(D);
+  }
   } // end namespace Cpp
 
   } // end namespace cling
