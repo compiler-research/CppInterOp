@@ -30,3 +30,29 @@ TEST(VariableReflectionTest, GetDatamembers) {
   EXPECT_EQ(Cpp::GetCompleteName(datamembers[2]), "C::e");
   EXPECT_EQ(datamembers.size(), 3);
 }
+
+TEST(VariableReflectionTest, GetVariableTypeAsString) {
+  std::vector<Decl*> Decls;
+  std::string code = R"(
+    class C {};
+
+    template<typename T>
+    class E {};
+
+    int a;
+    char b;
+    C c;
+    C *d;
+    E<int> e;
+    E<int> *f;
+    )";
+
+  GetAllTopLevelDecls(code, Decls);
+
+  EXPECT_EQ(Cpp::GetVariableTypeAsString(Decls[2]), "int");
+  EXPECT_EQ(Cpp::GetVariableTypeAsString(Decls[3]), "char");
+  EXPECT_EQ(Cpp::GetVariableTypeAsString(Decls[4]), "class C");
+  EXPECT_EQ(Cpp::GetVariableTypeAsString(Decls[5]), "class C *");
+  EXPECT_EQ(Cpp::GetVariableTypeAsString(Decls[6]), "E<int>");
+  EXPECT_EQ(Cpp::GetVariableTypeAsString(Decls[7]), "E<int> *");
+}

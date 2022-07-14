@@ -470,6 +470,16 @@ namespace Cpp {
 
     return {};
   }
+
+  std::string GetVariableTypeAsString(TCppScope_t var) {
+    auto D = (Decl *) var;
+
+    if (auto DD = llvm::dyn_cast_or_null<DeclaratorDecl>(D)) {
+      return DD->getType().getAsString();
+    }
+
+    return "";
+  }
   } // end namespace Cpp
 
   } // end namespace cling
