@@ -429,6 +429,11 @@ namespace Cpp {
   {
     return CheckMethodAccess(method, AccessSpecifier::AS_protected);
   }
+
+  bool IsPrivateMethod(TCppFunction_t method)
+  {
+    return CheckMethodAccess(method, AccessSpecifier::AS_private);
+  }
   } // end namespace Cpp
 
   } // end namespace cling
