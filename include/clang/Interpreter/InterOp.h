@@ -111,6 +111,8 @@ namespace InterOp {
   bool IsPrivateVariable(TCppScope_t var);
 
   bool IsStaticVariable(TCppScope_t var);
+
+  bool IsConstVariable(TCppScope_t var);
 } // end namespace InterOp
 
 } // end namespace cling
