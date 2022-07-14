@@ -105,6 +105,8 @@ namespace Cpp {
   intptr_t GetVariableOffset(TInterp_t interp, TCppScope_t var);
 
   bool IsPublicVariable(TCppScope_t var);
+
+  bool IsProtectedVariable(TCppScope_t var);
 } // end namespace Cpp
 
 } // end namespace cling
