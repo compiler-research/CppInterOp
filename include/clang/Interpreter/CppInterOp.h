@@ -79,6 +79,8 @@ namespace Cpp {
 
   std::string GetFunctionPrototype(TCppFunction_t func,
                                    bool show_formal_args = false);
+
+  bool IsTemplatedFunction(TCppFunction_t func);
 } // end namespace Cpp
 
 } // end namespace cling

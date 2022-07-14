@@ -271,3 +271,28 @@ TEST(FunctionReflectionTest, GetFunctionPrototype) {
       Decls[12], true,
       "void N::f(int i, double d, long l = 0, char ch = 'a')"); // N::f
 }
+
+TEST(FunctionReflectionTest, IsTemplatedFunction) {
+  std::vector<Decl*> Decls, SubDeclsC1, SubDeclsC2;
+  std::string code = R"(
+    void f1(int a) {}
+
+    template<typename T>
+    void f2(T a) {}
+
+    class C1 {
+      void f1(int a) {}
+
+      template<typename T>
+      void f2(T a) {}
+    };
+    )";
+
+  GetAllTopLevelDecls(code, Decls);
+  GetAllSubDecls(Decls[2], SubDeclsC1);
+
+  EXPECT_FALSE(Cpp::IsTemplatedFunction(Decls[0]));
+  EXPECT_TRUE(Cpp::IsTemplatedFunction(Decls[1]));
+  EXPECT_FALSE(Cpp::IsTemplatedFunction(SubDeclsC1[1]));
+  EXPECT_TRUE(Cpp::IsTemplatedFunction(SubDeclsC1[2]));
+}
