@@ -103,6 +103,8 @@ namespace Cpp {
   std::string GetVariableTypeAsString(TCppScope_t var);
 
   intptr_t GetVariableOffset(TInterp_t interp, TCppScope_t var);
+
+  bool IsPublicVariable(TCppScope_t var);
 } // end namespace Cpp
 
 } // end namespace cling

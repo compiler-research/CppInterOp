@@ -91,3 +91,24 @@ TEST(VariableReflectionTest, GetVariableOffset) {
   EXPECT_EQ(Cpp::GetVariableOffset(Interp.get(), datamembers[3]),
             ((unsigned long)&(c.d)) - ((unsigned long)&(c.a)));
 }
+
+TEST(VariableReflectionTest, IsPublicVariable) {
+  std::vector<Decl *> Decls, SubDecls;
+  std::string code = R"(
+    class C {
+    public:
+      int a;
+    private:
+      int b;
+    protected:
+      int c;
+    };
+    )";
+
+  GetAllTopLevelDecls(code, Decls);
+  GetAllSubDecls(Decls[0], SubDecls);
+
+  EXPECT_TRUE(Cpp::IsPublicVariable(SubDecls[2]));
+  EXPECT_FALSE(Cpp::IsPublicVariable(SubDecls[4]));
+  EXPECT_FALSE(Cpp::IsPublicVariable(SubDecls[6]));
+}

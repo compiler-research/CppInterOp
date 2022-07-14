@@ -520,6 +520,21 @@ namespace Cpp {
 
     return 0;
   }
+
+  bool CheckVariableAccess(TCppScope_t var, AccessSpecifier AS)
+  {
+    auto *D = (Decl *) var;
+    if (auto *CXXMD = llvm::dyn_cast_or_null<DeclaratorDecl>(D)) {
+      return CXXMD->getAccess() == AS;
+    }
+
+    return false;
+  }
+
+  bool IsPublicVariable(TCppScope_t var)
+  {
+    return CheckVariableAccess(var, AccessSpecifier::AS_public);
+  }
   } // end namespace Cpp
 
   } // end namespace cling
