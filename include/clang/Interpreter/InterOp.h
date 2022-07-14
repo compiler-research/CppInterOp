@@ -79,6 +79,8 @@ namespace InterOp {
 
   std::string GetFunctionPrototype(TCppFunction_t func,
                                    bool show_formal_args = false);
+
+  bool IsTemplatedFunction(TCppFunction_t func);
 } // end namespace InterOp
 
 } // end namespace cling
