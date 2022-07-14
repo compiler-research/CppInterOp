@@ -81,6 +81,9 @@ namespace InterOp {
                                    bool show_formal_args = false);
 
   bool IsTemplatedFunction(TCppFunction_t func);
+
+  bool ExistsFunctionTemplate(TCppSema_t sema, const std::string &name,
+                              TCppScope_t parent = 0);
 } // end namespace InterOp
 
 } // end namespace cling
