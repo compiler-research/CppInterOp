@@ -440,3 +440,19 @@ TEST(FunctionReflectionTest, IsDestructor) {
   EXPECT_FALSE(Cpp::IsDestructor(SubDecls[6]));
   EXPECT_FALSE(Cpp::IsDestructor(SubDecls[8]));
 }
+
+TEST(FunctionReflectionTest, IsStaticMethod) {
+  std::vector<Decl *> Decls, SubDecls;
+  std::string code = R"(
+    class C {
+      void f1() {}
+      static void f2() {}
+    };
+    )";
+
+  GetAllTopLevelDecls(code, Decls);
+  GetAllSubDecls(Decls[0], SubDecls);
+
+  EXPECT_FALSE(Cpp::IsStaticMethod(SubDecls[1]));
+  EXPECT_TRUE(Cpp::IsStaticMethod(SubDecls[2]));
+}

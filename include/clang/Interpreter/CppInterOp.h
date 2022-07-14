@@ -94,6 +94,8 @@ namespace Cpp {
   bool IsConstructor(TCppFunction_t method);
 
   bool IsDestructor(TCppFunction_t method);
+
+  bool IsStaticMethod(TCppFunction_t method);
 } // end namespace Cpp
 
 } // end namespace cling
