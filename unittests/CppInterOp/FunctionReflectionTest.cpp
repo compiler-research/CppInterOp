@@ -390,3 +390,28 @@ TEST(FunctionReflectionTest, IsPrivateMethod) {
   EXPECT_TRUE(Cpp::IsPrivateMethod(SubDecls[6]));
   EXPECT_FALSE(Cpp::IsPrivateMethod(SubDecls[8]));
 }
+
+TEST(FunctionReflectionTest, IsConstructor) {
+  std::vector<Decl *> Decls, SubDecls;
+  std::string code = R"(
+    class C {
+    public:
+      C() {}
+      void pub_f() {}
+      ~C() {}
+    private:
+      void pri_f() {}
+    protected:
+      void pro_f() {}
+    };
+    )";
+
+  GetAllTopLevelDecls(code, Decls);
+  GetAllSubDecls(Decls[0], SubDecls);
+
+  EXPECT_TRUE(Cpp::IsConstructor(SubDecls[2]));
+  EXPECT_FALSE(Cpp::IsConstructor(SubDecls[3]));
+  EXPECT_FALSE(Cpp::IsConstructor(SubDecls[4]));
+  EXPECT_FALSE(Cpp::IsConstructor(SubDecls[6]));
+  EXPECT_FALSE(Cpp::IsConstructor(SubDecls[8]));
+}

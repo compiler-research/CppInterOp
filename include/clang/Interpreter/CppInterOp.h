@@ -90,6 +90,8 @@ namespace Cpp {
   bool IsProtectedMethod(TCppFunction_t method);
 
   bool IsPrivateMethod(TCppFunction_t method);
+
+  bool IsConstructor(TCppFunction_t method);
 } // end namespace Cpp
 
 } // end namespace cling

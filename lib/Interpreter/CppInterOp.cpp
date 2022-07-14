@@ -434,6 +434,11 @@ namespace Cpp {
   {
     return CheckMethodAccess(method, AccessSpecifier::AS_private);
   }
+
+  bool IsConstructor(TCppFunction_t method) {
+    auto *D = (Decl *)method;
+    return llvm::isa_and_nonnull<CXXConstructorDecl>(D);
+  }
   } // end namespace Cpp
 
   } // end namespace cling
