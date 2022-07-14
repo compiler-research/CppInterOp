@@ -92,6 +92,8 @@ namespace InterOp {
   bool IsPrivateMethod(TCppFunction_t method);
 
   bool IsConstructor(TCppFunction_t method);
+
+  bool IsDestructor(TCppFunction_t method);
 } // end namespace InterOp
 
 } // end namespace cling
