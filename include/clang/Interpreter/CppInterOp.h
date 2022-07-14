@@ -86,6 +86,8 @@ namespace Cpp {
                               TCppScope_t parent = 0);
 
   bool IsPublicMethod(TCppFunction_t method);
+
+  bool IsProtectedMethod(TCppFunction_t method);
 } // end namespace Cpp
 
 } // end namespace cling
