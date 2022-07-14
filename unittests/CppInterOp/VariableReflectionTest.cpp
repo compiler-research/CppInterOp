@@ -154,3 +154,19 @@ TEST(VariableReflectionTest, IsPrivateVariable) {
   EXPECT_TRUE(Cpp::IsPrivateVariable(SubDecls[4]));
   EXPECT_FALSE(Cpp::IsPrivateVariable(SubDecls[6]));
 }
+
+TEST(VariableReflectionTest, IsStaticVariable) {
+  std::vector<Decl *> Decls, SubDecls;
+  std::string code =  R"(
+    class C {
+      int a;
+      static int b;
+    };
+    )";
+
+  GetAllTopLevelDecls(code, Decls);
+  GetAllSubDecls(Decls[0], SubDecls);
+
+  EXPECT_FALSE(Cpp::IsStaticVariable(SubDecls[1]));
+  EXPECT_TRUE(Cpp::IsStaticVariable(SubDecls[2]));
+}

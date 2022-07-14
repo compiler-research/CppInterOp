@@ -109,6 +109,8 @@ namespace Cpp {
   bool IsProtectedVariable(TCppScope_t var);
 
   bool IsPrivateVariable(TCppScope_t var);
+
+  bool IsStaticVariable(TCppScope_t var);
 } // end namespace Cpp
 
 } // end namespace cling
