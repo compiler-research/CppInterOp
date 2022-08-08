@@ -398,6 +398,26 @@ TEST(ScopeReflectionTest, GetScopeFromType) {
             (cling::Cpp::TCppScope_t)0);
 }
 
+TEST(ScopeReflectionTest, GetNumBases) {
+  std::vector<Decl *> Decls;
+  std::string code = R"(
+    class A {};
+    class B : virtual public A {};
+    class C : virtual public A {};
+    class D : public B, public C {};
+    class E : public D {};
+  )";
+
+  GetAllTopLevelDecls(code, Decls);
+
+  EXPECT_EQ(Cpp::GetNumBases(Decls[0]), 0);
+  EXPECT_EQ(Cpp::GetNumBases(Decls[1]), 1);
+  EXPECT_EQ(Cpp::GetNumBases(Decls[2]), 1);
+  EXPECT_EQ(Cpp::GetNumBases(Decls[3]), 2);
+  EXPECT_EQ(Cpp::GetNumBases(Decls[4]), 1);
+}
+
+
 TEST(ScopeReflectionTest, GetBaseClass) {
   std::vector<Decl *> Decls;
   std::string code = R"(

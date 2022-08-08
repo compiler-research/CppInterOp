@@ -221,6 +221,16 @@ namespace Cpp {
     return 0;
   }
 
+  TCppIndex_t GetNumBases(TCppScope_t klass)
+  {
+    auto *D = (Decl *) klass;
+
+    if (auto *CXXRD = llvm::dyn_cast_or_null<CXXRecordDecl>(D))
+      return CXXRD->getNumBases();
+
+    return 0;
+  }
+
   TCppScope_t GetBaseClass(TCppScope_t klass, TCppIndex_t ibase)
   {
     auto *D = (Decl *) klass;
@@ -481,9 +491,8 @@ namespace Cpp {
     return {};
   }
 
-  TCppType_t GetVariableType(TCppScope_t var)
-  {
-    auto D = (Decl *) var;
+  TCppType_t GetVariableType(TCppScope_t var) {
+    auto D = (Decl *)var;
 
     if (auto DD = llvm::dyn_cast_or_null<DeclaratorDecl>(D)) {
       return DD->getType().getAsOpaquePtr();
