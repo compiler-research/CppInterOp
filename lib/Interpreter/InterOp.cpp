@@ -572,6 +572,12 @@ namespace InterOp {
 
     return false;
   }
+
+  std::string GetTypeAsString(TCppType_t var)
+  {
+      QualType QT = QualType::getFromOpaquePtr(var);
+      return QT.getAsString();
+  }
   } // end namespace InterOp
 
   } // end namespace cling
