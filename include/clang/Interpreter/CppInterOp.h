@@ -76,6 +76,8 @@ namespace Cpp {
 
   TCppIndex_t GetFunctionRequiredArgs(TCppFunction_t func);
 
+  TCppType_t GetFunctionArgType(TCppFunction_t func, TCppIndex_t iarg);
+
   std::string GetFunctionSignature(TCppFunction_t func,
                                    bool show_formal_args = false,
                                    TCppIndex_t max_args = -1);
