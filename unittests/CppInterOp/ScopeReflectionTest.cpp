@@ -390,9 +390,12 @@ TEST(ScopeReflectionTest, GetScopeFromType) {
   QualType QT1 = llvm::dyn_cast<VarDecl>(Decls[1])->getType();
   QualType QT2 = llvm::dyn_cast<VarDecl>(Decls[2])->getType();
   QualType QT3 = llvm::dyn_cast<VarDecl>(Decls[3])->getType();
-  EXPECT_EQ(Cpp::GetCompleteName(Cpp::GetScopeFromType(&QT1)), "N::C");
-  EXPECT_EQ(Cpp::GetCompleteName(Cpp::GetScopeFromType(&QT2)), "N::S");
-  EXPECT_EQ(Cpp::GetScopeFromType(&QT3), (cling::Cpp::TCppScope_t)0);
+  EXPECT_EQ(Cpp::GetCompleteName(Cpp::GetScopeFromType(QT1.getAsOpaquePtr())),
+            "N::C");
+  EXPECT_EQ(Cpp::GetCompleteName(Cpp::GetScopeFromType(QT2.getAsOpaquePtr())),
+            "N::S");
+  EXPECT_EQ(Cpp::GetScopeFromType(QT3.getAsOpaquePtr()),
+            (cling::Cpp::TCppScope_t)0);
 }
 
 TEST(ScopeReflectionTest, GetBaseClass) {
