@@ -114,7 +114,7 @@ TEST(ScopeReflectionTest, IsAbstract) {
 }
 
 TEST(ScopeReflectionTest, IsEnum) {
-  std::vector<Decl *> Decls;
+  std::vector<Decl *> Decls, SubDecls;
   std::string code = R"(
     enum Switch {
       OFF,
@@ -127,9 +127,12 @@ TEST(ScopeReflectionTest, IsEnum) {
   )";
 
   GetAllTopLevelDecls(code, Decls);
+  GetAllSubDecls(Decls[0], SubDecls);
   EXPECT_TRUE(Cpp::IsEnum(Decls[0]));
   EXPECT_FALSE(Cpp::IsEnum(Decls[1]));
   EXPECT_FALSE(Cpp::IsEnum(Decls[2]));
+  EXPECT_TRUE(Cpp::IsEnum(SubDecls[0]));
+  EXPECT_TRUE(Cpp::IsEnum(SubDecls[1]));
 }
 
 TEST(ScopeReflectionTest, IsVariable) {
