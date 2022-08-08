@@ -96,12 +96,17 @@ namespace InterOp {
   }
 
   std::string GetName(TCppType_t klass) {
-    // In cppyy GlobalScope is represented by empty string
-    // if (klass == Cppyy::NewGetGlobalScope())
-    //     return "";
+    auto *D = (clang::NamedDecl *) klass;
 
-    auto *D = (clang::NamedDecl *)klass;
-    return D->getNameAsString();
+    if (llvm::isa_and_nonnull<TranslationUnitDecl>(D)) {
+      return "";
+    }
+
+    if (auto *ND = llvm::dyn_cast_or_null<NamedDecl>(D)) {
+      return ND->getNameAsString();
+    }
+
+    return "<unnamed>";
   }
 
   std::string GetCompleteName(TCppType_t klass)
@@ -466,9 +471,9 @@ namespace InterOp {
 
     if (auto *CXXRD = llvm::dyn_cast_or_null<CXXRecordDecl>(D)) {
       std::vector<TCppScope_t> datamembers;
-      for (auto it = CXXRD->field_begin(), end = CXXRD->field_end();
-              it != end ; it++) {
-        datamembers.push_back((TCppScope_t) *it);
+      for (auto it = CXXRD->field_begin(), end = CXXRD->field_end(); it != end;
+           it++) {
+        datamembers.push_back((TCppScope_t)*it);
       }
 
       return datamembers;
@@ -478,7 +483,7 @@ namespace InterOp {
   }
 
   std::string GetVariableTypeAsString(TCppScope_t var) {
-    auto D = (Decl *) var;
+    auto D = (Decl *)var;
 
     if (auto DD = llvm::dyn_cast_or_null<DeclaratorDecl>(D)) {
       return DD->getType().getAsString();
@@ -488,7 +493,7 @@ namespace InterOp {
   }
 
   intptr_t GetVariableOffset(TInterp_t interp, TCppScope_t var) {
-    auto *D = (Decl *) var;
+    auto *D = (Decl *)var;
     auto *P = (Decl *)GetParentScope(var);
     auto *I = (cling::Interpreter *)interp;
     auto *S = &I->getCI()->getSema();
