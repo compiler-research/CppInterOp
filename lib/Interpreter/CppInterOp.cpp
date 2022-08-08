@@ -301,12 +301,14 @@ namespace Cpp {
     return funcs;
   }
 
-  std::string GetFunctionReturnTypeAsString(TCppFunction_t func) {
+  TCppType_t GetFunctionReturnType(TCppFunction_t func)
+  {
     auto *D = (clang::Decl *) func;
     if (auto *FD = llvm::dyn_cast_or_null<clang::FunctionDecl>(D)) {
-      return FD->getReturnType().getAsString();
+        return FD->getReturnType().getAsOpaquePtr();
     }
-    return "";
+
+    return 0;
   }
 
   TCppIndex_t GetFunctionNumArgs(TCppFunction_t func)
@@ -429,8 +431,7 @@ namespace Cpp {
     return false;
   }
 
-  bool IsPublicMethod(TCppFunction_t method)
-  {
+  bool IsPublicMethod(TCppFunction_t method) {
     return CheckMethodAccess(method, AccessSpecifier::AS_public);
   }
 

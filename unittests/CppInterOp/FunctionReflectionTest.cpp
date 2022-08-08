@@ -82,7 +82,7 @@ TEST(FunctionReflectionTest, GetFunctionsUsingName) {
   test_get_funcs_using_name(Decls[1], "f4", 2);
 }
 
-TEST(FunctionReflectionTest, GetFunctionReturnTypeAsString) {
+TEST(FunctionReflectionTest, GetFunctionReturnType) {
   std::vector<Decl*> Decls, SubDecls;
   std::string code = R"(
     namespace N { class C {}; }
@@ -107,17 +107,17 @@ TEST(FunctionReflectionTest, GetFunctionReturnTypeAsString) {
   GetAllTopLevelDecls(code, Decls);
   GetAllSubDecls(Decls[2], SubDecls);
 
-  EXPECT_EQ(Cpp::GetFunctionReturnTypeAsString(Decls[3]), "void");
-  EXPECT_EQ(Cpp::GetFunctionReturnTypeAsString(Decls[4]), "double");
-  EXPECT_EQ(Cpp::GetFunctionReturnTypeAsString(Decls[5]), "enum Switch");
-  EXPECT_EQ(Cpp::GetFunctionReturnTypeAsString(Decls[6]), "N::C");
-  EXPECT_EQ(Cpp::GetFunctionReturnTypeAsString(Decls[7]), "N::C *");
-  EXPECT_EQ(Cpp::GetFunctionReturnTypeAsString(Decls[8]), "const N::C");
-  EXPECT_EQ(Cpp::GetFunctionReturnTypeAsString(Decls[9]), "volatile N::C");
-  EXPECT_EQ(Cpp::GetFunctionReturnTypeAsString(Decls[10]),
-            "const volatile N::C");
-  EXPECT_EQ(Cpp::GetFunctionReturnTypeAsString(SubDecls[1]), "void");
-  EXPECT_EQ(Cpp::GetFunctionReturnTypeAsString(SubDecls[2]), "int");
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetFunctionReturnType(Decls[3])), "void");
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetFunctionReturnType(Decls[4])), "double");
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetFunctionReturnType(Decls[5])),
+            "enum Switch");
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetFunctionReturnType(Decls[6])), "N::C");
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetFunctionReturnType(Decls[7])), "N::C *");
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetFunctionReturnType(Decls[8])), "const N::C");
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetFunctionReturnType(Decls[9])), "volatile N::C");
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetFunctionReturnType(Decls[10])), "const volatile N::C");
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetFunctionReturnType(SubDecls[1])), "void");
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetFunctionReturnType(SubDecls[2])), "int");
 }
 
 TEST(FunctionReflectionTest, GetFunctionNumArgs) {
