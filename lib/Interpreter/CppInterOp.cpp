@@ -481,14 +481,15 @@ namespace Cpp {
     return {};
   }
 
-  std::string GetVariableTypeAsString(TCppScope_t var) {
-    auto D = (Decl *)var;
+  TCppType_t GetVariableType(TCppScope_t var)
+  {
+    auto D = (Decl *) var;
 
     if (auto DD = llvm::dyn_cast_or_null<DeclaratorDecl>(D)) {
-      return DD->getType().getAsString();
+      return DD->getType().getAsOpaquePtr();
     }
 
-    return "";
+    return 0;
   }
 
   intptr_t GetVariableOffset(TInterp_t interp, TCppScope_t var) {
