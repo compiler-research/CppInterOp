@@ -6,6 +6,7 @@ add_cppinterop_unittest(CppInterOpTests
   ScopeReflectionTest.cpp
   FunctionReflectionTest.cpp
   VariableReflectionTest.cpp
+  TypeReflectionTest.cpp
   )
 
 target_link_libraries(CppInterOpTests

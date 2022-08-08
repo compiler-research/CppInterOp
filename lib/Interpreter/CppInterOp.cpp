@@ -571,6 +571,12 @@ namespace Cpp {
 
     return false;
   }
+
+  std::string GetTypeAsString(TCppType_t var)
+  {
+      QualType QT = QualType::getFromOpaquePtr(var);
+      return QT.getAsString();
+  }
   } // end namespace Cpp
 
   } // end namespace cling
