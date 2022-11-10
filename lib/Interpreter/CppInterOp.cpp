@@ -228,14 +228,20 @@ namespace Cpp {
             ParentDC)->getCanonicalDecl();
   }
 
-  TCppScope_t GetScopeFromType(TCppType_t type) {
-    QualType QT = QualType::getFromOpaquePtr(type);
+  namespace {
+  CXXRecordDecl *GetScopeFromType(QualType QT) {
     if (auto *Type = QT.getTypePtrOrNull()) {
       Type = Type->getPointeeOrArrayElementType();
       Type = Type->getUnqualifiedDesugaredType();
-      return (TCppScope_t)Type->getAsCXXRecordDecl();
+      return Type->getAsCXXRecordDecl();
     }
     return 0;
+  }
+  }
+
+  TCppScope_t GetScopeFromType(TCppType_t type) {
+    QualType QT = QualType::getFromOpaquePtr(type);
+    return (TCppScope_t)GetScopeFromType(QT);
   }
 
   TCppIndex_t GetNumBases(TCppScope_t klass)
