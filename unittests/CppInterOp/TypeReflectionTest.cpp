@@ -57,3 +57,26 @@ TEST(TypeReflectionTest, IsEnumType) {
   EXPECT_TRUE(Cpp::IsEnumType(Cpp::GetVariableType(Decls[4])));
   EXPECT_TRUE(Cpp::IsEnumType(Cpp::GetVariableType(Decls[5])));
 }
+
+TEST(TypeReflectionTest, GetSizeOfType) {
+  std::vector<Decl *> Decls, SubDecls0, SubDecls1;
+  std::string code = R"(
+    struct S {
+      int a;
+      double b;
+    };
+
+    char ch;
+    int n;
+    double d;
+    S s;
+    )";
+
+  GetAllTopLevelDecls(code, Decls);
+  Sema *S = &Interp->getCI()->getSema();
+
+  EXPECT_EQ(Cpp::GetSizeOfType(S, Cpp::GetVariableType(Decls[1])), 1);
+  EXPECT_EQ(Cpp::GetSizeOfType(S, Cpp::GetVariableType(Decls[2])), 4);
+  EXPECT_EQ(Cpp::GetSizeOfType(S, Cpp::GetVariableType(Decls[3])), 8);
+  EXPECT_EQ(Cpp::GetSizeOfType(S, Cpp::GetVariableType(Decls[4])), 16);
+}

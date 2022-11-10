@@ -38,6 +38,8 @@ namespace Cpp {
 
   bool IsEnumType(TCppType_t type);
 
+  size_t GetSizeOfType(TCppSema_t sema, TCppType_t type);
+
   bool IsVariable(TCppScope_t scope);
 
   std::string GetName(TCppType_t klass);
