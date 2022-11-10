@@ -644,6 +644,12 @@ namespace Cpp {
       QualType QT = QualType::getFromOpaquePtr(var);
       return QT.getAsString();
   }
+
+  TCppType_t GetCanonicalType(TCppType_t type)
+  {
+    QualType QT = QualType::getFromOpaquePtr(type);
+    return QT.getCanonicalType().getAsOpaquePtr();
+  }
   } // end namespace Cpp
 
   } // end namespace cling

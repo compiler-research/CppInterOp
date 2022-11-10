@@ -126,6 +126,8 @@ namespace Cpp {
   bool IsConstVariable(TCppScope_t var);
 
   std::string GetTypeAsString(TCppType_t type);
+
+  TCppType_t GetCanonicalType(TCppType_t type);
 } // end namespace Cpp
 
 } // end namespace cling
