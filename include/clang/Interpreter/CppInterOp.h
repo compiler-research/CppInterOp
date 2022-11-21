@@ -130,6 +130,8 @@ namespace Cpp {
 
   TCppType_t GetCanonicalType(TCppType_t type);
 
+  TCppType_t GetType(TCppSema_t sema, const std::string &type);
+
   CallFuncWrapper_t GetFunctionCallWrapper(TInterp_t interp,
                                            TCppFunction_t func);
 
