@@ -135,6 +135,16 @@ namespace Cpp {
   CallFuncWrapper_t GetFunctionCallWrapper(TInterp_t interp,
                                            TCppFunction_t func);
 
+  void AddSearchPath(TInterp_t interp, const char *dir, bool isUser = true,
+                     bool prepend = false);
+
+  void AddIncludePath(TInterp_t interp, const char *dir);
+
+  TCppIndex_t Declare(TInterp_t interp, const char *code);
+
+  const std::string LookupLibrary(TInterp_t interp, const char *lib_name);
+
+  bool LoadLibrary(TInterp_t interp, const char *lib_path);
 } // end namespace Cpp
 
 } // end namespace cling

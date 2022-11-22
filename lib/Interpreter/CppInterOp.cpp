@@ -8,6 +8,9 @@
 //------------------------------------------------------------------------------
 
 #include "clang/Interpreter/CppInterOp.h"
+#include "cling/Interpreter/DynamicLibraryManager.h"
+#include "cling/Interpreter/Interpreter.h"
+#include "cling/Interpreter/Transaction.h"
 #include "cling/Utils/AST.h"
 #include "clang/Interpreter/Interpreter.h"
 
@@ -726,7 +729,7 @@ namespace Cpp {
       return QualType(TD->getTypeForDecl(), 0).getAsOpaquePtr();
     }
 
-    return (TCppType_t) 0;
+    return (TCppType_t)0;
   }
 
   namespace {
@@ -1680,6 +1683,39 @@ namespace Cpp {
     }
 
     return 0;
+  }
+
+  void AddSearchPath(TInterp_t interp, const char *dir, bool isUser,
+                     bool prepend) {
+    auto *I = (cling::Interpreter *)interp;
+
+    I->getDynamicLibraryManager()->addSearchPath(dir, isUser, prepend);
+  }
+
+  void AddIncludePath(TInterp_t interp, const char *dir) {
+    auto *I = (cling::Interpreter *)interp;
+
+    I->AddIncludePath(dir);
+  }
+
+  TCppIndex_t Declare(TInterp_t interp, const char *code) {
+    auto *I = (cling::Interpreter *)interp;
+
+    return I->declare(code);
+  }
+
+  const std::string LookupLibrary(TInterp_t interp, const char *lib_name) {
+    auto *I = (cling::Interpreter *)interp;
+
+    return I->getDynamicLibraryManager()->lookupLibrary(lib_name);
+  }
+
+  bool LoadLibrary(TInterp_t interp, const char *lib_name) {
+    auto *I = (cling::Interpreter *)interp;
+    cling::Interpreter::CompilationResult res =
+        I->loadLibrary(lib_name, /* lookup */ true);
+
+    return res == cling::Interpreter::kSuccess;
   }
   } // end namespace Cpp
 
