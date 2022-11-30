@@ -147,6 +147,8 @@ namespace Cpp {
   const std::string LookupLibrary(TInterp_t interp, const char *lib_name);
 
   bool LoadLibrary(TInterp_t interp, const char *lib_path);
+
+  TCppScope_t InstantiateClassTemplate(TInterp_t interp, const char *tmpl_name);
 } // end namespace Cpp
 
 } // end namespace cling
