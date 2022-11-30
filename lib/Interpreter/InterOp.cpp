@@ -1675,62 +1675,88 @@ namespace InterOp {
       }
       return (CallFuncWrapper_t)wrapper;
     }
-  } // namespace
+    } // namespace
 
-  CallFuncWrapper_t GetFunctionCallWrapper(TInterp_t interp,
-                                           TCppFunction_t func) {
-    auto *I = (cling::Interpreter *)interp;
-    auto *D = (clang::Decl *)func;
+    CallFuncWrapper_t GetFunctionCallWrapper(TInterp_t interp,
+                                             TCppFunction_t func) {
+      auto *I = (cling::Interpreter *)interp;
+      auto *D = (clang::Decl *)func;
 
-    if (auto *FD = llvm::dyn_cast_or_null<clang::FunctionDecl>(D)) {
-      CallFuncWrapper_t wrapper;
-      auto R = gWrapperStore.find(FD);
-      if (R != gWrapperStore.end()) {
-        wrapper = (CallFuncWrapper_t)R->second;
-      } else {
-        wrapper = make_wrapper(I, FD);
+      if (auto *FD = llvm::dyn_cast_or_null<clang::FunctionDecl>(D)) {
+        CallFuncWrapper_t wrapper;
+        auto R = gWrapperStore.find(FD);
+        if (R != gWrapperStore.end()) {
+          wrapper = (CallFuncWrapper_t)R->second;
+        } else {
+          wrapper = make_wrapper(I, FD);
+        }
+
+        return wrapper;
       }
 
-      return wrapper;
+      return 0;
     }
 
-    return 0;
-  }
+    void AddSearchPath(TInterp_t interp, const char *dir, bool isUser,
+                       bool prepend) {
+      auto *I = (cling::Interpreter *)interp;
 
-  void AddSearchPath(TInterp_t interp, const char *dir, bool isUser,
-                     bool prepend) {
-    auto *I = (cling::Interpreter *)interp;
+      I->getDynamicLibraryManager()->addSearchPath(dir, isUser, prepend);
+    }
 
-    I->getDynamicLibraryManager()->addSearchPath(dir, isUser, prepend);
-  }
+    void AddIncludePath(TInterp_t interp, const char *dir) {
+      auto *I = (cling::Interpreter *)interp;
 
-  void AddIncludePath(TInterp_t interp, const char *dir) {
-    auto *I = (cling::Interpreter *)interp;
+      I->AddIncludePath(dir);
+    }
 
-    I->AddIncludePath(dir);
-  }
+    TCppIndex_t Declare(TInterp_t interp, const char *code) {
+      auto *I = (cling::Interpreter *)interp;
 
-  TCppIndex_t Declare(TInterp_t interp, const char *code) {
-    auto *I = (cling::Interpreter *)interp;
+      return I->declare(code);
+    }
 
-    return I->declare(code);
-  }
+    const std::string LookupLibrary(TInterp_t interp, const char *lib_name) {
+      auto *I = (cling::Interpreter *)interp;
 
-  const std::string LookupLibrary(TInterp_t interp, const char *lib_name) {
-    auto *I = (cling::Interpreter *)interp;
+      return I->getDynamicLibraryManager()->lookupLibrary(lib_name);
+    }
 
-    return I->getDynamicLibraryManager()->lookupLibrary(lib_name);
-  }
+    bool LoadLibrary(TInterp_t interp, const char *lib_name) {
+      auto *I = (cling::Interpreter *)interp;
+      cling::Interpreter::CompilationResult res =
+          I->loadLibrary(lib_name, /* lookup */ true);
 
-  bool LoadLibrary(TInterp_t interp, const char *lib_name) {
-    auto *I = (cling::Interpreter *)interp;
-    cling::Interpreter::CompilationResult res =
-        I->loadLibrary(lib_name, /* lookup */ true);
+      return res == cling::Interpreter::kSuccess;
+    }
 
-    return res == cling::Interpreter::kSuccess;
-  }
-  } // end namespace InterOp
+    TCppScope_t InstantiateClassTemplate(TInterp_t interp,
+                                         const char *tmpl_name) {
+      auto *I = (cling::Interpreter *)interp;
 
-  } // end namespace cling
+      static unsigned counter = 0;
+      std::stringstream ss;
 
-  } // end namespace cling
+      ss << "auto _t" << counter++ << " = " << tmpl_name << "();";
+      printf("%s\n", ss.str().c_str());
+      Transaction *T = nullptr;
+      auto x = I->declare(ss.str(), &T);
+      if (x == Interpreter::CompilationResult::kSuccess) {
+        for (auto D = T->decls_begin(); D != T->decls_end(); D++) {
+          if (auto *VD =
+                  llvm::dyn_cast_or_null<VarDecl>(D->m_DGR.getSingleDecl())) {
+            auto *scope = GetScopeFromType(VD->getType());
+            if (scope) {
+              return (TCppScope_t)scope;
+            }
+          }
+        }
+      } else {
+        return 0;
+      }
+    }
+    } // end namespace InterOp
+
+    } // end namespace cling
+
+    } // end namespace cling
