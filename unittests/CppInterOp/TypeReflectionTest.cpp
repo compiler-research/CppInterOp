@@ -119,3 +119,17 @@ TEST(TypeReflectionTest, GetType) {
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetType(S, "std::string")),
             "std::string");
 }
+
+TEST(TypeReflectionTest, GetTypeFromScope) {
+  std::vector<Decl *> Decls;
+
+  std::string code =  R"(
+    class C {};
+    struct S {};
+    )";
+  
+  GetAllTopLevelDecls(code, Decls);
+
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetTypeFromScope(Decls[0])), "class C");
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetTypeFromScope(Decls[1])), "struct S");
+}

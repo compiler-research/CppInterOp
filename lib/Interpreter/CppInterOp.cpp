@@ -732,6 +732,15 @@ namespace Cpp {
     return (TCppType_t)0;
   }
 
+  TCppType_t GetTypeFromScope(TCppScope_t klass) {
+    auto *D = (Decl *) klass;
+    if (auto *TD = llvm::dyn_cast_or_null<TypeDecl>(D)) {
+      return QualType(TD->getTypeForDecl(), 0).getAsOpaquePtr();
+    }
+
+    return (TCppType_t)0;
+  }
+
   namespace {
     static unsigned long long gWrapperSerial = 0LL;
     static const std::string kIndentString("   ");
