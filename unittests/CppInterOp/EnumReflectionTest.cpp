@@ -53,3 +53,43 @@ TEST(EnumReflectionTest, IsEnumType) {
   EXPECT_TRUE(Cpp::IsEnumType(Cpp::GetVariableType(Decls[4])));
   EXPECT_TRUE(Cpp::IsEnumType(Cpp::GetVariableType(Decls[5])));
 }
+
+TEST(EnumReflectionTest, GetEnumIntegerType) {
+  std::vector<Decl *> Decls;
+  std::string code = R"(
+    enum Switch : bool {
+      OFF,
+      ON
+    };
+
+    enum CharEnum : char {
+      OneChar,
+      TwoChar
+    };
+
+    enum IntEnum : int {
+      OneInt,
+      TwoInt
+    };
+
+    enum LongEnum : long long {
+      OneLong,
+      TwoLong
+    };
+
+    enum DefaultEnum {
+      OneDefault,
+      TwoDefault
+    };
+  )";
+
+  GetAllTopLevelDecls(code, Decls);
+
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetEnumIntegerType(Decls[0])), "_Bool");
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetEnumIntegerType(Decls[1])), "char");
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetEnumIntegerType(Decls[2])), "int");
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetEnumIntegerType(Decls[3])),
+            "long long");
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetEnumIntegerType(Decls[4])),
+            "unsigned int");
+}
