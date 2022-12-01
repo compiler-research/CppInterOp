@@ -31,8 +31,8 @@ TEST(TypeReflectionTest, GetTypeAsString) {
 }
 
 TEST(TypeReflectionTest, GetSizeOfType) {
-  std::vector<Decl *> Decls, SubDecls0, SubDecls1;
-  std::string code = R"(
+  std::vector<Decl *> Decls;
+  std::string code =  R"(
     struct S {
       int a;
       double b;
@@ -54,7 +54,7 @@ TEST(TypeReflectionTest, GetSizeOfType) {
 }
 
 TEST(TypeReflectionTest, GetCanonicalType) {
-  std::vector<Decl *> Decls, SubDecls0, SubDecls1;
+  std::vector<Decl *> Decls;
   std::string code =  R"(
     typedef int I;
     typedef double D;
