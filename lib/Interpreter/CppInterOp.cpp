@@ -524,9 +524,13 @@ namespace Cpp {
     auto *S = (Sema *)sema;
     auto *ND = cling::utils::Lookup::Named(S, name, Within);
 
-    if (!ND)
+    if ((intptr_t) ND == (intptr_t) 0)
       return false;
 
+    if ((intptr_t) ND != (intptr_t) -1)
+      return IsTemplatedFunction(ND);
+
+    // FIXME: Cycle through the Decls and check if there is a templated function
     return true;
   }
 
