@@ -7,6 +7,7 @@ add_cppinterop_unittest(CppInterOpTests
   FunctionReflectionTest.cpp
   VariableReflectionTest.cpp
   TypeReflectionTest.cpp
+  EnumReflectionTest.cpp
   )
 
 target_link_libraries(CppInterOpTests
