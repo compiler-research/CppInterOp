@@ -296,9 +296,29 @@ namespace InterOp {
     return false;
   }
 
-  std::vector<TCppFunction_t> GetClassMethods(TCppScope_t klass)
-  {
-    auto *D = (clang::Decl *) klass;
+  intptr_t GetBaseClassOffset(TCppSema_t sema, TCppScope_t derived,
+                              TCppScope_t base) {
+    if (base == derived)
+      return 0;
+
+    auto *DD = (Decl *) derived;
+    auto *BD = (Decl *) base;
+    auto *S = (Sema *)sema;
+
+    if (auto *DCXXRD = llvm::dyn_cast_or_null<CXXRecordDecl>(DD)) {
+      if (auto *BCXXRD = llvm::dyn_cast_or_null<CXXRecordDecl>(BD)) {
+        auto &Cxt = S->getASTContext();
+        return (intptr_t)Cxt.getASTRecordLayout(DCXXRD)
+            .getBaseClassOffset(BCXXRD)
+            .getQuantity();
+      }
+    }
+
+    return (intptr_t)-1;
+  }
+
+  std::vector<TCppFunction_t> GetClassMethods(TCppScope_t klass) {
+    auto *D = (clang::Decl *)klass;
 
     if (auto *CXXRD = llvm::dyn_cast_or_null<CXXRecordDecl>(D)) {
       std::vector<TCppFunction_t> methods;
