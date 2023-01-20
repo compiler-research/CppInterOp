@@ -81,6 +81,8 @@ namespace InterOp {
 
   std::vector<TCppFunction_t> GetClassMethods(TCppScope_t klass);
 
+  bool HasDefaultConstructor(TCppScope_t scope);
+
   std::vector<TCppFunction_t> GetFunctionsUsingName(TCppSema_t sema,
                                                     TCppScope_t scope,
                                                     const std::string &name);
