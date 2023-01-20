@@ -652,8 +652,28 @@ namespace Cpp {
     return {};
   }
 
-  TCppType_t GetVariableType(TCppScope_t var) {
-    auto D = (Decl *)var;
+  TCppScope_t LookupDatamember(TCppSema_t sema, const std::string &name,
+                               TCppScope_t parent) {
+    clang::DeclContext *Within = 0;
+    if (parent) {
+      auto *D = (clang::Decl *)parent;
+      Within = llvm::dyn_cast<clang::DeclContext>(D);
+    }
+
+    auto *S = (Sema *)sema;
+    auto *ND = cling::utils::Lookup::Named(S, name, Within);
+    if (ND && ND != (clang::NamedDecl*) -1) {
+      if (llvm::isa_and_nonnull<clang::FieldDecl>(ND)) {
+        return (TCppScope_t)ND;
+      }
+    }
+
+    return 0;
+  }
+
+  TCppType_t GetVariableType(TCppScope_t var)
+  {
+    auto D = (Decl *) var;
 
     if (auto DD = llvm::dyn_cast_or_null<DeclaratorDecl>(D)) {
       return DD->getType().getAsOpaquePtr();
