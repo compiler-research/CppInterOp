@@ -158,6 +158,8 @@ namespace Cpp {
   bool LoadLibrary(TInterp_t interp, const char *lib_path);
 
   TCppScope_t InstantiateClassTemplate(TInterp_t interp, const char *tmpl_name);
+
+  std::vector<std::string> GetAllCppNames(TCppScope_t scope);
 } // end namespace Cpp
 
 } // end namespace cling
