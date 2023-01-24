@@ -92,6 +92,22 @@ TEST(TypeReflectionTest, GetType) {
             "std::string");
 }
 
+TEST(TypeReflectionTest, GetComplexType) {
+  Interp.reset();
+  Interp = createInterpreter();
+  Sema *S = &Interp->getCI()->getSema();
+
+  auto get_complex_type_as_string = [&](const std::string &element_type) {
+    auto ElementQT = Cpp::GetType(S, element_type);
+    auto ComplexQT = Cpp::GetComplexType(S, ElementQT);
+    return Cpp::GetTypeAsString(Cpp::GetCanonicalType(ComplexQT));
+  };
+
+  EXPECT_EQ(get_complex_type_as_string("int"), "_Complex int");
+  EXPECT_EQ(get_complex_type_as_string("float"), "_Complex float");
+  EXPECT_EQ(get_complex_type_as_string("double"), "_Complex double");
+}
+
 TEST(TypeReflectionTest, GetTypeFromScope) {
   std::vector<Decl *> Decls;
 

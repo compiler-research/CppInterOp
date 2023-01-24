@@ -150,6 +150,8 @@ namespace Cpp {
 
   TCppType_t GetType(TCppSema_t sema, const std::string &type);
 
+  TCppType_t GetComplexType(TCppSema_t sema, TCppType_t element_type);
+
   TCppType_t GetTypeFromScope(TCppScope_t klass);
 
   CallFuncWrapper_t GetFunctionCallWrapper(TInterp_t interp,
