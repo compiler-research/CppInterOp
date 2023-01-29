@@ -28,6 +28,10 @@ static std::string GetExecutablePath(const char *Argv0, void *MainAddr) {
 }
 
 static std::string MakeResourcesPath() {
+  StringRef Dir;
+#ifdef LLVM_BINARY_DIR
+  Dir = LLVM_BINARY_DIR;
+#else
   // Dir is bin/ or lib/, depending on where BinaryPath is.
   void *MainAddr = (void *)(intptr_t)GetExecutablePath;
   std::string BinaryPath = GetExecutablePath(/*Argv0=*/nullptr, MainAddr);
@@ -40,6 +44,7 @@ static std::string MakeResourcesPath() {
   Dir = sys::path::parent_path(Dir);
   Dir = sys::path::parent_path(Dir);
   // Dir = sys::path::parent_path(Dir);
+#endif // LLVM_BINARY_DIR
   SmallString<128> P(Dir);
   sys::path::append(P, Twine("lib") + CLANG_LIBDIR_SUFFIX, "clang",
                     CLANG_VERSION_STRING);
