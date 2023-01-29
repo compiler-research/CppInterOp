@@ -1,8 +1,18 @@
 #include "Utils.h"
 
+#include "cling/Interpreter/Interpreter.h"
+
+#include "clang/AST/ASTContext.h"
 #include "clang/Interpreter/InterOp.h"
+#include "clang/Frontend/CompilerInstance.h"
+#include "clang/Sema/Sema.h"
 
 #include "gtest/gtest.h"
+
+using namespace TestUtils;
+using namespace llvm;
+using namespace clang;
+using namespace cling;
 
 // Check that the CharInfo table has been constructed reasonably.
 TEST(ScopeReflectionTest, IsNamespace) {
