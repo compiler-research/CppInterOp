@@ -3,6 +3,7 @@ set(LLVM_LINK_COMPONENTS
   )
 
 add_interop_unittest(InterOpTests
+  Utils.cpp
   ScopeReflectionTest.cpp
   FunctionReflectionTest.cpp
   VariableReflectionTest.cpp
