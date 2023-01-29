@@ -499,13 +499,12 @@ TEST(ScopeReflectionTest, GetAllCppNames) {
   )";
 
   GetAllTopLevelDecls(code, Decls);
-  Sema *S = &Interp->getCI()->getSema();
 
   auto test_get_all_cpp_names = [](Decl *D, const std::vector<std::string> &truth_names) {
     auto names = Cpp::GetAllCppNames(D);
     EXPECT_EQ(names.size(), truth_names.size());
 
-    for (int i = 0; i < truth_names.size() && i < names.size(); i++) {
+    for (unsigned i = 0; i < truth_names.size() && i < names.size(); i++) {
       EXPECT_EQ(names[i], truth_names[i]);
     }
   };
