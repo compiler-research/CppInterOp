@@ -64,7 +64,6 @@ TEST(TypeReflectionTest, GetCanonicalType) {
     )";
 
   GetAllTopLevelDecls(code, Decls);
-  Sema *S = &Interp->getCI()->getSema();
 
   auto D2 = InterOp::GetVariableType(Decls[2]);
   auto D3 = InterOp::GetVariableType(Decls[3]);
