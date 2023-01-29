@@ -129,6 +129,7 @@ namespace InterOp {
       const llvm::APSInt& Val = ECD->getInitVal();
       return Val.getExtValue();
     }
+    return 0;
   }
 
   size_t GetSizeOfType(TCppSema_t sema, TCppType_t type) {
@@ -844,7 +845,7 @@ namespace InterOp {
   TCppType_t GetType(TCppSema_t sema, const std::string &name) {
     auto *S = (Sema *) sema;
     
-    auto *ND = cling::utils::Lookup::Named(S, name, 0);
+    // auto *ND = cling::utils::Lookup::Named(S, name, 0);
 
     QualType builtin = findBuiltinType(name, S->getASTContext());
     if (!builtin.isNull())
@@ -1880,9 +1881,8 @@ namespace InterOp {
           }
         }
       }
-    } else {
-      return 0;
     }
+    return 0;
   }
 
   std::vector<std::string> GetAllCppNames(TCppScope_t scope) {
