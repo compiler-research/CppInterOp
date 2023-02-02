@@ -151,6 +151,10 @@ namespace InterOp {
   CallFuncWrapper_t GetFunctionCallWrapper(TInterp_t interp,
                                            TCppFunction_t func);
 
+  TInterp_t CreateInterpreter(const char *resource_dir = nullptr);
+
+  TCppSema_t GetSema(TInterp_t interp);
+
   void AddSearchPath(TInterp_t interp, const char *dir, bool isUser = true,
                      bool prepend = false);
   
@@ -158,9 +162,13 @@ namespace InterOp {
 
   TCppIndex_t Declare(TInterp_t interp, const char *code, bool silent = false);
 
+  void Process(TInterp_t interp, const char *code);
+
   const std::string LookupLibrary(TInterp_t interp, const char *lib_name);
 
   bool LoadLibrary(TInterp_t interp, const char *lib_path, bool lookup = true);
+
+  std::string ObjToString(TInterp_t interp, const char *type, void *obj);
 
   TCppScope_t InstantiateClassTemplate(TInterp_t interp, const char *tmpl_name);
 
