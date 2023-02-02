@@ -31,7 +31,6 @@
 #include <sstream>
 #include <string>
 
-namespace cling {
 namespace InterOp {
   using namespace clang;
   using namespace llvm;
@@ -1851,28 +1850,24 @@ namespace InterOp {
       return res == cling::Interpreter::kSuccess;
     }
 
-    TCppScope_t InstantiateClassTemplate(TInterp_t interp,
-                                         const char *tmpl_name) {
-      auto *I = (cling::Interpreter *)interp;
+    static unsigned counter = 0;
+    std::stringstream ss;
 
-      static unsigned counter = 0;
-      std::stringstream ss;
-
-      ss << "auto _t" << counter++ << " = " << tmpl_name << "();";
-      printf("%s\n", ss.str().c_str());
-      Transaction *T = nullptr;
-      auto x = I->declare(ss.str(), &T);
-      if (x == Interpreter::CompilationResult::kSuccess) {
-        for (auto D = T->decls_begin(); D != T->decls_end(); D++) {
-          if (auto *VD =
-                  llvm::dyn_cast_or_null<VarDecl>(D->m_DGR.getSingleDecl())) {
-            auto *scope = GetScopeFromType(VD->getType());
-            if (scope) {
-              return (TCppScope_t)scope;
-            }
+    ss << "auto _t" << counter++ << " = " << tmpl_name << "();";
+    printf("%s\n", ss.str().c_str());
+    cling::Transaction *T = nullptr;
+    auto x = I -> declare(ss.str(), &T);
+    if (x == cling::Interpreter::CompilationResult::kSuccess) {
+      for (auto D = T->decls_begin(); D != T->decls_end(); D++) {
+        if (auto *VD =
+                llvm::dyn_cast_or_null<VarDecl>(D->m_DGR.getSingleDecl())) {
+          auto *scope = GetScopeFromType(VD->getType());
+          if (scope) {
+            return (TCppScope_t)scope;
           }
         }
-      } else {
+      }
+      else {
         return 0;
       }
     }
@@ -1908,7 +1903,3 @@ namespace InterOp {
     return names;
   }
   } // end namespace InterOp
-
-  } // end namespace cling
-
-  } // end namespace cling
