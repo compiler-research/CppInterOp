@@ -30,7 +30,6 @@
 #include <sstream>
 #include <string>
 
-namespace cling {
 namespace InterOp {
   using namespace clang;
   using namespace llvm;
@@ -1870,9 +1869,9 @@ namespace InterOp {
     
     ss << "auto _t" << counter++ << " = " << tmpl_name << "();";
     printf("%s\n", ss.str().c_str());
-    Transaction *T = nullptr;
+    cling::Transaction *T = nullptr;
     auto x = I->declare(ss.str(), &T);
-    if (x == Interpreter::CompilationResult::kSuccess) {
+    if (x == cling::Interpreter::CompilationResult::kSuccess) {
       for (auto D = T->decls_begin(); D != T->decls_end(); D++) {
         if (auto *VD = llvm::dyn_cast_or_null<VarDecl>(D->m_DGR.getSingleDecl())) {
           auto *scope = GetScopeFromType(VD->getType());
@@ -1914,6 +1913,4 @@ namespace InterOp {
     return names;
   }
 } // end namespace InterOp
-
-} // end namespace cling
 
