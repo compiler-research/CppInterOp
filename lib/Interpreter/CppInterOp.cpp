@@ -1860,10 +1860,10 @@ namespace Cpp {
     return I->getDynamicLibraryManager()->lookupLibrary(lib_name);
   }
 
-  bool LoadLibrary(TInterp_t interp, const char *lib_name) {
+  bool LoadLibrary(TInterp_t interp, const char *lib_name, bool lookup) {
     auto *I = (cling::Interpreter *)interp;
     cling::Interpreter::CompilationResult res =
-        I->loadLibrary(lib_name, /* lookup */ true);
+        I->loadLibrary(lib_name, lookup);
 
     return res == cling::Interpreter::kSuccess;
   }
