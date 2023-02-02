@@ -19,6 +19,8 @@
 #include "clang/AST/GlobalDecl.h"
 #include "clang/AST/Mangle.h"
 #include "clang/AST/RecordLayout.h"
+#include "clang/Basic/Version.h"
+#include "clang/Config/config.h"
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Sema/Lookup.h"
 #include "clang/Sema/Sema.h"
@@ -274,7 +276,7 @@ namespace Cpp {
     }
     return 0;
   }
-  }
+  } // namespace
 
   TCppScope_t GetScopeFromType(TCppType_t type) {
     QualType QT = QualType::getFromOpaquePtr(type);
@@ -1818,79 +1820,149 @@ namespace Cpp {
                        bool prepend) {
       auto *I = (cling::Interpreter *)interp;
 
-      I->getDynamicLibraryManager()->addSearchPath(dir, isUser, prepend);
-    }
+      namespace {
 
-    void AddIncludePath(TInterp_t interp, const char *dir) {
-      auto *I = (cling::Interpreter *)interp;
+      std::string GetExecutablePath(const char *Argv0, void *MainAddr) {
+        return llvm::sys::fs::getMainExecutable(Argv0, MainAddr);
+      }
 
-      I->AddIncludePath(dir);
-    }
+      std::string MakeResourcesPath() {
+        // Dir is bin/ or lib/, depending on where BinaryPath is.
+        void *MainAddr = (void *)(intptr_t)GetExecutablePath;
+        std::string BinaryPath = GetExecutablePath(/*Argv0=*/nullptr, MainAddr);
 
-  namespace {
+        // build/tools/clang/unittests/Interpreter/Executable -> build/
+        llvm::StringRef Dir = llvm::sys::path::parent_path(BinaryPath);
 
-  class clangSilent {
-  public:
-    clangSilent(clang::DiagnosticsEngine &diag) : fDiagEngine(diag) {
-      fOldDiagValue = fDiagEngine.getSuppressAllDiagnostics();
-      fDiagEngine.setSuppressAllDiagnostics(true);
-    }
+        Dir = llvm::sys::path::parent_path(Dir);
+        Dir = llvm::sys::path::parent_path(Dir);
+        Dir = llvm::sys::path::parent_path(Dir);
+        Dir = llvm::sys::path::parent_path(Dir);
+        // Dir = sys::path::parent_path(Dir);
+        llvm::SmallString<128> P(Dir);
+        llvm::sys::path::append(P, llvm::Twine("lib") + CLANG_LIBDIR_SUFFIX,
+                                "clang", CLANG_VERSION_STRING);
 
-    ~clangSilent() { fDiagEngine.setSuppressAllDiagnostics(fOldDiagValue); }
+        return std::string(P.str());
+      }
+      } // namespace
 
-  protected:
-    clang::DiagnosticsEngine &fDiagEngine;
-    bool fOldDiagValue;
-  };
-  }
+      TInterp_t CreateInterpreter(const char *resource_dir) {
+        std::string MainExecutableName =
+            llvm::sys::fs::getMainExecutable(nullptr, nullptr);
 
-  TCppIndex_t Declare(TInterp_t interp, const char *code, bool silent) {
-    auto *I = (cling::Interpreter *)interp;
+        std::string ResourceDir;
+        if (!resource_dir)
+          ResourceDir = MakeResourcesPath();
+        else
+          ResourceDir = resource_dir;
 
-    if (silent) {
-      clangSilent diagSuppr(I->getSema().getDiagnostics());
-      return I->declare(code);
-    }
+        std::vector<const char *> InterpArgv = {
+            "-resource-dir", ResourceDir.c_str(), "-std=c++14"};
+        InterpArgv.insert(InterpArgv.begin(), MainExecutableName.c_str());
+        return (TInterp_t) new cling::Interpreter(InterpArgv.size(),
+                                                  &InterpArgv[0]);
+      }
 
-    return I->declare(code);
-  }
-  const std::string LookupLibrary(TInterp_t interp, const char *lib_name) {
-    auto *I = (cling::Interpreter *)interp;
+      TCppSema_t GetSema(TInterp_t interp) {
+        auto *I = (cling::Interpreter *)interp;
 
-    return I->getDynamicLibraryManager()->lookupLibrary(lib_name);
-  }
+        return (TCppSema_t)&I->getSema();
+      }
 
-  bool LoadLibrary(TInterp_t interp, const char *lib_name, bool lookup) {
-    auto *I = (cling::Interpreter *)interp;
-    cling::Interpreter::CompilationResult res =
-        I->loadLibrary(lib_name, lookup);
+      void AddSearchPath(TInterp_t interp, const char *dir, bool isUser,
+                         bool prepend) {
+        auto *I = (cling::Interpreter *)interp;
 
-    return res == cling::Interpreter::kSuccess;
-  }
+        I->getDynamicLibraryManager()->addSearchPath(dir, isUser, prepend);
+      }
 
-  static unsigned counter = 0;
-  std::stringstream ss;
+      void AddIncludePath(TInterp_t interp, const char *dir) {
+        auto *I = (cling::Interpreter *)interp;
 
-  ss << "auto _t" << counter++ << " = " << tmpl_name << "();";
-  printf("%s\n", ss.str().c_str());
-  cling::Transaction *T = nullptr;
-  auto x = I -> declare(ss.str(), &T);
-  if (x == cling::Interpreter::CompilationResult::kSuccess) {
-    for (auto D = T->decls_begin(); D != T->decls_end(); D++) {
-      if (auto *VD =
-              llvm::dyn_cast_or_null<VarDecl>(D->m_DGR.getSingleDecl())) {
-        auto *scope = GetScopeFromType(VD->getType());
-        if (scope) {
-          return (TCppScope_t)scope;
+        I->AddIncludePath(dir);
+      }
+
+      namespace {
+
+      class clangSilent {
+      public:
+        clangSilent(clang::DiagnosticsEngine &diag) : fDiagEngine(diag) {
+          fOldDiagValue = fDiagEngine.getSuppressAllDiagnostics();
+          fDiagEngine.setSuppressAllDiagnostics(true);
+        }
+
+        ~clangSilent() { fDiagEngine.setSuppressAllDiagnostics(fOldDiagValue); }
+
+      protected:
+        clang::DiagnosticsEngine &fDiagEngine;
+        bool fOldDiagValue;
+      };
+      } // namespace
+
+      TCppIndex_t Declare(TInterp_t interp, const char *code, bool silent) {
+        auto *I = (cling::Interpreter *)interp;
+
+        if (silent) {
+          clangSilent diagSuppr(I->getSema().getDiagnostics());
+          return I->declare(code);
+        }
+
+        return I->declare(code);
+      }
+
+      void Process(TInterp_t interp, const char *code) {
+        auto *I = (cling::Interpreter *)interp;
+
+        I->process(code);
+      }
+
+      const std::string LookupLibrary(TInterp_t interp, const char *lib_name) {
+        auto *I = (cling::Interpreter *)interp;
+
+        return I->getDynamicLibraryManager()->lookupLibrary(lib_name);
+      }
+
+      bool LoadLibrary(TInterp_t interp, const char *lib_name, bool lookup) {
+        auto *I = (cling::Interpreter *)interp;
+        cling::Interpreter::CompilationResult res =
+            I->loadLibrary(lib_name, lookup);
+
+        return res == cling::Interpreter::kSuccess;
+      }
+
+      std::string ObjToString(TInterp_t interp, const char *type, void *obj) {
+        auto *I = (cling::Interpreter *)interp;
+        return I->toString(type, obj);
+      }
+
+      TCppScope_t InstantiateClassTemplate(TInterp_t interp,
+                                           const char *tmpl_name) {
+        auto *I = (cling::Interpreter *)interp;
+
+        static unsigned counter = 0;
+        std::stringstream ss;
+
+        ss << "auto _t" << counter++ << " = " << tmpl_name << "();";
+        printf("%s\n", ss.str().c_str());
+        cling::Transaction *T = nullptr;
+        auto x = I->declare(ss.str(), &T);
+        if (x == cling::Interpreter::CompilationResult::kSuccess) {
+          for (auto D = T->decls_begin(); D != T->decls_end(); D++) {
+            if (auto *VD =
+                    llvm::dyn_cast_or_null<VarDecl>(D->m_DGR.getSingleDecl())) {
+              auto *scope = GetScopeFromType(VD->getType());
+              if (scope) {
+                return (TCppScope_t)scope;
+              }
+            }
+          }
+        } else {
+          return 0;
         }
       }
-    }
-    else {
       return 0;
     }
-  }
-  return 0;
-  }
 
   std::vector<std::string> GetAllCppNames(TCppScope_t scope) {
     auto *D = (clang::Decl *)scope;
