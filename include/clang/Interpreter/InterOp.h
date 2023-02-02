@@ -160,7 +160,7 @@ namespace InterOp {
 
   const std::string LookupLibrary(TInterp_t interp, const char *lib_name);
 
-  bool LoadLibrary(TInterp_t interp, const char *lib_path);
+  bool LoadLibrary(TInterp_t interp, const char *lib_path, bool lookup = true);
 
   TCppScope_t InstantiateClassTemplate(TInterp_t interp, const char *tmpl_name);
 
