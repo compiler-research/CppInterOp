@@ -1841,12 +1841,35 @@ namespace InterOp {
     I->AddIncludePath(dir);
   }
 
-  TCppIndex_t Declare(TInterp_t interp, const char *code) {
+  namespace {
+
+  class clangSilent {
+  public:
+    clangSilent(clang::DiagnosticsEngine& diag) : fDiagEngine(diag) {
+      fOldDiagValue = fDiagEngine.getSuppressAllDiagnostics();
+      fDiagEngine.setSuppressAllDiagnostics(true);
+    }
+
+    ~clangSilent() {
+      fDiagEngine.setSuppressAllDiagnostics(fOldDiagValue);
+    }
+  protected:
+    clang::DiagnosticsEngine& fDiagEngine;
+    bool fOldDiagValue;
+  };
+  
+  }
+
+  TCppIndex_t Declare(TInterp_t interp, const char *code, bool silent) {
     auto* I = (cling::Interpreter*)interp;
+
+    if (silent) {
+      clangSilent diagSuppr(I->getSema().getDiagnostics());
+      return I->declare(code);
+    }
 
     return I->declare(code);
   }
-
   const std::string LookupLibrary(TInterp_t interp, const char *lib_name) {
     auto* I = (cling::Interpreter*)interp;
 
