@@ -1830,48 +1830,71 @@ namespace InterOp {
       I->AddIncludePath(dir);
     }
 
-    TCppIndex_t Declare(TInterp_t interp, const char *code) {
-      auto *I = (cling::Interpreter *)interp;
+  namespace {
 
+  class clangSilent {
+  public:
+    clangSilent(clang::DiagnosticsEngine& diag) : fDiagEngine(diag) {
+      fOldDiagValue = fDiagEngine.getSuppressAllDiagnostics();
+      fDiagEngine.setSuppressAllDiagnostics(true);
+    }
+
+    ~clangSilent() {
+      fDiagEngine.setSuppressAllDiagnostics(fOldDiagValue);
+    }
+  protected:
+    clang::DiagnosticsEngine& fDiagEngine;
+    bool fOldDiagValue;
+  };
+  
+  }
+
+  TCppIndex_t Declare(TInterp_t interp, const char *code, bool silent) {
+    auto *I = (cling::Interpreter *)interp;
+
+    if (silent) {
+      clangSilent diagSuppr(I->getSema().getDiagnostics());
       return I->declare(code);
     }
 
-    const std::string LookupLibrary(TInterp_t interp, const char *lib_name) {
-      auto *I = (cling::Interpreter *)interp;
+    return I->declare(code);
+  }
+  const std::string LookupLibrary(TInterp_t interp, const char *lib_name) {
+    auto *I = (cling::Interpreter *)interp;
 
-      return I->getDynamicLibraryManager()->lookupLibrary(lib_name);
-    }
+    return I->getDynamicLibraryManager()->lookupLibrary(lib_name);
+  }
 
-    bool LoadLibrary(TInterp_t interp, const char *lib_name) {
-      auto *I = (cling::Interpreter *)interp;
-      cling::Interpreter::CompilationResult res =
-          I->loadLibrary(lib_name, /* lookup */ true);
+  bool LoadLibrary(TInterp_t interp, const char *lib_name) {
+    auto *I = (cling::Interpreter *)interp;
+    cling::Interpreter::CompilationResult res =
+        I->loadLibrary(lib_name, /* lookup */ true);
 
-      return res == cling::Interpreter::kSuccess;
-    }
+    return res == cling::Interpreter::kSuccess;
+  }
 
-    static unsigned counter = 0;
-    std::stringstream ss;
+  static unsigned counter = 0;
+  std::stringstream ss;
 
-    ss << "auto _t" << counter++ << " = " << tmpl_name << "();";
-    printf("%s\n", ss.str().c_str());
-    cling::Transaction *T = nullptr;
-    auto x = I -> declare(ss.str(), &T);
-    if (x == cling::Interpreter::CompilationResult::kSuccess) {
-      for (auto D = T->decls_begin(); D != T->decls_end(); D++) {
-        if (auto *VD =
-                llvm::dyn_cast_or_null<VarDecl>(D->m_DGR.getSingleDecl())) {
-          auto *scope = GetScopeFromType(VD->getType());
-          if (scope) {
-            return (TCppScope_t)scope;
-          }
+  ss << "auto _t" << counter++ << " = " << tmpl_name << "();";
+  printf("%s\n", ss.str().c_str());
+  cling::Transaction *T = nullptr;
+  auto x = I -> declare(ss.str(), &T);
+  if (x == cling::Interpreter::CompilationResult::kSuccess) {
+    for (auto D = T->decls_begin(); D != T->decls_end(); D++) {
+      if (auto *VD =
+              llvm::dyn_cast_or_null<VarDecl>(D->m_DGR.getSingleDecl())) {
+        auto *scope = GetScopeFromType(VD->getType());
+        if (scope) {
+          return (TCppScope_t)scope;
         }
       }
-      else {
-        return 0;
-      }
     }
-    return 0;
+    else {
+      return 0;
+    }
+  }
+  return 0;
   }
 
   std::vector<std::string> GetAllCppNames(TCppScope_t scope) {
