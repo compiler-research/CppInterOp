@@ -161,7 +161,7 @@ namespace Cpp {
 
   void AddIncludePath(TInterp_t interp, const char *dir);
 
-  TCppIndex_t Declare(TInterp_t interp, const char *code);
+  TCppIndex_t Declare(TInterp_t interp, const char *code, bool silent = false);
 
   const std::string LookupLibrary(TInterp_t interp, const char *lib_name);
 
