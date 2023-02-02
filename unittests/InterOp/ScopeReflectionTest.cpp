@@ -230,9 +230,9 @@ TEST(ScopeReflectionTest, GetScope) {
   Interp = createInterpreter();
   Interp->declare(code);
   Sema *S = &Interp->getCI()->getSema();
-  cling::InterOp::TCppScope_t tu = InterOp::GetScope(S, "", 0);
-  cling::InterOp::TCppScope_t ns_N = InterOp::GetScope(S, "N", 0);
-  cling::InterOp::TCppScope_t cl_C = InterOp::GetScope(S, "C", ns_N);
+  InterOp::TCppScope_t tu = InterOp::GetScope(S, "", 0);
+  InterOp::TCppScope_t ns_N = InterOp::GetScope(S, "N", 0);
+  InterOp::TCppScope_t cl_C = InterOp::GetScope(S, "C", ns_N);
 
   EXPECT_EQ(InterOp::GetCompleteName(tu), "");
   EXPECT_EQ(InterOp::GetCompleteName(ns_N), "N");
@@ -275,10 +275,10 @@ TEST(ScopeReflectionTest, GetNamed) {
   Interp = createInterpreter();
   Interp->declare(code);
   Sema *S = &Interp->getCI()->getSema();
-  cling::InterOp::TCppScope_t ns_N1 = InterOp::GetNamed(S, "N1", 0);
-  cling::InterOp::TCppScope_t ns_N2 = InterOp::GetNamed(S, "N2", ns_N1);
-  cling::InterOp::TCppScope_t cl_C = InterOp::GetNamed(S, "C", ns_N2);
-  cling::InterOp::TCppScope_t en_E = InterOp::GetNamed(S, "E", cl_C);
+  InterOp::TCppScope_t ns_N1 = InterOp::GetNamed(S, "N1", 0);
+  InterOp::TCppScope_t ns_N2 = InterOp::GetNamed(S, "N2", ns_N1);
+  InterOp::TCppScope_t cl_C = InterOp::GetNamed(S, "C", ns_N2);
+  InterOp::TCppScope_t en_E = InterOp::GetNamed(S, "E", cl_C);
   EXPECT_EQ(InterOp::GetCompleteName(ns_N1), "N1");
   EXPECT_EQ(InterOp::GetCompleteName(ns_N2), "N1::N2");
   EXPECT_EQ(InterOp::GetCompleteName(cl_C), "N1::N2::C");
@@ -307,13 +307,13 @@ TEST(ScopeReflectionTest, GetParentScope) {
   Interp = createInterpreter();
   Interp->declare(code);
   Sema *S = &Interp->getCI()->getSema();
-  cling::InterOp::TCppScope_t ns_N1 = InterOp::GetNamed(S, "N1", 0);
-  cling::InterOp::TCppScope_t ns_N2 = InterOp::GetNamed(S, "N2", ns_N1);
-  cling::InterOp::TCppScope_t cl_C = InterOp::GetNamed(S, "C", ns_N2);
-  cling::InterOp::TCppScope_t int_i = InterOp::GetNamed(S, "i", cl_C);
-  cling::InterOp::TCppScope_t en_E = InterOp::GetNamed(S, "E", cl_C);
-  cling::InterOp::TCppScope_t en_A = InterOp::GetNamed(S, "A", cl_C);
-  cling::InterOp::TCppScope_t en_B = InterOp::GetNamed(S, "B", cl_C);
+  InterOp::TCppScope_t ns_N1 = InterOp::GetNamed(S, "N1", 0);
+  InterOp::TCppScope_t ns_N2 = InterOp::GetNamed(S, "N2", ns_N1);
+  InterOp::TCppScope_t cl_C = InterOp::GetNamed(S, "C", ns_N2);
+  InterOp::TCppScope_t int_i = InterOp::GetNamed(S, "i", cl_C);
+  InterOp::TCppScope_t en_E = InterOp::GetNamed(S, "E", cl_C);
+  InterOp::TCppScope_t en_A = InterOp::GetNamed(S, "A", cl_C);
+  InterOp::TCppScope_t en_B = InterOp::GetNamed(S, "B", cl_C);
 
   EXPECT_EQ(InterOp::GetCompleteName(InterOp::GetParentScope(ns_N1)), "");
   EXPECT_EQ(InterOp::GetCompleteName(InterOp::GetParentScope(ns_N2)), "N1");
@@ -348,7 +348,7 @@ TEST(ScopeReflectionTest, GetScopeFromType) {
   EXPECT_EQ(InterOp::GetCompleteName(InterOp::GetScopeFromType(QT2.getAsOpaquePtr())),
           "N::S");
   EXPECT_EQ(InterOp::GetScopeFromType(QT3.getAsOpaquePtr()),
-          (cling::InterOp::TCppScope_t) 0);
+          (InterOp::TCppScope_t) 0);
 }
 
 TEST(ScopeReflectionTest, GetNumBases) {
