@@ -13,7 +13,6 @@
 #include <string>
 #include <vector>
 
-namespace cling {
 namespace Cpp {
   using TCppIndex_t = size_t;
   using TCppScope_t = void*;
@@ -172,7 +171,5 @@ namespace Cpp {
 
   std::vector<std::string> GetAllCppNames(TCppScope_t scope);
 } // end namespace Cpp
-
-} // end namespace cling
 
 #endif // CLING_INTERPRETER_CPPINTEROP_H
