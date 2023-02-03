@@ -1848,7 +1848,7 @@ namespace InterOp {
 
         return std::string(P.str());
       }
-      }
+      } // namespace
 
       TInterp_t CreateInterpreter(const char *resource_dir) {
         std::string MainExecutableName =
@@ -1901,7 +1901,7 @@ namespace InterOp {
         clang::DiagnosticsEngine &fDiagEngine;
         bool fOldDiagValue;
       };
-      }
+      } // namespace
 
       TCppIndex_t Declare(TInterp_t interp, const char *code, bool silent) {
         auto *I = (cling::Interpreter *)interp;
