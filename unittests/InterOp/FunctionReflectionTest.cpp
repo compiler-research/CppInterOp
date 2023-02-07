@@ -609,3 +609,19 @@ TEST(FunctionReflectionTest, GetFunctionCallWrapper) {
   EXPECT_EQ(ret, i * i);
   EXPECT_EQ(output, s);
 }
+
+TEST(FunctionReflectionTest, DISABLED_IsConstMethod) {
+  std::vector<Decl*> Decls, SubDecls;
+  std::string code = R"(
+    class C {
+      void f1() const {}
+      void f2() {}
+    };
+    )";
+
+  GetAllTopLevelDecls(code, Decls);
+  GetAllSubDecls(Decls[0], SubDecls);
+
+  // EXPECT_TRUE(InterOp::IsConstMethod(SubDecls[1])); // f1
+  // EXPECT_FALSE(InterOp::IsConstMethod(SubDecls[2])); // f2
+}
