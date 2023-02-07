@@ -130,3 +130,27 @@ TEST(TypeReflectionTest, GetTypeFromScope) {
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetTypeFromScope(Decls[0])), "class C");
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetTypeFromScope(Decls[1])), "struct S");
 }
+
+TEST(TypeReflectionTest, DISABLED_IsSubType) {
+  std::vector<Decl *> Decls;
+
+  std::string code = R"(
+      class A {};
+      class B : A {};
+      class C {};
+
+      A a;
+      B b;
+      C c;
+    )";
+
+  GetAllTopLevelDecls(code, Decls);
+
+  Cpp::TCppType_t type_A = Cpp::GetVariableType(Decls[3]);
+  Cpp::TCppType_t type_B = Cpp::GetVariableType(Decls[4]);
+  Cpp::TCppType_t type_C = Cpp::GetVariableType(Decls[5]);
+
+  // EXPECT_TRUE(Cpp::IsSubType(type_B, type_A));
+  // EXPECT_FALSE(Cpp::IsSubType(type_A, type_B));
+  // EXPECT_FALSE(Cpp::IsSubType(type_C, type_A));
+}
