@@ -224,3 +224,26 @@ TEST(VariableReflectionTest, IsConstVariable) {
   EXPECT_FALSE(Cpp::IsConstVariable(SubDecls[1]));
   EXPECT_TRUE(Cpp::IsConstVariable(SubDecls[2]));
 }
+
+TEST(VariableReflectionTest, DISABLED_GetArrayDimensions) {
+  std::vector<Decl *> Decls, SubDecls;
+  std::string code =  R"(
+    int a;
+    int b[1];
+    int c[1][2];
+    )";
+
+  GetAllTopLevelDecls(code, Decls);
+
+  auto is_vec_eq = [](const std::vector<size_t> &arr_dims,
+                      const std::vector<size_t> &truth_vals) {
+    if (arr_dims.size() != truth_vals.size()) 
+      return false;
+    
+    return std::equal(arr_dims.begin(), arr_dims.end(), truth_vals.begin());
+  };
+
+  // EXPECT_TRUE(is_vec_eq(Cpp::GetArrayDimensions(Decls[0]), {}));
+  // EXPECT_TRUE(is_vec_eq(Cpp::GetArrayDimensions(Decls[1]), {1}));
+  // EXPECT_TRUE(is_vec_eq(Cpp::GetArrayDimensions(Decls[2]), {1,2}));
+}
