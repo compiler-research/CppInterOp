@@ -88,6 +88,7 @@ jobs:
           # Install cling by CPT
           wget https://raw.githubusercontent.com/root-project/cling/master/tools/packaging/cpt.py
           chmod +x cpt.py
+          #TODO: remove sed patches after fix CPT in cling repos
           sed -i '2637s/.*/    CPT_SRC_DIR = install_prefix()/' cpt.py
           sed -i "674i\    CPT_SRC_DIR = os.path.join(CLING_SRC_DIR, 'tools', 'packaging')" cpt.py
           conda run --no-capture-output ./cpt.py --no-test --create-dev-env Release --with-workdir=./cling-build/
