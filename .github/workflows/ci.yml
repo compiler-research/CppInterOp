@@ -1,0 +1,117 @@
+name: Main
+on:
+  pull_request:
+    branches:
+      - main
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: ubu22-gcc9-clang13
+            os: ubuntu-22.04
+            compiler: gcc-9
+            clang-runtime: '13'
+          - name: ubu22-gcc9-clang14
+            os: ubuntu-22.04
+            compiler: gcc-9
+            clang-runtime: '14'
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+    - name: Set up Python
+      uses: actions/setup-python@v4
+      with:
+        python-version: '3.10'
+    - name: Save PR Info
+      run: |
+        mkdir -p ./pr
+        echo ${{ github.event.number }} > ./pr/NR
+        echo ${{ github.repository }} > ./pr/REPO
+    - uses: nelonoel/branch-name@v1.0.1
+    - name: Setup compiler on Linux
+      if: runner.os == 'Linux'
+      run: |
+        # https://www.gnu.org/software/bash/manual/html_node/Shell-Parameter-Expansion.html
+        vers="${compiler#*-}"
+        os_codename="`cat /etc/os-release | grep UBUNTU_CODENAME | cut -d = -f 2`"
+        sudo apt update
+        if [[ "${{ matrix.compiler }}" == *"gcc"* ]]; then
+          sudo apt install -y gcc-${vers} g++-${vers}
+          echo "CC=gcc-${vers}" >> $GITHUB_ENV
+          echo "CXX=g++-${vers}" >> $GITHUB_ENV
+        else
+          if ! sudo apt install -y clang-${vers}; then
+            curl https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
+            echo "deb https://apt.llvm.org/${os_codename}/ llvm-toolchain-${os_codename}-${vers} main" | sudo tee -a /etc/apt/sources.list
+            sudo apt update
+            sudo apt install -y clang-${vers}
+          fi
+          echo "CC=clang-${vers}" >> $GITHUB_ENV
+          echo "CXX=clang++-${vers}" >> $GITHUB_ENV
+        fi
+      env:
+        compiler: ${{ matrix.compiler }}
+    - name: Install deps on Linux
+      if: runner.os == 'Linux'
+      run: |
+        # Install deps
+        sudo apt-get update
+        sudo apt-get install git g++ debhelper devscripts gnupg python3
+        conda install -y -q -c conda-forge \
+          distro \
+          pytest
+    - name: Cache LLVM/Clang/Cling runtime build directory form CPT
+      uses: actions/cache@v3
+      id: cling-build-cache
+      with:
+        path: |
+          cling-build
+          /tmp/cling-obj
+          cpt.py
+        #TODO: Fix key to relay to CPT patches and llvm version
+        #key: ${{ runner.os }}-${{ matrix.os }}-${{ matrix.compiler }}-clang-${{ matrix.clang-runtime }}.x-patch-${{ hashFiles('patches/llvm/*') }}
+        key: ${{ runner.os }}-${{ matrix.os }}-${{ matrix.compiler }}-clang-${{ matrix.clang-runtime }}.x
+    - name: Install Cling (by CPT) on Linux
+      if: runner.os == 'Linux'
+      run: |
+        if [[ "${{ steps.cling-build-cache.outputs.cache-hit }}" != "true" ]]; then
+          # Install cling by CPT
+          wget https://raw.githubusercontent.com/root-project/cling/master/tools/packaging/cpt.py
+          chmod +x cpt.py
+          sed -i '2637s/.*/    CPT_SRC_DIR = install_prefix()/' cpt.py
+          sed -i "674i\    CPT_SRC_DIR = os.path.join(CLING_SRC_DIR, 'tools', 'packaging')" cpt.py
+          conda run --no-capture-output ./cpt.py --no-test --create-dev-env Release --with-workdir=./cling-build/
+        fi
+        export CPT_DIR=$PWD
+        # We need CPT_DIR later
+        echo "CPT_DIR=$CPT_DIR" >> $GITHUB_ENV
+    - name: Install CppInterOp on Linux
+      if: runner.os == 'Linux'
+      run: |
+        # Install CppInterOp  
+        git clone https://github.com/compiler-research/CppInterOp.git
+        cd CppInterOp
+        mkdir build install && cd build
+        #cmake -DUSE_CLING=ON -DCling_DIR=$CPT_DIR/builddir -DLLVM_DIR=$CPT_DIR/builddir -DCLANG_DIR=$CPT_DIR/builddir -DCMAKE_INSTALL_PREFIX=$PWD/../install ..
+        cmake -DUSE_CLING=ON -DCling_DIR=/tmp/cling-obj -DLLVM_DIR=/tmp/cling-obj -DCLANG_DIR=/tmp/cling-obj -DCMAKE_INSTALL_PREFIX=$PWD/../install ..
+        cmake --build . --target install --parallel $(nproc --all)
+        cd ../install
+        export CPPINTEROP_DIR=$PWD
+        cd ../..
+        # We need CPPINTEROP_DIR later
+        echo "CPPINTEROP_DIR=$CPPINTEROP_DIR" >> $GITHUB_ENV
+    - name: Setup tmate session
+      if: ${{ failure() }}
+      uses: mxschmitt/action-tmate@v3
+      # When debugging increase to a suitable value!
+      timeout-minutes: ${{ github.event.pull_request && 3 || 20 }}
