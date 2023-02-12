@@ -75,41 +75,39 @@ jobs:
       id: cling-build-cache
       with:
         path: |
-          cling-build
-          /tmp/cling-obj
-          cpt.py
-        #TODO: Fix key to relay to CPT patches and llvm version
+          llvm-project/build/
         #key: ${{ runner.os }}-${{ matrix.os }}-${{ matrix.compiler }}-clang-${{ matrix.clang-runtime }}.x-patch-${{ hashFiles('patches/llvm/*') }}
-        key: ${{ runner.os }}-${{ matrix.os }}-${{ matrix.compiler }}-clang-${{ matrix.clang-runtime }}.x
+        CLING_HASH=$(git ls-remote git@github.com:root-project/cling.git HEAD| tr '\t' '-')
+        LLVM_HASH=$(git ls-remote git@github.com:root-project/llvm-project.git cling-llvm13 | tr '\t' '-')
+        key: ${CLING_HASH}-${LLVM_HASH}-${{ runner.os }}-${{ matrix.os }}-${{ matrix.compiler }}-clang-${{ matrix.clang-runtime }}.x
     - name: Install Cling (by CPT) on Linux
       if: runner.os == 'Linux'
       run: |
         if [[ "${{ steps.cling-build-cache.outputs.cache-hit }}" != "true" ]]; then
-          # Install cling by CPT
-          wget https://raw.githubusercontent.com/root-project/cling/master/tools/packaging/cpt.py
-          chmod +x cpt.py
-          #TODO: remove sed patches after fix CPT in cling repos
-          sed -i '2637s/.*/    CPT_SRC_DIR = install_prefix()/' cpt.py
-          sed -i "674i\    CPT_SRC_DIR = os.path.join(CLING_SRC_DIR, 'tools', 'packaging')" cpt.py
-          conda run --no-capture-output ./cpt.py --no-test --create-dev-env Release --with-workdir=./cling-build/
+          git clone --depth=1 https://github.com/root-project/cling.git
+          git clone --depth=1 -b cling-llvm13 https://github.com/root-project/llvm-project.git
+          cd llvm-project
+          mkdir build
+          cd build
+          cmake -DLLVM_ENABLE_PROJECTS=clang
+                -DLLVM_EXTERNAL_PROJECTS=cling
+                -DLLVM_EXTERNAL_CLING_SOURCE_DIR=../../cling
+                -DLLVM_TARGETS_TO_BUILD="host;nvptx"
+                -DCMAKE_BUILD_TYPE=RelWithDebInfo
+                -DLLVM_ENABLE_ASSERTIONS=On
+                ../llvm
+          cmake --build . --target cling --parallel $(nproc --all)
         fi
-        export CPT_DIR=$PWD
-        # We need CPT_DIR later
-        echo "CPT_DIR=$CPT_DIR" >> $GITHUB_ENV
     - name: Install InterOp on Linux
       if: runner.os == 'Linux'
       run: |
-        # Install InterOp  
-        mkdir build install && cd build
-        #cmake -DUSE_CLING=ON -DCling_DIR=$CPT_DIR/builddir -DLLVM_DIR=$CPT_DIR/builddir -DCLANG_DIR=$CPT_DIR/builddir -DCMAKE_INSTALL_PREFIX=$PWD/../install ..
-        cmake -DUSE_CLING=ON -DCling_DIR=/tmp/cling-obj -DLLVM_DIR=/tmp/cling-obj -DCLANG_DIR=/tmp/cling-obj -DCMAKE_INSTALL_PREFIX=$PWD/../install ..
-        cmake --build . --target install --parallel $(nproc --all)
+        LLVM_BUILD_DIR=$(pwd)
+        # Build InterOp next to cling and llvm-project.
+        cd ../../
+        mkdir build && cd build
+        cmake -DUSE_CLING=ON -DCling_DIR=$LLVM_BUILD_DIR ..
+        cmake --build . --parallel $(nproc --all)
         make check-interop
-        cd ../install
-        export INTEROP_DIR=$PWD
-        cd ../..
-        # We need INTEROP_DIR later
-        echo "INTEROP_DIR=$INTEROP_DIR" >> $GITHUB_ENV
     - name: Setup tmate session
       if: ${{ failure() }}
       uses: mxschmitt/action-tmate@v3
