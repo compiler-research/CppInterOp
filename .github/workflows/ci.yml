@@ -100,12 +100,11 @@ jobs:
       if: runner.os == 'Linux'
       run: |
         # Install CppInterOp  
-        git clone https://github.com/compiler-research/CppInterOp.git
-        cd CppInterOp
         mkdir build install && cd build
         #cmake -DUSE_CLING=ON -DCling_DIR=$CPT_DIR/builddir -DLLVM_DIR=$CPT_DIR/builddir -DCLANG_DIR=$CPT_DIR/builddir -DCMAKE_INSTALL_PREFIX=$PWD/../install ..
         cmake -DUSE_CLING=ON -DCling_DIR=/tmp/cling-obj -DLLVM_DIR=/tmp/cling-obj -DCLANG_DIR=/tmp/cling-obj -DCMAKE_INSTALL_PREFIX=$PWD/../install ..
         cmake --build . --target install --parallel $(nproc --all)
+        make check-cppinterop
         cd ../install
         export CPPINTEROP_DIR=$PWD
         cd ../..

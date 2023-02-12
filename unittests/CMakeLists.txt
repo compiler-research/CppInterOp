@@ -1,4 +1,5 @@
-set(CTEST_BUILD_NAME ${CMAKE_SYSTEM_NAME}-${CMAKE_HOST_SYSTEM_PROCESSOR}-${CMAKE_BUILD_TYPE})
+set(CTEST_BUILD_NAME
+  ${CMAKE_SYSTEM_NAME}-${CMAKE_HOST_SYSTEM_PROCESSOR}-${CMAKE_BUILD_TYPE})
 enable_testing()
 
 # LLVM builds (not installed llvm) provides gtest.
@@ -8,16 +9,29 @@ endif()
 
 add_custom_target(CppInterOpUnitTests)
 set_target_properties(CppInterOpUnitTests PROPERTIES FOLDER "CppInterOp tests")
- 
-# add_clang_unittest(test_dirname file1.cpp file2.cpp)
-#
-# Will compile the list of files together and link against the clang
-# Produces a binary named 'basename(test_dirname)'.
-function(add_cppinterop_unittest test_dirname)
-  add_unittest(CppInterOpUnitTests ${test_dirname} ${ARGN})
+add_dependencies(CppInterOpUnitTests clangCppInterOp)
+
+set (TIMEOUT_VALUE 2400)
+function(add_cppinterop_unittest name)
+  add_executable(${name} ${ARGN})
+  add_dependencies(CppInterOpUnitTests ${name})
+  target_include_directories(${name} PUBLIC ${CMAKE_CURRENT_BINARY_DIR} ${GTEST_INCLUDE_DIR})
+  set_property(TARGET ${name} PROPERTY RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
+  target_link_libraries(${name} PUBLIC ${ARG_LIBRARIES} gtest gtest_main)
+
+  add_test(NAME clad-${name} COMMAND ${name})
+  set_tests_properties(clad-${name} PROPERTIES
+                       TIMEOUT "${TIMEOUT_VALUE}"
+                       LABELS
+                       DEPENDS)
+  # FIXME: Just call gtest_add_tests this function is available.
+  #gtest_add_tests(${name} "${Arguments}" AUTO)
 endfunction()
  
 add_subdirectory(CppInterOp)
 
-add_dependencies(CppInterOpUnitTests clangCppInterOp)
-add_dependencies(CppInterOpTests clangCppInterOp)
+add_custom_target(check-cppinterop COMMAND ${CMAKE_CTEST_COMMAND} -V
+  DEPENDS CppInterOpUnitTests WORKING_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
+set_target_properties(check-cppinterop PROPERTIES FOLDER "CppInterOp tests")
