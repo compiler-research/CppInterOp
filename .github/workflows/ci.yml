@@ -100,12 +100,11 @@ jobs:
       if: runner.os == 'Linux'
       run: |
         # Install InterOp  
-        git clone https://github.com/compiler-research/InterOp.git
-        cd InterOp
         mkdir build install && cd build
         #cmake -DUSE_CLING=ON -DCling_DIR=$CPT_DIR/builddir -DLLVM_DIR=$CPT_DIR/builddir -DCLANG_DIR=$CPT_DIR/builddir -DCMAKE_INSTALL_PREFIX=$PWD/../install ..
         cmake -DUSE_CLING=ON -DCling_DIR=/tmp/cling-obj -DLLVM_DIR=/tmp/cling-obj -DCLANG_DIR=/tmp/cling-obj -DCMAKE_INSTALL_PREFIX=$PWD/../install ..
         cmake --build . --target install --parallel $(nproc --all)
+        make check-interop
         cd ../install
         export INTEROP_DIR=$PWD
         cd ../..
