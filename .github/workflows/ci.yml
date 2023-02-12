@@ -112,4 +112,4 @@ jobs:
       if: ${{ failure() }}
       uses: mxschmitt/action-tmate@v3
       # When debugging increase to a suitable value!
-      timeout-minutes: ${{ github.event.pull_request && 3 || 20 }}
+      timeout-minutes: ${{ github.event.pull_request && 10 || 20 }}
