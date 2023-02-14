@@ -41,8 +41,8 @@ jobs:
         CLING_HASH=$(git ls-remote git@github.com:root-project/cling.git HEAD| tr '\t' '-')
         # FIXME: We need something like cling-llvm to bump automatically...
         LLVM_HASH=$(git ls-remote git@github.com:root-project/llvm-project.git cling-llvm13 | tr '\t' '-')
-        echo "CLING_HASH=${CLING_HASH}" >> $GITHUB_ENV
-        echo "LLVM_HASH=${LLVM_HASH}" >> $GITHUB_ENV
+        echo "CLING_HASH=$CLING_HASH" >> $GITHUB_ENV
+        echo "LLVM_HASH=$LLVM_HASH" >> $GITHUB_ENV
 
     - uses: nelonoel/branch-name@v1.0.1
     - name: Setup compiler on Linux
@@ -84,7 +84,7 @@ jobs:
         path: |
           llvm-project/build/
         #key: ...-.x-patch-${{ hashFiles('patches/llvm/*') }}
-        key: ${CLING_HASH}-${LLVM_HASH}-${{ runner.os }}-${{ matrix.os }}-${{ matrix.compiler }}-clang-${{ matrix.clang-runtime }}.x
+        key: $CLING_HASH-$LLVM_HASH-${{ runner.os }}-${{ matrix.os }}-${{ matrix.compiler }}-clang-${{ matrix.clang-runtime }}.x
     - name: Build Cling on Linux if the cache is invalid
       run: |
         if [[ "${{ steps.cling-build-cache.outputs.cache-hit }}" != "true" ]]; then
@@ -98,8 +98,12 @@ jobs:
                 -DLLVM_EXTERNAL_CLING_SOURCE_DIR=../../cling  \
                 -DLLVM_TARGETS_TO_BUILD="host;NVPTX"          \
                 -DCMAKE_BUILD_TYPE=RelWithDebInfo             \
-                -DLLVM_ENABLE_ASSERTIONS=On                   \
+                -DLLVM_ENABLE_ASSERTIONS=ON                   \
                 -DLLVM_USE_LINKER=lld                         \
+                -DCLANG_ENABLE_STATIC_ANALYZER=OFF            \
+                -DCLANG_ENABLE_ARCMT=OFF                      \
+                -DCLANG_ENABLE_FORMAT=OFF                     \
+                -DCLANG_ENABLE_BOOTSTRAP=OFF                  \
                 ../llvm
           cmake --build . --target cling --parallel $(nproc --all)
         fi
