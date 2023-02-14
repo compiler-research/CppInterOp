@@ -106,16 +106,20 @@ jobs:
                 -DCLANG_ENABLE_BOOTSTRAP=OFF                  \
                 ../llvm
           cmake --build . --target cling --parallel $(nproc --all)
+          cd ../../
         fi
     - name: Build and Test InterOp
       run: |
-        LLVM_BUILD_DIR=$(pwd)
+        LLVM_BUILD_DIR=$(pwd)/llvm-project/build
         # Build InterOp next to cling and llvm-project.
-        cd ../../
+        pwd
         mkdir build && cd build
-        cmake -DUSE_CLING=ON -DCling_DIR=$LLVM_BUILD_DIR ..
-        cmake --build . --parallel $(nproc --all)
-        make check-interop
+        cmake -DUSE_CLING=ON -DCling_DIR=$LLVM_BUILD_DIR llvm-project/build
+        cmake --build . --target check-interop --parallel $(nproc --all)
+    - name: Show debug info
+      if: ${{ failure() }}
+      run: |
+        export
     - name: Setup tmate session
       if: ${{ failure() }}
       uses: mxschmitt/action-tmate@v3
