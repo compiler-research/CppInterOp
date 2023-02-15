@@ -114,7 +114,7 @@ jobs:
         # Build InterOp next to cling and llvm-project.
         pwd
         mkdir build && cd build
-        cmake -DUSE_CLING=ON -DCling_DIR=$LLVM_BUILD_DIR llvm-project/build
+        cmake -DUSE_CLING=ON -DCling_DIR=$LLVM_BUILD_DIR ../
         cmake --build . --target check-interop --parallel $(nproc --all)
     - name: Show debug info
       if: ${{ failure() }}
@@ -124,4 +124,4 @@ jobs:
       if: ${{ failure() }}
       uses: mxschmitt/action-tmate@v3
       # When debugging increase to a suitable value!
-      timeout-minutes: ${{ github.event.pull_request && 10 || 20 }}
+      timeout-minutes: ${{ github.event.pull_request && 100 || 20 }}
