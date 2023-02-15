@@ -11,11 +11,11 @@ set(CMAKE_MODULE_PATH
 if( CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR )
   project(InterOp)
   if (USE_CLING)
-    find_package(LLVM REQUIRED CONFIG HINTS ${Cling_DIR}/lib/cmake/llvm/)
-    find_package(Clang REQUIRED CONFIG HINTS ${Cling_DIR}/lib/cmake/clang/)
-    find_package(Cling REQUIRED CONFIG HINTS ${Cling_DIR}/lib/cmake/cling/)
+    find_package(LLVM REQUIRED CONFIG HINTS ${Cling_DIR}/lib/cmake/llvm/ NO_DEFAULT_PATH)
+    find_package(Clang REQUIRED CONFIG HINTS ${Cling_DIR}/lib/cmake/clang/ NO_DEFAULT_PATH)
+    find_package(Cling REQUIRED CONFIG HINTS ${Cling_DIR}/lib/cmake/cling/ NO_DEFAULT_PATH)
     include_directories(${CLING_INCLUDE_DIRS})
-  endif()
+  endif(USE_CLING)
   ## Define supported version of clang and llvm
 
   set(CLANG_MIN_SUPPORTED 13.0)
