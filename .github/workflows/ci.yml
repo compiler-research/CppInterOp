@@ -105,7 +105,10 @@ jobs:
                 -DCLANG_ENABLE_FORMAT=OFF                     \
                 -DCLANG_ENABLE_BOOTSTRAP=OFF                  \
                 ../llvm
+          cmake --build . --target clang --parallel $(nproc --all)
           cmake --build . --target cling --parallel $(nproc --all)
+          # Now build gtest.a and gtest_main for InterOp to run its tests.
+          cmake --build . --target gtest_main --parallel $(nproc --all)
           cd ../../
         fi
     - name: Build and Test InterOp
