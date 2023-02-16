@@ -38,9 +38,9 @@ jobs:
         echo ${{ github.event.number }} > ./pr/NR
         echo ${{ github.repository }} > ./pr/REPO
 
-        export CLING_HASH=$(git ls-remote git@github.com:root-project/cling.git HEAD| tr '\t' '-')
+        export CLING_HASH=$(git ls-remote https://github.com/root-project/cling.git HEAD| tr '\t' '-')
         # FIXME: We need something like cling-llvm to bump automatically...
-        export LLVM_HASH=$(git ls-remote git@github.com:root-project/llvm-project.git cling-llvm13 | tr '\t' '-')
+        export LLVM_HASH=$(git ls-remote https://github.com/root-project/llvm-project.git cling-llvm13 | tr '\t' '-')
         echo "CLING_HASH=$CLING_HASH" >> $GITHUB_ENV
         echo "LLVM_HASH=$LLVM_HASH" >> $GITHUB_ENV
 
