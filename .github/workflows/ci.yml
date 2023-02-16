@@ -115,6 +115,9 @@ jobs:
           cmake --build . --target gtest_main --parallel $(nproc --all)
           df -H
           cd ../../
+          mv llvm-project/build .
+          rm -fr llvm-project/*
+          mv build llvm-project/
         fi
 #    - name: Build and Test InterOp
 #      run: |
