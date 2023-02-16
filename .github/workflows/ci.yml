@@ -89,7 +89,9 @@ jobs:
       run: |
         if [[ "${{ steps.cling-build-cache.outputs.cache-hit }}" != "true" ]]; then
           git clone --depth=1 https://github.com/root-project/cling.git
+          df -H
           git clone --depth=1 -b cling-llvm13 https://github.com/root-project/llvm-project.git
+          df -H
           cd llvm-project
           mkdir build
           cd build
@@ -106,9 +108,12 @@ jobs:
                 -DCLANG_ENABLE_BOOTSTRAP=OFF                  \
                 ../llvm
           cmake --build . --target clang --parallel $(nproc --all)
+          df -H
           cmake --build . --target cling --parallel $(nproc --all)
+          df -H
           # Now build gtest.a and gtest_main for InterOp to run its tests.
           cmake --build . --target gtest_main --parallel $(nproc --all)
+          df -H
           cd ../../
         fi
 #    - name: Build and Test InterOp
