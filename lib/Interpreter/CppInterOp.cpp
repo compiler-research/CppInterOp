@@ -161,7 +161,7 @@ namespace Cpp {
     return "<unnamed>";
   }
 
-  std::string GetCompleteName(TCppType_t klass)
+  std::string GetQualifiedName(TCppType_t klass)
   {
     auto *D = (Decl *) klass;
     if (auto *ND = llvm::dyn_cast_or_null<NamedDecl>(D)) {
@@ -705,7 +705,7 @@ namespace Cpp {
     if (auto *CXXRD = llvm::dyn_cast_or_null<CXXRecordDecl>(P)) {
       if (llvm::isa_and_nonnull<VarDecl>(D)) {
         return (intptr_t)I->process(
-            (std::string("&") + GetCompleteName(D) + ";").c_str());
+            (std::string("&") + GetQualifiedName(D) + ";").c_str());
       }
 
       if (auto *FD = llvm::dyn_cast_or_null<FieldDecl>(D)) {

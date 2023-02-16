@@ -35,7 +35,7 @@ TEST(FunctionReflectionTest, GetClassMethods) {
   auto methods = Cpp::GetClassMethods(Decls[0]);
 
   auto get_method_name = [](Cpp::TCppFunction_t method) {
-    return Cpp::GetCompleteName(method);
+    return Cpp::GetQualifiedName(method);
   };
 
   EXPECT_EQ(get_method_name(methods[0]), "A::f1");
@@ -129,8 +129,8 @@ TEST(FunctionReflectionTest, GetFunctionsUsingName) {
     for (auto *F : Funcs) {
       // Check if the fully scoped name of the function matches its
       // expected fully scoped name
-      EXPECT_EQ(Cpp::GetCompleteName(F),
-                Cpp::GetCompleteName(scope) + "::" + name);
+      EXPECT_EQ(Cpp::GetQualifiedName(F),
+                Cpp::GetQualifiedName(scope) + "::" + name);
     }
   };
 

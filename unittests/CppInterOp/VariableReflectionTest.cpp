@@ -34,9 +34,9 @@ TEST(VariableReflectionTest, GetDatamembers) {
   GetAllTopLevelDecls(code, Decls);
   auto datamembers = Cpp::GetDatamembers(Decls[0]);
 
-  EXPECT_EQ(Cpp::GetCompleteName(datamembers[0]), "C::a");
-  EXPECT_EQ(Cpp::GetCompleteName(datamembers[1]), "C::c");
-  EXPECT_EQ(Cpp::GetCompleteName(datamembers[2]), "C::e");
+  EXPECT_EQ(Cpp::GetQualifiedName(datamembers[0]), "C::a");
+  EXPECT_EQ(Cpp::GetQualifiedName(datamembers[1]), "C::c");
+  EXPECT_EQ(Cpp::GetQualifiedName(datamembers[2]), "C::e");
   EXPECT_EQ(datamembers.size(), 3);
 }
 
@@ -59,11 +59,11 @@ TEST(VariableReflectionTest, LookupDatamember) {
   GetAllTopLevelDecls(code, Decls);
   Sema *S = &Interp->getCI()->getSema();
 
-  EXPECT_EQ(Cpp::GetCompleteName(Cpp::LookupDatamember(S, "a", Decls[0])),
+  EXPECT_EQ(Cpp::GetQualifiedName(Cpp::LookupDatamember(S, "a", Decls[0])),
             "C::a");
-  EXPECT_EQ(Cpp::GetCompleteName(Cpp::LookupDatamember(S, "c", Decls[0])),
+  EXPECT_EQ(Cpp::GetQualifiedName(Cpp::LookupDatamember(S, "c", Decls[0])),
             "C::c");
-  EXPECT_EQ(Cpp::GetCompleteName(Cpp::LookupDatamember(S, "e", Decls[0])),
+  EXPECT_EQ(Cpp::GetQualifiedName(Cpp::LookupDatamember(S, "e", Decls[0])),
             "C::e");
 }
 
