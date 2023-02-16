@@ -34,9 +34,9 @@ TEST(VariableReflectionTest, GetDatamembers) {
   GetAllTopLevelDecls(code, Decls);
   auto datamembers = InterOp::GetDatamembers(Decls[0]);
 
-  EXPECT_EQ(InterOp::GetCompleteName(datamembers[0]), "C::a");
-  EXPECT_EQ(InterOp::GetCompleteName(datamembers[1]), "C::c");
-  EXPECT_EQ(InterOp::GetCompleteName(datamembers[2]), "C::e");
+  EXPECT_EQ(InterOp::GetQualifiedName(datamembers[0]), "C::a");
+  EXPECT_EQ(InterOp::GetQualifiedName(datamembers[1]), "C::c");
+  EXPECT_EQ(InterOp::GetQualifiedName(datamembers[2]), "C::e");
   EXPECT_EQ(datamembers.size(), 3);
 }
 
@@ -60,13 +60,13 @@ TEST(VariableReflectionTest, LookupDatamember) {
   Sema *S = &Interp->getCI()->getSema();
 
   EXPECT_EQ(
-      InterOp::GetCompleteName(InterOp::LookupDatamember(S, "a", Decls[0])),
+      InterOp::GetQualifiedName(InterOp::LookupDatamember(S, "a", Decls[0])),
       "C::a");
   EXPECT_EQ(
-      InterOp::GetCompleteName(InterOp::LookupDatamember(S, "c", Decls[0])),
+      InterOp::GetQualifiedName(InterOp::LookupDatamember(S, "c", Decls[0])),
       "C::c");
   EXPECT_EQ(
-      InterOp::GetCompleteName(InterOp::LookupDatamember(S, "e", Decls[0])),
+      InterOp::GetQualifiedName(InterOp::LookupDatamember(S, "e", Decls[0])),
       "C::e");
 }
 
