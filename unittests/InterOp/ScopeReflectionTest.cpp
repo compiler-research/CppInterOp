@@ -165,7 +165,7 @@ TEST(ScopeReflectionTest, GetName) {
   EXPECT_EQ(InterOp::GetName(Decls[7]), "Size16");
 }
 
-TEST(ScopeReflectionTest, GetCompleteName) {
+TEST(ScopeReflectionTest, GetQualifiedName) {
   std::vector<Decl*> Decls;
   std::string code = R"(namespace N {
                         class C {
@@ -178,11 +178,11 @@ TEST(ScopeReflectionTest, GetCompleteName) {
   GetAllSubDecls(Decls[0], Decls);
   GetAllSubDecls(Decls[1], Decls);
 
-  EXPECT_EQ(InterOp::GetCompleteName(0), "<unnamed>");
-  EXPECT_EQ(InterOp::GetCompleteName(Decls[0]), "N");
-  EXPECT_EQ(InterOp::GetCompleteName(Decls[1]), "N::C");
-  EXPECT_EQ(InterOp::GetCompleteName(Decls[3]), "N::C::i");
-  EXPECT_EQ(InterOp::GetCompleteName(Decls[4]), "N::C::E");
+  EXPECT_EQ(InterOp::GetQualifiedName(0), "<unnamed>");
+  EXPECT_EQ(InterOp::GetQualifiedName(Decls[0]), "N");
+  EXPECT_EQ(InterOp::GetQualifiedName(Decls[1]), "N::C");
+  EXPECT_EQ(InterOp::GetQualifiedName(Decls[3]), "N::C::i");
+  EXPECT_EQ(InterOp::GetQualifiedName(Decls[4]), "N::C::E");
 }
 
 TEST(ScopeReflectionTest, GetUsingNamespaces) {
@@ -213,7 +213,7 @@ TEST(ScopeReflectionTest, GetGlobalScope) {
   Interp = createInterpreter();
   Sema *S = &Interp->getCI()->getSema();
 
-  EXPECT_EQ(InterOp::GetCompleteName(InterOp::GetGlobalScope(S)), "");
+  EXPECT_EQ(InterOp::GetQualifiedName(InterOp::GetGlobalScope(S)), "");
   EXPECT_EQ(InterOp::GetName(InterOp::GetGlobalScope(S)), "");
 }
 
@@ -234,9 +234,9 @@ TEST(ScopeReflectionTest, GetScope) {
   InterOp::TCppScope_t ns_N = InterOp::GetScope(S, "N", 0);
   InterOp::TCppScope_t cl_C = InterOp::GetScope(S, "C", ns_N);
 
-  EXPECT_EQ(InterOp::GetCompleteName(tu), "");
-  EXPECT_EQ(InterOp::GetCompleteName(ns_N), "N");
-  EXPECT_EQ(InterOp::GetCompleteName(cl_C), "N::C");
+  EXPECT_EQ(InterOp::GetQualifiedName(tu), "");
+  EXPECT_EQ(InterOp::GetQualifiedName(ns_N), "N");
+  EXPECT_EQ(InterOp::GetQualifiedName(cl_C), "N::C");
 }
 
 TEST(ScopeReflectionTest, GetScopefromCompleteName) {
@@ -253,10 +253,10 @@ TEST(ScopeReflectionTest, GetScopefromCompleteName) {
   Interp = createInterpreter();
   Interp->declare(code);
   Sema *S = &Interp->getCI()->getSema();
-  EXPECT_EQ(InterOp::GetCompleteName(InterOp::GetScopeFromCompleteName(S, "N1")), "N1");
-  EXPECT_EQ(InterOp::GetCompleteName(InterOp::GetScopeFromCompleteName(S, "N1::N2")), "N1::N2");
-  EXPECT_EQ(InterOp::GetCompleteName(InterOp::GetScopeFromCompleteName(S, "N1::N2::C")), "N1::N2::C");
-  EXPECT_EQ(InterOp::GetCompleteName(InterOp::GetScopeFromCompleteName(S, "N1::N2::C::S")), "N1::N2::C::S");
+  EXPECT_EQ(InterOp::GetQualifiedName(InterOp::GetScopeFromCompleteName(S, "N1")), "N1");
+  EXPECT_EQ(InterOp::GetQualifiedName(InterOp::GetScopeFromCompleteName(S, "N1::N2")), "N1::N2");
+  EXPECT_EQ(InterOp::GetQualifiedName(InterOp::GetScopeFromCompleteName(S, "N1::N2::C")), "N1::N2::C");
+  EXPECT_EQ(InterOp::GetQualifiedName(InterOp::GetScopeFromCompleteName(S, "N1::N2::C::S")), "N1::N2::C::S");
 }
 
 TEST(ScopeReflectionTest, GetNamed) {
@@ -279,16 +279,16 @@ TEST(ScopeReflectionTest, GetNamed) {
   InterOp::TCppScope_t ns_N2 = InterOp::GetNamed(S, "N2", ns_N1);
   InterOp::TCppScope_t cl_C = InterOp::GetNamed(S, "C", ns_N2);
   InterOp::TCppScope_t en_E = InterOp::GetNamed(S, "E", cl_C);
-  EXPECT_EQ(InterOp::GetCompleteName(ns_N1), "N1");
-  EXPECT_EQ(InterOp::GetCompleteName(ns_N2), "N1::N2");
-  EXPECT_EQ(InterOp::GetCompleteName(cl_C), "N1::N2::C");
-  EXPECT_EQ(InterOp::GetCompleteName(InterOp::GetNamed(S, "i", cl_C)), "N1::N2::C::i");
-  EXPECT_EQ(InterOp::GetCompleteName(en_E), "N1::N2::C::E");
-  EXPECT_EQ(InterOp::GetCompleteName(InterOp::GetNamed(S, "A", en_E)), "N1::N2::C::A");
-  EXPECT_EQ(InterOp::GetCompleteName(InterOp::GetNamed(S, "B", en_E)), "N1::N2::C::B");
-  EXPECT_EQ(InterOp::GetCompleteName(InterOp::GetNamed(S, "A", cl_C)), "N1::N2::C::A");
-  EXPECT_EQ(InterOp::GetCompleteName(InterOp::GetNamed(S, "B", cl_C)), "N1::N2::C::B");
-  EXPECT_EQ(InterOp::GetCompleteName(InterOp::GetNamed(S, "S", cl_C)), "N1::N2::C::S");
+  EXPECT_EQ(InterOp::GetQualifiedName(ns_N1), "N1");
+  EXPECT_EQ(InterOp::GetQualifiedName(ns_N2), "N1::N2");
+  EXPECT_EQ(InterOp::GetQualifiedName(cl_C), "N1::N2::C");
+  EXPECT_EQ(InterOp::GetQualifiedName(InterOp::GetNamed(S, "i", cl_C)), "N1::N2::C::i");
+  EXPECT_EQ(InterOp::GetQualifiedName(en_E), "N1::N2::C::E");
+  EXPECT_EQ(InterOp::GetQualifiedName(InterOp::GetNamed(S, "A", en_E)), "N1::N2::C::A");
+  EXPECT_EQ(InterOp::GetQualifiedName(InterOp::GetNamed(S, "B", en_E)), "N1::N2::C::B");
+  EXPECT_EQ(InterOp::GetQualifiedName(InterOp::GetNamed(S, "A", cl_C)), "N1::N2::C::A");
+  EXPECT_EQ(InterOp::GetQualifiedName(InterOp::GetNamed(S, "B", cl_C)), "N1::N2::C::B");
+  EXPECT_EQ(InterOp::GetQualifiedName(InterOp::GetNamed(S, "S", cl_C)), "N1::N2::C::S");
 }
 
 TEST(ScopeReflectionTest, GetParentScope) {
@@ -315,13 +315,13 @@ TEST(ScopeReflectionTest, GetParentScope) {
   InterOp::TCppScope_t en_A = InterOp::GetNamed(S, "A", cl_C);
   InterOp::TCppScope_t en_B = InterOp::GetNamed(S, "B", cl_C);
 
-  EXPECT_EQ(InterOp::GetCompleteName(InterOp::GetParentScope(ns_N1)), "");
-  EXPECT_EQ(InterOp::GetCompleteName(InterOp::GetParentScope(ns_N2)), "N1");
-  EXPECT_EQ(InterOp::GetCompleteName(InterOp::GetParentScope(cl_C)), "N1::N2");
-  EXPECT_EQ(InterOp::GetCompleteName(InterOp::GetParentScope(int_i)), "N1::N2::C");
-  EXPECT_EQ(InterOp::GetCompleteName(InterOp::GetParentScope(en_E)), "N1::N2::C");
-  EXPECT_EQ(InterOp::GetCompleteName(InterOp::GetParentScope(en_A)), "N1::N2::C::E");
-  EXPECT_EQ(InterOp::GetCompleteName(InterOp::GetParentScope(en_B)), "N1::N2::C::E");
+  EXPECT_EQ(InterOp::GetQualifiedName(InterOp::GetParentScope(ns_N1)), "");
+  EXPECT_EQ(InterOp::GetQualifiedName(InterOp::GetParentScope(ns_N2)), "N1");
+  EXPECT_EQ(InterOp::GetQualifiedName(InterOp::GetParentScope(cl_C)), "N1::N2");
+  EXPECT_EQ(InterOp::GetQualifiedName(InterOp::GetParentScope(int_i)), "N1::N2::C");
+  EXPECT_EQ(InterOp::GetQualifiedName(InterOp::GetParentScope(en_E)), "N1::N2::C");
+  EXPECT_EQ(InterOp::GetQualifiedName(InterOp::GetParentScope(en_A)), "N1::N2::C::E");
+  EXPECT_EQ(InterOp::GetQualifiedName(InterOp::GetParentScope(en_B)), "N1::N2::C::E");
 }
 
 TEST(ScopeReflectionTest, GetScopeFromType) {
@@ -343,9 +343,9 @@ TEST(ScopeReflectionTest, GetScopeFromType) {
   QualType QT1 = llvm::dyn_cast<VarDecl>(Decls[1])->getType();
   QualType QT2 = llvm::dyn_cast<VarDecl>(Decls[2])->getType();
   QualType QT3 = llvm::dyn_cast<VarDecl>(Decls[3])->getType();
-  EXPECT_EQ(InterOp::GetCompleteName(InterOp::GetScopeFromType(QT1.getAsOpaquePtr())),
+  EXPECT_EQ(InterOp::GetQualifiedName(InterOp::GetScopeFromType(QT1.getAsOpaquePtr())),
           "N::C");
-  EXPECT_EQ(InterOp::GetCompleteName(InterOp::GetScopeFromType(QT2.getAsOpaquePtr())),
+  EXPECT_EQ(InterOp::GetQualifiedName(InterOp::GetScopeFromType(QT2.getAsOpaquePtr())),
           "N::S");
   EXPECT_EQ(InterOp::GetScopeFromType(QT3.getAsOpaquePtr()),
           (InterOp::TCppScope_t) 0);
@@ -384,7 +384,7 @@ TEST(ScopeReflectionTest, GetBaseClass) {
   GetAllTopLevelDecls(code, Decls);
 
   auto get_base_class_name = [](Decl *D, int i) {
-      return InterOp::GetCompleteName(InterOp::GetBaseClass(D, i));
+      return InterOp::GetQualifiedName(InterOp::GetBaseClass(D, i));
   };
 
   EXPECT_EQ(get_base_class_name(Decls[1], 0), "A");
