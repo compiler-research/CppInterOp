@@ -119,15 +119,15 @@ jobs:
           rm -fr llvm-project/*
           mv build llvm-project/
         fi
-#    - name: Build and Test InterOp
-#      run: |
-#        LLVM_BUILD_DIR=$(pwd)/../llvm-project/build
-#        LLVM_BUILD_DIR=$(realpath LLVM_BUILD_DIR)
-#        # Build InterOp next to cling and llvm-project.
-#        pwd
-#        mkdir build && cd build
-#        cmake -DUSE_CLING=ON -DCling_DIR=$LLVM_BUILD_DIR ../
-#        cmake --build . --target check-interop --parallel $(nproc --all)
+    - name: Build and Test InterOp
+      run: |
+        LLVM_BUILD_DIR=$(pwd)/../llvm-project/build
+        LLVM_BUILD_DIR=$(realpath LLVM_BUILD_DIR)
+        # Build InterOp next to cling and llvm-project.
+        pwd
+        mkdir build && cd build
+        cmake -DUSE_CLING=ON -DCling_DIR=$LLVM_BUILD_DIR ../
+        cmake --build . --target check-interop --parallel $(nproc --all)
     - name: Show debug info
       if: ${{ failure() }}
       run: |
