@@ -116,7 +116,7 @@ jobs:
     - name: Build and Test InterOp
       run: |
         LLVM_BUILD_DIR=$(pwd)/../llvm-project/build
-        LLVM_BUILD_DIR=$(realpath LLVM_BUILD_DIR)
+        LLVM_BUILD_DIR="$(realpath $LLVM_BUILD_DIR)"
         # Build InterOp next to cling and llvm-project.
         pwd
         mkdir build && cd build
