@@ -99,7 +99,7 @@ jobs:
                 -DLLVM_EXTERNAL_PROJECTS=cling                \
                 -DLLVM_EXTERNAL_CLING_SOURCE_DIR=../../cling  \
                 -DLLVM_TARGETS_TO_BUILD="host;NVPTX"          \
-                -DCMAKE_BUILD_TYPE=RelWithDebInfo             \
+                -DCMAKE_BUILD_TYPE=Release                    \
                 -DLLVM_ENABLE_ASSERTIONS=ON                   \
                 -DLLVM_USE_LINKER=lld                         \
                 -DCLANG_ENABLE_STATIC_ANALYZER=OFF            \
