@@ -20,10 +20,10 @@ jobs:
             os: ubuntu-22.04
             compiler: gcc-9
             clang-runtime: '13'
-          - name: ubu22-gcc9-clang14
-            os: ubuntu-22.04
-            compiler: gcc-9
-            clang-runtime: '14'
+#          - name: ubu22-gcc9-clang14
+#            os: ubuntu-22.04
+#            compiler: gcc-9
+#            clang-runtime: '14'
     steps:
     - uses: actions/checkout@v3
       with:
@@ -37,6 +37,13 @@ jobs:
         mkdir -p ./pr
         echo ${{ github.event.number }} > ./pr/NR
         echo ${{ github.repository }} > ./pr/REPO
+
+        export CLING_HASH=$(git ls-remote https://github.com/root-project/cling.git HEAD| tr '\t' '-')
+        # FIXME: We need something like cling-llvm to bump automatically...
+        export LLVM_HASH=$(git ls-remote https://github.com/root-project/llvm-project.git cling-llvm13 | tr '\t' '-')
+        echo "CLING_HASH=$CLING_HASH" >> $GITHUB_ENV
+        echo "LLVM_HASH=$LLVM_HASH" >> $GITHUB_ENV
+
     - uses: nelonoel/branch-name@v1.0.1
     - name: Setup compiler on Linux
       if: runner.os == 'Linux'
@@ -46,7 +53,7 @@ jobs:
         os_codename="`cat /etc/os-release | grep UBUNTU_CODENAME | cut -d = -f 2`"
         sudo apt update
         if [[ "${{ matrix.compiler }}" == *"gcc"* ]]; then
-          sudo apt install -y gcc-${vers} g++-${vers}
+          sudo apt install -y gcc-${vers} g++-${vers} lld
           echo "CC=gcc-${vers}" >> $GITHUB_ENV
           echo "CXX=g++-${vers}" >> $GITHUB_ENV
         else
@@ -70,48 +77,57 @@ jobs:
         conda install -y -q -c conda-forge \
           distro \
           pytest
-    - name: Cache LLVM/Clang/Cling runtime build directory form CPT
+    - name: Cache LLVM/Clang/Cling runtime build directory
       uses: actions/cache@v3
       id: cling-build-cache
       with:
         path: |
-          cling-build
-          /tmp/cling-obj
-          cpt.py
-        #TODO: Fix key to relay to CPT patches and llvm version
-        #key: ${{ runner.os }}-${{ matrix.os }}-${{ matrix.compiler }}-clang-${{ matrix.clang-runtime }}.x-patch-${{ hashFiles('patches/llvm/*') }}
-        key: ${{ runner.os }}-${{ matrix.os }}-${{ matrix.compiler }}-clang-${{ matrix.clang-runtime }}.x
-    - name: Install Cling (by CPT) on Linux
-      if: runner.os == 'Linux'
+          llvm-project/
+          cling/
+        #key: ...-.x-patch-${{ hashFiles('patches/llvm/*') }}
+        #key: ${{ env.CLING_HASH }}-${{ env.LLVM_HASH }}-${{ runner.os }}-${{ matrix.os }}-${{ matrix.compiler }}-clang-${{ matrix.clang-runtime }}.x
+        key: ${{ env.CLING_HASH }}-${{ runner.os }}-${{ matrix.os }}-${{ matrix.compiler }}-clang-${{ matrix.clang-runtime }}.x
+    - name: Build Cling on Linux if the cache is invalid
       run: |
         if [[ "${{ steps.cling-build-cache.outputs.cache-hit }}" != "true" ]]; then
-          # Install cling by CPT
-          wget https://raw.githubusercontent.com/root-project/cling/master/tools/packaging/cpt.py
-          chmod +x cpt.py
-          #TODO: remove sed patches after fix CPT in cling repos
-          sed -i '2637s/.*/    CPT_SRC_DIR = install_prefix()/' cpt.py
-          sed -i "674i\    CPT_SRC_DIR = os.path.join(CLING_SRC_DIR, 'tools', 'packaging')" cpt.py
-          conda run --no-capture-output ./cpt.py --no-test --create-dev-env Release --with-workdir=./cling-build/
+          git clone --depth=1 https://github.com/root-project/cling.git
+          git clone --depth=1 -b cling-llvm13 https://github.com/root-project/llvm-project.git
+          cd llvm-project
+          mkdir build
+          cd build
+          cmake -DLLVM_ENABLE_PROJECTS=clang                  \
+                -DLLVM_EXTERNAL_PROJECTS=cling                \
+                -DLLVM_EXTERNAL_CLING_SOURCE_DIR=../../cling  \
+                -DLLVM_TARGETS_TO_BUILD="host;NVPTX"          \
+                -DCMAKE_BUILD_TYPE=Release                    \
+                -DLLVM_ENABLE_ASSERTIONS=ON                   \
+                -DLLVM_USE_LINKER=lld                         \
+                -DCLANG_ENABLE_STATIC_ANALYZER=OFF            \
+                -DCLANG_ENABLE_ARCMT=OFF                      \
+                -DCLANG_ENABLE_FORMAT=OFF                     \
+                -DCLANG_ENABLE_BOOTSTRAP=OFF                  \
+                ../llvm
+          cmake --build . --target clang --parallel $(nproc --all)
+          cmake --build . --target cling --parallel $(nproc --all)
+          # Now build gtest.a and gtest_main for CppInterOp to run its tests.
+          cmake --build . --target gtest_main --parallel $(nproc --all)
+          cd ../../
         fi
-        export CPT_DIR=$PWD
-        # We need CPT_DIR later
-        echo "CPT_DIR=$CPT_DIR" >> $GITHUB_ENV
-    - name: Install CppInterOp on Linux
-      if: runner.os == 'Linux'
+    - name: Build and Test CppInterOp
       run: |
-        # Install CppInterOp  
-        mkdir build install && cd build
-        #cmake -DUSE_CLING=ON -DCling_DIR=$CPT_DIR/builddir -DLLVM_DIR=$CPT_DIR/builddir -DCLANG_DIR=$CPT_DIR/builddir -DCMAKE_INSTALL_PREFIX=$PWD/../install ..
-        cmake -DUSE_CLING=ON -DCling_DIR=/tmp/cling-obj -DLLVM_DIR=/tmp/cling-obj -DCLANG_DIR=/tmp/cling-obj -DCMAKE_INSTALL_PREFIX=$PWD/../install ..
-        cmake --build . --target install --parallel $(nproc --all)
-        make check-cppinterop
-        cd ../install
-        export CPPINTEROP_DIR=$PWD
-        cd ../..
-        # We need CPPINTEROP_DIR later
-        echo "CPPINTEROP_DIR=$CPPINTEROP_DIR" >> $GITHUB_ENV
+        LLVM_BUILD_DIR="$(realpath llvm-project/build)"
+        # Build CppInterOp next to cling and llvm-project.
+        pwd
+        mkdir build && cd build
+        cmake -DUSE_CLING=ON -DCling_DIR=$LLVM_BUILD_DIR ../
+        cmake --build . --target check-cppinterop --parallel $(nproc --all)
+    - name: Show debug info
+      if: ${{ failure() }}
+      run: |
+        export
+        echo $GITHUB_ENV
     - name: Setup tmate session
       if: ${{ failure() }}
       uses: mxschmitt/action-tmate@v3
       # When debugging increase to a suitable value!
-      timeout-minutes: ${{ github.event.pull_request && 3 || 20 }}
+      timeout-minutes: ${{ github.event.pull_request && 1 || 20 }}
