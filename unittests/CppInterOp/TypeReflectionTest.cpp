@@ -154,3 +154,32 @@ TEST(TypeReflectionTest, DISABLED_IsSubType) {
   // EXPECT_FALSE(Cpp::IsSubType(type_A, type_B));
   // EXPECT_FALSE(Cpp::IsSubType(type_C, type_A));
 }
+
+TEST(TypeReflectionTest, DISABLED_GetDimensions) {
+  std::vector<Decl *> Decls;
+
+  std::string code = R"(
+      int a;
+      int b[1];
+      int c[1][2];
+      int d[1][2][3];
+    )";
+
+  GetAllTopLevelDecls(code, Decls);
+
+  auto test_get_dimensions = [](Decl *D,
+                                const std::vector<std::size_t> &truth_dims) {
+    // std::vector<TCppIndex_t> dims =
+    // Cpp::GetDimensions(Cpp::GetVariableType(D));
+    // EXPECT_EQ(dims.size(), truth_dims.size());
+
+    // for (unsigned i = 0; i < truth_dims.size() && i < dims.size(); i++) {
+    //   EXPECT_EQ(dims[i], truth_dims[i]);
+    // }
+  };
+
+  test_get_dimensions(Decls[0], {});
+  test_get_dimensions(Decls[1], {1});
+  test_get_dimensions(Decls[2], {1, 2});
+  test_get_dimensions(Decls[3], {1, 2, 3});
+}
