@@ -181,3 +181,33 @@ TEST(TypeReflectionTest, DISABLED_GetDimensions) {
   test_get_dimensions(Decls[3], {1, 2, 3});
 }
 
+TEST(TypeReflectionTest, DISABLED_IsSmartPtrType) {
+  Interp.reset();
+  Interp = createInterpreter();
+  Sema *S = &Interp->getCI()->getSema();
+  
+  Interp->declare(R"(
+    #include <memory>
+
+    class C {};
+
+    std::auto_ptr<C> smart_ptr1;
+    std::shared_ptr<C> smart_ptr2;
+    std::unique_ptr<C> smart_ptr3;
+    std::weak_ptr<C> smart_ptr4;
+
+    C *raw_ptr;
+    C object();
+  )");
+  
+  auto get_type_from_varname = [&](const std::string &varname) {
+    return InterOp::GetVariableType(InterOp::GetNamed(S, varname, 0));
+  };
+
+  // EXPECT_TRUE(InterOp::IsSmartPtrType(get_type_from_varname("smart_ptr1")));
+  // EXPECT_TRUE(InterOp::IsSmartPtrType(get_type_from_varname("smart_ptr2")));
+  // EXPECT_TRUE(InterOp::IsSmartPtrType(get_type_from_varname("smart_ptr3")));
+  // EXPECT_TRUE(InterOp::IsSmartPtrType(get_type_from_varname("smart_ptr4")));
+  // EXPECT_FALSE(InterOp::IsSmartPtrType(get_type_from_varname("raw_ptr")));
+  // EXPECT_FALSE(InterOp::IsSmartPtrType(get_type_from_varname("object")));
+}
