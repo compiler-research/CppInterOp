@@ -110,6 +110,22 @@ TEST(ScopeReflectionTest, IsTemplate) {
   EXPECT_FALSE(InterOp::IsTemplate(Decls[3]));
 }
 
+TEST(ScopeReflectionTest, IsTemplateSpecialization) {
+  std::vector<Decl *> Decls;
+  std::string code = R"(
+    template<typename T>
+    class A{};
+
+    A<int> a;
+    )";
+
+  GetAllTopLevelDecls(code, Decls);
+  EXPECT_FALSE(InterOp::IsTemplateSpecialization(Decls[0]));
+  EXPECT_FALSE(InterOp::IsTemplateSpecialization(Decls[1]));
+  EXPECT_TRUE(InterOp::IsTemplateSpecialization(
+          InterOp::GetScopeFromType(InterOp::GetVariableType(Decls[1]))));
+}
+
 TEST(ScopeReflectionTest, IsAbstract) {
   std::vector<Decl *> Decls;
   std::string code = R"(
