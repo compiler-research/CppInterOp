@@ -676,3 +676,26 @@ TEST(FunctionReflectionTest, DISABLED_Construct) {
 
   EXPECT_EQ(output, "Constructor Executed");
 }
+
+TEST(FunctionReflectionTest, DISABLED_Destruct) {
+  Interp.reset();
+  Interp = createInterpreter();
+  Sema *S = &Interp->getCI()->getSema();
+
+  Interp->declare(R"(
+    class C {
+      C() {}
+      ~C() {
+        printf("Destructor Executed");
+      }
+    };
+    )");
+
+  testing::internal::CaptureStdout();
+  Cpp::TCppType_t type = Cpp::GetTypeFromScope(Cpp::GetNamed(S, "C", 0));
+  // TCppObject_t object = Cpp::Construct(type);
+  // Cpp::Destruct(object, type)
+  std::string output = testing::internal::GetCapturedStdout();
+
+  EXPECT_EQ(output, "Destructor Executed");
+}
