@@ -624,3 +624,21 @@ TEST(FunctionReflectionTest, DISABLED_IsConstMethod) {
   // EXPECT_TRUE(Cpp::IsConstMethod(SubDecls[1])); // f1
   // EXPECT_FALSE(Cpp::IsConstMethod(SubDecls[2])); // f2
 }
+
+TEST(FunctionReflectionTest, DISABLED_GetFunctionArgName) {
+  std::vector<Decl*> Decls, SubDecls;
+  std::string code = R"(
+    void f1(int i, double d, long l, char ch) {}
+    void f2(const int i, double d[], long *l, char ch[4]) {}
+    )";
+
+  GetAllTopLevelDecls(code, Decls);
+  // EXPECT_EQ(Cpp::GetFunctionArgName(Decls[0], 0), "i");
+  // EXPECT_EQ(Cpp::GetFunctionArgName(Decls[0], 1), "d");
+  // EXPECT_EQ(Cpp::GetFunctionArgName(Decls[0], 2), "l");
+  // EXPECT_EQ(Cpp::GetFunctionArgName(Decls[0], 3), "ch");
+  // EXPECT_EQ(Cpp::GetFunctionArgName(Decls[1], 0), "i");
+  // EXPECT_EQ(Cpp::GetFunctionArgName(Decls[1], 1), "d");
+  // EXPECT_EQ(Cpp::GetFunctionArgName(Decls[1], 2), "l");
+  // EXPECT_EQ(Cpp::GetFunctionArgName(Decls[1], 3), "ch");
+}
