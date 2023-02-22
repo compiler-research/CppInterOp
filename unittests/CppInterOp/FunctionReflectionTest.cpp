@@ -642,3 +642,16 @@ TEST(FunctionReflectionTest, DISABLED_GetFunctionArgName) {
   // EXPECT_EQ(Cpp::GetFunctionArgName(Decls[1], 2), "l");
   // EXPECT_EQ(Cpp::GetFunctionArgName(Decls[1], 3), "ch");
 }
+
+TEST(FunctionReflectionTest, DISABLED_GetFunctionArgDefault) {
+  std::vector<Decl*> Decls, SubDecls;
+  std::string code = R"(
+    void f1(int i, double d = 4.0, const char *s = "default", char ch = 'c') {}
+    )";
+
+  GetAllTopLevelDecls(code, Decls);
+  // EXPECT_EQ(Cpp::GetFunctionArgDefault(Decls[0], 0), "");
+  // EXPECT_EQ(Cpp::GetFunctionArgDefault(Decls[0], 1), "4.0");
+  // EXPECT_EQ(Cpp::GetFunctionArgDefault(Decls[0], 2), "\"default\"");
+  // EXPECT_EQ(Cpp::GetFunctionArgDefault(Decls[0], 3), "\'c\'");
+}
