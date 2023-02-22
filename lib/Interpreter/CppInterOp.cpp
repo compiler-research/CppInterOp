@@ -82,6 +82,11 @@ namespace Cpp {
     return llvm::isa_and_nonnull<clang::TemplateDecl>(D);
   }
 
+  bool IsTemplateSpecialization(TCppScope_t handle) {
+    auto *D = (clang::Decl *)handle;
+    return llvm::isa_and_nonnull<clang::ClassTemplateSpecializationDecl>(D);
+  }
+
   bool IsAbstract(TCppType_t klass) {
     auto *D = (clang::Decl *)klass;
     if (auto *CXXRD = llvm::dyn_cast_or_null<clang::CXXRecordDecl>(D))

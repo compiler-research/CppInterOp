@@ -32,6 +32,8 @@ namespace Cpp {
 
   bool IsTemplate(TCppScope_t handle);
 
+  bool IsTemplateSpecialization(TCppScope_t handle);
+
   bool IsAbstract(TCppType_t klass);
 
   bool IsEnum(TCppScope_t handle);
