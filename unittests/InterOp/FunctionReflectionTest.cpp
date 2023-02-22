@@ -650,3 +650,23 @@ TEST(FunctionReflectionTest, DISABLED_GetFunctionArgDefault) {
   // EXPECT_EQ(InterOp::GetFunctionArgDefault(Decls[0], 3), "\'c\'");
 }
 
+TEST(FunctionReflectionTest, DISABLED_Construct) {
+  Interp.reset();
+  Interp = createInterpreter();
+  Sema *S = &Interp->getCI()->getSema();
+  
+  Interp->declare(R"(
+    class C {
+      C() {
+        printf("Constructor Executed");
+      }
+    };
+    )");
+
+  testing::internal::CaptureStdout();
+  InterOp::TCppType_t type = InterOp::GetTypeFromScope(InterOp::GetNamed(S, "C", 0));
+  // TCppObject_t object = InterOp::Construct(type);
+  std::string output = testing::internal::GetCapturedStdout();
+
+  EXPECT_EQ(output, "Constructor Executed");
+}
