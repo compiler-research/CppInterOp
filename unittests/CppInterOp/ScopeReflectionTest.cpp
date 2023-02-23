@@ -182,6 +182,39 @@ TEST(ScopeReflectionTest, GetName) {
   EXPECT_EQ(Cpp::GetName(Decls[7]), "Size16");
 }
 
+TEST(ScopeReflectionTest, GetCompleteName) {
+  std::vector<Decl *> Decls;
+  std::string code = R"(namespace N {}
+                        class C{};
+                        int I;
+                        struct S;
+                        enum E : int;
+                        union U{};
+                        class Size4{int i;};
+                        struct Size16 {short a; double b;};
+
+                        template<typename T>
+                        class A {};
+                        A<int> a;
+                       )";
+  GetAllTopLevelDecls(code, Decls);
+  Sema *S = &Interp->getCI()->getSema();
+
+  EXPECT_EQ(Cpp::GetCompleteName(S, Decls[0]), "N");
+  EXPECT_EQ(Cpp::GetCompleteName(S, Decls[1]), "C");
+  EXPECT_EQ(Cpp::GetCompleteName(S, Decls[2]), "I");
+  EXPECT_EQ(Cpp::GetCompleteName(S, Decls[3]), "S");
+  EXPECT_EQ(Cpp::GetCompleteName(S, Decls[4]), "E");
+  EXPECT_EQ(Cpp::GetCompleteName(S, Decls[5]), "U");
+  EXPECT_EQ(Cpp::GetCompleteName(S, Decls[6]), "Size4");
+  EXPECT_EQ(Cpp::GetCompleteName(S, Decls[7]), "Size16");
+  EXPECT_EQ(Cpp::GetCompleteName(S, Decls[8]), "A");
+  EXPECT_EQ(
+      Cpp::GetCompleteName(
+          S, Cpp::GetScopeFromType(Cpp::GetVariableType(Decls[9]))),
+      "A<int>");
+}
+
 TEST(ScopeReflectionTest, GetQualifiedName) {
   std::vector<Decl*> Decls;
   std::string code = R"(namespace N {
