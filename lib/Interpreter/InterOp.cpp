@@ -210,6 +210,34 @@ namespace InterOp {
     return "<unnamed>";
   }
 
+  std::string GetQualifiedCompleteName(TCppSema_t sema, TCppType_t klass)
+  {
+    auto S = (clang::Sema *) sema;
+    auto &C = S->getASTContext();
+    auto *D = (Decl *) klass;
+
+    if (auto *ND = llvm::dyn_cast_or_null<NamedDecl>(D)) {
+      if (auto *TD = llvm::dyn_cast<TagDecl>(ND)) {
+        std::string type_name;
+        QualType QT = C.getTagDeclType(TD);
+        cling::utils::Transform::Config Config;
+        // QT = cling::utils::Transform::GetPartiallyDesugaredType(
+        //     C, QT, Config, /*fullyQualify=*/true);
+        QT.getAsStringInternal(type_name, C.getPrintingPolicy());
+
+        return type_name;
+      }
+      
+      return ND->getQualifiedNameAsString();
+    }
+
+    if (llvm::isa_and_nonnull<TranslationUnitDecl>(D)) {
+      return "";
+    }
+
+    return "<unnamed>";
+  }
+
   std::vector<TCppScope_t> GetUsingNamespaces(TCppScope_t scope) {
     auto *D = (clang::Decl *) scope;
 
