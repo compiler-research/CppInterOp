@@ -235,6 +235,34 @@ TEST(ScopeReflectionTest, GetQualifiedName) {
   EXPECT_EQ(Cpp::GetQualifiedName(Decls[4]), "N::C::E");
 }
 
+TEST(ScopeReflectionTest, GetQualifiedCompleteName) {
+  std::vector<Decl*> Decls;
+  std::string code = R"(namespace N {
+                        class C {
+                          int i;
+                          enum E { A, B };
+                        };
+                        template<typename T>
+                        class A {};
+                        A<int> a;
+                        }
+                       )";
+  GetAllTopLevelDecls(code, Decls);
+  GetAllSubDecls(Decls[0], Decls);
+  GetAllSubDecls(Decls[1], Decls);
+  Sema *S = &Interp->getCI()->getSema();
+
+  EXPECT_EQ(Cpp::GetQualifiedCompleteName(S, 0), "<unnamed>");
+  EXPECT_EQ(Cpp::GetQualifiedCompleteName(S, Decls[0]), "N");
+  EXPECT_EQ(Cpp::GetQualifiedCompleteName(S, Decls[1]), "N::C");
+  EXPECT_EQ(Cpp::GetQualifiedCompleteName(S, Decls[2]), "N::A");
+  EXPECT_EQ(Cpp::GetQualifiedCompleteName(
+                S, Cpp::GetScopeFromType(Cpp::GetVariableType(Decls[3]))),
+            "N::A<int>");
+  EXPECT_EQ(Cpp::GetQualifiedCompleteName(S, Decls[5]), "N::C::i");
+  EXPECT_EQ(Cpp::GetQualifiedCompleteName(S, Decls[6]), "N::C::E");
+}
+
 TEST(ScopeReflectionTest, GetUsingNamespaces) {
   std::vector<Decl *> Decls;
   std::string code = R"(

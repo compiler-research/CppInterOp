@@ -56,6 +56,8 @@ namespace Cpp {
 
   std::string GetQualifiedName(TCppType_t klass);
 
+  std::string GetQualifiedCompleteName(TCppSema_t sema, TCppType_t klass);
+
   std::vector<TCppScope_t> GetUsingNamespaces(TCppScope_t scope);
 
   TCppScope_t GetGlobalScope(TCppSema_t sema);
