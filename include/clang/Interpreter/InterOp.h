@@ -144,6 +144,8 @@ namespace InterOp {
 
   bool IsConstVariable(TCppScope_t var);
 
+  bool IsRecordType(TCppType_t type);
+
   TCppType_t  GetUnderlyingType(TCppType_t type);
 
   std::string GetTypeAsString(TCppType_t type);
