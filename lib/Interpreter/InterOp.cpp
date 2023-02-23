@@ -831,6 +831,12 @@ namespace InterOp {
     return false;
   }
 
+  bool IsRecordType(TCppType_t type)
+  {
+    QualType QT = QualType::getFromOpaquePtr(type);
+    return QT->isRecordType();
+  }
+
   TCppType_t GetUnderlyingType(TCppType_t type)
   {
     QualType QT = QualType::getFromOpaquePtr(type);
