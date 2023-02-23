@@ -831,6 +831,20 @@ namespace InterOp {
     return false;
   }
 
+  TCppType_t GetUnderlyingType(TCppType_t type)
+  {
+    QualType QT = QualType::getFromOpaquePtr(type);
+    QT = QT->getCanonicalTypeUnqualified();
+    if (QT->isArrayType())
+      QT = QualType(QT->getArrayElementTypeNoTypeQual(), 0);
+
+    for (auto PT = QT->getPointeeType(); !PT.isNull(); PT = QT->getPointeeType()){
+      QT = PT;
+    }
+    QT = QT->getCanonicalTypeUnqualified();
+    return QT.getAsOpaquePtr();
+  }
+
   std::string GetTypeAsString(TCppType_t var)
   {
       QualType QT = QualType::getFromOpaquePtr(var);
