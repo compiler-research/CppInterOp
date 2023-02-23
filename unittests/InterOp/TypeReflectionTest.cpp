@@ -232,6 +232,73 @@ TEST(TypeReflectionTest, GetUnderlyingType) {
   EXPECT_EQ(get_underly_var_type_as_str(Decls[24]), "class C");
 }
 
+TEST(TypeReflectionTest, IsUnderlyingTypeRecordType) {
+  std::vector<Decl *> Decls;
+
+  std::string code = R"(
+    const int var0 = 0;
+    const int &var1 = var0;
+    const int *var2 = &var1;
+    const int *&var3 = var2;
+    const int var4[] = {};
+    const int *var5[] = {var2};
+    int var6 = 0;
+    int &var7 = var6;
+    int *var8 = &var7;
+    int *&var9 = var8;
+    int var10[] = {};
+    int *var11[] = {var8};
+
+    class C {
+      public:
+        int i;
+    };
+    const C cvar0{0};
+    const C &cvar1 = cvar0;
+    const C *cvar2 = &cvar1;
+    const C *&cvar3 = cvar2;
+    const C cvar4[] = {};
+    const C *cvar5[] = {cvar2};
+    C cvar6;
+    C &cvar7 = cvar6;
+    C *cvar8 = &cvar7;
+    C *&cvar9 = cvar8;
+    C cvar10[] = {};
+    C *cvar11[] = {cvar8};
+    )";
+  GetAllTopLevelDecls(code, Decls);
+
+  auto is_var_of_underly_record_ty = [] (Decl *D) {
+    return InterOp::IsRecordType(InterOp::GetUnderlyingType(InterOp::GetVariableType(D)));
+  };
+
+  EXPECT_FALSE(is_var_of_underly_record_ty(Decls[0]));
+  EXPECT_FALSE(is_var_of_underly_record_ty(Decls[1]));
+  EXPECT_FALSE(is_var_of_underly_record_ty(Decls[2]));
+  EXPECT_FALSE(is_var_of_underly_record_ty(Decls[3]));
+  EXPECT_FALSE(is_var_of_underly_record_ty(Decls[4]));
+  EXPECT_FALSE(is_var_of_underly_record_ty(Decls[5]));
+  EXPECT_FALSE(is_var_of_underly_record_ty(Decls[6]));
+  EXPECT_FALSE(is_var_of_underly_record_ty(Decls[7]));
+  EXPECT_FALSE(is_var_of_underly_record_ty(Decls[8]));
+  EXPECT_FALSE(is_var_of_underly_record_ty(Decls[9]));
+  EXPECT_FALSE(is_var_of_underly_record_ty(Decls[10]));
+  EXPECT_FALSE(is_var_of_underly_record_ty(Decls[11]));
+
+  EXPECT_TRUE(is_var_of_underly_record_ty(Decls[13]));
+  EXPECT_TRUE(is_var_of_underly_record_ty(Decls[14]));
+  EXPECT_TRUE(is_var_of_underly_record_ty(Decls[15]));
+  EXPECT_TRUE(is_var_of_underly_record_ty(Decls[16]));
+  EXPECT_TRUE(is_var_of_underly_record_ty(Decls[17]));
+  EXPECT_TRUE(is_var_of_underly_record_ty(Decls[18]));
+  EXPECT_TRUE(is_var_of_underly_record_ty(Decls[19]));
+  EXPECT_TRUE(is_var_of_underly_record_ty(Decls[20]));
+  EXPECT_TRUE(is_var_of_underly_record_ty(Decls[21]));
+  EXPECT_TRUE(is_var_of_underly_record_ty(Decls[22]));
+  EXPECT_TRUE(is_var_of_underly_record_ty(Decls[23]));
+  EXPECT_TRUE(is_var_of_underly_record_ty(Decls[24]));
+}
+
 TEST(TypeReflectionTest, GetComplexType) {
   Interp.reset();
   Interp = createInterpreter();
