@@ -100,6 +100,71 @@ TEST(TypeReflectionTest, GetType) {
   EXPECT_EQ(InterOp::GetTypeAsString(InterOp::GetType(S, "std::string")), "std::string");
 }
 
+TEST(TypeReflectionTest, GetUnderlyingType) {
+  std::vector<Decl *> Decls;
+
+  std::string code = R"(
+    const int var0 = 0;
+    const int &var1 = var0;
+    const int *var2 = &var1;
+    const int *&var3 = var2;
+    const int var4[] = {};
+    const int *var5[] = {var2};
+    int var6 = 0;
+    int &var7 = var6;
+    int *var8 = &var7;
+    int *&var9 = var8;
+    int var10[] = {};
+    int *var11[] = {var8};
+
+    class C {
+      public:
+        int i;
+    };
+    const C cvar0{0};
+    const C &cvar1 = cvar0;
+    const C *cvar2 = &cvar1;
+    const C *&cvar3 = cvar2;
+    const C cvar4[] = {};
+    const C *cvar5[] = {cvar2};
+    C cvar6;
+    C &cvar7 = cvar6;
+    C *cvar8 = &cvar7;
+    C *&cvar9 = cvar8;
+    C cvar10[] = {};
+    C *cvar11[] = {cvar8};
+    )";
+  GetAllTopLevelDecls(code, Decls);
+  auto get_underly_var_type_as_str = [] (Decl *D) {
+    return InterOp::GetTypeAsString(InterOp::GetUnderlyingType(InterOp::GetVariableType(D)));
+  };
+  EXPECT_EQ(get_underly_var_type_as_str(Decls[0]), "int");
+  EXPECT_EQ(get_underly_var_type_as_str(Decls[1]), "int");
+  EXPECT_EQ(get_underly_var_type_as_str(Decls[2]), "int");
+  EXPECT_EQ(get_underly_var_type_as_str(Decls[3]), "int");
+  EXPECT_EQ(get_underly_var_type_as_str(Decls[4]), "int");
+  EXPECT_EQ(get_underly_var_type_as_str(Decls[5]), "int");
+  EXPECT_EQ(get_underly_var_type_as_str(Decls[6]), "int");
+  EXPECT_EQ(get_underly_var_type_as_str(Decls[7]), "int");
+  EXPECT_EQ(get_underly_var_type_as_str(Decls[8]), "int");
+  EXPECT_EQ(get_underly_var_type_as_str(Decls[9]), "int");
+  EXPECT_EQ(get_underly_var_type_as_str(Decls[10]), "int");
+  EXPECT_EQ(get_underly_var_type_as_str(Decls[11]), "int");
+
+  EXPECT_EQ(get_underly_var_type_as_str(Decls[13]), "class C");
+  EXPECT_EQ(get_underly_var_type_as_str(Decls[14]), "class C");
+  EXPECT_EQ(get_underly_var_type_as_str(Decls[15]), "class C");
+  EXPECT_EQ(get_underly_var_type_as_str(Decls[16]), "class C");
+  EXPECT_EQ(get_underly_var_type_as_str(Decls[17]), "class C");
+  EXPECT_EQ(get_underly_var_type_as_str(Decls[18]), "class C");
+  EXPECT_EQ(get_underly_var_type_as_str(Decls[19]), "class C");
+  EXPECT_EQ(get_underly_var_type_as_str(Decls[20]), "class C");
+  EXPECT_EQ(get_underly_var_type_as_str(Decls[21]), "class C");
+  EXPECT_EQ(get_underly_var_type_as_str(Decls[22]), "class C");
+  EXPECT_EQ(get_underly_var_type_as_str(Decls[23]), "class C");
+  EXPECT_EQ(get_underly_var_type_as_str(Decls[24]), "class C");
+}
+
 TEST(TypeReflectionTest, GetComplexType) {
   Interp.reset();
   Interp = createInterpreter();
