@@ -19,7 +19,15 @@ using namespace cling;
 using namespace clang;
 using namespace llvm;
 
+// Valgrind complains about __cxa_pure_virtual called when deleting
+// llvm::SectionMemoryManager::~SectionMemoryManager as part of the dtor chain
+// of the Interpreter.
+// This might fix the issue https://reviews.llvm.org/D107087
+// FIXME: For now we just leak the Interpreter.
 std::unique_ptr<Interpreter> TestUtils::Interp;
+struct InterpDeleter {
+  ~InterpDeleter() { TestUtils::Interp.release(); }
+} Deleter;
 
 void TestUtils::GetAllTopLevelDecls(const std::string& code, std::vector<Decl*>& Decls) {
   Interp.reset(static_cast<Interpreter*>(InterOp::CreateInterpreter()));
