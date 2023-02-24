@@ -1930,37 +1930,43 @@ namespace InterOp {
                       CLANG_VERSION_STRING);
 
     return std::string(P.str());
-  }
-  } // namespace
+      }
+      } // namespace
 
-  TInterp_t CreateInterpreter(const char *resource_dir) {
-    std::string MainExecutableName =
-      sys::fs::getMainExecutable(nullptr, nullptr);
-    std::string ResourceDir = MakeResourcesPath();
-    std::vector<const char *> ClingArgv = {"-resource-dir", ResourceDir.c_str(),
-                                           "-std=c++14"};
-    ClingArgv.insert(ClingArgv.begin(), MainExecutableName.c_str());
-    return new cling::Interpreter(ClingArgv.size(), &ClingArgv[0]);
-  }
+      TInterp_t CreateInterpreter(const char *resource_dir) {
+        std::string MainExecutableName =
+            sys::fs::getMainExecutable(nullptr, nullptr);
+        std::string ResourceDir = MakeResourcesPath();
+        std::vector<const char *> ClingArgv = {
+            "-resource-dir", ResourceDir.c_str(), "-std=c++14"};
+        ClingArgv.insert(ClingArgv.begin(), MainExecutableName.c_str());
+        return new cling::Interpreter(ClingArgv.size(), &ClingArgv[0]);
+      }
 
-  TCppSema_t GetSema(TInterp_t interp) {
-    auto *I = (cling::Interpreter *)interp;
+      TCppSema_t GetSema(TInterp_t interp) {
+        auto *I = (cling::Interpreter *)interp;
 
-    return (TCppSema_t)&I->getSema();
-  }
+        return (TCppSema_t)&I->getSema();
+      }
 
-  void AddSearchPath(TInterp_t interp, const char *dir, bool isUser,
-                     bool prepend) {
-    auto *I = (cling::Interpreter *)interp;
+      void AddSearchPath(TInterp_t interp, const char *dir, bool isUser,
+                         bool prepend) {
+        auto *I = (cling::Interpreter *)interp;
 
-    I->getDynamicLibraryManager()->addSearchPath(dir, isUser, prepend);
-  }
+        I->getDynamicLibraryManager()->addSearchPath(dir, isUser, prepend);
+      }
 
-  void AddIncludePath(TInterp_t interp, const char *dir) {
-    auto *I = (cling::Interpreter *)interp;
+      const char *GetResourceDir(TInterp_t interp) {
+        auto *I = (cling::Interpreter *)interp;
 
-    I->AddIncludePath(dir);
-  }
+        return I->getCI()->getHeaderSearchOpts().ResourceDir.c_str();
+      }
+
+      void AddIncludePath(TInterp_t interp, const char *dir) {
+        auto *I = (cling::Interpreter *)interp;
+
+        I->AddIncludePath(dir);
+      }
 
   namespace {
 
