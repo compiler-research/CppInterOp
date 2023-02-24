@@ -1,4 +1,5 @@
 #include "Utils.h"
+#include "clang/Interpreter/InterOp.h"
 
 #include "cling/Interpreter/Interpreter.h"
 
@@ -579,4 +580,33 @@ TEST(ScopeReflectionTest, GetAllCppNames) {
   test_get_all_cpp_names(Decls[2], {"c"});
   test_get_all_cpp_names(Decls[3], {"d"});
   test_get_all_cpp_names(Decls[4], {"A", "B", "C", "D"});
+}
+
+TEST(ScopeReflectionTest, InstantiateClassTemplate) {
+  Interp.reset(static_cast<Interpreter *>(InterOp::CreateInterpreter()));
+
+  std::vector<Decl *> Decls;
+  std::string code = R"(
+    template<typename T>
+    class AllDefault {
+    public:
+      AllDefault(int val) : m_t(val) {}
+      template<int aap=1, int noot=2>
+      int do_stuff() { return m_t+aap+noot; }
+
+    public:
+      T m_t;
+    };
+  )";
+
+  ASTContext &C = Interp->getCI()->getASTContext();
+  GetAllTopLevelDecls(code, Decls);
+  std::vector<InterOp::TCppType_t> args = {C.IntTy.getAsOpaquePtr()};
+  auto Instance =
+      InterOp::InstantiateClassTemplate(Interp.get(), Decls[0], args.data(),
+                                        /*type_size*/ 1);
+  EXPECT_TRUE(isa<ClassTemplateSpecializationDecl>((Decl *)Instance));
+  auto *CTSD = static_cast<ClassTemplateSpecializationDecl *>(Instance);
+  TemplateArgument TA = CTSD->getTemplateArgs().get(0);
+  EXPECT_TRUE(TA.getAsType()->isIntegerType());
 }
