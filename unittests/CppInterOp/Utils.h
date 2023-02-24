@@ -10,7 +10,6 @@ namespace cling {
 class Interpreter;
 }
 namespace TestUtils {
-std::unique_ptr<cling::Interpreter> createInterpreter();
 extern std::unique_ptr<cling::Interpreter> Interp;
 void GetAllTopLevelDecls(const std::string &code,
                          std::vector<clang::Decl *> &Decls);

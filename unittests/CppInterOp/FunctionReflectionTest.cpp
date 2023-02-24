@@ -657,8 +657,7 @@ TEST(FunctionReflectionTest, DISABLED_GetFunctionArgDefault) {
 }
 
 TEST(FunctionReflectionTest, DISABLED_Construct) {
-  Interp.reset();
-  Interp = createInterpreter();
+  Interp.reset(static_cast<Interpreter *>(Cpp::CreateInterpreter()));
   Sema *S = &Interp->getCI()->getSema();
 
   Interp->declare(R"(
@@ -678,8 +677,7 @@ TEST(FunctionReflectionTest, DISABLED_Construct) {
 }
 
 TEST(FunctionReflectionTest, DISABLED_Destruct) {
-  Interp.reset();
-  Interp = createInterpreter();
+  Interp.reset(static_cast<Interpreter *>(Cpp::CreateInterpreter()));
   Sema *S = &Interp->getCI()->getSema();
 
   Interp->declare(R"(

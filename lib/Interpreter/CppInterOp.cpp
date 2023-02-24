@@ -1904,46 +1904,40 @@ namespace Cpp {
 
       namespace {
 
-      std::string GetExecutablePath(const char *Argv0, void *MainAddr) {
-        return llvm::sys::fs::getMainExecutable(Argv0, MainAddr);
-      }
+      static std::string MakeResourcesPath() {
+        StringRef Dir;
+#ifdef LLVM_BINARY_DIR
+    Dir = LLVM_BINARY_DIR;
+#else
+    // Dir is bin/ or lib/, depending on where BinaryPath is.
+    void *MainAddr = (void *)(intptr_t)GetExecutablePath;
+    std::string BinaryPath = GetExecutablePath(/*Argv0=*/nullptr, MainAddr);
 
-      std::string MakeResourcesPath() {
-        // Dir is bin/ or lib/, depending on where BinaryPath is.
-        void *MainAddr = (void *)(intptr_t)GetExecutablePath;
-        std::string BinaryPath = GetExecutablePath(/*Argv0=*/nullptr, MainAddr);
+    // build/tools/clang/unittests/Interpreter/Executable -> build/
+    StringRef Dir = sys::path::parent_path(BinaryPath);
 
-        // build/tools/clang/unittests/Interpreter/Executable -> build/
-        llvm::StringRef Dir = llvm::sys::path::parent_path(BinaryPath);
+    Dir = sys::path::parent_path(Dir);
+    Dir = sys::path::parent_path(Dir);
+    Dir = sys::path::parent_path(Dir);
+    Dir = sys::path::parent_path(Dir);
+    //Dir = sys::path::parent_path(Dir);
+#endif // LLVM_BINARY_DIR
+    SmallString<128> P(Dir);
+    sys::path::append(P, Twine("lib") + CLANG_LIBDIR_SUFFIX, "clang",
+                      CLANG_VERSION_STRING);
 
-        Dir = llvm::sys::path::parent_path(Dir);
-        Dir = llvm::sys::path::parent_path(Dir);
-        Dir = llvm::sys::path::parent_path(Dir);
-        Dir = llvm::sys::path::parent_path(Dir);
-        // Dir = sys::path::parent_path(Dir);
-        llvm::SmallString<128> P(Dir);
-        llvm::sys::path::append(P, llvm::Twine("lib") + CLANG_LIBDIR_SUFFIX,
-                                "clang", CLANG_VERSION_STRING);
-
-        return std::string(P.str());
+    return std::string(P.str());
       }
       } // namespace
 
       TInterp_t CreateInterpreter(const char *resource_dir) {
         std::string MainExecutableName =
-            llvm::sys::fs::getMainExecutable(nullptr, nullptr);
-
-        std::string ResourceDir;
-        if (!resource_dir)
-          ResourceDir = MakeResourcesPath();
-        else
-          ResourceDir = resource_dir;
-
-        std::vector<const char *> InterpArgv = {
+            sys::fs::getMainExecutable(nullptr, nullptr);
+        std::string ResourceDir = MakeResourcesPath();
+        std::vector<const char *> ClingArgv = {
             "-resource-dir", ResourceDir.c_str(), "-std=c++14"};
-        InterpArgv.insert(InterpArgv.begin(), MainExecutableName.c_str());
-        return (TInterp_t) new cling::Interpreter(InterpArgv.size(),
-                                                  &InterpArgv[0]);
+        ClingArgv.insert(ClingArgv.begin(), MainExecutableName.c_str());
+        return new cling::Interpreter(ClingArgv.size(), &ClingArgv[0]);
       }
 
       TCppSema_t GetSema(TInterp_t interp) {
@@ -1965,86 +1959,83 @@ namespace Cpp {
         I->AddIncludePath(dir);
       }
 
-      namespace {
+  namespace {
 
-      class clangSilent {
-      public:
-        clangSilent(clang::DiagnosticsEngine &diag) : fDiagEngine(diag) {
-          fOldDiagValue = fDiagEngine.getSuppressAllDiagnostics();
-          fDiagEngine.setSuppressAllDiagnostics(true);
-        }
-
-        ~clangSilent() { fDiagEngine.setSuppressAllDiagnostics(fOldDiagValue); }
-
-      protected:
-        clang::DiagnosticsEngine &fDiagEngine;
-        bool fOldDiagValue;
-      };
-      } // namespace
-
-      TCppIndex_t Declare(TInterp_t interp, const char *code, bool silent) {
-        auto *I = (cling::Interpreter *)interp;
-
-        if (silent) {
-          clangSilent diagSuppr(I->getSema().getDiagnostics());
-          return I->declare(code);
-        }
-
-        return I->declare(code);
-      }
-
-      void Process(TInterp_t interp, const char *code) {
-        auto *I = (cling::Interpreter *)interp;
-
-        I->process(code);
-      }
-
-      const std::string LookupLibrary(TInterp_t interp, const char *lib_name) {
-        auto *I = (cling::Interpreter *)interp;
-
-        return I->getDynamicLibraryManager()->lookupLibrary(lib_name);
-      }
-
-      bool LoadLibrary(TInterp_t interp, const char *lib_name, bool lookup) {
-        auto *I = (cling::Interpreter *)interp;
-        cling::Interpreter::CompilationResult res =
-            I->loadLibrary(lib_name, lookup);
-
-        return res == cling::Interpreter::kSuccess;
-      }
-
-      std::string ObjToString(TInterp_t interp, const char *type, void *obj) {
-        auto *I = (cling::Interpreter *)interp;
-        return I->toString(type, obj);
-      }
-
-      TCppScope_t InstantiateClassTemplate(TInterp_t interp,
-                                           const char *tmpl_name) {
-        auto *I = (cling::Interpreter *)interp;
-
-        static unsigned counter = 0;
-        std::stringstream ss;
-
-        ss << "auto _t" << counter++ << " = " << tmpl_name << "();";
-        printf("%s\n", ss.str().c_str());
-        cling::Transaction *T = nullptr;
-        auto x = I->declare(ss.str(), &T);
-        if (x == cling::Interpreter::CompilationResult::kSuccess) {
-          for (auto D = T->decls_begin(); D != T->decls_end(); D++) {
-            if (auto *VD =
-                    llvm::dyn_cast_or_null<VarDecl>(D->m_DGR.getSingleDecl())) {
-              auto *scope = GetScopeFromType(VD->getType());
-              if (scope) {
-                return (TCppScope_t)scope;
-              }
-            }
-          }
-        } else {
-          return 0;
-        }
-      }
-      return 0;
+  class clangSilent {
+  public:
+    clangSilent(clang::DiagnosticsEngine &diag) : fDiagEngine(diag) {
+      fOldDiagValue = fDiagEngine.getSuppressAllDiagnostics();
+      fDiagEngine.setSuppressAllDiagnostics(true);
     }
+
+    ~clangSilent() { fDiagEngine.setSuppressAllDiagnostics(fOldDiagValue); }
+
+  protected:
+    clang::DiagnosticsEngine &fDiagEngine;
+    bool fOldDiagValue;
+  };
+  } // namespace
+
+  TCppIndex_t Declare(TInterp_t interp, const char *code, bool silent) {
+    auto *I = (cling::Interpreter *)interp;
+
+    if (silent) {
+      clangSilent diagSuppr(I->getSema().getDiagnostics());
+      return I->declare(code);
+    }
+
+    return I->declare(code);
+  }
+
+  void Process(TInterp_t interp, const char *code) {
+    auto *I = (cling::Interpreter *)interp;
+
+    I->process(code);
+  }
+
+  const std::string LookupLibrary(TInterp_t interp, const char *lib_name) {
+    auto *I = (cling::Interpreter *)interp;
+
+    return I->getDynamicLibraryManager()->lookupLibrary(lib_name);
+  }
+
+  bool LoadLibrary(TInterp_t interp, const char *lib_name, bool lookup) {
+    auto *I = (cling::Interpreter *)interp;
+    cling::Interpreter::CompilationResult res =
+        I->loadLibrary(lib_name, lookup);
+
+    return res == cling::Interpreter::kSuccess;
+  }
+
+  std::string ObjToString(TInterp_t interp, const char *type, void *obj) {
+    auto *I = (cling::Interpreter *)interp;
+    return I->toString(type, obj);
+  }
+
+  TCppScope_t InstantiateClassTemplate(TInterp_t interp,
+                                       const char *tmpl_name) {
+    auto *I = (cling::Interpreter *)interp;
+
+    static unsigned counter = 0;
+    std::stringstream ss;
+
+    ss << "auto _t" << counter++ << " = " << tmpl_name << "();";
+    printf("%s\n", ss.str().c_str());
+    cling::Transaction *T = nullptr;
+    auto x = I->declare(ss.str(), &T);
+    if (x == cling::Interpreter::CompilationResult::kSuccess) {
+      for (auto D = T->decls_begin(); D != T->decls_end(); D++) {
+        if (auto *VD =
+                llvm::dyn_cast_or_null<VarDecl>(D->m_DGR.getSingleDecl())) {
+          auto *scope = GetScopeFromType(VD->getType());
+          if (scope) {
+            return (TCppScope_t)scope;
+          }
+        }
+      }
+    }
+    return 0;
+  }
 
   std::vector<std::string> GetAllCppNames(TCppScope_t scope) {
     auto *D = (clang::Decl *)scope;
@@ -2074,4 +2065,4 @@ namespace Cpp {
 
     return names;
   }
-  } // end namespace Cpp
+    } // end namespace Cpp
