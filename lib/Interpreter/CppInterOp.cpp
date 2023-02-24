@@ -2018,29 +2018,50 @@ namespace Cpp {
     return I->toString(type, obj);
   }
 
-  TCppScope_t InstantiateClassTemplate(TInterp_t interp,
-                                       const char *tmpl_name) {
+  static QualType InstantiateTemplate(TemplateDecl* ClassDecl,
+                                      TemplateArgumentListInfo& TLI, Sema &S) {
+    // This will instantiate tape<T> type and return it.
+    SourceLocation noLoc;
+    QualType TT = S.CheckTemplateIdType(TemplateName(ClassDecl), noLoc, TLI);
+    return TT;
+
+    // ASTContext &C = S.getASTContext();
+    // // Get clad namespace and its identifier clad::.
+    // CXXScopeSpec CSS;
+    // CSS.Extend(C, GetCladNamespace(), noLoc, noLoc);
+    // NestedNameSpecifier* NS = CSS.getScopeRep();
+
+    // // Create elaborated type with namespace specifier,
+    // // i.e. class<T> -> clad::class<T>
+    // return C.getElaboratedType(ETK_None, NS, TT);
+  }
+
+  static QualType InstantiateTemplate(
+      TemplateDecl * ClassDecl, ArrayRef<QualType> TemplateArgs, Sema & S) {
+    // Create a list of template arguments.
+    TemplateArgumentListInfo TLI{};
+    ASTContext &C = S.getASTContext();
+    for (auto T : TemplateArgs) {
+      TemplateArgument TA = T;
+      TLI.addArgument(TemplateArgumentLoc(TA, C.getTrivialTypeSourceInfo(T)));
+    }
+
+    return InstantiateTemplate(ClassDecl, TLI, S);
+  }
+
+  TCppScope_t InstantiateClassTemplate(TInterp_t interp, TCppScope_t tmpl,
+                                       TCppType_t * types, size_t type_size) {
     auto *I = (cling::Interpreter *)interp;
 
-    static unsigned counter = 0;
-    std::stringstream ss;
+    llvm::SmallVector<QualType> TemplateArgs;
+    TemplateArgs.reserve(type_size);
+    for (size_t i = 0; i < type_size; ++i)
+      TemplateArgs.push_back(QualType::getFromOpaquePtr(types[i]));
 
-    ss << "auto _t" << counter++ << " = " << tmpl_name << "();";
-    printf("%s\n", ss.str().c_str());
-    cling::Transaction *T = nullptr;
-    auto x = I->declare(ss.str(), &T);
-    if (x == cling::Interpreter::CompilationResult::kSuccess) {
-      for (auto D = T->decls_begin(); D != T->decls_end(); D++) {
-        if (auto *VD =
-                llvm::dyn_cast_or_null<VarDecl>(D->m_DGR.getSingleDecl())) {
-          auto *scope = GetScopeFromType(VD->getType());
-          if (scope) {
-            return (TCppScope_t)scope;
-          }
-        }
-      }
-    }
-    return 0;
+    TemplateDecl *TmplD = static_cast<TemplateDecl *>(tmpl);
+    QualType Instance = InstantiateTemplate(TmplD, TemplateArgs, I->getSema());
+    return GetScopeFromType(Instance);
+>>>>>>> 0612fe4... Improve class template instantiation support
   }
 
   std::vector<std::string> GetAllCppNames(TCppScope_t scope) {

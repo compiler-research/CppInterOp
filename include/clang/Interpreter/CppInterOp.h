@@ -188,7 +188,8 @@ namespace Cpp {
 
   std::string ObjToString(TInterp_t interp, const char *type, void *obj);
 
-  TCppScope_t InstantiateClassTemplate(TInterp_t interp, const char *tmpl_name);
+  TCppScope_t InstantiateClassTemplate(TInterp_t interp, TCppScope_t tmpl,
+                                       TCppType_t *types, size_t type_size);
 
   std::vector<std::string> GetAllCppNames(TCppScope_t scope);
 } // end namespace Cpp
