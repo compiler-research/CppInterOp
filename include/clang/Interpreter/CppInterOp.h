@@ -173,6 +173,9 @@ namespace Cpp {
   void AddSearchPath(TInterp_t interp, const char *dir, bool isUser = true,
                      bool prepend = false);
 
+  /// Returns the resource-dir path.
+  const char *GetResourceDir(TInterp_t interp);
+
   void AddIncludePath(TInterp_t interp, const char *dir);
 
   TCppIndex_t Declare(TInterp_t interp, const char *code, bool silent = false);

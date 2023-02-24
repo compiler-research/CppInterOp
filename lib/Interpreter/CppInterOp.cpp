@@ -1953,6 +1953,12 @@ namespace Cpp {
         I->getDynamicLibraryManager()->addSearchPath(dir, isUser, prepend);
       }
 
+      const char *GetResourceDir(TInterp_t interp) {
+        auto *I = (cling::Interpreter *)interp;
+
+        return I->getCI()->getHeaderSearchOpts().ResourceDir.c_str();
+      }
+
       void AddIncludePath(TInterp_t interp, const char *dir) {
         auto *I = (cling::Interpreter *)interp;
 
