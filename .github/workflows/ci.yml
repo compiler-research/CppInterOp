@@ -1,8 +1,13 @@
 name: Main
 on:
   pull_request:
-    branches:
-      - main
+    branches: [main]
+  push:
+    branches: [main]
+  release:
+    types: [published]
+  schedule:
+    - cron: '30 20 * * *' # Warning: Timezone dep - 20:00 is 1:00
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
