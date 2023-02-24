@@ -85,8 +85,7 @@ TEST(TypeReflectionTest, GetCanonicalType) {
 }
 
 TEST(TypeReflectionTest, GetType) {
-  Interp.reset();
-  Interp = createInterpreter();
+  Interp.reset(static_cast<Interpreter*>(InterOp::CreateInterpreter()));
   Sema *S = &Interp->getCI()->getSema();
 
   std::string code =  R"(
@@ -300,8 +299,7 @@ TEST(TypeReflectionTest, IsUnderlyingTypeRecordType) {
 }
 
 TEST(TypeReflectionTest, GetComplexType) {
-  Interp.reset();
-  Interp = createInterpreter();
+  Interp.reset(static_cast<Interpreter*>(InterOp::CreateInterpreter()));
   Sema *S = &Interp->getCI()->getSema();
 
   auto get_complex_type_as_string = [&](const std::string &element_type) {
@@ -381,8 +379,7 @@ TEST(TypeReflectionTest, DISABLED_GetDimensions) {
 }
 
 TEST(TypeReflectionTest, DISABLED_IsSmartPtrType) {
-  Interp.reset();
-  Interp = createInterpreter();
+  Interp.reset(static_cast<Interpreter*>(InterOp::CreateInterpreter()));
   Sema *S = &Interp->getCI()->getSema();
   
   Interp->declare(R"(
