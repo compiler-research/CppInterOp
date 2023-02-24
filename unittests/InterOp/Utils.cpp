@@ -12,60 +12,18 @@
 #include "clang/Basic/Version.h"
 #include "clang/Config/config.h"
 #include "clang/Frontend/CompilerInstance.h"
+#include "clang/Interpreter/InterOp.h"
 #include "clang/Sema/Sema.h"
 
 using namespace cling;
 using namespace clang;
 using namespace llvm;
 
-// This function isn't referenced outside its translation unit, but it
-// can't use the "static" keyword because its address is used for
-// GetMainExecutable (since some platforms don't support taking the
-// address of main, and some platforms can't implement GetMainExecutable
-// without being given the address of a function in the main executable).
-static std::string GetExecutablePath(const char *Argv0, void *MainAddr) {
-  return sys::fs::getMainExecutable(Argv0, MainAddr);
-}
-
-static std::string MakeResourcesPath() {
-  StringRef Dir;
-#ifdef LLVM_BINARY_DIR
-  Dir = LLVM_BINARY_DIR;
-#else
-  // Dir is bin/ or lib/, depending on where BinaryPath is.
-  void *MainAddr = (void *)(intptr_t)GetExecutablePath;
-  std::string BinaryPath = GetExecutablePath(/*Argv0=*/nullptr, MainAddr);
-
-  // build/tools/clang/unittests/Interpreter/Executable -> build/
-  StringRef Dir = sys::path::parent_path(BinaryPath);
-
-  Dir = sys::path::parent_path(Dir);
-  Dir = sys::path::parent_path(Dir);
-  Dir = sys::path::parent_path(Dir);
-  Dir = sys::path::parent_path(Dir);
-  // Dir = sys::path::parent_path(Dir);
-#endif // LLVM_BINARY_DIR
-  SmallString<128> P(Dir);
-  sys::path::append(P, Twine("lib") + CLANG_LIBDIR_SUFFIX, "clang",
-                    CLANG_VERSION_STRING);
-
-  return std::string(P.str());
-}
-
-std::unique_ptr<Interpreter> TestUtils::createInterpreter() {
-  std::string MainExecutableName = sys::fs::getMainExecutable(nullptr, nullptr);
-  std::string ResourceDir = MakeResourcesPath();
-  std::vector<const char *> ClingArgv = {"-resource-dir", ResourceDir.c_str()};
-  ClingArgv.insert(ClingArgv.begin(), MainExecutableName.c_str());
-  return std::make_unique<Interpreter>(ClingArgv.size(), &ClingArgv[0]);
-}
-
 std::unique_ptr<Interpreter> TestUtils::Interp;
 
 void TestUtils::GetAllTopLevelDecls(const std::string &code,
                                     std::vector<Decl *> &Decls) {
-  Interp.reset();
-  Interp = createInterpreter();
+  Interp.reset(static_cast<Interpreter *>(InterOp::CreateInterpreter()));
   Transaction *T = nullptr;
   Interp->declare(code, &T);
   for (auto DCI = T->decls_begin(), E = T->decls_end(); DCI != E; ++DCI) {

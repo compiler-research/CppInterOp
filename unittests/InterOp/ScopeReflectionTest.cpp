@@ -59,8 +59,7 @@ TEST(ScopeReflectionTest, IsBuiltin) {
   //  "int", "unsigned int", "long", "unsigned long", "long long", "unsigned long long",
   //  "float", "double", "long double", "void"}
 
-  Interp.reset();
-  Interp = createInterpreter();
+  Interp.reset(static_cast<Interpreter *>(InterOp::CreateInterpreter()));
   ASTContext &C = Interp->getCI()->getASTContext();
   EXPECT_TRUE(InterOp::IsBuiltin(C.BoolTy.getAsOpaquePtr()));
   EXPECT_TRUE(InterOp::IsBuiltin(C.CharTy.getAsOpaquePtr()));
@@ -289,7 +288,7 @@ TEST(ScopeReflectionTest, GetUsingNamespaces) {
 }
 
 TEST(ScopeReflectionTest, GetGlobalScope) {
-  Interp = createInterpreter();
+  Interp.reset(static_cast<Interpreter *>(InterOp::CreateInterpreter()));
   Sema *S = &Interp->getCI()->getSema();
 
   EXPECT_EQ(InterOp::GetQualifiedName(InterOp::GetGlobalScope(S)), "");
@@ -306,7 +305,7 @@ TEST(ScopeReflectionTest, GetScope) {
                         }
                        )";
 
-  Interp = createInterpreter();
+  Interp.reset(static_cast<Interpreter *>(InterOp::CreateInterpreter()));
   Interp->declare(code);
   Sema *S = &Interp->getCI()->getSema();
   InterOp::TCppScope_t tu = InterOp::GetScope(S, "", 0);
@@ -329,7 +328,7 @@ TEST(ScopeReflectionTest, GetScopefromCompleteName) {
                         }
                        )";
 
-  Interp = createInterpreter();
+  Interp.reset(static_cast<Interpreter *>(InterOp::CreateInterpreter()));
   Interp->declare(code);
   Sema *S = &Interp->getCI()->getSema();
   EXPECT_EQ(
@@ -359,7 +358,7 @@ TEST(ScopeReflectionTest, GetNamed) {
                         }
                        )";
 
-  Interp = createInterpreter();
+  Interp.reset(static_cast<Interpreter *>(InterOp::CreateInterpreter()));
   Interp->declare(code);
   Sema *S = &Interp->getCI()->getSema();
   InterOp::TCppScope_t ns_N1 = InterOp::GetNamed(S, "N1", 0);
@@ -397,7 +396,7 @@ TEST(ScopeReflectionTest, GetParentScope) {
                         }
                        )";
 
-  Interp = createInterpreter();
+  Interp.reset(static_cast<Interpreter *>(InterOp::CreateInterpreter()));
   Interp->declare(code);
   Sema *S = &Interp->getCI()->getSema();
   InterOp::TCppScope_t ns_N1 = InterOp::GetNamed(S, "N1", 0);
