@@ -1,4 +1,3 @@
-#include <string>
 
 #include "Utils.h"
 
@@ -10,6 +9,8 @@
 #include "clang/Sema/Sema.h"
 
 #include "gtest/gtest.h"
+
+#include <string>
 
 using namespace TestUtils;
 using namespace llvm;
