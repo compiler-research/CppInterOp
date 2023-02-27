@@ -19,6 +19,7 @@
 #include "clang/AST/GlobalDecl.h"
 #include "clang/AST/Mangle.h"
 #include "clang/AST/RecordLayout.h"
+#include "clang/Basic/DiagnosticSema.h"
 #include "clang/Basic/Version.h"
 #include "clang/Config/config.h"
 #include "clang/Frontend/CompilerInstance.h"
@@ -2018,11 +2019,22 @@ namespace Cpp {
     return I->toString(type, obj);
   }
 
+  static SourceLocation GetValidSLoc(Sema & semaRef) {
+    auto &SM = semaRef.getSourceManager();
+    return SM.getLocForStartOfFile(SM.getMainFileID());
+  }
+
   static QualType InstantiateTemplate(TemplateDecl* ClassDecl,
                                       TemplateArgumentListInfo& TLI, Sema &S) {
     // This will instantiate tape<T> type and return it.
     SourceLocation noLoc;
     QualType TT = S.CheckTemplateIdType(TemplateName(ClassDecl), noLoc, TLI);
+
+    // This is not right but we don't have a lot of options to chose from as a
+    // template instantiation requires a valid source location.
+    SourceLocation fakeLoc = GetValidSLoc(S);
+    // Perhaps we can extract this into a new interface.
+    S.RequireCompleteType(fakeLoc, TT, diag::err_tentative_def_incomplete_type);
     return TT;
 
     // ASTContext &C = S.getASTContext();
@@ -2058,7 +2070,11 @@ namespace Cpp {
     for (size_t i = 0; i < type_size; ++i)
       TemplateArgs.push_back(QualType::getFromOpaquePtr(types[i]));
 
-    TemplateDecl *TmplD = static_cast<TemplateDecl *>(tmpl);
+    TemplateDecl* TmplD = static_cast<TemplateDecl*>(tmpl);
+
+    // We will create a new decl, push a transaction.
+    cling::Interpreter::PushTransactionRAII RAII(I);
+
     QualType Instance = InstantiateTemplate(TmplD, TemplateArgs, I->getSema());
     return GetScopeFromType(Instance);
 >>>>>>> 0612fe4... Improve class template instantiation support

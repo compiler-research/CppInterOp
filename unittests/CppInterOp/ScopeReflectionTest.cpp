@@ -621,14 +621,17 @@ TEST(ScopeReflectionTest, InstantiateClassTemplate) {
                                     /*type_size*/ args1.size());
   EXPECT_TRUE(isa<ClassTemplateSpecializationDecl>((Decl*)Instance1));
   auto *CTSD1 = static_cast<ClassTemplateSpecializationDecl*>(Instance1);
+  EXPECT_TRUE(CTSD1->hasDefinition());
   TemplateArgument TA1 = CTSD1->getTemplateArgs().get(0);
   EXPECT_TRUE(TA1.getAsType()->isIntegerType());
+  EXPECT_TRUE(CTSD1->hasDefinition());
 
   auto Instance2 =
       Cpp::InstantiateClassTemplate(Interp.get(), Decls[1], nullptr,
                                     /*type_size*/ 0);
   EXPECT_TRUE(isa<ClassTemplateSpecializationDecl>((Decl*)Instance2));
   auto *CTSD2 = static_cast<ClassTemplateSpecializationDecl*>(Instance2);
+  EXPECT_TRUE(CTSD2->hasDefinition());
   TemplateArgument TA2 = CTSD2->getTemplateArgs().get(0);
   EXPECT_TRUE(TA2.getAsType()->isIntegerType());
 
@@ -638,6 +641,7 @@ TEST(ScopeReflectionTest, InstantiateClassTemplate) {
                                     /*type_size*/ args3.size());
   EXPECT_TRUE(isa<ClassTemplateSpecializationDecl>((Decl*)Instance3));
   auto *CTSD3 = static_cast<ClassTemplateSpecializationDecl*>(Instance3);
+  EXPECT_TRUE(CTSD3->hasDefinition());
   TemplateArgument TA3_0 = CTSD3->getTemplateArgs().get(0);
   TemplateArgument TA3_1 = CTSD3->getTemplateArgs().get(1);
   EXPECT_TRUE(TA3_0.getAsType()->isIntegerType());
