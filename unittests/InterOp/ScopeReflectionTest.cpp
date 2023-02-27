@@ -597,16 +597,58 @@ TEST(ScopeReflectionTest, InstantiateClassTemplate) {
     public:
       T m_t;
     };
+
+    template<typename T = int>
+    class C0 {
+    public:
+      C0(T val) : m_t(val) {}
+      template<int aap=1, int noot=2>
+      T do_stuff() { return m_t+aap+noot; }
+
+    public:
+      T m_t;
+    };
+
+    template<typename T, typename R = C0<T>>
+    class C1 {
+    public:
+      C1(R val) : m_t(val.m_t) {}
+      template<int aap=1, int noot=2>
+      T do_stuff() { return m_t+aap+noot; }
+
+    public:
+      T m_t;
+    };
   )";
 
   ASTContext &C = Interp->getCI()->getASTContext();
   GetAllTopLevelDecls(code, Decls);
-  std::vector<InterOp::TCppType_t> args = {C.IntTy.getAsOpaquePtr()};
-  auto Instance =
-      InterOp::InstantiateClassTemplate(Interp.get(), Decls[0], args.data(),
-                                        /*type_size*/ 1);
-  EXPECT_TRUE(isa<ClassTemplateSpecializationDecl>((Decl *)Instance));
-  auto *CTSD = static_cast<ClassTemplateSpecializationDecl *>(Instance);
-  TemplateArgument TA = CTSD->getTemplateArgs().get(0);
-  EXPECT_TRUE(TA.getAsType()->isIntegerType());
+
+  std::vector<InterOp::TCppType_t> args1 = {C.IntTy.getAsOpaquePtr()};
+  auto Instance1 =
+      InterOp::InstantiateClassTemplate(Interp.get(), Decls[0], args1.data(),
+                                        /*type_size*/ args1.size());
+  EXPECT_TRUE(isa<ClassTemplateSpecializationDecl>((Decl*)Instance1));
+  auto *CTSD1 = static_cast<ClassTemplateSpecializationDecl*>(Instance1);
+  TemplateArgument TA1 = CTSD1->getTemplateArgs().get(0);
+  EXPECT_TRUE(TA1.getAsType()->isIntegerType());
+
+  auto Instance2 =
+      InterOp::InstantiateClassTemplate(Interp.get(), Decls[1], nullptr,
+                                        /*type_size*/ 0);
+  EXPECT_TRUE(isa<ClassTemplateSpecializationDecl>((Decl*)Instance2));
+  auto *CTSD2 = static_cast<ClassTemplateSpecializationDecl*>(Instance2);
+  TemplateArgument TA2 = CTSD2->getTemplateArgs().get(0);
+  EXPECT_TRUE(TA2.getAsType()->isIntegerType());
+
+  std::vector<InterOp::TCppType_t> args3 = {C.IntTy.getAsOpaquePtr()};
+  auto Instance3 =
+      InterOp::InstantiateClassTemplate(Interp.get(), Decls[2], args3.data(),
+                                        /*type_size*/ args3.size());
+  EXPECT_TRUE(isa<ClassTemplateSpecializationDecl>((Decl*)Instance3));
+  auto *CTSD3 = static_cast<ClassTemplateSpecializationDecl*>(Instance3);
+  TemplateArgument TA3_0 = CTSD3->getTemplateArgs().get(0);
+  TemplateArgument TA3_1 = CTSD3->getTemplateArgs().get(1);
+  EXPECT_TRUE(TA3_0.getAsType()->isIntegerType());
+  EXPECT_TRUE(InterOp::IsRecordType(TA3_1.getAsType().getAsOpaquePtr()));
 }
