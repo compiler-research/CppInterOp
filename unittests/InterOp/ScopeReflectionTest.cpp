@@ -350,7 +350,7 @@ TEST(ScopeReflectionTest, GetNamed) {
   Interp.reset(static_cast<Interpreter*>(InterOp::CreateInterpreter()));
   Interp->declare(code);
   Sema *S = &Interp->getCI()->getSema();
-  InterOp::TCppScope_t ns_N1 = InterOp::GetNamed(S, "N1", 0);
+  InterOp::TCppScope_t ns_N1 = InterOp::GetNamed(S, "N1", nullptr);
   InterOp::TCppScope_t ns_N2 = InterOp::GetNamed(S, "N2", ns_N1);
   InterOp::TCppScope_t cl_C = InterOp::GetNamed(S, "C", ns_N2);
   InterOp::TCppScope_t en_E = InterOp::GetNamed(S, "E", cl_C);
@@ -382,7 +382,7 @@ TEST(ScopeReflectionTest, GetParentScope) {
   Interp.reset(static_cast<Interpreter*>(InterOp::CreateInterpreter()));
   Interp->declare(code);
   Sema *S = &Interp->getCI()->getSema();
-  InterOp::TCppScope_t ns_N1 = InterOp::GetNamed(S, "N1", 0);
+  InterOp::TCppScope_t ns_N1 = InterOp::GetNamed(S, "N1");
   InterOp::TCppScope_t ns_N2 = InterOp::GetNamed(S, "N2", ns_N1);
   InterOp::TCppScope_t cl_C = InterOp::GetNamed(S, "C", ns_N2);
   InterOp::TCppScope_t int_i = InterOp::GetNamed(S, "i", cl_C);
