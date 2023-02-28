@@ -359,7 +359,7 @@ TEST(ScopeReflectionTest, GetNamed) {
   Interp.reset(static_cast<Interpreter *>(Cpp::CreateInterpreter()));
   Interp->declare(code);
   Sema *S = &Interp->getCI()->getSema();
-  Cpp::TCppScope_t ns_N1 = Cpp::GetNamed(S, "N1", 0);
+  Cpp::TCppScope_t ns_N1 = Cpp::GetNamed(S, "N1", nullptr);
   Cpp::TCppScope_t ns_N2 = Cpp::GetNamed(S, "N2", ns_N1);
   Cpp::TCppScope_t cl_C = Cpp::GetNamed(S, "C", ns_N2);
   Cpp::TCppScope_t en_E = Cpp::GetNamed(S, "E", cl_C);
@@ -391,7 +391,7 @@ TEST(ScopeReflectionTest, GetParentScope) {
   Interp.reset(static_cast<Interpreter *>(Cpp::CreateInterpreter()));
   Interp->declare(code);
   Sema *S = &Interp->getCI()->getSema();
-  Cpp::TCppScope_t ns_N1 = Cpp::GetNamed(S, "N1", 0);
+  Cpp::TCppScope_t ns_N1 = Cpp::GetNamed(S, "N1");
   Cpp::TCppScope_t ns_N2 = Cpp::GetNamed(S, "N2", ns_N1);
   Cpp::TCppScope_t cl_C = Cpp::GetNamed(S, "C", ns_N2);
   Cpp::TCppScope_t int_i = Cpp::GetNamed(S, "i", cl_C);

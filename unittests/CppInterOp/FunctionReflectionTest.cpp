@@ -594,7 +594,7 @@ TEST(FunctionReflectionTest, GetFunctionCallWrapper) {
   Cpp::CallFuncWrapper_t wrapper0 =
       Cpp::GetFunctionCallWrapper((Cpp::TInterp_t)Interp.get(), Decls[0]);
   Cpp::CallFuncWrapper_t wrapper1 = Cpp::GetFunctionCallWrapper(
-      (Cpp::TInterp_t)Interp.get(), Cpp::GetNamed(S, "f2", 0));
+      (Cpp::TInterp_t)Interp.get(), Cpp::GetNamed(S, "f2"));
   int i = 9, ret;
   std::string s("Hello World!\n");
   void *args0[1] = { (void *) &i };
@@ -670,7 +670,7 @@ TEST(FunctionReflectionTest, DISABLED_Construct) {
     )");
 
   testing::internal::CaptureStdout();
-  Cpp::TCppType_t type = Cpp::GetTypeFromScope(Cpp::GetNamed(S, "C", 0));
+  Cpp::TCppType_t type = Cpp::GetTypeFromScope(Cpp::GetNamed(S, "C"));
   // TCppObject_t object = Cpp::Construct(type);
   std::string output = testing::internal::GetCapturedStdout();
 
@@ -691,7 +691,7 @@ TEST(FunctionReflectionTest, DISABLED_Destruct) {
     )");
 
   testing::internal::CaptureStdout();
-  Cpp::TCppType_t type = Cpp::GetTypeFromScope(Cpp::GetNamed(S, "C", 0));
+  Cpp::TCppType_t type = Cpp::GetTypeFromScope(Cpp::GetNamed(S, "C"));
   // TCppObject_t object = Cpp::Construct(type);
   // Cpp::Destruct(object, type)
   std::string output = testing::internal::GetCapturedStdout();
