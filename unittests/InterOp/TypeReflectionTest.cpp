@@ -397,7 +397,7 @@ TEST(TypeReflectionTest, DISABLED_IsSmartPtrType) {
   )");
   
   auto get_type_from_varname = [&](const std::string &varname) {
-    return InterOp::GetVariableType(InterOp::GetNamed(S, varname, 0));
+    return InterOp::GetVariableType(InterOp::GetNamed(S, varname));
   };
 
   // EXPECT_TRUE(InterOp::IsSmartPtrType(get_type_from_varname("smart_ptr1")));

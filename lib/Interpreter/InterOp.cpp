@@ -299,7 +299,8 @@ namespace InterOp {
     return GetScope(S, name.substr(start, end), curr_scope);
   }
 
-  TCppScope_t GetNamed(TCppSema_t sema, const std::string &name, TCppScope_t parent)
+  TCppScope_t GetNamed(TCppSema_t sema, const std::string &name,
+                       TCppScope_t parent /*= nullptr*/)
   {
     clang::DeclContext *Within = 0;
     if (parent) {
