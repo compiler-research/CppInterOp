@@ -298,7 +298,7 @@ namespace InterOp {
   }
 
   TCppScope_t GetNamed(TCppSema_t sema, const std::string &name,
-                       TCppScope_t parent) {
+                       TCppScope_t parent /*= nullptr*/) {
     clang::DeclContext *Within = 0;
     if (parent) {
       auto *D = (clang::Decl *)parent;

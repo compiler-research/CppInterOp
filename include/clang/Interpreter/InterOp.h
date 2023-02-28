@@ -69,7 +69,7 @@ namespace InterOp {
                                        const std::string &name);
 
   TCppScope_t GetNamed(TCppSema_t sema, const std::string &name,
-                       TCppScope_t parent);
+                       TCppScope_t parent = nullptr);
 
   TCppScope_t GetParentScope(TCppScope_t scope);
 
