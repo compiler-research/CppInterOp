@@ -192,6 +192,8 @@ namespace InterOp {
                                        TCppType_t *types, size_t type_size);
 
   std::vector<std::string> GetAllCppNames(TCppScope_t scope);
+
+  void DumpScope(TCppScope_t scope);
 } // end namespace InterOp
 
 #endif // CLING_INTERPRETER_INTEROP_H
