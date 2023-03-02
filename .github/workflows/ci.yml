@@ -82,9 +82,9 @@ jobs:
         conda install -y -q -c conda-forge \
           distro \
           pytest
-    - name: Cache LLVM/Clang/Cling runtime build directory
-      uses: actions/cache@v3
-      id: cling-build-cache
+    - name: Restore Cache LLVM/Clang runtime build directory
+      uses: actions/cache/restore@v3
+      id: cache
       with:
         path: |
           llvm-project/
@@ -93,31 +93,38 @@ jobs:
         #key: ${{ env.CLING_HASH }}-${{ env.LLVM_HASH }}-${{ runner.os }}-${{ matrix.os }}-${{ matrix.compiler }}-clang-${{ matrix.clang-runtime }}.x
         key: ${{ env.CLING_HASH }}-${{ runner.os }}-${{ matrix.os }}-${{ matrix.compiler }}-clang-${{ matrix.clang-runtime }}.x
     - name: Build Cling on Linux if the cache is invalid
+      if: ${{ runner.os == 'Linux' && steps.cache.outputs.cache-hit != 'true' }}
       run: |
-        if [[ "${{ steps.cling-build-cache.outputs.cache-hit }}" != "true" ]]; then
-          git clone --depth=1 https://github.com/root-project/cling.git
-          git clone --depth=1 -b cling-llvm13 https://github.com/root-project/llvm-project.git
-          cd llvm-project
-          mkdir build
-          cd build
-          cmake -DLLVM_ENABLE_PROJECTS=clang                  \
-                -DLLVM_EXTERNAL_PROJECTS=cling                \
-                -DLLVM_EXTERNAL_CLING_SOURCE_DIR=../../cling  \
-                -DLLVM_TARGETS_TO_BUILD="host;NVPTX"          \
-                -DCMAKE_BUILD_TYPE=Release                    \
-                -DLLVM_ENABLE_ASSERTIONS=ON                   \
-                -DLLVM_USE_LINKER=lld                         \
-                -DCLANG_ENABLE_STATIC_ANALYZER=OFF            \
-                -DCLANG_ENABLE_ARCMT=OFF                      \
-                -DCLANG_ENABLE_FORMAT=OFF                     \
-                -DCLANG_ENABLE_BOOTSTRAP=OFF                  \
-                ../llvm
-          cmake --build . --target clang --parallel $(nproc --all)
-          cmake --build . --target cling --parallel $(nproc --all)
-          # Now build gtest.a and gtest_main for InterOp to run its tests.
-          cmake --build . --target gtest_main --parallel $(nproc --all)
-          cd ../../
-        fi
+        git clone --depth=1 https://github.com/root-project/cling.git
+        git clone --depth=1 -b cling-llvm13 https://github.com/root-project/llvm-project.git
+        cd llvm-project
+        mkdir build
+        cd build
+        cmake -DLLVM_ENABLE_PROJECTS=clang                  \
+              -DLLVM_EXTERNAL_PROJECTS=cling                \
+              -DLLVM_EXTERNAL_CLING_SOURCE_DIR=../../cling  \
+              -DLLVM_TARGETS_TO_BUILD="host;NVPTX"          \
+              -DCMAKE_BUILD_TYPE=Release                    \
+              -DLLVM_ENABLE_ASSERTIONS=ON                   \
+              -DLLVM_USE_LINKER=lld                         \
+              -DCLANG_ENABLE_STATIC_ANALYZER=OFF            \
+              -DCLANG_ENABLE_ARCMT=OFF                      \
+              -DCLANG_ENABLE_FORMAT=OFF                     \
+              -DCLANG_ENABLE_BOOTSTRAP=OFF                  \
+              ../llvm
+        cmake --build . --target clang --parallel $(nproc --all)
+        cmake --build . --target cling --parallel $(nproc --all)
+        # Now build gtest.a and gtest_main for InterOp to run its tests.
+        cmake --build . --target gtest_main --parallel $(nproc --all)
+        cd ../../
+    - name: Save Cache LLVM/Clang runtime build directory
+      uses: actions/cache/save@v3
+      if: ${{ steps.cache.outputs.cache-hit != 'true' }}
+      with:
+        path: |
+          llvm-project/
+          cling/
+        key: ${{ steps.cache.outputs.cache-primary-key }}
     - name: Build and Test InterOp
       run: |
         LLVM_BUILD_DIR="$(realpath llvm-project/build)"
