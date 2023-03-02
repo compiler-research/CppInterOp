@@ -980,7 +980,9 @@ namespace InterOp {
                           const std::string& wrapper_name,
                           const std::string& wrapper,
                           bool withAccessControl = true) {
+#ifdef PRINT_DEBUG
       printf("%s\n", wrapper.c_str());
+#endif
       return I->compileFunction(wrapper_name, wrapper, false /*ifUnique*/,
                                 withAccessControl);
     }
