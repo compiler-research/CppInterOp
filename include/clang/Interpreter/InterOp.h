@@ -82,7 +82,7 @@ namespace InterOp {
 
   intptr_t GetBaseClassOffset(TCppSema_t sema, TCppScope_t derived, TCppScope_t base);
 
-  std::vector<TCppFunction_t> GetClassMethods(TCppScope_t klass);
+  std::vector<TCppFunction_t> GetClassMethods(TCppSema_t sema, TCppScope_t klass);
 
   bool HasDefaultConstructor(TCppScope_t scope);
 
