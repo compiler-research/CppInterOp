@@ -111,10 +111,13 @@ TEST(VariableReflectionTest, GetVariableOffset) {
       double b;
       int *c;
       int d;
+
+      static int s_a;
     };
+    int C::s_a = 12;
     )";
 
-  class {
+  class C {
   public:
     int a;
     double b;
@@ -125,8 +128,7 @@ TEST(VariableReflectionTest, GetVariableOffset) {
   GetAllTopLevelDecls(code, Decls);
   auto datamembers = InterOp::GetDatamembers(Decls[1]);
 
-  EXPECT_FALSE(InterOp::GetVariableOffset(Interp.get(), Decls[0]) ==
-               (intptr_t)0);
+  EXPECT_TRUE((bool)InterOp::GetVariableOffset(Interp.get(), Decls[0]));
 
   EXPECT_EQ(InterOp::GetVariableOffset(Interp.get(), datamembers[0]), 0);
   EXPECT_EQ(InterOp::GetVariableOffset(Interp.get(), datamembers[1]),
@@ -135,6 +137,10 @@ TEST(VariableReflectionTest, GetVariableOffset) {
             ((unsigned long)&(c.c)) - ((unsigned long)&(c.a)));
   EXPECT_EQ(InterOp::GetVariableOffset(Interp.get(), datamembers[3]),
             ((unsigned long)&(c.d)) - ((unsigned long)&(c.a)));
+
+  Sema *S = &Interp->getCI()->getSema();
+  auto *VD_C_s_a = InterOp::GetNamed(S, "s_a", Decls[1]); // C::s_a
+  EXPECT_TRUE((bool)InterOp::GetVariableOffset(Interp.get(), VD_C_s_a));
 }
 
 TEST(VariableReflectionTest, IsPublicVariable) {
