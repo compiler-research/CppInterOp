@@ -415,10 +415,15 @@ namespace InterOp {
     return (intptr_t)-1;
   }
 
-  std::vector<TCppFunction_t> GetClassMethods(TCppScope_t klass) {
-    auto *D = (clang::Decl *)klass;
+  // FIXME: We should make the std::vector<TCppFunction_t> an out parameter to
+  // avoid copies.
+  std::vector<TCppFunction_t> GetClassMethods(TCppSema_t sema,
+                                              TCppScope_t klass) {
+    auto *D = (clang::Decl *) klass;
+    auto *S = (Sema *)sema;
 
     if (auto *CXXRD = llvm::dyn_cast_or_null<CXXRecordDecl>(D)) {
+      S->ForceDeclarationOfImplicitMembers(CXXRD);
       std::vector<TCppFunction_t> methods;
       for (auto it = CXXRD->method_begin(), end = CXXRD->method_end();
            it != end; it++) {

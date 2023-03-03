@@ -33,7 +33,8 @@ TEST(FunctionReflectionTest, GetClassMethods) {
     )";
 
   GetAllTopLevelDecls(code, Decls);
-  auto methods = InterOp::GetClassMethods(Decls[0]);
+  Sema *S = &Interp->getCI()->getSema();
+  auto methods = InterOp::GetClassMethods(S, Decls[0]);
 
   auto get_method_name = [](InterOp::TCppFunction_t method) {
     return InterOp::GetQualifiedName(method);
@@ -44,6 +45,30 @@ TEST(FunctionReflectionTest, GetClassMethods) {
   EXPECT_EQ(get_method_name(methods[2]), "A::f3");
   EXPECT_EQ(get_method_name(methods[3]), "A::f4");
   EXPECT_EQ(get_method_name(methods[4]), "A::f5");
+}
+
+TEST(FunctionReflectionTest, ConstructorInGetClassMethods) {
+  std::vector<Decl*> Decls;
+  std::string code = R"(
+    struct S {
+      int a;
+      int b;
+    };
+    )";
+
+  GetAllTopLevelDecls(code, Decls);
+
+  auto has_constructor = [](Decl *D) {
+    Sema *S = &Interp->getCI()->getSema();
+    auto methods = InterOp::GetClassMethods(S, D);
+    for (auto method : methods) {
+      if (InterOp::IsConstructor(method))
+        return true;
+    }
+    return false;
+  };
+
+  EXPECT_TRUE(has_constructor(Decls[0]));
 }
 
 TEST(FunctionReflectionTest, HasDefaultConstructor) {
