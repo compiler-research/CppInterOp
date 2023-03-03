@@ -24,6 +24,14 @@ TEST(ScopeReflectionTest, IsNamespace) {
   EXPECT_FALSE(Cpp::IsNamespace(Decls[2]));
 }
 
+TEST(ScopeReflectionTest, IsClass) {
+  std::vector<Decl*> Decls;
+  GetAllTopLevelDecls("namespace N {} class C{}; int I;", Decls);
+  EXPECT_FALSE(Cpp::IsClass(Decls[0]));
+  EXPECT_TRUE(Cpp::IsClass(Decls[1]));
+  EXPECT_FALSE(Cpp::IsClass(Decls[2]));
+}
+
 TEST(ScopeReflectionTest, IsComplete) {
   std::vector<Decl*> Decls;
   GetAllTopLevelDecls(

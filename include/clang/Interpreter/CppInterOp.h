@@ -24,6 +24,8 @@ namespace Cpp {
   typedef void (*CallFuncWrapper_t)(void *, int, void **, void *);
 
   bool IsNamespace(TCppScope_t scope);
+
+  bool IsClass(TCppScope_t scope);
   // See TClingClassInfo::IsLoaded
   bool IsComplete(TCppScope_t scope);
 
