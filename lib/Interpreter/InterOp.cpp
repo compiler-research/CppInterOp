@@ -782,34 +782,26 @@ namespace InterOp {
 
   intptr_t GetVariableOffset(TInterp_t interp, TCppScope_t var)
   {
+    if (!var)
+      return 0;
+
     auto *D = (Decl *) var;
-    auto *P = (Decl *) GetParentScope(var);
     auto *I = (cling::Interpreter *) interp;
     auto *S = &I->getCI()->getSema();
+    auto &C = S->getASTContext();
 
-    if (P == GetGlobalScope(S) || IsNamespace(P)) {
-      if (auto *VD = llvm::dyn_cast_or_null<VarDecl>(D)) {
-        auto GD = GlobalDecl(VD);
-        std::string mangledName;
-        cling::utils::Analyze::maybeMangleDeclName(GD, mangledName);
-        auto address = dlsym(/*whole_process=*/0, mangledName.c_str());
-        if (!address)
-          address = I->getAddressOfGlobal(GD);
-        return (intptr_t) address;
-      }
-    }
+    if (auto *FD = llvm::dyn_cast<FieldDecl>(D))
+      return (intptr_t) C.toCharUnitsFromBits(C.getASTRecordLayout(FD->getParent())
+                                              .getFieldOffset(FD->getFieldIndex())).getQuantity();
 
-    if (auto *CXXRD = llvm::dyn_cast_or_null<CXXRecordDecl>(P)) {
-      if (llvm::isa_and_nonnull<VarDecl>(D)) {
-        return (intptr_t) I->process(
-               (std::string("&") + GetQualifiedName(D) + ";").c_str());
-      }
-
-      if (auto *FD = llvm::dyn_cast_or_null<FieldDecl>(D)) {
-        auto &Cxt = S->getASTContext();
-        return (intptr_t) Cxt.toCharUnitsFromBits(Cxt.getASTRecordLayout(CXXRD)
-               .getFieldOffset(FD->getFieldIndex())).getQuantity();
-      }
+    if (auto *VD = llvm::dyn_cast<VarDecl>(D)) {
+      auto GD = GlobalDecl(VD);
+      std::string mangledName;
+      cling::utils::Analyze::maybeMangleDeclName(GD, mangledName);
+      auto address = dlsym(/*whole_process=*/0, mangledName.c_str());
+      if (!address)
+        address = I->getAddressOfGlobal(GD);
+      return (intptr_t) address;
     }
 
     return 0;
