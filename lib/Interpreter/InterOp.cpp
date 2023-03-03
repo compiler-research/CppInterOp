@@ -42,6 +42,11 @@ namespace InterOp {
     Decl *D = static_cast<Decl*>(scope);
     return isa<NamespaceDecl>(D);
   }
+
+  bool IsClass(TCppScope_t scope) {
+    Decl *D = static_cast<Decl*>(scope);
+    return isa<CXXRecordDecl>(D);
+  }
   // See TClingClassInfo::IsLoaded
   bool IsComplete(TCppScope_t scope) {
     if (!scope)
