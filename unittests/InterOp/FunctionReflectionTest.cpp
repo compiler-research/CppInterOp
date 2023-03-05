@@ -640,17 +640,21 @@ TEST(FunctionReflectionTest, DISABLED_GetFunctionArgName) {
   // EXPECT_EQ(InterOp::GetFunctionArgName(Decls[1], 3), "ch");
 }
 
-TEST(FunctionReflectionTest, DISABLED_GetFunctionArgDefault) {
+TEST(FunctionReflectionTest, GetFunctionArgDefault) {
   std::vector<Decl*> Decls, SubDecls;
   std::string code = R"(
     void f1(int i, double d = 4.0, const char *s = "default", char ch = 'c') {}
+    void f2(float i = 0.0, double d = 3.123, long m = 34126) {}
     )";
 
   GetAllTopLevelDecls(code, Decls);
-  // EXPECT_EQ(InterOp::GetFunctionArgDefault(Decls[0], 0), "");
-  // EXPECT_EQ(InterOp::GetFunctionArgDefault(Decls[0], 1), "4.0");
-  // EXPECT_EQ(InterOp::GetFunctionArgDefault(Decls[0], 2), "\"default\"");
-  // EXPECT_EQ(InterOp::GetFunctionArgDefault(Decls[0], 3), "\'c\'");
+  EXPECT_EQ(InterOp::GetFunctionArgDefault(Decls[0], 0), "");
+  EXPECT_EQ(InterOp::GetFunctionArgDefault(Decls[0], 1), "4.");
+  EXPECT_EQ(InterOp::GetFunctionArgDefault(Decls[0], 2), "\"default\"");
+  EXPECT_EQ(InterOp::GetFunctionArgDefault(Decls[0], 3), "\'c\'");
+  EXPECT_EQ(InterOp::GetFunctionArgDefault(Decls[1], 0), "0.");
+  EXPECT_EQ(InterOp::GetFunctionArgDefault(Decls[1], 1), "3.123");
+  EXPECT_EQ(InterOp::GetFunctionArgDefault(Decls[1], 2), "34126");
 }
 
 TEST(FunctionReflectionTest, DISABLED_Construct) {
