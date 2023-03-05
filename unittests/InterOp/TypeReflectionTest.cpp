@@ -354,7 +354,7 @@ TEST(TypeReflectionTest, DISABLED_IsSubType) {
   // EXPECT_FALSE(InterOp::IsSubType(type_C, type_A));
 }
 
-TEST(TypeReflectionTest, DISABLED_GetDimensions) {
+TEST(TypeReflectionTest, GetDimensions) {
   std::vector<Decl *> Decls;
 
   std::string code = R"(
@@ -366,16 +366,16 @@ TEST(TypeReflectionTest, DISABLED_GetDimensions) {
 
   GetAllTopLevelDecls(code, Decls);
 
-  auto test_get_dimensions = [](Decl *D,
-                                const std::vector<std::size_t> &truth_dims) {
-    // std::vector<TCppIndex_t> dims =
-    // InterOp::GetDimensions(InterOp::GetVariableType(D));
-    // EXPECT_EQ(dims.size(), truth_dims.size());
+  auto test_get_dimensions =
+      [](Decl *D, const std::vector<InterOp::TCppIndex_t> &truth_dims) {
+        std::vector<InterOp::TCppIndex_t> dims =
+            InterOp::GetDimensions(InterOp::GetVariableType(D));
+        EXPECT_EQ(dims.size(), truth_dims.size());
 
-    // for (unsigned i = 0; i < truth_dims.size() && i < dims.size(); i++) {
-    //   EXPECT_EQ(dims[i], truth_dims[i]);
-    // }
-  };
+        for (unsigned i = 0; i < truth_dims.size() && i < dims.size(); i++) {
+          EXPECT_EQ(dims[i], truth_dims[i]);
+        }
+      };
 
   test_get_dimensions(Decls[0], {});
   test_get_dimensions(Decls[1], {1});
