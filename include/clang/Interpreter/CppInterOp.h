@@ -172,6 +172,9 @@ namespace Cpp {
   CallFuncWrapper_t GetFunctionCallWrapper(TInterp_t interp,
                                            TCppFunction_t func);
 
+  /// Returns the default argument value as string.
+  std::string GetFunctionArgDefault(TCppFunction_t func, TCppIndex_t param_index);
+
   TInterp_t CreateInterpreter(const char *resource_dir = nullptr);
 
   TCppSema_t GetSema(TInterp_t interp);

@@ -2200,4 +2200,34 @@ namespace Cpp {
 
     return S->IsDerivedFrom(loc, derivedType, baseType);
   }
+
+  std::string GetFunctionArgDefault(TCppFunction_t func,
+                                    TCppIndex_t param_index) {
+    auto *D = (clang::Decl *)func;
+    auto *FD = llvm::dyn_cast_or_null<clang::FunctionDecl>(D);
+    auto PI = FD->getParamDecl(param_index);
+
+    if (PI->hasDefaultArg())
+    {
+      std::string Result;
+      llvm::raw_string_ostream OS(Result);
+      Expr *DefaultArgExpr = const_cast<Expr *>(PI->getDefaultArg());
+      DefaultArgExpr->printPretty(OS, nullptr, PrintingPolicy(LangOptions()));
+
+      // FIXME: Floats are printed in clang with the precision of their underlying representation
+      // and not as written. This is a deficiency in the printing mechanism of clang which we require
+      // extra work to mitigate. For example float PI = 3.14 is printed as 3.1400000000000001
+      if (PI->getType()->isFloatingType())
+      {
+        if (!Result.empty() && Result.back() == '.')
+          return Result;
+        auto DefaultArgValue = std::stod(Result);
+        std::ostringstream oss;
+        oss << DefaultArgValue;
+        Result = oss.str();
+      }
+      return Result;
+    }
+    return "";
+  }
     } // end namespace Cpp
