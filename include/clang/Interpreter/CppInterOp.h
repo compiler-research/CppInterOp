@@ -197,6 +197,8 @@ namespace Cpp {
   std::vector<std::string> GetAllCppNames(TCppScope_t scope);
 
   void DumpScope(TCppScope_t scope);
+
+  std::vector<TCppIndex_t> GetDimensions(TCppType_t type);
 } // end namespace Cpp
 
 #endif // CLING_INTERPRETER_CPPINTEROP_H

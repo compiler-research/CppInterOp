@@ -2145,4 +2145,21 @@ namespace Cpp {
 
     return names;
   }
+
+  std::vector<TCppIndex_t> GetDimensions(TCppType_t type) {
+    QualType Qual = QualType::getFromOpaquePtr(type);
+    std::vector<TCppIndex_t> dims;
+    if (Qual->isArrayType())
+    {
+      const clang::ArrayType *ArrayType = dyn_cast<clang::ArrayType>(Qual.getTypePtr());
+      while (const auto *CAT = dyn_cast_or_null<ConstantArrayType>(ArrayType)) {
+        llvm::APSInt Size(CAT->getSize());
+        int ArraySize = Size.getLimitedValue();
+        dims.push_back(ArraySize);
+        ArrayType = CAT->getElementType()->getAsArrayTypeUnsafe();
+      }
+      return dims;
+    }
+    return dims;
+  }
     } // end namespace Cpp
