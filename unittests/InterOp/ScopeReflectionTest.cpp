@@ -620,7 +620,7 @@ TEST(ScopeReflectionTest, InstantiateClassTemplate) {
     template<typename T, typename R = C0<T>>
     class C1 {
     public:
-      C1(R val) : m_t(val.m_t) {}
+      C1(const R & val = R()) : m_t(val.m_t) {}
       template<int aap=1, int noot=2>
       T do_stuff() { return m_t+aap+noot; }
 
@@ -663,4 +663,9 @@ TEST(ScopeReflectionTest, InstantiateClassTemplate) {
   TemplateArgument TA3_1 = CTSD3->getTemplateArgs().get(1);
   EXPECT_TRUE(TA3_0.getAsType()->isIntegerType());
   EXPECT_TRUE(InterOp::IsRecordType(TA3_1.getAsType().getAsOpaquePtr()));
+
+  Sema *S = &Interp->getCI()->getSema();
+  auto Inst3_methods = InterOp::GetClassMethods(S, Instance3);
+  EXPECT_EQ(InterOp::GetFunctionSignature(Inst3_methods[0]),
+            "C1<int>::C1(const C0<int> &val)");
 }
