@@ -274,46 +274,17 @@ TEST(FunctionReflectionTest, GetFunctionSignature) {
   GetAllSubDecls(Decls[0], Decls);
   GetAllSubDecls(Decls[1], Decls);
 
-  auto test_func_sig = [](Decl *D, bool formal_args,
-          size_t max_args, std::string sig) {
-      EXPECT_EQ(InterOp::GetFunctionSignature(D, formal_args, max_args), sig);
-  };
-
-  test_func_sig(Decls[2], false, -1, "void ()"); // f1
-  test_func_sig(Decls[2], true, -1, "void ()"); // f1
-  test_func_sig(Decls[2], true, 3, "void ()"); // f1
-  test_func_sig(Decls[3], false, -1,
-          "class C (int, double, long, char)"); // f2
-  test_func_sig(Decls[3], false, 0,
-          "class C ()"); // f2
-  test_func_sig(Decls[3], true, -1,
-          "class C (int i, double d, long l = 0, char ch = 'a')"); // f2
-  test_func_sig(Decls[3], true, 0,
-          "class C ()"); // f2
-  test_func_sig(Decls[4], false, -1,
-          "class C *(int, double, long, char)"); // f3
-  test_func_sig(Decls[4], false, 5,
-          "class C *(int, double, long, char)"); // f3
-  test_func_sig(Decls[4], true, -1,
-          "class C *(int i, double d, long l = 0, char ch = 'a')"); // f3
-  test_func_sig(Decls[4], true, 5,
-          "class C *(int i, double d, long l = 0, char ch = 'a')"); // f3
-  test_func_sig(Decls[5], false, -1,
-          "void (int, double, long, char)"); // f4
-  test_func_sig(Decls[5], false, 3,
-          "void (int, double, long)"); // f4
-  test_func_sig(Decls[5], true, -1,
-          "void (int i = 0, double d = 0., long l = 0, char ch = 'a')"); // f4
-  test_func_sig(Decls[5], true, 3,
-          "void (int i = 0, double d = 0., long l = 0)"); // f4
-  test_func_sig(Decls[7], false, -1,
-          "void (int, double, long, char)"); // C::f
-  test_func_sig(Decls[7], true, -1,
-          "void (int i, double d, long l = 0, char ch = 'a')"); // C::f
-  test_func_sig(Decls[12], false, -1,
-          "void (int, double, long, char)"); // N::f
-  test_func_sig(Decls[12], true, -1,
-          "void (int i, double d, long l = 0, char ch = 'a')"); // N::f
+  EXPECT_EQ(InterOp::GetFunctionSignature(Decls[2]), "void f1()");
+  EXPECT_EQ(InterOp::GetFunctionSignature(Decls[3]),
+            "C f2(int i, double d, long l = 0, char ch = 'a')");
+  EXPECT_EQ(InterOp::GetFunctionSignature(Decls[4]),
+            "C *f3(int i, double d, long l = 0, char ch = 'a')");
+  EXPECT_EQ(InterOp::GetFunctionSignature(Decls[5]),
+            "void f4(int i = 0, double d = 0., long l = 0, char ch = 'a')");
+  EXPECT_EQ(InterOp::GetFunctionSignature(Decls[7]),
+            "void C::f(int i, double d, long l = 0, char ch = 'a')");
+  EXPECT_EQ(InterOp::GetFunctionSignature(Decls[12]),
+            "void N::f(int i, double d, long l = 0, char ch = 'a')");
 }
 
 TEST(FunctionReflectionTest, GetFunctionPrototype) {
