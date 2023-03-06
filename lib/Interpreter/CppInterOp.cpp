@@ -563,16 +563,22 @@ namespace Cpp {
     ss << ")";
   }
 
-  std::string GetFunctionSignature(TCppFunction_t func, bool show_formal_args,
-                                   TCppIndex_t max_args) {
-    auto *D = (clang::Decl *)func;
-    if (auto *FD = llvm::dyn_cast_or_null<FunctionDecl>(D)) {
-      std::stringstream sig;
+  std::string GetFunctionSignature(TCppFunction_t func)
+  {
+    if (!func)
+      return "<unknown>";
 
-      sig << FD->getReturnType().getAsString()
-          << (FD->getReturnType()->isPointerType() ? "" : " ");
-      get_function_params(sig, FD, show_formal_args, max_args);
-      return sig.str();
+    auto *D = (clang::Decl *) func;
+    if (auto *FD = llvm::dyn_cast<FunctionDecl>(D)) {
+      std::string Signature;
+      raw_string_ostream SS(Signature);
+      PrintingPolicy Policy = FD->getASTContext().getPrintingPolicy();
+      // Skip printing the body
+      Policy.TerseOutput = true;
+      Policy.FullyQualifiedName = true;
+      FD->print(SS, Policy);
+      SS.flush();
+      return Signature;
     }
     return "<unknown>";
   }
