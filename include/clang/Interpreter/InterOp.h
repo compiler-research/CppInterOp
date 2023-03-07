@@ -159,6 +159,9 @@ namespace InterOp {
   TCppType_t GetComplexType(TCppSema_t sema, TCppType_t element_type);
 
   TCppType_t GetTypeFromScope(TCppScope_t klass);
+  
+  /// Check if a C++ type derives from another.
+  bool IsTypeDerivedFrom(TCppSema_t sema, TCppType_t derived, TCppType_t base);
 
   CallFuncWrapper_t GetFunctionCallWrapper(TInterp_t interp,
                                            TCppFunction_t func);
