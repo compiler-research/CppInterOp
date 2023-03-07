@@ -2184,4 +2184,13 @@ namespace InterOp {
     }
     return dims;
   }
+
+  bool IsTypeDerivedFrom(TCppSema_t sema, TCppType_t derived, TCppType_t base) {
+    auto S = (clang::Sema *)sema;
+    auto loc = SourceLocation::getFromRawEncoding(0);
+    auto derivedType = clang::QualType::getFromOpaquePtr(derived);
+    auto baseType = clang::QualType::getFromOpaquePtr(base);
+
+    return S->IsDerivedFrom(loc, derivedType, baseType);
+  }
 } // end namespace InterOp
