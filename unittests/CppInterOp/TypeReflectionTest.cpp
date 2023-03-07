@@ -328,28 +328,42 @@ TEST(TypeReflectionTest, GetTypeFromScope) {
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetTypeFromScope(Decls[1])), "struct S");
 }
 
-TEST(TypeReflectionTest, DISABLED_IsSubType) {
+TEST(TypeReflectionTest, IsTypeDerivedFrom) {
   std::vector<Decl *> Decls;
 
   std::string code = R"(
       class A {};
       class B : A {};
       class C {};
+      class D : B {};
+      class E : A {};
 
       A a;
       B b;
       C c;
+      D d;
+      E e;
     )";
 
   GetAllTopLevelDecls(code, Decls);
+  Sema *S = &Interp->getCI()->getSema();
 
-  Cpp::TCppType_t type_A = Cpp::GetVariableType(Decls[3]);
-  Cpp::TCppType_t type_B = Cpp::GetVariableType(Decls[4]);
-  Cpp::TCppType_t type_C = Cpp::GetVariableType(Decls[5]);
+  Cpp::TCppType_t type_A = Cpp::GetVariableType(Decls[5]);
+  Cpp::TCppType_t type_B = Cpp::GetVariableType(Decls[6]);
+  Cpp::TCppType_t type_C = Cpp::GetVariableType(Decls[7]);
+  Cpp::TCppType_t type_D = Cpp::GetVariableType(Decls[8]);
+  Cpp::TCppType_t type_E = Cpp::GetVariableType(Decls[9]);
 
-  // EXPECT_TRUE(Cpp::IsSubType(type_B, type_A));
-  // EXPECT_FALSE(Cpp::IsSubType(type_A, type_B));
-  // EXPECT_FALSE(Cpp::IsSubType(type_C, type_A));
+  EXPECT_TRUE(Cpp::IsTypeDerivedFrom(S, type_B, type_A));
+  EXPECT_TRUE(Cpp::IsTypeDerivedFrom(S, type_D, type_B));
+  EXPECT_TRUE(Cpp::IsTypeDerivedFrom(S, type_D, type_A));
+  EXPECT_TRUE(Cpp::IsTypeDerivedFrom(S, type_E, type_A));
+
+  EXPECT_FALSE(Cpp::IsTypeDerivedFrom(S, type_A, type_B));
+  EXPECT_FALSE(Cpp::IsTypeDerivedFrom(S, type_C, type_A));
+  EXPECT_FALSE(Cpp::IsTypeDerivedFrom(S, type_D, type_C));
+  EXPECT_FALSE(Cpp::IsTypeDerivedFrom(S, type_B, type_D));
+  EXPECT_FALSE(Cpp::IsTypeDerivedFrom(S, type_A, type_E));
 }
 
 TEST(TypeReflectionTest, GetDimensions) {
