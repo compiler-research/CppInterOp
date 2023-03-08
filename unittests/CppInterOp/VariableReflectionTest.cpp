@@ -99,6 +99,7 @@ TEST(VariableReflectionTest, GetVariableOffset) {
   std::vector<Decl *> Decls;
   std::string code = R"(
     int a;
+    const int N = 5;
     class C {
     public:
       int a;
@@ -120,9 +121,10 @@ TEST(VariableReflectionTest, GetVariableOffset) {
   } c;
 
   GetAllTopLevelDecls(code, Decls);
-  auto datamembers = Cpp::GetDatamembers(Decls[1]);
+  auto datamembers = Cpp::GetDatamembers(Decls[2]);
 
-  EXPECT_TRUE((bool)Cpp::GetVariableOffset(Interp.get(), Decls[0]));
+  EXPECT_TRUE((bool)Cpp::GetVariableOffset(Interp.get(), Decls[0])); // a
+  EXPECT_TRUE((bool)Cpp::GetVariableOffset(Interp.get(), Decls[1])); // N
 
   EXPECT_EQ(Cpp::GetVariableOffset(Interp.get(), datamembers[0]), 0);
   EXPECT_EQ(Cpp::GetVariableOffset(Interp.get(), datamembers[1]),
@@ -133,7 +135,7 @@ TEST(VariableReflectionTest, GetVariableOffset) {
             ((unsigned long)&(c.d)) - ((unsigned long)&(c.a)));
 
   Sema *S = &Interp->getCI()->getSema();
-  auto *VD_C_s_a = Cpp::GetNamed(S, "s_a", Decls[1]); // C::s_a
+  auto *VD_C_s_a = Cpp::GetNamed(S, "s_a", Decls[2]); // C::s_a
   EXPECT_TRUE((bool)Cpp::GetVariableOffset(Interp.get(), VD_C_s_a));
 }
 
