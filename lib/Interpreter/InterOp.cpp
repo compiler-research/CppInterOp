@@ -20,6 +20,7 @@
 #include "clang/AST/Mangle.h"
 #include "clang/AST/RecordLayout.h"
 #include "clang/Basic/DiagnosticSema.h"
+#include "clang/Basic/Linkage.h"
 #include "clang/Basic/Version.h"
 #include "clang/Config/config.h"
 #include "clang/Frontend/CompilerInstance.h"
@@ -786,6 +787,18 @@ namespace InterOp {
       auto address = dlsym(/*whole_process=*/0, mangledName.c_str());
       if (!address)
         address = I->getAddressOfGlobal(GD);
+      if (!address) {
+        auto Linkage = C.GetGVALinkageForVariable(VD);
+        // The decl was deferred by CodeGen. Force its emission.
+        // FIXME: In ASTContext::DeclMustBeEmitted we should check if the
+        // Decl::isUsed is set or we should be able to access CodeGen's
+        // addCompilerUsedGlobal.
+        if (isDiscardableGVALinkage(Linkage))
+          VD->addAttr(UsedAttr::CreateImplicit(C));
+        cling::Interpreter::PushTransactionRAII RAII(I);
+        I->getCI()->getASTConsumer().HandleTopLevelDecl(DeclGroupRef(VD));
+      }
+      address = I->getAddressOfGlobal(GD);
       return (intptr_t)address;
     }
 
