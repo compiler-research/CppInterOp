@@ -502,35 +502,32 @@ TEST(ScopeReflectionTest, IsSubclass) {
 
   GetAllTopLevelDecls(code, Decls);
 
-  auto check_subclass = [](Decl *derived_D, Decl *base_D) {
-    return Cpp::IsSubclass(derived_D, base_D);
-  };
-
-  EXPECT_TRUE(check_subclass(Decls[0], Decls[0]));
-  EXPECT_TRUE(check_subclass(Decls[1], Decls[0]));
-  EXPECT_TRUE(check_subclass(Decls[2], Decls[0]));
-  EXPECT_TRUE(check_subclass(Decls[3], Decls[0]));
-  EXPECT_TRUE(check_subclass(Decls[4], Decls[0]));
-  EXPECT_FALSE(check_subclass(Decls[0], Decls[1]));
-  EXPECT_TRUE(check_subclass(Decls[1], Decls[1]));
-  EXPECT_FALSE(check_subclass(Decls[2], Decls[1]));
-  EXPECT_TRUE(check_subclass(Decls[3], Decls[1]));
-  EXPECT_TRUE(check_subclass(Decls[4], Decls[1]));
-  EXPECT_FALSE(check_subclass(Decls[0], Decls[2]));
-  EXPECT_FALSE(check_subclass(Decls[1], Decls[2]));
-  EXPECT_TRUE(check_subclass(Decls[2], Decls[2]));
-  EXPECT_TRUE(check_subclass(Decls[3], Decls[2]));
-  EXPECT_TRUE(check_subclass(Decls[4], Decls[2]));
-  EXPECT_FALSE(check_subclass(Decls[0], Decls[3]));
-  EXPECT_FALSE(check_subclass(Decls[1], Decls[3]));
-  EXPECT_FALSE(check_subclass(Decls[2], Decls[3]));
-  EXPECT_TRUE(check_subclass(Decls[3], Decls[3]));
-  EXPECT_TRUE(check_subclass(Decls[4], Decls[3]));
-  EXPECT_FALSE(check_subclass(Decls[0], Decls[4]));
-  EXPECT_FALSE(check_subclass(Decls[1], Decls[4]));
-  EXPECT_FALSE(check_subclass(Decls[2], Decls[4]));
-  EXPECT_FALSE(check_subclass(Decls[3], Decls[4]));
-  EXPECT_TRUE(check_subclass(Decls[4], Decls[4]));
+  Sema *S = &Interp->getCI()->getSema();
+  EXPECT_TRUE(Cpp::IsSubclass(S, Decls[0], Decls[0]));
+  EXPECT_TRUE(Cpp::IsSubclass(S, Decls[1], Decls[0]));
+  EXPECT_TRUE(Cpp::IsSubclass(S, Decls[2], Decls[0]));
+  EXPECT_TRUE(Cpp::IsSubclass(S, Decls[3], Decls[0]));
+  EXPECT_TRUE(Cpp::IsSubclass(S, Decls[4], Decls[0]));
+  EXPECT_FALSE(Cpp::IsSubclass(S, Decls[0], Decls[1]));
+  EXPECT_TRUE(Cpp::IsSubclass(S, Decls[1], Decls[1]));
+  EXPECT_FALSE(Cpp::IsSubclass(S, Decls[2], Decls[1]));
+  EXPECT_TRUE(Cpp::IsSubclass(S, Decls[3], Decls[1]));
+  EXPECT_TRUE(Cpp::IsSubclass(S, Decls[4], Decls[1]));
+  EXPECT_FALSE(Cpp::IsSubclass(S, Decls[0], Decls[2]));
+  EXPECT_FALSE(Cpp::IsSubclass(S, Decls[1], Decls[2]));
+  EXPECT_TRUE(Cpp::IsSubclass(S, Decls[2], Decls[2]));
+  EXPECT_TRUE(Cpp::IsSubclass(S, Decls[3], Decls[2]));
+  EXPECT_TRUE(Cpp::IsSubclass(S, Decls[4], Decls[2]));
+  EXPECT_FALSE(Cpp::IsSubclass(S, Decls[0], Decls[3]));
+  EXPECT_FALSE(Cpp::IsSubclass(S, Decls[1], Decls[3]));
+  EXPECT_FALSE(Cpp::IsSubclass(S, Decls[2], Decls[3]));
+  EXPECT_TRUE(Cpp::IsSubclass(S, Decls[3], Decls[3]));
+  EXPECT_TRUE(Cpp::IsSubclass(S, Decls[4], Decls[3]));
+  EXPECT_FALSE(Cpp::IsSubclass(S, Decls[0], Decls[4]));
+  EXPECT_FALSE(Cpp::IsSubclass(S, Decls[1], Decls[4]));
+  EXPECT_FALSE(Cpp::IsSubclass(S, Decls[2], Decls[4]));
+  EXPECT_FALSE(Cpp::IsSubclass(S, Decls[3], Decls[4]));
+  EXPECT_TRUE(Cpp::IsSubclass(S, Decls[4], Decls[4]));
 }
 
 TEST(ScopeReflectionTest, GetBaseClassOffset) {

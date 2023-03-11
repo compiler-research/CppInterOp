@@ -81,7 +81,7 @@ namespace Cpp {
 
   TCppScope_t GetBaseClass(TCppType_t klass, TCppIndex_t ibase);
 
-  bool IsSubclass(TCppScope_t derived, TCppScope_t base);
+  bool IsSubclass(TCppSema_t sema, TCppScope_t derived, TCppScope_t base);
 
   intptr_t GetBaseClassOffset(TCppSema_t sema, TCppScope_t derived,
                               TCppScope_t base);
