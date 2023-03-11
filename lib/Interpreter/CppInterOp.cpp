@@ -965,12 +965,13 @@ namespace Cpp {
   }
 
   TCppType_t GetTypeFromScope(TCppScope_t klass) {
-    auto *D = (Decl *) klass;
-    if (auto *TD = llvm::dyn_cast_or_null<TypeDecl>(D)) {
-      return QualType(TD->getTypeForDecl(), 0).getAsOpaquePtr();
-    }
+    if (!klass)
+      return 0;
 
-    return (TCppType_t)0;
+    auto *D = (Decl *) klass;
+    ASTContext &C = D->getASTContext();
+
+    return C.getTypeDeclType(cast<TypeDecl>(D)).getAsOpaquePtr();
   }
 
   namespace {
