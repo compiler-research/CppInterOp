@@ -356,8 +356,10 @@ namespace Cpp {
   {
     auto *D = (Decl *) klass;
 
-    if (auto *CXXRD = llvm::dyn_cast_or_null<CXXRecordDecl>(D))
-      return CXXRD->getNumBases();
+    if (auto *CXXRD = llvm::dyn_cast_or_null<CXXRecordDecl>(D)) {
+      if (CXXRD->hasDefinition())
+        return CXXRD->getNumBases();
+    }
 
     return 0;
   }

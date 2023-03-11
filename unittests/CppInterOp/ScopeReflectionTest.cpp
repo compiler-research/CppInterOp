@@ -451,6 +451,7 @@ TEST(ScopeReflectionTest, GetNumBases) {
     class C : virtual public A {};
     class D : public B, public C {};
     class E : public D {};
+    class NoDef;
   )";
 
   GetAllTopLevelDecls(code, Decls);
@@ -460,6 +461,9 @@ TEST(ScopeReflectionTest, GetNumBases) {
   EXPECT_EQ(Cpp::GetNumBases(Decls[2]), 1);
   EXPECT_EQ(Cpp::GetNumBases(Decls[3]), 2);
   EXPECT_EQ(Cpp::GetNumBases(Decls[4]), 1);
+  // FIXME: Perhaps we should have a special number or error out as this
+  // operation is not well defined if a class has no definition.
+  EXPECT_EQ(Cpp::GetNumBases(Decls[5]), 0);
 }
 
 
