@@ -241,6 +241,8 @@ TEST(VariableReflectionTest, DISABLED_GetArrayDimensions) {
 
   GetAllTopLevelDecls(code, Decls);
   GetAllSubDecls(Decls[0], SubDecls);
+  GetAllSubDecls(Decls[1], SubDecls);
+  GetAllSubDecls(Decls[2], SubDecls);
   auto is_vec_eq = [](const std::vector<size_t> &arr_dims,
                       const std::vector<size_t> &truth_vals) {
     if (arr_dims.size() != truth_vals.size()) 
