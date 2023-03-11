@@ -384,22 +384,25 @@ namespace InterOp {
     return 0;
   }
 
-  bool IsSubclass(TCppScope_t derived, TCppScope_t base)
-  {
+  // FIXME: Consider dropping this interface as it seems the same as
+  // IsTypeDerivedFrom.
+  bool IsSubclass(TCppSema_t sema, TCppScope_t derived, TCppScope_t base) {
     if (derived == base)
       return true;
+
+    if (!derived || !base)
+      return false;
 
     auto *derived_D = (clang::Decl *) derived;
     auto *base_D = (clang::Decl *) base;
 
-    if (!derived_D || !base_D || llvm::isa<TranslationUnitDecl>(derived_D) ||
-        llvm::isa<TranslationUnitDecl>(base_D))
+    if (!isa<CXXRecordDecl>(derived_D) || !isa<CXXRecordDecl>(base_D))
       return false;
 
-    if (auto derived_CXXRD = llvm::dyn_cast_or_null<CXXRecordDecl>(derived_D))
-      if (auto base_CXXRD = llvm::dyn_cast_or_null<CXXRecordDecl>(base_D))
-        return derived_CXXRD->isDerivedFrom(base_CXXRD);
-    return false;
+    auto Derived = cast<CXXRecordDecl>(derived_D);
+    auto Base = cast<CXXRecordDecl>(base_D);
+    return IsTypeDerivedFrom(sema, GetTypeFromScope(Derived),
+                             GetTypeFromScope(Base));
   }
 
   intptr_t GetBaseClassOffset(TCppSema_t sema, TCppScope_t derived,
