@@ -149,6 +149,10 @@ namespace InterOp {
   size_t GetSizeOfType(TCppSema_t sema, TCppType_t type) {
     auto S = (clang::Sema *)sema;
     QualType QT = QualType::getFromOpaquePtr(type);
+    if (const TagType *TT = QT->getAs<TagType>())
+      return SizeOf(TT->getDecl());
+
+    // FIXME: Can we get the size of a non-tag type?
     auto TI = S->getASTContext().getTypeInfo(QT);
     size_t TypeSize = TI.Width;
     return TypeSize/8;

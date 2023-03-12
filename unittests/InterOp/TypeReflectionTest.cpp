@@ -52,6 +52,8 @@ TEST(TypeReflectionTest, GetSizeOfType) {
     int n;
     double d;
     S s;
+    struct FwdDecl;
+    FwdDecl *f;
     )";
 
   GetAllTopLevelDecls(code, Decls);
@@ -61,6 +63,8 @@ TEST(TypeReflectionTest, GetSizeOfType) {
   EXPECT_EQ(InterOp::GetSizeOfType(S, InterOp::GetVariableType(Decls[2])), 4);
   EXPECT_EQ(InterOp::GetSizeOfType(S, InterOp::GetVariableType(Decls[3])), 8);
   EXPECT_EQ(InterOp::GetSizeOfType(S, InterOp::GetVariableType(Decls[4])), 16);
+  EXPECT_EQ(InterOp::GetSizeOfType(S, InterOp::GetTypeFromScope(Decls[5])), 0);
+  EXPECT_EQ(InterOp::GetSizeOfType(S, InterOp::GetVariableType(Decls[6])), 8);
 }
 
 TEST(TypeReflectionTest, GetCanonicalType) {
