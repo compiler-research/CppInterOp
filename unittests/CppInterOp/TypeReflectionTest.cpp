@@ -382,21 +382,43 @@ TEST(TypeReflectionTest, GetDimensions) {
 
   GetAllTopLevelDecls(code, Decls);
 
-  auto test_get_dimensions =
-      [](Decl *D, const std::vector<Cpp::TCppIndex_t> &truth_dims) {
-        std::vector<Cpp::TCppIndex_t> dims =
-            Cpp::GetDimensions(Cpp::GetVariableType(D));
-        EXPECT_EQ(dims.size(), truth_dims.size());
+  std::vector<long int> dims, truth_dims;
 
-        for (unsigned i = 0; i < truth_dims.size() && i < dims.size(); i++) {
-          EXPECT_EQ(dims[i], truth_dims[i]);
-        }
-      };
+  // Variable a
+  dims = Cpp::GetDimensions(Cpp::GetVariableType(Decls[0]));
+  truth_dims = std::vector<long int>({});
+  EXPECT_EQ(dims.size(), truth_dims.size());
+  for (unsigned i = 0; i < truth_dims.size() && i < dims.size(); i++)
+  {
+    EXPECT_EQ(dims[i], truth_dims[i]);
+  }
 
-  test_get_dimensions(Decls[0], {});
-  test_get_dimensions(Decls[1], {1});
-  test_get_dimensions(Decls[2], {1, 2});
-  test_get_dimensions(Decls[3], {1, 2, 3});
+  // Variable b
+  dims = Cpp::GetDimensions(Cpp::GetVariableType(Decls[1]));
+  truth_dims = std::vector<long int>({1});
+  EXPECT_EQ(dims.size(), truth_dims.size());
+  for (unsigned i = 0; i < truth_dims.size() && i < dims.size(); i++)
+  {
+    EXPECT_EQ(dims[i], truth_dims[i]);
+  }
+  
+  // Variable c
+  dims = Cpp::GetDimensions(Cpp::GetVariableType(Decls[2]));
+  truth_dims = std::vector<long int>({1, 2});
+  EXPECT_EQ(dims.size(), truth_dims.size());
+  for (unsigned i = 0; i < truth_dims.size() && i < dims.size(); i++)
+  {
+    EXPECT_EQ(dims[i], truth_dims[i]);
+  }
+
+  // Variable d
+  dims = Cpp::GetDimensions(Cpp::GetVariableType(Decls[3]));
+  truth_dims = std::vector<long int>({1, 2, 3});
+  EXPECT_EQ(dims.size(), truth_dims.size());
+  for (unsigned i = 0; i < truth_dims.size() && i < dims.size(); i++)
+  {
+    EXPECT_EQ(dims[i], truth_dims[i]);
+  }
 }
 
 TEST(TypeReflectionTest, IsPODType) {
