@@ -381,21 +381,43 @@ TEST(TypeReflectionTest, GetDimensions) {
 
   GetAllTopLevelDecls(code, Decls);
 
-  auto test_get_dimensions = [](Decl *D, const std::vector<InterOp::TCppIndex_t> &truth_dims)
+  std::vector<long int> dims, truth_dims;
+
+  // Variable a
+  dims = InterOp::GetDimensions(InterOp::GetVariableType(Decls[0]));
+  truth_dims = std::vector<long int>({});
+  EXPECT_EQ(dims.size(), truth_dims.size());
+  for (unsigned i = 0; i < truth_dims.size() && i < dims.size(); i++)
   {
-    std::vector<InterOp::TCppIndex_t> dims = InterOp::GetDimensions(InterOp::GetVariableType(D));
-    EXPECT_EQ(dims.size(), truth_dims.size());
+    EXPECT_EQ(dims[i], truth_dims[i]);
+  }
 
-    for (unsigned i = 0; i < truth_dims.size() && i < dims.size(); i++)
-    {
-      EXPECT_EQ(dims[i], truth_dims[i]);
-    }
-  };
+  // Variable b
+  dims = InterOp::GetDimensions(InterOp::GetVariableType(Decls[1]));
+  truth_dims = std::vector<long int>({1});
+  EXPECT_EQ(dims.size(), truth_dims.size());
+  for (unsigned i = 0; i < truth_dims.size() && i < dims.size(); i++)
+  {
+    EXPECT_EQ(dims[i], truth_dims[i]);
+  }
+  
+  // Variable c
+  dims = InterOp::GetDimensions(InterOp::GetVariableType(Decls[2]));
+  truth_dims = std::vector<long int>({1, 2});
+  EXPECT_EQ(dims.size(), truth_dims.size());
+  for (unsigned i = 0; i < truth_dims.size() && i < dims.size(); i++)
+  {
+    EXPECT_EQ(dims[i], truth_dims[i]);
+  }
 
-  test_get_dimensions(Decls[0], {});
-  test_get_dimensions(Decls[1], {1});
-  test_get_dimensions(Decls[2], {1, 2});
-  test_get_dimensions(Decls[3], {1, 2, 3});
+  // Variable d
+  dims = InterOp::GetDimensions(InterOp::GetVariableType(Decls[3]));
+  truth_dims = std::vector<long int>({1, 2, 3});
+  EXPECT_EQ(dims.size(), truth_dims.size());
+  for (unsigned i = 0; i < truth_dims.size() && i < dims.size(); i++)
+  {
+    EXPECT_EQ(dims[i], truth_dims[i]);
+  }
 }
 
 TEST(TypeReflectionTest, DISABLED_IsSmartPtrType) {
