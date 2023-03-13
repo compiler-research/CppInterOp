@@ -148,6 +148,8 @@ namespace InterOp {
 
   bool IsRecordType(TCppType_t type);
 
+  bool IsPODType(TCppSema_t sema, TCppType_t type);
+
   TCppType_t  GetUnderlyingType(TCppType_t type);
 
   std::string GetTypeAsString(TCppType_t type);
