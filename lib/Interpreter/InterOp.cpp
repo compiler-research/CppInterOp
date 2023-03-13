@@ -871,6 +871,18 @@ namespace InterOp {
     return QT->isRecordType();
   }
 
+  bool IsPODType(TCppSema_t sema, TCppType_t type) {
+    QualType QT = QualType::getFromOpaquePtr(type);
+
+    if (QT.isNull())
+      return false;
+
+    auto *S = (Sema *)sema;
+    auto &Cxt = S->getASTContext();
+
+    return QT.isPODType(Cxt);
+  }
+
   TCppType_t GetUnderlyingType(TCppType_t type)
   {
     QualType QT = QualType::getFromOpaquePtr(type);
