@@ -174,6 +174,9 @@ namespace Cpp {
   CallFuncWrapper_t GetFunctionCallWrapper(TInterp_t interp,
                                            TCppFunction_t func);
 
+  /// Checks if a function declared is of const type or not
+  bool IsConstMethod(TCppFunction_t method);
+
   /// Returns the default argument value as string.
   std::string GetFunctionArgDefault(TCppFunction_t func, TCppIndex_t param_index);
 

@@ -2252,4 +2252,17 @@ namespace Cpp {
     }
     return "";
   }
+
+  bool IsConstMethod(TCppFunction_t method)
+  {
+    if (!method)
+      return false;
+
+    auto *D = (clang::Decl *)method;
+    if (auto *func = dyn_cast<CXXMethodDecl>(D))
+       return func->getMethodQualifiers().hasConst();
+
+    return false;
+  }
+
     } // end namespace Cpp
