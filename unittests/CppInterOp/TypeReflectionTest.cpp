@@ -399,6 +399,29 @@ TEST(TypeReflectionTest, GetDimensions) {
   test_get_dimensions(Decls[3], {1, 2, 3});
 }
 
+TEST(TypeReflectionTest, IsPODType) {
+  std::vector<Decl *> Decls;
+
+  std::string code = R"(
+    struct A {};
+    struct B {
+      int x;
+
+     private:
+      int y;
+    };
+
+    A a;
+    B b;
+    )";
+
+  GetAllTopLevelDecls(code, Decls);
+  Sema *S = &Interp->getSema();
+  EXPECT_TRUE(Cpp::IsPODType(S, Cpp::GetVariableType(Decls[2])));
+  EXPECT_FALSE(Cpp::IsPODType(S, Cpp::GetVariableType(Decls[3])));
+  EXPECT_FALSE(Cpp::IsPODType(S, 0));
+}
+
 TEST(TypeReflectionTest, DISABLED_IsSmartPtrType) {
   Interp.reset(static_cast<Interpreter *>(Cpp::CreateInterpreter()));
   Sema *S = &Interp->getCI()->getSema();
