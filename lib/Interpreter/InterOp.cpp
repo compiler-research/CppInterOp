@@ -379,11 +379,12 @@ namespace InterOp {
     if (!CXXRD || CXXRD->getNumBases() <= ibase) return 0;
 
     auto type = (CXXRD->bases_begin() + ibase)->getType();
-    if (auto RT = llvm::dyn_cast<RecordType>(type)) {
-      return (TCppScope_t) RT->getDecl()->getCanonicalDecl();
-    } else if (auto TST = llvm::dyn_cast<clang::TemplateSpecializationType>(type)) {
-      return (TCppScope_t) TST->getTemplateName()
-          .getAsTemplateDecl()->getCanonicalDecl();
+    if (auto RT = type->getAs<RecordType>()) {
+      return (TCppScope_t) RT->getDecl();
+    } else if (auto TST = type->getAs<clang::TemplateSpecializationType>()) {
+      TemplateName TN = TST->getTemplateName();
+      if (auto *TD = dyn_cast_or_null<ClassTemplateDecl>(TN.getAsTemplateDecl()))
+        return TD->getTemplatedDecl();
     }
 
     return 0;
