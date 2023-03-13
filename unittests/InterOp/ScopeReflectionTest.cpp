@@ -484,6 +484,14 @@ TEST(ScopeReflectionTest, GetBaseClass) {
     class C : virtual public A {};
     class D : public B, public C {};
     class E : public D {};
+
+    template <typename T>
+    class TC1 {};
+
+    template <typename T>
+    class TC2 : TC1 <T> {};
+
+    TC2<A> var;
   )";
 
   GetAllTopLevelDecls(code, Decls);
@@ -497,6 +505,14 @@ TEST(ScopeReflectionTest, GetBaseClass) {
   EXPECT_EQ(get_base_class_name(Decls[3], 0), "B");
   EXPECT_EQ(get_base_class_name(Decls[3], 1), "C");
   EXPECT_EQ(get_base_class_name(Decls[4], 0), "D");
+
+  auto *S = &Interp->getSema();
+  auto *VD = InterOp::GetNamed(S, "var");
+  auto *VT = InterOp::GetVariableType(VD);
+  auto *TC2_A_Decl = InterOp::GetScopeFromType(VT);
+  auto *TC1_A_Decl = InterOp::GetBaseClass(TC2_A_Decl, 0);
+
+  EXPECT_EQ(InterOp::GetCompleteName(S, TC1_A_Decl), "TC1<A>");
 }
 
 TEST(ScopeReflectionTest, IsSubclass) {
