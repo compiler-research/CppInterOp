@@ -2189,9 +2189,12 @@ namespace InterOp {
     return names;
   }
 
-  std::vector<TCppIndex_t> GetDimensions(TCppType_t type) {
+  // FIXME: On the CPyCppyy side the receiver is of type
+  //        vector<long int> instead of vector<TCppIndex_t>
+  std::vector<long int> GetDimensions(TCppType_t type)
+  {
     QualType Qual = QualType::getFromOpaquePtr(type);
-    std::vector<TCppIndex_t> dims;
+    std::vector<long int> dims;
     if (Qual->isArrayType())
     {
       const clang::ArrayType *ArrayType = dyn_cast<clang::ArrayType>(Qual.getTypePtr());

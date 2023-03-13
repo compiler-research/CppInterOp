@@ -206,7 +206,7 @@ namespace InterOp {
 
   void DumpScope(TCppScope_t scope);
 
-  std::vector<TCppIndex_t> GetDimensions(TCppType_t type);
+  std::vector<long int> GetDimensions(TCppType_t type);
 } // end namespace InterOp
 
 #endif // CLING_INTERPRETER_INTEROP_H
