@@ -95,7 +95,7 @@ TEST(EnumReflectionTest, GetEnumIntegerType) {
 
   GetAllTopLevelDecls(code, Decls);
 
-  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetEnumIntegerType(Decls[0])), "_Bool");
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetEnumIntegerType(Decls[0])), "bool");
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetEnumIntegerType(Decls[1])), "char");
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetEnumIntegerType(Decls[2])), "int");
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetEnumIntegerType(Decls[3])),
