@@ -192,7 +192,7 @@ TEST(FunctionReflectionTest, GetFunctionReturnType) {
 
   EXPECT_EQ(InterOp::GetTypeAsString(InterOp::GetFunctionReturnType(Decls[3])), "void");
   EXPECT_EQ(InterOp::GetTypeAsString(InterOp::GetFunctionReturnType(Decls[4])), "double");
-  EXPECT_EQ(InterOp::GetTypeAsString(InterOp::GetFunctionReturnType(Decls[5])), "enum Switch");
+  EXPECT_EQ(InterOp::GetTypeAsString(InterOp::GetFunctionReturnType(Decls[5])), "Switch");
   EXPECT_EQ(InterOp::GetTypeAsString(InterOp::GetFunctionReturnType(Decls[6])), "N::C");
   EXPECT_EQ(InterOp::GetTypeAsString(InterOp::GetFunctionReturnType(Decls[7])), "N::C *");
   EXPECT_EQ(InterOp::GetTypeAsString(InterOp::GetFunctionReturnType(Decls[8])), "const N::C");
