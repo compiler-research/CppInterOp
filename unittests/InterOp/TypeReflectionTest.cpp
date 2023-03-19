@@ -222,18 +222,18 @@ TEST(TypeReflectionTest, GetUnderlyingType) {
   EXPECT_EQ(get_underly_var_type_as_str(Decls[10]), "int");
   EXPECT_EQ(get_underly_var_type_as_str(Decls[11]), "int");
 
-  EXPECT_EQ(get_underly_var_type_as_str(Decls[13]), "class C");
-  EXPECT_EQ(get_underly_var_type_as_str(Decls[14]), "class C");
-  EXPECT_EQ(get_underly_var_type_as_str(Decls[15]), "class C");
-  EXPECT_EQ(get_underly_var_type_as_str(Decls[16]), "class C");
-  EXPECT_EQ(get_underly_var_type_as_str(Decls[17]), "class C");
-  EXPECT_EQ(get_underly_var_type_as_str(Decls[18]), "class C");
-  EXPECT_EQ(get_underly_var_type_as_str(Decls[19]), "class C");
-  EXPECT_EQ(get_underly_var_type_as_str(Decls[20]), "class C");
-  EXPECT_EQ(get_underly_var_type_as_str(Decls[21]), "class C");
-  EXPECT_EQ(get_underly_var_type_as_str(Decls[22]), "class C");
-  EXPECT_EQ(get_underly_var_type_as_str(Decls[23]), "class C");
-  EXPECT_EQ(get_underly_var_type_as_str(Decls[24]), "class C");
+  EXPECT_EQ(get_underly_var_type_as_str(Decls[13]), "C");
+  EXPECT_EQ(get_underly_var_type_as_str(Decls[14]), "C");
+  EXPECT_EQ(get_underly_var_type_as_str(Decls[15]), "C");
+  EXPECT_EQ(get_underly_var_type_as_str(Decls[16]), "C");
+  EXPECT_EQ(get_underly_var_type_as_str(Decls[17]), "C");
+  EXPECT_EQ(get_underly_var_type_as_str(Decls[18]), "C");
+  EXPECT_EQ(get_underly_var_type_as_str(Decls[19]), "C");
+  EXPECT_EQ(get_underly_var_type_as_str(Decls[20]), "C");
+  EXPECT_EQ(get_underly_var_type_as_str(Decls[21]), "C");
+  EXPECT_EQ(get_underly_var_type_as_str(Decls[22]), "C");
+  EXPECT_EQ(get_underly_var_type_as_str(Decls[23]), "C");
+  EXPECT_EQ(get_underly_var_type_as_str(Decls[24]), "C");
 }
 
 TEST(TypeReflectionTest, IsUnderlyingTypeRecordType) {
@@ -328,10 +328,8 @@ TEST(TypeReflectionTest, GetTypeFromScope) {
   
   GetAllTopLevelDecls(code, Decls);
 
-  EXPECT_EQ(InterOp::GetTypeAsString(InterOp::GetTypeFromScope(Decls[0])),
-            "class C");
-  EXPECT_EQ(InterOp::GetTypeAsString(InterOp::GetTypeFromScope(Decls[1])),
-            "struct S");
+  EXPECT_EQ(InterOp::GetTypeAsString(InterOp::GetTypeFromScope(Decls[0])), "C");
+  EXPECT_EQ(InterOp::GetTypeAsString(InterOp::GetTypeFromScope(Decls[1])), "S");
 }
 
 TEST(TypeReflectionTest, IsTypeDerivedFrom) {

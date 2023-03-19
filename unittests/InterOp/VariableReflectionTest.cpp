@@ -91,10 +91,8 @@ TEST(VariableReflectionTest, GetVariableType) {
 
   EXPECT_EQ(InterOp::GetTypeAsString(InterOp::GetVariableType(Decls[2])), "int");
   EXPECT_EQ(InterOp::GetTypeAsString(InterOp::GetVariableType(Decls[3])), "char");
-  EXPECT_EQ(InterOp::GetTypeAsString(InterOp::GetVariableType(Decls[4])),
-            "class C");
-  EXPECT_EQ(InterOp::GetTypeAsString(InterOp::GetVariableType(Decls[5])),
-            "class C *");
+  EXPECT_EQ(InterOp::GetTypeAsString(InterOp::GetVariableType(Decls[4])), "C");
+  EXPECT_EQ(InterOp::GetTypeAsString(InterOp::GetVariableType(Decls[5])), "C *");
   EXPECT_EQ(InterOp::GetTypeAsString(InterOp::GetVariableType(Decls[6])), "E<int>");
   EXPECT_EQ(InterOp::GetTypeAsString(InterOp::GetVariableType(Decls[7])), "E<int> *");
   EXPECT_EQ(InterOp::GetTypeAsString(InterOp::GetVariableType(Decls[8])),
