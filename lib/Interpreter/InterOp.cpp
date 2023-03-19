@@ -918,7 +918,8 @@ namespace InterOp {
       QualType QT = QualType::getFromOpaquePtr(var);
       // FIXME: Get the default printing policy from the ASTContext.
       PrintingPolicy Policy((LangOptions()));
-      Policy.Bool = true;
+      Policy.Bool = true; // Print bool instead of _Bool.
+      Policy.SuppressTagKeyword = true; // Do not print `class std::string`.
       return QT.getAsString(Policy);
   }
 
