@@ -96,7 +96,7 @@ TEST(EnumReflectionTest, GetEnumIntegerType) {
   GetAllTopLevelDecls(code, Decls);
 
   EXPECT_EQ(InterOp::GetTypeAsString(InterOp::GetEnumIntegerType(Decls[0])),
-            "_Bool");
+            "bool");
   EXPECT_EQ(InterOp::GetTypeAsString(InterOp::GetEnumIntegerType(Decls[1])),
             "char");
   EXPECT_EQ(InterOp::GetTypeAsString(InterOp::GetEnumIntegerType(Decls[2])),
