@@ -1970,11 +1970,6 @@ namespace InterOp {
   }
 
   namespace {
-  
-  std::string GetExecutablePath(const char *Argv0, void *MainAddr) {
-    return llvm::sys::fs::getMainExecutable(Argv0, MainAddr);
-  }
-
   static std::string MakeResourcesPath() {
     StringRef Dir;
 #ifdef LLVM_BINARY_DIR
