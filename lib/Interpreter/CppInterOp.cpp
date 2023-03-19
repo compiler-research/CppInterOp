@@ -1955,7 +1955,6 @@ namespace Cpp {
       auto *I = (cling::Interpreter *)interp;
 
       namespace {
-
       static std::string MakeResourcesPath() {
         StringRef Dir;
 #ifdef LLVM_BINARY_DIR
