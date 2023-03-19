@@ -916,7 +916,10 @@ namespace InterOp {
   std::string GetTypeAsString(TCppType_t var)
   {
       QualType QT = QualType::getFromOpaquePtr(var);
-      return QT.getAsString();
+      // FIXME: Get the default printing policy from the ASTContext.
+      PrintingPolicy Policy((LangOptions()));
+      Policy.Bool = true;
+      return QT.getAsString(Policy);
   }
 
   TCppType_t GetCanonicalType(TCppType_t type)
