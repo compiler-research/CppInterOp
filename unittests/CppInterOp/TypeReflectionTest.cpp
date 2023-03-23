@@ -385,13 +385,22 @@ TEST(TypeReflectionTest, IsTypeDerivedFrom) {
 }
 
 TEST(TypeReflectionTest, GetDimensions) {
-  std::vector<Decl *> Decls;
+  std::vector<Decl *> Decls, SubDecls;
 
   std::string code = R"(
       int a;
       int b[1];
       int c[1][2];
       int d[1][2][3];
+
+      struct S1 {
+        char ch[];
+      };
+
+
+      struct S2 {
+        char ch[][3][4];
+      };
     )";
 
   GetAllTopLevelDecls(code, Decls);
@@ -428,6 +437,26 @@ TEST(TypeReflectionTest, GetDimensions) {
   // Variable d
   dims = Cpp::GetDimensions(Cpp::GetVariableType(Decls[3]));
   truth_dims = std::vector<long int>({1, 2, 3});
+  EXPECT_EQ(dims.size(), truth_dims.size());
+  for (unsigned i = 0; i < truth_dims.size() && i < dims.size(); i++)
+  {
+    EXPECT_EQ(dims[i], truth_dims[i]);
+  }
+
+  // Field S1::ch
+  GetAllSubDecls(Decls[4], SubDecls);
+  dims = Cpp::GetDimensions(Cpp::GetVariableType(SubDecls[1]));
+  truth_dims = std::vector<long int>({Cpp::DimensionValue::UNKNOWN_SIZE});
+  EXPECT_EQ(dims.size(), truth_dims.size());
+  for (unsigned i = 0; i < truth_dims.size() && i < dims.size(); i++)
+  {
+    EXPECT_EQ(dims[i], truth_dims[i]);
+  }
+
+  // Field S2::ch
+  GetAllSubDecls(Decls[5], SubDecls);
+  dims = Cpp::GetDimensions(Cpp::GetVariableType(SubDecls[3]));
+  truth_dims = std::vector<long int>({Cpp::DimensionValue::UNKNOWN_SIZE, 3, 4});
   EXPECT_EQ(dims.size(), truth_dims.size());
   for (unsigned i = 0; i < truth_dims.size() && i < dims.size(); i++)
   {

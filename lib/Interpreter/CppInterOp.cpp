@@ -2198,11 +2198,16 @@ namespace Cpp {
     if (Qual->isArrayType())
     {
       const clang::ArrayType *ArrayType = dyn_cast<clang::ArrayType>(Qual.getTypePtr());
-      while (const auto *CAT = dyn_cast_or_null<ConstantArrayType>(ArrayType)) {
-        llvm::APSInt Size(CAT->getSize());
-        int ArraySize = Size.getLimitedValue();
-        dims.push_back(ArraySize);
-        ArrayType = CAT->getElementType()->getAsArrayTypeUnsafe();
+      while (ArrayType)
+      {
+        if (const auto *CAT = dyn_cast_or_null<ConstantArrayType>(ArrayType)) {
+          llvm::APSInt Size(CAT->getSize());
+          long int ArraySize = Size.getLimitedValue();
+          dims.push_back(ArraySize);
+        } else /* VariableArrayType, DependentSizedArrayType, IncompleteArrayType */ {
+          dims.push_back(DimensionValue::UNKNOWN_SIZE);
+        }
+        ArrayType = ArrayType->getElementType()->getAsArrayTypeUnsafe();
       }
       return dims;
     }
