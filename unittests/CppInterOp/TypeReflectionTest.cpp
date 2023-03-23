@@ -27,17 +27,31 @@ TEST(TypeReflectionTest, GetTypeAsString) {
     N::S s;
 
     int i;
+
+    char ch = 'c';
+    char & ch_r = ch;
+    const char *ch_cp = "Hello!";
+    char ch_arr[4];
+
   )";
 
   GetAllTopLevelDecls(code, Decls);
   QualType QT1 = llvm::dyn_cast<VarDecl>(Decls[1])->getType();
   QualType QT2 = llvm::dyn_cast<VarDecl>(Decls[2])->getType();
   QualType QT3 = llvm::dyn_cast<VarDecl>(Decls[3])->getType();
+  QualType QT4 = llvm::dyn_cast<VarDecl>(Decls[4])->getType();
+  QualType QT5 = llvm::dyn_cast<VarDecl>(Decls[5])->getType();
+  QualType QT6 = llvm::dyn_cast<VarDecl>(Decls[6])->getType();
+  QualType QT7 = llvm::dyn_cast<VarDecl>(Decls[7])->getType();
   EXPECT_EQ(Cpp::GetTypeAsString(QT1.getAsOpaquePtr()),
           "N::C");
   EXPECT_EQ(Cpp::GetTypeAsString(QT2.getAsOpaquePtr()),
           "N::S");
   EXPECT_EQ(Cpp::GetTypeAsString(QT3.getAsOpaquePtr()), "int");
+  EXPECT_EQ(Cpp::GetTypeAsString(QT4.getAsOpaquePtr()), "char");
+  EXPECT_EQ(Cpp::GetTypeAsString(QT5.getAsOpaquePtr()), "char &");
+  EXPECT_EQ(Cpp::GetTypeAsString(QT6.getAsOpaquePtr()), "const char *");
+  EXPECT_EQ(Cpp::GetTypeAsString(QT7.getAsOpaquePtr()), "char [4]");
 }
 
 TEST(TypeReflectionTest, GetSizeOfType) {
