@@ -200,6 +200,12 @@ namespace InterOp {
 
   void DumpScope(TCppScope_t scope);
 
+  namespace DimensionValue {
+    enum : long int {
+      UNKNOWN_SIZE = -1,
+    };
+  }
+
   std::vector<long int> GetDimensions(TCppType_t type);
 } // end namespace InterOp
 
