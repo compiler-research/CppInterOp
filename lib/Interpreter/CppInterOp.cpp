@@ -419,9 +419,18 @@ namespace Cpp {
     if (auto *DCXXRD = llvm::dyn_cast_or_null<CXXRecordDecl>(DD)) {
       if (auto *BCXXRD = llvm::dyn_cast_or_null<CXXRecordDecl>(BD)) {
         auto &Cxt = S->getASTContext();
-        return (intptr_t)Cxt.getASTRecordLayout(DCXXRD)
-            .getBaseClassOffset(BCXXRD)
-            .getQuantity();
+
+        // Check for isVirtuallyDerivedFrom first as isDerivedFrom
+        // returns true for both virtual and non-virtual bases
+        if (DCXXRD->isVirtuallyDerivedFrom(BCXXRD)) {
+          return (intptr_t)Cxt.getASTRecordLayout(DCXXRD)
+              .getVBaseClassOffset(BCXXRD)
+              .getQuantity();
+        } else if (DCXXRD->isDerivedFrom(BCXXRD)) {
+          return (intptr_t)Cxt.getASTRecordLayout(DCXXRD)
+              .getBaseClassOffset(BCXXRD)
+              .getQuantity();
+        }
       }
     }
 
