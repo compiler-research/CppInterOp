@@ -540,20 +540,34 @@ TEST(ScopeReflectionTest, IsSubclass) {
 TEST(ScopeReflectionTest, GetBaseClassOffset) {
   std::vector<Decl *> Decls;
   std::string code = R"(
-    class A { int a; };
-    class B { int b; };
-    class C : public A, public B { int c; };
-    class D : public A, public B, public C { int d; };
+    class A { int m_a; };
+    class B { int m_b; };
+    class C : virtual A, virtual B { int m_c; };
+    class D : virtual A, virtual B, public C { int m_d; };
+    class E : public A, public B { int m_e; };
   )";
+
+  class A { int m_a; };
+  class B { int m_b; };
+  class C : virtual A, virtual B { int m_c; };
+  class D : virtual A, virtual B, public C { int m_d; };
+  class E : public A, public B { int m_e; };
 
   GetAllTopLevelDecls(code, Decls);
   Sema *S = &Interp->getCI()->getSema();
 
-  EXPECT_EQ(InterOp::GetBaseClassOffset(S, Decls[2], Decls[0]), 0);
-  EXPECT_EQ(InterOp::GetBaseClassOffset(S, Decls[2], Decls[1]), 4);
-  EXPECT_EQ(InterOp::GetBaseClassOffset(S, Decls[3], Decls[0]), 0);
-  EXPECT_EQ(InterOp::GetBaseClassOffset(S, Decls[3], Decls[1]), 4);
-  EXPECT_EQ(InterOp::GetBaseClassOffset(S, Decls[3], Decls[2]), 8);
+  auto *c = new C();
+  EXPECT_EQ(InterOp::GetBaseClassOffset(S, Decls[2], Decls[0]), (char *)(A*)c - (char *)c);
+  EXPECT_EQ(InterOp::GetBaseClassOffset(S, Decls[2], Decls[1]), (char *)(B*)c - (char *)c);
+
+  auto *d = new D();
+  EXPECT_EQ(InterOp::GetBaseClassOffset(S, Decls[3], Decls[0]), (char *)(A*)d - (char *)d);
+  EXPECT_EQ(InterOp::GetBaseClassOffset(S, Decls[3], Decls[1]), (char *)(B*)d - (char *)d);
+  EXPECT_EQ(InterOp::GetBaseClassOffset(S, Decls[3], Decls[2]), (char *)(C*)d - (char *)d);
+
+  auto *e = new E();
+  EXPECT_EQ(InterOp::GetBaseClassOffset(S, Decls[4], Decls[0]), (char *)(A*)e - (char *)e);
+  EXPECT_EQ(InterOp::GetBaseClassOffset(S, Decls[4], Decls[1]), (char *)(B*)e - (char *)e);
 }
 
 TEST(ScopeReflectionTest, GetAllCppNames) {
