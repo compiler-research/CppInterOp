@@ -1,7 +1,5 @@
 #include "Utils.h"
 
-#include "cling/Interpreter/Interpreter.h"
-
 #include "clang/AST/ASTContext.h"
 #include "clang/Interpreter/InterOp.h"
 #include "clang/Frontend/CompilerInstance.h"
@@ -12,7 +10,6 @@
 using namespace TestUtils;
 using namespace llvm;
 using namespace clang;
-using namespace cling;
 
 TEST(TypeReflectionTest, GetTypeAsString) {
   std::vector<Decl *> Decls;
@@ -51,7 +48,7 @@ TEST(TypeReflectionTest, GetTypeAsString) {
   EXPECT_EQ(InterOp::GetTypeAsString(QT4.getAsOpaquePtr()), "char");
   EXPECT_EQ(InterOp::GetTypeAsString(QT5.getAsOpaquePtr()), "char &");
   EXPECT_EQ(InterOp::GetTypeAsString(QT6.getAsOpaquePtr()), "const char *");
-  EXPECT_EQ(InterOp::GetTypeAsString(QT7.getAsOpaquePtr()), "char [4]");
+  EXPECT_EQ(InterOp::GetTypeAsString(QT7.getAsOpaquePtr()), "char[4]");
 }
 
 TEST(TypeReflectionTest, GetSizeOfType) {
@@ -103,7 +100,8 @@ TEST(TypeReflectionTest, GetCanonicalType) {
 }
 
 TEST(TypeReflectionTest, GetType) {
-  Interp.reset(static_cast<Interpreter *>(InterOp::CreateInterpreter()));
+  Interp.reset(
+      static_cast<compat::Interpreter *>(InterOp::CreateInterpreter()));
   Sema *S = &Interp->getCI()->getSema();
 
   std::string code = R"(
@@ -318,7 +316,8 @@ TEST(TypeReflectionTest, IsUnderlyingTypeRecordType) {
 }
 
 TEST(TypeReflectionTest, GetComplexType) {
-  Interp.reset(static_cast<Interpreter *>(InterOp::CreateInterpreter()));
+  Interp.reset(
+      static_cast<compat::Interpreter *>(InterOp::CreateInterpreter()));
   Sema *S = &Interp->getCI()->getSema();
 
   auto get_complex_type_as_string = [&](const std::string &element_type) {
@@ -488,7 +487,8 @@ TEST(TypeReflectionTest, IsPODType) {
 }
 
 TEST(TypeReflectionTest, DISABLED_IsSmartPtrType) {
-  Interp.reset(static_cast<Interpreter *>(InterOp::CreateInterpreter()));
+  Interp.reset(
+      static_cast<compat::Interpreter *>(InterOp::CreateInterpreter()));
   Sema *S = &Interp->getCI()->getSema();
 
   Interp->declare(R"(

@@ -1,7 +1,4 @@
-
 #include "Utils.h"
-
-#include "cling/Interpreter/Interpreter.h"
 
 #include "clang/AST/ASTContext.h"
 #include "clang/Interpreter/InterOp.h"
@@ -15,7 +12,6 @@
 using namespace TestUtils;
 using namespace llvm;
 using namespace clang;
-using namespace cling;
 
 TEST(FunctionReflectionTest, GetClassMethods) {
   std::vector<Decl*> Decls;
@@ -188,7 +184,7 @@ TEST(FunctionReflectionTest, GetFunctionReturnType) {
     const volatile N::C f8() { return N::C(); }
     )";
 
-  GetAllTopLevelDecls(code, Decls);
+  GetAllTopLevelDecls(code, Decls, true);
   GetAllSubDecls(Decls[2], SubDecls);
 
   EXPECT_EQ(InterOp::GetTypeAsString(InterOp::GetFunctionReturnType(Decls[3])), "void");
@@ -248,11 +244,9 @@ TEST(FunctionReflectionTest, GetFunctionArgType) {
   EXPECT_EQ(InterOp::GetTypeAsString(InterOp::GetFunctionArgType(Decls[0], 2)), "long");
   EXPECT_EQ(InterOp::GetTypeAsString(InterOp::GetFunctionArgType(Decls[0], 3)), "char");
   EXPECT_EQ(InterOp::GetTypeAsString(InterOp::GetFunctionArgType(Decls[1], 0)), "const int");
-  EXPECT_EQ(InterOp::GetTypeAsString(InterOp::GetFunctionArgType(Decls[1], 1)),
-            "double []");
+  EXPECT_EQ(InterOp::GetTypeAsString(InterOp::GetFunctionArgType(Decls[1], 1)), "double[]");
   EXPECT_EQ(InterOp::GetTypeAsString(InterOp::GetFunctionArgType(Decls[1], 2)), "long *");
-  EXPECT_EQ(InterOp::GetTypeAsString(InterOp::GetFunctionArgType(Decls[1], 3)),
-            "char [4]");
+  EXPECT_EQ(InterOp::GetTypeAsString(InterOp::GetFunctionArgType(Decls[1], 3)), "char[4]");
 }
 
 TEST(FunctionReflectionTest, GetFunctionSignature) {
@@ -273,7 +267,7 @@ TEST(FunctionReflectionTest, GetFunctionSignature) {
     void f4(int i = 0, double d = 0.0, long l = 0, char ch = 'a') {}
     )";
 
-  GetAllTopLevelDecls(code, Decls);
+  GetAllTopLevelDecls(code, Decls, true);
   GetAllSubDecls(Decls[0], Decls);
   GetAllSubDecls(Decls[1], Decls);
 
@@ -308,7 +302,7 @@ TEST(FunctionReflectionTest, GetFunctionPrototype) {
     void f4(int i = 0, double d = 0.0, long l = 0, char ch = 'a') {}
     )";
 
-  GetAllTopLevelDecls(code, Decls);
+  GetAllTopLevelDecls(code, Decls, true);
   GetAllSubDecls(Decls[0], Decls);
   GetAllSubDecls(Decls[1], Decls);
 
@@ -532,18 +526,20 @@ TEST(FunctionReflectionTest, IsStaticMethod) {
 
 TEST(FunctionReflectionTest, GetFunctionAddress) {
   std::vector<Decl*> Decls, SubDecls;
-  std::string code = R"(
-    int f1(int i) { return i * i; }
-    )";
+  std::string code = "int f1(int i) { return i * i; }";
 
   GetAllTopLevelDecls(code, Decls);
 
   testing::internal::CaptureStdout();
-  Interp->declare("#include <iostream> \n");
+  Interp->declare("#include <iostream>");
   Interp->process(
-    "void * address = (void *) &f1; \n"
-    "std::cout << address; \n"
-    );
+      "void * address = (void *) &f1; \n"
+#if USE_REPL && CLANG_VERSION_MAJOR < 16
+      "int run() {std::cout << address; return 0;} int result = run(); \n"
+#else
+      "std::cout << address; \n"
+#endif
+  );
 
   std::string output = testing::internal::GetCapturedStdout();
   std::stringstream address;
@@ -579,7 +575,7 @@ TEST(FunctionReflectionTest, GetFunctionCallWrapper) {
 
   GetAllTopLevelDecls(code, Decls);
 
-  Interp->declare(R"(
+  Interp->process(R"(
     #include <string>
     void f2(std::string &s) { printf("%s", s.c_str()); };
   )");
@@ -657,7 +653,8 @@ TEST(FunctionReflectionTest, GetFunctionArgDefault) {
 }
 
 TEST(FunctionReflectionTest, DISABLED_Construct) {
-  Interp.reset(static_cast<Interpreter *>(InterOp::CreateInterpreter()));
+  Interp.reset(
+      static_cast<compat::Interpreter *>(InterOp::CreateInterpreter()));
   Sema *S = &Interp->getCI()->getSema();
 
   Interp->declare(R"(
@@ -678,7 +675,8 @@ TEST(FunctionReflectionTest, DISABLED_Construct) {
 }
 
 TEST(FunctionReflectionTest, DISABLED_Destruct) {
-  Interp.reset(static_cast<Interpreter *>(InterOp::CreateInterpreter()));
+  Interp.reset(
+      static_cast<compat::Interpreter *>(InterOp::CreateInterpreter()));
   Sema *S = &Interp->getCI()->getSema();
 
   Interp->declare(R"(
