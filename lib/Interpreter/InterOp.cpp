@@ -7,16 +7,14 @@
 // LICENSE.TXT for details.
 //------------------------------------------------------------------------------
 
+#include "clang/Interpreter/Compatibility.h"
 #include "clang/Interpreter/InterOp.h"
-#include "cling/Interpreter/Interpreter.h"
-#include "cling/Interpreter/Transaction.h"
-#include "cling/Interpreter/DynamicLibraryManager.h"
-#include "cling/Utils/AST.h"
 
 #include "clang/AST/Decl.h"
 #include "clang/AST/DeclCXX.h"
 #include "clang/AST/GlobalDecl.h"
 #include "clang/AST/Mangle.h"
+#include "clang/AST/QualTypeNames.h"
 #include "clang/AST/RecordLayout.h"
 #include "clang/Basic/DiagnosticSema.h"
 #include "clang/Basic/Linkage.h"
@@ -35,8 +33,10 @@
 #include <string>
 
 namespace InterOp {
+
   using namespace clang;
   using namespace llvm;
+  using namespace std;
 
   bool IsNamespace(TCppScope_t scope) {
     Decl *D = static_cast<Decl*>(scope);
@@ -186,9 +186,6 @@ namespace InterOp {
       if (auto *TD = llvm::dyn_cast<TagDecl>(ND)) {
         std::string type_name;
         QualType QT = C.getTagDeclType(TD);
-        cling::utils::Transform::Config Config;
-        // QT = cling::utils::Transform::GetPartiallyDesugaredType(
-        //     C, QT, Config, /*fullyQualify=*/true);
         PrintingPolicy Policy = C.getPrintingPolicy();
         Policy.SuppressUnwrittenScope = true;
         Policy.SuppressScope = true;
@@ -196,7 +193,7 @@ namespace InterOp {
 
         return type_name;
       }
-      
+
       return ND->getNameAsString();
     }
 
@@ -231,14 +228,11 @@ namespace InterOp {
       if (auto *TD = llvm::dyn_cast<TagDecl>(ND)) {
         std::string type_name;
         QualType QT = C.getTagDeclType(TD);
-        cling::utils::Transform::Config Config;
-        // QT = cling::utils::Transform::GetPartiallyDesugaredType(
-        //     C, QT, Config, /*fullyQualify=*/true);
         QT.getAsStringInternal(type_name, C.getPrintingPolicy());
 
         return type_name;
       }
-      
+
       return ND->getQualifiedNameAsString();
     }
 
@@ -281,7 +275,7 @@ namespace InterOp {
     }
 
     auto *S = (Sema *) sema;
-    auto *ND = cling::utils::Lookup::Named(S, name, Within);
+    auto *ND = InterOp_utils::Lookup::Named(S, name, Within);
 
     if (!(ND == (NamedDecl *) -1) &&
             (llvm::isa_and_nonnull<NamespaceDecl>(ND)     ||
@@ -319,7 +313,7 @@ namespace InterOp {
     }
 
     auto *S = (Sema *) sema;
-    auto *ND = cling::utils::Lookup::Named(S, name, Within);
+    auto *ND = InterOp_utils::Lookup::Named(S, name, Within);
     if (ND && ND != (clang::NamedDecl*) -1) {
       return (TCppScope_t)(ND->getCanonicalDecl());
     }
@@ -498,14 +492,14 @@ namespace InterOp {
                           Sema::LookupOrdinaryName,
                           Sema::ForVisibleRedeclaration);
 
-    cling::utils::Lookup::Named(S, R, Decl::castToDeclContext(D));
+    InterOp_utils::Lookup::Named(S, R, Decl::castToDeclContext(D));
 
     if (R.empty())
       return funcs;
 
     R.resolveKind();
 
-    for (LookupResult::iterator Res = R.begin(), ResEnd = R.end();
+    for (clang::LookupResult::iterator Res = R.begin(), ResEnd = R.end();
          Res != ResEnd;
          ++Res) {
       if (llvm::isa<FunctionDecl>(*Res)) {
@@ -570,7 +564,7 @@ namespace InterOp {
               PI != end; PI++) {
       if (i >= max_args)
           break;
-      ss << (*PI)->getType().getAsString();
+      ss << compat::FixTypeName((*PI)->getType().getAsString());
       if (show_formal_args) {
         ss << " " << (*PI)->getNameAsString();
         if ((*PI)->hasDefaultArg()) {
@@ -600,6 +594,7 @@ namespace InterOp {
       // Skip printing the body
       Policy.TerseOutput = true;
       Policy.FullyQualifiedName = true;
+      Policy.SuppressDefaultTemplateArgs = false;
       FD->print(SS, Policy);
       SS.flush();
       return Signature;
@@ -613,7 +608,7 @@ namespace InterOp {
     if (auto *FD = llvm::dyn_cast_or_null<FunctionDecl>(D)) {
       std::stringstream proto;
 
-      proto << FD->getReturnType().getAsString()
+      proto << compat::FixTypeName(FD->getReturnType().getAsString())
             << (FD->getReturnType()->isPointerType() ? "" : " ");
       proto << FD->getQualifiedNameAsString();
       get_function_params(proto, FD, show_formal_args);
@@ -657,7 +652,7 @@ namespace InterOp {
     }
 
     auto *S = (Sema *) sema;
-    auto *ND = cling::utils::Lookup::Named(S, name, Within);
+    auto *ND = InterOp_utils::Lookup::Named(S, name, Within);
 
     if ((intptr_t) ND == (intptr_t) 0)
       return false;
@@ -718,7 +713,7 @@ namespace InterOp {
 
   TCppFuncAddr_t GetFunctionAddress(TInterp_t interp, TCppFunction_t method)
   {
-    auto *I = (cling::Interpreter *) interp;
+    auto *I = (compat::Interpreter *) interp;
     auto *D = (Decl *) method;
 
     const auto get_mangled_name = [](FunctionDecl* FD) {
@@ -727,20 +722,25 @@ namespace InterOp {
       if (!MangleCtxt->shouldMangleDeclName(FD)) {
         return FD->getNameInfo().getName().getAsString();
       }
-    
+
       std::string mangled_name;
       llvm::raw_string_ostream ostream(mangled_name);
-    
+
       MangleCtxt->mangleName(FD, ostream);
-    
+
       ostream.flush();
       delete MangleCtxt;
-    
+
       return mangled_name;
     };
 
-    if (auto *FD = llvm::dyn_cast_or_null<FunctionDecl>(D))
-      return (TCppFuncAddr_t)I->getAddressOfGlobal(get_mangled_name(FD));
+    if (auto *FD = llvm::dyn_cast_or_null<FunctionDecl>(D)) {
+      if (auto FDAorErr = compat::getSymbolAddress(*I, StringRef(get_mangled_name(FD)))) {
+        return reinterpret_cast<TCppFuncAddr_t>(*FDAorErr);
+      } else { // Hangle Err
+        llvm::logAllUnhandledErrors(FDAorErr.takeError(), llvm::errs(), "Failed to GetFunctionAdress:");
+      }
+    }
 
     return 0;
   }
@@ -782,7 +782,7 @@ namespace InterOp {
     }
 
     auto *S = (Sema *) sema;
-    auto *ND = cling::utils::Lookup::Named(S, name, Within);
+    auto *ND = InterOp_utils::Lookup::Named(S, name, Within);
     if (ND && ND != (clang::NamedDecl*) -1) {
       if (llvm::isa_and_nonnull<clang::FieldDecl>(ND)) {
         return (TCppScope_t)ND;
@@ -809,8 +809,8 @@ namespace InterOp {
       return 0;
 
     auto *D = (Decl *) var;
-    auto *I = (cling::Interpreter *) interp;
-    auto *S = &I->getCI()->getSema();
+    auto *I = (compat::Interpreter *) interp;
+    auto *S = &I->getSema();
     auto &C = S->getASTContext();
 
     if (auto *FD = llvm::dyn_cast<FieldDecl>(D))
@@ -820,7 +820,7 @@ namespace InterOp {
     if (auto *VD = llvm::dyn_cast<VarDecl>(D)) {
       auto GD = GlobalDecl(VD);
       std::string mangledName;
-      cling::utils::Analyze::maybeMangleDeclName(GD, mangledName);
+      compat::maybeMangleDeclName(GD, mangledName);
       auto address = dlsym(/*whole_process=*/0, mangledName.c_str());
       if (!address)
         address = I->getAddressOfGlobal(GD);
@@ -832,11 +832,40 @@ namespace InterOp {
         // addCompilerUsedGlobal.
         if (isDiscardableGVALinkage(Linkage))
           VD->addAttr(UsedAttr::CreateImplicit(C));
+#ifdef USE_CLING
         cling::Interpreter::PushTransactionRAII RAII(I);
         I->getCI()->getASTConsumer().HandleTopLevelDecl(DeclGroupRef(VD));
+#else // CLANG_REPL
+        I->getCI()->getASTConsumer().HandleTopLevelDecl(DeclGroupRef(VD));
+        // Take the newest llvm::Module produced by CodeGen and send it to JIT.
+        auto GeneratedPTU = I->Parse("");
+        if (!GeneratedPTU)
+          llvm::logAllUnhandledErrors(GeneratedPTU.takeError(), llvm::errs(),
+                                 "[GetVariableOffset] Failed to generate PTU:");
+
+        // From cling's BackendPasses.cpp
+        // FIXME: We need to upstream this code in IncrementalExecutor::addModule
+        for (auto &GV : GeneratedPTU->TheModule->globals()) {
+          llvm::GlobalValue::LinkageTypes LT = GV.getLinkage();
+          if (GV.isDeclaration() || !GV.hasName() ||
+              GV.getName().startswith(".str") || !GV.isDiscardableIfUnused(LT) ||
+              LT != llvm::GlobalValue::InternalLinkage)
+            continue; //nothing to do
+          GV.setLinkage(llvm::GlobalValue::WeakAnyLinkage);
+        }
+        if (auto Err = I->Execute(*GeneratedPTU))
+          llvm::logAllUnhandledErrors(std::move(Err), llvm::errs(),
+                                  "[GetVariableOffset] Failed to execute PTU:");
+#endif
       }
-      address = I->getAddressOfGlobal(GD);
-      return (intptr_t) address;
+
+      auto VDAorErr = compat::getSymbolAddress(*I, StringRef(mangledName));
+      if (!VDAorErr) {
+        llvm::logAllUnhandledErrors(VDAorErr.takeError(), llvm::errs(),
+                                    "Failed to GetVariableOffset:");
+        return 0;
+      }
+      return reinterpret_cast<intptr_t>(static_cast<intptr_t>(*VDAorErr));
     }
 
     return 0;
@@ -903,7 +932,7 @@ namespace InterOp {
 
     auto *S = (Sema *) sema;
     auto &Cxt = S->getASTContext();
-    
+
     return QT.isPODType(Cxt);
   }
 
@@ -928,7 +957,7 @@ namespace InterOp {
       PrintingPolicy Policy((LangOptions()));
       Policy.Bool = true; // Print bool instead of _Bool.
       Policy.SuppressTagKeyword = true; // Do not print `class std::string`.
-      return QT.getAsString(Policy);
+      return compat::FixTypeName(QT.getAsString(Policy));
   }
 
   TCppType_t GetCanonicalType(TCppType_t type)
@@ -990,13 +1019,13 @@ namespace InterOp {
 
   TCppType_t GetType(TCppSema_t sema, const std::string &name) {
     auto *S = (Sema *) sema;
-    
-    // auto *ND = cling::utils::Lookup::Named(S, name, 0);
+
+    auto *ND = InterOp_utils::Lookup::Named(S, name, 0);
 
     QualType builtin = findBuiltinType(name, S->getASTContext());
     if (!builtin.isNull())
       return builtin.getAsOpaquePtr();
-    
+
     auto *D = (Decl *) GetScopeFromCompleteName(S, name);
     if (auto *TD = llvm::dyn_cast_or_null<TypeDecl>(D)) {
       return QualType(TD->getTypeForDecl(), 0).getAsOpaquePtr();
@@ -1030,7 +1059,7 @@ namespace InterOp {
 
     enum EReferenceType { kNotReference, kLValueReference, kRValueReference };
 
-    void *compile_wrapper(cling::Interpreter* I,
+    void *compile_wrapper(compat::Interpreter* I,
                           const std::string& wrapper_name,
                           const std::string& wrapper,
                           bool withAccessControl = true) {
@@ -1043,14 +1072,9 @@ namespace InterOp {
 
     void get_type_as_string(QualType QT, std::string& type_name, ASTContext& C,
                             PrintingPolicy Policy) {
-      // FIXME: Take the code here
-      // https://github.com/root-project/root/blob/550fb2644f3c07d1db72b9b4ddc4eba5a99ddc12/interpreter/cling/lib/Utils/AST.cpp#L316-L350
-      // to make hist/histdrawv7/test/histhistdrawv7testUnit work into
-      // QualTypeNames.h in clang
-      // type_name = clang::TypeName::getFullyQualifiedName(QT, C, Policy);
-      cling::utils::Transform::Config Config;
-      QT = cling::utils::Transform::GetPartiallyDesugaredType(
-          C, QT, Config, /*fullyQualify=*/true);
+      //TODO: Implement cling desugaring from utils::AST
+      //      cling::utils::Transform::GetPartiallyDesugaredType()
+      QT = QT.getDesugaredType(C);
       QT.getAsStringInternal(type_name, Policy);
     }
 
@@ -1082,7 +1106,7 @@ namespace InterOp {
         }
         for (int i = 0; i < indent_level; ++i) {
           typedefbuf << kIndentString;
-        }
+    }
         typedefbuf << "typedef " << fp_typedef_name << ";\n";
         return;
       } else if (QT->isMemberPointerType()) {
@@ -1369,7 +1393,7 @@ namespace InterOp {
       buf << "}\n";
     }
 
-    void make_narg_call_with_return(cling::Interpreter* I,
+    void make_narg_call_with_return(compat::Interpreter* I,
                                     const FunctionDecl* FD, const unsigned N,
                                     const std::string& class_name,
                                     std::ostringstream& buf, int indent_level) {
@@ -1384,7 +1408,7 @@ namespace InterOp {
       //
       if (const CXXConstructorDecl* CD = dyn_cast<CXXConstructorDecl>(FD)) {
         if (N <= 1 && llvm::isa<UsingShadowDecl>(FD)) {
-          auto SpecMemKind = I->getSema().getSpecialMember(CD);
+          auto SpecMemKind = I->getCI()->getSema().getSpecialMember(CD);
           if ((N == 0 && SpecMemKind == clang::Sema::CXXDefaultConstructor) ||
               (N == 1 && (SpecMemKind == clang::Sema::CXXCopyConstructor ||
                           SpecMemKind == clang::Sema::CXXMoveConstructor))) {
@@ -1501,7 +1525,7 @@ namespace InterOp {
       }
     }
 
-    int get_wrapper_code(cling::Interpreter* I, const FunctionDecl* FD,
+    int get_wrapper_code(compat::Interpreter* I, const FunctionDecl* FD,
                          std::string& wrapper_name, std::string& wrapper) {
       assert(FD && "generate_wrapper called without a function decl!");
       ASTContext& Context = FD->getASTContext();
@@ -1741,9 +1765,11 @@ namespace InterOp {
       }
       if (needInstantiation) {
         clang::FunctionDecl* FDmod = const_cast<clang::FunctionDecl*>(FD);
-        clang::Sema& S = I->getSema();
+        clang::Sema& S = I->getCI()->getSema();
         // Could trigger deserialization of decls.
+#ifdef USE_CLING
         cling::Interpreter::PushTransactionRAII RAII(I);
+#endif
         S.InstantiateFunctionDefinition(SourceLocation(), FDmod,
                                         /*Recursive=*/true,
                                         /*DefinitionRequired=*/true);
@@ -1933,7 +1959,7 @@ namespace InterOp {
       return 1;
     }
 
-    CallFuncWrapper_t make_wrapper(cling::Interpreter* I,
+    CallFuncWrapper_t make_wrapper(compat::Interpreter* I,
                                    const FunctionDecl* FD) {
       std::string wrapper_name;
       std::string wrapper_code;
@@ -1950,9 +1976,10 @@ namespace InterOp {
       } else {
         llvm::errs() << "TClingCallFunc::make_wrapper"
                      << ":"
-                     << "Failed to compile\n  ==== SOURCE BEGIN ====\n%s\n  "
-                        "==== SOURCE END ====",
-            wrapper_code.c_str();
+                     << "Failed to compile\n"
+                     << "==== SOURCE BEGIN ====\n"
+                     << wrapper_code << "\n"
+                     << "==== SOURCE END ====\n";
       }
       return (CallFuncWrapper_t)wrapper;
     }
@@ -1960,7 +1987,7 @@ namespace InterOp {
 
   CallFuncWrapper_t GetFunctionCallWrapper(TInterp_t interp,
                                            TCppFunction_t func) {
-    auto* I = (cling::Interpreter*)interp;
+    auto* I = (compat::Interpreter*)interp;
     auto* D = (clang::Decl*)func;
 
     if (auto* FD = llvm::dyn_cast_or_null<clang::FunctionDecl>(D)) {
@@ -2012,30 +2039,30 @@ namespace InterOp {
     std::vector<const char *> ClingArgv = {"-resource-dir", ResourceDir.c_str(),
                                            "-std=c++14"};
     ClingArgv.insert(ClingArgv.begin(), MainExecutableName.c_str());
-    return new cling::Interpreter(ClingArgv.size(), &ClingArgv[0]);
+    return new compat::Interpreter(ClingArgv.size(), &ClingArgv[0]);
   }
 
   TCppSema_t GetSema(TInterp_t interp) {
-    auto* I = (cling::Interpreter*)interp;
+    auto* I = (compat::Interpreter*)interp;
 
     return (TCppSema_t) &I->getSema();
   }
 
   void AddSearchPath(TInterp_t interp, const char *dir, bool isUser,
                      bool prepend) {
-    auto* I = (cling::Interpreter*)interp;
+    auto* I = (compat::Interpreter*)interp;
 
     I->getDynamicLibraryManager()->addSearchPath(dir, isUser, prepend);
   }
 
   const char* GetResourceDir(TInterp_t interp) {
-    auto* I = (cling::Interpreter*)interp;
+    auto* I = (compat::Interpreter*)interp;
 
     return I->getCI()->getHeaderSearchOpts().ResourceDir.c_str();
   }
 
   void AddIncludePath(TInterp_t interp, const char *dir) {
-    auto* I = (cling::Interpreter*)interp;
+    auto* I = (compat::Interpreter*)interp;
 
     I->AddIncludePath(dir);
   }
@@ -2060,7 +2087,7 @@ namespace InterOp {
   }
 
   TCppIndex_t Declare(TInterp_t interp, const char *code, bool silent) {
-    auto* I = (cling::Interpreter*)interp;
+    auto* I = (compat::Interpreter*)interp;
 
     if (silent) {
       clangSilent diagSuppr(I->getSema().getDiagnostics());
@@ -2071,27 +2098,27 @@ namespace InterOp {
   }
 
   void Process(TInterp_t interp, const char *code) {
-    auto* I = (cling::Interpreter*)interp;
+    auto* I = (compat::Interpreter*)interp;
 
     I->process(code);
   }
 
   const std::string LookupLibrary(TInterp_t interp, const char *lib_name) {
-    auto* I = (cling::Interpreter*)interp;
+    auto* I = (compat::Interpreter*)interp;
 
     return I->getDynamicLibraryManager()->lookupLibrary(lib_name);
   }
 
   bool LoadLibrary(TInterp_t interp, const char *lib_name, bool lookup) {
-    auto* I = (cling::Interpreter*)interp;
-    cling::Interpreter::CompilationResult res =
+    auto* I = (compat::Interpreter*)interp;
+    compat::Interpreter::CompilationResult res =
       I->loadLibrary(lib_name, lookup);
-    
-    return res == cling::Interpreter::kSuccess;
+
+    return res == compat::Interpreter::kSuccess;
   }
 
   std::string ObjToString(TInterp_t interp, const char *type, void *obj) {
-    auto* I = (cling::Interpreter*)interp;
+    auto* I = (compat::Interpreter*)interp;
     return I->toString(type, obj);
   }
 
@@ -2140,7 +2167,7 @@ namespace InterOp {
 
   TCppScope_t InstantiateClassTemplate(TInterp_t interp, TCppScope_t tmpl,
                                        TCppType_t* types, size_t type_size) {
-    auto* I = (cling::Interpreter*)interp;
+    auto* I = (compat::Interpreter*)interp;
 
     llvm::SmallVector<QualType> TemplateArgs;
     TemplateArgs.reserve(type_size);
@@ -2150,8 +2177,9 @@ namespace InterOp {
     TemplateDecl* TmplD = static_cast<TemplateDecl*>(tmpl);
 
     // We will create a new decl, push a transaction.
+#ifdef USE_CLING
     cling::Interpreter::PushTransactionRAII RAII(I);
-
+#endif
     QualType Instance = InstantiateTemplate(TmplD, TemplateArgs, I->getSema());
     return GetScopeFromType(Instance);
   }
@@ -2160,7 +2188,7 @@ namespace InterOp {
     auto *D = (clang::Decl *)scope;
     clang::DeclContext *DC;
     clang::DeclContext::decl_iterator decl;
-    
+
     if (auto *TD = dyn_cast_or_null<TagDecl>(D)) {
       DC = clang::TagDecl::castToDeclContext(TD);
       decl = DC->decls_begin();
@@ -2189,7 +2217,7 @@ namespace InterOp {
     auto *D = (clang::Decl *)scope;
     clang::DeclContext *DC;
     clang::DeclContext::decl_iterator decl;
-    
+
     if (auto *TD = dyn_cast_or_null<TagDecl>(D)) {
       DC = clang::TagDecl::castToDeclContext(TD);
       decl = DC->decls_begin();
@@ -2245,7 +2273,7 @@ namespace InterOp {
     auto loc = SourceLocation::getFromRawEncoding(0);
     auto derivedType = clang::QualType::getFromOpaquePtr(derived);
     auto baseType = clang::QualType::getFromOpaquePtr(base);
-  
+
     return S->IsDerivedFrom(loc,derivedType,baseType);
   }
 
@@ -2292,4 +2320,3 @@ namespace InterOp {
   }
 
 } // end namespace InterOp
-

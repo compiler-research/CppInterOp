@@ -7,8 +7,8 @@
 // LICENSE.TXT for details.
 //------------------------------------------------------------------------------
 
-#ifndef CLING_INTERPRETER_INTEROP_H
-#define CLING_INTERPRETER_INTEROP_H
+#ifndef INTEROP_INTEROP_H
+#define INTEROP_INTEROP_H
 
 #include <string>
 #include <vector>
@@ -161,7 +161,7 @@ namespace InterOp {
   TCppType_t GetComplexType(TCppSema_t sema, TCppType_t element_type);
 
   TCppType_t GetTypeFromScope(TCppScope_t klass);
-  
+
   /// Check if a C++ type derives from another.
   bool IsTypeDerivedFrom(TCppSema_t sema, TCppType_t derived, TCppType_t base);
 
@@ -183,7 +183,7 @@ namespace InterOp {
 
   /// Returns the resource-dir path.
   const char* GetResourceDir(TInterp_t interp);
-  
+
   void AddIncludePath(TInterp_t interp, const char *dir);
 
   TCppIndex_t Declare(TInterp_t interp, const char *code, bool silent = false);
@@ -212,4 +212,4 @@ namespace InterOp {
   std::vector<long int> GetDimensions(TCppType_t type);
 } // end namespace InterOp
 
-#endif // CLING_INTERPRETER_INTEROP_H
+#endif // INTEROP_INTEROP_H
