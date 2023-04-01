@@ -1,7 +1,4 @@
-
 #include "Utils.h"
-
-#include "cling/Interpreter/Interpreter.h"
 
 #include "clang/AST/ASTContext.h"
 #include "clang/Interpreter/CppInterOp.h"
@@ -13,7 +10,6 @@
 using namespace TestUtils;
 using namespace llvm;
 using namespace clang;
-using namespace cling;
 
 TEST(VariableReflectionTest, GetDatamembers) {
   std::vector<Decl*> Decls;
@@ -92,7 +88,7 @@ TEST(VariableReflectionTest, GetVariableType) {
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetVariableType(Decls[5])), "C *");
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetVariableType(Decls[6])), "E<int>");
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetVariableType(Decls[7])), "E<int> *");
-  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetVariableType(Decls[8])), "int [4]");
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetVariableType(Decls[8])), "int[4]");
 }
 
 TEST(VariableReflectionTest, GetVariableOffset) {
@@ -248,7 +244,7 @@ TEST(VariableReflectionTest, DISABLED_GetArrayDimensions) {
                       const std::vector<size_t> &truth_vals) {
     if (arr_dims.size() != truth_vals.size()) 
       return false;
-    
+
     return std::equal(arr_dims.begin(), arr_dims.end(), truth_vals.begin());
   };
 
