@@ -11,11 +11,30 @@ set(CMAKE_MODULE_PATH
 if( CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR )
   project(CppInterOp)
 
-  if (NOT DEFINED Clang_DIR)
-    set(Clang_DIR ${LLVM_DIR})
+  # LLVM/Clang/Cling default paths
+  if (DEFINED LLVM_DIR)
+    if (NOT DEFINED Clang_DIR)
+      set(Clang_DIR ${LLVM_DIR})
+    endif()
+    if (NOT DEFINED Cling_DIR)
+      set(Cling_DIR ${LLVM_DIR})
+    endif()
   endif()
-  if (NOT DEFINED LLVM_DIR)
-    set(LLVM_DIR ${Clang_DIR})
+  if (DEFINED Clang_DIR)
+    if (NOT DEFINED LLVM_DIR)
+      set(LLVM_DIR ${Clang_DIR})
+    endif()
+    if (NOT DEFINED Cling_DIR)
+      set(Cling_DIR ${Clang_DIR})
+    endif()
+  endif()
+  if (DEFINED Cling_DIR)
+    if (NOT DEFINED LLVM_DIR)
+      set(LLVM_DIR ${Cling_DIR})
+    endif()
+    if (NOT DEFINED Clang_DIR)
+      set(Clang_DIR ${Cling_DIR})
+    endif()
   endif()
 
   option(USE_CLING "Use Cling as backend" OFF)
@@ -31,19 +50,7 @@ if( CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR )
   if (USE_CLING AND USE_REPL)
     message(FATAL_ERROR "We can only use Cling (USE_CLING=On) or Repl (USE_REPL=On), but not both of them.")
   endif()
-
-  if (USE_CLING)
-    message(STATUS "Mode USE_CLING = ON")
-    find_package(LLVM REQUIRED CONFIG HINTS ${LLVM_DIR}/lib/cmake/llvm/ NO_DEFAULT_PATH)
-    find_package(Clang REQUIRED CONFIG HINTS ${Clang_DIR}/lib/cmake/clang/ NO_DEFAULT_PATH)
-    find_package(Cling REQUIRED CONFIG HINTS ${Cling_DIR}/lib/cmake/cling/ NO_DEFAULT_PATH)
-    include_directories(${CLING_INCLUDE_DIRS})
-  endif(USE_CLING)
-  if (USE_REPL)
-    message(STATUS "Mode USE_REPL = ON")
-    find_package(LLVM REQUIRED CONFIG HINTS ${LLVM_DIR}/lib/cmake/llvm/ NO_DEFAULT_PATH)
-    find_package(Clang REQUIRED CONFIG HINTS ${Clang_DIR}/lib/cmake/clang/ NO_DEFAULT_PATH)
-  endif(USE_REPL)
+  
   ## Define supported version of clang and llvm
 
   set(CLANG_MIN_SUPPORTED 13.0)
@@ -58,7 +65,31 @@ if( CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR )
   set(CMAKE_FIND_PACKAGE_SORT_ORDER NATURAL)
   set(CMAKE_FIND_PACKAGE_SORT_DIRECTION DEC)
 
+  ## Search packages HINTS and PATHS
+
+  if (DEFINED LLVM_DIR)
+    set(llvm_search_hints PATHS ${LLVM_DIR} HINTS "${LLVM_DIR}/lib/cmake/llvm" "${LLVM_DIR}/cmake" "${LLVM_CONFIG_EXTRA_PATH_HINTS}")
+  endif()
+  if (DEFINED Clang_DIR)
+    set(clang_search_hints PATHS ${Clang_DIR} HINTS "${Clang_DIR}/lib/cmake/clang" "${Clang_DIR}/cmake" "${CLANG_CONFIG_EXTRA_PATH_HINTS}")
+  endif()
+  if (DEFINED Cling_DIR)
+    set(cling_search_hints PATHS ${Cling_DIR} HINTS "${Cling_DIR}/lib/cmake/cling" "${Cling_DIR}/cmake" "${CLING_CONFIG_EXTRA_PATH_HINTS}")
+  endif()
+
   ## Find supported LLVM
+
+  if (USE_CLING)
+    message(STATUS "Mode USE_CLING = ON")
+    find_package(LLVM REQUIRED CONFIG ${llvm_search_hints} NO_DEFAULT_PATH)
+    find_package(Clang REQUIRED CONFIG ${clang_search_hints} NO_DEFAULT_PATH)
+    find_package(Cling REQUIRED CONFIG ${cling_search_hints} NO_DEFAULT_PATH)
+  endif(USE_CLING)
+  if (USE_REPL)
+    message(STATUS "Mode USE_REPL = ON")
+    find_package(LLVM REQUIRED CONFIG ${llvm_search_hints} NO_DEFAULT_PATH)
+    find_package(Clang REQUIRED CONFIG ${clang_search_hints} NO_DEFAULT_PATH)
+  endif(USE_REPL)
 
   if (LLVM_FOUND)
     if (LLVM_PACKAGE_VERSION VERSION_LESS LLVM_MIN_SUPPORTED OR LLVM_PACKAGE_VERSION VERSION_GREATER_EQUAL LLVM_VERSION_UPPER_BOUND)
@@ -82,15 +113,11 @@ if( CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR )
       set(LLVM_VERSION ${LLVM_MIN_SUPPORTED})
     endif()
 
-    if (DEFINED LLVM_DIR)
-       set(search_hints HINTS ${LLVM_DIR} "${LLVM_DIR}/lib/cmake/llvm" "${LLVM_DIR}/cmake")
-    endif()
-
-    find_package(LLVM ${LLVM_VERSION} REQUIRED CONFIG ${search_hints})
+    find_package(LLVM ${LLVM_VERSION} REQUIRED CONFIG ${llvm_search_hints} NO_DEFAULT_PATHS)
   endif()
 
   if (NOT LLVM_FOUND AND DEFINED LLVM_DIR)
-    find_package(LLVM REQUIRED CONFIG PATHS ${LLVM_DIR} "${LLVM_DIR}/lib/cmake/llvm" "${LLVM_DIR}/cmake" "${LLVM_CONFIG_EXTRA_PATH_HINTS}" NO_DEFAULT_PATH)
+    find_package(LLVM REQUIRED CONFIG ${llvm_search_hints} NO_DEFAULT_PATH)
   endif()
 
   if (NOT LLVM_FOUND)
@@ -118,15 +145,11 @@ if( CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR )
       set(CLANG_VERSION ${CLANG_MIN_SUPPORTED})
     endif()
 
-    if (DEFINED Clang_DIR)
-       set(extra_hints HINTS ${Clang_DIR} "${Clang_DIR}/lib/cmake/clang" "${Clang_DIR}/cmake")
-    endif()
-
-    find_package(Clang ${CLANG_VERSION} REQUIRED CONFIG ${extra_hints})
+    find_package(Clang ${CLANG_VERSION} REQUIRED CONFIG ${clang_extra_hints} NO_DEFAULT_PATH)
   endif()
 
   if (NOT Clang_FOUND AND DEFINED Clang_DIR)
-    find_package(Clang REQUIRED CONFIG PATHS ${Clang_DIR} "${Clang_DIR}/lib/cmake/clang" "${Clang_DIR}/cmake" "${Clang_CONFIG_EXTRA_PATH_HINTS}" NO_DEFAULT_PATH)
+    find_package(Clang REQUIRED CONFIG ${clang_extra_hints} NO_DEFAULT_PATH)
   endif()
 
   if (NOT Clang_FOUND)
@@ -158,6 +181,26 @@ if( CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR )
       message(fatal "LLVM/CppInterOp requires c++14 or later")
     endif()
   endif()
+  
+  ## Find supported Cling
+  
+  if (USE_CLING)
+    if (NOT Cling_FOUND AND DEFINED Cling_DIR)
+      find_package(Cling REQUIRED CONFIG ${cling_extra_hints} NO_DEFAULT_PATH)
+    endif()
+
+    if (NOT Cling_FOUND)
+      find_package(Cling REQUIRED CONFIG)
+    endif()
+
+    if (NOT Cling_FOUND)
+      message(FATAL_ERROR "Please set Cling_DIR pointing to the cling build or installation folder")
+    endif()
+
+    message(STATUS "Found supported version: Cling ${CLING_PACKAGE_VERSION}")
+    message(STATUS "Using ClingConfig.cmake in: ${Cling_DIR}")
+
+  endif()
 
   # When in debug mode the llvm package thinks it is built with -frtti.
   # For consistency we should set it to the correct value.
@@ -179,6 +222,9 @@ if( CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR )
   # In rare cases we might want to have clang installed in a different place
   # than llvm and the header files should be found first (even though the
   # LLVM_INCLUDE_DIRS) contain clang headers, too.
+  if (USE_CLING)
+    include_directories(${CLING_INCLUDE_DIRS})
+  endif(USE_CLING)
   include_directories(${CLANG_INCLUDE_DIRS})
   include_directories(${LLVM_INCLUDE_DIRS})
   separate_arguments(LLVM_DEFINITIONS_LIST NATIVE_COMMAND ${LLVM_DEFINITIONS})
