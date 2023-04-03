@@ -616,7 +616,7 @@ TEST(FunctionReflectionTest, IsConstMethod) {
   EXPECT_FALSE(Cpp::IsConstMethod(SubDecls[2])); // f2
 }
 
-TEST(FunctionReflectionTest, DISABLED_GetFunctionArgName) {
+TEST(FunctionReflectionTest, GetFunctionArgName) {
   std::vector<Decl*> Decls, SubDecls;
   std::string code = R"(
     void f1(int i, double d, long l, char ch) {}
@@ -624,14 +624,14 @@ TEST(FunctionReflectionTest, DISABLED_GetFunctionArgName) {
     )";
 
   GetAllTopLevelDecls(code, Decls);
-  // EXPECT_EQ(Cpp::GetFunctionArgName(Decls[0], 0), "i");
-  // EXPECT_EQ(Cpp::GetFunctionArgName(Decls[0], 1), "d");
-  // EXPECT_EQ(Cpp::GetFunctionArgName(Decls[0], 2), "l");
-  // EXPECT_EQ(Cpp::GetFunctionArgName(Decls[0], 3), "ch");
-  // EXPECT_EQ(Cpp::GetFunctionArgName(Decls[1], 0), "i");
-  // EXPECT_EQ(Cpp::GetFunctionArgName(Decls[1], 1), "d");
-  // EXPECT_EQ(Cpp::GetFunctionArgName(Decls[1], 2), "l");
-  // EXPECT_EQ(Cpp::GetFunctionArgName(Decls[1], 3), "ch");
+  EXPECT_EQ(Cpp::GetFunctionArgName(Decls[0], 0), "i");
+  EXPECT_EQ(Cpp::GetFunctionArgName(Decls[0], 1), "d");
+  EXPECT_EQ(Cpp::GetFunctionArgName(Decls[0], 2), "l");
+  EXPECT_EQ(Cpp::GetFunctionArgName(Decls[0], 3), "ch");
+  EXPECT_EQ(Cpp::GetFunctionArgName(Decls[1], 0), "i");
+  EXPECT_EQ(Cpp::GetFunctionArgName(Decls[1], 1), "d");
+  EXPECT_EQ(Cpp::GetFunctionArgName(Decls[1], 2), "l");
+  EXPECT_EQ(Cpp::GetFunctionArgName(Decls[1], 3), "ch");
 }
 
 TEST(FunctionReflectionTest, GetFunctionArgDefault) {

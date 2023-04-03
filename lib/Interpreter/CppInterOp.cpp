@@ -2303,4 +2303,13 @@ namespace Cpp {
     return false;
   }
 
+  std::string GetFunctionArgName(TCppFunction_t func, TCppIndex_t param_index)
+  {
+    auto *D = (clang::Decl *)func;
+    auto *FD = llvm::cast<clang::FunctionDecl>(D);
+    auto PI = FD->getParamDecl(param_index);
+
+    return PI->getNameAsString();
+  }
+
     } // end namespace Cpp
