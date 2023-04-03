@@ -2306,4 +2306,13 @@ namespace InterOp {
     return false;
   }
 
-} // end namespace InterOp
+  std::string GetFunctionArgName(TCppFunction_t func, TCppIndex_t param_index)
+  {
+    auto *D = (clang::Decl *)func;
+    auto *FD = llvm::cast<clang::FunctionDecl>(D);
+    auto PI = FD->getParamDecl(param_index);
+
+    return PI->getNameAsString();
+  }
+
+  } // end namespace InterOp

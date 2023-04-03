@@ -180,6 +180,9 @@ namespace InterOp {
   /// Returns the default argument value as string.
   std::string GetFunctionArgDefault(TCppFunction_t func, TCppIndex_t param_index);
 
+  /// Returns the argument name of function as string.
+  std::string GetFunctionArgName(TCppFunction_t func, TCppIndex_t param_index);
+
   TInterp_t CreateInterpreter(const char *resource_dir = nullptr);
 
   TCppSema_t GetSema(TInterp_t interp);
