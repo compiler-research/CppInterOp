@@ -508,32 +508,31 @@ TEST(ScopeReflectionTest, IsSubclass) {
 
   GetAllTopLevelDecls(code, Decls);
 
-  Sema *S = &Interp->getCI()->getSema();
-  EXPECT_TRUE(InterOp::IsSubclass(S, Decls[0], Decls[0]));
-  EXPECT_TRUE(InterOp::IsSubclass(S, Decls[1], Decls[0]));
-  EXPECT_TRUE(InterOp::IsSubclass(S, Decls[2], Decls[0]));
-  EXPECT_TRUE(InterOp::IsSubclass(S, Decls[3], Decls[0]));
-  EXPECT_TRUE(InterOp::IsSubclass(S, Decls[4], Decls[0]));
-  EXPECT_FALSE(InterOp::IsSubclass(S, Decls[0], Decls[1]));
-  EXPECT_TRUE(InterOp::IsSubclass(S, Decls[1], Decls[1]));
-  EXPECT_FALSE(InterOp::IsSubclass(S, Decls[2], Decls[1]));
-  EXPECT_TRUE(InterOp::IsSubclass(S, Decls[3], Decls[1]));
-  EXPECT_TRUE(InterOp::IsSubclass(S, Decls[4], Decls[1]));
-  EXPECT_FALSE(InterOp::IsSubclass(S, Decls[0], Decls[2]));
-  EXPECT_FALSE(InterOp::IsSubclass(S, Decls[1], Decls[2]));
-  EXPECT_TRUE(InterOp::IsSubclass(S, Decls[2], Decls[2]));
-  EXPECT_TRUE(InterOp::IsSubclass(S, Decls[3], Decls[2]));
-  EXPECT_TRUE(InterOp::IsSubclass(S, Decls[4], Decls[2]));
-  EXPECT_FALSE(InterOp::IsSubclass(S, Decls[0], Decls[3]));
-  EXPECT_FALSE(InterOp::IsSubclass(S, Decls[1], Decls[3]));
-  EXPECT_FALSE(InterOp::IsSubclass(S, Decls[2], Decls[3]));
-  EXPECT_TRUE(InterOp::IsSubclass(S, Decls[3], Decls[3]));
-  EXPECT_TRUE(InterOp::IsSubclass(S, Decls[4], Decls[3]));
-  EXPECT_FALSE(InterOp::IsSubclass(S, Decls[0], Decls[4]));
-  EXPECT_FALSE(InterOp::IsSubclass(S, Decls[1], Decls[4]));
-  EXPECT_FALSE(InterOp::IsSubclass(S, Decls[2], Decls[4]));
-  EXPECT_FALSE(InterOp::IsSubclass(S, Decls[3], Decls[4]));
-  EXPECT_TRUE(InterOp::IsSubclass(S, Decls[4], Decls[4]));
+  EXPECT_TRUE(InterOp::IsSubclass(Interp.get(), Decls[0], Decls[0]));
+  EXPECT_TRUE(InterOp::IsSubclass(Interp.get(), Decls[1], Decls[0]));
+  EXPECT_TRUE(InterOp::IsSubclass(Interp.get(), Decls[2], Decls[0]));
+  EXPECT_TRUE(InterOp::IsSubclass(Interp.get(), Decls[3], Decls[0]));
+  EXPECT_TRUE(InterOp::IsSubclass(Interp.get(), Decls[4], Decls[0]));
+  EXPECT_FALSE(InterOp::IsSubclass(Interp.get(), Decls[0], Decls[1]));
+  EXPECT_TRUE(InterOp::IsSubclass(Interp.get(), Decls[1], Decls[1]));
+  EXPECT_FALSE(InterOp::IsSubclass(Interp.get(), Decls[2], Decls[1]));
+  EXPECT_TRUE(InterOp::IsSubclass(Interp.get(), Decls[3], Decls[1]));
+  EXPECT_TRUE(InterOp::IsSubclass(Interp.get(), Decls[4], Decls[1]));
+  EXPECT_FALSE(InterOp::IsSubclass(Interp.get(), Decls[0], Decls[2]));
+  EXPECT_FALSE(InterOp::IsSubclass(Interp.get(), Decls[1], Decls[2]));
+  EXPECT_TRUE(InterOp::IsSubclass(Interp.get(), Decls[2], Decls[2]));
+  EXPECT_TRUE(InterOp::IsSubclass(Interp.get(), Decls[3], Decls[2]));
+  EXPECT_TRUE(InterOp::IsSubclass(Interp.get(), Decls[4], Decls[2]));
+  EXPECT_FALSE(InterOp::IsSubclass(Interp.get(), Decls[0], Decls[3]));
+  EXPECT_FALSE(InterOp::IsSubclass(Interp.get(), Decls[1], Decls[3]));
+  EXPECT_FALSE(InterOp::IsSubclass(Interp.get(), Decls[2], Decls[3]));
+  EXPECT_TRUE(InterOp::IsSubclass(Interp.get(), Decls[3], Decls[3]));
+  EXPECT_TRUE(InterOp::IsSubclass(Interp.get(), Decls[4], Decls[3]));
+  EXPECT_FALSE(InterOp::IsSubclass(Interp.get(), Decls[0], Decls[4]));
+  EXPECT_FALSE(InterOp::IsSubclass(Interp.get(), Decls[1], Decls[4]));
+  EXPECT_FALSE(InterOp::IsSubclass(Interp.get(), Decls[2], Decls[4]));
+  EXPECT_FALSE(InterOp::IsSubclass(Interp.get(), Decls[3], Decls[4]));
+  EXPECT_TRUE(InterOp::IsSubclass(Interp.get(), Decls[4], Decls[4]));
 }
 
 TEST(ScopeReflectionTest, GetBaseClassOffset) {
