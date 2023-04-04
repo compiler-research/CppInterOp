@@ -363,7 +363,6 @@ TEST(TypeReflectionTest, IsTypeDerivedFrom) {
     )";
 
   GetAllTopLevelDecls(code, Decls);
-  Sema *S = &Interp->getCI()->getSema();
 
   InterOp::TCppType_t type_A = InterOp::GetVariableType(Decls[5]);
   InterOp::TCppType_t type_B = InterOp::GetVariableType(Decls[6]);
@@ -371,16 +370,16 @@ TEST(TypeReflectionTest, IsTypeDerivedFrom) {
   InterOp::TCppType_t type_D = InterOp::GetVariableType(Decls[8]);
   InterOp::TCppType_t type_E = InterOp::GetVariableType(Decls[9]);
 
-  EXPECT_TRUE(InterOp::IsTypeDerivedFrom(S, type_B, type_A));
-  EXPECT_TRUE(InterOp::IsTypeDerivedFrom(S, type_D, type_B));
-  EXPECT_TRUE(InterOp::IsTypeDerivedFrom(S, type_D, type_A));
-  EXPECT_TRUE(InterOp::IsTypeDerivedFrom(S, type_E, type_A));
+  EXPECT_TRUE(InterOp::IsTypeDerivedFrom(Interp.get(), type_B, type_A));
+  EXPECT_TRUE(InterOp::IsTypeDerivedFrom(Interp.get(), type_D, type_B));
+  EXPECT_TRUE(InterOp::IsTypeDerivedFrom(Interp.get(), type_D, type_A));
+  EXPECT_TRUE(InterOp::IsTypeDerivedFrom(Interp.get(), type_E, type_A));
 
-  EXPECT_FALSE(InterOp::IsTypeDerivedFrom(S, type_A, type_B));
-  EXPECT_FALSE(InterOp::IsTypeDerivedFrom(S, type_C, type_A));
-  EXPECT_FALSE(InterOp::IsTypeDerivedFrom(S, type_D, type_C));
-  EXPECT_FALSE(InterOp::IsTypeDerivedFrom(S, type_B, type_D));
-  EXPECT_FALSE(InterOp::IsTypeDerivedFrom(S, type_A, type_E));
+  EXPECT_FALSE(InterOp::IsTypeDerivedFrom(Interp.get(), type_A, type_B));
+  EXPECT_FALSE(InterOp::IsTypeDerivedFrom(Interp.get(), type_C, type_A));
+  EXPECT_FALSE(InterOp::IsTypeDerivedFrom(Interp.get(), type_D, type_C));
+  EXPECT_FALSE(InterOp::IsTypeDerivedFrom(Interp.get(), type_B, type_D));
+  EXPECT_FALSE(InterOp::IsTypeDerivedFrom(Interp.get(), type_A, type_E));
 }
 
 TEST(TypeReflectionTest, GetDimensions) {

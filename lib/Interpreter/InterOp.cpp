@@ -382,7 +382,7 @@ namespace InterOp {
 
   // FIXME: Consider dropping this interface as it seems the same as
   // IsTypeDerivedFrom.
-  bool IsSubclass(TCppSema_t sema, TCppScope_t derived, TCppScope_t base) {
+  bool IsSubclass(TInterp_t interp, TCppScope_t derived, TCppScope_t base) {
     if (derived == base)
       return true;
 
@@ -397,7 +397,7 @@ namespace InterOp {
 
     auto Derived = cast<CXXRecordDecl>(derived_D);
     auto Base = cast<CXXRecordDecl>(base_D);
-    return IsTypeDerivedFrom(sema, GetTypeFromScope(Derived),
+    return IsTypeDerivedFrom(interp, GetTypeFromScope(Derived),
                              GetTypeFromScope(Base));
   }
 
@@ -2255,13 +2255,18 @@ namespace InterOp {
     return dims;
   }
 
-  bool IsTypeDerivedFrom(TCppSema_t sema, TCppType_t derived, TCppType_t base) {
-    auto S = (clang::Sema *)sema;
-    auto loc = SourceLocation::getFromRawEncoding(0);
+  bool IsTypeDerivedFrom(TInterp_t interp, TCppType_t derived,
+                         TCppType_t base) {
+    auto *I = (compat::Interpreter *)interp;
+    auto *S = &I->getSema();
+    auto fakeLoc = GetValidSLoc(*S);
     auto derivedType = clang::QualType::getFromOpaquePtr(derived);
     auto baseType = clang::QualType::getFromOpaquePtr(base);
 
-    return S->IsDerivedFrom(loc, derivedType, baseType);
+#ifdef USE_CLING
+    cling::Interpreter::PushTransactionRAII RAII(I);
+#endif
+    return S->IsDerivedFrom(fakeLoc, derivedType, baseType);
   }
 
   std::string GetFunctionArgDefault(TCppFunction_t func, TCppIndex_t param_index)
