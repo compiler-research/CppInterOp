@@ -10,6 +10,7 @@
 #include "clang/Interpreter/Compatibility.h"
 #include "clang/Interpreter/InterOp.h"
 
+#include "clang/AST/CXXInheritance.h"
 #include "clang/AST/Decl.h"
 #include "clang/AST/DeclCXX.h"
 #include "clang/AST/GlobalDecl.h"
@@ -406,31 +407,71 @@ namespace InterOp {
                              GetTypeFromScope(Base));
   }
 
-  intptr_t GetBaseClassOffset(TCppSema_t sema, TCppScope_t derived, TCppScope_t base) {
+  // Copied from VTableBuilder.cpp
+  static unsigned ComputeBaseOffset(const ASTContext &Context,
+                                    const CXXRecordDecl *DerivedRD,
+                                    const CXXBasePath &Path) {
+    CharUnits NonVirtualOffset = CharUnits::Zero();
+
+    unsigned NonVirtualStart = 0;
+    const CXXRecordDecl *VirtualBase = nullptr;
+
+    // First, look for the virtual base class.
+    for (int I = Path.size(), E = 0; I != E; --I) {
+      const CXXBasePathElement &Element = Path[I - 1];
+
+      if (Element.Base->isVirtual()) {
+        NonVirtualStart = I;
+        QualType VBaseType = Element.Base->getType();
+        VirtualBase = VBaseType->getAsCXXRecordDecl();
+        break;
+      }
+    }
+
+    // Now compute the non-virtual offset.
+    for (unsigned I = NonVirtualStart, E = Path.size(); I != E; ++I) {
+      const CXXBasePathElement &Element = Path[I];
+
+      // Check the base class offset.
+      const ASTRecordLayout &Layout = Context.getASTRecordLayout(Element.Class);
+
+      const CXXRecordDecl *Base = Element.Base->getType()->getAsCXXRecordDecl();
+
+      NonVirtualOffset += Layout.getBaseClassOffset(Base);
+    }
+
+    // FIXME: This should probably use CharUnits or something. Maybe we should
+    // even change the base offsets in ASTRecordLayout to be specified in
+    // CharUnits.
+    //return BaseOffset(DerivedRD, VirtuaBose, aBlnVirtualOffset);
+    if (VirtualBase) {
+      const ASTRecordLayout &Layout = Context.getASTRecordLayout(DerivedRD);
+      CharUnits VirtualOffset = Layout.getVBaseClassOffset(VirtualBase);
+      return (NonVirtualOffset + VirtualOffset).getQuantity();
+    }
+    return NonVirtualOffset.getQuantity();
+
+  }
+
+  int64_t GetBaseClassOffset(TCppSema_t sema, TCppScope_t derived, TCppScope_t base) {
     if (base == derived)
       return 0;
+
+    assert(derived || base);
 
     auto *DD = (Decl *) derived;
     auto *BD = (Decl *) base;
     auto *S = (Sema *) sema;
+    if (!isa<CXXRecordDecl>(DD) || !isa<CXXRecordDecl>(BD))
+      return -1;
+    CXXRecordDecl *DCXXRD = cast<CXXRecordDecl>(DD);
+    CXXRecordDecl *BCXXRD = cast<CXXRecordDecl>(BD);
+    CXXBasePaths Paths(/*FindAmbiguities=*/false, /*RecordPaths=*/true,
+                       /*DetectVirtual=*/false);
+    DCXXRD->isDerivedFrom(BCXXRD, Paths);
 
-    if (auto *DCXXRD = llvm::dyn_cast_or_null<CXXRecordDecl>(DD)) {
-      if (auto *BCXXRD = llvm::dyn_cast_or_null<CXXRecordDecl>(BD)) {
-        auto &Cxt = S->getASTContext();
-
-        // Check for isVirtuallyDerivedFrom first as isDerivedFrom
-        // returns true for both virtual and non-virtual bases
-        if (DCXXRD->isVirtuallyDerivedFrom(BCXXRD)) {
-          return (intptr_t) Cxt.getASTRecordLayout(DCXXRD)
-              .getVBaseClassOffset(BCXXRD).getQuantity();
-        } else if (DCXXRD->isDerivedFrom(BCXXRD)) {
-          return (intptr_t) Cxt.getASTRecordLayout(DCXXRD)
-              .getBaseClassOffset(BCXXRD).getQuantity();
-        }
-      }
-    }
-
-    return (intptr_t) -1;
+    // FIXME: We might want to cache these requests as they seem expensive.
+    return ComputeBaseOffset(S->getASTContext(), DCXXRD, Paths.front());
   }
 
   // FIXME: We should make the std::vector<TCppFunction_t> an out parameter to
