@@ -544,6 +544,8 @@ TEST(ScopeReflectionTest, GetBaseClassOffset) {
     class C : virtual A, virtual B { int m_c; };
     class D : virtual A, virtual B, public C { int m_d; };
     class E : public A, public B { int m_e; };
+    class F : public A { int m_f; };
+    class G : public F { int m_g; };
   )";
 
   class A { int m_a; };
@@ -551,6 +553,8 @@ TEST(ScopeReflectionTest, GetBaseClassOffset) {
   class C : virtual A, virtual B { int m_c; };
   class D : virtual A, virtual B, public C { int m_d; };
   class E : public A, public B { int m_e; };
+  class F : public A { int m_f; };
+  class G : public F { int m_g; };
 
   GetAllTopLevelDecls(code, Decls);
   Sema *S = &Interp->getCI()->getSema();
@@ -567,6 +571,9 @@ TEST(ScopeReflectionTest, GetBaseClassOffset) {
   auto *e = new E();
   EXPECT_EQ(InterOp::GetBaseClassOffset(S, Decls[4], Decls[0]), (char *)(A*)e - (char *)e);
   EXPECT_EQ(InterOp::GetBaseClassOffset(S, Decls[4], Decls[1]), (char *)(B*)e - (char *)e);
+
+  auto *g = new G();
+  EXPECT_EQ(InterOp::GetBaseClassOffset(S, Decls[6], Decls[0]), (char *)(A*)g - (char *)g);
 }
 
 TEST(ScopeReflectionTest, GetAllCppNames) {
