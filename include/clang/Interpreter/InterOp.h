@@ -80,7 +80,7 @@ namespace InterOp {
 
   TCppScope_t GetBaseClass(TCppType_t klass, TCppIndex_t ibase);
 
-  bool IsSubclass(TCppSema_t sema, TCppScope_t derived, TCppScope_t base);
+  bool IsSubclass(TInterp_t interp, TCppScope_t derived, TCppScope_t base);
 
   intptr_t GetBaseClassOffset(TCppSema_t sema, TCppScope_t derived, TCppScope_t base);
 
@@ -163,7 +163,7 @@ namespace InterOp {
   TCppType_t GetTypeFromScope(TCppScope_t klass);
 
   /// Check if a C++ type derives from another.
-  bool IsTypeDerivedFrom(TCppSema_t sema, TCppType_t derived, TCppType_t base);
+  bool IsTypeDerivedFrom(TInterp_t interp, TCppType_t derived, TCppType_t base);
 
   CallFuncWrapper_t GetFunctionCallWrapper(TInterp_t interp,
                                            TCppFunction_t func);
