@@ -881,14 +881,13 @@ namespace Cpp {
                                   "[GetVariableOffset] Failed to execute PTU:");
 #endif
       }
-
       auto VDAorErr = compat::getSymbolAddress(*I, StringRef(mangledName));
       if (!VDAorErr) {
         llvm::logAllUnhandledErrors(VDAorErr.takeError(), llvm::errs(),
                                     "Failed to GetVariableOffset:");
         return 0;
       }
-      return reinterpret_cast<intptr_t>(static_cast<intptr_t>(*VDAorErr));
+      return (intptr_t) jitTargetAddressToPointer<void*>(VDAorErr.get());
     }
 
     return 0;
