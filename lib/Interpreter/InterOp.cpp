@@ -2190,27 +2190,37 @@ namespace InterOp {
   }
 
   static QualType InstantiateTemplate(TemplateDecl* ClassDecl,
-                                      ArrayRef<QualType> TemplateArgs,
+                                      ArrayRef<TemplateArgument> TemplateArgs,
                                       Sema &S) {
     // Create a list of template arguments.
     TemplateArgumentListInfo TLI{};
-    ASTContext &C = S.getASTContext();
-    for (auto T : TemplateArgs) {
-      TemplateArgument TA = T;
-      TLI.addArgument(TemplateArgumentLoc(TA, C.getTrivialTypeSourceInfo(T)));
-    }
+    for (auto TA : TemplateArgs)
+      TLI.addArgument(S.getTrivialTemplateArgumentLoc(TA,QualType(),
+                                                      SourceLocation()));
 
     return InstantiateTemplate(ClassDecl, TLI, S);
   }
 
   TCppScope_t InstantiateClassTemplate(TInterp_t interp, TCppScope_t tmpl,
-                                       TCppType_t* types, size_t type_size) {
+                                       TemplateArgInfo* template_args,
+                                       size_t template_args_size) {
     auto* I = (compat::Interpreter*)interp;
+    ASTContext &C = I->getSema().getASTContext();
 
-    llvm::SmallVector<QualType> TemplateArgs;
-    TemplateArgs.reserve(type_size);
-    for (size_t i = 0; i < type_size; ++i)
-      TemplateArgs.push_back(QualType::getFromOpaquePtr(types[i]));
+    llvm::SmallVector<TemplateArgument> TemplateArgs;
+    TemplateArgs.reserve(template_args_size);
+    for (size_t i = 0; i < template_args_size; ++i) {
+      QualType ArgTy = QualType::getFromOpaquePtr(template_args[i].m_Type);
+      if (template_args[i].m_IntegralValue) {
+        // We have a non-type template parameter. Create an integral value from
+        // the string representation.
+        auto Res = llvm::APSInt(template_args[i].m_IntegralValue);
+        Res = Res.extOrTrunc(C.getIntWidth(ArgTy));
+        TemplateArgs.push_back(TemplateArgument(C, Res, ArgTy));
+      } else {
+        TemplateArgs.push_back(ArgTy);
+      }
+    }
 
     TemplateDecl* TmplD = static_cast<TemplateDecl*>(tmpl);
 

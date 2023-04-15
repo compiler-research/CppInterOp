@@ -199,8 +199,15 @@ namespace InterOp {
 
   std::string ObjToString(TInterp_t interp, const char *type, void *obj);
 
+  struct TemplateArgInfo {
+    TCppScope_t m_Type;
+    const char* m_IntegralValue;
+    TemplateArgInfo(TCppScope_t type, const char* integral_value = nullptr)
+      : m_Type(type), m_IntegralValue(integral_value) {}
+  };
   TCppScope_t InstantiateClassTemplate(TInterp_t interp, TCppScope_t tmpl,
-                                       TCppType_t* types, size_t type_size);
+                                       TemplateArgInfo* template_args,
+                                       size_t template_args_size);
 
   std::vector<std::string> GetAllCppNames(TCppScope_t scope);
 
