@@ -13,7 +13,7 @@ add_dependencies(InterOpUnitTests clangInterOp)
 
 set (TIMEOUT_VALUE 2400)
 function(add_interop_unittest name)
-  add_executable(${name} ${ARGN})
+  add_executable(${name} EXCLUDE_FROM_ALL ${ARGN})
   add_dependencies(InterOpUnitTests ${name})
   target_include_directories(${name} PUBLIC ${CMAKE_CURRENT_BINARY_DIR} ${GTEST_INCLUDE_DIR})
   set_property(TARGET ${name} PROPERTY RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
