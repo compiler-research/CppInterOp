@@ -485,7 +485,7 @@ TEST(TypeReflectionTest, IsPODType) {
   EXPECT_FALSE(InterOp::IsPODType(S, 0));
 }
 
-TEST(TypeReflectionTest, DISABLED_IsSmartPtrType) {
+TEST(TypeReflectionTest, IsSmartPtrType) {
   Interp.reset(
       static_cast<compat::Interpreter *>(InterOp::CreateInterpreter()));
   Sema *S = &Interp->getCI()->getSema();
@@ -493,12 +493,19 @@ TEST(TypeReflectionTest, DISABLED_IsSmartPtrType) {
   Interp->declare(R"(
     #include <memory>
 
+    template<typename T>
+    class derived_shared_ptr : public std::shared_ptr<T> {};
+    template<typename T>
+    class derived_unique_ptr : public std::unique_ptr<T> {};
+
     class C {};
 
-    std::auto_ptr<C> smart_ptr1;
+    // std::auto_ptr<C> smart_ptr1; // Deprecated but passes the checks.
     std::shared_ptr<C> smart_ptr2;
     std::unique_ptr<C> smart_ptr3;
     std::weak_ptr<C> smart_ptr4;
+    derived_shared_ptr<C> smart_ptr5;
+    derived_unique_ptr<C> smart_ptr6;
 
     C *raw_ptr;
     C object();
@@ -508,10 +515,12 @@ TEST(TypeReflectionTest, DISABLED_IsSmartPtrType) {
     return InterOp::GetVariableType(InterOp::GetNamed(S, varname));
   };
 
-  // EXPECT_TRUE(InterOp::IsSmartPtrType(get_type_from_varname("smart_ptr1")));
-  // EXPECT_TRUE(InterOp::IsSmartPtrType(get_type_from_varname("smart_ptr2")));
-  // EXPECT_TRUE(InterOp::IsSmartPtrType(get_type_from_varname("smart_ptr3")));
-  // EXPECT_TRUE(InterOp::IsSmartPtrType(get_type_from_varname("smart_ptr4")));
-  // EXPECT_FALSE(InterOp::IsSmartPtrType(get_type_from_varname("raw_ptr")));
-  // EXPECT_FALSE(InterOp::IsSmartPtrType(get_type_from_varname("object")));
+  //EXPECT_TRUE(InterOp::IsSmartPtrType(get_type_from_varname("smart_ptr1")));
+  EXPECT_TRUE(InterOp::IsSmartPtrType(get_type_from_varname("smart_ptr2")));
+  EXPECT_TRUE(InterOp::IsSmartPtrType(get_type_from_varname("smart_ptr3")));
+  EXPECT_TRUE(InterOp::IsSmartPtrType(get_type_from_varname("smart_ptr4")));
+  EXPECT_TRUE(InterOp::IsSmartPtrType(get_type_from_varname("smart_ptr5")));
+  EXPECT_TRUE(InterOp::IsSmartPtrType(get_type_from_varname("smart_ptr6")));
+  EXPECT_FALSE(InterOp::IsSmartPtrType(get_type_from_varname("raw_ptr")));
+  EXPECT_FALSE(InterOp::IsSmartPtrType(get_type_from_varname("object")));
 }
