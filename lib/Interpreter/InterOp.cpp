@@ -1044,8 +1044,6 @@ namespace InterOp {
   TCppType_t GetType(TCppSema_t sema, const std::string &name) {
     auto *S = (Sema *)sema;
 
-    auto *ND = InterOp_utils::Lookup::Named(S, name, 0);
-
     QualType builtin = findBuiltinType(name, S->getASTContext());
     if (!builtin.isNull())
       return builtin.getAsOpaquePtr();
