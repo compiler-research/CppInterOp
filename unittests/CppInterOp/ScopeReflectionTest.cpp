@@ -675,12 +675,15 @@ TEST(ScopeReflectionTest, InstantiateClassTemplate) {
     public:
       T m_t;
     };
+
+    template<typename T, unsigned N>
+    class C2{};
   )";
 
   GetAllTopLevelDecls(code, Decls);
   ASTContext &C = Interp->getCI()->getASTContext();
 
-  std::vector<Cpp::TCppType_t> args1 = {C.IntTy.getAsOpaquePtr()};
+  std::vector<Cpp::TemplateArgInfo> args1 = {C.IntTy.getAsOpaquePtr()};
   auto Instance1 =
       Cpp::InstantiateClassTemplate(Interp.get(), Decls[0], args1.data(),
                                     /*type_size*/ args1.size());
@@ -700,7 +703,7 @@ TEST(ScopeReflectionTest, InstantiateClassTemplate) {
   TemplateArgument TA2 = CTSD2->getTemplateArgs().get(0);
   EXPECT_TRUE(TA2.getAsType()->isIntegerType());
 
-  std::vector<Cpp::TCppType_t> args3 = {C.IntTy.getAsOpaquePtr()};
+  std::vector<Cpp::TemplateArgInfo> args3 = {C.IntTy.getAsOpaquePtr()};
   auto Instance3 =
       Cpp::InstantiateClassTemplate(Interp.get(), Decls[2], args3.data(),
                                     /*type_size*/ args3.size());
@@ -716,6 +719,20 @@ TEST(ScopeReflectionTest, InstantiateClassTemplate) {
   auto Inst3_methods = Cpp::GetClassMethods(S, Instance3);
   EXPECT_EQ(Cpp::GetFunctionSignature(Inst3_methods[0]),
             "C1<int>::C1(const C0<int> &val)");
+
+  std::vector<Cpp::TemplateArgInfo> args4 = {C.IntTy.getAsOpaquePtr(),
+                                               {C.IntTy.getAsOpaquePtr(), "3"}};
+  auto Instance4 =
+      Cpp::InstantiateClassTemplate(Interp.get(), Decls[3], args4.data(),
+                                    /*type_size*/ args4.size());
+
+  EXPECT_TRUE(isa<ClassTemplateSpecializationDecl>((Decl*)Instance4));
+  auto *CTSD4 = static_cast<ClassTemplateSpecializationDecl*>(Instance4);
+  EXPECT_TRUE(CTSD4->hasDefinition());
+  TemplateArgument TA4_0 = CTSD4->getTemplateArgs().get(0);
+  TemplateArgument TA4_1 = CTSD4->getTemplateArgs().get(1);
+  EXPECT_TRUE(TA4_0.getAsType()->isIntegerType());
+  EXPECT_TRUE(TA4_1.getAsIntegral() == 3);
 }
 
 TEST(ScopeReflectionTest, IncludeVector) {
