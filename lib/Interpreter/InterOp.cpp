@@ -2070,13 +2070,14 @@ namespace InterOp {
   }
   }
 
-  TInterp_t CreateInterpreter(const char *resource_dir) {
+  TInterp_t CreateInterpreter(const std::vector<const char*> &Args/*={}*/) {
     std::string MainExecutableName =
       sys::fs::getMainExecutable(nullptr, nullptr);
     std::string ResourceDir = MakeResourcesPath();
     std::vector<const char *> ClingArgv = {"-resource-dir", ResourceDir.c_str(),
                                            "-std=c++14"};
     ClingArgv.insert(ClingArgv.begin(), MainExecutableName.c_str());
+    ClingArgv.insert(ClingArgv.end(), Args.begin(), Args.end());
     return new compat::Interpreter(ClingArgv.size(), &ClingArgv[0]);
   }
 
