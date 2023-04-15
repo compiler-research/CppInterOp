@@ -278,14 +278,10 @@ namespace InterOp {
     auto *S = (Sema *) sema;
     auto *ND = InterOp_utils::Lookup::Named(S, name, Within);
 
-    if (!(ND == (NamedDecl *) -1) &&
-            (llvm::isa_and_nonnull<NamespaceDecl>(ND)     ||
-             llvm::isa_and_nonnull<RecordDecl>(ND)        ||
-             llvm::isa_and_nonnull<ClassTemplateDecl>(ND) ||
-             llvm::isa_and_nonnull<TypedefDecl>(ND)))
-      return (TCppScope_t)(ND->getCanonicalDecl());
+    if (!ND || (ND == (NamedDecl *) -1))
+      return nullptr;
 
-    return 0;
+    return ND->getCanonicalDecl();
   }
 
   TCppScope_t GetScopeFromCompleteName(TCppSema_t sema, const std::string &name)
@@ -2070,13 +2066,14 @@ namespace InterOp {
   }
   }
 
-  TInterp_t CreateInterpreter(const char *resource_dir) {
+  TInterp_t CreateInterpreter(const std::vector<const char*> &Args/*={}*/) {
     std::string MainExecutableName =
       sys::fs::getMainExecutable(nullptr, nullptr);
     std::string ResourceDir = MakeResourcesPath();
     std::vector<const char *> ClingArgv = {"-resource-dir", ResourceDir.c_str(),
                                            "-std=c++14"};
     ClingArgv.insert(ClingArgv.begin(), MainExecutableName.c_str());
+    ClingArgv.insert(ClingArgv.end(), Args.begin(), Args.end());
     return new compat::Interpreter(ClingArgv.size(), &ClingArgv[0]);
   }
 
