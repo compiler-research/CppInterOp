@@ -324,14 +324,7 @@ namespace Cpp {
     if (name == "")
       return GetGlobalScope(sema);
 
-    DeclContext *Within = 0;
-    if (parent) {
-      auto *D = (Decl *)parent;
-      Within = llvm::dyn_cast<DeclContext>(D);
-    }
-
-    auto *S = (Sema *)sema;
-    auto *ND = Cpp_utils::Lookup::Named(S, name, Within);
+    auto *ND = (NamedDecl *)GetNamed(sema, name, parent);
 
     if (!(ND == (NamedDecl *)-1) &&
         (llvm::isa_and_nonnull<NamespaceDecl>(ND) ||
