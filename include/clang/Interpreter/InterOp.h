@@ -183,7 +183,7 @@ namespace InterOp {
   /// Returns the argument name of function as string.
   std::string GetFunctionArgName(TCppFunction_t func, TCppIndex_t param_index);
 
-  TInterp_t CreateInterpreter(const char *resource_dir = nullptr);
+  TInterp_t CreateInterpreter(const std::vector<const char*> &Args = {});
 
   TCppSema_t GetSema(TInterp_t interp);
 

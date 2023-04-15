@@ -2058,40 +2058,41 @@ namespace InterOp {
       }
       } // namespace
 
-      TInterp_t CreateInterpreter(const char *resource_dir) {
-        std::string MainExecutableName =
-            sys::fs::getMainExecutable(nullptr, nullptr);
-        std::string ResourceDir = MakeResourcesPath();
-        std::vector<const char *> ClingArgv = {
-            "-resource-dir", ResourceDir.c_str(), "-std=c++14"};
-        ClingArgv.insert(ClingArgv.begin(), MainExecutableName.c_str());
-        return new compat::Interpreter(ClingArgv.size(), &ClingArgv[0]);
-      }
+  TInterp_t CreateInterpreter(const std::vector<const char*> &Args/*={}*/) {
+    std::string MainExecutableName =
+      sys::fs::getMainExecutable(nullptr, nullptr);
+    std::string ResourceDir = MakeResourcesPath();
+    std::vector<const char *> ClingArgv = {"-resource-dir", ResourceDir.c_str(),
+                                           "-std=c++14"};
+    ClingArgv.insert(ClingArgv.begin(), MainExecutableName.c_str());
+    ClingArgv.insert(ClingArgv.end(), Args.begin(), Args.end());
+    return new compat::Interpreter(ClingArgv.size(), &ClingArgv[0]);
+  }
 
-      TCppSema_t GetSema(TInterp_t interp) {
-        auto *I = (compat::Interpreter *)interp;
+  TCppSema_t GetSema(TInterp_t interp) {
+    auto *I = (compat::Interpreter *)interp;
 
-        return (TCppSema_t)&I->getSema();
-      }
+    return (TCppSema_t)&I->getSema();
+  }
 
-      void AddSearchPath(TInterp_t interp, const char *dir, bool isUser,
-                         bool prepend) {
-        auto *I = (compat::Interpreter *)interp;
+  void AddSearchPath(TInterp_t interp, const char *dir, bool isUser,
+                     bool prepend) {
+    auto *I = (compat::Interpreter *)interp;
 
-        I->getDynamicLibraryManager()->addSearchPath(dir, isUser, prepend);
-      }
+    I->getDynamicLibraryManager()->addSearchPath(dir, isUser, prepend);
+  }
 
-      const char *GetResourceDir(TInterp_t interp) {
-        auto *I = (compat::Interpreter *)interp;
+  const char *GetResourceDir(TInterp_t interp) {
+    auto *I = (compat::Interpreter *)interp;
 
-        return I->getCI()->getHeaderSearchOpts().ResourceDir.c_str();
-      }
+    return I->getCI()->getHeaderSearchOpts().ResourceDir.c_str();
+  }
 
-      void AddIncludePath(TInterp_t interp, const char *dir) {
-        auto *I = (compat::Interpreter *)interp;
+  void AddIncludePath(TInterp_t interp, const char *dir) {
+    auto *I = (compat::Interpreter *)interp;
 
-        I->AddIncludePath(dir);
-      }
+    I->AddIncludePath(dir);
+  }
 
   namespace {
 
