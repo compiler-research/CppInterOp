@@ -2170,10 +2170,10 @@ namespace Cpp {
     return I->declare(code);
   }
 
-  void Process(TInterp_t interp, const char *code) {
+  int Process(TInterp_t interp, const char *code) {
     auto *I = (compat::Interpreter *)interp;
 
-    I->process(code);
+    return I->process(code);
   }
 
   const std::string LookupLibrary(TInterp_t interp, const char *lib_name) {

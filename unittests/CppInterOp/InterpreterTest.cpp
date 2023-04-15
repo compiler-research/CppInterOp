@@ -2,6 +2,15 @@
 
 #include "gtest/gtest.h"
 
+TEST(InterpreterTest, Process) {
+  auto I = Cpp::CreateInterpreter();
+  EXPECT_TRUE(Cpp::Process(I, "") == 0);
+  EXPECT_TRUE(Cpp::Process(I, "int a = 12;") == 0);
+  EXPECT_FALSE(Cpp::Process(I, "error_here;") == 0);
+  // Linker/JIT error.
+  EXPECT_FALSE(Cpp::Process(I, "int f(); int res = f();") == 0);
+}
+
 TEST(InterpreterTest, CreateInterpreter) {
   auto I = Cpp::CreateInterpreter();
   EXPECT_TRUE(I);

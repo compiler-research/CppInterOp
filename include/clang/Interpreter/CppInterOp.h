@@ -201,7 +201,9 @@ namespace Cpp {
 
   TCppIndex_t Declare(TInterp_t interp, const char *code, bool silent = false);
 
-  void Process(TInterp_t interp, const char *code);
+  /// Declares and runs a code snippet in \c code.
+  ///\returns 0 on success
+  int Process(TInterp_t interp, const char *code);
 
   const std::string LookupLibrary(TInterp_t interp, const char *lib_name);
 
