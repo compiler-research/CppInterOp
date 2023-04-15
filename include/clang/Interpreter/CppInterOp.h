@@ -42,6 +42,10 @@ namespace Cpp {
 
   bool IsEnumType(TCppType_t type);
 
+  /// We assume that smart pointer types define both operator* and
+  /// operator->.
+  bool IsSmartPtrType(TCppType_t type);
+
   TCppType_t GetEnumIntegerType(TCppScope_t handle);
 
   std::vector<TCppScope_t> GetEnumConstants(TCppScope_t scope);

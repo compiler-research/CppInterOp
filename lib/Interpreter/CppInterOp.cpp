@@ -113,6 +113,64 @@ namespace Cpp {
     return QT->isEnumeralType();
   }
 
+
+  static bool isSmartPointer(const RecordType* RT) {
+    auto IsUseCountPresent = [](const RecordDecl *Record) {
+      ASTContext &C = Record->getASTContext();
+      return !Record->lookup(&C.Idents.get("use_count")).empty();
+    };
+    auto IsOverloadedOperatorPresent = [](const RecordDecl *Record,
+                                          OverloadedOperatorKind Op) {
+      ASTContext &C = Record->getASTContext();
+      DeclContextLookupResult Result =
+          Record->lookup(C.DeclarationNames.getCXXOperatorName(Op));
+      return !Result.empty();
+    };
+
+    const RecordDecl *Record = RT->getDecl();
+    if (IsUseCountPresent(Record))
+      return true;
+
+    bool foundStarOperator = IsOverloadedOperatorPresent(Record, OO_Star);
+    bool foundArrowOperator = IsOverloadedOperatorPresent(Record, OO_Arrow);
+    if (foundStarOperator && foundArrowOperator)
+      return true;
+
+    const CXXRecordDecl *CXXRecord = dyn_cast<CXXRecordDecl>(Record);
+    if (!CXXRecord)
+      return false;
+
+    auto FindOverloadedOperators = [&](const CXXRecordDecl *Base) {
+      // If we find use_count, we are done.
+      if (IsUseCountPresent(Base))
+        return false; // success.
+      if (!foundStarOperator)
+        foundStarOperator = IsOverloadedOperatorPresent(Base, OO_Star);
+      if (!foundArrowOperator)
+        foundArrowOperator = IsOverloadedOperatorPresent(Base, OO_Arrow);
+      if (foundStarOperator && foundArrowOperator)
+        return false; // success.
+      return true;
+    };
+
+    return !CXXRecord->forallBases(FindOverloadedOperators);
+  }
+
+  bool IsSmartPtrType(TCppType_t type) {
+    QualType QT = QualType::getFromOpaquePtr(type);
+    if (const RecordType *RT = QT->getAs<RecordType>()) {
+      // Add quick checks for the std smart prts to cover most of the cases.
+      std::string typeString = GetTypeAsString(type);
+      llvm::StringRef tsRef(typeString);
+      if (tsRef.startswith("std::unique_ptr") ||
+          tsRef.startswith("std::shared_ptr") ||
+          tsRef.startswith("std::weak_ptr"))
+        return true;
+      return isSmartPointer(RT);
+    }
+    return false;
+  }
+
   TCppType_t GetEnumIntegerType(TCppScope_t handle) {
     auto *D = (clang::Decl *)handle;
     if (auto *ED = llvm::dyn_cast_or_null<clang::EnumDecl>(D)) {
