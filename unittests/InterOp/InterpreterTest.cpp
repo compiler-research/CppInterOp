@@ -2,6 +2,15 @@
 
 #include "gtest/gtest.h"
 
+TEST(InterpreterTest, Process) {
+  auto I = InterOp::CreateInterpreter();
+  EXPECT_TRUE(InterOp::Process(I, "") == 0);
+  EXPECT_TRUE(InterOp::Process(I, "int a = 12;") == 0);
+  EXPECT_FALSE(InterOp::Process(I, "error_here;") == 0);
+  // Linker/JIT error.
+  EXPECT_FALSE(InterOp::Process(I, "int f(); int res = f();") == 0);
+}
+
 TEST(InterpreterTest, CreateInterpreter) {
   auto I = InterOp::CreateInterpreter();
   EXPECT_TRUE(I);
