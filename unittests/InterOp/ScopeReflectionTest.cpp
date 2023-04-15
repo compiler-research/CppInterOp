@@ -608,6 +608,31 @@ TEST(ScopeReflectionTest, GetAllCppNames) {
   test_get_all_cpp_names(Decls[4], {"A", "B", "C", "D"});
 }
 
+TEST(ScopeReflectionTest, InstantiateNNTPClassTemplate) {
+  Interp.reset(static_cast<compat::Interpreter*>(InterOp::CreateInterpreter()));
+
+  std::vector<Decl *> Decls;
+  std::string code = R"(
+    template <int N>
+    struct Factorial {
+      enum { value = N * Factorial<N - 1>::value };
+    };
+
+    template <>
+    struct Factorial<0> {
+      enum { value = 1 };
+    };)";
+
+  ASTContext &C = Interp->getCI()->getASTContext();
+  GetAllTopLevelDecls(code, Decls);
+
+  InterOp::TCppType_t IntTy = C.IntTy.getAsOpaquePtr();
+  std::vector<InterOp::TemplateArgInfo> args1 = {{IntTy, "5"}};
+  EXPECT_TRUE(InterOp::InstantiateClassTemplate(Interp.get(), Decls[0],
+                                                args1.data(),
+                                                /*type_size*/args1.size()));
+}
+
 TEST(ScopeReflectionTest, InstantiateClassTemplate) {
   std::vector<Decl *> Decls;
   std::string code = R"(
