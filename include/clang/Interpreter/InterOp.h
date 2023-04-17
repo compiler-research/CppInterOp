@@ -23,6 +23,12 @@ namespace InterOp {
   using TInterp_t = void*;
   typedef void (*CallFuncWrapper_t)(void*, int, void**, void*);
 
+  /// Enables or disables the debugging printouts on stderr.
+  void EnableDebugOutput(bool value = true);
+
+  ///\returns true if the debugging printouts on stderr are enabled.
+  bool IsDebugOutputEnabled();
+
   bool IsNamespace(TCppScope_t scope);
 
   bool IsClass(TCppScope_t scope);
