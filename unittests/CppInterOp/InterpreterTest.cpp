@@ -2,6 +2,29 @@
 
 #include "gtest/gtest.h"
 
+TEST(InterpreterTest, DebugFlag) {
+  auto I = Cpp::CreateInterpreter();
+  EXPECT_FALSE(Cpp::IsDebugOutputEnabled());
+  std::string cerrs;
+  testing::internal::CaptureStderr();
+  Cpp::Process(I, "int a = 12;");
+  cerrs = testing::internal::GetCapturedStderr();
+  EXPECT_STREQ(cerrs.c_str(), "");
+  Cpp::EnableDebugOutput();
+  EXPECT_TRUE(Cpp::IsDebugOutputEnabled());
+  testing::internal::CaptureStderr();
+  Cpp::Process(I, "int b = 12;");
+  cerrs = testing::internal::GetCapturedStderr();
+  EXPECT_STRNE(cerrs.c_str(), "");
+
+  Cpp::EnableDebugOutput(false);
+  EXPECT_FALSE(Cpp::IsDebugOutputEnabled());
+  testing::internal::CaptureStderr();
+  Cpp::Process(I, "int c = 12;");
+  cerrs = testing::internal::GetCapturedStderr();
+  EXPECT_STREQ(cerrs.c_str(), "");
+}
+
 TEST(InterpreterTest, Process) {
   auto I = Cpp::CreateInterpreter();
   EXPECT_TRUE(Cpp::Process(I, "") == 0);
