@@ -20,7 +20,6 @@
 #include "clang/Basic/DiagnosticSema.h"
 #include "clang/Basic/Linkage.h"
 #include "clang/Basic/Version.h"
-#include "clang/Config/config.h"
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Sema/Sema.h"
 #include "clang/Sema/Lookup.h"
@@ -2122,11 +2121,7 @@ namespace InterOp {
     Dir = sys::path::parent_path(Dir);
     //Dir = sys::path::parent_path(Dir);
 #endif // LLVM_BINARY_DIR
-    SmallString<128> P(Dir);
-    sys::path::append(P, Twine("lib") + CLANG_LIBDIR_SUFFIX, "clang",
-                      CLANG_VERSION_STRING);
-
-    return std::string(P.str());
+    return compat::MakeResourceDir(Dir);
   }
   }
 
