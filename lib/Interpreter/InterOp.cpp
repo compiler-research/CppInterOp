@@ -27,6 +27,7 @@
 
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/Casting.h"
+#include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_os_ostream.h"
 
 #include <dlfcn.h>
@@ -38,6 +39,14 @@ namespace InterOp {
   using namespace clang;
   using namespace llvm;
   using namespace std;
+
+  void EnableDebugOutput(bool value/* =true*/) {
+    llvm::DebugFlag = value;
+  }
+
+  bool IsDebugOutputEnabled() {
+    return llvm::DebugFlag;
+  }
 
   bool IsNamespace(TCppScope_t scope) {
     Decl *D = static_cast<Decl*>(scope);
