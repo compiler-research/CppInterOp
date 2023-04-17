@@ -8,7 +8,11 @@
 
 #include "clang/AST/GlobalDecl.h"
 #include "clang/Basic/Version.h"
+#include "clang/Config/config.h"
 
+#include "llvm/ADT/SmallString.h"
+#include "llvm/ADT/StringRef.h"
+#include "llvm/ADT/Twine.h"
 #include "llvm/Config/llvm-config.h"
 #include "llvm/ExecutionEngine/JITSymbol.h"
 #include "llvm/ExecutionEngine/Orc/LLJIT.h"
@@ -170,6 +174,22 @@ namespace compat {
     return result;
   }
 #endif
+  
+// Clang >= 16 change CLANG_LIBDIR_SUFFIX to CLANG_INSTALL_LIBDIR_BASENAME
+#if CLANG_VERSION_MAJOR < 16
+  #define CLANG_INSTALL_LIBDIR_BASENAME (llvm::Twine("lib")+CLANG_LIBDIR_SUFFIX)
+#endif
+inline std::string MakeResourceDir(llvm::StringRef Dir) {
+  llvm::SmallString<128> P(Dir);
+  llvm::sys::path::append(P, CLANG_INSTALL_LIBDIR_BASENAME, "clang",
+#if CLANG_VERSION_MAJOR < 16
+    CLANG_VERSION_STRING
+#else
+    CLANG_VERSION_MAJOR_STRING
+#endif
+  );
+  return std::string(P.str());
+}
 
 } // end compat namespace
 

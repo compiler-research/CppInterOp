@@ -7,7 +7,6 @@
 #include "clang/AST/Decl.h"
 #include "clang/AST/DeclCXX.h"
 #include "clang/Basic/Version.h"
-#include "clang/Config/config.h"
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Interpreter/CppInterOp.h"
 #include "clang/Sema/Lookup.h"
