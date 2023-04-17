@@ -312,13 +312,13 @@ TEST(FunctionReflectionTest, GetFunctionPrototype) {
   test_func_proto(Decls[2], false, "void f1()"); // f1
   test_func_proto(Decls[2], true, "void f1()"); // f1
   test_func_proto(Decls[3], false,
-          "class C f2(int, double, long, char)"); // f2
+          "C f2(int, double, long, char)"); // f2
   test_func_proto(Decls[3], true,
-          "class C f2(int i, double d, long l = 0, char ch = 'a')"); // f2
+          "C f2(int i, double d, long l = 0, char ch = 'a')"); // f2
   test_func_proto(Decls[4], false,
-          "class C *f3(int, double, long, char)"); // f3
+          "C *f3(int, double, long, char)"); // f3
   test_func_proto(Decls[4], true,
-          "class C *f3(int i, double d, long l = 0, char ch = 'a')"); // f3
+          "C *f3(int i, double d, long l = 0, char ch = 'a')"); // f3
   test_func_proto(Decls[5], false,
           "void f4(int, double, long, char)"); // f4
   test_func_proto(Decls[5], true,
