@@ -115,9 +115,6 @@ namespace Cpp {
 
   TCppType_t GetFunctionArgType(TCppFunction_t func, TCppIndex_t iarg);
 
-  std::string GetFunctionPrototype(TCppFunction_t func,
-                                   bool show_formal_args = false);
-
   /// Returns a stringified version of a given function signature in the form:
   /// void N::f(int i, double d, long l = 0, char ch = 'a').
   std::string GetFunctionSignature(TCppFunction_t func);
