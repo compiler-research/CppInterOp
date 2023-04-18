@@ -643,35 +643,6 @@ namespace InterOp {
     return 0;
   }
 
-  void get_function_params(std::stringstream &ss, FunctionDecl *FD,
-                           bool show_formal_args = false,
-                           TCppIndex_t max_args = -1) {
-    ss << "(";
-    if (max_args == (size_t)-1)
-      max_args = FD->param_size();
-    max_args = std::min(max_args, FD->param_size());
-    size_t i = 0;
-    auto &Ctxt = FD->getASTContext();
-    for (auto PI = FD->param_begin(), end = FD->param_end(); PI != end; PI++) {
-      if (i >= max_args)
-        break;
-      ss << compat::FixTypeName((*PI)->getType().getAsString());
-      if (show_formal_args) {
-        ss << " " << (*PI)->getNameAsString();
-        if ((*PI)->hasDefaultArg()) {
-          ss << " = ";
-          raw_os_ostream def_arg_os(ss);
-          (*PI)->getDefaultArg()->printPretty(
-              def_arg_os, nullptr, PrintingPolicy(Ctxt.getLangOpts()));
-        }
-      }
-      if (++i < max_args) {
-        ss << ", ";
-      }
-    }
-    ss << ")";
-  }
-
   std::string GetFunctionSignature(TCppFunction_t func)
   {
     if (!func)
@@ -689,20 +660,6 @@ namespace InterOp {
       FD->print(SS, Policy);
       SS.flush();
       return Signature;
-    }
-    return "<unknown>";
-  }
-
-  std::string GetFunctionPrototype(TCppFunction_t func, bool show_formal_args) {
-    auto *D = (clang::Decl *)func;
-    if (auto *FD = llvm::dyn_cast_or_null<FunctionDecl>(D)) {
-      std::stringstream proto;
-
-      proto << compat::FixTypeName(FD->getReturnType().getAsString())
-            << (FD->getReturnType()->isPointerType() ? "" : " ");
-      proto << FD->getQualifiedNameAsString();
-      get_function_params(proto, FD, show_formal_args);
-      return proto.str();
     }
     return "<unknown>";
   }
