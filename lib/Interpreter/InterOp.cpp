@@ -574,25 +574,28 @@ namespace InterOp {
   // avoid copies.
   std::vector<TCppFunction_t> GetClassMethods(TCppSema_t sema,
                                               TCppScope_t klass) {
-    auto *D = (clang::Decl *)klass;
-    auto *S = (Sema *)sema;
 
     if (!klass)
       return {};
 
-    if (auto *TD = llvm::dyn_cast<TypedefNameDecl>(D))
+    auto *D = (clang::Decl *) klass;
+    auto *S = (Sema *)sema;
+
+    if (auto *TD = dyn_cast<TypedefNameDecl>(D))
       D = GetScopeFromType(TD->getUnderlyingType());
 
-    if (auto *CXXRD = llvm::dyn_cast_or_null<CXXRecordDecl>(D)) {
+    std::vector<TCppFunction_t> methods;
+    if (auto *CXXRD = dyn_cast_or_null<CXXRecordDecl>(D)) {
       S->ForceDeclarationOfImplicitMembers(CXXRD);
-      std::vector<TCppFunction_t> methods;
-      for (auto it = CXXRD->method_begin(), end = CXXRD->method_end();
-           it != end; it++) {
-        methods.push_back((TCppFunction_t)*it);
+      for (Decl* DI : CXXRD->decls()) {
+        if (auto* MD = dyn_cast<CXXMethodDecl>(DI))
+          methods.push_back(MD);
+        else if (auto* USD = dyn_cast<UsingShadowDecl>(DI))
+          if (auto* MD = dyn_cast<CXXMethodDecl>(USD->getTargetDecl()))
+            methods.push_back(MD);
       }
-      return methods;
     }
-    return {};
+    return methods;
   }
 
   bool HasDefaultConstructor(TCppScope_t scope) {

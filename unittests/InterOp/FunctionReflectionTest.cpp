@@ -28,21 +28,40 @@ TEST(FunctionReflectionTest, GetClassMethods) {
     };
 
     typedef A shadow_A;
+    class B {
+    public:
+        B(int n) : b{n} {}
+        int b;
+    };
+
+    class C: public B {
+    public:
+        using B::B;
+    };
+    using MyInt = int;
     )";
 
   GetAllTopLevelDecls(code, Decls);
   Sema *S = &Interp->getCI()->getSema();
-  auto methods0 = InterOp::GetClassMethods(S, Decls[0]);
 
   auto get_method_name = [](InterOp::TCppFunction_t method) {
-    return InterOp::GetQualifiedName(method);
+    return InterOp::GetFunctionSignature(method);
   };
 
-  EXPECT_EQ(get_method_name(methods0[0]), "A::f1");
-  EXPECT_EQ(get_method_name(methods0[1]), "A::f2");
-  EXPECT_EQ(get_method_name(methods0[2]), "A::f3");
-  EXPECT_EQ(get_method_name(methods0[3]), "A::f4");
-  EXPECT_EQ(get_method_name(methods0[4]), "A::f5");
+  auto methods0 = InterOp::GetClassMethods(S, Decls[0]);
+
+  EXPECT_EQ(methods0.size(), 11);
+  EXPECT_EQ(get_method_name(methods0[0]), "int A::f1(int a, int b)");
+  EXPECT_EQ(get_method_name(methods0[1]), "const A *A::f2() const");
+  EXPECT_EQ(get_method_name(methods0[2]), "int A::f3()");
+  EXPECT_EQ(get_method_name(methods0[3]), "void A::f4()");
+  EXPECT_EQ(get_method_name(methods0[4]), "int A::f5(int i)");
+  EXPECT_EQ(get_method_name(methods0[5]), "inline constexpr A::A()");
+  EXPECT_EQ(get_method_name(methods0[6]), "inline constexpr A::A(const A &)");
+  EXPECT_EQ(get_method_name(methods0[7]), "inline constexpr A &A::operator=(const A &)");
+  EXPECT_EQ(get_method_name(methods0[8]), "inline constexpr A::A(A &&)");
+  EXPECT_EQ(get_method_name(methods0[9]), "inline constexpr A &A::operator=(A &&)");
+  EXPECT_EQ(get_method_name(methods0[10]), "inline A::~A()");
 
   auto methods1 = InterOp::GetClassMethods(S, Decls[1]);
   EXPECT_EQ(methods0.size(), methods1.size());
@@ -51,6 +70,32 @@ TEST(FunctionReflectionTest, GetClassMethods) {
   EXPECT_EQ(methods0[2], methods1[2]);
   EXPECT_EQ(methods0[3], methods1[3]);
   EXPECT_EQ(methods0[4], methods1[4]);
+
+  auto methods2 = InterOp::GetClassMethods(S, Decls[2]);
+
+  EXPECT_EQ(methods2.size(), 6);
+  EXPECT_EQ(get_method_name(methods2[0]), "B::B(int n)");
+  EXPECT_EQ(get_method_name(methods2[1]), "inline constexpr B::B(const B &)");
+  EXPECT_EQ(get_method_name(methods2[2]), "inline constexpr B::B(B &&)");
+  EXPECT_EQ(get_method_name(methods2[3]), "inline B::~B()");
+  EXPECT_EQ(get_method_name(methods2[4]), "inline B &B::operator=(const B &)");
+  EXPECT_EQ(get_method_name(methods2[5]), "inline B &B::operator=(B &&)");
+
+  auto methods3 = InterOp::GetClassMethods(S, Decls[3]);
+
+  EXPECT_EQ(methods3.size(), 9);
+  EXPECT_EQ(get_method_name(methods3[0]), "B::B(int n)");
+  EXPECT_EQ(get_method_name(methods3[1]), "inline constexpr B::B(const B &)");
+  EXPECT_EQ(get_method_name(methods3[3]), "inline C::C()");
+  EXPECT_EQ(get_method_name(methods3[4]), "inline constexpr C::C(const C &)");
+  EXPECT_EQ(get_method_name(methods3[5]), "inline constexpr C::C(C &&)");
+  EXPECT_EQ(get_method_name(methods3[6]), "inline C &C::operator=(const C &)");
+  EXPECT_EQ(get_method_name(methods3[7]), "inline C &C::operator=(C &&)");
+  EXPECT_EQ(get_method_name(methods3[8]), "inline C::~C()");
+
+  // Should not crash.
+  auto methods4 = InterOp::GetClassMethods(S, Decls[4]);
+  EXPECT_EQ(methods4.size(), 0);
 }
 
 TEST(FunctionReflectionTest, ConstructorInGetClassMethods) {
