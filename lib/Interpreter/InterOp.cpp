@@ -219,6 +219,18 @@ namespace InterOp {
     return {};
   }
 
+  TCppType_t GetEnumConstantType(TCppScope_t handle) {
+    if (!handle)
+      return nullptr;
+
+    auto *D = (clang::Decl *)handle;
+    if (auto *ECD = llvm::dyn_cast<clang::EnumConstantDecl>(D)) {
+      auto *VD = llvm::dyn_cast<clang::ValueDecl>(D);
+      return VD->getType().getAsOpaquePtr();
+    }
+    return 0;
+  }
+
   TCppIndex_t GetEnumConstantValue(TCppScope_t handle) {
     auto *D = (clang::Decl *)handle;
     if (auto *ECD = llvm::dyn_cast_or_null<clang::EnumConstantDecl>(D)) {
