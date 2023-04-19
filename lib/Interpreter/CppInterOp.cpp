@@ -110,10 +110,9 @@ namespace Cpp {
     return false;
   }
 
-  bool IsEnum(TCppScope_t handle) {
+  bool IsEnumScope(TCppScope_t handle) {
     auto *D = (clang::Decl *)handle;
-    return llvm::isa_and_nonnull<clang::EnumDecl>(D) ||
-           llvm::isa_and_nonnull<clang::EnumConstantDecl>(D);
+    return llvm::isa_and_nonnull<clang::EnumDecl>(D);
   }
 
   bool IsEnumType(TCppType_t type) {

@@ -44,7 +44,7 @@ namespace Cpp {
 
   bool IsAbstract(TCppType_t klass);
 
-  bool IsEnum(TCppScope_t handle);
+  bool IsEnumScope(TCppScope_t handle);
 
   bool IsEnumType(TCppType_t type);
 
