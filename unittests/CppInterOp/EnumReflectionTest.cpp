@@ -207,6 +207,33 @@ TEST(EnumReflectionTest, GetEnumConstants) {
   EXPECT_EQ(Cpp::GetEnumConstants(Decls[4]).size(), 4);
 }
 
+TEST(EnumReflectionTest, GetEnumConstantType) {
+  std::vector<Decl *> Decls;
+  std::string code = R"(
+    enum Enum0 {
+      Constant0 = 0
+    };
+
+    enum class Enum1 {
+      Constant1 = 1
+    };
+  )";
+
+  GetAllTopLevelDecls(code, Decls);
+
+  auto get_enum_constant_type_as_str = [](Cpp::TCppScope_t enum_constant) {
+    return Cpp::GetTypeAsString(Cpp::GetEnumConstantType(enum_constant));
+  };
+
+  auto EnumConstants0 = Cpp::GetEnumConstants(Decls[0]);
+
+  EXPECT_EQ(get_enum_constant_type_as_str(EnumConstants0[0]), "Enum0");
+
+  auto EnumConstants1 = Cpp::GetEnumConstants(Decls[1]);
+
+  EXPECT_EQ(get_enum_constant_type_as_str(EnumConstants1[0]), "Enum1");
+}
+
 TEST(EnumReflectionTest, GetEnumConstantValue) {
   std::vector<Decl *> Decls;
   std::string code = R"(

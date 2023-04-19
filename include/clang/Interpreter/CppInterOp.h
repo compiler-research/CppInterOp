@@ -60,6 +60,8 @@ namespace Cpp {
 
   std::vector<TCppScope_t> GetEnumConstants(TCppScope_t scope);
 
+  TCppType_t GetEnumConstantType(TCppScope_t scope);
+
   TCppIndex_t GetEnumConstantValue(TCppScope_t scope);
 
   size_t GetSizeOfType(TCppSema_t sema, TCppType_t type);
