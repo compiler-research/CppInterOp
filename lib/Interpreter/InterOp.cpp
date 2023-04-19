@@ -192,6 +192,17 @@ namespace InterOp {
     return 0;
   }
 
+  TCppType_t GetIntegerTypeFromEnumType(TCppType_t enum_type) {
+    if (!enum_type)
+      return nullptr;
+
+    QualType QT = QualType::getFromOpaquePtr(enum_type);
+    if (auto *ET = QT->getAs<EnumType>())
+      return ET->getDecl()->getIntegerType().getAsOpaquePtr();
+
+    return nullptr;
+  }
+
   std::vector<TCppScope_t> GetEnumConstants(TCppScope_t handle) {
     auto *D = (clang::Decl *)handle;
 
