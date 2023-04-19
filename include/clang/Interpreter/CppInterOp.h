@@ -46,6 +46,8 @@ namespace Cpp {
 
   bool IsEnumScope(TCppScope_t handle);
 
+  bool IsEnumConstant(TCppScope_t handle);
+
   bool IsEnumType(TCppType_t type);
 
   /// We assume that smart pointer types define both operator* and

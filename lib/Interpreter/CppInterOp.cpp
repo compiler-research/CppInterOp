@@ -115,6 +115,11 @@ namespace Cpp {
     return llvm::isa_and_nonnull<clang::EnumDecl>(D);
   }
 
+  bool IsEnumConstant(TCppScope_t handle) {
+    auto *D = (clang::Decl *)handle;
+    return llvm::isa_and_nonnull<clang::EnumConstantDecl>(D);
+  }
+
   bool IsEnumType(TCppType_t type) {
     QualType QT = QualType::getFromOpaquePtr(type);
     return QT->isEnumeralType();

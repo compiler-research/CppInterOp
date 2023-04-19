@@ -33,6 +33,28 @@ TEST(ScopeReflectionTest, IsEnumScope) {
   EXPECT_FALSE(Cpp::IsEnumScope(SubDecls[1]));
 }
 
+TEST(ScopeReflectionTest, IsEnumConstant) {
+  std::vector<Decl *> Decls, SubDecls;
+  std::string code = R"(
+    enum Switch {
+      OFF,
+      ON
+    };
+
+    Switch s = Switch::OFF;
+
+    int i = Switch::ON;
+  )";
+
+  GetAllTopLevelDecls(code, Decls);
+  GetAllSubDecls(Decls[0], SubDecls);
+  EXPECT_FALSE(Cpp::IsEnumConstant(Decls[0]));
+  EXPECT_FALSE(Cpp::IsEnumConstant(Decls[1]));
+  EXPECT_FALSE(Cpp::IsEnumConstant(Decls[2]));
+  EXPECT_TRUE(Cpp::IsEnumConstant(SubDecls[0]));
+  EXPECT_TRUE(Cpp::IsEnumConstant(SubDecls[1]));
+}
+
 TEST(EnumReflectionTest, IsEnumType) {
   std::vector<Decl *> Decls;
   std::string code =  R"(
