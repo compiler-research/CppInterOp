@@ -11,7 +11,7 @@ using namespace TestUtils;
 using namespace llvm;
 using namespace clang;
 
-TEST(ScopeReflectionTest, IsEnum) {
+TEST(ScopeReflectionTest, IsEnumScope) {
   std::vector<Decl *> Decls, SubDecls;
   std::string code = R"(
     enum Switch {
@@ -26,11 +26,11 @@ TEST(ScopeReflectionTest, IsEnum) {
 
   GetAllTopLevelDecls(code, Decls);
   GetAllSubDecls(Decls[0], SubDecls);
-  EXPECT_TRUE(InterOp::IsEnum(Decls[0]));
-  EXPECT_FALSE(InterOp::IsEnum(Decls[1]));
-  EXPECT_FALSE(InterOp::IsEnum(Decls[2]));
-  EXPECT_TRUE(InterOp::IsEnum(SubDecls[0]));
-  EXPECT_TRUE(InterOp::IsEnum(SubDecls[1]));
+  EXPECT_TRUE(InterOp::IsEnumScope(Decls[0]));
+  EXPECT_FALSE(InterOp::IsEnumScope(Decls[1]));
+  EXPECT_FALSE(InterOp::IsEnumScope(Decls[2]));
+  EXPECT_FALSE(InterOp::IsEnumScope(SubDecls[0]));
+  EXPECT_FALSE(InterOp::IsEnumScope(SubDecls[1]));
 }
 
 TEST(EnumReflectionTest, IsEnumType) {
