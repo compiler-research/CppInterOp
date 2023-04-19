@@ -183,7 +183,7 @@ namespace Cpp {
     return false;
   }
 
-  TCppType_t GetEnumIntegerType(TCppScope_t handle) {
+  TCppType_t GetIntegerTypeFromEnumScope(TCppScope_t handle) {
     auto *D = (clang::Decl *)handle;
     if (auto *ED = llvm::dyn_cast_or_null<clang::EnumDecl>(D)) {
       return ED->getIntegerType().getAsOpaquePtr();

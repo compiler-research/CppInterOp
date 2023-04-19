@@ -83,7 +83,7 @@ TEST(EnumReflectionTest, IsEnumType) {
   EXPECT_TRUE(Cpp::IsEnumType(Cpp::GetVariableType(Decls[5])));
 }
 
-TEST(EnumReflectionTest, GetEnumIntegerType) {
+TEST(EnumReflectionTest, GetIntegerTypeFromEnumScope) {
   std::vector<Decl *> Decls;
   std::string code = R"(
     enum Switch : bool {
@@ -114,13 +114,11 @@ TEST(EnumReflectionTest, GetEnumIntegerType) {
 
   GetAllTopLevelDecls(code, Decls);
 
-  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetEnumIntegerType(Decls[0])), "bool");
-  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetEnumIntegerType(Decls[1])), "char");
-  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetEnumIntegerType(Decls[2])), "int");
-  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetEnumIntegerType(Decls[3])),
-            "long long");
-  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetEnumIntegerType(Decls[4])),
-            "unsigned int");
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetIntegerTypeFromEnumScope(Decls[0])), "bool");
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetIntegerTypeFromEnumScope(Decls[1])), "char");
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetIntegerTypeFromEnumScope(Decls[2])), "int");
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetIntegerTypeFromEnumScope(Decls[3])), "long long");
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetIntegerTypeFromEnumScope(Decls[4])), "unsigned int");
 }
 
 TEST(EnumReflectionTest, GetEnumConstants) {
