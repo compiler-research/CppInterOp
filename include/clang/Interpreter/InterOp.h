@@ -56,6 +56,8 @@ namespace InterOp {
 
   TCppType_t GetIntegerTypeFromEnumScope(TCppScope_t handle);
 
+  TCppType_t GetIntegerTypeFromEnumType(TCppType_t handle);
+
   std::vector<TCppScope_t> GetEnumConstants(TCppScope_t scope);
 
   TCppIndex_t GetEnumConstantValue(TCppScope_t scope);
