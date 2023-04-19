@@ -54,7 +54,7 @@ namespace InterOp {
   /// operator->.
   bool IsSmartPtrType(TCppType_t type);
 
-  TCppType_t GetEnumIntegerType(TCppScope_t handle);
+  TCppType_t GetIntegerTypeFromEnumScope(TCppScope_t handle);
 
   std::vector<TCppScope_t> GetEnumConstants(TCppScope_t scope);
 
