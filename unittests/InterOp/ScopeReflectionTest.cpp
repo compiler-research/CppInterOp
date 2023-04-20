@@ -15,6 +15,30 @@ using namespace TestUtils;
 using namespace llvm;
 using namespace clang;
 
+TEST(ScopeReflectionTest, IsAggregate) {
+  std::vector<Decl *> Decls;
+  std::string code = R"(
+    char cv[4] = {};
+    int x[] = {};
+    union u { int a; const char* b; };
+    struct S {
+      int x;
+      struct Foo {
+        int i;
+        int j;
+        int a[3];
+      } b;
+   };
+  )";
+
+  GetAllTopLevelDecls(code, Decls);
+  EXPECT_TRUE(InterOp::IsAggregate(Decls[0]));
+  EXPECT_TRUE(InterOp::IsAggregate(Decls[1]));
+  EXPECT_TRUE(InterOp::IsAggregate(Decls[2]));
+  EXPECT_TRUE(InterOp::IsAggregate(Decls[3]));
+}
+
+
 // Check that the CharInfo table has been constructed reasonably.
 TEST(ScopeReflectionTest, IsNamespace) {
   std::vector<Decl*> Decls;

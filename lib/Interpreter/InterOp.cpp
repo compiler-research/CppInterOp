@@ -47,6 +47,21 @@ namespace InterOp {
     return llvm::DebugFlag;
   }
 
+  bool IsAggregate(TCppScope_t scope) {
+    Decl *D = static_cast<Decl*>(scope);
+
+    // Aggregates are only arrays or tag decls.
+    if (ValueDecl *ValD = dyn_cast<ValueDecl>(D))
+      if (ValD->getType()->isArrayType())
+        return true;
+
+    // struct, class, union
+    if (CXXRecordDecl *CXXRD = dyn_cast<CXXRecordDecl>(D))
+      return CXXRD->isAggregate();
+
+    return false;
+  }
+
   bool IsNamespace(TCppScope_t scope) {
     Decl *D = static_cast<Decl*>(scope);
     return isa<NamespaceDecl>(D);
