@@ -29,6 +29,9 @@ namespace Cpp {
   ///\returns true if the debugging printouts on stderr are enabled.
   bool IsDebugOutputEnabled();
 
+  ///\returns true if the scope supports aggregate initialization.
+  bool IsAggregate(TCppScope_t scope);
+
   bool IsNamespace(TCppScope_t scope);
 
   bool IsClass(TCppScope_t scope);
