@@ -238,10 +238,9 @@ namespace InterOp {
       return nullptr;
 
     auto *D = (clang::Decl *)handle;
-    if (auto *ECD = llvm::dyn_cast<clang::EnumConstantDecl>(D)) {
-      auto *VD = llvm::dyn_cast<clang::ValueDecl>(D);
-      return VD->getType().getAsOpaquePtr();
-    }
+    if (auto *ECD = llvm::dyn_cast<clang::EnumConstantDecl>(D))
+      return ECD->getType().getAsOpaquePtr();
+
     return 0;
   }
 
