@@ -26,21 +26,31 @@ TEST(FunctionReflectionTest, GetClassMethods) {
     protected:
       int f5(int i) { return i; }
     };
+
+    typedef A shadow_A;
     )";
 
   GetAllTopLevelDecls(code, Decls);
   Sema *S = &Interp->getCI()->getSema();
-  auto methods = Cpp::GetClassMethods(S, Decls[0]);
+  auto methods0 = Cpp::GetClassMethods(S, Decls[0]);
 
   auto get_method_name = [](Cpp::TCppFunction_t method) {
     return Cpp::GetQualifiedName(method);
   };
 
-  EXPECT_EQ(get_method_name(methods[0]), "A::f1");
-  EXPECT_EQ(get_method_name(methods[1]), "A::f2");
-  EXPECT_EQ(get_method_name(methods[2]), "A::f3");
-  EXPECT_EQ(get_method_name(methods[3]), "A::f4");
-  EXPECT_EQ(get_method_name(methods[4]), "A::f5");
+  EXPECT_EQ(get_method_name(methods0[0]), "A::f1");
+  EXPECT_EQ(get_method_name(methods0[1]), "A::f2");
+  EXPECT_EQ(get_method_name(methods0[2]), "A::f3");
+  EXPECT_EQ(get_method_name(methods0[3]), "A::f4");
+  EXPECT_EQ(get_method_name(methods0[4]), "A::f5");
+
+  auto methods1 = Cpp::GetClassMethods(S, Decls[1]);
+  EXPECT_EQ(methods0.size(), methods1.size());
+  EXPECT_EQ(methods0[0], methods1[0]);
+  EXPECT_EQ(methods0[1], methods1[1]);
+  EXPECT_EQ(methods0[2], methods1[2]);
+  EXPECT_EQ(methods0[3], methods1[3]);
+  EXPECT_EQ(methods0[4], methods1[4]);
 }
 
 TEST(FunctionReflectionTest, ConstructorInGetClassMethods) {
