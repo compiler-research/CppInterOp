@@ -624,6 +624,13 @@ namespace Cpp {
                                                     TCppScope_t scope,
                                                     const std::string &name) {
     auto *D = (Decl *) scope;
+
+    if (!scope || name.empty())
+      return {};
+
+    if (auto *TD = llvm::dyn_cast<TypedefNameDecl>(D))
+      D = GetScopeFromType(TD->getUnderlyingType());
+
     std::vector<TCppFunction_t> funcs;
     llvm::StringRef Name(name);
     auto *S = (Sema *)sema;
