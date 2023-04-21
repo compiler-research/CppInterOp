@@ -180,8 +180,8 @@ public:
     return inner->Execute(T);
   }
 
-  llvm::Error ParseAndExecute(llvm::StringRef Code) {
-    return inner->ParseAndExecute(Code);
+  llvm::Error ParseAndExecute(llvm::StringRef Code, clang::Value * V = nullptr) {
+    return inner->ParseAndExecute(Code, V);
   }
 
   llvm::Error Undo(unsigned N = 1) {
@@ -203,21 +203,30 @@ public:
   llvm::Expected<llvm::orc::ExecutorAddr>
   getSymbolAddress(clang::GlobalDecl GD) const {
     makeEngineOnce();
-    return compat::getSymbolAddress(*inner, GD);
+    auto AddrOrErr = compat::getSymbolAddress(*inner, GD);
+    if (llvm::Error Err = AddrOrErr.takeError())
+      return std::move(Err);
+    return llvm::orc::ExecutorAddr(*AddrOrErr);
   }
 
   /// \returns the \c ExecutorAddr of a given name as written in the IR.
   llvm::Expected<llvm::orc::ExecutorAddr>
   getSymbolAddress(llvm::StringRef IRName) const {
     makeEngineOnce();
-    return compat::getSymbolAddress(*inner, IRName);
+    auto AddrOrErr = compat::getSymbolAddress(*inner, IRName);
+    if (llvm::Error Err = AddrOrErr.takeError())
+      return std::move(Err);
+    return llvm::orc::ExecutorAddr(*AddrOrErr);
   }
 
   /// \returns the \c ExecutorAddr of a given name as written in the object
   /// file.
   llvm::Expected<llvm::orc::ExecutorAddr>
   getSymbolAddressFromLinkerName(llvm::StringRef LinkerName) const {
-    return compat::getSymbolAddressFromLinkerName(*inner, LinkerName);
+    auto AddrOrErr = compat::getSymbolAddressFromLinkerName(*inner, LinkerName);
+    if (llvm::Error Err = AddrOrErr.takeError())
+      return std::move(Err);
+    return llvm::orc::ExecutorAddr(*AddrOrErr);
   }
 
   bool isInSyntaxOnlyMode() const {
@@ -229,7 +238,7 @@ public:
   void* getAddressOfGlobal(const clang::GlobalDecl& GD) const {
     auto addressOrErr = getSymbolAddress(GD);
     if (addressOrErr)
-      return (void *)(*addressOrErr);
+      return addressOrErr->toPtr<void*>();
 
     llvm::consumeError(addressOrErr.takeError()); // okay to be missing
     return nullptr;
@@ -241,7 +250,7 @@ public:
 
     auto addressOrErr = getSymbolAddressFromLinkerName(SymName); //TODO: Or getSymbolAddress
     if (addressOrErr)
-      return (void *)(*addressOrErr);
+      return addressOrErr->toPtr<void*>();
 
     llvm::consumeError(addressOrErr.takeError()); // okay to be missing
     return nullptr;
@@ -255,9 +264,10 @@ public:
   ///\brief Maybe transform the input line to implement cint command line
   /// semantics (declarations are global) and compile to produce a module.
   ///
-  CompilationResult process(const std::string &input, llvm::Value *V = 0,
-                            clang::PartialTranslationUnit **PTU = nullptr,
-                            bool disableValuePrinting = false) {
+  CompilationResult
+  process(const std::string& input, clang::Value* V = 0,
+          clang::PartialTranslationUnit **PTU = nullptr,
+          bool disableValuePrinting = false) {
     auto PTUOrErr = Parse(input);
     if (!PTUOrErr) {
       llvm::logAllUnhandledErrors(PTUOrErr.takeError(), llvm::errs(), "Failed to parse via ::process:");
@@ -268,6 +278,15 @@ public:
 
     if (auto Err = Execute(*PTUOrErr)) {
       llvm::logAllUnhandledErrors(std::move(Err), llvm::errs(), "Failed to execute via ::process:");
+      return Interpreter::kFailure;
+    }
+    return Interpreter::kSuccess;
+  }
+
+  CompilationResult
+  evaluate(const std::string& input, clang::Value& V) {
+    if (auto Err = ParseAndExecute(input, &V)) {
+      llvm::logAllUnhandledErrors(std::move(Err), llvm::errs(), "Failed to execute via ::evaluate:");
       return Interpreter::kFailure;
     }
     return Interpreter::kSuccess;

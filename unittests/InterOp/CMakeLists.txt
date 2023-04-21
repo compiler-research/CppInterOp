@@ -28,3 +28,5 @@ target_link_libraries(InterOpTests
   clangBasic
   clangLex
   )
+
+export_executable_symbols(InterOpTests)
