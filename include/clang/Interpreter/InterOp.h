@@ -212,6 +212,10 @@ namespace InterOp {
   ///\returns 0 on success
   int Process(TInterp_t interp, const char *code);
 
+  /// Declares, runs and returns the execution result as a intptr_t.
+  ///\returns the expression results as a intptr_t.
+  intptr_t Evaluate(TInterp_t interp, const char *code, bool *HadError = nullptr);
+
   const std::string LookupLibrary(TInterp_t interp, const char *lib_name);
 
   bool LoadLibrary(TInterp_t interp, const char *lib_path, bool lookup = true);
