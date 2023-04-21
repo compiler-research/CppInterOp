@@ -25,6 +25,18 @@ TEST(InterpreterTest, DebugFlag) {
   EXPECT_STREQ(cerrs.c_str(), "");
 }
 
+TEST(InterpreterTest, Evaluate) {
+  auto I = Cpp::CreateInterpreter();
+  //  EXPECT_TRUE(Cpp::Evaluate(I, "") == 0);
+  EXPECT_TRUE(Cpp::Evaluate(I, "__cplusplus;") == 201402);
+
+  bool HadError;
+  EXPECT_TRUE(Cpp::Evaluate(I, "#error", &HadError) == (intptr_t)~0UL);
+  EXPECT_TRUE(HadError);
+  EXPECT_EQ(Cpp::Evaluate(I, "int i = 11; ++i;", &HadError), 12);
+  EXPECT_FALSE(HadError) ;
+}
+
 TEST(InterpreterTest, Process) {
   auto I = Cpp::CreateInterpreter();
   EXPECT_TRUE(Cpp::Process(I, "") == 0);

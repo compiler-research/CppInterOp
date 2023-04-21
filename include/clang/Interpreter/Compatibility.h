@@ -22,6 +22,8 @@
 #include "cling/Interpreter/DynamicLibraryManager.h"
 #include "cling/Interpreter/Interpreter.h"
 #include "cling/Interpreter/Transaction.h"
+#include "cling/Interpreter/Value.h"
+
 #include "cling/Utils/AST.h"
 
 namespace Cpp {
@@ -51,6 +53,7 @@ namespace compat {
 #include "clang/AST/Mangle.h"
 #include "clang/Interpreter/DynamicLibraryManager.h"
 #include "clang/Interpreter/Interpreter.h"
+#include "clang/Interpreter/Value.h"
 
 #include "llvm/Support/Error.h"
 
@@ -88,10 +91,9 @@ namespace compat {
   //            getSymbolAddress, getSymbolAddressFromLinkerName
   // Clang 15 - Add new Interpreter methods: Undo
 
-  inline const llvm::orc::LLJIT *
-  getExecutionEngine(const clang::Interpreter &I) {
+  inline const llvm::orc::LLJIT *getExecutionEngine(clang::Interpreter &I)  {
 #if CLANG_VERSION_MAJOR >= 14
-    return I.getExecutionEngine();
+    return &llvm::cantFail(I.getExecutionEngine());
 #else
     assert(0 && "Not implemented in Clang <14!");
     return nullptr;
@@ -101,7 +103,10 @@ namespace compat {
   inline llvm::Expected<llvm::JITTargetAddress>
   getSymbolAddress(const clang::Interpreter &I, clang::GlobalDecl GD) {
 #if CLANG_VERSION_MAJOR >= 14
-    return I.getSymbolAddress(GD);
+    auto AddrOrErr = I.getSymbolAddress(GD);
+    if (llvm::Error Err = AddrOrErr.takeError())
+      return std::move(Err);
+    return AddrOrErr->getValue();
 #else
     assert(0 && "Not implemented in Clang <14!");
     return llvm::createStringError(llvm::inconvertibleErrorCode(),
@@ -112,7 +117,10 @@ namespace compat {
   inline llvm::Expected<llvm::JITTargetAddress>
   getSymbolAddress(const clang::Interpreter &I, llvm::StringRef IRName) {
 #if CLANG_VERSION_MAJOR >= 14
-    return I.getSymbolAddress(IRName);
+    auto AddrOrErr = I.getSymbolAddress(IRName);
+    if (llvm::Error Err = AddrOrErr.takeError())
+      return std::move(Err);
+    return AddrOrErr->getValue();
 #else
     assert(0 && "Not implemented in Clang <14!");
     return llvm::createStringError(llvm::inconvertibleErrorCode(),
@@ -123,7 +131,10 @@ namespace compat {
   inline llvm::Expected<llvm::JITTargetAddress>
   getSymbolAddressFromLinkerName(const clang::Interpreter &I, llvm::StringRef LinkerName) {
 #if CLANG_VERSION_MAJOR >= 14
-    return I.getSymbolAddressFromLinkerName(LinkerName);
+    auto AddrOrErr = I.getSymbolAddressFromLinkerName(LinkerName);
+    if (llvm::Error Err = AddrOrErr.takeError())
+      return std::move(Err);
+    return AddrOrErr->getValue();
 #else
     assert(0 && "Not implemented in Clang <14!");
     return llvm::createStringError(llvm::inconvertibleErrorCode(),
