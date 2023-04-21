@@ -197,25 +197,25 @@ public:
     }
   }
 
-  /// \returns the \c JITTargetAddress of a \c GlobalDecl. This interface uses
+  /// \returns the \c ExecutorAddr of a \c GlobalDecl. This interface uses
   /// the CodeGenModule's internal mangling cache to avoid recomputing the
   /// mangled name.
-  llvm::Expected<llvm::JITTargetAddress>
+  llvm::Expected<llvm::orc::ExecutorAddr>
   getSymbolAddress(clang::GlobalDecl GD) const {
     makeEngineOnce();
     return compat::getSymbolAddress(*inner, GD);
   }
 
-  /// \returns the \c JITTargetAddress of a given name as written in the IR.
-  llvm::Expected<llvm::JITTargetAddress>
+  /// \returns the \c ExecutorAddr of a given name as written in the IR.
+  llvm::Expected<llvm::orc::ExecutorAddr>
   getSymbolAddress(llvm::StringRef IRName) const {
     makeEngineOnce();
     return compat::getSymbolAddress(*inner, IRName);
   }
 
-  /// \returns the \c JITTargetAddress of a given name as written in the object
+  /// \returns the \c ExecutorAddr of a given name as written in the object
   /// file.
-  llvm::Expected<llvm::JITTargetAddress>
+  llvm::Expected<llvm::orc::ExecutorAddr>
   getSymbolAddressFromLinkerName(llvm::StringRef LinkerName) const {
     return compat::getSymbolAddressFromLinkerName(*inner, LinkerName);
   }
