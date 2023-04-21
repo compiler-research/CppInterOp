@@ -26,6 +26,12 @@ TEST(FunctionReflectionTest, GetClassMethods) {
     protected:
       int f5(int i) { return i; }
     };
+    class Empty {};
+    class B : public A {};
+    class C: public B {
+    public:
+        using B::B;
+    };
     )";
 
   GetAllTopLevelDecls(code, Decls);
@@ -41,6 +47,14 @@ TEST(FunctionReflectionTest, GetClassMethods) {
   EXPECT_EQ(get_method_name(methods[2]), "A::f3");
   EXPECT_EQ(get_method_name(methods[3]), "A::f4");
   EXPECT_EQ(get_method_name(methods[4]), "A::f5");
+
+  Decl* EmptyD = Decls[1];
+  size_t EmptyDSize = InterOp::GetClassMethods(S, EmptyD).size();
+  EXPECT_EQ(EmptyDSize, 6);
+  Decl* BD = Decls[2];
+  size_t BDSize = InterOp::GetClassMethods(S, BD).size();
+  EXPECT_EQ(BDSize - EmptyDSize, methods.size());
+  EXPECT_EQ(InterOp::GetClassMethods(S, Decls[3]).size(), BDSize + EmptyDSize);
 }
 
 TEST(FunctionReflectionTest, ConstructorInGetClassMethods) {

@@ -103,6 +103,9 @@ namespace InterOp {
 
   int64_t GetBaseClassOffset(TCppSema_t sema, TCppScope_t derived, TCppScope_t base);
 
+  ///\returns the list of methods for a struct or a class including the methods
+  /// from its bases. \note This is a very slow operation, consider using the
+  /// lookup interfaces where possible.
   std::vector<TCppFunction_t> GetClassMethods(TCppSema_t sema, TCppScope_t klass);
 
   bool HasDefaultConstructor(TCppScope_t scope);

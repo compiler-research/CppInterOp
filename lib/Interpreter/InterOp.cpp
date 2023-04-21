@@ -579,15 +579,22 @@ namespace InterOp {
   std::vector<TCppFunction_t> GetClassMethods(TCppSema_t sema, TCppScope_t klass)
   {
     auto *D = (clang::Decl *) klass;
+
+    if (!D)
+      return {};
+
     auto *S = (Sema *) sema;
 
-    if (auto *CXXRD = llvm::dyn_cast_or_null<CXXRecordDecl>(D)) {
-      S->ForceDeclarationOfImplicitMembers(CXXRD);
+    if (auto *CXXRD = llvm::dyn_cast<CXXRecordDecl>(D)) {
       std::vector<TCppFunction_t> methods;
-      for (auto it = CXXRD->method_begin(), end = CXXRD->method_end();
-              it != end; it++) {
-        methods.push_back((TCppFunction_t) *it);
-      }
+      auto GetMethods = [&methods, &S](const CXXRecordDecl *RD) {
+        S->ForceDeclarationOfImplicitMembers(const_cast<CXXRecordDecl*>(RD));
+        for (auto *M : RD->methods())
+          methods.push_back(M);
+        return true; // continue to the next base.
+      };
+      GetMethods(CXXRD);
+      CXXRD->forallBases(GetMethods);
       return methods;
     }
     return {};
