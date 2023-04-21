@@ -2194,6 +2194,29 @@ namespace InterOp {
     return I->process(code);
   }
 
+  intptr_t Evaluate(TInterp_t interp, const char *code,
+                    bool *HadError/*=nullptr*/) {
+    auto* I = (compat::Interpreter*)interp;
+
+#ifdef USE_CLING
+    cling::Value V;
+#else
+    clang::Value V;
+#endif // USE_CLING
+
+    if (HadError)
+      *HadError = false;
+    auto res = I->evaluate(code, V);
+    if (res != 0) { // 0 is success
+      if (HadError)
+        *HadError = true;
+      // FIXME: Make this return llvm::Expected
+      return ~0UL;
+    }
+
+    return V.castAs<intptr_t>();
+  }
+
   const std::string LookupLibrary(TInterp_t interp, const char *lib_name) {
     auto* I = (compat::Interpreter*)interp;
 
