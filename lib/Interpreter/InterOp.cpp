@@ -581,6 +581,12 @@ namespace InterOp {
     auto *D = (clang::Decl *) klass;
     auto *S = (Sema *) sema;
 
+    if (!klass)
+      return {};
+
+    if (auto *TD = llvm::dyn_cast<TypedefNameDecl>(D))
+      D = GetScopeFromType(TD->getUnderlyingType());
+
     if (auto *CXXRD = llvm::dyn_cast_or_null<CXXRecordDecl>(D)) {
       S->ForceDeclarationOfImplicitMembers(CXXRD);
       std::vector<TCppFunction_t> methods;
