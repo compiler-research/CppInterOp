@@ -28,12 +28,15 @@ TEST(InterpreterTest, DebugFlag) {
 TEST(InterpreterTest, Evaluate) {
   auto I = InterOp::CreateInterpreter();
   //  EXPECT_TRUE(InterOp::Evaluate(I, "") == 0);
-  EXPECT_TRUE(InterOp::Evaluate(I, "__cplusplus;") == 201402);
+  //EXPECT_TRUE(InterOp::Evaluate(I, "__cplusplus;") == 201402);
+  // Due to a deficiency in the clang-repl implementation to get the value we
+  // always must omit the ;
+  EXPECT_TRUE(InterOp::Evaluate(I, "__cplusplus") == 201402);
 
   bool HadError;
   EXPECT_TRUE(InterOp::Evaluate(I, "#error", &HadError) == (intptr_t)~0UL);
   EXPECT_TRUE(HadError);
-  EXPECT_EQ(InterOp::Evaluate(I, "int i = 11; ++i;", &HadError), 12);
+  EXPECT_EQ(InterOp::Evaluate(I, "int i = 11; ++i", &HadError), 12);
   EXPECT_FALSE(HadError) ;
 }
 
