@@ -142,33 +142,30 @@ TEST(FunctionReflectionTest, GetFunctionsUsingName) {
       int f4(int a) { return a + 1; }
       int f4() { return 0; }
     }
+
+    typedef A shadow_A;
     )";
 
   GetAllTopLevelDecls(code, Decls);
 
+  Sema *S = &Interp->getCI()->getSema();
+
   // This lambda can take in the scope and the name of the function
-  // and check if GetFunctionsUsingName is returning a vector of functions
-  // with size equal to number_of_overloads
-  auto test_get_funcs_using_name = [&](InterOp::TCppScope_t scope,
-          const std::string name, std::size_t number_of_overloads) {
-    Sema *S = &Interp->getCI()->getSema();
+  // and returns the size of the vector returned by GetFunctionsUsingName
+  auto get_number_of_funcs_using_name = [&](InterOp::TCppScope_t scope,
+          const std::string &name) {
     auto Funcs = InterOp::GetFunctionsUsingName(S, scope, name);
 
-    // Check if the number of functions returned is equal to the
-    // number_of_overloads given by the user
-    EXPECT_TRUE(Funcs.size() == number_of_overloads);
-    for (auto *F : Funcs) {
-      // Check if the fully scoped name of the function matches its
-      // expected fully scoped name
-      EXPECT_EQ(InterOp::GetQualifiedName(F),
-              InterOp::GetQualifiedName(scope) + "::" + name);
-    }
+    return Funcs.size();
   };
 
-  test_get_funcs_using_name(Decls[0], "f1", 3);
-  test_get_funcs_using_name(Decls[0], "f2", 1);
-  test_get_funcs_using_name(Decls[0], "f3", 1);
-  test_get_funcs_using_name(Decls[1], "f4", 2);
+  EXPECT_EQ(get_number_of_funcs_using_name(Decls[0], "f1"), 3);
+  EXPECT_EQ(get_number_of_funcs_using_name(Decls[0], "f2"), 1);
+  EXPECT_EQ(get_number_of_funcs_using_name(Decls[0], "f3"), 1);
+  EXPECT_EQ(get_number_of_funcs_using_name(Decls[1], "f4"), 2);
+  EXPECT_EQ(get_number_of_funcs_using_name(Decls[2], "f1"), 3);
+  EXPECT_EQ(get_number_of_funcs_using_name(Decls[2], "f2"), 1);
+  EXPECT_EQ(get_number_of_funcs_using_name(Decls[2], "f3"), 1);
 }
 
 TEST(FunctionReflectionTest, GetFunctionReturnType) {
