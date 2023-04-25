@@ -1276,6 +1276,15 @@ namespace InterOp {
       callbuf << ")";
     }
 
+    const DeclContext* get_non_transparent_decl_context(const FunctionDecl* FD) {
+      auto *DC = FD->getDeclContext();
+      while (DC->isTransparentContext()) {
+        DC = DC->getParent();
+        assert(DC && "All transparent contexts should have a parent!");
+      }
+      return DC;
+    }
+
     void make_narg_call(const FunctionDecl* FD, const std::string& return_type,
                         const unsigned N, std::ostringstream& typedefbuf,
                         std::ostringstream& callbuf,
@@ -1338,8 +1347,8 @@ namespace InterOp {
           callbuf << "((const " << class_name << "*)obj)->";
         else
           callbuf << "((" << class_name << "*)obj)->";
-      } else if (const NamedDecl *ND =
-                     dyn_cast<NamedDecl>(FD->getDeclContext())) {
+      } else if (const NamedDecl* ND =
+                     dyn_cast<NamedDecl>(get_non_transparent_decl_context(FD))) {
         // This is a namespace member.
         (void)ND;
         callbuf << class_name << "::";
@@ -1612,7 +1621,7 @@ namespace InterOp {
       //  Get the class or namespace name.
       //
       std::string class_name;
-      const clang::DeclContext *DC = FD->getDeclContext();
+      const clang::DeclContext* DC = get_non_transparent_decl_context(FD);
       if (const TypeDecl* TD = dyn_cast<TypeDecl>(DC)) {
         // This is a class, struct, or union member.
         QualType QT(TD->getTypeForDecl(), 0);
