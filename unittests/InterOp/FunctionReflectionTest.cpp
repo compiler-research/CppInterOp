@@ -523,27 +523,48 @@ TEST(FunctionReflectionTest, GetFunctionCallWrapper) {
     void f2(std::string &s) { printf("%s", s.c_str()); };
   )");
 
+  Interp->process(R"(
+    namespace NS {
+      int f3() { return 3; }
+
+      extern "C" int f4() { return 4; }
+    }
+  )");
+
   Sema *S = &Interp->getCI()->getSema();
 
-  InterOp::CallFuncWrapper_t wrapper0 =
-      InterOp::GetFunctionCallWrapper((InterOp::TInterp_t) Interp.get(),
-                                      Decls[0]);
   InterOp::CallFuncWrapper_t wrapper1 =
       InterOp::GetFunctionCallWrapper((InterOp::TInterp_t) Interp.get(),
+                                      Decls[0]);
+  InterOp::CallFuncWrapper_t wrapper2 =
+      InterOp::GetFunctionCallWrapper((InterOp::TInterp_t) Interp.get(),
                                       InterOp::GetNamed(S, "f2"));
-  int i = 9, ret;
+  InterOp::CallFuncWrapper_t wrapper3 =
+      InterOp::GetFunctionCallWrapper((InterOp::TInterp_t) Interp.get(),
+                                      InterOp::GetNamed(S, "f3", InterOp::GetNamed(S, "NS")));
+  InterOp::CallFuncWrapper_t wrapper4 =
+      InterOp::GetFunctionCallWrapper((InterOp::TInterp_t) Interp.get(),
+                                      InterOp::GetNamed(S, "f4", InterOp::GetNamed(S, "NS")));
+
+  int i = 9, ret1, ret3, ret4;
   std::string s("Hello World!\n");
   void *args0[1] = { (void *) &i };
   void *args1[1] = { (void *) &s };
 
-  wrapper0(0, 1, args0, &ret);
+  wrapper1(0, 1, args0, &ret1);
 
   testing::internal::CaptureStdout();
-  wrapper1(0, 1, args1, 0);
+  wrapper2(0, 1, args1, 0);
   std::string output = testing::internal::GetCapturedStdout();
 
-  EXPECT_EQ(ret, i * i);
+  wrapper3(0, 0, 0, &ret3);
+
+  wrapper4(0, 0, 0, &ret4);
+
+  EXPECT_EQ(ret1, i * i);
   EXPECT_EQ(output, s);
+  EXPECT_EQ(ret3, 3);
+  EXPECT_EQ(ret4, 4);
 }
 
 TEST(FunctionReflectionTest, IsConstMethod) {
