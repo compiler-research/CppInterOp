@@ -11,22 +11,9 @@ add_cppinterop_unittest(CppInterOpTests
   Utils.cpp
   VariableReflectionTest.cpp
   )
-
-if (USE_CLING)
-  set(cling_clang_interp "clingInterpreter")
-endif()
-if (USE_REPL)
-  set(cling_clang_interp "clangInterpreter")
-endif()
-
-
 target_link_libraries(CppInterOpTests
   PRIVATE
-  ${cling_clang_interp}
   clangCppInterOp
-  clangAST
-  clangBasic
-  clangLex
   )
 
 export_executable_symbols(CppInterOpTests)
