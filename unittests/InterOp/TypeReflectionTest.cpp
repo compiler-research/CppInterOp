@@ -104,14 +104,14 @@ TEST(TypeReflectionTest, GetType) {
   Sema *S = &Interp->getCI()->getSema();
 
   std::string code =  R"(
-    #include <string>
+    class A {};
     )";
 
   Interp->declare(code);
 
   EXPECT_EQ(InterOp::GetTypeAsString(InterOp::GetType(S, "int")), "int");
   EXPECT_EQ(InterOp::GetTypeAsString(InterOp::GetType(S, "double")), "double");
-  EXPECT_EQ(InterOp::GetTypeAsString(InterOp::GetType(S, "std::string")), "std::string");
+  EXPECT_EQ(InterOp::GetTypeAsString(InterOp::GetType(S, "A")), "A");
 }
 
 TEST(TypeReflectionTest, IsRecordType) {
