@@ -230,10 +230,10 @@ if( CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR )
   # than llvm and the header files should be found first (even though the
   # LLVM_INCLUDE_DIRS) contain clang headers, too.
   if (USE_CLING)
-    include_directories(${CLING_INCLUDE_DIRS})
+    include_directories(SYSTEM ${CLING_INCLUDE_DIRS})
   endif(USE_CLING)
-  include_directories(${CLANG_INCLUDE_DIRS})
-  include_directories(${LLVM_INCLUDE_DIRS})
+  include_directories(SYSTEM ${CLANG_INCLUDE_DIRS})
+  include_directories(SYSTEM ${LLVM_INCLUDE_DIRS})
   separate_arguments(LLVM_DEFINITIONS_LIST NATIVE_COMMAND ${LLVM_DEFINITIONS})
   add_definitions(${LLVM_DEFINITIONS_LIST})
 
@@ -253,13 +253,13 @@ if( CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR )
     #
     # FIXME: We only support in-tree builds of clang, that is clang being built
     # in llvm_src/tools/clang.
-    include_directories(${LLVM_BUILD_MAIN_SRC_DIR}/tools/clang/include/)
+    include_directories(SYSTEM ${LLVM_BUILD_MAIN_SRC_DIR}/tools/clang/include/)
 
     if (NOT LLVM_BUILD_BINARY_DIR)
       message(FATAL "LLVM_BUILD_* values should be available for the build tree")
     endif()
 
-    include_directories(${LLVM_BUILD_BINARY_DIR}/tools/clang/include/)
+    include_directories(SYSTEM ${LLVM_BUILD_BINARY_DIR}/tools/clang/include/)
   endif()
 
   set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib/)
@@ -303,13 +303,13 @@ endif ()
 
 # FIXME: Use merge this with the content from the LLVMConfig and ClangConfig.
 if (NOT CPPINTEROP_BUILT_STANDALONE)
-include_directories(BEFORE
+include_directories(BEFORE SYSTEM
   ${CMAKE_CURRENT_BINARY_DIR}/../clang/include
   ${CMAKE_CURRENT_SOURCE_DIR}/../clang/include
   )
 endif()
 
-include_directories(BEFORE
+include_directories(BEFORE SYSTEM
   ${CMAKE_CURRENT_BINARY_DIR}/include
   ${CMAKE_CURRENT_SOURCE_DIR}/include
   )
