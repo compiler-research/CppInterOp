@@ -1114,7 +1114,7 @@ namespace Cpp {
     if (!builtin.isNull())
       return builtin.getAsOpaquePtr();
 
-    auto *D = (Decl *)GetScopeFromCompleteName(S, name);
+    auto *D = (Decl *)GetNamed(S, name, /* Within= */ 0);
     if (auto *TD = llvm::dyn_cast_or_null<TypeDecl>(D)) {
       return QualType(TD->getTypeForDecl(), 0).getAsOpaquePtr();
     }
