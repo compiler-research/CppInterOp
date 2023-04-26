@@ -104,16 +104,15 @@ TEST(TypeReflectionTest, GetType) {
       static_cast<compat::Interpreter *>(InterOp::CreateInterpreter()));
   Sema *S = &Interp->getCI()->getSema();
 
-  std::string code = R"(
-    #include <string>
+  std::string code =  R"(
+    class A {};
     )";
 
   Interp->declare(code);
 
   EXPECT_EQ(InterOp::GetTypeAsString(InterOp::GetType(S, "int")), "int");
   EXPECT_EQ(InterOp::GetTypeAsString(InterOp::GetType(S, "double")), "double");
-  EXPECT_EQ(InterOp::GetTypeAsString(InterOp::GetType(S, "std::string")),
-            "std::string");
+  EXPECT_EQ(InterOp::GetTypeAsString(InterOp::GetType(S, "A")), "A");
 }
 
 TEST(TypeReflectionTest, IsRecordType) {
