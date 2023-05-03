@@ -670,11 +670,12 @@ TEST(FunctionReflectionTest, GetFunctionArgDefault) {
   EXPECT_EQ(InterOp::GetFunctionArgDefault(Decls[1], 2), "34126");
 }
 
-TEST(FunctionReflectionTest, DISABLED_Construct) {
+TEST(FunctionReflectionTest, Construct) {
   Interp.reset(static_cast<compat::Interpreter*>(InterOp::CreateInterpreter()));
   Sema *S = &Interp->getCI()->getSema();
 
   Interp->declare(R"(
+    extern "C" int printf(const char*,...);
     class C {
       C() {
         printf("Constructor Executed");
@@ -683,18 +684,25 @@ TEST(FunctionReflectionTest, DISABLED_Construct) {
     )");
 
   testing::internal::CaptureStdout();
-  InterOp::TCppType_t type = InterOp::GetTypeFromScope(InterOp::GetNamed(S, "C"));
-  // TCppObject_t object = InterOp::Construct(type);
+  InterOp::TCppScope_t scope = InterOp::GetNamed(S, "C");
+  InterOp::TCppObject_t object = InterOp::Construct(Interp.get(), scope);
+  EXPECT_TRUE(object != nullptr);
   std::string output = testing::internal::GetCapturedStdout();
-
   EXPECT_EQ(output, "Constructor Executed");
+  output.clear();
+
+  // Placement.
+  void* where = InterOp::Allocate(scope);
+  EXPECT_TRUE(where == InterOp::Construct(Interp.get(), scope, where));
+  InterOp::Deallocate(scope, where);
 }
 
-TEST(FunctionReflectionTest, DISABLED_Destruct) {
+TEST(FunctionReflectionTest, Destruct) {
   Interp.reset(static_cast<compat::Interpreter*>(InterOp::CreateInterpreter()));
   Sema *S = &Interp->getCI()->getSema();
 
   Interp->declare(R"(
+    extern "C" int printf(const char*,...);
     class C {
       C() {}
       ~C() {
@@ -704,9 +712,9 @@ TEST(FunctionReflectionTest, DISABLED_Destruct) {
     )");
 
   testing::internal::CaptureStdout();
-  InterOp::TCppType_t type = InterOp::GetTypeFromScope(InterOp::GetNamed(S, "C"));
-  // TCppObject_t object = InterOp::Construct(type);
-  // InterOp::Destruct(object, type)
+  InterOp::TCppScope_t scope = InterOp::GetNamed(S, "C");
+  InterOp::TCppObject_t object = InterOp::Construct(Interp.get(), scope);
+  InterOp::Destruct(Interp.get(), object, scope);
   std::string output = testing::internal::GetCapturedStdout();
 
   EXPECT_EQ(output, "Destructor Executed");
