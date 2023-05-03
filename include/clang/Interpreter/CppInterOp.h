@@ -21,6 +21,7 @@ namespace Cpp {
   using TCppFuncAddr_t = void*;
   using TCppSema_t = void *;
   using TInterp_t = void*;
+  using TCppObject_t = void*;
   typedef void (*CallFuncWrapper_t)(void *, int, void **, void *);
 
   /// Enables or disables the debugging printouts on stderr.
@@ -249,6 +250,20 @@ namespace Cpp {
   }
 
   std::vector<long int> GetDimensions(TCppType_t type);
+
+  /// Allocates memory for a given class.
+  TCppObject_t Allocate(TCppScope_t scope);
+
+  /// Deallocates memory for a given class.
+  void Deallocate(TCppScope_t scope, TCppObject_t address);
+
+  /// Creates an object of class \c scope and calls its default constructor. If
+  /// \c arena is set it uses placement new.
+  TCppObject_t Construct(TInterp_t interp, TCppScope_t scope,
+                         void *arena = nullptr);
+
+  /// Calls the destructor of object of type \c type.
+  void Destruct(TInterp_t interp, TCppObject_t This, TCppScope_t type);
 } // end namespace Cpp
 
 #endif // CPPINTEROP_CPPINTEROP_H

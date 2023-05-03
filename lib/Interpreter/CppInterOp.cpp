@@ -1146,9 +1146,15 @@ namespace Cpp {
   namespace {
     static unsigned long long gWrapperSerial = 0LL;
     static const std::string kIndentString("   ");
-    static std::map<const FunctionDecl *, void *> gWrapperStore;
 
     enum EReferenceType { kNotReference, kLValueReference, kRValueReference };
+
+    // FIXME: Use that routine throughout CallFunc's port in places such as
+    // make_narg_call.
+    static inline void indent(ostringstream &buf, int indent_level) {
+      for (int i = 0; i < indent_level; ++i)
+        buf << kIndentString;
+    }
 
     void *compile_wrapper(compat::Interpreter *I,
                           const std::string &wrapper_name,
@@ -2061,6 +2067,12 @@ namespace Cpp {
 
     CallFuncWrapper_t make_wrapper(compat::Interpreter *I,
                                    const FunctionDecl *FD) {
+      static std::map<const FunctionDecl*, void *> gWrapperStore;
+
+      auto R = gWrapperStore.find(FD);
+      if (R != gWrapperStore.end())
+        return (CallFuncWrapper_t)R->second;
+
       std::string wrapper_name;
       std::string wrapper_code;
 
@@ -2083,6 +2095,388 @@ namespace Cpp {
       }
       return (CallFuncWrapper_t)wrapper;
     }
+
+    // FIXME: Sink in the code duplication from get_wrapper_code.
+    static std::string PrepareTorWrapper(const Decl* D,
+                                         const char* wrapper_prefix,
+                                         std::string& class_name) {
+      ASTContext &Context = D->getASTContext();
+      PrintingPolicy Policy(Context.getPrintingPolicy());
+      Policy.SuppressTagKeyword = true;
+      Policy.SuppressUnwrittenScope = true;
+      //
+      //  Get the class or namespace name.
+      //
+      if (const TypeDecl *TD = dyn_cast<TypeDecl>(D)) {
+        // This is a class, struct, or union member.
+        QualType QT(TD->getTypeForDecl(), 0);
+        get_type_as_string(QT, class_name, Context, Policy);
+      } else if (const NamedDecl *ND = dyn_cast<NamedDecl>(D)) {
+        // This is a namespace member.
+        raw_string_ostream stream(class_name);
+        ND->getNameForDiagnostic(stream, Policy, /*Qualified=*/true);
+        stream.flush();
+      }
+
+      //
+      //  Make the wrapper name.
+      //
+      string wrapper_name;
+      {
+        ostringstream buf;
+        buf << wrapper_prefix;
+        //const NamedDecl* ND = dyn_cast<NamedDecl>(FD);
+        //string mn;
+        //fInterp->maybeMangleDeclName(ND, mn);
+        //buf << '_dtor_' << mn;
+        buf << '_' << gWrapperSerial++;
+        wrapper_name = buf.str();
+      }
+
+      return wrapper_name;
+    }
+
+    typedef void (*CallFuncCtorWrapper_t)(void **, void *, unsigned long);
+    static CallFuncCtorWrapper_t make_ctor_wrapper(compat::Interpreter* interp,
+                                                   const Decl *D
+                                       /*ROOT::TMetaUtils::EIOCtorCategory kind,
+                                               const std::string &type_name*/) {
+      // Make a code string that follows this pattern:
+      //
+      // void
+      // unique_wrapper_ddd(void** ret, void* arena, unsigned long nary)
+      // {
+      //    if (!arena) {
+      //       if (!nary) {
+      //          *ret = new ClassName;
+      //       }
+      //       else {
+      //          *ret = new ClassName[nary];
+      //       }
+      //    }
+      //    else {
+      //       if (!nary) {
+      //          *ret = new (arena) ClassName;
+      //       }
+      //       else {
+      //          *ret = new (arena) ClassName[nary];
+      //       }
+      //    }
+      // }
+      //
+      // When I/O constructor used:
+      //
+      // void
+      // unique_wrapper_ddd(void** ret, void* arena, unsigned long nary)
+      // {
+      //    if (!arena) {
+      //       if (!nary) {
+      //          *ret = new ClassName((TRootIOCtor*)nullptr);
+      //       }
+      //       else {
+      //          char *buf = malloc(nary * sizeof(ClassName));
+      //          for (int k=0;k<nary;++k)
+      //             new (buf + k * sizeof(ClassName))
+      //             ClassName((TRootIOCtor*)nullptr);
+      //          *ret = buf;
+      //       }
+      //    }
+      //    else {
+      //       if (!nary) {
+      //          *ret = new (arena) ClassName((TRootIOCtor*)nullptr);
+      //       }
+      //       else {
+      //          for (int k=0;k<nary;++k)
+      //             new ((char *) arena + k * sizeof(ClassName))
+      //             ClassName((TRootIOCtor*)nullptr);
+      //          *ret = arena;
+      //       }
+      //    }
+      // }
+      //
+      //
+      // Note:
+      //
+      // If the class is of POD type, the form:
+      //
+      //    new ClassName;
+      //
+      // does not initialize the object at all, and the form:
+      //
+      //    new ClassName();
+      //
+      // default-initializes the object.
+      //
+      // We are using the form without parentheses because that is what
+      // CINT did.
+      //
+      //--
+
+      static map<const Decl *, void *> gCtorWrapperStore;
+
+      auto I = gCtorWrapperStore.find(D);
+      if (I != gCtorWrapperStore.end())
+        return (CallFuncCtorWrapper_t)I->second;
+
+      //
+      //  Make the wrapper name.
+      //
+      string class_name;
+      string wrapper_name = PrepareTorWrapper(D, "__ctor", class_name);
+
+      string constr_arg;
+      // if (kind == ROOT::TMetaUtils::EIOCtorCategory::kIOPtrType)
+      //   constr_arg = string("((") + type_name + "*)nullptr)";
+      // else if (kind == ROOT::TMetaUtils::EIOCtorCategory::kIORefType)
+      //   constr_arg = string("(*((") + type_name + "*)arena))";
+
+      //
+      //  Write the wrapper code.
+      //
+      int indent_level = 0;
+      ostringstream buf;
+      buf << "__attribute__((used)) ";
+      buf << "extern \"C\" void ";
+      buf << wrapper_name;
+      buf << "(void** ret, void* arena, unsigned long nary)\n";
+      buf << "{\n";
+
+      //    if (!arena) {
+      //       if (!nary) {
+      //          *ret = new ClassName;
+      //       }
+      //       else {
+      //          *ret = new ClassName[nary];
+      //       }
+      //    }
+      indent(buf, ++indent_level);
+      buf << "if (!arena) {\n";
+      indent(buf, ++indent_level);
+      buf << "if (!nary) {\n";
+      indent(buf, ++indent_level);
+      buf << "*ret = new " << class_name << constr_arg << ";\n";
+      indent(buf, --indent_level);
+      buf << "}\n";
+      indent(buf, indent_level);
+      buf << "else {\n";
+      indent(buf, ++indent_level);
+      if (constr_arg.empty()) {
+        buf << "*ret = new " << class_name << "[nary];\n";
+      } else {
+        buf << "char *buf = (char *) malloc(nary * sizeof(" << class_name
+            << "));\n";
+        indent(buf, indent_level);
+        buf << "for (int k=0;k<nary;++k)\n";
+        indent(buf, ++indent_level);
+        buf << "new (buf + k * sizeof(" << class_name << ")) " << class_name
+            << constr_arg << ";\n";
+        indent(buf, --indent_level);
+        buf << "*ret = buf;\n";
+      }
+      indent(buf, --indent_level);
+      buf << "}\n";
+      indent(buf, --indent_level);
+      buf << "}\n";
+      //    else {
+      //       if (!nary) {
+      //          *ret = new (arena) ClassName;
+      //       }
+      //       else {
+      //          *ret = new (arena) ClassName[nary];
+      //       }
+      //    }
+      indent(buf, indent_level);
+      buf << "else {\n";
+      indent(buf, ++indent_level);
+      buf << "if (!nary) {\n";
+      indent(buf, ++indent_level);
+      buf << "*ret = new (arena) " << class_name << constr_arg << ";\n";
+      indent(buf, --indent_level);
+      buf << "}\n";
+      indent(buf, indent_level);
+      buf << "else {\n";
+      indent(buf, ++indent_level);
+      if (constr_arg.empty()) {
+        buf << "*ret = new (arena) " << class_name << "[nary];\n";
+      } else {
+        buf << "for (int k=0;k<nary;++k)\n";
+        indent(buf, ++indent_level);
+        buf << "new ((char *) arena + k * sizeof(" << class_name << ")) "
+            << class_name << constr_arg << ";\n";
+        indent(buf, --indent_level);
+        buf << "*ret = arena;\n";
+      }
+      indent(buf, --indent_level);
+      buf << "}\n";
+      indent(buf, --indent_level);
+      buf << "}\n";
+      // End wrapper.
+      --indent_level;
+      buf << "}\n";
+      // Done.
+      string wrapper(buf.str());
+      // fprintf(stderr, "%s\n", wrapper.c_str());
+      //
+      //  Compile the wrapper code.
+      //
+      void *F = compile_wrapper(interp, wrapper_name, wrapper,
+                                /*withAccessControl=*/false);
+      if (F) {
+        gCtorWrapperStore.insert(make_pair(D, F));
+      } else {
+        llvm::errs() << "make_ctor_wrapper\n"
+                     << "Failed to compile\n"
+                     << "==== SOURCE BEGIN ====\n"
+                     << wrapper << "\n  ==== SOURCE END ====";
+      }
+      return (CallFuncCtorWrapper_t)F;
+    }
+
+    typedef void (*CallFuncDtorWrapper_t)(void *, unsigned long, int);
+    static CallFuncDtorWrapper_t make_dtor_wrapper(compat::Interpreter *interp,
+                                                   const Decl *D) {
+      // Make a code string that follows this pattern:
+      //
+      // void
+      // unique_wrapper_ddd(void* obj, unsigned long nary, int withFree)
+      // {
+      //    if (withFree) {
+      //       if (!nary) {
+      //          delete (ClassName*) obj;
+      //       }
+      //       else {
+      //          delete[] (ClassName*) obj;
+      //       }
+      //    }
+      //    else {
+      //       typedef ClassName DtorName;
+      //       if (!nary) {
+      //          ((ClassName*)obj)->~DtorName();
+      //       }
+      //       else {
+      //          for (unsigned long i = nary - 1; i > -1; --i) {
+      //             (((ClassName*)obj)+i)->~DtorName();
+      //          }
+      //       }
+      //    }
+      // }
+      //
+      //--
+
+      static map<const Decl *, void *> gDtorWrapperStore;
+
+      auto I = gDtorWrapperStore.find(D);
+      if (I != gDtorWrapperStore.end())
+        return (CallFuncDtorWrapper_t)I->second;
+
+      //
+      //  Make the wrapper name.
+      //
+      std::string class_name;
+      string wrapper_name = PrepareTorWrapper(D, "__dtor", class_name);
+      //
+      //  Write the wrapper code.
+      //
+      int indent_level = 0;
+      ostringstream buf;
+      buf << "__attribute__((used)) ";
+      buf << "extern \"C\" void ";
+      buf << wrapper_name;
+      buf << "(void* obj, unsigned long nary, int withFree)\n";
+      buf << "{\n";
+      //    if (withFree) {
+      //       if (!nary) {
+      //          delete (ClassName*) obj;
+      //       }
+      //       else {
+      //          delete[] (ClassName*) obj;
+      //       }
+      //    }
+      ++indent_level;
+      indent(buf, indent_level);
+      buf << "if (withFree) {\n";
+      ++indent_level;
+      indent(buf, indent_level);
+      buf << "if (!nary) {\n";
+      ++indent_level;
+      indent(buf, indent_level);
+      buf << "delete (" << class_name << "*) obj;\n";
+      --indent_level;
+      indent(buf, indent_level);
+      buf << "}\n";
+      indent(buf, indent_level);
+      buf << "else {\n";
+      ++indent_level;
+      indent(buf, indent_level);
+      buf << "delete[] (" << class_name << "*) obj;\n";
+      --indent_level;
+      indent(buf, indent_level);
+      buf << "}\n";
+      --indent_level;
+      indent(buf, indent_level);
+      buf << "}\n";
+      //    else {
+      //       typedef ClassName Nm;
+      //       if (!nary) {
+      //          ((Nm*)obj)->~Nm();
+      //       }
+      //       else {
+      //          for (unsigned long i = nary - 1; i > -1; --i) {
+      //             (((Nm*)obj)+i)->~Nm();
+      //          }
+      //       }
+      //    }
+      indent(buf, indent_level);
+      buf << "else {\n";
+      ++indent_level;
+      indent(buf, indent_level);
+      buf << "typedef " << class_name << " Nm;\n";
+      buf << "if (!nary) {\n";
+      ++indent_level;
+      indent(buf, indent_level);
+      buf << "((Nm*)obj)->~Nm();\n";
+      --indent_level;
+      indent(buf, indent_level);
+      buf << "}\n";
+      indent(buf, indent_level);
+      buf << "else {\n";
+      ++indent_level;
+      indent(buf, indent_level);
+      buf << "do {\n";
+      ++indent_level;
+      indent(buf, indent_level);
+      buf << "(((Nm*)obj)+(--nary))->~Nm();\n";
+      --indent_level;
+      indent(buf, indent_level);
+      buf << "} while (nary);\n";
+      --indent_level;
+      indent(buf, indent_level);
+      buf << "}\n";
+      --indent_level;
+      indent(buf, indent_level);
+      buf << "}\n";
+      // End wrapper.
+      --indent_level;
+      buf << "}\n";
+      // Done.
+      string wrapper(buf.str());
+      //fprintf(stderr, "%s\n", wrapper.c_str());
+      //
+      //  Compile the wrapper code.
+      //
+      void *F = compile_wrapper(interp, wrapper_name, wrapper,
+                                /*withAccessControl=*/false);
+      if (F) {
+        gDtorWrapperStore.insert(make_pair(D, F));
+      } else {
+        llvm::errs() << "make_dtor_wrapper"
+                     << "Failed to compile\n"
+                     << "==== SOURCE BEGIN ====\n"
+                     << wrapper
+                     << "\n  ==== SOURCE END ====";
+      }
+      return (CallFuncDtorWrapper_t)F;
+    }
     } // namespace
 
     CallFuncWrapper_t GetFunctionCallWrapper(TInterp_t interp,
@@ -2090,28 +2484,16 @@ namespace Cpp {
       auto *I = (compat::Interpreter *)interp;
       auto *D = (clang::Decl *)func;
 
-      if (auto *FD = llvm::dyn_cast_or_null<clang::FunctionDecl>(D)) {
-        CallFuncWrapper_t wrapper;
-        auto R = gWrapperStore.find(FD);
-        if (R != gWrapperStore.end()) {
-          wrapper = (CallFuncWrapper_t)R->second;
-        } else {
-          wrapper = make_wrapper(I, FD);
-        }
+      if (auto *FD = dyn_cast_or_null<FunctionDecl>(D))
+        return make_wrapper(I, FD);
 
-        return wrapper;
-      }
+      void AddSearchPath(TInterp_t interp, const char *dir, bool isUser,
+                         bool prepend) {
+        auto *I = (cling::Interpreter *)interp;
 
-      return 0;
-    }
-
-    void AddSearchPath(TInterp_t interp, const char *dir, bool isUser,
-                       bool prepend) {
-      auto *I = (cling::Interpreter *)interp;
-
-      namespace {
-      static std::string MakeResourcesPath() {
-        StringRef Dir;
+        namespace {
+        static std::string MakeResourcesPath() {
+          StringRef Dir;
 #ifdef LLVM_BINARY_DIR
     Dir = LLVM_BINARY_DIR;
 #else
@@ -2129,8 +2511,8 @@ namespace Cpp {
     //Dir = sys::path::parent_path(Dir);
 #endif // LLVM_BINARY_DIR
     return compat::MakeResourceDir(Dir);
-      }
-      } // namespace
+        }
+        } // namespace
 
   TInterp_t CreateInterpreter(const std::vector<const char*> &Args/*={}*/) {
     std::string MainExecutableName =
@@ -2465,4 +2847,40 @@ namespace Cpp {
     return PI->getNameAsString();
   }
 
-    } // end namespace Cpp
+  TCppObject_t Allocate(TCppScope_t scope) {
+    return (TCppObject_t)::operator new(Cpp::SizeOf(scope));
+  }
+
+  void Deallocate(TCppScope_t scope, TCppObject_t address) {
+    ::operator delete(address);
+  }
+
+  // FIXME: Add optional arguments to the operator new.
+  TCppObject_t Construct(TInterp_t interp, TCppScope_t scope,
+                         void *arena /*=nullptr*/) {
+    auto* Class = (Decl*) scope;
+    auto *I = (compat::Interpreter *)interp;
+    // FIXME: Diagnose.
+    if (!HasDefaultConstructor(Class))
+      return nullptr;
+
+    if (CallFuncCtorWrapper_t wrapper =
+            make_ctor_wrapper(I, Class /*, kind, type_name*/)) {
+      void *obj = nullptr;
+      (*wrapper)(&obj, arena, /*nary=*/0);
+      return obj;
+    }
+    return nullptr;
+  }
+
+  void Destruct(TInterp_t interp, TCppObject_t This, TCppScope_t scope) {
+    Decl* Class = (Decl*)scope;
+    auto *I = (compat::Interpreter *)interp;
+    if (CallFuncDtorWrapper_t wrapper = make_dtor_wrapper(I, Class)) {
+      (*wrapper)(This, /*nary=*/0, /*withFree=*/true);
+      return;
+    }
+    // FIXME: Diagnose.
+  }
+
+      } // end namespace Cpp

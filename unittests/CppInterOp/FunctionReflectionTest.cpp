@@ -668,11 +668,12 @@ TEST(FunctionReflectionTest, GetFunctionArgDefault) {
   EXPECT_EQ(Cpp::GetFunctionArgDefault(Decls[1], 2), "34126");
 }
 
-TEST(FunctionReflectionTest, DISABLED_Construct) {
+TEST(FunctionReflectionTest, Construct) {
   Interp.reset(static_cast<compat::Interpreter *>(Cpp::CreateInterpreter()));
   Sema *S = &Interp->getCI()->getSema();
 
   Interp->declare(R"(
+    extern "C" int printf(const char*,...);
     class C {
       C() {
         printf("Constructor Executed");
@@ -681,18 +682,25 @@ TEST(FunctionReflectionTest, DISABLED_Construct) {
     )");
 
   testing::internal::CaptureStdout();
-  Cpp::TCppType_t type = Cpp::GetTypeFromScope(Cpp::GetNamed(S, "C"));
-  // TCppObject_t object = Cpp::Construct(type);
+  Cpp::TCppScope_t scope = Cpp::GetNamed(S, "C");
+  Cpp::TCppObject_t object = Cpp::Construct(Interp.get(), scope);
+  EXPECT_TRUE(object != nullptr);
   std::string output = testing::internal::GetCapturedStdout();
-
   EXPECT_EQ(output, "Constructor Executed");
+  output.clear();
+
+  // Placement.
+  void* where = Cpp::Allocate(scope);
+  EXPECT_TRUE(where == Cpp::Construct(Interp.get(), scope, where));
+  Cpp::Deallocate(scope, where);
 }
 
-TEST(FunctionReflectionTest, DISABLED_Destruct) {
+TEST(FunctionReflectionTest, Destruct) {
   Interp.reset(static_cast<compat::Interpreter *>(Cpp::CreateInterpreter()));
   Sema *S = &Interp->getCI()->getSema();
 
   Interp->declare(R"(
+    extern "C" int printf(const char*,...);
     class C {
       C() {}
       ~C() {
@@ -702,9 +710,9 @@ TEST(FunctionReflectionTest, DISABLED_Destruct) {
     )");
 
   testing::internal::CaptureStdout();
-  Cpp::TCppType_t type = Cpp::GetTypeFromScope(Cpp::GetNamed(S, "C"));
-  // TCppObject_t object = Cpp::Construct(type);
-  // Cpp::Destruct(object, type)
+  Cpp::TCppScope_t scope = Cpp::GetNamed(S, "C");
+  Cpp::TCppObject_t object = Cpp::Construct(Interp.get(), scope);
+  Cpp::Destruct(Interp.get(), object, scope);
   std::string output = testing::internal::GetCapturedStdout();
 
   EXPECT_EQ(output, "Destructor Executed");
