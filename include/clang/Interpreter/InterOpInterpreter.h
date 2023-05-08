@@ -307,11 +307,20 @@ public:
       }
     }
 
+    clang::LangOptions& LO
+      = const_cast<clang::LangOptions&>(getCompilerInstance()->getLangOpts());
+    bool SavedAccessControl = LO.AccessControl;
+    LO.AccessControl = withAccessControl;
+
     if (auto Err = ParseAndExecute(code)) {
+      LO.AccessControl = SavedAccessControl;
       llvm::logAllUnhandledErrors(std::move(Err), llvm::errs(),
                                   "Failed to compileFunction: ");
       return nullptr;
     }
+
+    LO.AccessControl = SavedAccessControl;
+
     return getAddressOfGlobal(name);
   }
 
