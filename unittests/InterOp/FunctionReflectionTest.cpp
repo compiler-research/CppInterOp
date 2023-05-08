@@ -675,6 +675,7 @@ TEST(FunctionReflectionTest, Construct) {
   Sema *S = &Interp->getCI()->getSema();
 
   Interp->declare(R"(
+    #include <new>
     extern "C" int printf(const char*,...);
     class C {
       C() {
@@ -703,6 +704,7 @@ TEST(FunctionReflectionTest, Destruct) {
   Sema *S = &Interp->getCI()->getSema();
 
   Interp->declare(R"(
+    #include <new>
     extern "C" int printf(const char*,...);
     class C {
       C() {}
