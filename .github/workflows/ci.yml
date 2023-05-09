@@ -119,7 +119,7 @@ jobs:
         cd llvm-project
         # Apply patches
         echo "Apply clang${{ matrix.clang-runtime }}-*.patch patches:"
-        [ -f ../patches/llvm/clang${{ matrix.clang-runtime }}-*.patch ] && ls -1 ../patches/llvm/clang${{ matrix.clang-runtime }}-*.patch && git apply ../patches/llvm/clang${{ matrix.clang-runtime }}-*.patch
+        compgen -G "../patches/llvm/clang${{ matrix.clang-runtime }}-*.patch" > /dev/null && find ../patches/llvm/clang${{ matrix.clang-runtime }}-*.patch -printf "%f\n" && git apply ../patches/llvm/clang${{ matrix.clang-runtime }}-*.patch
         # Build
         mkdir build
         cd build
