@@ -2873,11 +2873,12 @@ namespace Cpp {
     return nullptr;
   }
 
-  void Destruct(TInterp_t interp, TCppObject_t This, TCppScope_t scope) {
+  void Destruct(TInterp_t interp, TCppObject_t This, TCppScope_t scope,
+                bool withFree /*=true*/) {
     Decl* Class = (Decl*)scope;
     auto *I = (compat::Interpreter *)interp;
     if (CallFuncDtorWrapper_t wrapper = make_dtor_wrapper(I, Class)) {
-      (*wrapper)(This, /*nary=*/0, /*withFree=*/true);
+      (*wrapper)(This, /*nary=*/0, withFree);
       return;
     }
     // FIXME: Diagnose.

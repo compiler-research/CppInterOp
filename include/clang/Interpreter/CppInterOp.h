@@ -262,8 +262,10 @@ namespace Cpp {
   TCppObject_t Construct(TInterp_t interp, TCppScope_t scope,
                          void *arena = nullptr);
 
-  /// Calls the destructor of object of type \c type.
-  void Destruct(TInterp_t interp, TCppObject_t This, TCppScope_t type);
+  /// Calls the destructor of object of type \c type. When withFree is true it
+  /// calls operator delete/free.
+  void Destruct(TInterp_t interp, TCppObject_t This, TCppScope_t type,
+                bool withFree = true);
 } // end namespace Cpp
 
 #endif // CPPINTEROP_CPPINTEROP_H

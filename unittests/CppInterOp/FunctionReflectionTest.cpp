@@ -718,4 +718,10 @@ TEST(FunctionReflectionTest, Destruct) {
   std::string output = testing::internal::GetCapturedStdout();
 
   EXPECT_EQ(output, "Destructor Executed");
+
+  object = Cpp::Construct(Interp.get(), scope);
+  // Make sure we do not call delete by adding an explicit Deallocate. If we
+  // called delete the Deallocate will cause a double deletion error.
+  Cpp::Destruct(Interp.get(), object, scope, /*withFree=*/false);
+  Cpp::Deallocate(scope, object);
 }
