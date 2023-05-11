@@ -10,6 +10,7 @@
 #ifndef INTEROP_INTEROP_H
 #define INTEROP_INTEROP_H
 
+#include <cassert>
 #include <string>
 #include <vector>
 
@@ -18,11 +19,98 @@ namespace InterOp {
   using TCppScope_t = void*;
   using TCppType_t = void*;
   using TCppFunction_t = void*;
+  using TCppConstFunction_t = const void*;
   using TCppFuncAddr_t = void*;
   using TCppSema_t = void*;
   using TInterp_t = void*;
   using TCppObject_t = void*;
-  typedef void (*CallFuncWrapper_t)(void*, int, void**, void*);
+  /// A class modeling function calls for functions produced by the interpreter
+  /// in compiled code. It provides an information if we are calling a standard
+  /// function, constructor or destructor.
+  class JitCall {
+  public:
+    friend JitCall MakeFunctionCallable(TInterp_t, TCppConstFunction_t);
+    enum Kind : char {
+      kUnknown = 0,
+      kGenericCall,
+      kDestructorCall,
+    };
+    struct ArgList {
+      void** m_Args = nullptr;
+      size_t m_ArgSize = 0;
+      // Clang struggles with =default...
+      ArgList() : m_Args(nullptr), m_ArgSize(0) {}
+      ArgList(void** Args, size_t ArgSize)
+        : m_Args(Args), m_ArgSize(ArgSize) {}
+    };
+    // FIXME: Figure out how to unify the wrapper signatures.
+    // FIXME: Hide these implementation details by moving wrapper generation in
+    // this class.
+    using GenericCall = void (*)(void*, int, void**, void*);
+    using DestructorCall = void (*)(void*, unsigned long, int);
+  private:
+    union {
+      GenericCall m_GenericCall;
+      DestructorCall m_DestructorCall;
+    };
+    const Kind m_Kind;
+    TCppConstFunction_t m_FD;
+    JitCall() : m_Kind(kUnknown), m_GenericCall(nullptr), m_FD(nullptr) {}
+    JitCall(Kind K, GenericCall C, TCppConstFunction_t FD)
+      : m_Kind(K), m_GenericCall(C), m_FD(FD) {}
+    JitCall(Kind K, DestructorCall C, TCppConstFunction_t Dtor)
+      : m_Kind(K), m_DestructorCall(C), m_FD(Dtor) {}
+    bool AreArgumentsValid(void* result, ArgList args, void* self) const;
+    void ReportInvokeStart(void* result, ArgList args, void* self) const;
+    void ReportInvokeStart(void* object, unsigned long nary,
+                           int withFree) const;
+    void ReportInvokeEnd() const;
+  public:
+    Kind getKind() const { return m_Kind; }
+    bool isValid() const { return getKind() != kUnknown; }
+    bool isInvalid() const { return !isValid(); }
+    explicit operator bool() const { return isValid(); }
+
+    // Specialized for calling void functions.
+    void Invoke(ArgList args = {}, void* self = nullptr) const {
+      Invoke(/*result=*/nullptr, args, self);
+    }
+
+    /// Makes a call to a generic function or method.
+    ///\param[in] result - the location where the return result will be placed.
+    ///\param[in] args - a pointer to a argument list and argument size.
+    ///\param[in] self - the this pointer of the object.
+    // FIXME: Adjust the arguments and their types: args_size can be unsigned;
+    // self can go in the end and be nullptr by default; result can be a nullptr
+    // by default. These changes should be syncronized with the wrapper if we
+    // decide to directly.
+    void Invoke(void* result, ArgList args = {}, void* self = nullptr) const {
+      // Forward if we intended to call a dtor with only 1 parameter.
+      if (m_Kind == kDestructorCall && result && !args.m_Args)
+        return InvokeDestructor(result, /*nary=*/0UL, /*withFree=*/true);
+
+#ifndef NDEBUG
+      assert(AreArgumentsValid(result, args, self) && "Invalid args!");
+      ReportInvokeStart(result, args, self);
+#endif // NDEBUG
+      m_GenericCall(self, args.m_ArgSize, args.m_Args, result);
+    }
+    /// Makes a call to a destructor.
+    ///\param[in] object - the pointer of the object whose destructor we call.
+    ///\param[in] nary - the count of the objects we destruct if we deal with an
+    ///           array of objects.
+    ///\param[in] withFree - true if we should call operator delete or false if
+    ///           we should call only the destructor.
+    //FIXME: Change the type of withFree from int to bool in the wrapper code.
+    void InvokeDestructor(void* object, unsigned long nary = 0,
+                          int withFree = true) const {
+      assert(m_Kind == kDestructorCall && "Wrong overload!");
+#ifndef NDEBUG
+      ReportInvokeStart(object, nary, withFree);
+#endif // NDEBUG
+      m_DestructorCall(object, nary, withFree);
+    }
+  };
 
   /// Enables or disables the debugging printouts on stderr.
   void EnableDebugOutput(bool value = true);
@@ -106,9 +194,14 @@ namespace InterOp {
 
   std::vector<TCppFunction_t> GetClassMethods(TCppSema_t sema, TCppScope_t klass);
 
+  ///\returns if a class has a default constructor.
   bool HasDefaultConstructor(TCppScope_t scope);
 
-  TCppScope_t GetDestructor(TCppScope_t scope);
+  ///\returns the default constructor of a class if any.
+  TCppFunction_t GetDefaultConstructor(TCppSema_t sema, TCppScope_t scope);
+
+  ///\returns the class destructor.
+  TCppFunction_t GetDestructor(TCppScope_t scope);
 
   std::vector<TCppFunction_t> GetFunctionsUsingName(
         TCppSema_t sema, TCppScope_t scope, const std::string& name);
@@ -117,7 +210,7 @@ namespace InterOp {
 
   TCppIndex_t GetFunctionNumArgs(TCppFunction_t func);
 
-  TCppIndex_t GetFunctionRequiredArgs(TCppFunction_t func);
+  TCppIndex_t GetFunctionRequiredArgs(TCppConstFunction_t func);
 
   TCppType_t GetFunctionArgType(TCppFunction_t func, TCppIndex_t iarg);
 
@@ -130,15 +223,17 @@ namespace InterOp {
   bool ExistsFunctionTemplate(TCppSema_t sema, const std::string& name,
           TCppScope_t parent = 0);
 
+  bool IsMethod(TCppConstFunction_t method);
+
   bool IsPublicMethod(TCppFunction_t method);
 
   bool IsProtectedMethod(TCppFunction_t method);
 
   bool IsPrivateMethod(TCppFunction_t method);
 
-  bool IsConstructor(TCppFunction_t method);
+  bool IsConstructor(TCppConstFunction_t method);
 
-  bool IsDestructor(TCppFunction_t method);
+  bool IsDestructor(TCppConstFunction_t method);
 
   bool IsStaticMethod(TCppFunction_t method);
 
@@ -183,8 +278,9 @@ namespace InterOp {
   /// Check if a C++ type derives from another.
   bool IsTypeDerivedFrom(TInterp_t interp, TCppType_t derived, TCppType_t base);
 
-  CallFuncWrapper_t GetFunctionCallWrapper(TInterp_t interp,
-                                           TCppFunction_t func);
+  /// Creates a trampoline function by using the interpreter and returns a
+  /// uniform interface to call it from compiled code.
+  JitCall MakeFunctionCallable(TInterp_t interp, TCppConstFunction_t func);
 
   /// Checks if a function declared is of const type or not
   bool IsConstMethod(TCppFunction_t method);
