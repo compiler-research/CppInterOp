@@ -584,37 +584,68 @@ TEST(FunctionReflectionTest, GetFunctionCallWrapper) {
   )");
 
   Sema *S = &Interp->getCI()->getSema();
-
-  Cpp::CallFuncWrapper_t wrapper1 =
-      Cpp::GetFunctionCallWrapper((Cpp::TInterp_t)Interp.get(), Decls[0]);
-  Cpp::CallFuncWrapper_t wrapper2 = Cpp::GetFunctionCallWrapper(
-      (Cpp::TInterp_t)Interp.get(), Cpp::GetNamed(S, "f2"));
-  Cpp::CallFuncWrapper_t wrapper3 = Cpp::GetFunctionCallWrapper(
-      (Cpp::TInterp_t)Interp.get(),
-      Cpp::GetNamed(S, "f3", Cpp::GetNamed(S, "NS")));
-  Cpp::CallFuncWrapper_t wrapper4 = Cpp::GetFunctionCallWrapper(
-      (Cpp::TInterp_t)Interp.get(),
-      Cpp::GetNamed(S, "f4", Cpp::GetNamed(S, "NS")));
+  Cpp::JitCall FCI1 =
+      Cpp::MakeFunctionCallable((Cpp::TInterp_t)Interp.get(), Decls[0]);
+  EXPECT_TRUE(FCI1.getKind() == Cpp::JitCall::kGenericCall);
+  Cpp::JitCall FCI2 = Cpp::MakeFunctionCallable((Cpp::TInterp_t)Interp.get(),
+                                                Cpp::GetNamed(S, "f2"));
+  EXPECT_TRUE(FCI2.getKind() == Cpp::JitCall::kGenericCall);
+  Cpp::JitCall FCI3 =
+      Cpp::MakeFunctionCallable((Cpp::TInterp_t)Interp.get(),
+                                Cpp::GetNamed(S, "f3", Cpp::GetNamed(S, "NS")));
+  EXPECT_TRUE(FCI3.getKind() == Cpp::JitCall::kGenericCall);
+  Cpp::JitCall FCI4 =
+      Cpp::MakeFunctionCallable((Cpp::TInterp_t)Interp.get(),
+                                Cpp::GetNamed(S, "f4", Cpp::GetNamed(S, "NS")));
+  EXPECT_TRUE(FCI4.getKind() == Cpp::JitCall::kGenericCall);
 
   int i = 9, ret1, ret3, ret4;
   std::string s("Hello World!\n");
   void *args0[1] = { (void *) &i };
   void *args1[1] = { (void *) &s };
 
-  wrapper1(0, 1, args0, &ret1);
+  FCI1.Invoke(&ret1, {args0, /*args_size=*/1});
+  EXPECT_EQ(ret1, i * i);
 
   testing::internal::CaptureStdout();
-  wrapper2(0, 1, args1, 0);
+  FCI2.Invoke({args1, /*args_size=*/1});
   std::string output = testing::internal::GetCapturedStdout();
-
-  wrapper3(0, 0, 0, &ret3);
-
-  wrapper4(0, 0, 0, &ret4);
-
-  EXPECT_EQ(ret1, i * i);
   EXPECT_EQ(output, s);
+
+  FCI3.Invoke(&ret3);
   EXPECT_EQ(ret3, 3);
+
+  FCI4.Invoke(&ret4);
   EXPECT_EQ(ret4, 4);
+
+  // FIXME: Do we need to support private ctors?
+  Interp->process(R"(
+    class C {
+    public:
+      C() { printf("Default Ctor Called\n"); }
+      ~C() { printf("Dtor Called\n"); }
+    };
+  )");
+
+  clang::NamedDecl *ClassC = (clang::NamedDecl *)Cpp::GetNamed(S, "C");
+  auto *CtorD =
+      (clang::CXXConstructorDecl *)Cpp::GetDefaultConstructor(S, ClassC);
+  auto FCI_Ctor =
+      Cpp::MakeFunctionCallable((Cpp::TInterp_t)Interp.get(), CtorD);
+  void* object = nullptr;
+  testing::internal::CaptureStdout();
+  FCI_Ctor.Invoke((void*)&object);
+  output = testing::internal::GetCapturedStdout();
+  EXPECT_EQ(output, "Default Ctor Called\n");
+  EXPECT_TRUE(object != nullptr);
+
+  auto *DtorD = (clang::CXXConstructorDecl *)Cpp::GetDestructor(ClassC);
+  auto FCI_Dtor =
+      Cpp::MakeFunctionCallable((Cpp::TInterp_t)Interp.get(), DtorD);
+  testing::internal::CaptureStdout();
+  FCI_Dtor.Invoke(object);
+  output = testing::internal::GetCapturedStdout();
+  EXPECT_EQ(output, "Dtor Called\n");
 }
 
 TEST(FunctionReflectionTest, IsConstMethod) {
@@ -676,7 +707,9 @@ TEST(FunctionReflectionTest, Construct) {
     #include <new>
     extern "C" int printf(const char*,...);
     class C {
+      int x;
       C() {
+        x = 12345;
         printf("Constructor Executed");
       }
     };
@@ -691,9 +724,14 @@ TEST(FunctionReflectionTest, Construct) {
   output.clear();
 
   // Placement.
+  testing::internal::CaptureStdout();
   void* where = Cpp::Allocate(scope);
   EXPECT_TRUE(where == Cpp::Construct(Interp.get(), scope, where));
+  // Check for the value of x which should be at the start of the object.
+  EXPECT_TRUE(**(int **)(void **)where == 12345);
   Cpp::Deallocate(scope, where);
+  output = testing::internal::GetCapturedStdout();
+  EXPECT_EQ(output, "Constructor Executed");
 }
 
 TEST(FunctionReflectionTest, Destruct) {
@@ -719,9 +757,13 @@ TEST(FunctionReflectionTest, Destruct) {
 
   EXPECT_EQ(output, "Destructor Executed");
 
+  output.clear();
+  testing::internal::CaptureStdout();
   object = Cpp::Construct(Interp.get(), scope);
   // Make sure we do not call delete by adding an explicit Deallocate. If we
   // called delete the Deallocate will cause a double deletion error.
   Cpp::Destruct(Interp.get(), object, scope, /*withFree=*/false);
   Cpp::Deallocate(scope, object);
+  output = testing::internal::GetCapturedStdout();
+  EXPECT_EQ(output, "Destructor Executed");
 }

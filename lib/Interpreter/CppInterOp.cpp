@@ -39,6 +39,65 @@ namespace Cpp {
   using namespace llvm;
   using namespace std;
 
+#define DEBUG_TYPE "jitcall"
+  bool JitCall::AreArgumentsValid(void* result, ArgList args,
+                                  void* self) const {
+    bool Valid = true;
+    if (Cpp::IsConstructor(m_FD)) {
+      assert(result && "Must pass the location of the created object!");
+      Valid &= (bool)result;
+    }
+    if (Cpp::GetFunctionRequiredArgs(m_FD) > args.m_ArgSize) {
+      assert(0 && "Must pass at least the minimal number of args!");
+      Valid = false;
+    }
+    if (args.m_ArgSize) {
+      assert(args.m_Args != nullptr && "Must pass an argument list!");
+      Valid &= (bool)args.m_Args;
+    }
+    if (!Cpp::IsConstructor(m_FD) && !Cpp::IsDestructor(m_FD) &&
+        Cpp::IsMethod(m_FD)) {
+      assert(self && "Must pass the pointer to object");
+      Valid &= (bool)self;
+    }
+    const auto* FD = cast<FunctionDecl>((const Decl*)m_FD);
+    if (!FD->getReturnType()->isVoidType() && !result) {
+      assert(0 && "We are discarding the return type of the function!");
+      Valid = false;
+    }
+    assert(m_Kind != kDestructorCall && "Wrong overload!");
+    Valid &= m_Kind != kDestructorCall;
+    return Valid;
+  }
+
+  void JitCall::ReportInvokeStart(void* result, ArgList args, void* self) const{
+    std::string Name;
+    llvm::raw_string_ostream OS(Name);
+    auto FD = (const FunctionDecl*) m_FD;
+    FD->getNameForDiagnostic(OS, FD->getASTContext().getPrintingPolicy(),
+                             /*Qualified=*/true);
+    LLVM_DEBUG(dbgs() << "Run '" << Name
+               << "', compiled at: " << (void*) m_GenericCall
+               << " with result at: " << result
+               << " , args at: " << args.m_Args
+               << " , arg count: " << args.m_ArgSize
+               << " , self at: " << self << "\n";
+               );
+  }
+
+  void JitCall::ReportInvokeStart(void* object, unsigned long nary,
+                                  int withFree) const {
+    std::string Name;
+    llvm::raw_string_ostream OS(Name);
+    auto FD = (const FunctionDecl*) m_FD;
+    FD->getNameForDiagnostic(OS, FD->getASTContext().getPrintingPolicy(),
+                             /*Qualified=*/true);
+    LLVM_DEBUG(dbgs() << "Finish '" << Name
+               << "', compiled at: " << (void*) m_DestructorCall);
+  }
+
+#undef DEBUG_TYPE
+
   void EnableDebugOutput(bool value/* =true*/) {
     llvm::DebugFlag = value;
   }
@@ -607,6 +666,16 @@ namespace Cpp {
     return false;
   }
 
+  TCppFunction_t GetDefaultConstructor(TCppSema_t sema, TCppScope_t scope) {
+    if (!HasDefaultConstructor(scope))
+      return nullptr;
+
+    clang::Sema *S = (clang::Sema *)sema;
+
+    auto *CXXRD = (clang::CXXRecordDecl*)scope;
+    return S->LookupDefaultConstructor(CXXRD);
+  }
+
   TCppFunction_t GetDestructor(TCppScope_t scope) {
     auto *D = (clang::Decl *) scope;
 
@@ -677,8 +746,9 @@ namespace Cpp {
     return 0;
   }
 
-  TCppIndex_t GetFunctionRequiredArgs(TCppFunction_t func) {
-    auto *D = (clang::Decl *)func;
+  TCppIndex_t GetFunctionRequiredArgs(TCppConstFunction_t func)
+  {
+    auto *D = (const clang::Decl *) func;
     if (auto *FD = llvm::dyn_cast_or_null<FunctionDecl> (D)) {
       return FD->getMinRequiredArguments();
     }
@@ -776,7 +846,13 @@ namespace Cpp {
     return false;
   }
 
-  bool IsPublicMethod(TCppFunction_t method) {
+  bool IsMethod(TCppConstFunction_t method)
+  {
+    return dyn_cast_or_null<CXXMethodDecl>((const clang::Decl*)method);
+  }
+
+  bool IsPublicMethod(TCppFunction_t method)
+  {
     return CheckMethodAccess(method, AccessSpecifier::AS_public);
   }
 
@@ -789,13 +865,15 @@ namespace Cpp {
     return CheckMethodAccess(method, AccessSpecifier::AS_private);
   }
 
-  bool IsConstructor(TCppFunction_t method) {
-    auto *D = (Decl *)method;
+  bool IsConstructor(TCppConstFunction_t method)
+  {
+    auto *D = (const Decl *) method;
     return llvm::isa_and_nonnull<CXXConstructorDecl>(D);
   }
 
-  bool IsDestructor(TCppFunction_t method) {
-    auto *D = (Decl *)method;
+  bool IsDestructor(TCppConstFunction_t method)
+  {
+    auto *D = (const Decl *) method;
     return llvm::isa_and_nonnull<CXXDestructorDecl>(D);
   }
 
@@ -1149,6 +1227,8 @@ namespace Cpp {
 
     enum EReferenceType { kNotReference, kLValueReference, kRValueReference };
 
+#define DEBUG_TYPE "jitcall"
+
     // FIXME: Use that routine throughout CallFunc's port in places such as
     // make_narg_call.
     static inline void indent(ostringstream &buf, int indent_level) {
@@ -1160,9 +1240,7 @@ namespace Cpp {
                           const std::string &wrapper_name,
                           const std::string &wrapper,
                           bool withAccessControl = true) {
-#ifdef PRINT_DEBUG
-      printf("%s\n", wrapper.c_str());
-#endif
+      LLVM_DEBUG(dbgs() << "Compiling '" << wrapper_name << "'\n");
       return I->compileFunction(wrapper_name, wrapper, false /*ifUnique*/,
                                 withAccessControl);
     }
@@ -2065,13 +2143,13 @@ namespace Cpp {
       return 1;
     }
 
-    CallFuncWrapper_t make_wrapper(compat::Interpreter *I,
-                                   const FunctionDecl *FD) {
+    JitCall::GenericCall make_wrapper(compat::Interpreter *I,
+                                      const FunctionDecl *FD) {
       static std::map<const FunctionDecl*, void *> gWrapperStore;
 
       auto R = gWrapperStore.find(FD);
       if (R != gWrapperStore.end())
-        return (CallFuncWrapper_t)R->second;
+        return (JitCall::GenericCall) R->second;
 
       std::string wrapper_name;
       std::string wrapper_code;
@@ -2082,7 +2160,12 @@ namespace Cpp {
       //
       //   Compile the wrapper code.
       //
-      void *wrapper = compile_wrapper(I, wrapper_name, wrapper_code);
+      bool withAccessControl = true;
+      // We should be able to call private default constructors.
+      if (auto Ctor = dyn_cast<CXXConstructorDecl>(FD))
+        withAccessControl = !Ctor->isDefaultConstructor();
+      void *wrapper = compile_wrapper(I, wrapper_name, wrapper_code,
+                                      withAccessControl);
       if (wrapper) {
         gWrapperStore.insert(std::make_pair(FD, wrapper));
       } else {
@@ -2093,7 +2176,9 @@ namespace Cpp {
                      << wrapper_code << "\n"
                      << "==== SOURCE END ====\n";
       }
-      return (CallFuncWrapper_t)wrapper;
+      LLVM_DEBUG(dbgs() << "Compiled '" << (wrapper ? "" : "un")
+                 << "successfully:\n" << wrapper_code << "'\n");
+      return (JitCall::GenericCall)wrapper;
     }
 
     // FIXME: Sink in the code duplication from get_wrapper_code.
@@ -2136,205 +2221,8 @@ namespace Cpp {
       return wrapper_name;
     }
 
-    typedef void (*CallFuncCtorWrapper_t)(void **, void *, unsigned long);
-    static CallFuncCtorWrapper_t make_ctor_wrapper(compat::Interpreter* interp,
-                                                   const Decl *D
-                                       /*ROOT::TMetaUtils::EIOCtorCategory kind,
-                                               const std::string &type_name*/) {
-      // Make a code string that follows this pattern:
-      //
-      // void
-      // unique_wrapper_ddd(void** ret, void* arena, unsigned long nary)
-      // {
-      //    if (!arena) {
-      //       if (!nary) {
-      //          *ret = new ClassName;
-      //       }
-      //       else {
-      //          *ret = new ClassName[nary];
-      //       }
-      //    }
-      //    else {
-      //       if (!nary) {
-      //          *ret = new (arena) ClassName;
-      //       }
-      //       else {
-      //          *ret = new (arena) ClassName[nary];
-      //       }
-      //    }
-      // }
-      //
-      // When I/O constructor used:
-      //
-      // void
-      // unique_wrapper_ddd(void** ret, void* arena, unsigned long nary)
-      // {
-      //    if (!arena) {
-      //       if (!nary) {
-      //          *ret = new ClassName((TRootIOCtor*)nullptr);
-      //       }
-      //       else {
-      //          char *buf = malloc(nary * sizeof(ClassName));
-      //          for (int k=0;k<nary;++k)
-      //             new (buf + k * sizeof(ClassName))
-      //             ClassName((TRootIOCtor*)nullptr);
-      //          *ret = buf;
-      //       }
-      //    }
-      //    else {
-      //       if (!nary) {
-      //          *ret = new (arena) ClassName((TRootIOCtor*)nullptr);
-      //       }
-      //       else {
-      //          for (int k=0;k<nary;++k)
-      //             new ((char *) arena + k * sizeof(ClassName))
-      //             ClassName((TRootIOCtor*)nullptr);
-      //          *ret = arena;
-      //       }
-      //    }
-      // }
-      //
-      //
-      // Note:
-      //
-      // If the class is of POD type, the form:
-      //
-      //    new ClassName;
-      //
-      // does not initialize the object at all, and the form:
-      //
-      //    new ClassName();
-      //
-      // default-initializes the object.
-      //
-      // We are using the form without parentheses because that is what
-      // CINT did.
-      //
-      //--
-
-      static map<const Decl *, void *> gCtorWrapperStore;
-
-      auto I = gCtorWrapperStore.find(D);
-      if (I != gCtorWrapperStore.end())
-        return (CallFuncCtorWrapper_t)I->second;
-
-      //
-      //  Make the wrapper name.
-      //
-      string class_name;
-      string wrapper_name = PrepareTorWrapper(D, "__ctor", class_name);
-
-      string constr_arg;
-      // if (kind == ROOT::TMetaUtils::EIOCtorCategory::kIOPtrType)
-      //   constr_arg = string("((") + type_name + "*)nullptr)";
-      // else if (kind == ROOT::TMetaUtils::EIOCtorCategory::kIORefType)
-      //   constr_arg = string("(*((") + type_name + "*)arena))";
-
-      //
-      //  Write the wrapper code.
-      //
-      int indent_level = 0;
-      ostringstream buf;
-      buf << "__attribute__((used)) ";
-      buf << "extern \"C\" void ";
-      buf << wrapper_name;
-      buf << "(void** ret, void* arena, unsigned long nary)\n";
-      buf << "{\n";
-
-      //    if (!arena) {
-      //       if (!nary) {
-      //          *ret = new ClassName;
-      //       }
-      //       else {
-      //          *ret = new ClassName[nary];
-      //       }
-      //    }
-      indent(buf, ++indent_level);
-      buf << "if (!arena) {\n";
-      indent(buf, ++indent_level);
-      buf << "if (!nary) {\n";
-      indent(buf, ++indent_level);
-      buf << "*ret = new " << class_name << constr_arg << ";\n";
-      indent(buf, --indent_level);
-      buf << "}\n";
-      indent(buf, indent_level);
-      buf << "else {\n";
-      indent(buf, ++indent_level);
-      if (constr_arg.empty()) {
-        buf << "*ret = new " << class_name << "[nary];\n";
-      } else {
-        buf << "char *buf = (char *) malloc(nary * sizeof(" << class_name
-            << "));\n";
-        indent(buf, indent_level);
-        buf << "for (int k=0;k<nary;++k)\n";
-        indent(buf, ++indent_level);
-        buf << "new (buf + k * sizeof(" << class_name << ")) " << class_name
-            << constr_arg << ";\n";
-        indent(buf, --indent_level);
-        buf << "*ret = buf;\n";
-      }
-      indent(buf, --indent_level);
-      buf << "}\n";
-      indent(buf, --indent_level);
-      buf << "}\n";
-      //    else {
-      //       if (!nary) {
-      //          *ret = new (arena) ClassName;
-      //       }
-      //       else {
-      //          *ret = new (arena) ClassName[nary];
-      //       }
-      //    }
-      indent(buf, indent_level);
-      buf << "else {\n";
-      indent(buf, ++indent_level);
-      buf << "if (!nary) {\n";
-      indent(buf, ++indent_level);
-      buf << "*ret = new (arena) " << class_name << constr_arg << ";\n";
-      indent(buf, --indent_level);
-      buf << "}\n";
-      indent(buf, indent_level);
-      buf << "else {\n";
-      indent(buf, ++indent_level);
-      if (constr_arg.empty()) {
-        buf << "*ret = new (arena) " << class_name << "[nary];\n";
-      } else {
-        buf << "for (int k=0;k<nary;++k)\n";
-        indent(buf, ++indent_level);
-        buf << "new ((char *) arena + k * sizeof(" << class_name << ")) "
-            << class_name << constr_arg << ";\n";
-        indent(buf, --indent_level);
-        buf << "*ret = arena;\n";
-      }
-      indent(buf, --indent_level);
-      buf << "}\n";
-      indent(buf, --indent_level);
-      buf << "}\n";
-      // End wrapper.
-      --indent_level;
-      buf << "}\n";
-      // Done.
-      string wrapper(buf.str());
-      // fprintf(stderr, "%s\n", wrapper.c_str());
-      //
-      //  Compile the wrapper code.
-      //
-      void *F = compile_wrapper(interp, wrapper_name, wrapper,
-                                /*withAccessControl=*/false);
-      if (F) {
-        gCtorWrapperStore.insert(make_pair(D, F));
-      } else {
-        llvm::errs() << "make_ctor_wrapper\n"
-                     << "Failed to compile\n"
-                     << "==== SOURCE BEGIN ====\n"
-                     << wrapper << "\n  ==== SOURCE END ====";
-      }
-      return (CallFuncCtorWrapper_t)F;
-    }
-
-    typedef void (*CallFuncDtorWrapper_t)(void *, unsigned long, int);
-    static CallFuncDtorWrapper_t make_dtor_wrapper(compat::Interpreter *interp,
-                                                   const Decl *D) {
+    static JitCall::DestructorCall
+    make_dtor_wrapper(compat::Interpreter *interp, const Decl *D) {
       // Make a code string that follows this pattern:
       //
       // void
@@ -2367,7 +2255,7 @@ namespace Cpp {
 
       auto I = gDtorWrapperStore.find(D);
       if (I != gDtorWrapperStore.end())
-        return (CallFuncDtorWrapper_t)I->second;
+        return (JitCall::DestructorCall) I->second;
 
       //
       //  Make the wrapper name.
@@ -2475,25 +2363,44 @@ namespace Cpp {
                      << wrapper
                      << "\n  ==== SOURCE END ====";
       }
-      return (CallFuncDtorWrapper_t)F;
+      LLVM_DEBUG(dbgs() << "Compiled '" << (F ? "" : "un")
+                 << "successfully:\n" << wrapper << "'\n");
+      return (JitCall::DestructorCall)F;
     }
+#undef DEBUG_TYPE
     } // namespace
 
-    CallFuncWrapper_t GetFunctionCallWrapper(TInterp_t interp,
-                                             TCppFunction_t func) {
+    JitCall MakeFunctionCallable(TInterp_t interp, TCppConstFunction_t func) {
       auto *I = (compat::Interpreter *)interp;
-      auto *D = (clang::Decl *)func;
+      auto *D = (const clang::Decl *)func;
+      if (!D)
+        return {};
 
-      if (auto *FD = dyn_cast_or_null<FunctionDecl>(D))
-        return make_wrapper(I, FD);
+      // FIXME: Unify with make_wrapper.
+      if (auto *Dtor = dyn_cast<CXXDestructorDecl>(D)) {
+        if (auto Wrapper = make_dtor_wrapper(I, Dtor->getParent()))
+          return {JitCall::kDestructorCall, Wrapper, Dtor};
+        // FIXME: else error we failed to compile the wrapper.
+        return {};
+      }
 
-      void AddSearchPath(TInterp_t interp, const char *dir, bool isUser,
-                         bool prepend) {
-        auto *I = (cling::Interpreter *)interp;
+      if (auto Wrapper = make_wrapper(I, cast<FunctionDecl>(D))) {
+        return {JitCall::kGenericCall, Wrapper, cast<FunctionDecl>(D)};
+      }
+      // FIXME: else error we failed to compile the wrapper.
+      return {};
+    }
 
-        namespace {
-        static std::string MakeResourcesPath() {
-          StringRef Dir;
+    if (auto Wrapper = make_wrapper(I, cast<FunctionDecl>(D))) {
+      return {JitCall::kGenericCall, Wrapper, cast<FunctionDecl>(D)};
+    }
+    // FIXME: else error we failed to compile the wrapper.
+    return {};
+  }
+
+  namespace {
+  static std::string MakeResourcesPath() {
+    StringRef Dir;
 #ifdef LLVM_BINARY_DIR
     Dir = LLVM_BINARY_DIR;
 #else
@@ -2511,8 +2418,8 @@ namespace Cpp {
     //Dir = sys::path::parent_path(Dir);
 #endif // LLVM_BINARY_DIR
     return compat::MakeResourceDir(Dir);
-        }
-        } // namespace
+  }
+  } // namespace
 
   TInterp_t CreateInterpreter(const std::vector<const char*> &Args/*={}*/) {
     std::string MainExecutableName =
@@ -2626,7 +2533,7 @@ namespace Cpp {
     return I->toString(type, obj);
   }
 
-  static SourceLocation GetValidSLoc(Sema & semaRef) {
+  static SourceLocation GetValidSLoc(Sema &semaRef) {
     auto &SM = semaRef.getSourceManager();
     return SM.getLocForStartOfFile(SM.getMainFileID());
   }
@@ -2668,7 +2575,7 @@ namespace Cpp {
   }
 
   TCppScope_t InstantiateClassTemplate(TInterp_t interp, TCppScope_t tmpl,
-                                       TemplateArgInfo * template_args,
+                                       TemplateArgInfo *template_args,
                                        size_t template_args_size) {
     auto *I = (compat::Interpreter *)interp;
     ASTContext &C = I->getSema().getASTContext();
@@ -2696,7 +2603,6 @@ namespace Cpp {
 #endif
     QualType Instance = InstantiateTemplate(TmplD, TemplateArgs, I->getSema());
     return GetScopeFromType(Instance);
->>>>>>> 0612fe4... Improve class template instantiation support
   }
 
   std::vector<std::string> GetAllCppNames(TCppScope_t scope) {
@@ -2864,10 +2770,15 @@ namespace Cpp {
     if (!HasDefaultConstructor(Class))
       return nullptr;
 
-    if (CallFuncCtorWrapper_t wrapper =
-            make_ctor_wrapper(I, Class /*, kind, type_name*/)) {
+    auto *const Ctor = GetDefaultConstructor(GetSema(I), Class);
+    if (JitCall JC = MakeFunctionCallable(I, Ctor)) {
+      if (arena) {
+        JC.Invoke(arena);
+        return arena;
+      }
+
       void *obj = nullptr;
-      (*wrapper)(&obj, arena, /*nary=*/0);
+      JC.Invoke(&obj);
       return obj;
     }
     return nullptr;
@@ -2877,11 +2788,11 @@ namespace Cpp {
                 bool withFree /*=true*/) {
     Decl* Class = (Decl*)scope;
     auto *I = (compat::Interpreter *)interp;
-    if (CallFuncDtorWrapper_t wrapper = make_dtor_wrapper(I, Class)) {
+    if (auto wrapper = make_dtor_wrapper(I, Class)) {
       (*wrapper)(This, /*nary=*/0, withFree);
       return;
     }
     // FIXME: Diagnose.
   }
 
-      } // end namespace Cpp
+  } // end namespace Cpp
