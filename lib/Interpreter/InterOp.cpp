@@ -2436,7 +2436,40 @@ namespace InterOp {
                                            "-std=c++14"};
     ClingArgv.insert(ClingArgv.begin(), MainExecutableName.c_str());
     ClingArgv.insert(ClingArgv.end(), Args.begin(), Args.end());
-    return new compat::Interpreter(ClingArgv.size(), &ClingArgv[0]);
+
+    // Process externally passed arguments if present.
+    std::vector<std::string> ExtraArgs;
+    llvm::Optional<std::string> EnvOpt
+      = llvm::sys::Process::GetEnv("INTEROP_EXTRA_INTERPRETER_ARGS");
+    if (EnvOpt) {
+      StringRef Env(*EnvOpt);
+      while (!Env.empty()) {
+        StringRef Arg;
+        std::tie(Arg, Env) = Env.split(' ');
+        ExtraArgs.push_back(Arg.str());
+      }
+    }
+    std::transform(ExtraArgs.begin(), ExtraArgs.end(),
+                   std::back_inserter(ClingArgv),
+                   [&](const std::string& str) { return str.c_str(); });
+
+    auto I = new compat::Interpreter(ClingArgv.size(), &ClingArgv[0]);
+
+    // Honor -mllvm.
+    //
+    // FIXME: Remove this, one day.
+    // This should happen AFTER plugins have been loaded!
+    const CompilerInstance* Clang = I->getCI();
+    if (!Clang->getFrontendOpts().LLVMArgs.empty()) {
+      unsigned NumArgs = Clang->getFrontendOpts().LLVMArgs.size();
+      auto Args = std::make_unique<const char*[]>(NumArgs + 2);
+      Args[0] = "clang (LLVM option parsing)";
+      for (unsigned i = 0; i != NumArgs; ++i)
+        Args[i + 1] = Clang->getFrontendOpts().LLVMArgs[i].c_str();
+      Args[NumArgs + 1] = nullptr;
+      llvm::cl::ParseCommandLineOptions(NumArgs + 1, Args.get());
+    }
+    return I;
   }
 
   TCppSema_t GetSema(TInterp_t interp) {
