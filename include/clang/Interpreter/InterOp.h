@@ -113,6 +113,10 @@ namespace InterOp {
   };
 
   /// Enables or disables the debugging printouts on stderr.
+  /// Debugging output can be enabled also by the environment variable
+  /// INTEROP_EXTRA_INTERPRETER_ARGS. For example,
+  /// INTEROP_EXTRA_INTERPRETER_ARGS="-mllvm -debug-only=jitcall" to produce
+  /// only debug output for jitcall events.
   void EnableDebugOutput(bool value = true);
 
   ///\returns true if the debugging printouts on stderr are enabled.
@@ -296,6 +300,11 @@ namespace InterOp {
   /// Returns the argument name of function as string.
   std::string GetFunctionArgName(TCppFunction_t func, TCppIndex_t param_index);
 
+  /// Creates an instance of the interpreter we need for the various interop
+  /// services.
+  ///\param[in] Args - the list of arguments for interpreter constructor.
+  ///\param[in] INTEROP_EXTRA_INTERPRETER_ARGS - an env variable, if defined,
+  ///           adds additional arguments to the interpreter.
   TInterp_t CreateInterpreter(const std::vector<const char*> &Args = {});
 
   TCppSema_t GetSema(TInterp_t interp);
