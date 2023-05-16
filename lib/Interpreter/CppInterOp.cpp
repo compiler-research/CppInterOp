@@ -809,6 +809,11 @@ namespace Cpp {
     }
   }
 
+  bool IsFunctionDeleted(TCppConstFunction_t function) {
+    auto *FD = cast<const FunctionDecl>((const clang::Decl*)function);
+    return FD->isDeleted();
+  }
+
   bool IsTemplatedFunction(TCppFunction_t func)
   {
     auto *D = (Decl *) func;
