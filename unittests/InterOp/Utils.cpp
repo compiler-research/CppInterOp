@@ -38,18 +38,19 @@ void TestUtils::GetAllTopLevelDecls(const std::string& code, std::vector<Decl*>&
   for (auto DCI = T->decls_begin(), E = T->decls_end(); DCI != E; ++DCI) {
     if (DCI->m_Call != cling::Transaction::kCCIHandleTopLevelDecl)
       continue;
-    assert(DCI->m_DGR.isSingleDecl());
-    if (filter_implicitGenerated && (DCI->m_DGR.getSingleDecl())->isImplicit())
-      continue;
-    Decls.push_back(DCI->m_DGR.getSingleDecl());
+    for (Decl *D : DCI->m_DGR) {
+      if (filter_implicitGenerated && D->isImplicit())
+        continue;
+      Decls.push_back(D);
+    }
   }
 #else
   PartialTranslationUnit *T = nullptr;
   Interp->process(code, /*Value*/nullptr, &T);
-  for (auto DCI = T->TUPart->decls_begin(), E = T->TUPart->decls_end(); DCI != E; ++DCI) {
-    if (filter_implicitGenerated && (*DCI)->isImplicit())
+  for (auto *D : T->TUPart->decls()) {
+    if (filter_implicitGenerated && D->isImplicit())
       continue;
-    Decls.push_back(*DCI);
+    Decls.push_back(D);
   }
 #endif
 }

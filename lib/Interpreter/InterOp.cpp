@@ -2209,7 +2209,12 @@ namespace InterOp {
       //
       if (const TypeDecl *TD = dyn_cast<TypeDecl>(D)) {
         // This is a class, struct, or union member.
-        QualType QT(TD->getTypeForDecl(), 0);
+        // Handle the typedefs to anonymous types.
+        QualType QT;
+        if (const TypedefDecl *Typedef = dyn_cast<const TypedefDecl>(TD))
+          QT = Typedef->getTypeSourceInfo()->getType();
+        else
+          QT = {TD->getTypeForDecl(), 0};
         get_type_as_string(QT, class_name, Context, Policy);
       } else if (const NamedDecl *ND = dyn_cast<NamedDecl>(D)) {
         // This is a namespace member.
