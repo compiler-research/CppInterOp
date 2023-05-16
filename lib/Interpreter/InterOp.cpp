@@ -924,8 +924,9 @@ namespace InterOp {
     if (auto *FD = llvm::dyn_cast_or_null<FunctionDecl>(D)) {
       auto FDAorErr = compat::getSymbolAddress(*I, StringRef(get_mangled_name(FD)));
       if (llvm::Error Err = FDAorErr.takeError())
-       llvm::logAllUnhandledErrors(std::move(Err), llvm::errs(), "Failed to GetFunctionAdress:");
-      return llvm::jitTargetAddressToPointer<void*>(*FDAorErr);
+        llvm::logAllUnhandledErrors(std::move(Err), llvm::errs(), "Failed to GetFunctionAdress:");
+      else
+        return llvm::jitTargetAddressToPointer<void*>(*FDAorErr);
     }
 
     return 0;
