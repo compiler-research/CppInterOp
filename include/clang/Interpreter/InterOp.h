@@ -222,6 +222,9 @@ namespace InterOp {
   /// void N::f(int i, double d, long l = 0, char ch = 'a').
   std::string GetFunctionSignature(TCppFunction_t func);
 
+  /// Returns if a function was marked as \c =delete.
+  bool IsFunctionDeleted(TCppConstFunction_t function);
+
   bool IsTemplatedFunction(TCppFunction_t func);
 
   bool ExistsFunctionTemplate(TCppSema_t sema, const std::string& name,
