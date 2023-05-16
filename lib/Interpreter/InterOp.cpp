@@ -677,10 +677,12 @@ namespace InterOp {
     return S->LookupDefaultConstructor(CXXRD);
   }
 
-  TCppFunction_t GetDestructor(TCppScope_t scope) {
+  TCppFunction_t GetDestructor(TCppSema_t sema, TCppScope_t scope) {
     auto *D = (clang::Decl *) scope;
 
     if (auto *CXXRD = llvm::dyn_cast_or_null<CXXRecordDecl>(D)) {
+      clang::Sema *S = (clang::Sema *)sema;
+      S->ForceDeclarationOfImplicitMembers(CXXRD);
       return CXXRD->getDestructor();
     }
 
