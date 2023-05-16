@@ -562,6 +562,28 @@ TEST(FunctionReflectionTest, IsVirtualMethod) {
   EXPECT_FALSE(Cpp::IsVirtualMethod(SubDecls[3])); // y()
 }
 
+TEST(FunctionReflectionTest, JitCallAdvanced) {
+  std::vector<Decl*> Decls;
+  std::string code = R"(
+      typedef struct _name {
+        _name() { p[0] = (void*)0x1; p[1] = (void*)0x2; p[2] = (void*)0x3; }
+        void* p[3];
+      } name;
+    )";
+
+  GetAllTopLevelDecls(code, Decls);
+  Sema *S = &Interp->getCI()->getSema();
+  auto *CtorD =
+      (clang::CXXConstructorDecl *)Cpp::GetDefaultConstructor(S, Decls[0]);
+  auto Ctor = Cpp::MakeFunctionCallable((Cpp::TInterp_t)Interp.get(), CtorD);
+  EXPECT_TRUE((bool)Ctor) << "Failed to build a wrapper for the ctor";
+  void* object = nullptr;
+  Ctor.Invoke(&object);
+  EXPECT_TRUE(object) << "Failed to call the ctor.";
+  // Building a wrapper with a typedef decl must be possible.
+  Cpp::Destruct((Cpp::TInterp_t)Interp.get(), object, Decls[1]);
+}
+
 TEST(FunctionReflectionTest, GetFunctionCallWrapper) {
   std::vector<Decl*> Decls;
   std::string code = R"(
