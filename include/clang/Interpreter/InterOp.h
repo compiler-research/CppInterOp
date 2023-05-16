@@ -205,7 +205,7 @@ namespace InterOp {
   TCppFunction_t GetDefaultConstructor(TCppSema_t sema, TCppScope_t scope);
 
   ///\returns the class destructor.
-  TCppFunction_t GetDestructor(TCppScope_t scope);
+  TCppFunction_t GetDestructor(TCppSema_t sema, TCppScope_t scope);
 
   std::vector<TCppFunction_t> GetFunctionsUsingName(
         TCppSema_t sema, TCppScope_t scope, const std::string& name);
