@@ -165,8 +165,13 @@ TEST(FunctionReflectionTest, GetDestructor) {
     )";
 
   GetAllTopLevelDecls(code, Decls);
-  EXPECT_FALSE(Cpp::GetDestructor(Decls[0]));
-  EXPECT_TRUE(Cpp::GetDestructor(Decls[1]));
+  Sema *S = &Interp->getCI()->getSema();
+
+  EXPECT_TRUE(Cpp::GetDestructor(S, Decls[0]));
+  EXPECT_TRUE(Cpp::GetDestructor(S, Decls[1]));
+  auto DeletedDtor = Cpp::GetDestructor(S, Decls[2]);
+  EXPECT_TRUE(DeletedDtor);
+  EXPECT_TRUE(Cpp::IsFunctionDeleted(DeletedDtor));
 }
 
 TEST(FunctionReflectionTest, GetFunctionsUsingName) {
@@ -661,7 +666,7 @@ TEST(FunctionReflectionTest, GetFunctionCallWrapper) {
   EXPECT_EQ(output, "Default Ctor Called\n");
   EXPECT_TRUE(object != nullptr);
 
-  auto *DtorD = (clang::CXXConstructorDecl *)Cpp::GetDestructor(ClassC);
+  auto *DtorD = (clang::CXXDestructorDecl *)Cpp::GetDestructor(S, ClassC);
   auto FCI_Dtor =
       Cpp::MakeFunctionCallable((Cpp::TInterp_t)Interp.get(), DtorD);
   testing::internal::CaptureStdout();
