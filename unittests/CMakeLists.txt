@@ -18,7 +18,7 @@ function(add_interop_unittest name)
   target_include_directories(${name} PUBLIC ${CMAKE_CURRENT_BINARY_DIR} ${GTEST_INCLUDE_DIR})
   set_property(TARGET ${name} PROPERTY RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
-  target_link_libraries(${name} PUBLIC ${ARG_LIBRARIES} gtest gtest_main)
+  target_link_libraries(${name} PUBLIC ${ARG_LIBRARIES} gtest gtest_main pthread)
 
   add_test(NAME interop-${name} COMMAND ${name})
   set_tests_properties(interop-${name} PROPERTIES
