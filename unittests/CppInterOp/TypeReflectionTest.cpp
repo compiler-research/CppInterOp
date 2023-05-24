@@ -68,14 +68,13 @@ TEST(TypeReflectionTest, GetSizeOfType) {
     )";
 
   GetAllTopLevelDecls(code, Decls);
-  Sema *S = &Interp->getCI()->getSema();
 
-  EXPECT_EQ(Cpp::GetSizeOfType(S, Cpp::GetVariableType(Decls[1])), 1);
-  EXPECT_EQ(Cpp::GetSizeOfType(S, Cpp::GetVariableType(Decls[2])), 4);
-  EXPECT_EQ(Cpp::GetSizeOfType(S, Cpp::GetVariableType(Decls[3])), 8);
-  EXPECT_EQ(Cpp::GetSizeOfType(S, Cpp::GetVariableType(Decls[4])), 16);
-  EXPECT_EQ(Cpp::GetSizeOfType(S, Cpp::GetTypeFromScope(Decls[5])), 0);
-  EXPECT_EQ(Cpp::GetSizeOfType(S, Cpp::GetVariableType(Decls[6])), 8);
+  EXPECT_EQ(Cpp::GetSizeOfType(Cpp::GetVariableType(Decls[1])), 1);
+  EXPECT_EQ(Cpp::GetSizeOfType(Cpp::GetVariableType(Decls[2])), 4);
+  EXPECT_EQ(Cpp::GetSizeOfType(Cpp::GetVariableType(Decls[3])), 8);
+  EXPECT_EQ(Cpp::GetSizeOfType(Cpp::GetVariableType(Decls[4])), 16);
+  EXPECT_EQ(Cpp::GetSizeOfType(Cpp::GetTypeFromScope(Decls[5])), 0);
+  EXPECT_EQ(Cpp::GetSizeOfType(Cpp::GetVariableType(Decls[6])), 8);
 }
 
 TEST(TypeReflectionTest, GetCanonicalType) {
@@ -100,8 +99,7 @@ TEST(TypeReflectionTest, GetCanonicalType) {
 }
 
 TEST(TypeReflectionTest, GetType) {
-  Interp.reset(static_cast<compat::Interpreter *>(Cpp::CreateInterpreter()));
-  Sema *S = &Interp->getCI()->getSema();
+  Cpp::CreateInterpreter();
 
   std::string code =  R"(
     class A {};
@@ -109,9 +107,9 @@ TEST(TypeReflectionTest, GetType) {
 
   Interp->declare(code);
 
-  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetType(S, "int")), "int");
-  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetType(S, "double")), "double");
-  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetType(S, "A")), "A");
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetType("int")), "int");
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetType("double")), "double");
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetType("A")), "A");
 }
 
 TEST(TypeReflectionTest, IsRecordType) {
@@ -314,12 +312,11 @@ TEST(TypeReflectionTest, IsUnderlyingTypeRecordType) {
 }
 
 TEST(TypeReflectionTest, GetComplexType) {
-  Interp.reset(static_cast<compat::Interpreter *>(Cpp::CreateInterpreter()));
-  Sema *S = &Interp->getCI()->getSema();
+  Cpp::CreateInterpreter();
 
   auto get_complex_type_as_string = [&](const std::string &element_type) {
-    auto ElementQT = Cpp::GetType(S, element_type);
-    auto ComplexQT = Cpp::GetComplexType(S, ElementQT);
+    auto ElementQT = Cpp::GetType(element_type);
+    auto ComplexQT = Cpp::GetComplexType(ElementQT);
     return Cpp::GetTypeAsString(Cpp::GetCanonicalType(ComplexQT));
   };
 
@@ -367,16 +364,16 @@ TEST(TypeReflectionTest, IsTypeDerivedFrom) {
   Cpp::TCppType_t type_D = Cpp::GetVariableType(Decls[8]);
   Cpp::TCppType_t type_E = Cpp::GetVariableType(Decls[9]);
 
-  EXPECT_TRUE(Cpp::IsTypeDerivedFrom(Interp.get(), type_B, type_A));
-  EXPECT_TRUE(Cpp::IsTypeDerivedFrom(Interp.get(), type_D, type_B));
-  EXPECT_TRUE(Cpp::IsTypeDerivedFrom(Interp.get(), type_D, type_A));
-  EXPECT_TRUE(Cpp::IsTypeDerivedFrom(Interp.get(), type_E, type_A));
+  EXPECT_TRUE(Cpp::IsTypeDerivedFrom(type_B, type_A));
+  EXPECT_TRUE(Cpp::IsTypeDerivedFrom(type_D, type_B));
+  EXPECT_TRUE(Cpp::IsTypeDerivedFrom(type_D, type_A));
+  EXPECT_TRUE(Cpp::IsTypeDerivedFrom(type_E, type_A));
 
-  EXPECT_FALSE(Cpp::IsTypeDerivedFrom(Interp.get(), type_A, type_B));
-  EXPECT_FALSE(Cpp::IsTypeDerivedFrom(Interp.get(), type_C, type_A));
-  EXPECT_FALSE(Cpp::IsTypeDerivedFrom(Interp.get(), type_D, type_C));
-  EXPECT_FALSE(Cpp::IsTypeDerivedFrom(Interp.get(), type_B, type_D));
-  EXPECT_FALSE(Cpp::IsTypeDerivedFrom(Interp.get(), type_A, type_E));
+  EXPECT_FALSE(Cpp::IsTypeDerivedFrom(type_A, type_B));
+  EXPECT_FALSE(Cpp::IsTypeDerivedFrom(type_C, type_A));
+  EXPECT_FALSE(Cpp::IsTypeDerivedFrom(type_D, type_C));
+  EXPECT_FALSE(Cpp::IsTypeDerivedFrom(type_B, type_D));
+  EXPECT_FALSE(Cpp::IsTypeDerivedFrom(type_A, type_E));
 }
 
 TEST(TypeReflectionTest, GetDimensions) {
@@ -476,15 +473,13 @@ TEST(TypeReflectionTest, IsPODType) {
     )";
 
   GetAllTopLevelDecls(code, Decls);
-  Sema *S = &Interp->getSema();
-  EXPECT_TRUE(Cpp::IsPODType(S, Cpp::GetVariableType(Decls[2])));
-  EXPECT_FALSE(Cpp::IsPODType(S, Cpp::GetVariableType(Decls[3])));
-  EXPECT_FALSE(Cpp::IsPODType(S, 0));
+  EXPECT_TRUE(Cpp::IsPODType(Cpp::GetVariableType(Decls[2])));
+  EXPECT_FALSE(Cpp::IsPODType(Cpp::GetVariableType(Decls[3])));
+  EXPECT_FALSE(Cpp::IsPODType(0));
 }
 
 TEST(TypeReflectionTest, IsSmartPtrType) {
-  Interp.reset(static_cast<compat::Interpreter *>(Cpp::CreateInterpreter()));
-  Sema *S = &Interp->getCI()->getSema();
+  Cpp::CreateInterpreter();
 
   Interp->declare(R"(
     #include <memory>
@@ -508,7 +503,7 @@ TEST(TypeReflectionTest, IsSmartPtrType) {
   )");
 
   auto get_type_from_varname = [&](const std::string &varname) {
-    return Cpp::GetVariableType(Cpp::GetNamed(S, varname));
+    return Cpp::GetVariableType(Cpp::GetNamed(varname));
   };
 
   //EXPECT_TRUE(Cpp::IsSmartPtrType(get_type_from_varname("smart_ptr1")));

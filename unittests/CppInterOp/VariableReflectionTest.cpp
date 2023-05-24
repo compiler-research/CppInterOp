@@ -53,14 +53,10 @@ TEST(VariableReflectionTest, LookupDatamember) {
     )";
 
   GetAllTopLevelDecls(code, Decls);
-  Sema *S = &Interp->getCI()->getSema();
 
-  EXPECT_EQ(Cpp::GetQualifiedName(Cpp::LookupDatamember(S, "a", Decls[0])),
-            "C::a");
-  EXPECT_EQ(Cpp::GetQualifiedName(Cpp::LookupDatamember(S, "c", Decls[0])),
-            "C::c");
-  EXPECT_EQ(Cpp::GetQualifiedName(Cpp::LookupDatamember(S, "e", Decls[0])),
-            "C::e");
+  EXPECT_EQ(Cpp::GetQualifiedName(Cpp::LookupDatamember("a", Decls[0])), "C::a");
+  EXPECT_EQ(Cpp::GetQualifiedName(Cpp::LookupDatamember("c", Decls[0])), "C::c");
+  EXPECT_EQ(Cpp::GetQualifiedName(Cpp::LookupDatamember("e", Decls[0])), "C::e");
 }
 
 TEST(VariableReflectionTest, GetVariableType) {
@@ -91,48 +87,45 @@ TEST(VariableReflectionTest, GetVariableType) {
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetVariableType(Decls[8])), "int[4]");
 }
 
+#define CODE                                                    \
+  int a;                                                        \
+  const int N = 5;                                              \
+  class C {                                                     \
+  public:                                                       \
+    int a;                                                      \
+    double b;                                                   \
+    int *c;                                                     \
+    int d;                                                      \
+    static int s_a;                                             \
+  } c;                                                            \
+  int C::s_a = 12;
+
+CODE
+
 TEST(VariableReflectionTest, GetVariableOffset) {
   std::vector<Decl *> Decls;
-  std::string code = R"(
-    int a;
-    const int N = 5;
-    class C {
-    public:
-      int a;
-      double b;
-      int *c;
-      int d;
+#define Stringify(s) Stringifyx(s)
+#define Stringifyx(...) #__VA_ARGS__
+  GetAllTopLevelDecls(Stringify(CODE), Decls);
+#undef Stringifyx
+#undef Stringify
+#undef CODE
 
-      static int s_a;
-    };
-    int C::s_a = 12;
-    )";
-
-  class C {
-  public:
-    int a;
-    double b;
-    int *c;
-    int d;
-  } c;
-
-  GetAllTopLevelDecls(code, Decls);
   auto datamembers = Cpp::GetDatamembers(Decls[2]);
 
-  EXPECT_TRUE((bool)Cpp::GetVariableOffset(Interp.get(), Decls[0])); // a
-  EXPECT_TRUE((bool)Cpp::GetVariableOffset(Interp.get(), Decls[1])); // N
+  EXPECT_TRUE((bool) Cpp::GetVariableOffset(Decls[0])); // a
+  EXPECT_TRUE((bool) Cpp::GetVariableOffset(Decls[1])); // N
 
-  EXPECT_EQ(Cpp::GetVariableOffset(Interp.get(), datamembers[0]), 0);
-  EXPECT_EQ(Cpp::GetVariableOffset(Interp.get(), datamembers[1]),
-            ((unsigned long)&(c.b)) - ((unsigned long)&(c.a)));
-  EXPECT_EQ(Cpp::GetVariableOffset(Interp.get(), datamembers[2]),
-            ((unsigned long)&(c.c)) - ((unsigned long)&(c.a)));
-  EXPECT_EQ(Cpp::GetVariableOffset(Interp.get(), datamembers[3]),
-            ((unsigned long)&(c.d)) - ((unsigned long)&(c.a)));
+  EXPECT_EQ(Cpp::GetVariableOffset(datamembers[0]), 0);
+  EXPECT_EQ(Cpp::GetVariableOffset(datamembers[1]),
+          ((unsigned long) &(c.b)) - ((unsigned long) &(c.a)));
+  EXPECT_EQ(Cpp::GetVariableOffset(datamembers[2]),
+          ((unsigned long) &(c.c)) - ((unsigned long) &(c.a)));
+  EXPECT_EQ(Cpp::GetVariableOffset(datamembers[3]),
+          ((unsigned long) &(c.d)) - ((unsigned long) &(c.a)));
 
-  Sema *S = &Interp->getCI()->getSema();
-  auto *VD_C_s_a = Cpp::GetNamed(S, "s_a", Decls[2]); // C::s_a
-  EXPECT_TRUE((bool)Cpp::GetVariableOffset(Interp.get(), VD_C_s_a));
+  auto *VD_C_s_a = Cpp::GetNamed("s_a", Decls[2]); // C::s_a
+  EXPECT_TRUE((bool) Cpp::GetVariableOffset(VD_C_s_a));
 }
 
 TEST(VariableReflectionTest, IsPublicVariable) {

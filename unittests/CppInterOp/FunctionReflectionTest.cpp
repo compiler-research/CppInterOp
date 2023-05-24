@@ -42,13 +42,12 @@ TEST(FunctionReflectionTest, GetClassMethods) {
     )";
 
   GetAllTopLevelDecls(code, Decls);
-  Sema *S = &Interp->getCI()->getSema();
 
   auto get_method_name = [](Cpp::TCppFunction_t method) {
     return Cpp::GetFunctionSignature(method);
   };
 
-  auto methods0 = Cpp::GetClassMethods(S, Decls[0]);
+  auto methods0 = Cpp::GetClassMethods(Decls[0]);
 
   EXPECT_EQ(methods0.size(), 11);
   EXPECT_EQ(get_method_name(methods0[0]), "int A::f1(int a, int b)");
@@ -63,7 +62,7 @@ TEST(FunctionReflectionTest, GetClassMethods) {
   EXPECT_EQ(get_method_name(methods0[9]), "inline constexpr A &A::operator=(A &&)");
   EXPECT_EQ(get_method_name(methods0[10]), "inline A::~A()");
 
-  auto methods1 = Cpp::GetClassMethods(S, Decls[1]);
+  auto methods1 = Cpp::GetClassMethods(Decls[1]);
   EXPECT_EQ(methods0.size(), methods1.size());
   EXPECT_EQ(methods0[0], methods1[0]);
   EXPECT_EQ(methods0[1], methods1[1]);
@@ -71,7 +70,7 @@ TEST(FunctionReflectionTest, GetClassMethods) {
   EXPECT_EQ(methods0[3], methods1[3]);
   EXPECT_EQ(methods0[4], methods1[4]);
 
-  auto methods2 = Cpp::GetClassMethods(S, Decls[2]);
+  auto methods2 = Cpp::GetClassMethods(Decls[2]);
 
   EXPECT_EQ(methods2.size(), 6);
   EXPECT_EQ(get_method_name(methods2[0]), "B::B(int n)");
@@ -81,7 +80,7 @@ TEST(FunctionReflectionTest, GetClassMethods) {
   EXPECT_EQ(get_method_name(methods2[4]), "inline B &B::operator=(const B &)");
   EXPECT_EQ(get_method_name(methods2[5]), "inline B &B::operator=(B &&)");
 
-  auto methods3 = Cpp::GetClassMethods(S, Decls[3]);
+  auto methods3 = Cpp::GetClassMethods(Decls[3]);
 
   EXPECT_EQ(methods3.size(), 9);
   EXPECT_EQ(get_method_name(methods3[0]), "B::B(int n)");
@@ -94,7 +93,7 @@ TEST(FunctionReflectionTest, GetClassMethods) {
   EXPECT_EQ(get_method_name(methods3[8]), "inline C::~C()");
 
   // Should not crash.
-  auto methods4 = Cpp::GetClassMethods(S, Decls[4]);
+  auto methods4 = Cpp::GetClassMethods(Decls[4]);
   EXPECT_EQ(methods4.size(), 0);
 }
 
@@ -110,8 +109,7 @@ TEST(FunctionReflectionTest, ConstructorInGetClassMethods) {
   GetAllTopLevelDecls(code, Decls);
 
   auto has_constructor = [](Decl *D) {
-    Sema *S = &Interp->getCI()->getSema();
-    auto methods = Cpp::GetClassMethods(S, D);
+    auto methods = Cpp::GetClassMethods(D);
     for (auto method : methods) {
       if (Cpp::IsConstructor(method))
         return true;
@@ -165,11 +163,10 @@ TEST(FunctionReflectionTest, GetDestructor) {
     )";
 
   GetAllTopLevelDecls(code, Decls);
-  Sema *S = &Interp->getCI()->getSema();
 
-  EXPECT_TRUE(Cpp::GetDestructor(S, Decls[0]));
-  EXPECT_TRUE(Cpp::GetDestructor(S, Decls[1]));
-  auto DeletedDtor = Cpp::GetDestructor(S, Decls[2]);
+  EXPECT_TRUE(Cpp::GetDestructor(Decls[0]));
+  EXPECT_TRUE(Cpp::GetDestructor(Decls[1]));
+  auto DeletedDtor = Cpp::GetDestructor(Decls[2]);
   EXPECT_TRUE(DeletedDtor);
   EXPECT_TRUE(Cpp::IsFunctionDeleted(DeletedDtor));
 }
@@ -198,13 +195,11 @@ TEST(FunctionReflectionTest, GetFunctionsUsingName) {
 
   GetAllTopLevelDecls(code, Decls);
 
-  Sema *S = &Interp->getCI()->getSema();
-
   // This lambda can take in the scope and the name of the function
   // and returns the size of the vector returned by GetFunctionsUsingName
   auto get_number_of_funcs_using_name = [&](Cpp::TCppScope_t scope,
-                                            const std::string &name) {
-    auto Funcs = Cpp::GetFunctionsUsingName(S, scope, name);
+          const std::string &name) {
+    auto Funcs = Cpp::GetFunctionsUsingName(scope, name);
 
     return Funcs.size();
   };
@@ -378,10 +373,8 @@ TEST(FunctionReflectionTest, ExistsFunctionTemplate) {
     )";
 
   GetAllTopLevelDecls(code, Decls);
-  auto *S = &Interp->getCI()->getSema();
-
-  EXPECT_TRUE(Cpp::ExistsFunctionTemplate(S, "f", 0));
-  EXPECT_TRUE(Cpp::ExistsFunctionTemplate(S, "f", Decls[1]));
+  EXPECT_TRUE(Cpp::ExistsFunctionTemplate("f", 0));
+  EXPECT_TRUE(Cpp::ExistsFunctionTemplate("f", Decls[1]));
 }
 
 TEST(FunctionReflectionTest, IsPublicMethod) {
@@ -534,17 +527,13 @@ TEST(FunctionReflectionTest, GetFunctionAddress) {
   testing::internal::CaptureStdout();
   Interp->declare("#include <iostream>");
   Interp->process(
-      "void * address = (void *) &f1; \n"
-#if USE_REPL && CLANG_VERSION_MAJOR < 16
-      "int run() {std::cout << address; return 0;} int result = run(); \n"
-#else
-      "std::cout << address; \n"
-#endif
-  );
+    "void * address = (void *) &f1; \n"
+    "std::cout << address; \n"
+    );
 
   std::string output = testing::internal::GetCapturedStdout();
   std::stringstream address;
-  address << Cpp::GetFunctionAddress((Cpp::TInterp_t)Interp.get(), Decls[0]);
+  address << Cpp::GetFunctionAddress(Decls[0]);
   EXPECT_EQ(address.str(), output);
 }
 
@@ -577,16 +566,15 @@ TEST(FunctionReflectionTest, JitCallAdvanced) {
     )";
 
   GetAllTopLevelDecls(code, Decls);
-  Sema *S = &Interp->getCI()->getSema();
-  auto *CtorD =
-      (clang::CXXConstructorDecl *)Cpp::GetDefaultConstructor(S, Decls[0]);
-  auto Ctor = Cpp::MakeFunctionCallable((Cpp::TInterp_t)Interp.get(), CtorD);
+  auto *CtorD
+    = (clang::CXXConstructorDecl*)Cpp::GetDefaultConstructor(Decls[0]);
+  auto Ctor = Cpp::MakeFunctionCallable(CtorD);
   EXPECT_TRUE((bool)Ctor) << "Failed to build a wrapper for the ctor";
   void* object = nullptr;
   Ctor.Invoke(&object);
   EXPECT_TRUE(object) << "Failed to call the ctor.";
   // Building a wrapper with a typedef decl must be possible.
-  Cpp::Destruct((Cpp::TInterp_t)Interp.get(), object, Decls[1]);
+  Cpp::Destruct(object, Decls[1]);
 }
 
 TEST(FunctionReflectionTest, GetFunctionCallWrapper) {
@@ -610,20 +598,17 @@ TEST(FunctionReflectionTest, GetFunctionCallWrapper) {
     }
   )");
 
-  Sema *S = &Interp->getCI()->getSema();
   Cpp::JitCall FCI1 =
-      Cpp::MakeFunctionCallable((Cpp::TInterp_t)Interp.get(), Decls[0]);
+      Cpp::MakeFunctionCallable(Decls[0]);
   EXPECT_TRUE(FCI1.getKind() == Cpp::JitCall::kGenericCall);
-  Cpp::JitCall FCI2 = Cpp::MakeFunctionCallable((Cpp::TInterp_t)Interp.get(),
-                                                Cpp::GetNamed(S, "f2"));
+  Cpp::JitCall FCI2 =
+      Cpp::MakeFunctionCallable(Cpp::GetNamed("f2"));
   EXPECT_TRUE(FCI2.getKind() == Cpp::JitCall::kGenericCall);
   Cpp::JitCall FCI3 =
-      Cpp::MakeFunctionCallable((Cpp::TInterp_t)Interp.get(),
-                                Cpp::GetNamed(S, "f3", Cpp::GetNamed(S, "NS")));
+    Cpp::MakeFunctionCallable(Cpp::GetNamed("f3", Cpp::GetNamed("NS")));
   EXPECT_TRUE(FCI3.getKind() == Cpp::JitCall::kGenericCall);
   Cpp::JitCall FCI4 =
-      Cpp::MakeFunctionCallable((Cpp::TInterp_t)Interp.get(),
-                                Cpp::GetNamed(S, "f4", Cpp::GetNamed(S, "NS")));
+      Cpp::MakeFunctionCallable(Cpp::GetNamed("f4", Cpp::GetNamed("NS")));
   EXPECT_TRUE(FCI4.getKind() == Cpp::JitCall::kGenericCall);
 
   int i = 9, ret1, ret3, ret4;
@@ -654,11 +639,10 @@ TEST(FunctionReflectionTest, GetFunctionCallWrapper) {
     };
   )");
 
-  clang::NamedDecl *ClassC = (clang::NamedDecl *)Cpp::GetNamed(S, "C");
-  auto *CtorD =
-      (clang::CXXConstructorDecl *)Cpp::GetDefaultConstructor(S, ClassC);
+  clang::NamedDecl *ClassC = (clang::NamedDecl*)Cpp::GetNamed("C");
+  auto *CtorD = (clang::CXXConstructorDecl*)Cpp::GetDefaultConstructor(ClassC);
   auto FCI_Ctor =
-      Cpp::MakeFunctionCallable((Cpp::TInterp_t)Interp.get(), CtorD);
+    Cpp::MakeFunctionCallable(CtorD);
   void* object = nullptr;
   testing::internal::CaptureStdout();
   FCI_Ctor.Invoke((void*)&object);
@@ -666,9 +650,9 @@ TEST(FunctionReflectionTest, GetFunctionCallWrapper) {
   EXPECT_EQ(output, "Default Ctor Called\n");
   EXPECT_TRUE(object != nullptr);
 
-  auto *DtorD = (clang::CXXDestructorDecl *)Cpp::GetDestructor(S, ClassC);
+  auto *DtorD = (clang::CXXDestructorDecl*)Cpp::GetDestructor(ClassC);
   auto FCI_Dtor =
-      Cpp::MakeFunctionCallable((Cpp::TInterp_t)Interp.get(), DtorD);
+    Cpp::MakeFunctionCallable(DtorD);
   testing::internal::CaptureStdout();
   FCI_Dtor.Invoke(object);
   output = testing::internal::GetCapturedStdout();
@@ -727,8 +711,7 @@ TEST(FunctionReflectionTest, GetFunctionArgDefault) {
 }
 
 TEST(FunctionReflectionTest, Construct) {
-  Interp.reset(static_cast<compat::Interpreter *>(Cpp::CreateInterpreter()));
-  Sema *S = &Interp->getCI()->getSema();
+  Cpp::CreateInterpreter();
 
   Interp->declare(R"(
     #include <new>
@@ -743,8 +726,8 @@ TEST(FunctionReflectionTest, Construct) {
     )");
 
   testing::internal::CaptureStdout();
-  Cpp::TCppScope_t scope = Cpp::GetNamed(S, "C");
-  Cpp::TCppObject_t object = Cpp::Construct(Interp.get(), scope);
+  Cpp::TCppScope_t scope = Cpp::GetNamed("C");
+  Cpp::TCppObject_t object = Cpp::Construct(scope);
   EXPECT_TRUE(object != nullptr);
   std::string output = testing::internal::GetCapturedStdout();
   EXPECT_EQ(output, "Constructor Executed");
@@ -753,7 +736,7 @@ TEST(FunctionReflectionTest, Construct) {
   // Placement.
   testing::internal::CaptureStdout();
   void* where = Cpp::Allocate(scope);
-  EXPECT_TRUE(where == Cpp::Construct(Interp.get(), scope, where));
+  EXPECT_TRUE(where == Cpp::Construct(scope, where));
   // Check for the value of x which should be at the start of the object.
   EXPECT_TRUE(**(int **)(void **)where == 12345);
   Cpp::Deallocate(scope, where);
@@ -762,8 +745,7 @@ TEST(FunctionReflectionTest, Construct) {
 }
 
 TEST(FunctionReflectionTest, Destruct) {
-  Interp.reset(static_cast<compat::Interpreter *>(Cpp::CreateInterpreter()));
-  Sema *S = &Interp->getCI()->getSema();
+  Cpp::CreateInterpreter();
 
   Interp->declare(R"(
     #include <new>
@@ -777,19 +759,19 @@ TEST(FunctionReflectionTest, Destruct) {
     )");
 
   testing::internal::CaptureStdout();
-  Cpp::TCppScope_t scope = Cpp::GetNamed(S, "C");
-  Cpp::TCppObject_t object = Cpp::Construct(Interp.get(), scope);
-  Cpp::Destruct(Interp.get(), object, scope);
+  Cpp::TCppScope_t scope = Cpp::GetNamed("C");
+  Cpp::TCppObject_t object = Cpp::Construct(scope);
+  Cpp::Destruct(object, scope);
   std::string output = testing::internal::GetCapturedStdout();
 
   EXPECT_EQ(output, "Destructor Executed");
 
   output.clear();
   testing::internal::CaptureStdout();
-  object = Cpp::Construct(Interp.get(), scope);
+  object = Cpp::Construct(scope);
   // Make sure we do not call delete by adding an explicit Deallocate. If we
   // called delete the Deallocate will cause a double deletion error.
-  Cpp::Destruct(Interp.get(), object, scope, /*withFree=*/false);
+  Cpp::Destruct(object, scope, /*withFree=*/false);
   Cpp::Deallocate(scope, object);
   output = testing::internal::GetCapturedStdout();
   EXPECT_EQ(output, "Destructor Executed");
