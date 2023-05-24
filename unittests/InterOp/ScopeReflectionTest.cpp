@@ -58,15 +58,26 @@ TEST(ScopeReflectionTest, IsClass) {
 
 TEST(ScopeReflectionTest, IsComplete) {
   std::vector<Decl*> Decls;
-  GetAllTopLevelDecls(
-      "namespace N {} class C{}; int I; struct S; enum E : int; union U{};",
-      Decls);
+  std::string code = R"(
+    namespace N {}
+    class C{};
+    int I;
+    struct S;
+    enum E : int;
+    union U{};
+    template<typename T> struct TemplatedS{ T x; };
+    TemplatedS<int> templateF() { return {}; };
+  )";
+  GetAllTopLevelDecls(code,
+                      Decls);
   EXPECT_TRUE(InterOp::IsComplete(Decls[0]));
   EXPECT_TRUE(InterOp::IsComplete(Decls[1]));
   EXPECT_TRUE(InterOp::IsComplete(Decls[2]));
   EXPECT_FALSE(InterOp::IsComplete(Decls[3]));
   EXPECT_FALSE(InterOp::IsComplete(Decls[4]));
   EXPECT_TRUE(InterOp::IsComplete(Decls[5]));
+  InterOp::TCppType_t retTy = InterOp::GetFunctionReturnType(Decls[7]);
+  EXPECT_TRUE(InterOp::IsComplete(InterOp::GetScopeFromType(retTy)));
 }
 
 TEST(ScopeReflectionTest, SizeOf) {
@@ -92,8 +103,7 @@ TEST(ScopeReflectionTest, IsBuiltin) {
   //  "int", "unsigned int", "long", "unsigned long", "long long", "unsigned long long",
   //  "float", "double", "long double", "void"}
 
-  Interp.reset(
-      static_cast<compat::Interpreter *>(InterOp::CreateInterpreter()));
+  InterOp::CreateInterpreter();
   ASTContext &C = Interp->getCI()->getASTContext();
   EXPECT_TRUE(InterOp::IsBuiltin(C.BoolTy.getAsOpaquePtr()));
   EXPECT_TRUE(InterOp::IsBuiltin(C.CharTy.getAsOpaquePtr()));
@@ -231,21 +241,19 @@ TEST(ScopeReflectionTest, GetCompleteName) {
                         A<int> a;
                        )";
   GetAllTopLevelDecls(code, Decls);
-  Sema *S = &Interp->getCI()->getSema();
 
-  EXPECT_EQ(InterOp::GetCompleteName(S, Decls[0]), "N");
-  EXPECT_EQ(InterOp::GetCompleteName(S, Decls[1]), "C");
-  EXPECT_EQ(InterOp::GetCompleteName(S, Decls[2]), "I");
-  EXPECT_EQ(InterOp::GetCompleteName(S, Decls[3]), "S");
-  EXPECT_EQ(InterOp::GetCompleteName(S, Decls[4]), "E");
-  EXPECT_EQ(InterOp::GetCompleteName(S, Decls[5]), "U");
-  EXPECT_EQ(InterOp::GetCompleteName(S, Decls[6]), "Size4");
-  EXPECT_EQ(InterOp::GetCompleteName(S, Decls[7]), "Size16");
-  EXPECT_EQ(InterOp::GetCompleteName(S, Decls[8]), "A");
-  EXPECT_EQ(
-      InterOp::GetCompleteName(
-          S, InterOp::GetScopeFromType(InterOp::GetVariableType(Decls[9]))),
-      "A<int>");
+  EXPECT_EQ(InterOp::GetCompleteName(Decls[0]), "N");
+  EXPECT_EQ(InterOp::GetCompleteName(Decls[1]), "C");
+  EXPECT_EQ(InterOp::GetCompleteName(Decls[2]), "I");
+  EXPECT_EQ(InterOp::GetCompleteName(Decls[3]), "S");
+  EXPECT_EQ(InterOp::GetCompleteName(Decls[4]), "E");
+  EXPECT_EQ(InterOp::GetCompleteName(Decls[5]), "U");
+  EXPECT_EQ(InterOp::GetCompleteName(Decls[6]), "Size4");
+  EXPECT_EQ(InterOp::GetCompleteName(Decls[7]), "Size16");
+  EXPECT_EQ(InterOp::GetCompleteName(Decls[8]), "A");
+  EXPECT_EQ(InterOp::GetCompleteName(InterOp::GetScopeFromType(
+                                             InterOp::GetVariableType(
+                                                     Decls[9]))), "A<int>");
 }
 
 TEST(ScopeReflectionTest, GetQualifiedName) {
@@ -283,18 +291,14 @@ TEST(ScopeReflectionTest, GetQualifiedCompleteName) {
   GetAllTopLevelDecls(code, Decls);
   GetAllSubDecls(Decls[0], Decls);
   GetAllSubDecls(Decls[1], Decls);
-  Sema *S = &Interp->getCI()->getSema();
 
-  EXPECT_EQ(InterOp::GetQualifiedCompleteName(S, 0), "<unnamed>");
-  EXPECT_EQ(InterOp::GetQualifiedCompleteName(S, Decls[0]), "N");
-  EXPECT_EQ(InterOp::GetQualifiedCompleteName(S, Decls[1]), "N::C");
-  EXPECT_EQ(InterOp::GetQualifiedCompleteName(S, Decls[2]), "N::A");
-  EXPECT_EQ(
-      InterOp::GetQualifiedCompleteName(
-          S, InterOp::GetScopeFromType(InterOp::GetVariableType(Decls[3]))),
-      "N::A<int>");
-  EXPECT_EQ(InterOp::GetQualifiedCompleteName(S, Decls[5]), "N::C::i");
-  EXPECT_EQ(InterOp::GetQualifiedCompleteName(S, Decls[6]), "N::C::E");
+  EXPECT_EQ(InterOp::GetQualifiedCompleteName(0), "<unnamed>");
+  EXPECT_EQ(InterOp::GetQualifiedCompleteName(Decls[0]), "N");
+  EXPECT_EQ(InterOp::GetQualifiedCompleteName(Decls[1]), "N::C");
+  EXPECT_EQ(InterOp::GetQualifiedCompleteName(Decls[2]), "N::A");
+  EXPECT_EQ(InterOp::GetQualifiedCompleteName(InterOp::GetScopeFromType(InterOp::GetVariableType(Decls[3]))), "N::A<int>");
+  EXPECT_EQ(InterOp::GetQualifiedCompleteName(Decls[5]), "N::C::i");
+  EXPECT_EQ(InterOp::GetQualifiedCompleteName(Decls[6]), "N::C::E");
 }
 
 TEST(ScopeReflectionTest, GetUsingNamespaces) {
@@ -322,16 +326,11 @@ TEST(ScopeReflectionTest, GetUsingNamespaces) {
 }
 
 TEST(ScopeReflectionTest, GetGlobalScope) {
-  Interp.reset(
-      static_cast<compat::Interpreter *>(InterOp::CreateInterpreter()));
-  Sema *S = &Interp->getCI()->getSema();
-
-  EXPECT_EQ(InterOp::GetQualifiedName(InterOp::GetGlobalScope(S)), "");
-  EXPECT_EQ(InterOp::GetName(InterOp::GetGlobalScope(S)), "");
+  EXPECT_EQ(InterOp::GetQualifiedName(InterOp::GetGlobalScope()), "");
+  EXPECT_EQ(InterOp::GetName(InterOp::GetGlobalScope()), "");
 }
 
 TEST(ScopeReflectionTest, GetScope) {
-  std::vector<Decl *> Decls;
   std::string code = R"(namespace N {
                         class C {
                           int i;
@@ -340,13 +339,11 @@ TEST(ScopeReflectionTest, GetScope) {
                         }
                        )";
 
-  Interp.reset(
-      static_cast<compat::Interpreter *>(InterOp::CreateInterpreter()));
+  InterOp::CreateInterpreter();
   Interp->declare(code);
-  Sema *S = &Interp->getCI()->getSema();
-  InterOp::TCppScope_t tu = InterOp::GetScope(S, "", 0);
-  InterOp::TCppScope_t ns_N = InterOp::GetScope(S, "N", 0);
-  InterOp::TCppScope_t cl_C = InterOp::GetScope(S, "C", ns_N);
+  InterOp::TCppScope_t tu = InterOp::GetScope("", 0);
+  InterOp::TCppScope_t ns_N = InterOp::GetScope("N", 0);
+  InterOp::TCppScope_t cl_C = InterOp::GetScope("C", ns_N);
 
   EXPECT_EQ(InterOp::GetQualifiedName(tu), "");
   EXPECT_EQ(InterOp::GetQualifiedName(ns_N), "N");
@@ -354,7 +351,6 @@ TEST(ScopeReflectionTest, GetScope) {
 }
 
 TEST(ScopeReflectionTest, GetScopefromCompleteName) {
-  std::vector<Decl *> Decls;
   std::string code = R"(namespace N1 {
                         namespace N2 {
                           class C {
@@ -364,26 +360,16 @@ TEST(ScopeReflectionTest, GetScopefromCompleteName) {
                         }
                        )";
 
-  Interp.reset(
-      static_cast<compat::Interpreter *>(InterOp::CreateInterpreter()));
+  InterOp::CreateInterpreter();
+
   Interp->declare(code);
-  Sema *S = &Interp->getCI()->getSema();
-  EXPECT_EQ(
-      InterOp::GetQualifiedName(InterOp::GetScopeFromCompleteName(S, "N1")),
-      "N1");
-  EXPECT_EQ(
-      InterOp::GetQualifiedName(InterOp::GetScopeFromCompleteName(S, "N1::N2")),
-      "N1::N2");
-  EXPECT_EQ(InterOp::GetQualifiedName(
-                InterOp::GetScopeFromCompleteName(S, "N1::N2::C")),
-            "N1::N2::C");
-  EXPECT_EQ(InterOp::GetQualifiedName(
-                InterOp::GetScopeFromCompleteName(S, "N1::N2::C::S")),
-            "N1::N2::C::S");
+  EXPECT_EQ(InterOp::GetQualifiedName(InterOp::GetScopeFromCompleteName("N1")), "N1");
+  EXPECT_EQ(InterOp::GetQualifiedName(InterOp::GetScopeFromCompleteName("N1::N2")), "N1::N2");
+  EXPECT_EQ(InterOp::GetQualifiedName(InterOp::GetScopeFromCompleteName("N1::N2::C")), "N1::N2::C");
+  EXPECT_EQ(InterOp::GetQualifiedName(InterOp::GetScopeFromCompleteName("N1::N2::C::S")), "N1::N2::C::S");
 }
 
 TEST(ScopeReflectionTest, GetNamed) {
-  std::vector<Decl *> Decls;
   std::string code = R"(namespace N1 {
                         namespace N2 {
                           class C {
@@ -394,35 +380,26 @@ TEST(ScopeReflectionTest, GetNamed) {
                         }
                         }
                        )";
+  InterOp::CreateInterpreter();
 
-  Interp.reset(
-      static_cast<compat::Interpreter *>(InterOp::CreateInterpreter()));
   Interp->declare(code);
-  Sema *S = &Interp->getCI()->getSema();
-  InterOp::TCppScope_t ns_N1 = InterOp::GetNamed(S, "N1", nullptr);
-  InterOp::TCppScope_t ns_N2 = InterOp::GetNamed(S, "N2", ns_N1);
-  InterOp::TCppScope_t cl_C = InterOp::GetNamed(S, "C", ns_N2);
-  InterOp::TCppScope_t en_E = InterOp::GetNamed(S, "E", cl_C);
+  InterOp::TCppScope_t ns_N1 = InterOp::GetNamed("N1", nullptr);
+  InterOp::TCppScope_t ns_N2 = InterOp::GetNamed("N2", ns_N1);
+  InterOp::TCppScope_t cl_C = InterOp::GetNamed("C", ns_N2);
+  InterOp::TCppScope_t en_E = InterOp::GetNamed("E", cl_C);
   EXPECT_EQ(InterOp::GetQualifiedName(ns_N1), "N1");
   EXPECT_EQ(InterOp::GetQualifiedName(ns_N2), "N1::N2");
   EXPECT_EQ(InterOp::GetQualifiedName(cl_C), "N1::N2::C");
-  EXPECT_EQ(InterOp::GetQualifiedName(InterOp::GetNamed(S, "i", cl_C)),
-            "N1::N2::C::i");
+  EXPECT_EQ(InterOp::GetQualifiedName(InterOp::GetNamed("i", cl_C)), "N1::N2::C::i");
   EXPECT_EQ(InterOp::GetQualifiedName(en_E), "N1::N2::C::E");
-  EXPECT_EQ(InterOp::GetQualifiedName(InterOp::GetNamed(S, "A", en_E)),
-            "N1::N2::C::A");
-  EXPECT_EQ(InterOp::GetQualifiedName(InterOp::GetNamed(S, "B", en_E)),
-            "N1::N2::C::B");
-  EXPECT_EQ(InterOp::GetQualifiedName(InterOp::GetNamed(S, "A", cl_C)),
-            "N1::N2::C::A");
-  EXPECT_EQ(InterOp::GetQualifiedName(InterOp::GetNamed(S, "B", cl_C)),
-            "N1::N2::C::B");
-  EXPECT_EQ(InterOp::GetQualifiedName(InterOp::GetNamed(S, "S", cl_C)),
-            "N1::N2::C::S");
+  EXPECT_EQ(InterOp::GetQualifiedName(InterOp::GetNamed("A", en_E)), "N1::N2::C::A");
+  EXPECT_EQ(InterOp::GetQualifiedName(InterOp::GetNamed("B", en_E)), "N1::N2::C::B");
+  EXPECT_EQ(InterOp::GetQualifiedName(InterOp::GetNamed("A", cl_C)), "N1::N2::C::A");
+  EXPECT_EQ(InterOp::GetQualifiedName(InterOp::GetNamed("B", cl_C)), "N1::N2::C::B");
+  EXPECT_EQ(InterOp::GetQualifiedName(InterOp::GetNamed("S", cl_C)), "N1::N2::C::S");
 }
 
 TEST(ScopeReflectionTest, GetParentScope) {
-  std::vector<Decl *> Decls;
   std::string code = R"(namespace N1 {
                         namespace N2 {
                           class C {
@@ -434,17 +411,16 @@ TEST(ScopeReflectionTest, GetParentScope) {
                         }
                        )";
 
-  Interp.reset(
-      static_cast<compat::Interpreter *>(InterOp::CreateInterpreter()));
+  InterOp::CreateInterpreter();
+
   Interp->declare(code);
-  Sema *S = &Interp->getCI()->getSema();
-  InterOp::TCppScope_t ns_N1 = InterOp::GetNamed(S, "N1");
-  InterOp::TCppScope_t ns_N2 = InterOp::GetNamed(S, "N2", ns_N1);
-  InterOp::TCppScope_t cl_C = InterOp::GetNamed(S, "C", ns_N2);
-  InterOp::TCppScope_t int_i = InterOp::GetNamed(S, "i", cl_C);
-  InterOp::TCppScope_t en_E = InterOp::GetNamed(S, "E", cl_C);
-  InterOp::TCppScope_t en_A = InterOp::GetNamed(S, "A", cl_C);
-  InterOp::TCppScope_t en_B = InterOp::GetNamed(S, "B", cl_C);
+  InterOp::TCppScope_t ns_N1 = InterOp::GetNamed("N1");
+  InterOp::TCppScope_t ns_N2 = InterOp::GetNamed("N2", ns_N1);
+  InterOp::TCppScope_t cl_C = InterOp::GetNamed("C", ns_N2);
+  InterOp::TCppScope_t int_i = InterOp::GetNamed("i", cl_C);
+  InterOp::TCppScope_t en_E = InterOp::GetNamed("E", cl_C);
+  InterOp::TCppScope_t en_A = InterOp::GetNamed("A", cl_C);
+  InterOp::TCppScope_t en_B = InterOp::GetNamed("B", cl_C);
 
   EXPECT_EQ(InterOp::GetQualifiedName(InterOp::GetParentScope(ns_N1)), "");
   EXPECT_EQ(InterOp::GetQualifiedName(InterOp::GetParentScope(ns_N2)), "N1");
@@ -536,13 +512,12 @@ TEST(ScopeReflectionTest, GetBaseClass) {
   EXPECT_EQ(get_base_class_name(Decls[3], 1), "C");
   EXPECT_EQ(get_base_class_name(Decls[4], 0), "D");
 
-  auto *S = &Interp->getSema();
-  auto *VD = InterOp::GetNamed(S, "var");
+  auto *VD = InterOp::GetNamed("var");
   auto *VT = InterOp::GetVariableType(VD);
   auto *TC2_A_Decl = InterOp::GetScopeFromType(VT);
   auto *TC1_A_Decl = InterOp::GetBaseClass(TC2_A_Decl, 0);
 
-  EXPECT_EQ(InterOp::GetCompleteName(S, TC1_A_Decl), "TC1<A>");
+  EXPECT_EQ(InterOp::GetCompleteName(TC1_A_Decl), "TC1<A>");
 }
 
 TEST(ScopeReflectionTest, IsSubclass) {
@@ -557,93 +532,68 @@ TEST(ScopeReflectionTest, IsSubclass) {
 
   GetAllTopLevelDecls(code, Decls);
 
-  EXPECT_TRUE(InterOp::IsSubclass(Interp.get(), Decls[0], Decls[0]));
-  EXPECT_TRUE(InterOp::IsSubclass(Interp.get(), Decls[1], Decls[0]));
-  EXPECT_TRUE(InterOp::IsSubclass(Interp.get(), Decls[2], Decls[0]));
-  EXPECT_TRUE(InterOp::IsSubclass(Interp.get(), Decls[3], Decls[0]));
-  EXPECT_TRUE(InterOp::IsSubclass(Interp.get(), Decls[4], Decls[0]));
-  EXPECT_FALSE(InterOp::IsSubclass(Interp.get(), Decls[0], Decls[1]));
-  EXPECT_TRUE(InterOp::IsSubclass(Interp.get(), Decls[1], Decls[1]));
-  EXPECT_FALSE(InterOp::IsSubclass(Interp.get(), Decls[2], Decls[1]));
-  EXPECT_TRUE(InterOp::IsSubclass(Interp.get(), Decls[3], Decls[1]));
-  EXPECT_TRUE(InterOp::IsSubclass(Interp.get(), Decls[4], Decls[1]));
-  EXPECT_FALSE(InterOp::IsSubclass(Interp.get(), Decls[0], Decls[2]));
-  EXPECT_FALSE(InterOp::IsSubclass(Interp.get(), Decls[1], Decls[2]));
-  EXPECT_TRUE(InterOp::IsSubclass(Interp.get(), Decls[2], Decls[2]));
-  EXPECT_TRUE(InterOp::IsSubclass(Interp.get(), Decls[3], Decls[2]));
-  EXPECT_TRUE(InterOp::IsSubclass(Interp.get(), Decls[4], Decls[2]));
-  EXPECT_FALSE(InterOp::IsSubclass(Interp.get(), Decls[0], Decls[3]));
-  EXPECT_FALSE(InterOp::IsSubclass(Interp.get(), Decls[1], Decls[3]));
-  EXPECT_FALSE(InterOp::IsSubclass(Interp.get(), Decls[2], Decls[3]));
-  EXPECT_TRUE(InterOp::IsSubclass(Interp.get(), Decls[3], Decls[3]));
-  EXPECT_TRUE(InterOp::IsSubclass(Interp.get(), Decls[4], Decls[3]));
-  EXPECT_FALSE(InterOp::IsSubclass(Interp.get(), Decls[0], Decls[4]));
-  EXPECT_FALSE(InterOp::IsSubclass(Interp.get(), Decls[1], Decls[4]));
-  EXPECT_FALSE(InterOp::IsSubclass(Interp.get(), Decls[2], Decls[4]));
-  EXPECT_FALSE(InterOp::IsSubclass(Interp.get(), Decls[3], Decls[4]));
-  EXPECT_TRUE(InterOp::IsSubclass(Interp.get(), Decls[4], Decls[4]));
+  EXPECT_TRUE(InterOp::IsSubclass(Decls[0], Decls[0]));
+  EXPECT_TRUE(InterOp::IsSubclass(Decls[1], Decls[0]));
+  EXPECT_TRUE(InterOp::IsSubclass(Decls[2], Decls[0]));
+  EXPECT_TRUE(InterOp::IsSubclass(Decls[3], Decls[0]));
+  EXPECT_TRUE(InterOp::IsSubclass(Decls[4], Decls[0]));
+  EXPECT_FALSE(InterOp::IsSubclass(Decls[0], Decls[1]));
+  EXPECT_TRUE(InterOp::IsSubclass(Decls[1], Decls[1]));
+  EXPECT_FALSE(InterOp::IsSubclass(Decls[2], Decls[1]));
+  EXPECT_TRUE(InterOp::IsSubclass(Decls[3], Decls[1]));
+  EXPECT_TRUE(InterOp::IsSubclass(Decls[4], Decls[1]));
+  EXPECT_FALSE(InterOp::IsSubclass(Decls[0], Decls[2]));
+  EXPECT_FALSE(InterOp::IsSubclass(Decls[1], Decls[2]));
+  EXPECT_TRUE(InterOp::IsSubclass(Decls[2], Decls[2]));
+  EXPECT_TRUE(InterOp::IsSubclass(Decls[3], Decls[2]));
+  EXPECT_TRUE(InterOp::IsSubclass(Decls[4], Decls[2]));
+  EXPECT_FALSE(InterOp::IsSubclass(Decls[0], Decls[3]));
+  EXPECT_FALSE(InterOp::IsSubclass(Decls[1], Decls[3]));
+  EXPECT_FALSE(InterOp::IsSubclass(Decls[2], Decls[3]));
+  EXPECT_TRUE(InterOp::IsSubclass(Decls[3], Decls[3]));
+  EXPECT_TRUE(InterOp::IsSubclass(Decls[4], Decls[3]));
+  EXPECT_FALSE(InterOp::IsSubclass(Decls[0], Decls[4]));
+  EXPECT_FALSE(InterOp::IsSubclass(Decls[1], Decls[4]));
+  EXPECT_FALSE(InterOp::IsSubclass(Decls[2], Decls[4]));
+  EXPECT_FALSE(InterOp::IsSubclass(Decls[3], Decls[4]));
+  EXPECT_TRUE(InterOp::IsSubclass(Decls[4], Decls[4]));
 }
 
 TEST(ScopeReflectionTest, GetBaseClassOffset) {
   std::vector<Decl *> Decls;
-  std::string code = R"(
-    class A { int m_a; };
-    class B { int m_b; };
-    class C : virtual A, virtual B { int m_c; };
-    class D : virtual A, virtual B, public C { int m_d; };
-    class E : public A, public B { int m_e; };
-    class F : public A { int m_f; };
-    class G : public F { int m_g; };
-  )";
+#define Stringify(s) Stringifyx(s)
+#define Stringifyx(...) #__VA_ARGS__
+#define CODE                                                    \
+  class A { int m_a; };                                         \
+  class B { int m_b; };                                         \
+  class C : virtual A, virtual B { int m_c; };                  \
+  class D : virtual A, virtual B, public C { int m_d; };        \
+  class E : public A, public B { int m_e; };                    \
+  class F : public A { int m_f; };                              \
+  class G : public F { int m_g; };
 
-  class A {
-    int m_a;
-  };
-  class B {
-    int m_b;
-  };
-  class C : virtual A, virtual B {
-    int m_c;
-  };
-  class D : virtual A, virtual B, public C {
-    int m_d;
-  };
-  class E : public A, public B {
-    int m_e;
-  };
-  class F : public A {
-    int m_f;
-  };
-  class G : public F {
-    int m_g;
-  };
+  CODE;
 
-  GetAllTopLevelDecls(code, Decls);
-  Sema *S = &Interp->getCI()->getSema();
+  GetAllTopLevelDecls(Stringify(CODE), Decls);
+#undef Stringifyx
+#undef Stringify
+#undef CODE
 
   auto *c = new C();
-  EXPECT_EQ(InterOp::GetBaseClassOffset(S, Decls[2], Decls[0]),
-            (char *)(A *)c - (char *)c);
-  EXPECT_EQ(InterOp::GetBaseClassOffset(S, Decls[2], Decls[1]),
-            (char *)(B *)c - (char *)c);
+  EXPECT_EQ(InterOp::GetBaseClassOffset(Decls[2], Decls[0]), (char *)(A*)c - (char *)c);
+  EXPECT_EQ(InterOp::GetBaseClassOffset(Decls[2], Decls[1]), (char *)(B*)c - (char *)c);
 
   auto *d = new D();
-  EXPECT_EQ(InterOp::GetBaseClassOffset(S, Decls[3], Decls[0]),
-            (char *)(A *)d - (char *)d);
-  EXPECT_EQ(InterOp::GetBaseClassOffset(S, Decls[3], Decls[1]),
-            (char *)(B *)d - (char *)d);
-  EXPECT_EQ(InterOp::GetBaseClassOffset(S, Decls[3], Decls[2]),
-            (char *)(C *)d - (char *)d);
+  EXPECT_EQ(InterOp::GetBaseClassOffset(Decls[3], Decls[0]), (char *)(A*)d - (char *)d);
+  EXPECT_EQ(InterOp::GetBaseClassOffset(Decls[3], Decls[1]), (char *)(B*)d - (char *)d);
+  EXPECT_EQ(InterOp::GetBaseClassOffset(Decls[3], Decls[2]), (char *)(C*)d - (char *)d);
 
   auto *e = new E();
-  EXPECT_EQ(InterOp::GetBaseClassOffset(S, Decls[4], Decls[0]),
-            (char *)(A *)e - (char *)e);
-  EXPECT_EQ(InterOp::GetBaseClassOffset(S, Decls[4], Decls[1]),
-            (char *)(B *)e - (char *)e);
+  EXPECT_EQ(InterOp::GetBaseClassOffset(Decls[4], Decls[0]), (char *)(A*)e - (char *)e);
+  EXPECT_EQ(InterOp::GetBaseClassOffset(Decls[4], Decls[1]), (char *)(B*)e - (char *)e);
 
   auto *g = new G();
-  EXPECT_EQ(InterOp::GetBaseClassOffset(S, Decls[6], Decls[0]),
-            (char *)(A *)g - (char *)g);
+  EXPECT_EQ(InterOp::GetBaseClassOffset(Decls[6], Decls[0]), (char *)(A*)g - (char *)g);
 }
 
 TEST(ScopeReflectionTest, GetAllCppNames) {
@@ -680,8 +630,7 @@ TEST(ScopeReflectionTest, GetAllCppNames) {
 }
 
 TEST(ScopeReflectionTest, InstantiateNNTPClassTemplate) {
-  Interp.reset(
-      static_cast<compat::Interpreter *>(InterOp::CreateInterpreter()));
+  InterOp::CreateInterpreter();
 
   std::vector<Decl *> Decls;
   std::string code = R"(
@@ -700,8 +649,7 @@ TEST(ScopeReflectionTest, InstantiateNNTPClassTemplate) {
 
   InterOp::TCppType_t IntTy = C.IntTy.getAsOpaquePtr();
   std::vector<InterOp::TemplateArgInfo> args1 = {{IntTy, "5"}};
-  EXPECT_TRUE(InterOp::InstantiateClassTemplate(Interp.get(), Decls[0],
-                                                args1.data(),
+  EXPECT_TRUE(InterOp::InstantiateClassTemplate(Decls[0], args1.data(),
                                                 /*type_size*/ args1.size()));
 }
 
@@ -749,9 +697,9 @@ TEST(ScopeReflectionTest, InstantiateClassTemplate) {
   ASTContext &C = Interp->getCI()->getASTContext();
 
   std::vector<InterOp::TemplateArgInfo> args1 = {C.IntTy.getAsOpaquePtr()};
-  auto Instance1 =
-      InterOp::InstantiateClassTemplate(Interp.get(), Decls[0], args1.data(),
-                                        /*type_size*/ args1.size());
+  auto Instance1 = InterOp::InstantiateClassTemplate(Decls[0],
+                                                     args1.data(),
+                                                     /*type_size*/args1.size());
   EXPECT_TRUE(isa<ClassTemplateSpecializationDecl>((Decl*)Instance1));
   auto *CTSD1 = static_cast<ClassTemplateSpecializationDecl*>(Instance1);
   EXPECT_TRUE(CTSD1->hasDefinition());
@@ -759,9 +707,9 @@ TEST(ScopeReflectionTest, InstantiateClassTemplate) {
   EXPECT_TRUE(TA1.getAsType()->isIntegerType());
   EXPECT_TRUE(CTSD1->hasDefinition());
 
-  auto Instance2 =
-      InterOp::InstantiateClassTemplate(Interp.get(), Decls[1], nullptr,
-                                        /*type_size*/ 0);
+  auto Instance2 = InterOp::InstantiateClassTemplate(Decls[1],
+                                                     nullptr,
+                                                    /*type_size*/0);
   EXPECT_TRUE(isa<ClassTemplateSpecializationDecl>((Decl*)Instance2));
   auto *CTSD2 = static_cast<ClassTemplateSpecializationDecl*>(Instance2);
   EXPECT_TRUE(CTSD2->hasDefinition());
@@ -769,9 +717,9 @@ TEST(ScopeReflectionTest, InstantiateClassTemplate) {
   EXPECT_TRUE(TA2.getAsType()->isIntegerType());
 
   std::vector<InterOp::TemplateArgInfo> args3 = {C.IntTy.getAsOpaquePtr()};
-  auto Instance3 =
-      InterOp::InstantiateClassTemplate(Interp.get(), Decls[2], args3.data(),
-                                        /*type_size*/ args3.size());
+  auto Instance3 = InterOp::InstantiateClassTemplate(Decls[2],
+                                                     args3.data(),
+                                                     /*type_size*/args3.size());
   EXPECT_TRUE(isa<ClassTemplateSpecializationDecl>((Decl*)Instance3));
   auto *CTSD3 = static_cast<ClassTemplateSpecializationDecl*>(Instance3);
   EXPECT_TRUE(CTSD3->hasDefinition());
@@ -780,16 +728,15 @@ TEST(ScopeReflectionTest, InstantiateClassTemplate) {
   EXPECT_TRUE(TA3_0.getAsType()->isIntegerType());
   EXPECT_TRUE(InterOp::IsRecordType(TA3_1.getAsType().getAsOpaquePtr()));
 
-  Sema *S = &Interp->getCI()->getSema();
-  auto Inst3_methods = InterOp::GetClassMethods(S, Instance3);
+  auto Inst3_methods = InterOp::GetClassMethods(Instance3);
   EXPECT_EQ(InterOp::GetFunctionSignature(Inst3_methods[0]),
             "C1<int>::C1(const C0<int> &val)");
 
   std::vector<InterOp::TemplateArgInfo> args4 = {C.IntTy.getAsOpaquePtr(),
                                                {C.IntTy.getAsOpaquePtr(), "3"}};
-  auto Instance4 =
-      InterOp::InstantiateClassTemplate(Interp.get(), Decls[3], args4.data(),
-                                        /*type_size*/ args4.size());
+  auto Instance4 = InterOp::InstantiateClassTemplate(Decls[3],
+                                                     args4.data(),
+                                                     /*type_size*/args4.size());
 
   EXPECT_TRUE(isa<ClassTemplateSpecializationDecl>((Decl*)Instance4));
   auto *CTSD4 = static_cast<ClassTemplateSpecializationDecl*>(Instance4);
