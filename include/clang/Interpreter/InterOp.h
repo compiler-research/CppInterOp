@@ -21,7 +21,6 @@ namespace InterOp {
   using TCppFunction_t = void*;
   using TCppConstFunction_t = const void*;
   using TCppFuncAddr_t = void*;
-  using TCppSema_t = void *;
   using TInterp_t = void*;
   using TCppObject_t = void*;
   /// A class modeling function calls for functions produced by the interpreter
@@ -29,7 +28,7 @@ namespace InterOp {
   /// function, constructor or destructor.
   class JitCall {
   public:
-    friend JitCall MakeFunctionCallable(TInterp_t, TCppConstFunction_t);
+    friend JitCall MakeFunctionCallable(TCppConstFunction_t);
     enum Kind : char {
       kUnknown = 0,
       kGenericCall,
@@ -160,29 +159,27 @@ namespace InterOp {
 
   TCppIndex_t GetEnumConstantValue(TCppScope_t scope);
 
-  size_t GetSizeOfType(TCppSema_t sema, TCppType_t type);
+  size_t GetSizeOfType(TCppType_t type);
 
   bool IsVariable(TCppScope_t scope);
 
   std::string GetName(TCppType_t klass);
 
-  std::string GetCompleteName(TCppSema_t sema, TCppType_t klass);
+  std::string GetCompleteName(TCppType_t klass);
 
   std::string GetQualifiedName(TCppType_t klass);
 
-  std::string GetQualifiedCompleteName(TCppSema_t sema, TCppType_t klass);
+  std::string GetQualifiedCompleteName(TCppType_t klass);
 
   std::vector<TCppScope_t> GetUsingNamespaces(TCppScope_t scope);
 
-  TCppScope_t GetGlobalScope(TCppSema_t sema);
+  TCppScope_t GetGlobalScope();
 
-  TCppScope_t GetScope(TCppSema_t sema, const std::string &name,
-                       TCppScope_t parent = 0);
+  TCppScope_t GetScope(const std::string &name, TCppScope_t parent = 0);
 
-  TCppScope_t GetScopeFromCompleteName(TCppSema_t sema,
-                                       const std::string &name);
+  TCppScope_t GetScopeFromCompleteName(const std::string &name);
 
-  TCppScope_t GetNamed(TCppSema_t sema, const std::string &name,
+  TCppScope_t GetNamed(const std::string &name,
                        TCppScope_t parent = nullptr);
 
   TCppScope_t GetParentScope(TCppScope_t scope);
@@ -193,26 +190,23 @@ namespace InterOp {
 
   TCppScope_t GetBaseClass(TCppType_t klass, TCppIndex_t ibase);
 
-  bool IsSubclass(TInterp_t interp, TCppScope_t derived, TCppScope_t base);
+  bool IsSubclass(TCppScope_t derived, TCppScope_t base);
 
-  int64_t GetBaseClassOffset(TCppSema_t sema, TCppScope_t derived,
-                             TCppScope_t base);
+  int64_t GetBaseClassOffset(TCppScope_t derived, TCppScope_t base);
 
-  std::vector<TCppFunction_t> GetClassMethods(TCppSema_t sema,
-                                              TCppScope_t klass);
+  std::vector<TCppFunction_t> GetClassMethods(TCppScope_t klass);
 
   ///\returns if a class has a default constructor.
   bool HasDefaultConstructor(TCppScope_t scope);
 
   ///\returns the default constructor of a class if any.
-  TCppFunction_t GetDefaultConstructor(TCppSema_t sema, TCppScope_t scope);
+  TCppFunction_t GetDefaultConstructor(TCppScope_t scope);
 
   ///\returns the class destructor.
-  TCppFunction_t GetDestructor(TCppSema_t sema, TCppScope_t scope);
+  TCppFunction_t GetDestructor(TCppScope_t scope);
 
-  std::vector<TCppFunction_t> GetFunctionsUsingName(TCppSema_t sema,
-                                                    TCppScope_t scope,
-                                                    const std::string &name);
+  std::vector<TCppFunction_t> GetFunctionsUsingName(
+        TCppScope_t scope, const std::string& name);
 
   TCppType_t GetFunctionReturnType(TCppFunction_t func);
 
@@ -231,8 +225,8 @@ namespace InterOp {
 
   bool IsTemplatedFunction(TCppFunction_t func);
 
-  bool ExistsFunctionTemplate(TCppSema_t sema, const std::string &name,
-                              TCppScope_t parent = 0);
+  bool ExistsFunctionTemplate(const std::string& name,
+          TCppScope_t parent = 0);
 
   bool IsMethod(TCppConstFunction_t method);
 
@@ -248,18 +242,17 @@ namespace InterOp {
 
   bool IsStaticMethod(TCppFunction_t method);
 
-  TCppFuncAddr_t GetFunctionAddress(TInterp_t interp, TCppFunction_t method);
+  TCppFuncAddr_t GetFunctionAddress(TCppFunction_t method);
 
   bool IsVirtualMethod(TCppFunction_t method);
 
   std::vector<TCppScope_t> GetDatamembers(TCppScope_t scope);
 
-  TCppScope_t LookupDatamember(TCppSema_t sema, const std::string &name,
-                               TCppScope_t parent);
+  TCppScope_t LookupDatamember(const std::string& name, TCppScope_t parent);
 
   TCppType_t GetVariableType(TCppScope_t var);
 
-  intptr_t GetVariableOffset(TInterp_t interp, TCppScope_t var);
+  intptr_t GetVariableOffset(TCppScope_t var);
 
   bool IsPublicVariable(TCppScope_t var);
 
@@ -273,7 +266,7 @@ namespace InterOp {
 
   bool IsRecordType(TCppType_t type);
 
-  bool IsPODType(TCppSema_t sema, TCppType_t type);
+  bool IsPODType(TCppType_t type);
 
   TCppType_t  GetUnderlyingType(TCppType_t type);
 
@@ -281,18 +274,18 @@ namespace InterOp {
 
   TCppType_t GetCanonicalType(TCppType_t type);
 
-  TCppType_t GetType(TCppSema_t sema, const std::string &type);
+  TCppType_t GetType(const std::string &type);
 
-  TCppType_t GetComplexType(TCppSema_t sema, TCppType_t element_type);
+  TCppType_t GetComplexType(TCppType_t element_type);
 
   TCppType_t GetTypeFromScope(TCppScope_t klass);
 
   /// Check if a C++ type derives from another.
-  bool IsTypeDerivedFrom(TInterp_t interp, TCppType_t derived, TCppType_t base);
+  bool IsTypeDerivedFrom(TCppType_t derived, TCppType_t base);
 
   /// Creates a trampoline function by using the interpreter and returns a
   /// uniform interface to call it from compiled code.
-  JitCall MakeFunctionCallable(TInterp_t interp, TCppConstFunction_t func);
+  JitCall MakeFunctionCallable(TCppConstFunction_t func);
 
   /// Checks if a function declared is of const type or not
   bool IsConstMethod(TCppFunction_t method);
@@ -310,32 +303,31 @@ namespace InterOp {
   ///           adds additional arguments to the interpreter.
   TInterp_t CreateInterpreter(const std::vector<const char*> &Args = {});
 
-  TCppSema_t GetSema(TInterp_t interp);
+  ///\returns the current interpreter instance, if any.
+  TInterp_t GetInterpreter();
 
-  void AddSearchPath(TInterp_t interp, const char *dir, bool isUser = true,
-                     bool prepend = false);
+  void AddSearchPath(const char *dir, bool isUser = true, bool prepend = false);
 
   /// Returns the resource-dir path.
-  const char *GetResourceDir(TInterp_t interp);
+  const char* GetResourceDir();
 
-  void AddIncludePath(TInterp_t interp, const char *dir);
+  void AddIncludePath(const char *dir);
 
-  TCppIndex_t Declare(TInterp_t interp, const char *code, bool silent = false);
+  TCppIndex_t Declare(const char *code, bool silent = false);
 
   /// Declares and runs a code snippet in \c code.
   ///\returns 0 on success
-  int Process(TInterp_t interp, const char *code);
+  int Process(const char *code);
 
   /// Declares, runs and returns the execution result as a intptr_t.
   ///\returns the expression results as a intptr_t.
-  intptr_t Evaluate(TInterp_t interp, const char *code,
-                    bool *HadError = nullptr);
+  intptr_t Evaluate(const char *code, bool *HadError = nullptr);
 
-  const std::string LookupLibrary(TInterp_t interp, const char *lib_name);
+  const std::string LookupLibrary(const char *lib_name);
 
-  bool LoadLibrary(TInterp_t interp, const char *lib_path, bool lookup = true);
+  bool LoadLibrary(const char *lib_path, bool lookup = true);
 
-  std::string ObjToString(TInterp_t interp, const char *type, void *obj);
+  std::string ObjToString(const char *type, void *obj);
 
   struct TemplateArgInfo {
     TCppScope_t m_Type;
@@ -343,8 +335,8 @@ namespace InterOp {
     TemplateArgInfo(TCppScope_t type, const char* integral_value = nullptr)
       : m_Type(type), m_IntegralValue(integral_value) {}
   };
-  TCppScope_t InstantiateClassTemplate(TInterp_t interp, TCppScope_t tmpl,
-                                       TemplateArgInfo *template_args,
+  TCppScope_t InstantiateClassTemplate(TCppScope_t tmpl,
+                                       TemplateArgInfo* template_args,
                                        size_t template_args_size);
 
   std::vector<std::string> GetAllCppNames(TCppScope_t scope);
@@ -367,12 +359,12 @@ namespace InterOp {
 
   /// Creates an object of class \c scope and calls its default constructor. If
   /// \c arena is set it uses placement new.
-  TCppObject_t Construct(TInterp_t interp, TCppScope_t scope,
-                         void *arena = nullptr);
+  TCppObject_t Construct(TCppScope_t scope,
+                         void* arena = nullptr);
 
   /// Calls the destructor of object of type \c type. When withFree is true it
   /// calls operator delete/free.
-  void Destruct(TInterp_t interp, TCppObject_t This, TCppScope_t type,
+  void Destruct(TCppObject_t This, TCppScope_t type,
                 bool withFree = true);
 } // end namespace InterOp
 
