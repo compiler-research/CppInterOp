@@ -596,6 +596,9 @@ namespace Cpp {
   }
 
   // Copied from VTableBuilder.cpp
+  // This is an internal helper function for the CppInterOp library (as evident
+  // by the 'static' declaration), while the similar GetBaseClassOffset()
+  // function below is exposed to library users.
   static unsigned ComputeBaseOffset(const ASTContext &Context,
                                     const CXXRecordDecl *DerivedRD,
                                     const CXXBasePath &Path) {
@@ -821,6 +824,8 @@ namespace Cpp {
     return "<unknown>";
   }
 
+  // Internal functions that are not needed outside the library are
+  // encompassed in an anonymous namespace as follows.
   namespace {
     bool IsTemplatedFunction(Decl *D) {
       if (llvm::isa_and_nonnull<FunctionTemplateDecl>(D)) {
@@ -872,6 +877,8 @@ namespace Cpp {
     return true;
   }
 
+  // Gets the AccessSpecifier of the function and checks if it is equal to
+  // the provided AccessSpecifier.
   bool CheckMethodAccess(TCppFunction_t method, AccessSpecifier AS)
   {
     auto *D = (Decl *) method;
@@ -1079,6 +1086,7 @@ namespace Cpp {
     return 0;
   }
 
+  // Check if the Access Specifier of the variable matches the provided value.
   bool CheckVariableAccess(TCppScope_t var, AccessSpecifier AS)
   {
     auto *D = (Decl *) var;
@@ -1171,6 +1179,9 @@ namespace Cpp {
     return QT.getCanonicalType().getAsOpaquePtr();
   }
 
+  // Internal functions that are not needed outside the library are
+  // encompassed in an anonymous namespace as follows. This function converts
+  // from a string to the actual type. It is used in the GetType() function.
   namespace {
     static QualType findBuiltinType(llvm::StringRef typeName, ASTContext &Context)
     {
@@ -1254,11 +1265,15 @@ namespace Cpp {
     return C.getTypeDeclType(cast<TypeDecl>(D)).getAsOpaquePtr();
   }
 
+  // Internal functions that are not needed outside the library are
+  // encompassed in an anonymous namespace as follows.
   namespace {
     static unsigned long long gWrapperSerial = 0LL;
     static const std::string kIndentString("   ");
 
     enum EReferenceType { kNotReference, kLValueReference, kRValueReference };
+
+    // Start of JitCall Helper Functions
 
 #define DEBUG_TYPE "jitcall"
 
@@ -1292,7 +1307,7 @@ namespace Cpp {
                            EReferenceType& refType, bool& isPointer,
                            int indent_level, bool forArgument) {
       //
-      //  Collect information about type type of a function parameter
+      //  Collect information about the type of a function parameter
       //  needed for building the wrapper function.
       //
       ASTContext& C = FD->getASTContext();
@@ -1427,7 +1442,7 @@ namespace Cpp {
 
       // Sometimes it's necessary that we cast the function we want to call
       // first to its explicit function type before calling it. This is supposed
-      // to prevent that we accidentially ending up in a function that is not
+      // to prevent that we accidentally ending up in a function that is not
       // the one we're supposed to call here (e.g. because the C++ function
       // lookup decides to take another function that better fits). This method
       // has some problems, e.g. when we call a function with default arguments
@@ -2407,6 +2422,7 @@ namespace Cpp {
     }
 #undef DEBUG_TYPE
     } // namespace
+      // End of JitCall Helper Functions
 
   JitCall MakeFunctionCallable(TCppConstFunction_t func) {
     auto* D = (const clang::Decl*)func;
@@ -2592,7 +2608,7 @@ namespace Cpp {
     SourceLocation noLoc;
     QualType TT = S.CheckTemplateIdType(TemplateName(ClassDecl), noLoc, TLI);
 
-    // This is not right but we don't have a lot of options to chose from as a
+    // This is not right but we don't have a lot of options to choose from as a
     // template instantiation requires a valid source location.
     SourceLocation fakeLoc = GetValidSLoc(S);
     // Perhaps we can extract this into a new interface.
