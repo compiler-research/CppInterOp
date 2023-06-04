@@ -345,5 +345,14 @@ if (TARGET clang-headers)
   list(APPEND LLVM_COMMON_DEPENDS clang-headers)
 endif()
 
+# Generate docs for CppInterOp
+option(INTEROP_INCLUDE_DOCS "Generate build targets for the CppInterOp docs.")
+option(INTEROP_ENABLE_DOXYGEN "Use doxygen to generate CppInterOp interal API documentation.")
+option(INTEROP_ENABLE_SPHINX "Use sphinx to generage CppInterOp user documentation")
+
+if (INTEROP_INCLUDE_DOCS)
+  add_subdirectory(docs)
+endif()
+
 add_subdirectory(lib)
 add_subdirectory(unittests)
