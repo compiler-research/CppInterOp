@@ -494,12 +494,28 @@ namespace Cpp {
     return GetScope(name.substr(start, end), curr_scope);
   }
 
+  static CXXRecordDecl *GetScopeFromType(QualType QT) {
+    if (auto *Type = QT.getTypePtrOrNull()) {
+      Type = Type->getPointeeOrArrayElementType();
+      Type = Type->getUnqualifiedDesugaredType();
+      return Type->getAsCXXRecordDecl();
+    }
+    return 0;
+  }
+
+  TCppScope_t GetScopeFromType(TCppType_t type) {
+    QualType QT = QualType::getFromOpaquePtr(type);
+    return (TCppScope_t)GetScopeFromType(QT);
+  }
+
   TCppScope_t GetNamed(const std::string &name,
                        TCppScope_t parent /*= nullptr*/)
   {
     clang::DeclContext *Within = 0;
     if (parent) {
       auto *D = (clang::Decl *)parent;
+      if (auto *TD = dyn_cast<TypedefNameDecl>(D))
+        D = GetScopeFromType(TD->getUnderlyingType());
       Within = llvm::dyn_cast<clang::DeclContext>(D);
     }
 
@@ -525,22 +541,6 @@ namespace Cpp {
 
     return (TCppScope_t) clang::Decl::castFromDeclContext(
             ParentDC)->getCanonicalDecl();
-  }
-
-  namespace {
-  CXXRecordDecl *GetScopeFromType(QualType QT) {
-    if (auto *Type = QT.getTypePtrOrNull()) {
-      Type = Type->getPointeeOrArrayElementType();
-      Type = Type->getUnqualifiedDesugaredType();
-      return Type->getAsCXXRecordDecl();
-    }
-    return 0;
-  }
-  } // namespace
-
-  TCppScope_t GetScopeFromType(TCppType_t type) {
-    QualType QT = QualType::getFromOpaquePtr(type);
-    return (TCppScope_t)GetScopeFromType(QT);
   }
 
   TCppIndex_t GetNumBases(TCppScope_t klass)

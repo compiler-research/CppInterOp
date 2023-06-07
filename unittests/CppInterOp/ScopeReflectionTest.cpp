@@ -397,6 +397,14 @@ TEST(ScopeReflectionTest, GetNamed) {
   EXPECT_EQ(Cpp::GetQualifiedName(Cpp::GetNamed("A", cl_C)), "N1::N2::C::A");
   EXPECT_EQ(Cpp::GetQualifiedName(Cpp::GetNamed("B", cl_C)), "N1::N2::C::B");
   EXPECT_EQ(Cpp::GetQualifiedName(Cpp::GetNamed("S", cl_C)), "N1::N2::C::S");
+
+  Interp->process("#include <string>");
+  Cpp::TCppScope_t std_ns = Cpp::GetNamed("std", nullptr);
+  Cpp::TCppScope_t std_string_class = Cpp::GetNamed("string", std_ns);
+  Cpp::TCppScope_t std_string_npos_var = Cpp::GetNamed("npos", std_string_class);
+  EXPECT_EQ(Cpp::GetQualifiedName(std_ns), "std");
+  EXPECT_EQ(Cpp::GetQualifiedName(std_string_class), "std::string");
+  EXPECT_EQ(Cpp::GetQualifiedName(std_string_npos_var), "std::basic_string<char>::npos");
 }
 
 TEST(ScopeReflectionTest, GetParentScope) {
