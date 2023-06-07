@@ -34,3 +34,6 @@
 # Directories
 build
 install
+
+# CLion files
+.idea
