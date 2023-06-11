@@ -16,6 +16,7 @@
 #include "llvm/Config/llvm-config.h"
 #include "llvm/ExecutionEngine/JITSymbol.h"
 #include "llvm/ExecutionEngine/Orc/LLJIT.h"
+#include "llvm/Support/Path.h"
 
 #ifdef USE_CLING
 
