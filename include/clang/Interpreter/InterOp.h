@@ -410,7 +410,7 @@ namespace InterOp {
   ///\param[in] Args - the list of arguments for interpreter constructor.
   ///\param[in] INTEROP_EXTRA_INTERPRETER_ARGS - an env variable, if defined,
   ///           adds additional arguments to the interpreter.
-  TInterp_t CreateInterpreter(const std::vector<const char*> &Args = {});
+  extern "C" TInterp_t CreateInterpreter(const std::vector<const char*> &Args = {});
 
   /// Checks which Interpreter backend was InterOp library built with (Cling,
   /// Clang-REPL, etcetera). In practice, the selected interpreter should not
