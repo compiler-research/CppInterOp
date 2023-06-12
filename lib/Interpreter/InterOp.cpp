@@ -462,6 +462,39 @@ namespace InterOp {
     return getSema().getASTContext().getTranslationUnitDecl();
   }
 
+  static Decl *GetScopeFromType(QualType QT) {
+    if (auto* Type = QT.getTypePtrOrNull()) {
+      Type = Type->getPointeeOrArrayElementType();
+      Type = Type->getUnqualifiedDesugaredType();
+      if (auto *ET = llvm::dyn_cast<EnumType>(Type))
+        return ET->getDecl();
+      return Type->getAsCXXRecordDecl();
+    }
+    return 0;
+  }
+
+  TCppScope_t GetScopeFromType(TCppType_t type)
+  {
+    QualType QT = QualType::getFromOpaquePtr(type);
+    return (TCppScope_t) GetScopeFromType(QT);
+  }
+
+  static clang::Decl* GetUnderlyingScope(clang::Decl * D) {
+    if (auto *TND = dyn_cast_or_null<TypedefNameDecl>(D)) {
+      auto Scope = GetScopeFromType(TND->getUnderlyingType());
+      if (Scope)
+        D = Scope;
+    }
+
+    return D;
+  }
+
+  TCppScope_t GetUnderlyingScope(TCppScope_t scope) {
+    if (!scope)
+      return 0;
+    return GetUnderlyingScope((clang::Decl *) scope);
+  }
+
   TCppScope_t GetScope(const std::string &name, TCppScope_t parent)
   {
     if (name == "")
@@ -494,29 +527,13 @@ namespace InterOp {
     return GetScope(name.substr(start, end), curr_scope);
   }
 
-  static CXXRecordDecl *GetScopeFromType(QualType QT) {
-    if (auto* Type = QT.getTypePtrOrNull()) {
-      Type = Type->getPointeeOrArrayElementType();
-      Type = Type->getUnqualifiedDesugaredType();
-      return Type->getAsCXXRecordDecl();
-    }
-    return 0;
-  }
-
-  TCppScope_t GetScopeFromType(TCppType_t type)
-  {
-    QualType QT = QualType::getFromOpaquePtr(type);
-    return (TCppScope_t) GetScopeFromType(QT);
-  }
-
   TCppScope_t GetNamed(const std::string &name,
                        TCppScope_t parent /*= nullptr*/)
   {
     clang::DeclContext *Within = 0;
     if (parent) {
       auto *D = (clang::Decl *)parent;
-      if (auto *TD = dyn_cast<TypedefNameDecl>(D))
-        D = GetScopeFromType(TD->getUnderlyingType());
+      D = GetUnderlyingScope(D);
       Within = llvm::dyn_cast<clang::DeclContext>(D);
     }
 
@@ -735,8 +752,7 @@ namespace InterOp {
     if (!scope || name.empty())
       return {};
 
-    if (auto *TD = llvm::dyn_cast<TypedefNameDecl>(D))
-      D = GetScopeFromType(TD->getUnderlyingType());
+    D = GetUnderlyingScope(D);
 
     std::vector<TCppFunction_t> funcs;
     llvm::StringRef Name(name);
