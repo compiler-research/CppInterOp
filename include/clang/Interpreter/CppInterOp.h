@@ -224,8 +224,9 @@ namespace Cpp {
   /// underlying decl is not a class it returns the input unchanged.
   TCppScope_t GetUnderlyingScope(TCppScope_t scope);
 
-  /// Gets the namespace or class for the name passed as a parameter,
-  /// and if the parent is not passed, then global scope will be assumed.
+  /// Gets the namespace or class (by stripping typedefs) for the name 
+  /// passed as a parameter, and if the parent is not passed, 
+  /// then global scope will be assumed.
   TCppScope_t GetScope(const std::string &name, TCppScope_t parent = 0);
 
   /// When the namespace is known, then the parent doesn't need
