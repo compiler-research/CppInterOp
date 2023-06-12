@@ -330,6 +330,24 @@ TEST(ScopeReflectionTest, GetGlobalScope) {
   EXPECT_EQ(InterOp::GetName(InterOp::GetGlobalScope()), "");
 }
 
+TEST(ScopeReflectionTest, GetUnderlyingScope) {
+  std::vector<Decl *> Decls;
+  std::string code = R"(
+    namespace N {
+      class C {};
+    }
+
+    typedef N::C NC;
+    typedef int INT;
+  )";
+
+  GetAllTopLevelDecls(code, Decls);
+
+  EXPECT_EQ(InterOp::GetQualifiedName(InterOp::GetUnderlyingScope(Decls[0])), "N");
+  EXPECT_EQ(InterOp::GetQualifiedName(InterOp::GetUnderlyingScope(Decls[1])), "N::C");
+  EXPECT_EQ(InterOp::GetQualifiedName(InterOp::GetUnderlyingScope(Decls[2])), "INT");
+}
+
 TEST(ScopeReflectionTest, GetScope) {
   std::string code = R"(namespace N {
                         class C {
