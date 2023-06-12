@@ -220,6 +220,10 @@ namespace Cpp {
   /// Gets the global scope of the whole C++  instance.
   TCppScope_t GetGlobalScope();
 
+  /// Strips the typedef and returns the underlying class, and if the
+  /// underlying decl is not a class it returns the input unchanged.
+  TCppScope_t GetUnderlyingScope(TCppScope_t scope);
+
   /// Gets the namespace or class for the name passed as a parameter,
   /// and if the parent is not passed, then global scope will be assumed.
   TCppScope_t GetScope(const std::string &name, TCppScope_t parent = 0);
