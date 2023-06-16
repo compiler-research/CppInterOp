@@ -369,6 +369,8 @@ TEST(ScopeReflectionTest, GetScope) {
                           enum E { A, B };
                         };
                         }
+
+                        typedef N::C T;
                        )";
 
   Cpp::CreateInterpreter();
@@ -376,10 +378,12 @@ TEST(ScopeReflectionTest, GetScope) {
   Cpp::TCppScope_t tu = Cpp::GetScope("", 0);
   Cpp::TCppScope_t ns_N = Cpp::GetScope("N", 0);
   Cpp::TCppScope_t cl_C = Cpp::GetScope("C", ns_N);
+  Cpp::TCppScope_t td_T = Cpp::GetScope("T", 0);
 
   EXPECT_EQ(Cpp::GetQualifiedName(tu), "");
   EXPECT_EQ(Cpp::GetQualifiedName(ns_N), "N");
   EXPECT_EQ(Cpp::GetQualifiedName(cl_C), "N::C");
+  EXPECT_EQ(Cpp::GetQualifiedName(td_T), "T");
 }
 
 TEST(ScopeReflectionTest, GetScopefromCompleteName) {
