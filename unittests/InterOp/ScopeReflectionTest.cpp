@@ -355,6 +355,8 @@ TEST(ScopeReflectionTest, GetScope) {
                           enum E { A, B };
                         };
                         }
+
+                        typedef N::C T;
                        )";
 
   InterOp::CreateInterpreter();
@@ -362,10 +364,12 @@ TEST(ScopeReflectionTest, GetScope) {
   InterOp::TCppScope_t tu = InterOp::GetScope("", 0);
   InterOp::TCppScope_t ns_N = InterOp::GetScope("N", 0);
   InterOp::TCppScope_t cl_C = InterOp::GetScope("C", ns_N);
+  InterOp::TCppScope_t td_T = InterOp::GetScope("T", 0);
 
   EXPECT_EQ(InterOp::GetQualifiedName(tu), "");
   EXPECT_EQ(InterOp::GetQualifiedName(ns_N), "N");
   EXPECT_EQ(InterOp::GetQualifiedName(cl_C), "N::C");
+  EXPECT_EQ(InterOp::GetQualifiedName(td_T), "T");
 }
 
 TEST(ScopeReflectionTest, GetScopefromCompleteName) {
