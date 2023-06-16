@@ -477,6 +477,7 @@ TEST(ScopeReflectionTest, GetScopeFromType) {
     namespace N {
     class C {};
     struct S {};
+    typedef C T;
     }
 
     N::C c;
@@ -484,18 +485,23 @@ TEST(ScopeReflectionTest, GetScopeFromType) {
     N::S s;
 
     int i;
+    
+    N::T t;
   )";
 
   GetAllTopLevelDecls(code, Decls);
   QualType QT1 = llvm::dyn_cast<VarDecl>(Decls[1])->getType();
   QualType QT2 = llvm::dyn_cast<VarDecl>(Decls[2])->getType();
   QualType QT3 = llvm::dyn_cast<VarDecl>(Decls[3])->getType();
+  QualType QT4 = llvm::dyn_cast<VarDecl>(Decls[4])->getType();
   EXPECT_EQ(InterOp::GetQualifiedName(InterOp::GetScopeFromType(QT1.getAsOpaquePtr())),
           "N::C");
   EXPECT_EQ(InterOp::GetQualifiedName(InterOp::GetScopeFromType(QT2.getAsOpaquePtr())),
           "N::S");
   EXPECT_EQ(InterOp::GetScopeFromType(QT3.getAsOpaquePtr()),
           (InterOp::TCppScope_t) 0);
+  EXPECT_EQ(InterOp::GetQualifiedName(InterOp::GetScopeFromType(QT4.getAsOpaquePtr())),
+          "N::C");
 }
 
 TEST(ScopeReflectionTest, GetNumBases) {
