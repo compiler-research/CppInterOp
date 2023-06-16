@@ -468,6 +468,24 @@ TEST(ScopeReflectionTest, GetNamed) {
   EXPECT_EQ(Cpp::GetQualifiedName(std_ns), "std");
   EXPECT_EQ(Cpp::GetQualifiedName(std_string_class), "std::string");
   EXPECT_EQ(Cpp::GetQualifiedName(std_string_npos_var), "std::basic_string<char>::npos");
+
+  Interp->declare(R"(
+    struct S {
+      typedef int Val;
+    };
+
+    struct S1 : public S {
+      /* empty */
+    };
+  )");
+  Cpp::TCppScope_t strt_S = Cpp::GetNamed("S", nullptr);
+  Cpp::TCppScope_t strt_S_Val = Cpp::GetNamed("Val", strt_S);
+  Cpp::TCppScope_t strt_S1 = Cpp::GetNamed("S1", nullptr);
+  Cpp::TCppScope_t strt_S1_Val = Cpp::GetNamed("Val", strt_S1);
+  EXPECT_EQ(Cpp::GetQualifiedName(strt_S), "S");
+  EXPECT_EQ(Cpp::GetQualifiedName(strt_S_Val), "S::Val");
+  EXPECT_EQ(Cpp::GetQualifiedName(strt_S1), "S1");
+  EXPECT_EQ(Cpp::GetQualifiedName(strt_S1_Val), "S1::Val");
 }
 
 TEST(ScopeReflectionTest, GetParentScope) {
