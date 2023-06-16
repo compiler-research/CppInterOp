@@ -169,6 +169,20 @@ TEST(ScopeReflectionTest, IsTemplateSpecialization) {
           Cpp::GetScopeFromType(Cpp::GetVariableType(Decls[1]))));
 }
 
+TEST(ScopeReflectionTest, IsTypedefed) {
+  std::vector<Decl *> Decls;
+  std::string code = R"(
+    typedef int I;
+    using D = double;
+    class C {};
+    )";
+
+  GetAllTopLevelDecls(code, Decls);
+  EXPECT_TRUE(Cpp::IsTypedefed(Decls[0]));
+  EXPECT_TRUE(Cpp::IsTypedefed(Decls[1]));
+  EXPECT_FALSE(Cpp::IsTypedefed(Decls[2]));
+}
+
 TEST(ScopeReflectionTest, IsAbstract) {
   std::vector<Decl *> Decls;
   std::string code = R"(

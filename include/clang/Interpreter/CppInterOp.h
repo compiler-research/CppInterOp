@@ -155,6 +155,9 @@ namespace Cpp {
   /// Checks if it is a class template specialization class.
   bool IsTemplateSpecialization(TCppScope_t handle);
 
+  /// Checks if \c handle introduces a typedef name via \c typedef or \c using.
+  bool IsTypedefed(TCppScope_t handle);
+
   bool IsAbstract(TCppType_t klass);
 
   /// Checks if it is an enum name (EnumDecl represents an enum name).
