@@ -468,7 +468,7 @@ namespace Cpp {
   }
 
   static Decl *GetScopeFromType(QualType QT) {
-    if (auto *Type = QT.getTypePtrOrNull()) {
+    if (auto* Type = QT.getCanonicalType().getTypePtrOrNull()) {
       Type = Type->getPointeeOrArrayElementType();
       Type = Type->getUnqualifiedDesugaredType();
       if (auto *ET = llvm::dyn_cast<EnumType>(Type))
