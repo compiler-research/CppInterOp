@@ -502,19 +502,22 @@ namespace InterOp {
 
   TCppScope_t GetScope(const std::string &name, TCppScope_t parent)
   {
+    // FIXME: GetScope should be replaced by a general purpose lookup
+    // and filter function. The function should be like GetNamed but
+    // also take in a filter parameter which determines which results
+    // to pass back
     if (name == "")
         return GetGlobalScope();
 
     auto *ND = (NamedDecl*)GetNamed(name, parent);
-
-    ND = llvm::dyn_cast_or_null<NamedDecl>(GetUnderlyingScope(ND));
 
     if (!ND || ND == (NamedDecl *) -1)
       return 0;
 
     if (llvm::isa<NamespaceDecl>(ND)     ||
         llvm::isa<RecordDecl>(ND)        ||
-        llvm::isa<ClassTemplateDecl>(ND))
+        llvm::isa<ClassTemplateDecl>(ND) ||
+        llvm::isa<TypedefNameDecl>(ND))
       return (TCppScope_t)(ND->getCanonicalDecl());
 
     return 0;
