@@ -193,6 +193,12 @@ jobs:
           llvm-project
           ${{ matrix.cling=='On' && 'cling' || '' }}
         key: ${{ steps.cache.outputs.cache-primary-key }}
+    - name: Setup code coverage
+      if: ${{ success() && (matrix.coverage == true) }}
+      run: |
+        sudo apt install lcov
+        echo "CODE_COVERAGE=1" >> $GITHUB_ENV
+        echo "BUILD_TYPE=Debug" >> $GITHUB_ENV
     - name: Build and Test/Install InterOp
       run: |
         LLVM_DIR="$(realpath llvm-project)"
@@ -214,22 +220,24 @@ jobs:
         export INTEROP_BUILD_DIR=$PWD
         cling_on="${{ matrix.cling }}"
         if [[ "${cling_on^^}" == "ON" ]]; then
-          cmake -DCMAKE_BUILD_TYPE=Release  \
-                -DUSE_CLING=ON              \
-                -DUSE_REPL=OFF              \
-                -DCling_DIR=$LLVM_BUILD_DIR \
-                -DLLVM_DIR=$LLVM_BUILD_DIR  \
-                -DLLVM_USE_LINKER=lld       \
-                -DBUILD_SHARED_LIBS=ON      \
+          cmake -DCMAKE_BUILD_TYPE=${BUILD_TYPE}    \
+                -DUSE_CLING=ON                      \
+                -DUSE_REPL=OFF                      \
+                -DCling_DIR=$LLVM_BUILD_DIR         \
+                -DLLVM_DIR=$LLVM_BUILD_DIR          \
+                -DLLVM_USE_LINKER=lld               \
+                -DBUILD_SHARED_LIBS=ON              \
+                -DCODE_COVERAGE=${CODE_COVERAGE}    \
                 -DCMAKE_INSTALL_PREFIX=$INTEROP_DIR \
                 ../
         else
-          cmake -DCMAKE_BUILD_TYPE=Release  \
-                -DUSE_CLING=OFF             \
-                -DUSE_REPL=ON               \
-                -DLLVM_DIR=$LLVM_BUILD_DIR  \
-                -DLLVM_USE_LINKER=lld       \
-                -DBUILD_SHARED_LIBS=ON      \
+          cmake -DCMAKE_BUILD_TYPE=${BUILD_TYPE}    \
+                -DUSE_CLING=OFF                     \
+                -DUSE_REPL=ON                       \
+                -DLLVM_DIR=$LLVM_BUILD_DIR          \
+                -DLLVM_USE_LINKER=lld               \
+                -DBUILD_SHARED_LIBS=ON              \
+                -DCODE_COVERAGE=${CODE_COVERAGE}    \
                 -DCMAKE_INSTALL_PREFIX=$INTEROP_DIR \
                 ../
         fi
@@ -357,3 +365,20 @@ jobs:
       uses: mxschmitt/action-tmate@v3
       # When debugging increase to a suitable value!
       timeout-minutes: ${{ github.event.pull_request && 1 || 20 }}
+
+    - name: Prepare code coverage report
+      if: ${{ success() && (matrix.coverage == true) }}
+      run: |
+        # Create lcov report
+        # capture coverage info
+        vers="${CC#*-}"
+        lcov --directory build/ --capture --output-file coverage.info --gcov-tool /usr/bin/gcov-${vers}
+        lcov --remove coverage.info '/usr/*' "${HOME}"'/.cache/*' ${{ github.workspace }}'/llvm-project/*' --output-file coverage.info
+        # output coverage data for debugging (optional)
+        lcov --list coverage.info
+
+    - name: Upload to codecov.io
+      if: ${{ success() && (matrix.coverage == true) }}
+      uses: codecov/codecov-action@v3
+      with:
+        file: ./coverage.info
