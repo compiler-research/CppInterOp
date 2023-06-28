@@ -797,6 +797,43 @@ TEST(ScopeReflectionTest, InstantiateClassTemplate) {
   EXPECT_TRUE(TA4_1.getAsIntegral() == 3);
 }
 
+TEST(ScopeReflectionTest, GetClassTemplateInstantiationArgs) {
+  std::vector<Decl *> Decls;
+  std::string code = R"(
+    template<typename ...T> struct __Cppyy_AppendTypesSlow {};
+    __Cppyy_AppendTypesSlow<int, float, double> v1;
+    __Cppyy_AppendTypesSlow<int> v2;
+    __Cppyy_AppendTypesSlow<> v3;
+  )";
+
+  GetAllTopLevelDecls(code, Decls);
+
+  auto *v1 = Cpp::GetNamed("v1");
+  auto *v2 = Cpp::GetNamed("v2");
+  auto *v3 = Cpp::GetNamed("v3");
+  EXPECT_TRUE(v1 && v2 && v3);
+
+  auto *v1_class = Cpp::GetScopeFromType(Cpp::GetVariableType(v1));
+  auto *v2_class = Cpp::GetScopeFromType(Cpp::GetVariableType(v2));
+  auto *v3_class = Cpp::GetScopeFromType(Cpp::GetVariableType(v3));
+  EXPECT_TRUE(v1_class && v2_class && v3_class);
+
+  std::vector<Cpp::TemplateArgInfo> instance_types;
+
+  Cpp::GetClassTemplateInstantiationArgs(v1_class, instance_types);
+  EXPECT_TRUE(instance_types.size() == 3);
+
+  instance_types.clear();
+
+  Cpp::GetClassTemplateInstantiationArgs(v2_class, instance_types);
+  EXPECT_TRUE(instance_types.size() == 1);
+
+  instance_types.clear();
+
+  Cpp::GetClassTemplateInstantiationArgs(v3_class, instance_types);
+  EXPECT_TRUE(instance_types.size() == 0);
+}
+
 TEST(ScopeReflectionTest, IncludeVector) {
   std::string code = R"(
     #include <vector>

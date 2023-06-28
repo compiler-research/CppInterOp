@@ -459,7 +459,7 @@ namespace Cpp {
   std::string ObjToString(const char *type, void *obj);
 
   struct TemplateArgInfo {
-    TCppScope_t m_Type;
+    TCppType_t m_Type;
     const char* m_IntegralValue;
     TemplateArgInfo(TCppScope_t type, const char* integral_value = nullptr)
       : m_Type(type), m_IntegralValue(integral_value) {}
@@ -468,6 +468,9 @@ namespace Cpp {
                                        TemplateArgInfo* template_args,
                                        size_t template_args_size);
 
+  /// Returns the class template instantiation arguments of \c templ_instance.
+  void GetClassTemplateInstantiationArgs(TCppScope_t templ_instance,
+                                         std::vector<TemplateArgInfo> &args);
   std::vector<std::string> GetAllCppNames(TCppScope_t scope);
 
   void DumpScope(TCppScope_t scope);

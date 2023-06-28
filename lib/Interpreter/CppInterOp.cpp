@@ -2696,6 +2696,30 @@ namespace Cpp {
     return GetScopeFromType(Instance);
   }
 
+  void GetClassTemplateInstantiationArgs(TCppScope_t templ_instance,
+                                         std::vector<TemplateArgInfo> &args) {
+    auto* CTSD = static_cast<ClassTemplateSpecializationDecl*>(templ_instance);
+    for(const auto& TA : CTSD->getTemplateInstantiationArgs().asArray()) {
+      switch (TA.getKind()) {
+      default:
+        assert(0 && "Not yet supported!");
+        break;
+      case TemplateArgument::Pack:
+        for (auto SubTA : TA.pack_elements())
+          args.push_back({SubTA.getAsType().getAsOpaquePtr()});
+        break;
+      case TemplateArgument::Integral:
+        // FIXME: Support this case where the problem is where we provide the
+        // storage for the m_IntegralValue.
+        //llvm::APSInt Val = TA.getAsIntegral();
+        //args.push_back({TA.getIntegralType(), TA.getAsIntegral()})
+        //break;
+      case TemplateArgument::Type:
+        args.push_back({TA.getAsType().getAsOpaquePtr()});
+      }
+    }
+  }
+
   std::vector<std::string> GetAllCppNames(TCppScope_t scope) {
     auto *D = (clang::Decl *)scope;
     clang::DeclContext *DC;
