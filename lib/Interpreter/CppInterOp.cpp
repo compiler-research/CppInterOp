@@ -1297,7 +1297,6 @@ namespace Cpp {
   // encompassed in an anonymous namespace as follows.
   namespace {
     static unsigned long long gWrapperSerial = 0LL;
-    static const std::string kIndentString("   ");
 
     enum EReferenceType { kNotReference, kLValueReference, kRValueReference };
 
@@ -1308,6 +1307,7 @@ namespace Cpp {
     // FIXME: Use that routine throughout CallFunc's port in places such as
     // make_narg_call.
     static inline void indent(ostringstream &buf, int indent_level) {
+      static const std::string kIndentString("   ");
       for (int i = 0; i < indent_level; ++i)
         buf << kIndentString;
     }
@@ -1355,9 +1355,9 @@ namespace Cpp {
           QT.print(OS, Policy, type_name);
           OS.flush();
         }
-        for (int i = 0; i < indent_level; ++i) {
-          typedefbuf << kIndentString;
-        }
+
+        indent(typedefbuf, indent_level);
+
         typedefbuf << "typedef " << fp_typedef_name << ";\n";
         return;
       } else if (QT->isMemberPointerType()) {
@@ -1370,9 +1370,9 @@ namespace Cpp {
           QT.print(OS, Policy, type_name);
           OS.flush();
         }
-        for (int i = 0; i < indent_level; ++i) {
-          typedefbuf << kIndentString;
-        }
+
+        indent(typedefbuf, indent_level);
+
         typedefbuf << "typedef " << mp_typedef_name << ";\n";
         return;
       } else if (QT->isPointerType()) {
@@ -1397,9 +1397,7 @@ namespace Cpp {
           QT.print(OS, Policy, type_name);
           OS.flush();
         }
-        for (int i = 0; i < indent_level; ++i) {
-          typedefbuf << kIndentString;
-        }
+        indent(typedefbuf, indent_level);
         typedefbuf << "typedef " << ar_typedef_name << ";\n";
         return;
       }
@@ -1431,9 +1429,7 @@ namespace Cpp {
             callbuf << ' ';
           } else {
             callbuf << "\n";
-            for (int j = 0; j <= indent_level; ++j) {
-              callbuf << kIndentString;
-            }
+            indent(callbuf, indent_level);
           }
         }
         if (refType != kNotReference) {
@@ -1493,9 +1489,7 @@ namespace Cpp {
                 callbuf << ' ';
               } else {
                 callbuf << "\n";
-                for (int j = 0; j <= indent_level; ++j) {
-                  callbuf << kIndentString;
-                }
+                indent(callbuf, indent_level);
               }
             }
             const ParmVarDecl* PVD = FD->getParamDecl(i);
@@ -1557,9 +1551,7 @@ namespace Cpp {
             callbuf << ' ';
           } else {
             callbuf << "\n";
-            for (int j = 0; j <= indent_level; ++j) {
-              callbuf << kIndentString;
-            }
+            indent(callbuf, indent_level);
           }
         }
 
@@ -1590,9 +1582,7 @@ namespace Cpp {
       //    new ClassName(args...);
       // }
       //
-      for (int i = 0; i < indent_level; ++i) {
-        buf << kIndentString;
-      }
+      indent(buf, indent_level);
       buf << "if (ret) {\n";
       ++indent_level;
       {
@@ -1601,9 +1591,7 @@ namespace Cpp {
         //
         //  Write the return value assignment part.
         //
-        for (int i = 0; i < indent_level; ++i) {
-          callbuf << kIndentString;
-        }
+        indent(callbuf, indent_level);
         callbuf << "(*(" << class_name << "**)ret) = ";
         //
         //  Write the actual new expression.
@@ -1613,9 +1601,7 @@ namespace Cpp {
         //  End the new expression statement.
         //
         callbuf << ";\n";
-        for (int i = 0; i < indent_level; ++i) {
-          callbuf << kIndentString;
-        }
+        indent(callbuf, indent_level);
         callbuf << "return;\n";
         //
         //  Output the whole new expression and return statement.
@@ -1623,33 +1609,23 @@ namespace Cpp {
         buf << typedefbuf.str() << callbuf.str();
       }
       --indent_level;
-      for (int i = 0; i < indent_level; ++i) {
-        buf << kIndentString;
-      }
+      indent(buf, indent_level);
       buf << "}\n";
-      for (int i = 0; i < indent_level; ++i) {
-        buf << kIndentString;
-      }
+      indent(buf, indent_level);
       buf << "else {\n";
       ++indent_level;
       {
         std::ostringstream typedefbuf;
         std::ostringstream callbuf;
-        for (int i = 0; i < indent_level; ++i) {
-          callbuf << kIndentString;
-        }
+        indent(callbuf, indent_level);
         make_narg_ctor(FD, N, typedefbuf, callbuf, class_name, indent_level);
         callbuf << ";\n";
-        for (int i = 0; i < indent_level; ++i) {
-          callbuf << kIndentString;
-        }
+        indent(callbuf, indent_level);
         callbuf << "return;\n";
         buf << typedefbuf.str() << callbuf.str();
       }
       --indent_level;
-      for (int i = 0; i < indent_level; ++i) {
-        buf << kIndentString;
-      }
+      indent(buf, indent_level);
       buf << "}\n";
     }
 
@@ -1686,21 +1662,15 @@ namespace Cpp {
       if (QT->isVoidType()) {
         std::ostringstream typedefbuf;
         std::ostringstream callbuf;
-        for (int i = 0; i < indent_level; ++i) {
-          callbuf << kIndentString;
-        }
+        indent(callbuf, indent_level);
         make_narg_call(FD, "void", N, typedefbuf, callbuf, class_name,
                        indent_level);
         callbuf << ";\n";
-        for (int i = 0; i < indent_level; ++i) {
-          callbuf << kIndentString;
-        }
+        indent(callbuf, indent_level);
         callbuf << "return;\n";
         buf << typedefbuf.str() << callbuf.str();
       } else {
-        for (int i = 0; i < indent_level; ++i) {
-          buf << kIndentString;
-        }
+        indent(buf, indent_level);
 
         std::string type_name;
         EReferenceType refType = kNotReference;
@@ -1714,9 +1684,7 @@ namespace Cpp {
           //
           //  Write the placement part of the placement new.
           //
-          for (int i = 0; i < indent_level; ++i) {
-            callbuf << kIndentString;
-          }
+          indent(callbuf, indent_level);
           callbuf << "new (ret) ";
           collect_type_info(FD, QT, typedefbuf, callbuf, type_name, refType,
                             isPointer, indent_level, false);
@@ -1742,9 +1710,7 @@ namespace Cpp {
           //  End the placement new.
           //
           callbuf << ");\n";
-          for (int i = 0; i < indent_level; ++i) {
-            callbuf << kIndentString;
-          }
+          indent(callbuf, indent_level);
           callbuf << "return;\n";
           //
           //  Output the whole placement new expression and return statement.
@@ -1752,35 +1718,25 @@ namespace Cpp {
           buf << typedefbuf.str() << callbuf.str();
         }
         --indent_level;
-        for (int i = 0; i < indent_level; ++i) {
-          buf << kIndentString;
-        }
+        indent(buf, indent_level);
         buf << "}\n";
-        for (int i = 0; i < indent_level; ++i) {
-          buf << kIndentString;
-        }
+        indent(buf, indent_level);
         buf << "else {\n";
         ++indent_level;
         {
           std::ostringstream typedefbuf;
           std::ostringstream callbuf;
-          for (int i = 0; i < indent_level; ++i) {
-            callbuf << kIndentString;
-          }
+          indent(callbuf, indent_level);
           callbuf << "(void)(";
           make_narg_call(FD, type_name, N, typedefbuf, callbuf, class_name,
                          indent_level);
           callbuf << ");\n";
-          for (int i = 0; i < indent_level; ++i) {
-            callbuf << kIndentString;
-          }
+          indent(callbuf, indent_level);
           callbuf << "return;\n";
           buf << typedefbuf.str() << callbuf.str();
         }
         --indent_level;
-        for (int i = 0; i < indent_level; ++i) {
-          buf << kIndentString;
-        }
+        indent(buf, indent_level);
         buf << "}\n";
       }
     }
@@ -2199,16 +2155,12 @@ namespace Cpp {
         // We need one function call clause compiled for every
         // possible number of arguments per call.
         for (unsigned N = min_args; N <= num_params; ++N) {
-          for (int i = 0; i < indent_level; ++i) {
-            buf << kIndentString;
-          }
+          indent(buf, indent_level);
           buf << "if (nargs == " << N << ") {\n";
           ++indent_level;
           make_narg_call_with_return(I, FD, N, class_name, buf, indent_level);
           --indent_level;
-          for (int i = 0; i < indent_level; ++i) {
-            buf << kIndentString;
-          }
+          indent(buf, indent_level);
           buf << "}\n";
         }
       }
