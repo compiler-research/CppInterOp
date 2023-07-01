@@ -1410,10 +1410,10 @@ namespace Cpp {
                         const std::string& class_name, int indent_level) {
       // Make a code string that follows this pattern:
       //
-      // new ClassName(args...)
+      // ClassName(args...)
       //
 
-      callbuf << "new " << class_name << "(";
+      callbuf << class_name << "(";
       for (unsigned i = 0U; i < N; ++i) {
         const ParmVarDecl* PVD = FD->getParamDecl(i);
         QualType Ty = PVD->getType();
@@ -1575,16 +1575,9 @@ namespace Cpp {
                                     std::ostringstream& buf, int indent_level) {
       // Make a code string that follows this pattern:
       //
-      // if (ret) {
-      //    (*(ClassName**)ret) = new ClassName(args...);
-      // }
-      // else {
-      //    new ClassName(args...);
-      // }
+      //  (*(ClassName**)ret) = (obj) ?
+      //    new (*(ClassName**)ret) ClassName(args...) : new ClassName(args...);
       //
-      indent(buf, indent_level);
-      buf << "if (ret) {\n";
-      ++indent_level;
       {
         std::ostringstream typedefbuf;
         std::ostringstream callbuf;
@@ -1593,40 +1586,23 @@ namespace Cpp {
         //
         indent(callbuf, indent_level);
         callbuf << "(*(" << class_name << "**)ret) = ";
+        callbuf << "(obj) ? new (*(" << class_name << "**)ret) ";
+        make_narg_ctor(FD, N, typedefbuf, callbuf, class_name, indent_level);
+
+        callbuf << ": new ";
         //
-        //  Write the actual new expression.
+        //  Write the actual expression.
         //
         make_narg_ctor(FD, N, typedefbuf, callbuf, class_name, indent_level);
         //
         //  End the new expression statement.
         //
         callbuf << ";\n";
-        indent(callbuf, indent_level);
-        callbuf << "return;\n";
         //
         //  Output the whole new expression and return statement.
         //
         buf << typedefbuf.str() << callbuf.str();
       }
-      --indent_level;
-      indent(buf, indent_level);
-      buf << "}\n";
-      indent(buf, indent_level);
-      buf << "else {\n";
-      ++indent_level;
-      {
-        std::ostringstream typedefbuf;
-        std::ostringstream callbuf;
-        indent(callbuf, indent_level);
-        make_narg_ctor(FD, N, typedefbuf, callbuf, class_name, indent_level);
-        callbuf << ";\n";
-        indent(callbuf, indent_level);
-        callbuf << "return;\n";
-        buf << typedefbuf.str() << callbuf.str();
-      }
-      --indent_level;
-      indent(buf, indent_level);
-      buf << "}\n";
     }
 
     void make_narg_call_with_return(compat::Interpreter& I,
@@ -2838,7 +2814,7 @@ namespace Cpp {
     auto* const Ctor = GetDefaultConstructor(Class);
     if (JitCall JC = MakeFunctionCallable(Ctor)) {
       if (arena) {
-        JC.Invoke(arena);
+        JC.Invoke(&arena, {}, (void *)~0U); // Tell Invoke to use placement new.
         return arena;
       }
 

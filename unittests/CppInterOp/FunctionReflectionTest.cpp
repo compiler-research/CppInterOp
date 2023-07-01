@@ -738,7 +738,7 @@ TEST(FunctionReflectionTest, Construct) {
   void* where = Cpp::Allocate(scope);
   EXPECT_TRUE(where == Cpp::Construct(scope, where));
   // Check for the value of x which should be at the start of the object.
-  EXPECT_TRUE(**(int **)(void **)where == 12345);
+  EXPECT_TRUE(*(int *)where == 12345);
   Cpp::Deallocate(scope, where);
   output = testing::internal::GetCapturedStdout();
   EXPECT_EQ(output, "Constructor Executed");
