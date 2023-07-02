@@ -203,6 +203,10 @@ jobs:
                 ../
         fi
         cmake --build . --target check-interop --parallel $(nproc --all)
+        cppyy_on="${{ matrix.cppyy }}"
+        if [[ "${cppyy_on^^}" != "ON" ]]; then
+          valgrind --error-exitcode=1 unittests/InterOp/InterOpTests 2>&1 >/dev/null
+        fi
         cd ..
         # We need CB_PYTHON_DIR later
         echo "CB_PYTHON_DIR=$CB_PYTHON_DIR" >> $GITHUB_ENV
@@ -281,25 +285,37 @@ jobs:
         echo ::endgroup::
         echo ::group::Crashing Test Logs
         # See if we don't have a crash that went away
-        python -m pytest -n 1 -m "crashes" -sv --max-worker-restart 512 | tee test_crashed.log 2>&1
+        # Comment out all xfails but the ones that have a run=False condition.
+        find . -name "*.py" -exec sed -i '/run=False/!s/^ *@mark.xfail\(.*\)/#&/' {} \;
+        python -m pytest -n 1 -m "xfail" --runxfail -sv --max-worker-restart 512 | tee test_crashed.log 2>&1
+        git checkout .
         echo ::endgroup::
         echo ::group::XFAIL Test Logs
+        # Rewrite all xfails that have a run clause to skipif. This way we will
+        # avoid conditionally crashing xfails
+        find . -name "*.py" -exec sed -i -E 's/(^ *)@mark.xfail\(run=(.*)/\1@mark.skipif(condition=not \2/g' {} \;
         # See if we don't have an xfail that went away
-        python -m pytest -m "not crashes" --runxfail -s  | tee test_xfailed.log 2>&1
+        python -m pytest --runxfail -sv  | tee test_xfailed.log 2>&1
+        git checkout .
         echo ::endgroup::
         echo ::group::Passing Test Logs
+
         # Run the rest of the non-crashing tests.
-        declare -i PYTEST_RETCODE=0
-        #python -m pytest -m "not crashes" -v | tee test_passing.log 2>&1
-        valgrind --error-exitcode=1 --suppressions=../etc/valgrind-cppyy-cling.supp python -m pytest -m "not crashes and not xfail" -v
-        export PYTEST_RETCODE=+$?
+        declare -i RETCODE=0
+
+        set -o pipefail
+        valgrind --error-exitcode=1 --suppressions=../etc/valgrind-cppyy-cling.supp python -m pytest -m "not xfail" -v
+        export RETCODE=+$?
         echo ::endgroup::
+
+        RETCODE=+$?
+
         echo "Crashing Summary: \n"
         tail -n1 test_crashed.log
         echo "XFAIL Summary:"
         tail -n1 test_xfailed.log
-        echo "Passing Summary:"
-        tail -n1 test_passing.log
+        echo "Return Code: ${RETCODE}"
+        exit $RETCODE
     - name: Show debug info
       if: ${{ failure() }}
       run: |
