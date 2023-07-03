@@ -2747,8 +2747,8 @@ namespace InterOp {
     return S.IsDerivedFrom(fakeLoc,derivedType,baseType);
   }
 
-  std::string GetFunctionArgDefault(TCppFunction_t func, TCppIndex_t param_index)
-  {
+  std::string GetFunctionArgDefault(TCppFunction_t func,
+                                    TCppIndex_t param_index) {
     auto *D = (clang::Decl *)func;
     auto *FD = llvm::dyn_cast_or_null<clang::FunctionDecl>(D);
     auto PI = FD->getParamDecl(param_index);
@@ -2828,14 +2828,13 @@ namespace InterOp {
     return nullptr;
   }
 
-  void Destruct(TCppObject_t This, TCppScope_t scope,
-                bool withFree/*=true*/) {
+  void Destruct(TCppObject_t This, TCppScope_t scope, bool withFree /*=true*/) {
     Decl* Class = (Decl*)scope;
     if (auto wrapper = make_dtor_wrapper(getInterp(), Class)) {
       (*wrapper)(This, /*nary=*/0, withFree);
       return;
     }
-    // FIXME: Diagnose.
   }
+  // FIXME: Diagnose.
 
   } // end namespace InterOp
