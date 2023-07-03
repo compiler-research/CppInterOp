@@ -2833,7 +2833,7 @@ namespace Cpp {
       (*wrapper)(This, /*nary=*/0, withFree);
       return;
     }
-    // FIXME: Diagnose.
   }
+  // FIXME: Diagnose.
 
   } // end namespace Cpp

@@ -694,7 +694,7 @@ TEST(ScopeReflectionTest, InstantiateNNTPClassTemplate) {
       enum { value = 1 };
     };)";
 
-  ASTContext &C = Interp->getCI()->getASTContext();
+  ASTContext& C = Interp->getCI()->getASTContext();
   GetAllTopLevelDecls(code, Decls);
 
   Cpp::TCppType_t IntTy = C.IntTy.getAsOpaquePtr();
