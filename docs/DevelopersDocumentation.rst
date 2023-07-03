@@ -4,7 +4,7 @@ Developers Documentation
 Building from source
 ---------------------
 
-Clang-Repl
+CppInterOp
 ===========
 
 .. code-block:: bash
@@ -22,9 +22,6 @@ Clang-Repl
     cmake -DBUILD_SHARED_LIBS=ON -DUSE_CLING=ON -DUSE_REPL=Off -DCling_DIR=$LLVM_DIR/build -DCMAKE_INSTALL_PREFIX=$CPPINTEROP_DIR ..
 
     cmake --build . --target install
-
-
-CppInterOp is a C++ Language Interoperability Layer
 
 CppInterOp Internal Documentation
 =================================
