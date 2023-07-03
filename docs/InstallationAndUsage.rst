@@ -1,7 +1,6 @@
 InstallationAndUsage
 ---------------------
 
-
 Build cling with LLVM and clang:
 ===================================
 
@@ -29,41 +28,45 @@ Build cling with LLVM and clang:
    cmake --build . --target cling --parallel $(nproc --all)
    cmake --build . --target gtest_main --parallel $(nproc --all)
 
-Note down the llvm-project directory location as we will need it later:
+   Note down the llvm-project directory location as we will need it later:
 
    cd ../
    export LLVM_DIR=$PWD
    cd ../
 
-Clone the InterOp repo. Build it using cling and install. Note down the path to InterOp install directory. This will be referred to as INTEROP_DIR:
+   # Clone the InterOp repo. Build it using cling and install.
+   # Note down the path to InterOp install directory.
+   # This will be referred to as INTEROP_DIR:
 
    export INTEROP_DIR=$PWD/cppyy-backend/python/cppyy_backend
    git clone https://github.com/compiler-research/InterOp.git
    cd InterOp
    mkdir build && cd build
    INTEROP_BUILD_DIR=$(PWD)
-   cmake -DBUILD_SHARED_LIBS=ON -DUSE_CLING=ON -DUSE_REPL=Off -DCling_DIR=$LLVM_DIR/build -DCMAKE_INSTALL_PREFIX=$INTEROP_DIR ..
+   cmake -DBUILD_SHARED_LIBS=ON -DUSE_CLING=ON -DUSE_REPL=Off
+   -DCling_DIR=$LLVM_DIR/build -DCMAKE_INSTALL_PREFIX=$INTEROP_DIR ..
    cmake --build . --target install
 
 Build Clang-Repl:
 =================
 
-.. code-block:: text
+.. code-block:: bash
 
 
-   Get the llvm/release/16.x version:
+   # Get the llvm/release/16.x version:
    git clone https://github.com/llvm/llvm-project.git
    git checkout release/16.x
 
-   Patches for development
-   compgen -G "../patches/llvm/clang16-*.patch" > /dev/null && find ../patches/llvm/clang16-*.patch -printf "%f\n" 
+   # Patches for development
+   compgen -G "../patches/llvm/clang16-*.patch" > /dev/null
+   && find ../patches/llvm/clang16-*.patch -printf "%f\n"
    && git apply ../patches/llvm/clang16-*.patch
 
 
    mkdir build
    cd build
 
-   Build Clang-16 :
+   # Build Clang-16 :
 
       cmake -DLLVM_ENABLE_PROJECTS=clang                  \
              -DLLVM_TARGETS_TO_BUILD="host;NVPTX"          \
@@ -79,12 +82,12 @@ Build Clang-Repl:
 
       cmake --build . --target clang clang-repl --parallel $(nproc --all)
 
-   Note down the llvm-project directory location as we will need it later:
+   # Note down the llvm-project directory location as we will need it later:
    cd ../
    export LLVM_DIR=$PWD
    cd ../
 
-   Export Commands:
+   # Export Commands:
    export CB_PYTHON_DIR="$PWD/cppyy-backend/python"
    export INTEROP_DIR="$CB_PYTHON_DIR/cppyy_backend"
 

@@ -4,7 +4,7 @@ Developers Documentation
 Building from source
 ---------------------
 
-Clang-Repl
+CppInterOp
 ===========
 
 .. code-block:: bash
@@ -23,13 +23,11 @@ Clang-Repl
 
     cmake --build . --target install
 
-
-CppInterOp is a C++ Language Interoperability Layer
-
 CppInterOp Internal Documentation
 =================================
 
 CppInterOp maintains an internal Doxygen documentation of its components. Internal
 documentation aims to capture intrinsic details and overall usage of code 
 components. The goal of internal documentation is to make the codebase easier 
-to understand for the new developers. 
+to understand for the new developers.
+Internal documentation can be visited : `here </en/latest/build/html/index.html>`_
