@@ -1203,6 +1203,8 @@ namespace Cpp {
 
   TCppType_t GetCanonicalType(TCppType_t type)
   {
+    if (!type)
+      return 0;
     QualType QT = QualType::getFromOpaquePtr(type);
     return QT.getCanonicalType().getAsOpaquePtr();
   }
