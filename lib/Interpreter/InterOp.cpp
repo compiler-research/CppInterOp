@@ -1204,8 +1204,10 @@ namespace InterOp {
 
   TCppType_t GetCanonicalType(TCppType_t type)
   {
-      QualType QT = QualType::getFromOpaquePtr(type);
-      return QT.getCanonicalType().getAsOpaquePtr();
+    if (!type)
+      return 0;
+    QualType QT = QualType::getFromOpaquePtr(type);
+    return QT.getCanonicalType().getAsOpaquePtr();
   }
 
   // Internal functions that are not needed outside the library are
