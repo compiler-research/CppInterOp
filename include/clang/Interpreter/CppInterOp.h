@@ -35,6 +35,14 @@ namespace Cpp {
   using TCppFuncAddr_t = void*;
   using TInterp_t = void*;
   using TCppObject_t = void*;
+
+  struct TemplateArgInfo {
+    TCppType_t m_Type;
+    const char* m_IntegralValue;
+    TemplateArgInfo(TCppScope_t type, const char* integral_value = nullptr)
+        : m_Type(type), m_IntegralValue(integral_value) {}
+  };
+
   /// A class modeling function calls for functions produced by the interpreter
   /// in compiled code. It provides an information if we are calling a standard
   /// function, constructor or destructor.
@@ -318,6 +326,13 @@ namespace Cpp {
   CPPINTEROP_API std::vector<TCppFunction_t>
   GetFunctionsUsingName(TCppScope_t scope, const std::string& name);
 
+  TCppFunction_t GetFunctionUsingArgs(TCppScope_t scope,
+                                      const std::string& name,
+                                      TCppType_t* arg_types,
+                                      size_t arg_types_size,
+                                      TemplateArgInfo* template_args,
+                                      size_t template_args_size);
+
   /// Gets the return type of the provided function.
   CPPINTEROP_API TCppType_t GetFunctionReturnType(TCppFunction_t func);
 
@@ -554,12 +569,6 @@ namespace Cpp {
   /// Tries to load provided objects in a string format (prettyprint).
   CPPINTEROP_API std::string ObjToString(const char* type, void* obj);
 
-  struct TemplateArgInfo {
-    TCppType_t m_Type;
-    const char* m_IntegralValue;
-    TemplateArgInfo(TCppScope_t type, const char* integral_value = nullptr)
-      : m_Type(type), m_IntegralValue(integral_value) {}
-  };
   /// Builds a template instantiation for a given templated declaration.
   /// Offers a single interface for instantiation of class, function and
   /// variable templates
