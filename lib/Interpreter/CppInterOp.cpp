@@ -2713,6 +2713,9 @@ namespace Cpp {
   std::vector<long int> GetDimensions(TCppType_t type)
   {
     QualType Qual = QualType::getFromOpaquePtr(type);
+    if (Qual.isNull())
+      return {};
+    Qual = Qual.getCanonicalType();
     std::vector<long int> dims;
     if (Qual->isArrayType())
     {

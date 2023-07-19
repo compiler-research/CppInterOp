@@ -393,6 +393,12 @@ TEST(TypeReflectionTest, GetDimensions) {
       struct S2 {
         char ch[][3][4];
       };
+
+      template <typename T>
+      struct S3 {
+        typedef T type;
+      };
+      S3<int[6]>::type arr;
     )";
 
   GetAllTopLevelDecls(code, Decls);
@@ -449,6 +455,15 @@ TEST(TypeReflectionTest, GetDimensions) {
   GetAllSubDecls(Decls[5], SubDecls);
   dims = Cpp::GetDimensions(Cpp::GetVariableType(SubDecls[3]));
   truth_dims = std::vector<long int>({Cpp::DimensionValue::UNKNOWN_SIZE, 3, 4});
+  EXPECT_EQ(dims.size(), truth_dims.size());
+  for (unsigned i = 0; i < truth_dims.size() && i < dims.size(); i++)
+  {
+    EXPECT_EQ(dims[i], truth_dims[i]);
+  }
+
+  // Variable arr
+  dims = Cpp::GetDimensions(Cpp::GetVariableType(Decls[7]));
+  truth_dims = std::vector<long int>({6});
   EXPECT_EQ(dims.size(), truth_dims.size());
   for (unsigned i = 0; i < truth_dims.size() && i < dims.size(); i++)
   {
