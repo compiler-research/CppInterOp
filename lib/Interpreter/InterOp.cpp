@@ -394,6 +394,7 @@ namespace InterOp {
         PrintingPolicy Policy = C.getPrintingPolicy();
         Policy.SuppressUnwrittenScope = true;
         Policy.SuppressScope = true;
+        Policy.AnonymousTagLocations = false;
         QT.getAsStringInternal(type_name, Policy);
 
         return type_name;

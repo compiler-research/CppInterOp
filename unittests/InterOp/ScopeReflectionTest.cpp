@@ -253,6 +253,8 @@ TEST(ScopeReflectionTest, GetCompleteName) {
                         template<typename T>
                         class A {};
                         A<int> a;
+
+                        enum { enum1 };
                        )";
   GetAllTopLevelDecls(code, Decls);
 
@@ -268,6 +270,7 @@ TEST(ScopeReflectionTest, GetCompleteName) {
   EXPECT_EQ(InterOp::GetCompleteName(InterOp::GetScopeFromType(
                                              InterOp::GetVariableType(
                                                      Decls[9]))), "A<int>");
+  EXPECT_EQ(InterOp::GetCompleteName(Decls[10]), "(unnamed)");
 }
 
 TEST(ScopeReflectionTest, GetQualifiedName) {
