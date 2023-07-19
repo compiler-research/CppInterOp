@@ -575,6 +575,35 @@ TEST(FunctionReflectionTest, JitCallAdvanced) {
   EXPECT_TRUE(object) << "Failed to call the ctor.";
   // Building a wrapper with a typedef decl must be possible.
   InterOp::Destruct(object, Decls[1]);
+
+  Interp->declare(R"(
+    struct A {
+      virtual ~A() {}
+      virtual int func() {
+        return 1;
+      }
+    };
+
+    struct B : public A {
+      virtual int func() {
+        return 2;
+      }
+    };
+  )");
+
+  auto *St_A = InterOp::GetNamed("A", 0);
+  auto *St_B = InterOp::GetNamed("B", 0);
+
+  auto *BCtorD = InterOp::GetDefaultConstructor(St_B);
+  auto BCtor = InterOp::MakeFunctionCallable(BCtorD);
+  void *BObj = nullptr;
+  BCtor.Invoke(&BObj);
+
+  auto *AfuncD = InterOp::GetNamed("func", St_A);
+  auto Afunc = InterOp::MakeFunctionCallable(AfuncD);
+  int ret_func;
+  Afunc.Invoke(&ret_func, {nullptr, 0}, BObj);
+  EXPECT_EQ(ret_func, 1);
 }
 
 TEST(FunctionReflectionTest, GetFunctionCallWrapper) {
