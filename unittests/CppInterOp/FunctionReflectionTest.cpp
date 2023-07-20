@@ -849,6 +849,39 @@ TEST(FunctionReflectionTest, JitCallAdvanced) {
   EXPECT_TRUE(object) << "Failed to call the ctor.";
   // Building a wrapper with a typedef decl must be possible.
   Cpp::Destruct(object, Decls[1]);
+
+  // Test to check if typedefs are unnecessarily resolved during the creation
+  // of the wrapper
+  Interp->process(R"(
+    class TDT {
+      private:
+          class PC {
+          public:
+              PC(int i) : m_val(i) {}
+              int m_val;
+          };
+
+      public:
+          typedef PC PP;
+          PP f() { return PC(42); }
+      };
+  )");
+
+  clang::NamedDecl *ClassTDT = (clang::NamedDecl*) Cpp::GetNamed("TDT");
+  auto *CtorTDT =
+      (clang::CXXConstructorDecl*) Cpp::GetDefaultConstructor(ClassTDT);
+  auto FCI_CtorTDT = Cpp::MakeFunctionCallable(CtorTDT);
+  void* objectTDT = nullptr;
+  FCI_CtorTDT.Invoke((void*)&objectTDT);
+  EXPECT_TRUE(objectTDT != nullptr);
+  clang::NamedDecl *TDT_f = (clang::NamedDecl*) Cpp::GetNamed("f", ClassTDT);
+  auto FCI_TDT_f = Cpp::MakeFunctionCallable(TDT_f);
+  void* objectTDT_PP = nullptr;
+  FCI_TDT_f.Invoke((void*) &objectTDT_PP, {}, objectTDT);
+  EXPECT_TRUE(objectTDT_PP != nullptr);
+  std::stringstream ss_mval;
+  ss_mval << "(" << objectTDT_PP << ")->mval";
+  EXPECT_EQ(Cpp::Evaluate(ss_mval.str().c_str()), 42);
 }
 
 
