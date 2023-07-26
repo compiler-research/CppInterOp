@@ -38,11 +38,13 @@ jobs:
           chmod +x git-clang-format
       - name: Run git-clang-format
         run: |
+          PR_BASE=$(git rev-list ${{ github.event.pull_request.head.sha }} ^${{ github.event.pull_request.base.sha }} | tail --lines 1 | xargs -I {} git rev-parse {}~1)
+          echo "running git clang-format against $PR_BASE commit"
           git \
           -c color.ui=always \
           -c diff.wsErrorHighlight=all \
           -c color.diff.whitespace='red reverse' \
-          clang-format-15 --diff --binary clang-format-15 origin/main -- include/ lib/ || \
+          clang-format-15 --diff --binary clang-format-15 --commit $PR_BASE -- include/ lib/ || \
           (echo "Please run the following git-clang-format locally to fix the formatting: \n
                 git clang-format origin/main -- include/ lib/" && exit 1)
   build:
