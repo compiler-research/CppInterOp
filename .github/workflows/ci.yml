@@ -56,19 +56,19 @@ jobs:
         include:
           - name: ubu22-gcc9-clang-repl-16
             os: ubuntu-22.04
-            compiler: gcc-9
+            compiler: gcc-11
             clang-runtime: '16'
             cling: Off
             cppyy: Off
           - name: ubu22-gcc9-clang13-cling
             os: ubuntu-22.04
-            compiler: gcc-9
+            compiler: gcc-11
             clang-runtime: '13'
             cling: On
             cppyy: Off
           - name: ubu22-gcc9-clang13-cling-cppyy
             os: ubuntu-22.04
-            compiler: gcc-9
+            compiler: gcc-11
             clang-runtime: '13'
             cling: On
             cppyy: On
@@ -79,7 +79,7 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v4
       with:
-        python-version: '3.10'
+        python-version: 3.7
     - name: Save PR Info
       run: |
         mkdir -p ./pr
@@ -256,6 +256,22 @@ jobs:
         echo "INTEROP_DIR=$INTEROP_DIR" >> $GITHUB_ENV
         echo "LLVM_BUILD_DIR=$LLVM_BUILD_DIR" >> $GITHUB_ENV
         echo "CPLUS_INCLUDE_PATH=$CPLUS_INCLUDE_PATH" >> $GITHUB_ENV
+
+    - name: Run clang-tidy
+      uses: ZedThree/clang-tidy-review@v0.13.2
+      id: review
+      with:
+        build_dir: build_directory
+        exclude: "unittest/*"
+        split_workflow: true
+        cmake_command: >
+          pip install cmake lit &&
+          cmake --version &&
+          cmake . -B build_directory -DCMAKE_BUILD_TYPE="Release" -DUSE_CLING=ON -DUSE_REPL=OFF -DCling_DIR="$GITHUB_WORKSPACE/llvm-project/build" -DLLVM_DIR="$GITHUB_WORKSPACE/llvm-project/build" -DBUILD_SHARED_LIBS=ON -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+
+    - name: Upload artifacts
+      uses: ZedThree/clang-tidy-review/upload@v0.13.2
+
     - name: Build and Install cppyy-backend on Linux
       if: ${{ (runner.os == 'Linux') && (matrix.cppyy == 'On') }}
       run: |
