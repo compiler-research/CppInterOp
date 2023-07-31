@@ -704,6 +704,15 @@ TEST(ScopeReflectionTest, InstantiateNNTPClassTemplate) {
                                                 /*type_size*/ args1.size()));
 }
 
+TEST(ScopeReflectionTest, InstantiateTemplateFunctionFromString) {
+  InterOp::CreateInterpreter();
+  std::string code = R"(#include <memory>)";
+  Interp->process(code);
+  const char* str = "std::make_unique<int,int>";
+  auto* Instance1 = (Decl*)InterOp::InstantiateTemplateFunctionFromString(str);
+  EXPECT_TRUE(Instance1);
+}
+
 TEST(ScopeReflectionTest, InstantiateClassTemplate) {
   std::vector<Decl *> Decls;
   std::string code = R"(

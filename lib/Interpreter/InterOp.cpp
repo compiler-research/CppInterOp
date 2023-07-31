@@ -474,6 +474,8 @@ namespace InterOp {
       Type = Type->getUnqualifiedDesugaredType();
       if (auto *ET = llvm::dyn_cast<EnumType>(Type))
         return ET->getDecl();
+      if (auto* FnType = llvm::dyn_cast<FunctionProtoType>(Type))
+        Type = const_cast<clang::Type*>(FnType->getReturnType().getTypePtr());
       return Type->getAsCXXRecordDecl();
     }
     return 0;
@@ -2650,6 +2652,24 @@ namespace InterOp {
         args.push_back({TA.getAsType().getAsOpaquePtr()});
       }
     }
+  }
+
+  TCppFunction_t
+  InstantiateTemplateFunctionFromString(const char* function_template) {
+    // FIXME: Drop this interface and replace it with the proper overload
+    // resolution handling and template instantiation selection.
+
+    // Try to force template instantiation and overload resolution.
+    static unsigned long long var_count = 0;
+    std::string id = "__Cppyy_GetMethTmpl_" + std::to_string(var_count++);
+    std::string instance = "auto " + id + " = " + function_template + ";\n";
+
+    if (!InterOp::Declare(instance.c_str(), /*silent=*/false)) {
+      VarDecl* VD = (VarDecl*)InterOp::GetNamed(id, 0);
+      DeclRefExpr* DRE = (DeclRefExpr*)VD->getInit()->IgnoreImpCasts();
+      return DRE->getDecl();
+    }
+    return nullptr;
   }
 
   std::vector<std::string> GetAllCppNames(TCppScope_t scope) {
