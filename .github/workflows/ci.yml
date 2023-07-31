@@ -27,6 +27,7 @@ jobs:
             clang-runtime: '16'
             cling: Off
             cppyy: Off
+            coverage: true
           - name: ubu22-gcc9-clang13-cling
             os: ubuntu-22.04
             compiler: gcc-9
