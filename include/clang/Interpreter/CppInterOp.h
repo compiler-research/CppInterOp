@@ -471,6 +471,13 @@ namespace Cpp {
   /// Returns the class template instantiation arguments of \c templ_instance.
   void GetClassTemplateInstantiationArgs(TCppScope_t templ_instance,
                                          std::vector<TemplateArgInfo> &args);
+
+  /// Instantiates a function template from a given string representation. This
+  /// function also does overload resolution.
+  ///\returns the instantiated function template declaration.
+  TCppFunction_t
+  InstantiateTemplateFunctionFromString(const char* function_template);
+
   std::vector<std::string> GetAllCppNames(TCppScope_t scope);
 
   void DumpScope(TCppScope_t scope);
