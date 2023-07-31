@@ -683,8 +683,6 @@ TEST(ScopeReflectionTest, GetAllCppNames) {
 }
 
 TEST(ScopeReflectionTest, InstantiateNNTPClassTemplate) {
-  Cpp::CreateInterpreter();
-
   std::vector<Decl *> Decls;
   std::string code = R"(
     template <int N>
@@ -697,9 +695,9 @@ TEST(ScopeReflectionTest, InstantiateNNTPClassTemplate) {
       enum { value = 1 };
     };)";
 
-  ASTContext& C = Interp->getCI()->getASTContext();
   GetAllTopLevelDecls(code, Decls);
 
+  ASTContext &C = Interp->getCI()->getASTContext();
   Cpp::TCppType_t IntTy = C.IntTy.getAsOpaquePtr();
   std::vector<Cpp::TemplateArgInfo> args1 = {{IntTy, "5"}};
   EXPECT_TRUE(Cpp::InstantiateClassTemplate(Decls[0], args1.data(),
