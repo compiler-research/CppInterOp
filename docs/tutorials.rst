@@ -182,3 +182,122 @@ The complete example can found below:
 `Example <https://github.com/compiler-research/pldi-tutorials-2023
 /blob/main/examples/p3-ex4/instantiate_cpp_template.py>`_.
    
+C:
+===
+
+Include **p3-ex4-lib.h**, which contains the declarations for the functions used
+in this code. The detailed summary of header comes in the latter part.
+
+
+The variable Code is given as a C-style string, it contains the C++ code 
+to be parsed . It has two classes, class A and a templated class B with a member 
+function callme.
+
+   .. code-block:: C
+  
+      const char* Code = "void* operator new(__SIZE_TYPE__, void* __p) noexcept;"
+                  "extern \"C\" int printf(const char*,...);"
+                  "class A {};"
+                  "\n #include <typeinfo> \n"
+                  "class B {"
+                  "public:"
+                  "  template<typename T>"
+                  "  void callme(T) {"
+                  "    printf(\" Instantiated with [%s] \\n \", typeid(T).name());"
+                  " }"
+                  "};";
+
+The main() begins with the call to **Clang_Parse** from interop library responsible
+for parsing the provided C++ code.
+
+Next there a number of initializations, **Instantiation** is initialized to zero,
+it will be used to store the instantiated template. The **InstantiationArgs** 
+is initialized to "A", it will be used as the argument when instantiating the template.
+T is initialized to zero, used to store the declaration of the type "T" used for 
+instantiation.
+
+   .. code-block:: C
+
+      Decl_t Instantiation = 0;
+      const char * InstantiationArgs = "A";
+      Decl_t TemplatedClass = Clang_LookupName("B", /*Context=*/0);
+      Decl_t T = 0;
+
+This snippet checks command-line arguments were provided by the argc arguments.
+We take the first argument (argv[1]), parse it, then take the second argument
+(argv[2]) using Clang_LookupName, and reassigns InstantiationArgs to the third
+argument (argv[3]). In the else case, we decide to go with the "A".
+
+The code proceeds to instantiate the template B::callme with the given 
+type, using the Clang_InstantiateTemplate function from the 
+library. The instantiated template is stored in the **Instantiation**.
+
+   .. code-block:: C
+
+      Instantiation = Clang_InstantiateTemplate(TemplatedClass, "callme", InstantiationArgs);
+
+
+A function pointer **callme_fn_ptr** is declared with a type fn_def that represents
+the function taking a void* argument and returning void. The result of
+Clang_GetFunctionAddress is casted by the function pointer.
+
+   .. code-block:: C
+
+      typedef void (*fn_def)(void*);
+      fn_def callme_fn_ptr = (fn_def) Clang_GetFunctionAddress(Instantiation);
+
+The code then creates an object of type A using Clang_CreateObject, and the 
+pointer to this object is stored in NewA.
+
+   .. code-block:: C
+
+      void* NewA = Clang_CreateObject(T);
+
+Then the function pointer callme_fn_ptr is called with the NewA, which
+calls the member function B::callme with the instantiated type. Thus, the instantiation
+happens with type A and we get the below result.
+
+You get the **output** as :
+   .. code-block:: bash
+
+      Instantiated with [1A]
+
+In conclusion, this C code uses the CppInterOp library to dynamically instantiate
+templates and call member functions based on provided types. This example was to
+show how we can instantiate templates, in a similar manner we can use the
+CppInterOp library to use many other features and attributes of languages to
+interoperate.
+
+## Header File:
+We wrap the library functions within the extern "C" for its usage in C programs.
+All the functions of the library which are to be used in the C program have to
+be under the extern C for the compiler to know the C++ code within.
+
+.. code-block:: C
+
+   extern "C" {
+   #endif // __cplusplus
+   /// Process C++ code.
+   ///
+   void Clang_Parse(const char* Code);
+
+   /// Looks up an entity with the given name, possibly in the given Context.
+   ///
+   Decl_t Clang_LookupName(const char* Name, Decl_t Context);
+
+   /// Returns the address of a JIT'd function of the corresponding declaration.
+   ///
+   FnAddr_t Clang_GetFunctionAddress(Decl_t D);
+
+   /// Allocates memory of underlying size of the passed declaration.
+   ///
+   void * Clang_CreateObject(Decl_t RecordDecl);
+
+   /// Instantiates a given templated declaration.
+   Decl_t Clang_InstantiateTemplate(Decl_t D, const char* Name, const char* Args);
+   #ifdef __cplusplus
+   }
+
+
+The complete example can found below:
+`Example <https://github.com/compiler-research/pldi-tutorials-2023/blob/main/examples/p3-ex4/p3-ex4.c>`_.
