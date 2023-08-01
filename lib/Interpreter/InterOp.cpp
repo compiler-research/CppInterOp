@@ -1182,9 +1182,13 @@ namespace InterOp {
   {
     QualType QT = QualType::getFromOpaquePtr(type);
     QT = QT->getCanonicalTypeUnqualified();
-    if (QT->isArrayType())
+
+    // Recursively remove array dimensions
+    while (QT->isArrayType())
       QT = QualType(QT->getArrayElementTypeNoTypeQual(), 0);
 
+    // Recursively reduce pointer depth till we are left with a pointerless
+    // type.
     for (auto PT = QT->getPointeeType(); !PT.isNull(); PT = QT->getPointeeType()){
       QT = PT;
     }
