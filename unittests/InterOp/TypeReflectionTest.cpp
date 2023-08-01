@@ -195,6 +195,8 @@ TEST(TypeReflectionTest, GetUnderlyingType) {
     int *&var9 = var8;
     int var10[] = {};
     int *var11[] = {var8};
+    int var12[2][5];
+    int ***var13;
 
     class C {
       public:
@@ -212,6 +214,11 @@ TEST(TypeReflectionTest, GetUnderlyingType) {
     C *&cvar9 = cvar8;
     C cvar10[] = {};
     C *cvar11[] = {cvar8};
+    C cvar12[2][5];
+    C ***cvar13;
+
+    enum E { e1, e2 };
+    E evar0 = e1;
     )";
   GetAllTopLevelDecls(code, Decls);
   auto get_underly_var_type_as_str = [] (Decl *D) {
@@ -229,9 +236,9 @@ TEST(TypeReflectionTest, GetUnderlyingType) {
   EXPECT_EQ(get_underly_var_type_as_str(Decls[9]), "int");
   EXPECT_EQ(get_underly_var_type_as_str(Decls[10]), "int");
   EXPECT_EQ(get_underly_var_type_as_str(Decls[11]), "int");
+  EXPECT_EQ(get_underly_var_type_as_str(Decls[12]), "int");
+  EXPECT_EQ(get_underly_var_type_as_str(Decls[13]), "int");
 
-  EXPECT_EQ(get_underly_var_type_as_str(Decls[13]), "C");
-  EXPECT_EQ(get_underly_var_type_as_str(Decls[14]), "C");
   EXPECT_EQ(get_underly_var_type_as_str(Decls[15]), "C");
   EXPECT_EQ(get_underly_var_type_as_str(Decls[16]), "C");
   EXPECT_EQ(get_underly_var_type_as_str(Decls[17]), "C");
@@ -242,6 +249,12 @@ TEST(TypeReflectionTest, GetUnderlyingType) {
   EXPECT_EQ(get_underly_var_type_as_str(Decls[22]), "C");
   EXPECT_EQ(get_underly_var_type_as_str(Decls[23]), "C");
   EXPECT_EQ(get_underly_var_type_as_str(Decls[24]), "C");
+  EXPECT_EQ(get_underly_var_type_as_str(Decls[25]), "C");
+  EXPECT_EQ(get_underly_var_type_as_str(Decls[26]), "C");
+  EXPECT_EQ(get_underly_var_type_as_str(Decls[27]), "C");
+  EXPECT_EQ(get_underly_var_type_as_str(Decls[28]), "C");
+
+  EXPECT_EQ(get_underly_var_type_as_str(Decls[30]), "E");
 }
 
 TEST(TypeReflectionTest, IsUnderlyingTypeRecordType) {
