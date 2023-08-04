@@ -189,8 +189,8 @@ Include **p3-ex4-lib.h**, which contains the declarations for the functions used
 in this code. The detailed summary of header comes in the latter part.
 
 
-The variable Code is given as a C-style string, it contains the C++ code 
-to be parsed . It has two classes, class A and a templated class B with a member 
+The variable Code is given as a C-style string, it contains the C++ code
+to be parsed. It has two classes, class `A` and a templated class `B` with a member
 function callme.
 
    .. code-block:: C
@@ -246,7 +246,7 @@ Clang_GetFunctionAddress is casted by the function pointer.
       typedef void (*fn_def)(void*);
       fn_def callme_fn_ptr = (fn_def) Clang_GetFunctionAddress(Instantiation);
 
-The code then creates an object of type A using Clang_CreateObject, and the 
+The code then creates an object of type `A` using Clang_CreateObject, and the
 pointer to this object is stored in NewA.
 
    .. code-block:: C
@@ -255,7 +255,7 @@ pointer to this object is stored in NewA.
 
 Then the function pointer callme_fn_ptr is called with the NewA, which
 calls the member function B::callme with the instantiated type. Thus, the instantiation
-happens with type A and we get the below result.
+happens with type `A` and we get the below result.
 
 You get the **output** as :
    .. code-block:: bash
