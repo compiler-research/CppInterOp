@@ -234,7 +234,7 @@ jobs:
         # Install CppInterOp
         (cd $CPPINTEROP_BUILD_DIR && cmake --build . --target install --parallel $(nproc --all))
         # Build and Install cppyy-backend
-        cmake -DInterOp_DIR=$CPPINTEROP_DIR ..
+        cmake -DCppInterOp_DIR=$CPPINTEROP_DIR ..
         cmake --build . --parallel $(nproc --all)
         cp libcppyy-backend.so $CPPINTEROP_DIR/lib/
         ##cling_on="${{ matrix.cling }}"
