@@ -24,6 +24,7 @@
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Sema/Lookup.h"
 #include "clang/Sema/Sema.h"
+#include "clang/Sema/TemplateDeduction.h"
 
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/Casting.h"
@@ -2768,18 +2769,38 @@ namespace Cpp {
     return getInterp().toString(type, obj);
   }
 
-  static QualType InstantiateTemplate(TemplateDecl* ClassDecl,
-                                      TemplateArgumentListInfo& TLI, Sema &S) {
-    // This will instantiate tape<T> type and return it.
-    SourceLocation noLoc;
-    QualType TT = S.CheckTemplateIdType(TemplateName(ClassDecl), noLoc, TLI);
-
+  static Decl* InstantiateTemplate(TemplateDecl* TemplateD,
+                                   TemplateArgumentListInfo& TLI, Sema& S) {
     // This is not right but we don't have a lot of options to choose from as a
     // template instantiation requires a valid source location.
     SourceLocation fakeLoc = GetValidSLoc(S);
+    if (auto* FunctionTemplate = dyn_cast<FunctionTemplateDecl>(TemplateD)) {
+      FunctionDecl* Specialization = nullptr;
+      clang::sema::TemplateDeductionInfo Info(fakeLoc);
+      if (Sema::TemplateDeductionResult Result = S.DeduceTemplateArguments(
+              FunctionTemplate, &TLI, Specialization, Info,
+              /*IsAddressOfFunction*/ true)) {
+        // FIXME: Diagnose what happened.
+        (void)Result;
+      }
+      return Specialization;
+    }
+
+    if (auto* VarTemplate = dyn_cast<VarTemplateDecl>(TemplateD)) {
+      DeclResult R = S.CheckVarTemplateId(VarTemplate, fakeLoc, fakeLoc, TLI);
+      if (R.isInvalid()) {
+        // FIXME: Diagnose
+      }
+      return R.get();
+    }
+
+    // This will instantiate tape<T> type and return it.
+    SourceLocation noLoc;
+    QualType TT = S.CheckTemplateIdType(TemplateName(TemplateD), noLoc, TLI);
+
     // Perhaps we can extract this into a new interface.
     S.RequireCompleteType(fakeLoc, TT, diag::err_tentative_def_incomplete_type);
-    return TT;
+    return GetScopeFromType(TT);
 
     // ASTContext &C = S.getASTContext();
     // // Get clad namespace and its identifier clad::.
@@ -2792,21 +2813,21 @@ namespace Cpp {
     // return C.getElaboratedType(ETK_None, NS, TT);
   }
 
-  static QualType InstantiateTemplate(TemplateDecl* ClassDecl,
-                                      ArrayRef<TemplateArgument> TemplateArgs,
-                                      Sema &S) {
+  static Decl* InstantiateTemplate(TemplateDecl* TemplateD,
+                                   ArrayRef<TemplateArgument> TemplateArgs,
+                                   Sema& S) {
     // Create a list of template arguments.
     TemplateArgumentListInfo TLI{};
     for (auto TA : TemplateArgs)
       TLI.addArgument(S.getTrivialTemplateArgumentLoc(TA,QualType(),
                                                       SourceLocation()));
 
-    return InstantiateTemplate(ClassDecl, TLI, S);
+    return InstantiateTemplate(TemplateD, TLI, S);
   }
 
-  TCppScope_t InstantiateClassTemplate(TCppScope_t tmpl,
-                                       TemplateArgInfo* template_args,
-                                       size_t template_args_size) {
+  TCppScope_t InstantiateTemplate(TCppScope_t tmpl,
+                                  TemplateArgInfo* template_args,
+                                  size_t template_args_size) {
     ASTContext &C = getASTContext();
 
     llvm::SmallVector<TemplateArgument> TemplateArgs;
@@ -2830,8 +2851,7 @@ namespace Cpp {
 #ifdef USE_CLING
     cling::Interpreter::PushTransactionRAII RAII(&getInterp());
 #endif
-    QualType Instance = InstantiateTemplate(TmplD, TemplateArgs, getSema());
-    return GetScopeFromType(Instance);
+    return InstantiateTemplate(TmplD, TemplateArgs, getSema());
   }
 
   void GetClassTemplateInstantiationArgs(TCppScope_t templ_instance,

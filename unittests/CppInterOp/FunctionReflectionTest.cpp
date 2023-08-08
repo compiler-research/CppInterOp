@@ -709,8 +709,8 @@ TEST(FunctionReflectionTest, GetFunctionCallWrapper) {
   ASTContext& C = Interp->getCI()->getASTContext();
 
   std::vector<Cpp::TemplateArgInfo> argument = {C.IntTy.getAsOpaquePtr()};
-  auto Instance1 = Cpp::InstantiateClassTemplate(Decls1[0], argument.data(),
-                                                 /*type_size*/ argument.size());
+  auto Instance1 = Cpp::InstantiateTemplate(Decls1[0], argument.data(),
+                                            /*type_size*/ argument.size());
   EXPECT_TRUE(isa<ClassTemplateSpecializationDecl>((Decl*)Instance1));
   auto* CTSD1 = static_cast<ClassTemplateSpecializationDecl*>(Instance1);
   auto* Add_D = Cpp::GetNamed("Add",CTSD1);
