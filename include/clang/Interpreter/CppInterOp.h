@@ -202,7 +202,7 @@ namespace Cpp {
 
   /// Gets the name of any named decl (a class,
   /// namespace, variable, or a function).
-  std::string GetName(TCppType_t klass);
+  std::string GetName(TCppScope_t klass);
 
   /// This is similar to GetName() function, but besides
   /// the name, it also gets the template arguments.
