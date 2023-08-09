@@ -190,15 +190,15 @@ jobs:
         export CPPINTEROP_BUILD_DIR=$PWD
         cling_on="${{ matrix.cling }}"
         if [[ "${cling_on^^}" == "ON" ]]; then
-          cmake -DCMAKE_BUILD_TYPE=${BUILD_TYPE}    \
-                -DUSE_CLING=ON                      \
-                -DUSE_REPL=OFF                      \
-                -DCling_DIR=$LLVM_BUILD_DIR         \
-                -DLLVM_DIR=$LLVM_BUILD_DIR          \
-                -DLLVM_USE_LINKER=lld               \
-                -DBUILD_SHARED_LIBS=ON              \
-                -DCODE_COVERAGE=${CODE_COVERAGE}    \
-                -DCMAKE_INSTALL_PREFIX=$CPPINTEROP_DIR \
+          cmake -DCMAKE_BUILD_TYPE=${BUILD_TYPE}        \
+                -DUSE_CLING=ON                          \
+                -DUSE_REPL=OFF                          \
+                -DCling_DIR=$LLVM_BUILD_DIR/tools/cling \
+                -DLLVM_DIR=$LLVM_BUILD_DIR              \
+                -DLLVM_USE_LINKER=lld                   \
+                -DBUILD_SHARED_LIBS=ON                  \
+                -DCODE_COVERAGE=${CODE_COVERAGE}        \
+                -DCMAKE_INSTALL_PREFIX=$CPPINTEROP_DIR  \
                 ../
         else
           cmake -DCMAKE_BUILD_TYPE=${BUILD_TYPE}    \
