@@ -1,0 +1,43 @@
+name: clang-tidy-review
+
+on: 
+  pull_request:
+    paths:
+      - '**.h'
+      - '**.cpp'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v3
+
+      - name: Install LLVM and Clang
+        uses: KyleMayes/install-llvm-action@v1
+        with:
+          version: "16.0.0"
+
+      - name: Run clang-tidy
+        uses: ZedThree/clang-tidy-review@v0.13.2
+        id: review
+        with:
+          build_dir: build
+          apt_packages: libxml2,libxml2-dev,libtinfo-dev,zlib1g-dev,libzstd-dev
+          split_workflow: true
+          cmake_command: >
+            pip install cmake lit &&
+            cmake --version &&
+            cmake . -B build -DCMAKE_BUILD_TYPE="Release"
+            -DUSE_CLING=OFF
+            -DUSE_REPL=ON
+            -DLLVM_DIR="$GITHUB_WORKSPACE/llvm"
+            -DBUILD_SHARED_LIBS=ON
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+
+      - name: Upload artifacts
+        uses: ZedThree/clang-tidy-review/upload@v0.13.1
