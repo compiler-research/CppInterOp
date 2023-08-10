@@ -27,10 +27,16 @@ if (USE_REPL)
   set(cling_clang_interp clangInterpreter)
 endif()
 
+set(llvm_system_libs)
+if (LLVM_ENABLE_TERMINFO)
+  list(APPEND llvm_system_libs ${Terminfo_LIBRARIES})
+endif()
+
 target_link_libraries(clangCppInterOp PRIVATE
   ${cling_clang_interp}
   clangAST
   clangBasic
+  ${llvm_system_libs}
 )
 
 set_source_files_properties(CppInterOp.cpp
