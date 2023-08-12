@@ -4,6 +4,9 @@ Using CppInterop
 C++ Language Interoperability Layer
 ===================================
 
+Loading Dynamic shared library
+==============================
+
 The CppInterop comes with using it is a dynamic shared library, 
 **libclangCppInterOp.so** which resides in the CppInterOp/build/lib/.
 
@@ -19,6 +22,31 @@ languages. With the interop layer, we can access the scopes, namespaces of
 classes and members that are being used. The interoperability layer helps us 
 with the instantiation of templates, diagnostic interaction, creation of 
 objects, and many more things.
+
+Using LLVM as external library
+==============================
+
+In CppInterOp, we are leveraging Clang as a library for interoperability purposes.
+To use Clang, we need to pass the Clang configuration to the CMake build system,
+so that the build system recognises the configuration and enables usage of Clang
+and LLVM.
+We can consider clang-repl as a state manager, where CppInterOp allows you to
+query the state from the state manager. Thereafter, Cppyy uses this to create
+Python objects for C++.
+
+.. code-block:: bash
+
+   # Apply the patches for development
+   compgen -G "../patches/llvm/clang16-*.patch" > /dev/null
+   && find ../patches/llvm/clang16-*.patch -printf "%f\n"
+   && git apply ../patches/llvm/clang16-*.patch
+
+.. code-block:: bash
+
+    # Use the versions of llvm with above patches applied
+    -DClang_DIR=/usr/lib/llvm-16/build/lib/cmake/clang\
+    -DLLVM_DIR=/usr/lib/llvm-16/build/lib/cmake/llvm
+
 
 This section briefly describes all the key **features** offered by 
 CppInterop. If you are just getting started with CppInterop, then this is the 
