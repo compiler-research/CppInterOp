@@ -455,6 +455,17 @@ namespace Cpp {
   /// function.
   bool LoadLibrary(const char *lib_path, bool lookup = true);
 
+  /// Inserts or replaces a symbol in the JIT with the one provided. This is
+  /// useful for providing our own implementations of facilities such as printf.
+  ///
+  ///\param[in] linker_mangled_name - the name of the symbol to be inserted or
+  ///           replaced.
+  ///\param[in] address - the new address of the symbol.
+  ///
+  ///\returns true on failure.
+  bool InsertOrReplaceJitSymbol(const char* linker_mangled_name,
+                                uint64_t address);
+
   /// Tries to load provided objects in a string format (prettyprint).
   std::string ObjToString(const char *type, void *obj);
 

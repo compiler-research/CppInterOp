@@ -6,6 +6,7 @@ add_cppinterop_unittest(CppInterOpTests
   EnumReflectionTest.cpp
   FunctionReflectionTest.cpp
   InterpreterTest.cpp
+  JitTest.cpp
   ScopeReflectionTest.cpp
   TypeReflectionTest.cpp
   Utils.cpp

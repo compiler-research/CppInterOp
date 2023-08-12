@@ -154,6 +154,7 @@ public:
   ~Interpreter() {}
 
   operator const clang::Interpreter&() const { return *inner; }
+  operator clang::Interpreter&() { return *inner; }
 
   ///\brief Describes the return result of the different routines that do the
   /// incremental compilation.

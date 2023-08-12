@@ -2563,6 +2563,57 @@ namespace Cpp {
     return res == compat::Interpreter::kSuccess;
   }
 
+  bool InsertOrReplaceJitSymbol(const char* linker_mangled_name,
+                                uint64_t address) {
+    using namespace llvm;
+    using namespace llvm::orc;
+
+    auto& I = getInterp();
+    auto Symbol = compat::getSymbolAddress(I, linker_mangled_name);
+    if (Error Err = Symbol.takeError()) {
+      logAllUnhandledErrors(std::move(Err), errs(),
+                            "[InsertOrReplaceJitSymbol] error: ");
+      return true;
+    }
+
+    // Nothing to define, we are redefining the same function.
+    if (*Symbol && *Symbol == address) {
+      errs() << "[InsertOrReplaceJitSymbol] warning: redefining '"
+             << linker_mangled_name << "' with the same address\n";
+      return true;
+    }
+
+    // Let's inject it.
+    bool Inserted;
+    SymbolMap::iterator It;
+    llvm::orc::SymbolMap InjectedSymbols;
+
+    llvm::orc::LLJIT& Jit = *compat::getExecutionEngine(I);
+    JITDylib& DyLib = Jit.getMainJITDylib();
+
+    std::tie(It, Inserted) = InjectedSymbols.try_emplace(
+        Jit.getExecutionSession().intern(linker_mangled_name),
+        JITEvaluatedSymbol(address, JITSymbolFlags::Exported));
+    assert(Inserted && "Why wasn't this found in the initial Jit lookup?");
+
+    // We want to replace a symbol with a custom provided one.
+    if (Symbol && address)
+      // The symbol be in the DyLib or in-process.
+      if (auto Err = DyLib.remove({It->first})) {
+        logAllUnhandledErrors(std::move(Err), errs(),
+                              "[InsertOrReplaceJitSymbol] error: ");
+        return true;
+      }
+
+    if (Error Err = DyLib.define(absoluteSymbols({*It}))) {
+      logAllUnhandledErrors(std::move(Err), errs(),
+                            "[InsertOrReplaceJitSymbol] error: ");
+      return true;
+    }
+
+    return false;
+  }
+
   std::string ObjToString(const char *type, void *obj) {
     return getInterp().toString(type, obj);
   }
