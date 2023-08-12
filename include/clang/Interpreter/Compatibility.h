@@ -39,11 +39,29 @@ namespace compat {
     cling::utils::Analyze::maybeMangleDeclName(GD, mangledName);
   }
 
-  inline llvm::Expected<llvm::JITTargetAddress>
-  getSymbolAddress(const cling::Interpreter &I, llvm::StringRef IRName) {
-    return (llvm::JITTargetAddress)I.getAddressOfGlobal(IRName);
+  inline llvm::orc::LLJIT* getExecutionEngine(const cling::Interpreter& I) {
+    // FIXME: This is a horrible hack finding the llvm::orc::LLJIT by computing
+    // the object offsets in Cling. We should add getExecutionEngine interface
+    // to directly.
+
+    // sizeof (m_Opts) + sizeof(m_LLVMContext)
+    const unsigned m_ExecutorOffset = 72;
+    int* IncrementalExecutor = ((int*)(&I)) + m_ExecutorOffset;
+    int* IncrementalJit = *(int**)IncrementalExecutor + 0;
+    int* LLJIT = *(int**)IncrementalJit + 0;
+    return *(llvm::orc::LLJIT**)LLJIT;
   }
 
+  inline llvm::Expected<llvm::JITTargetAddress>
+  getSymbolAddress(const cling::Interpreter &I, llvm::StringRef IRName) {
+    if (void* Addr = I.getAddressOfGlobal(IRName))
+      return (llvm::JITTargetAddress)Addr;
+
+    llvm::orc::LLJIT& Jit = *compat::getExecutionEngine(I);
+    llvm::orc::SymbolNameVector Names;
+    Names.push_back(Jit.getExecutionSession().intern(IRName));
+    return llvm::make_error<llvm::orc::SymbolsNotFound>(Names);
+  }
 }
 
 #endif //USE_CLING
@@ -92,9 +110,10 @@ namespace compat {
   //            getSymbolAddress, getSymbolAddressFromLinkerName
   // Clang 15 - Add new Interpreter methods: Undo
 
-  inline const llvm::orc::LLJIT *getExecutionEngine(clang::Interpreter &I)  {
+  inline llvm::orc::LLJIT* getExecutionEngine(clang::Interpreter& I) {
 #if CLANG_VERSION_MAJOR >= 14
-    return &llvm::cantFail(I.getExecutionEngine());
+    auto* engine = &llvm::cantFail(I.getExecutionEngine());
+    return const_cast<llvm::orc::LLJIT*>(engine);
 #else
     assert(0 && "Not implemented in Clang <14!");
     return nullptr;
