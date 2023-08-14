@@ -1,3 +1,17 @@
+<div align="center">
+
+# CppInterOp
+
+[![Biuld Statuses](https://github.com/compiler-research/CppInterOp/workflows/Main/badge.svg)](https://github.com/compiler-research/CppInterOp/actions?query=workflow%3AMain) 
+[![codecov]( https://codecov.io/gh/compiler-research/CppInterOp/branch/main/graph/badge.svg)](https://codecov.io/gh/compiler-research/CppInterOp)
+
+
+CppInterOp exposes API from [Clang](http://clang.llvm.org/) and [LLVM](https://llvm.org) in a backward compatibe way. The API support downstream tools that utilize interactive C++ by using the compiler as a service. That is, embed Clang and LLVM as a libraries in their codebases. The API are designed to be minimalistic and aid non-trivial tasks such as language interoperability on the fly. In such scenarios CppInterOp can be used to provide the necessary introspection information to the other side helping the language cross talk.
+
+
+#### [Installation](#build-instructions-for-linux) | [Documentation](https://cppinterop.readthedocs.io/en/latest/index.html) | [CppInterOp API Documentation](https://cppinterop.readthedocs.io/en/latest/build/html/index.html)
+</div>
+
 ## CppInterOp Introduction
 The CppInterOp library provides a minimalist approachfor other languages to 
 identify C++ entities (variables, classes, etc.). This 
@@ -44,7 +58,7 @@ goals of CppInterOp is to stay backward compatible and be adopted in the High
 framework. Over time, parts of the Root framework can be swapped by this API,
  adding speed and resilience with it.
 
-### Build Instructions for Linux (Debian)
+### Build Instructions for Linux
 Build instructions for CppInterOp and its dependencies are as follows.
 
 #### Setup Clang-REPL
