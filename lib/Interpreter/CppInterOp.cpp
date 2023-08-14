@@ -116,7 +116,7 @@ namespace Cpp {
 #undef DEBUG_TYPE
 
   std::string GetVersion() {
-    const char* const VERSION = "1.0";
+    const char* const VERSION = "1.1~dev";
     std::string fullVersion = "CppInterOp version";
     fullVersion += VERSION;
     fullVersion += "\n (based on "

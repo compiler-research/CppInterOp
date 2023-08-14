@@ -2,7 +2,7 @@ Introduction
 ============
 
 This document contains the release notes for the language interoperability
-library CppInterOp, release 1.0. CppInterOp is built on top of
+library CppInterOp, release 1.1. CppInterOp is built on top of
 [Clang](http://clang.llvm.org) and [LLVM](http://llvm.org>) compiler
 infrastructure. Here we describe the status of CppInterOp in some detail,
 including major improvements from the previous release and new feature work.
@@ -18,7 +18,7 @@ the necessary introspection information to the other side helping the language
 cross talk.
 
 
-What's New in CppInterOp 1.0?
+What's New in CppInterOp 1.1?
 =============================
 
 Some of the major new features and improvements to Clad are listed here. Generic
@@ -35,64 +35,35 @@ External Dependencies
 Introspection
 -------------
 
-* Facilities enabling the is-a operation such as `IsAggregate`, `IsNamespace`,
-  `IsClass`, `IsComplete`, `IsBuiltin`, `IsTemplate`,
-  `IsTemplateSpecialization`, `IsTypedefed`, `IsAbstract`, `IsEnumScope`,
-  `IsEnumConstant`, `IsEnumType`, `IsSmartPtrType`, `IsVariable`,
-  `IsFunctionDeleted`, `IsTemplatedFunction`, `IsMethod`, `IsPublicMethod`,
-  `IsProtectedMethod`, `IsPrivateMethod`, `IsConstructor`, `IsDestructor`,
-  `IsStaticMethod`, `IsVirtualMethod`, `IsPublicVariable`,
-  `IsProtectedVariable`, `IsPrivateVariable`, `IsStaticVariable`,
-  `IsConstVariable`, `IsRecordType`, `IsPODType`, `IsTypeDerivedFrom`,
-  `IsConstMethod`, and `HasDefaultConstructor`.
-
-* Facilities for obtaining the introspection representations of entities such as
-  `GetIntegerTypeFromEnumScope`, `GetIntegerTypeFromEnumType`,
-  `GetEnumConstants`, `GetEnumConstantType`, `GetEnumConstantValue`,
-  `GetSizeOfType`, `SizeOf`, `GetUsingNamespaces`, `GetGlobalScope`,
-  `GetUnderlyingScope`, `GetScope`, `GetScopeFromCompleteName`, `GetNamed`,
-  `GetParentScope`, `GetScopeFromType`, `GetBaseClassOffset`, `GetClassMethods`,
-  `GetDefaultConstructor`, `GetDestructor`, `GetFunctionsUsingName`,
-  `GetFunctionReturnType`, `GetFunctionNumArgs`, `GetFunctionRequiredArgs`,
-  `GetFunctionArgType`, `GetDatamembers`, `LookupDatamember`, `GetVariableType`,
-  `GetVariableOffset`, `GetUnderlyingType`, `GetCanonicalType`, `GetType`,
-  `GetComplexType`, `GetTypeFromScope`, `InstantiateClassTemplate`, and
-  `InstantiateTemplateFunctionFromString`.
+* 
 
 
 Just-in-Time Compilation
 ------------------------
 
-* Facilities getting the compiled representation of the entities such as
-  `MakeFunctionCallable`, `InsertOrReplaceJitSymbol`, `Allocate`, `Deallocate`,
-  `Construct`, and `Destruct`.
+* 
 
 
 Incremental C++
 ---------------
 
-* Facilities for setting up the intrastructure such as `CreateInterpreter`,
-  `GetInterpreter`, `AddSearchPath`, and `AddIncludePath`.
-
-* Facilities for consuming incremental input such as `Declare`, `Process` and
-  `Evaluate`.
-
-
-Debugging
----------
-
-* Facilities for debugging such as `EnableDebugOutput`, `IsDebugOutputEnabled`,
-  and `DumpScope`.
+* 
 
 
 Misc
 ----
 
-* Facilities for getting entities' string representation such as `GetName`,
-  `GetCompleteName`, `GetQualifiedName`, `GetQualifiedCompleteName`,
-  `GetFunctionSignature`, `GetTypeAsString`, `ObjToString`, and
-  `GetAllCppNames`.
+* 
 
+
+Fixed Bugs
+----------
+
+[XXX](https://github.com/compiler-research/CppInterOp/issues/XXX)
+
+ <!---Get release bugs
+ git log v1.0..main | grep 'Fixes|Closes'
+ --->
 
 Special Kudos
 =============
@@ -104,10 +75,7 @@ FirstName LastName (#commits)
 
 A B (N)
 
-Baidyanath Kundu (141)
-Vassil Vassilev (68)
-Alexander Penev (16)
-Smit1603 (8)
-Krishna-13-cyber (4)
-Vaibhav Thakkar (2)
-QuillPusher (2)
+<!---Find contributor list for this release
+ git log --pretty=format:"%an"  v1.0...master | sort | uniq -c | sort -rn |\
+   sed -E 's,^ *([0-9]+) (.*)$,\2 \(\1\),'
+--->
