@@ -115,6 +115,19 @@ namespace Cpp {
 
 #undef DEBUG_TYPE
 
+  std::string GetVersion() {
+    const char* const VERSION = "1.0~dev";
+    std::string fullVersion = "CppInterOp version";
+    fullVersion += VERSION;
+    fullVersion += "\n (based on "
+#ifdef USE_CLING
+                   "cling ";
+#else
+                   "clang-repl";
+#endif // USE_CLING
+    return fullVersion + "[" + clang::getClangFullVersion() + "])\n";
+  }
+
   void EnableDebugOutput(bool value/* =true*/) {
     llvm::DebugFlag = value;
   }

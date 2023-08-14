@@ -1,6 +1,13 @@
 #include "clang/Interpreter/CppInterOp.h"
 
+#include <gmock/gmock.h>
 #include "gtest/gtest.h"
+
+using ::testing::StartsWith;
+
+TEST(InterpreterTest, Version) {
+  EXPECT_THAT(Cpp::GetVersion(), StartsWith("CppInterOp version"));
+}
 
 TEST(InterpreterTest, DebugFlag) {
   EXPECT_FALSE(Cpp::IsDebugOutputEnabled());

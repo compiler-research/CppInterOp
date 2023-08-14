@@ -7,6 +7,12 @@ if (NOT TARGET gtest)
   include(GoogleTest)
 endif()
 
+set(gtest_libs gtest gtest_main)
+# Clang prior than clang13 (I think) merges both gmock into gtest.
+if (TARGET gmock)
+  list(APPEND gtest_libs gmock gmock_main)
+endif()
+
 add_custom_target(CppInterOpUnitTests)
 set_target_properties(CppInterOpUnitTests PROPERTIES FOLDER "CppInterOp tests")
 add_dependencies(CppInterOpUnitTests clangCppInterOp)
@@ -18,7 +24,7 @@ function(add_cppinterop_unittest name)
   target_include_directories(${name} PUBLIC ${CMAKE_CURRENT_BINARY_DIR} ${GTEST_INCLUDE_DIR})
   set_property(TARGET ${name} PROPERTY RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
-  target_link_libraries(${name} PUBLIC ${ARG_LIBRARIES} gtest gtest_main pthread)
+  target_link_libraries(${name} PUBLIC ${ARG_LIBRARIES} ${gtest_libs} pthread)
 
   add_test(NAME cppinterop-${name} COMMAND ${name})
   set_tests_properties(cppinterop-${name} PROPERTIES

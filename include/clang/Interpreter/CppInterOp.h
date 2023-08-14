@@ -117,6 +117,9 @@ namespace Cpp {
     }
   };
 
+  ///\returns the version string information of the library.
+  std::string GetVersion();
+
   /// Enables or disables the debugging printouts on stderr.
   /// Debugging output can be enabled also by the environment variable
   /// CPPINTEROP_EXTRA_INTERPRETER_ARGS. For example,
