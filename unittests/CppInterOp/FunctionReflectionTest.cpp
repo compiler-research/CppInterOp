@@ -670,9 +670,11 @@ TEST(FunctionReflectionTest, IsConstMethod) {
 
   GetAllTopLevelDecls(code, Decls);
   GetAllSubDecls(Decls[0], SubDecls);
+  Cpp::TCppFunction_t method = nullptr; // Simulate an invalid method pointer
 
-  EXPECT_TRUE(Cpp::IsConstMethod(SubDecls[1])); // f1
+  EXPECT_TRUE(Cpp::IsConstMethod(SubDecls[1]));  // f1
   EXPECT_FALSE(Cpp::IsConstMethod(SubDecls[2])); // f2
+  EXPECT_FALSE(Cpp::IsConstMethod(method));
 }
 
 TEST(FunctionReflectionTest, GetFunctionArgName) {

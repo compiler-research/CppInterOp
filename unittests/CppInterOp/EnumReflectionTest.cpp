@@ -259,3 +259,49 @@ TEST(EnumReflectionTest, GetEnumConstantValue) {
   EXPECT_EQ(Cpp::GetEnumConstantValue(EnumConstants[5]), -10);
   EXPECT_EQ(Cpp::GetEnumConstantValue(EnumConstants[6]), -9);
 }
+
+TEST(EnumReflectionTest, GetEnums) {
+  std::string code = R"(
+    enum Color {
+      Red,
+      Green,
+      Blue
+    };
+
+    enum Days{
+      Monday,
+      Tuesday,
+      Wednesday,
+      Thursday,
+    };
+
+    namespace Animals {
+      enum AnimalType {
+        Dog,
+        Cat,
+        Bird
+      };
+
+      enum Months{
+        January,
+        February,
+        March
+      };
+    }
+    )";
+
+  Cpp::CreateInterpreter();
+  Interp->declare(code);
+  std::vector<std::string> enumNames1, enumNames2;
+  Cpp::TCppScope_t globalscope = Cpp::GetScope("", 0);
+  Cpp::TCppScope_t Animals_scope = Cpp::GetScope("Animals", 0);
+
+  Cpp::GetEnums(globalscope,enumNames1);
+  Cpp::GetEnums(Animals_scope,enumNames2);
+
+  // Check if the enum names are correctly retrieved
+  EXPECT_TRUE(std::find(enumNames1.begin(), enumNames1.end(), "Color") != enumNames1.end());
+  EXPECT_TRUE(std::find(enumNames1.begin(), enumNames1.end(), "Days") != enumNames1.end());
+  EXPECT_TRUE(std::find(enumNames2.begin(), enumNames2.end(), "AnimalType") != enumNames2.end());
+  EXPECT_TRUE(std::find(enumNames2.begin(), enumNames2.end(), "Months") != enumNames2.end());
+}

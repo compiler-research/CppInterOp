@@ -173,6 +173,10 @@ namespace Cpp {
   /// Checks if the passed value is an enum type or not.
   bool IsEnumType(TCppType_t type);
 
+  /// Extracts enum declarations from a specified scope and stores them in
+  /// vector
+  void GetEnums(TCppScope_t scope, std::vector<std::string>& Result);
+
   /// We assume that smart pointer types define both operator* and
   /// operator->.
   bool IsSmartPtrType(TCppType_t type);

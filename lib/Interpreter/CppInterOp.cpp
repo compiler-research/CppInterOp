@@ -1041,9 +1041,7 @@ namespace Cpp {
     return {};
   }
 
-  TCppScope_t LookupDatamember(                               const std::string& name,
-                               TCppScope_t parent)
-  {
+  TCppScope_t LookupDatamember(const std::string& name, TCppScope_t parent) {
     clang::DeclContext *Within = 0;
     if (parent) {
       auto *D = (clang::Decl *)parent;
@@ -1269,8 +1267,9 @@ namespace Cpp {
         return Context.LongTy;
       }
       if (typeName.equals("long long")) {
-        if (isunsigned) return Context.LongLongTy;
+        if (isunsigned)
         return Context.UnsignedLongLongTy;
+        return Context.LongLongTy;
       }
       if (!issigned && !isunsigned) {
         if (typeName.equals("bool")) return Context.BoolTy;
@@ -2775,7 +2774,7 @@ namespace Cpp {
     return names;
   }
 
-  std::vector<std::string> GetEnums(TCppScope_t scope) {
+  void GetEnums(TCppScope_t scope, std::vector<std::string>& Result) {
     auto *D = (clang::Decl *)scope;
     clang::DeclContext *DC;
     clang::DeclContext::decl_iterator decl;
@@ -2791,17 +2790,14 @@ namespace Cpp {
       DC = clang::TranslationUnitDecl::castToDeclContext(TUD);
       decl = DC->decls_begin();
     } else {
-      return {};
+      return;
     }
 
-    std::vector<std::string> names;
     for (/* decl set above */; decl != DC->decls_end(); decl++) {
       if (auto *ND = llvm::dyn_cast_or_null<EnumDecl>(*decl)) {
-        names.push_back(ND->getNameAsString());
+        Result.push_back(ND->getNameAsString());
       }
     }
-
-    return names;
   }
 
   // FIXME: On the CPyCppyy side the receiver is of type
