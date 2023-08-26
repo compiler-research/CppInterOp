@@ -33,6 +33,13 @@
 #include <sstream>
 #include <string>
 
+// Stream redirect.
+#ifdef WIN32
+#include <io.h>
+#else
+#include <unistd.h>
+#endif // WIN32
+
 namespace Cpp {
 
   using namespace clang;
@@ -2925,7 +2932,93 @@ namespace Cpp {
       (*wrapper)(This, /*nary=*/0, withFree);
       return;
     }
+    // FIXME: Diagnose.
   }
-  // FIXME: Diagnose.
+
+  class StreamCaptureInfo {
+    std::unique_ptr<FILE, decltype(std::fclose)*> m_TempFile;
+    int m_FD = -1;
+    int m_DupFD = -1;
+
+  public:
+    StreamCaptureInfo(int FD) : m_TempFile(tmpfile(), std::fclose), m_FD(FD) {
+      if (!m_TempFile) {
+        perror("StreamCaptureInfo: Unable to create temp file");
+        return;
+      }
+
+      m_DupFD = dup(FD);
+
+      // Flush now or can drop the buffer when dup2 is called with Fd later.
+      // This seems only neccessary when piping stdout or stderr, but do it
+      // for ttys to avoid over complicated code for minimal benefit.
+      ::fflush(FD == STDOUT_FILENO ? stdout : stderr);
+
+      if (dup2(fileno(m_TempFile.get()), FD) < 0)
+        perror("StreamCaptureInfo:");
+    }
+    StreamCaptureInfo(const StreamCaptureInfo&) = delete;
+    StreamCaptureInfo& operator=(const StreamCaptureInfo&) = delete;
+    StreamCaptureInfo(StreamCaptureInfo&&) = delete;
+    StreamCaptureInfo& operator=(StreamCaptureInfo&&) = delete;
+
+    ~StreamCaptureInfo() {
+      assert(m_DupFD == -1 && "Captured output not used?");
+    }
+
+    std::string GetCapturedString() {
+      assert(m_DupFD != -1 && "Multiple calls to GetCapturedString");
+
+      fflush(nullptr);
+
+      if (dup2(m_DupFD, m_FD) < 0)
+        perror("StreamCaptureInfo:");
+      // Go to the end of the file.
+      if (fseek(m_TempFile.get(), 0L, SEEK_END) != 0)
+        perror("StreamCaptureInfo:");
+
+      // Get the size of the file.
+      long bufsize = ftell(m_TempFile.get());
+      if (bufsize == -1)
+        perror("StreamCaptureInfo:");
+
+      // Allocate our buffer to that size.
+      std::unique_ptr<char[]> content(new char[bufsize + 1]);
+
+      // Go back to the start of the file.
+      if (fseek(m_TempFile.get(), 0L, SEEK_SET) != 0)
+        perror("StreamCaptureInfo:");
+
+      // Read the entire file into memory.
+      size_t newLen =
+          fread(content.get(), sizeof(char), bufsize, m_TempFile.get());
+      if (ferror(m_TempFile.get()) != 0)
+        fputs("Error reading file", stderr);
+      else
+        content[newLen++] = '\0'; // Just to be safe.
+
+      std::string result = content.get();
+      close(m_DupFD);
+      m_DupFD = -1;
+      return result;
+    }
+  };
+
+  static std::stack<StreamCaptureInfo>& GetRedirectionStack() {
+    static std::stack<StreamCaptureInfo> sRedirectionStack;
+    return sRedirectionStack;
+  }
+
+  void BeginStdStreamCapture(CaptureStreamKind fd_kind) {
+    GetRedirectionStack().emplace((int)fd_kind);
+  }
+
+  std::string EndStdStreamCapture() {
+    assert(GetRedirectionStack().size());
+    StreamCaptureInfo& SCI = GetRedirectionStack().top();
+    std::string result = SCI.GetCapturedString();
+    GetRedirectionStack().pop();
+    return result;
+  }
 
   } // end namespace Cpp

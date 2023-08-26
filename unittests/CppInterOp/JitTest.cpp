@@ -30,3 +30,35 @@ TEST(JitTest, InsertOrReplaceJitSymbol) {
       Cpp::InsertOrReplaceJitSymbol("non_existent", (uint64_t)&printf_jit));
   EXPECT_TRUE(Cpp::InsertOrReplaceJitSymbol("non_existent", 0));
 }
+
+TEST(Streams, StreamRedirect) {
+  // printf and etc are fine here.
+  // NOLINTBEGIN(cppcoreguidelines-pro-type-vararg)
+  Cpp::BeginStdStreamCapture(Cpp::kStdOut);
+  Cpp::BeginStdStreamCapture(Cpp::kStdErr);
+  printf("StdOut is captured\n");
+  fprintf(stderr, "StdErr is captured\n");
+  std::cout << "Out captured"
+            << "\n";
+  std::cerr << "Err captured"
+            << "\n";
+  std::string CapturedStringErr = Cpp::EndStdStreamCapture();
+  std::string CapturedStringOut = Cpp::EndStdStreamCapture();
+  EXPECT_STREQ(CapturedStringOut.c_str(), "StdOut is captured\nOut captured\n");
+  EXPECT_STREQ(CapturedStringErr.c_str(), "StdErr is captured\nErr captured\n");
+
+  testing::internal::CaptureStdout();
+  std::cout << "Out"
+            << "\n";
+  printf("StdOut\n");
+  std::string outs = testing::internal::GetCapturedStdout();
+  EXPECT_STREQ(outs.c_str(), "Out\nStdOut\n");
+
+  testing::internal::CaptureStderr();
+  std::cerr << "Err"
+            << "\n";
+  fprintf(stderr, "StdErr\n");
+  std::string cerrs = testing::internal::GetCapturedStderr();
+  EXPECT_STREQ(cerrs.c_str(), "Err\nStdErr\n");
+  // NOLINTEND(cppcoreguidelines-pro-type-vararg)
+}
