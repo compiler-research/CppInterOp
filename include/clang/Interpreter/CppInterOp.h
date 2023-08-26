@@ -520,6 +520,26 @@ namespace Cpp {
   /// calls operator delete/free.
   void Destruct(TCppObject_t This, TCppScope_t type,
                 bool withFree = true);
+
+  /// @name Stream Redirection
+  ///
+  ///@{
+
+  enum CaptureStreamKind : char {
+    kStdOut = 1, ///< stdout
+    kStdErr,     ///< stderr
+    // kStdBoth,    ///< stdout and stderr
+    // kSTDSTRM  // "&1" or "&2" is not a filename
+  };
+
+  /// Begins recording the given standard stream.
+  ///\param[fd_kind] - The stream to be captured
+  void BeginStdStreamCapture(CaptureStreamKind fd_kind);
+
+  /// Ends recording the standard stream and returns the result as a string.
+  std::string EndStdStreamCapture();
+
+  ///@}
 } // end namespace Cpp
 
 #endif // CPPINTEROP_CPPINTEROP_H
