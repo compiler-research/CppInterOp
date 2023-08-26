@@ -110,6 +110,15 @@ TEST(TypeReflectionTest, GetType) {
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetType("int")), "int");
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetType("double")), "double");
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetType("A")), "A");
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetType("unsigned char")), "unsigned char");
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetType("unsigned short")), "unsigned short");
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetType("unsigned int")), "unsigned int");
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetType("unsigned long")),"unsigned long");
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetType("unsigned long long")), "unsigned long long");
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetType("signed short")),"short");
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetType("signed int")), "int");
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetType("signed long")),"long");
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetType("signed long long")),"long long");
 }
 
 TEST(TypeReflectionTest, IsRecordType) {
