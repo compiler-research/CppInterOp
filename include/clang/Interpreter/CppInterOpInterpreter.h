@@ -382,6 +382,26 @@ public:
     return AddIncludePaths(PathsStr, nullptr);
   }
 
+  ///\brief Returns multiple include paths separated by a delimter.
+  ///
+  ///\param[in] includePaths - Store Path(s)
+  ///\param[in] PathsStr - Path(s)
+  ///\param[in] Delim - Delimiter to separate paths or NULL if a single path
+  ///
+  void GetIncludePaths(std::vector<std::string> &includePaths, llvm::StringRef PathsStr, const char* Delim = ":") {
+    const clang::CompilerInstance* CI = getCompilerInstance();
+    clang::HeaderSearchOptions& HOpts =
+      const_cast<clang::HeaderSearchOptions&>(CI->getHeaderSearchOpts());
+
+    Cpp::utils::GetIncludePaths(includePaths, PathsStr, HOpts, Delim);
+  }
+
+  ///\brief Returns a single include path (-I).
+  ///
+  void GetIncludePath(llvm::StringRef PathsStr, std::vector<std::string> &includePaths) {
+    return GetIncludePaths(includePaths, PathsStr, nullptr);
+  }
+
   CompilationResult
   loadLibrary(const std::string& filename, bool lookup) {
     DynamicLibraryManager* DLM = getDynamicLibraryManager();

@@ -2518,6 +2518,10 @@ namespace Cpp {
     getInterp().AddIncludePath(dir);
   }
 
+  void GetIncludePath(const char *dir, std::vector <std::string> &Paths) {
+    getInterp().GetIncludePath(dir, Paths);
+  }
+
   namespace {
 
   class clangSilent {

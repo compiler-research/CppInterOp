@@ -444,9 +444,44 @@ void AddIncludePaths(llvm::StringRef PathStr,
     for (llvm::StringRef Path : PathsChecked)
       LLVM_DEBUG(dbgs() << "  " << Path << "\n");
   }
-
 #undef  DEBUG_TYPE
 }
 
+void GetIncludePaths(std::vector<std::string> &includePaths, llvm::StringRef PathStr,
+                         clang::HeaderSearchOptions& HOpts,
+                         const char* Delim /* = Cpp::utils::platform::kEnvDelim */) {
+#define DEBUG_TYPE "GetIncludePaths"
+
+  llvm::SmallVector<llvm::StringRef, 10> Paths;
+  if (Delim && *Delim)
+    SplitPaths(PathStr, Paths, kAllowNonExistant, Delim, HOpts.Verbose);
+  else
+    Paths.push_back(PathStr);
+
+  // Avoid duplicates
+  llvm::SmallVector<llvm::StringRef, 10> PathsChecked;
+  for (llvm::StringRef Path : Paths) {
+    bool Exists = false;
+    for (const clang::HeaderSearchOptions::Entry& E : HOpts.UserEntries) {
+      if ((Exists = E.Path == Path))
+        break;
+    }
+    if (!Exists)
+      PathsChecked.push_back(Path);
+      includePaths.push_back((std::string)Path);
+  }
+
+  const bool IsFramework = false;
+  const bool IsSysRootRelative = true;
+  for (llvm::StringRef Path : PathsChecked)
+    HOpts.AddPath(Path, clang::frontend::Angled, IsFramework, IsSysRootRelative);
+
+  if (HOpts.Verbose) {
+    LLVM_DEBUG(dbgs() << "Added include paths:\n");
+    for (llvm::StringRef Path : PathsChecked)
+      LLVM_DEBUG(dbgs() << "  " << Path << "\n");
+  }
+  #undef  DEBUG_TYPE
+}
 } // namespace utils
 } // namespace Cpp

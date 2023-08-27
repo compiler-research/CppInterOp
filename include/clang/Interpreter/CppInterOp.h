@@ -439,6 +439,8 @@ namespace Cpp {
   /// GetResourceDir() function.
   void AddIncludePath(const char *dir);
 
+  void GetIncludePath(const char *dir, std::vector <std::string> &includePaths);
+
   /// Only Declares a code snippet in \c code and does not execute it.
   TCppIndex_t Declare(const char *code, bool silent = false);
 
