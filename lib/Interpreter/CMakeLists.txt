@@ -1,4 +1,9 @@
 set(LLVM_LINK_COMPONENTS
+  ${LLVM_TARGETS_TO_BUILD}
+  BinaryFormat
+  Core
+  Object
+  OrcJIT
   Support
 )
 
@@ -31,6 +36,9 @@ target_link_libraries(clangCppInterOp PRIVATE
   ${cling_clang_interp}
   clangAST
   clangBasic
+  clangLex
+  clangSema
+  dl
 )
 
 set_source_files_properties(CppInterOp.cpp
