@@ -5,14 +5,14 @@ index fd22af976..e68021845 100644
 @@ -14,13 +14,15 @@
  #ifndef LLVM_CLANG_INTERPRETER_INTERPRETER_H
  #define LLVM_CLANG_INTERPRETER_INTERPRETER_H
- 
+
 -#include "clang/Interpreter/PartialTranslationUnit.h"
 -
 +#include "clang/AST/Decl.h"
  #include "clang/AST/GlobalDecl.h"
 +#include "clang/Interpreter/PartialTranslationUnit.h"
 +#include "clang/Interpreter/Value.h"
- 
+
 +#include "llvm/ADT/DenseMap.h"
  #include "llvm/ExecutionEngine/JITSymbol.h"
 +#include "llvm/ExecutionEngine/Orc/Shared/ExecutorAddress.h"
@@ -20,7 +20,7 @@ index fd22af976..e68021845 100644
 -
  #include <memory>
  #include <vector>
- 
+
 @@ -28,7 +30,7 @@ namespace llvm {
  namespace orc {
  class LLJIT;
@@ -28,12 +28,12 @@ index fd22af976..e68021845 100644
 -}
 +} // namespace orc
  } // namespace llvm
- 
+
  namespace clang {
 @@ -52,39 +54,64 @@ class Interpreter {
- 
+
    Interpreter(std::unique_ptr<CompilerInstance> CI, llvm::Error &Err);
- 
+
 +  llvm::Error CreateExecutor();
 +  unsigned InitPTUSize = 0;
 +
@@ -64,10 +64,10 @@ index fd22af976..e68021845 100644
 -  }
 +  llvm::Error ParseAndExecute(llvm::StringRef Code, Value *V = nullptr);
 +  llvm::Expected<llvm::orc::ExecutorAddr> CompileDtorCall(CXXRecordDecl *CXXRD);
- 
+
    /// Undo N previous incremental inputs.
    llvm::Error Undo(unsigned N = 1);
- 
+
 -  /// \returns the \c JITTargetAddress of a \c GlobalDecl. This interface uses
 +  /// Link a dynamic library
 +  llvm::Error LoadDynamicLibrary(const char *name);
@@ -77,13 +77,13 @@ index fd22af976..e68021845 100644
    /// mangled name.
 -  llvm::Expected<llvm::JITTargetAddress> getSymbolAddress(GlobalDecl GD) const;
 +  llvm::Expected<llvm::orc::ExecutorAddr> getSymbolAddress(GlobalDecl GD) const;
- 
+
 -  /// \returns the \c JITTargetAddress of a given name as written in the IR.
 -  llvm::Expected<llvm::JITTargetAddress>
 +  /// \returns the \c ExecutorAddr of a given name as written in the IR.
 +  llvm::Expected<llvm::orc::ExecutorAddr>
    getSymbolAddress(llvm::StringRef IRName) const;
- 
+
 -  /// \returns the \c JITTargetAddress of a given name as written in the object
 +  /// \returns the \c ExecutorAddr of a given name as written in the object
    /// file.
@@ -109,7 +109,7 @@ index fd22af976..e68021845 100644
 +  llvm::SmallVector<Expr *, 3> ValuePrintingInfo;
  };
  } // namespace clang
- 
+
 diff --git a/clang/include/clang/Interpreter/Value.h b/clang/include/clang/Interpreter/Value.h
 new file mode 100644
 index 000000000..4df436703
@@ -328,7 +328,7 @@ index c49f22fdd..565e824bf 100644
    Interpreter.cpp
 +  InterpreterUtils.cpp
 +  Value.cpp
- 
+
    DEPENDS
    intrinsics_gen
 diff --git a/clang/lib/Interpreter/IncrementalExecutor.cpp b/clang/lib/Interpreter/IncrementalExecutor.cpp
@@ -338,20 +338,20 @@ index 37d230b61..489ea48e0 100644
 @@ -86,7 +86,7 @@ llvm::Error IncrementalExecutor::runCtors() const {
    return Jit->initialize(Jit->getMainJITDylib());
  }
- 
+
 -llvm::Expected<llvm::JITTargetAddress>
 +llvm::Expected<llvm::orc::ExecutorAddr>
  IncrementalExecutor::getSymbolAddress(llvm::StringRef Name,
                                        SymbolNameKind NameKind) const {
    auto Sym = (NameKind == LinkerName) ? Jit->lookupLinkerMangled(Name)
 @@ -94,7 +94,7 @@ IncrementalExecutor::getSymbolAddress(llvm::StringRef Name,
- 
+
    if (!Sym)
      return Sym.takeError();
 -  return Sym->getValue();
 +  return Sym;
  }
- 
+
  } // end namespace clang
 diff --git a/clang/lib/Interpreter/IncrementalExecutor.h b/clang/lib/Interpreter/IncrementalExecutor.h
 index 54d37c763..dd0a210a0 100644
@@ -362,9 +362,9 @@ index 54d37c763..dd0a210a0 100644
  #include "llvm/ADT/StringRef.h"
  #include "llvm/ExecutionEngine/Orc/ExecutionUtils.h"
 +#include "llvm/ExecutionEngine/Orc/Shared/ExecutorAddress.h"
- 
+
  #include <memory>
- 
+
 @@ -51,9 +52,10 @@ public:
    llvm::Error removeModule(PartialTranslationUnit &PTU);
    llvm::Error runCtors() const;
@@ -376,7 +376,7 @@ index 54d37c763..dd0a210a0 100644
 +
 +  llvm::orc::LLJIT &GetExecutionEngine() { return *Jit; }
  };
- 
+
  } // end namespace clang
 diff --git a/clang/lib/Interpreter/IncrementalParser.cpp b/clang/lib/Interpreter/IncrementalParser.cpp
 index 373e2844b..f892eeb81 100644
@@ -384,7 +384,7 @@ index 373e2844b..f892eeb81 100644
 +++ b/clang/lib/Interpreter/IncrementalParser.cpp
 @@ -11,7 +11,6 @@
  //===----------------------------------------------------------------------===//
- 
+
  #include "IncrementalParser.h"
 -
  #include "clang/AST/DeclContextInternals.h"
@@ -402,9 +402,9 @@ index 373e2844b..f892eeb81 100644
  #include "llvm/Support/CrashRecoveryContext.h"
  #include "llvm/Support/Error.h"
 @@ -31,6 +30,79 @@
- 
+
  namespace clang {
- 
+
 +class IncrementalASTConsumer final : public ASTConsumer {
 +  Interpreter &Interp;
 +  std::unique_ptr<ASTConsumer> Consumer;
@@ -484,7 +484,7 @@ index 373e2844b..f892eeb81 100644
 @@ -122,7 +194,8 @@ public:
    }
  };
- 
+
 -IncrementalParser::IncrementalParser(std::unique_ptr<CompilerInstance> Instance,
 +IncrementalParser::IncrementalParser(Interpreter &Interp,
 +                                     std::unique_ptr<CompilerInstance> Instance,
@@ -504,7 +504,7 @@ index 373e2844b..f892eeb81 100644
 @@ -267,17 +343,22 @@ IncrementalParser::Parse(llvm::StringRef input) {
    assert(AssertTok.is(tok::eof) &&
           "Lexer must be EOF when starting incremental parse!");
- 
+
 -  if (CodeGenerator *CG = getCodeGen(Act.get())) {
 -    std::unique_ptr<llvm::Module> M(CG->ReleaseModule());
 -    CG->StartModule("incr_module_" + std::to_string(PTUs.size()),
@@ -513,10 +513,10 @@ index 373e2844b..f892eeb81 100644
 +  if (std::unique_ptr<llvm::Module> M = GenModule())
      PTU->TheModule = std::move(M);
 -  }
- 
+
    return PTU;
  }
- 
+
 +std::unique_ptr<llvm::Module> IncrementalParser::GenModule() {
 +  static unsigned ID = 0;
 +  if (CodeGenerator *CG = getCodeGen(Act.get())) {
@@ -536,7 +536,7 @@ index 8e45d6b59..99e37588d 100644
 +++ b/clang/lib/Interpreter/IncrementalParser.h
 @@ -16,7 +16,6 @@
  #include "clang/Interpreter/PartialTranslationUnit.h"
- 
+
  #include "clang/AST/GlobalDecl.h"
 -
  #include "llvm/ADT/ArrayRef.h"
@@ -554,18 +554,18 @@ index 8e45d6b59..99e37588d 100644
  ///
 @@ -57,7 +56,8 @@ class IncrementalParser {
    std::list<PartialTranslationUnit> PTUs;
- 
+
  public:
 -  IncrementalParser(std::unique_ptr<CompilerInstance> Instance,
 +  IncrementalParser(Interpreter &Interp,
 +                    std::unique_ptr<CompilerInstance> Instance,
                      llvm::LLVMContext &LLVMCtx, llvm::Error &Err);
    ~IncrementalParser();
- 
+
 @@ -76,6 +76,8 @@ public:
- 
+
    std::list<PartialTranslationUnit> &getPTUs() { return PTUs; }
- 
+
 +  std::unique_ptr<llvm::Module> GenModule();
 +
  private:
@@ -578,7 +578,7 @@ index a6f5fdc6e..4391bd008 100644
 @@ -16,7 +16,11 @@
  #include "IncrementalExecutor.h"
  #include "IncrementalParser.h"
- 
+
 +#include "InterpreterUtils.h"
  #include "clang/AST/ASTContext.h"
 +#include "clang/AST/Mangle.h"
@@ -604,7 +604,7 @@ index a6f5fdc6e..4391bd008 100644
  #include "llvm/Support/Host.h"
 -
  using namespace clang;
- 
+
  // FIXME: Figure out how to unify with namespace init_convenience from
 @@ -176,7 +184,7 @@ Interpreter::Interpreter(std::unique_ptr<CompilerInstance> CI,
    llvm::ErrorAsOutParameter EAO(&Err);
@@ -614,11 +614,11 @@ index a6f5fdc6e..4391bd008 100644
 +  IncrParser = std::make_unique<IncrementalParser>(*this, std::move(CI),
                                                     *TSCtx->getContext(), Err);
  }
- 
+
 @@ -189,6 +197,29 @@ Interpreter::~Interpreter() {
    }
  }
- 
+
 +// These better to put in a runtime header but we can't. This is because we
 +// can't find the precise resource directory in unittests so we have to hard
 +// code them.
@@ -660,11 +660,11 @@ index a6f5fdc6e..4391bd008 100644
 +  Interp->InitPTUSize = Interp->IncrParser->getPTUs().size();
    return std::move(Interp);
  }
- 
+
 @@ -203,25 +243,53 @@ const CompilerInstance *Interpreter::getCompilerInstance() const {
    return IncrParser->getCI();
  }
- 
+
 -const llvm::orc::LLJIT *Interpreter::getExecutionEngine() const {
 -  if (IncrExecutor)
 -    return IncrExecutor->getExecutionEngine();
@@ -691,7 +691,7 @@ index a6f5fdc6e..4391bd008 100644
 +  assert(PTUs.size() >= InitPTUSize && "empty PTU list?");
 +  return PTUs.size() - InitPTUSize;
  }
- 
+
  llvm::Expected<PartialTranslationUnit &>
  Interpreter::Parse(llvm::StringRef Code) {
 +  // Tell the interpreter sliently ignore unused expressions since value
@@ -700,7 +700,7 @@ index a6f5fdc6e..4391bd008 100644
 +      clang::diag::warn_unused_expr, diag::Severity::Ignored, SourceLocation());
    return IncrParser->Parse(Code);
  }
- 
+
 +llvm::Error Interpreter::CreateExecutor() {
 +  const clang::TargetInfo &TI =
 +      getCompilerInstance()->getASTContext().getTargetInfo();
@@ -727,7 +727,7 @@ index a6f5fdc6e..4391bd008 100644
 @@ -235,7 +303,26 @@ llvm::Error Interpreter::Execute(PartialTranslationUnit &T) {
    return llvm::Error::success();
  }
- 
+
 -llvm::Expected<llvm::JITTargetAddress>
 +llvm::Error Interpreter::ParseAndExecute(llvm::StringRef Code, Value *V) {
 +
@@ -755,7 +755,7 @@ index a6f5fdc6e..4391bd008 100644
 @@ -245,7 +332,7 @@ Interpreter::getSymbolAddress(GlobalDecl GD) const {
    return getSymbolAddress(MangledName);
  }
- 
+
 -llvm::Expected<llvm::JITTargetAddress>
 +llvm::Expected<llvm::orc::ExecutorAddr>
  Interpreter::getSymbolAddress(llvm::StringRef IRName) const {
@@ -764,7 +764,7 @@ index a6f5fdc6e..4391bd008 100644
 @@ -255,7 +342,7 @@ Interpreter::getSymbolAddress(llvm::StringRef IRName) const {
    return IncrExecutor->getSymbolAddress(IRName, IncrementalExecutor::IRName);
  }
- 
+
 -llvm::Expected<llvm::JITTargetAddress>
 +llvm::Expected<llvm::orc::ExecutorAddr>
  Interpreter::getSymbolAddressFromLinkerName(llvm::StringRef Name) const {
@@ -772,7 +772,7 @@ index a6f5fdc6e..4391bd008 100644
      return llvm::make_error<llvm::StringError>("Operation failed. "
 @@ -268,7 +355,7 @@ Interpreter::getSymbolAddressFromLinkerName(llvm::StringRef Name) const {
  llvm::Error Interpreter::Undo(unsigned N) {
- 
+
    std::list<PartialTranslationUnit> &PTUs = IncrParser->getPTUs();
 -  if (N > PTUs.size())
 +  if (N > getEffectivePTUSize())
@@ -1631,7 +1631,7 @@ index b51a18c10..15d7f9439 100644
 +++ b/clang/tools/clang-repl/CMakeLists.txt
 @@ -12,6 +12,7 @@ add_clang_tool(clang-repl
    )
- 
+
  clang_target_link_libraries(clang-repl PRIVATE
 +  clangAST
    clangBasic
@@ -1652,7 +1652,7 @@ index 401a31d34..33faf3fab 100644
 +        }
 +        continue;
 +      }
- 
+
        if (auto Err = Interp->ParseAndExecute(*Line)) {
          llvm::logAllUnhandledErrors(std::move(Err), llvm::errs(), "error: ");
 diff --git a/clang/unittests/Interpreter/CMakeLists.txt b/clang/unittests/Interpreter/CMakeLists.txt
@@ -1674,7 +1674,7 @@ index f54c65568..6d0433a98 100644
  #include "llvm/Support/ManagedStatic.h"
  #include "llvm/Support/TargetSelect.h"
 -#include "llvm-c/Error.h"
- 
+
  #include "gmock/gmock.h"
  #include "gtest/gtest.h"
 @@ -116,7 +115,8 @@ extern "C" int throw_exception() {
@@ -1698,11 +1698,11 @@ index d4900a0e4..330fd18ab 100644
 +#include "clang/Interpreter/Value.h"
  #include "clang/Sema/Lookup.h"
  #include "clang/Sema/Sema.h"
- 
+
 @@ -33,6 +34,11 @@ using namespace clang;
  #define CLANG_INTERPRETER_NO_SUPPORT_EXEC
  #endif
- 
+
 +int Global = 42;
 +// JIT reports symbol not found on Windows without the visibility attribute.
 +REPL_EXTERNAL_VISIBILITY int getGlobal() { return Global; }
@@ -1712,7 +1712,7 @@ index d4900a0e4..330fd18ab 100644
  using Args = std::vector<const char *>;
  static std::unique_ptr<Interpreter>
 @@ -225,7 +231,7 @@ TEST(IncrementalProcessing, FindMangledNameSymbol) {
- 
+
    std::string MangledName = MangleName(FD);
    auto Addr = cantFail(Interp->getSymbolAddress(MangledName));
 -  EXPECT_NE(0U, Addr);
@@ -1723,7 +1723,7 @@ index d4900a0e4..330fd18ab 100644
 @@ -276,8 +282,7 @@ TEST(IncrementalProcessing, InstantiateTemplate) {
    std::vector<const char *> Args = {"-fno-delayed-template-parsing"};
    std::unique_ptr<Interpreter> Interp = createInterpreter(Args);
- 
+
 -  llvm::cantFail(Interp->Parse("void* operator new(__SIZE_TYPE__, void* __p);"
 -                               "extern \"C\" int printf(const char*,...);"
 +  llvm::cantFail(Interp->Parse("extern \"C\" int printf(const char*,...);"
@@ -1731,7 +1731,7 @@ index d4900a0e4..330fd18ab 100644
                                 "struct B {"
                                 "  template<typename T>"
 @@ -309,9 +314,109 @@ TEST(IncrementalProcessing, InstantiateTemplate) {
- 
+
    std::string MangledName = MangleName(TmpltSpec);
    typedef int (*TemplateSpecFn)(void *);
 -  auto fn = (TemplateSpecFn)cantFail(Interp->getSymbolAddress(MangledName));
@@ -1740,7 +1740,7 @@ index d4900a0e4..330fd18ab 100644
    EXPECT_EQ(42, fn(NewA));
    free(NewA);
  }
- 
+
 +#ifdef CLANG_INTERPRETER_NO_SUPPORT_EXEC
 +TEST(InterpreterTest, DISABLED_Value) {
 +#else
@@ -1841,3 +1841,4 @@ index d4900a0e4..330fd18ab 100644
 +  EXPECT_TRUE(V9.isManuallyAlloc());
 +}
  } // end anonymous namespace
+ 
