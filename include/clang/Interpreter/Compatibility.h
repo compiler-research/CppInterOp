@@ -230,7 +230,7 @@ inline std::string MakeResourceDir(llvm::StringRef Dir) {
     #else
       clang::Value V
     #endif
-  const {
+  ) const {
     return V.convertTo<T>();
   }
 #else
@@ -240,7 +240,7 @@ inline std::string MakeResourceDir(llvm::StringRef Dir) {
     #else
       clang::Value V
     #endif
-  const {
+  ) const {
     return V.castAs<T>();
   }
 #endif
