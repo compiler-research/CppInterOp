@@ -78,6 +78,30 @@ namespace compat {
 
 namespace compat {
 
+inline std::unique_ptr<clang::Interpreter>
+createClangInterpreter(std::vector<const char*>& args) {
+#if CLANG_VERSION_MAJOR < 16
+  auto ciOrErr = clang::IncrementalCompilerBuilder::create(args);
+#else
+  clang::IncrementalCompilerBuilder CB;
+  CB.SetCompilerArgs(args);
+  auto ciOrErr = CB.CreateCpp();
+#endif // CLANG_VERSION_MAJOR < 16
+  if (!ciOrErr) {
+    llvm::logAllUnhandledErrors(ciOrErr.takeError(), llvm::errs(),
+                                "Failed to build Incremental compiler:");
+    return nullptr;
+  }
+  auto innerOrErr = clang::Interpreter::create(std::move(*ciOrErr));
+
+  if (!innerOrErr) {
+    llvm::logAllUnhandledErrors(innerOrErr.takeError(), llvm::errs(),
+                                "Failed to build Interpreter:");
+    return nullptr;
+  }
+  return std::move(*innerOrErr);
+}
+
   inline void maybeMangleDeclName(const clang::GlobalDecl& GD, std::string& mangledName) {
     // copied and adapted from CodeGen::CodeGenModule::getMangledName
 
