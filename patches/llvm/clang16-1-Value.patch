@@ -1,3 +1,42 @@
+diff --git a/clang/include/clang/AST/Decl.h b/clang/include/clang/AST/Decl.h
+index 863f6ac57..feb6db113 100644
+--- a/clang/include/clang/AST/Decl.h
++++ b/clang/include/clang/AST/Decl.h
+@@ -4308,6 +4308,7 @@ class TopLevelStmtDecl : public Decl {
+   friend class ASTDeclWriter;
+
+   Stmt *Statement = nullptr;
++  bool IsSemiMissing = false;
+
+   TopLevelStmtDecl(DeclContext *DC, SourceLocation L, Stmt *S)
+       : Decl(TopLevelStmt, DC, L), Statement(S) {}
+@@ -4321,6 +4322,12 @@ public:
+   SourceRange getSourceRange() const override LLVM_READONLY;
+   Stmt *getStmt() { return Statement; }
+   const Stmt *getStmt() const { return Statement; }
++  void setStmt(Stmt *S) {
++    assert(IsSemiMissing && "Operation supported for printing values only!");
++    Statement = S;
++  }
++  bool isSemiMissing() const { return IsSemiMissing; }
++  void setSemiMissing(bool Missing = true) { IsSemiMissing = Missing; }
+
+   static bool classof(const Decl *D) { return classofKind(D->getKind()); }
+   static bool classofKind(Kind K) { return K == TopLevelStmt; }
+diff --git a/clang/include/clang/Basic/TokenKinds.def b/clang/include/clang/Basic/TokenKinds.def
+index 96feae991..752629855 100644
+--- a/clang/include/clang/Basic/TokenKinds.def
++++ b/clang/include/clang/Basic/TokenKinds.def
+@@ -936,6 +936,9 @@ ANNOTATION(module_end)
+ // into the name of a header unit.
+ ANNOTATION(header_unit)
+
++// Annotation for end of input in clang-repl.
++ANNOTATION(repl_input_end)
++
+ #undef PRAGMA_ANNOTATION
+ #undef ANNOTATION
+ #undef TESTING_KEYWORD
 diff --git a/clang/include/clang/Interpreter/Interpreter.h b/clang/include/clang/Interpreter/Interpreter.h
 index fd22af976..e68021845 100644
 --- a/clang/include/clang/Interpreter/Interpreter.h
@@ -318,6 +357,52 @@ index 000000000..4df436703
 +
 +} // namespace clang
 +#endif
+diff --git a/clang/include/clang/Parse/Parser.h b/clang/include/clang/Parse/Parser.h
+index 6f9581b9e..6b73f43a1 100644
+--- a/clang/include/clang/Parse/Parser.h
++++ b/clang/include/clang/Parse/Parser.h
+@@ -18,6 +18,7 @@
+ #include "clang/Basic/OpenMPKinds.h"
+ #include "clang/Basic/OperatorPrecedence.h"
+ #include "clang/Basic/Specifiers.h"
++#include "clang/Basic/TokenKinds.h"
+ #include "clang/Lex/CodeCompletionHandler.h"
+ #include "clang/Lex/Preprocessor.h"
+ #include "clang/Sema/DeclSpec.h"
+@@ -692,7 +693,8 @@ private:
+   bool isEofOrEom() {
+     tok::TokenKind Kind = Tok.getKind();
+     return Kind == tok::eof || Kind == tok::annot_module_begin ||
+-           Kind == tok::annot_module_end || Kind == tok::annot_module_include;
++           Kind == tok::annot_module_end || Kind == tok::annot_module_include ||
++           Kind == tok::annot_repl_input_end;
+   }
+
+   /// Checks if the \p Level is valid for use in a fold expression.
+diff --git a/clang/lib/Frontend/PrintPreprocessedOutput.cpp b/clang/lib/Frontend/PrintPreprocessedOutput.cpp
+index ffa85e523..1b262d9e6 100644
+--- a/clang/lib/Frontend/PrintPreprocessedOutput.cpp
++++ b/clang/lib/Frontend/PrintPreprocessedOutput.cpp
+@@ -663,7 +663,8 @@ void PrintPPOutputPPCallbacks::HandleWhitespaceBeforeTok(const Token &Tok,
+   // them.
+   if (Tok.is(tok::eof) ||
+       (Tok.isAnnotation() && !Tok.is(tok::annot_header_unit) &&
+-       !Tok.is(tok::annot_module_begin) && !Tok.is(tok::annot_module_end)))
++       !Tok.is(tok::annot_module_begin) && !Tok.is(tok::annot_module_end) &&
++       !Tok.is(tok::annot_repl_input_end)))
+     return;
+
+   // EmittedDirectiveOnThisLine takes priority over RequireSameLine.
+@@ -819,6 +820,9 @@ static void PrintPreprocessedTokens(Preprocessor &PP, Token &Tok,
+       // -traditional-cpp the lexer keeps /all/ whitespace, including comments.
+       PP.Lex(Tok);
+       continue;
++    } else if (Tok.is(tok::annot_repl_input_end)) {
++      PP.Lex(Tok);
++      continue;
+     } else if (Tok.is(tok::eod)) {
+       // Don't print end of directive tokens, since they are typically newlines
+       // that mess up our line tracking. These come from unknown pre-processor
 diff --git a/clang/lib/Interpreter/CMakeLists.txt b/clang/lib/Interpreter/CMakeLists.txt
 index c49f22fdd..565e824bf 100644
 --- a/clang/lib/Interpreter/CMakeLists.txt
@@ -379,7 +464,7 @@ index 54d37c763..dd0a210a0 100644
 
  } // end namespace clang
 diff --git a/clang/lib/Interpreter/IncrementalParser.cpp b/clang/lib/Interpreter/IncrementalParser.cpp
-index 373e2844b..f892eeb81 100644
+index 373e2844b..e43189071 100644
 --- a/clang/lib/Interpreter/IncrementalParser.cpp
 +++ b/clang/lib/Interpreter/IncrementalParser.cpp
 @@ -11,7 +11,6 @@
@@ -501,35 +586,57 @@ index 373e2844b..f892eeb81 100644
    Consumer = &CI->getASTConsumer();
    P.reset(
        new Parser(CI->getPreprocessor(), CI->getSema(), /*SkipBodies=*/false));
-@@ -267,17 +343,22 @@ IncrementalParser::Parse(llvm::StringRef input) {
-   assert(AssertTok.is(tok::eof) &&
-          "Lexer must be EOF when starting incremental parse!");
+@@ -158,8 +234,8 @@ IncrementalParser::ParseOrWrapTopLevelDecl() {
+   LastPTU.TUPart = C.getTranslationUnitDecl();
 
--  if (CodeGenerator *CG = getCodeGen(Act.get())) {
--    std::unique_ptr<llvm::Module> M(CG->ReleaseModule());
--    CG->StartModule("incr_module_" + std::to_string(PTUs.size()),
--                    M->getContext());
--
+   // Skip previous eof due to last incremental input.
+-  if (P->getCurToken().is(tok::eof)) {
+-    P->ConsumeToken();
++  if (P->getCurToken().is(tok::annot_repl_input_end)) {
++    P->ConsumeAnyToken();
+     // FIXME: Clang does not call ExitScope on finalizing the regular TU, we
+     // might want to do that around HandleEndOfTranslationUnit.
+     P->ExitScope();
+@@ -259,23 +335,28 @@ IncrementalParser::Parse(llvm::StringRef input) {
+     Token Tok;
+     do {
+       PP.Lex(Tok);
+-    } while (Tok.isNot(tok::eof));
++    } while (Tok.isNot(tok::annot_repl_input_end));
++  } else {
++    Token AssertTok;
++    PP.Lex(AssertTok);
++    assert(AssertTok.is(tok::annot_repl_input_end) &&
++           "Lexer must be EOF when starting incremental parse!");
+   }
+
+-  Token AssertTok;
+-  PP.Lex(AssertTok);
+-  assert(AssertTok.is(tok::eof) &&
+-         "Lexer must be EOF when starting incremental parse!");
 +  if (std::unique_ptr<llvm::Module> M = GenModule())
-     PTU->TheModule = std::move(M);
--  }
-
-   return PTU;
- }
++    PTU->TheModule = std::move(M);
++
++  return PTU;
++}
 
 +std::unique_ptr<llvm::Module> IncrementalParser::GenModule() {
 +  static unsigned ID = 0;
-+  if (CodeGenerator *CG = getCodeGen(Act.get())) {
-+    std::unique_ptr<llvm::Module> M(CG->ReleaseModule());
+   if (CodeGenerator *CG = getCodeGen(Act.get())) {
+     std::unique_ptr<llvm::Module> M(CG->ReleaseModule());
+-    CG->StartModule("incr_module_" + std::to_string(PTUs.size()),
+-                    M->getContext());
+-
+-    PTU->TheModule = std::move(M);
 +    CG->StartModule("incr_module_" + std::to_string(ID++), M->getContext());
 +    return M;
-+  }
+   }
+-
+-  return PTU;
 +  return nullptr;
-+}
-+
+ }
+
  void IncrementalParser::CleanUpPTU(PartialTranslationUnit &PTU) {
-   TranslationUnitDecl *MostRecentTU = PTU.TUPart;
-   TranslationUnitDecl *FirstTU = MostRecentTU->getFirstDecl();
 diff --git a/clang/lib/Interpreter/IncrementalParser.h b/clang/lib/Interpreter/IncrementalParser.h
 index 8e45d6b59..99e37588d 100644
 --- a/clang/lib/Interpreter/IncrementalParser.h
@@ -1588,6 +1695,140 @@ index 000000000..fe37eebac
 +  assert(OpaqueType != nullptr && "Can't print default Value");
 +  Out << "Not implement yet.\n";
 +}
+diff --git a/clang/lib/Lex/PPLexerChange.cpp b/clang/lib/Lex/PPLexerChange.cpp
+index 66168467e..0822f83b5 100644
+--- a/clang/lib/Lex/PPLexerChange.cpp
++++ b/clang/lib/Lex/PPLexerChange.cpp
+@@ -526,13 +526,19 @@ bool Preprocessor::HandleEndOfFile(Token &Result, bool isEndOfMacro) {
+       return LeavingSubmodule;
+     }
+   }
+-
+   // If this is the end of the main file, form an EOF token.
+   assert(CurLexer && "Got EOF but no current lexer set!");
+   const char *EndPos = getCurLexerEndPos();
+   Result.startToken();
+   CurLexer->BufferPtr = EndPos;
+-  CurLexer->FormTokenWithChars(Result, EndPos, tok::eof);
++
++  if (isIncrementalProcessingEnabled()) {
++    CurLexer->FormTokenWithChars(Result, EndPos, tok::annot_repl_input_end);
++    Result.setAnnotationEndLoc(Result.getLocation());
++    Result.setAnnotationValue(nullptr);
++  } else {
++    CurLexer->FormTokenWithChars(Result, EndPos, tok::eof);
++  }
+
+   if (isCodeCompletionEnabled()) {
+     // Inserting the code-completion point increases the source buffer by 1,
+diff --git a/clang/lib/Parse/ParseCXXInlineMethods.cpp b/clang/lib/Parse/ParseCXXInlineMethods.cpp
+index 3a7f5426d..57a3dfba4 100644
+--- a/clang/lib/Parse/ParseCXXInlineMethods.cpp
++++ b/clang/lib/Parse/ParseCXXInlineMethods.cpp
+@@ -836,6 +836,7 @@ bool Parser::ConsumeAndStoreUntil(tok::TokenKind T1, tok::TokenKind T2,
+     case tok::annot_module_begin:
+     case tok::annot_module_end:
+     case tok::annot_module_include:
++    case tok::annot_repl_input_end:
+       // Ran out of tokens.
+       return false;
+
+@@ -1242,6 +1243,7 @@ bool Parser::ConsumeAndStoreInitializer(CachedTokens &Toks,
+     case tok::annot_module_begin:
+     case tok::annot_module_end:
+     case tok::annot_module_include:
++    case tok::annot_repl_input_end:
+       // Ran out of tokens.
+       return false;
+
+diff --git a/clang/lib/Parse/ParseDecl.cpp b/clang/lib/Parse/ParseDecl.cpp
+index e6812ac72..2f193a3b4 100644
+--- a/clang/lib/Parse/ParseDecl.cpp
++++ b/clang/lib/Parse/ParseDecl.cpp
+@@ -2030,6 +2030,7 @@ void Parser::SkipMalformedDecl() {
+     case tok::annot_module_begin:
+     case tok::annot_module_end:
+     case tok::annot_module_include:
++    case tok::annot_repl_input_end:
+       return;
+
+     default:
+@@ -5394,6 +5395,13 @@ Parser::DeclGroupPtrTy Parser::ParseTopLevelStmtDecl() {
+
+   SmallVector<Decl *, 2> DeclsInGroup;
+   DeclsInGroup.push_back(Actions.ActOnTopLevelStmtDecl(R.get()));
++
++  if (Tok.is(tok::annot_repl_input_end) &&
++      Tok.getAnnotationValue() != nullptr) {
++    ConsumeAnnotationToken();
++    cast<TopLevelStmtDecl>(DeclsInGroup.back())->setSemiMissing();
++  }
++
+   // Currently happens for things like  -fms-extensions and use `__if_exists`.
+   for (Stmt *S : Stmts)
+     DeclsInGroup.push_back(Actions.ActOnTopLevelStmtDecl(S));
+diff --git a/clang/lib/Parse/ParseStmt.cpp b/clang/lib/Parse/ParseStmt.cpp
+index 1c8441faf..d22e1d440 100644
+--- a/clang/lib/Parse/ParseStmt.cpp
++++ b/clang/lib/Parse/ParseStmt.cpp
+@@ -543,9 +543,22 @@ StmtResult Parser::ParseExprStatement(ParsedStmtContext StmtCtx) {
+     return ParseCaseStatement(StmtCtx, /*MissingCase=*/true, Expr);
+   }
+
+-  // Otherwise, eat the semicolon.
+-  ExpectAndConsumeSemi(diag::err_expected_semi_after_expr);
+-  return handleExprStmt(Expr, StmtCtx);
++  Token *CurTok = nullptr;
++  // If the semicolon is missing at the end of REPL input, consider if
++  // we want to do value printing. Note this is only enabled in C++ mode
++  // since part of the implementation requires C++ language features.
++  // Note we shouldn't eat the token since the callback needs it.
++  if (Tok.is(tok::annot_repl_input_end) && Actions.getLangOpts().CPlusPlus)
++    CurTok = &Tok;
++  else
++    // Otherwise, eat the semicolon.
++    ExpectAndConsumeSemi(diag::err_expected_semi_after_expr);
++
++  StmtResult R = handleExprStmt(Expr, StmtCtx);
++  if (CurTok && !R.isInvalid())
++    CurTok->setAnnotationValue(R.get());
++
++  return R;
+ }
+
+ /// ParseSEHTryBlockCommon
+diff --git a/clang/lib/Parse/Parser.cpp b/clang/lib/Parse/Parser.cpp
+index 6db3dc315..7fbb27057 100644
+--- a/clang/lib/Parse/Parser.cpp
++++ b/clang/lib/Parse/Parser.cpp
+@@ -319,6 +319,7 @@ bool Parser::SkipUntil(ArrayRef<tok::TokenKind> Toks, SkipUntilFlags Flags) {
+     case tok::annot_module_begin:
+     case tok::annot_module_end:
+     case tok::annot_module_include:
++    case tok::annot_repl_input_end:
+       // Stop before we change submodules. They generally indicate a "good"
+       // place to pick up parsing again (except in the special case where
+       // we're trying to skip to EOF).
+@@ -612,11 +613,6 @@ bool Parser::ParseTopLevelDecl(DeclGroupPtrTy &Result,
+                                Sema::ModuleImportState &ImportState) {
+   DestroyTemplateIdAnnotationsRAIIObj CleanupRAII(*this);
+
+-  // Skip over the EOF token, flagging end of previous input for incremental
+-  // processing
+-  if (PP.isIncrementalProcessingEnabled() && Tok.is(tok::eof))
+-    ConsumeToken();
+-
+   Result = nullptr;
+   switch (Tok.getKind()) {
+   case tok::annot_pragma_unused:
+@@ -695,6 +691,7 @@ bool Parser::ParseTopLevelDecl(DeclGroupPtrTy &Result,
+     return false;
+
+   case tok::eof:
++  case tok::annot_repl_input_end:
+     // Check whether -fmax-tokens= was reached.
+     if (PP.getMaxTokens() != 0 && PP.getTokenCount() > PP.getMaxTokens()) {
+       PP.Diag(Tok.getLocation(), diag::warn_max_tokens_total)
 diff --git a/clang/test/Interpreter/Inputs/dynamic-library-test.cpp b/clang/test/Interpreter/Inputs/dynamic-library-test.cpp
 new file mode 100644
 index 000000000..1f143ba04
@@ -1841,4 +2082,3 @@ index d4900a0e4..330fd18ab 100644
 +  EXPECT_TRUE(V9.isManuallyAlloc());
 +}
  } // end anonymous namespace
- 
