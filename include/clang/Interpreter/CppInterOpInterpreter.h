@@ -140,15 +140,7 @@ public:
     llvm::InitializeNativeTargetAsmPrinter();
 
     std::vector<const char *> vargs(argv + 1, argv + argc);
-    if (auto ciOrErr = clang::IncrementalCompilerBuilder::create(vargs)) {
-      if (auto innerOrErr = clang::Interpreter::create(std::move(*ciOrErr))) {
-        inner = std::move(*innerOrErr);
-      } else {
-        llvm::logAllUnhandledErrors(innerOrErr.takeError(), llvm::errs(), "Failed to build Interpreter:");
-      }
-    } else {
-      llvm::logAllUnhandledErrors(ciOrErr.takeError(), llvm::errs(), "Failed to build Incremental compiler:");
-    }
+    inner = compat::createClangInterpreter(vargs);
   }
 
   ~Interpreter() {}
