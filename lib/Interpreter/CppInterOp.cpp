@@ -2572,7 +2572,7 @@ namespace Cpp {
       return ~0UL;
     }
 
-    return V.castAs<intptr_t>();
+    return compat::convertTo<intptr_t>(V);
   }
 
   const std::string LookupLibrary(const char *lib_name) {

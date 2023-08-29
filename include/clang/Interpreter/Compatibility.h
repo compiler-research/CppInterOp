@@ -222,6 +222,31 @@ inline std::string MakeResourceDir(llvm::StringRef Dir) {
   return std::string(P.str());
 }
 
+// Clang >= 16 (=16 with Value patch) change castAs to converTo
+#if CLANG_VERSION_MAJOR >= 16
+template <typename T>
+inline T convertTo(
+#ifdef USE_CLING
+    cling::Value V
+#else
+    clang::Value V
+#endif
+) {
+  return V.convertTo<T>();
+}
+#else
+template <typename T>
+inline T convertTo(
+#ifdef USE_CLING
+    cling::Value V
+#else
+    clang::Value V
+#endif
+) {
+  return V.castAs<T>();
+}
+#endif
+
 } // end compat namespace
 
 #endif //CPPINTEROP_COMPATIBILITY_H
