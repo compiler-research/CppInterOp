@@ -83,16 +83,45 @@ createClangInterpreter(std::vector<const char*>& args) {
 #if CLANG_VERSION_MAJOR < 16
   auto ciOrErr = clang::IncrementalCompilerBuilder::create(args);
 #else
-  clang::IncrementalCompilerBuilder CB;
-  CB.SetCompilerArgs(args);
-  auto ciOrErr = CB.CreateCpp();
+    auto has_arg = [](const char* x, llvm::StringRef match = "cuda") {
+      llvm::StringRef Arg = x;
+      Arg = Arg.trim().ltrim('-');
+      return Arg == match;
+    };
+    auto it = std::find_if(args.begin(), args.end(), has_arg);
+    std::vector<const char*> gpu_args = {it, args.end()};
+    bool CudaEnabled = !gpu_args.empty();
+
+    clang::IncrementalCompilerBuilder CB;
+    CB.SetCompilerArgs({args.begin(), it});
+
+    std::unique_ptr<clang::CompilerInstance> DeviceCI;
+    if (CudaEnabled) {
+      // FIXME: Parametrize cuda-path and offload-arch.
+      CB.SetOffloadArch("sm_35");
+      auto devOrErr = CB.CreateCudaDevice();
+      if (!devOrErr) {
+        llvm::logAllUnhandledErrors(devOrErr.takeError(), llvm::errs(),
+                                    "Failed to create device compiler:");
+        return nullptr;
+      }
+      DeviceCI = std::move(*devOrErr);
+    }
+    auto ciOrErr = CudaEnabled ? CB.CreateCudaHost() : CB.CreateCpp();
 #endif // CLANG_VERSION_MAJOR < 16
   if (!ciOrErr) {
     llvm::logAllUnhandledErrors(ciOrErr.takeError(), llvm::errs(),
                                 "Failed to build Incremental compiler:");
     return nullptr;
   }
+#if CLANG_VERSION_MAJOR < 16
   auto innerOrErr = clang::Interpreter::create(std::move(*ciOrErr));
+#else
+  auto innerOrErr =
+      CudaEnabled ? clang::Interpreter::createWithCUDA(std::move(*ciOrErr),
+                                                       std::move(DeviceCI))
+                  : clang::Interpreter::create(std::move(*ciOrErr));
+#endif // CLANG_VERSION_MAJOR < 16
 
   if (!innerOrErr) {
     llvm::logAllUnhandledErrors(innerOrErr.takeError(), llvm::errs(),
