@@ -181,10 +181,7 @@ createClangInterpreter(std::vector<const char*>& args) {
                                    "Not implemented in Clang <14!");
 #endif // CLANG_VERSION_MAJOR < 14
 
-    llvm::orc::LLJIT* Jit = compat::getExecutionEngine(I);
-    llvm::orc::JITDylib& DyLib = Jit->getMainJITDylib();
-
-    auto AddrOrErr = Jit->lookup(DyLib, IRName);
+    auto AddrOrErr = I.getSymbolAddress(IRName);
     if (llvm::Error Err = AddrOrErr.takeError())
       return std::move(Err);
     return AddrOrErr->getValue();
