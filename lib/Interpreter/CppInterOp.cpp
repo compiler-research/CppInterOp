@@ -2452,7 +2452,8 @@ namespace Cpp {
   }
   } // namespace
 
-  TInterp_t CreateInterpreter(const std::vector<const char*> &Args/*={}*/) {
+  TInterp_t CreateInterpreter(const std::vector<const char*>& Args /*={}*/,
+                              const std::vector<const char*>& GpuArgs /*={}*/) {
     std::string MainExecutableName =
       sys::fs::getMainExecutable(nullptr, nullptr);
     std::string ResourceDir = MakeResourcesPath();
@@ -2460,6 +2461,19 @@ namespace Cpp {
                                            "-std=c++14"};
     ClingArgv.insert(ClingArgv.begin(), MainExecutableName.c_str());
     ClingArgv.insert(ClingArgv.end(), Args.begin(), Args.end());
+    // To keep the Interpreter creation interface between cling and clang-repl
+    // to some extent compatible we should put Args and GpuArgs together. On the
+    // receiving end we should check for -xcuda to know.
+    if (!GpuArgs.empty()) {
+      llvm::StringRef Arg0 = GpuArgs[0];
+      Arg0 = Arg0.trim().ltrim('-');
+      if (Arg0 != "cuda") {
+        llvm::errs() << "[CreateInterpreter]: Make sure --cuda is passed as the"
+                     << " first argument of the GpuArgs\n";
+        return nullptr;
+      }
+    }
+    ClingArgv.insert(ClingArgv.end(), GpuArgs.begin(), GpuArgs.end());
 
     // Process externally passed arguments if present.
     std::vector<std::string> ExtraArgs;

@@ -3,6 +3,7 @@ set(LLVM_LINK_COMPONENTS
   )
 
 add_cppinterop_unittest(CppInterOpTests
+  CUDATest.cpp
   EnumReflectionTest.cpp
   FunctionReflectionTest.cpp
   InterpreterTest.cpp
