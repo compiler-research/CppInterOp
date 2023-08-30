@@ -446,7 +446,8 @@ namespace Cpp {
   void GetIncludePath(const char *dir, std::vector <std::string> &includePaths);
 
   /// Only Declares a code snippet in \c code and does not execute it.
-  TCppIndex_t Declare(const char *code, bool silent = false);
+  ///\returns 0 on success
+  int Declare(const char* code, bool silent = false);
 
   /// Declares and executes a code snippet in \c code.
   ///\returns 0 on success

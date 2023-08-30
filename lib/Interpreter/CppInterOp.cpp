@@ -2538,7 +2538,7 @@ namespace Cpp {
   };
   } // namespace
 
-  TCppIndex_t Declare(const char *code, bool silent) {
+  int Declare(const char* code, bool silent) {
     auto& I = getInterp();
 
     if (silent) {
