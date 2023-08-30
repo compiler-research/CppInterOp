@@ -2463,8 +2463,8 @@ namespace Cpp {
 
     // Process externally passed arguments if present.
     std::vector<std::string> ExtraArgs;
-    llvm::Optional<std::string> EnvOpt
-      = llvm::sys::Process::GetEnv("CPPINTEROP_EXTRA_INTERPRETER_ARGS");
+    auto EnvOpt =
+        llvm::sys::Process::GetEnv("CPPINTEROP_EXTRA_INTERPRETER_ARGS");
     if (EnvOpt) {
       StringRef Env(*EnvOpt);
       while (!Env.empty()) {
@@ -2588,14 +2588,47 @@ namespace Cpp {
 
   bool InsertOrReplaceJitSymbol(const char* linker_mangled_name,
                                 uint64_t address) {
+    // FIXME: This approach is problematic since we could replace a symbol
+    // whose address was already taken by clients.
+    //
+    // A safer approach would be to define our symbol replacements early in the
+    // bootstrap process like:
+    // auto J = LLJITBuilder().create();
+    // if (!J)
+    //   return Err;
+    //
+    // if (Jupyter) {
+    //   llvm::orc::SymbolMap Overrides;
+    //   Overrides[J->mangleAndIntern("printf")] =
+    //     { ExecutorAddr::fromPtr(&printf), JITSymbolFlags::Exported };
+    //   Overrides[...] =
+    //     { ... };
+    //   if (auto Err =
+    //   J->getProcessSymbolsJITDylib().define(absoluteSymbols(std::move(Overrides)))
+    //     return Err;
+    // }
+
+    // FIXME: If we still want to do symbol replacement we should use the
+    // ReplacementManager which is available in llvm 18.
     using namespace llvm;
     using namespace llvm::orc;
 
     auto& I = getInterp();
     auto Symbol = compat::getSymbolAddress(I, linker_mangled_name);
+    llvm::orc::LLJIT& Jit = *compat::getExecutionEngine(I);
+    llvm::orc::ExecutionSession& ES = Jit.getExecutionSession();
+#if CLANG_VERSION_MAJOR < 17
+    JITDylib& DyLib = Jit.getMainJITDylib();
+#else
+    JITDylib& DyLib = *Jit.getProcessSymbolsJITDylib().get();
+#endif // CLANG_VERSION_MAJOR
+
     if (Error Err = Symbol.takeError()) {
       logAllUnhandledErrors(std::move(Err), errs(),
                             "[InsertOrReplaceJitSymbol] error: ");
+#define DEBUG_TYPE "orc"
+      LLVM_DEBUG(ES.dump(dbgs()));
+#undef DEBUG_TYPE
       return true;
     }
 
@@ -2607,28 +2640,27 @@ namespace Cpp {
     }
 
     // Let's inject it.
-    bool Inserted;
     SymbolMap::iterator It;
     llvm::orc::SymbolMap InjectedSymbols;
-
-    llvm::orc::LLJIT& Jit = *compat::getExecutionEngine(I);
-    JITDylib& DyLib = Jit.getMainJITDylib();
-
-    std::tie(It, Inserted) = InjectedSymbols.try_emplace(
-        Jit.getExecutionSession().intern(linker_mangled_name),
-        JITEvaluatedSymbol(address, JITSymbolFlags::Exported));
-    assert(Inserted && "Why wasn't this found in the initial Jit lookup?");
+    auto Name = ES.intern(linker_mangled_name);
+    InjectedSymbols[Name] =
+#if CLANG_VERSION_MAJOR < 17
+        JITEvaluatedSymbol(address,
+#else
+        ExecutorSymbolDef(ExecutorAddr(address),
+#endif // CLANG_VERSION_MAJOR < 17
+                           JITSymbolFlags::Exported);
 
     // We want to replace a symbol with a custom provided one.
     if (Symbol && address)
       // The symbol be in the DyLib or in-process.
-      if (auto Err = DyLib.remove({It->first})) {
+      if (auto Err = DyLib.remove({Name})) {
         logAllUnhandledErrors(std::move(Err), errs(),
                               "[InsertOrReplaceJitSymbol] error: ");
         return true;
       }
 
-    if (Error Err = DyLib.define(absoluteSymbols({*It}))) {
+    if (Error Err = DyLib.define(absoluteSymbols(InjectedSymbols))) {
       logAllUnhandledErrors(std::move(Err), errs(),
                             "[InsertOrReplaceJitSymbol] error: ");
       return true;
