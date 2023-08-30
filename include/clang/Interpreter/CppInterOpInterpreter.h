@@ -136,11 +136,14 @@ public:
               const char* llvmdir = 0,
               const std::vector<std::shared_ptr<clang::ModuleFileExtension>>& moduleExtensions = {},
               void *extraLibHandle = 0, bool noRuntime = true) {
-    llvm::InitializeNativeTarget();
-    llvm::InitializeNativeTargetAsmPrinter();
+      // Initialize all targets (required for device offloading)
+      llvm::InitializeAllTargetInfos();
+      llvm::InitializeAllTargets();
+      llvm::InitializeAllTargetMCs();
+      llvm::InitializeAllAsmPrinters();
 
-    std::vector<const char *> vargs(argv + 1, argv + argc);
-    inner = compat::createClangInterpreter(vargs);
+      std::vector<const char*> vargs(argv + 1, argv + argc);
+      inner = compat::createClangInterpreter(vargs);
   }
 
   ~Interpreter() {}
@@ -251,7 +254,15 @@ public:
 
   CompilationResult
   declare(const std::string& input, clang::PartialTranslationUnit **PTU = nullptr) {
-    return process(input, /*Value=*/nullptr, PTU);
+    auto PTUOrErr = Parse(input);
+    if (!PTUOrErr) {
+      llvm::logAllUnhandledErrors(PTUOrErr.takeError(), llvm::errs(),
+                                  "Failed to parse via ::process:");
+      return Interpreter::kFailure;
+    }
+    if (PTU)
+      *PTU = &*PTUOrErr;
+    return Interpreter::kSuccess;
   }
 
   ///\brief Maybe transform the input line to implement cint command line
@@ -261,15 +272,14 @@ public:
   process(const std::string& input, clang::Value* V = 0,
           clang::PartialTranslationUnit **PTU = nullptr,
           bool disableValuePrinting = false) {
-    auto PTUOrErr = Parse(input);
-    if (!PTUOrErr) {
-      llvm::logAllUnhandledErrors(PTUOrErr.takeError(), llvm::errs(), "Failed to parse via ::process:");
+    clang::PartialTranslationUnit* ParsePTU = nullptr;
+    if (declare(input, &ParsePTU))
       return Interpreter::kFailure;
-    }
-    if (PTU)
-      *PTU = &*PTUOrErr;
 
-    if (auto Err = Execute(*PTUOrErr)) {
+    if (PTU)
+      *PTU = ParsePTU;
+
+    if (auto Err = Execute(*ParsePTU)) {
       llvm::logAllUnhandledErrors(std::move(Err), llvm::errs(), "Failed to execute via ::process:");
       return Interpreter::kFailure;
     }
