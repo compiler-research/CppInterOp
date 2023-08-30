@@ -23,6 +23,7 @@ Checks: >
   -modernize-use-trailing-return-type,
   -readability-braces-around-statements,
   -readability-identifier-length,
+  -readability-implicit-bool-conversion
   -readability-magic-numbers,
   -readability-named-parameter,
   -readability-function-cognitive-complexity,
@@ -46,8 +47,6 @@ CheckOptions:
   - key:             readability-identifier-naming.VariableCase
     value:           aNy_CasE
   - key:             readability-identifier-naming.IgnoreMainLikeFunctions
-    value:           1
-  - key:             readability-implicit-bool-conversion.AllowPointerConditions
     value:           1
   - key:             cppcoreguidelines-avoid-magic-numbers.IgnoreMacros
     value:           1
