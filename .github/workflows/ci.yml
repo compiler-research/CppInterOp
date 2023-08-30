@@ -21,6 +21,13 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - name: ubu22-gcc12-clang-repl-17
+            os: ubuntu-latest
+            compiler: gcc-12
+            clang-runtime: '17'
+            cling: Off
+            cppyy: Off
+
           - name: ubu22-gcc9-clang-repl-16
             os: ubuntu-22.04
             compiler: gcc-9

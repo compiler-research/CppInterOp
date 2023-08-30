@@ -145,31 +145,27 @@ createClangInterpreter(std::vector<const char*>& args) {
   }
 
   inline llvm::Expected<llvm::JITTargetAddress>
-  getSymbolAddress(const clang::Interpreter &I, clang::GlobalDecl GD) {
-#if CLANG_VERSION_MAJOR >= 14
-    auto AddrOrErr = I.getSymbolAddress(GD);
-    if (llvm::Error Err = AddrOrErr.takeError())
-      return std::move(Err);
-    return AddrOrErr->getValue();
-#else
+  getSymbolAddress(clang::Interpreter& I, llvm::StringRef IRName) {
+#if CLANG_VERSION_MAJOR < 14
     assert(0 && "Not implemented in Clang <14!");
     return llvm::createStringError(llvm::inconvertibleErrorCode(),
                                    "Not implemented in Clang <14!");
-#endif
+#endif // CLANG_VERSION_MAJOR < 14
+
+    llvm::orc::LLJIT* Jit = compat::getExecutionEngine(I);
+    llvm::orc::JITDylib& DyLib = Jit->getMainJITDylib();
+
+    auto AddrOrErr = Jit->lookup(DyLib, IRName);
+    if (llvm::Error Err = AddrOrErr.takeError())
+      return std::move(Err);
+    return AddrOrErr->getValue();
   }
 
   inline llvm::Expected<llvm::JITTargetAddress>
-  getSymbolAddress(const clang::Interpreter &I, llvm::StringRef IRName) {
-#if CLANG_VERSION_MAJOR >= 14
-    auto AddrOrErr = I.getSymbolAddress(IRName);
-    if (llvm::Error Err = AddrOrErr.takeError())
-      return std::move(Err);
-    return AddrOrErr->getValue();
-#else
-    assert(0 && "Not implemented in Clang <14!");
-    return llvm::createStringError(llvm::inconvertibleErrorCode(),
-                                   "Not implemented in Clang <14!");
-#endif
+  getSymbolAddress(clang::Interpreter& I, clang::GlobalDecl GD) {
+    std::string MangledName;
+    compat::maybeMangleDeclName(GD, MangledName);
+    return getSymbolAddress(I, llvm::StringRef(MangledName));
   }
 
   inline llvm::Expected<llvm::JITTargetAddress>
