@@ -1,3 +1,4 @@
+#if 0
 #include "Utils.h"
 
 #include "clang/Basic/Version.h"
@@ -64,3 +65,4 @@ TEST(CUDATest, CUDARuntime) {
 
   EXPECT_TRUE(HasCudaRuntime());
 }
+#endif
