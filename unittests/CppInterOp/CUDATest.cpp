@@ -7,14 +7,31 @@
 
 using namespace TestUtils;
 
-static bool HasCuda() {
+static bool HasCudaSDK() {
+  auto supportsCudaSDK = []() {
+#if CLANG_VERSION_MAJOR < 16
+    // FIXME: Enable this for cling.
+    return false;
+#endif // CLANG_VERSION_MAJOR < 16
+    Cpp::CreateInterpreter({}, {"--cuda"});
+    return Cpp::Declare("__global__ void test_func() {}"
+                        "test_func<<<1,1>>>();") == 0;
+  };
+  static bool hasCuda = supportsCudaSDK();
+  return hasCuda;
+}
+
+static bool HasCudaRuntime() {
   auto supportsCuda = []() {
 #if CLANG_VERSION_MAJOR < 16
     // FIXME: Enable this for cling.
     return false;
 #endif //CLANG_VERSION_MAJOR < 16
+    if (!HasCudaSDK())
+      return false;
+
     Cpp::CreateInterpreter({}, {"--cuda"});
-    if (Cpp::Process("__global__ void test_func() {}"
+    if (Cpp::Declare("__global__ void test_func() {}"
                      "test_func<<<1,1>>>();"))
       return false;
     intptr_t result = Cpp::Evaluate("(bool)cudaGetLastError()");
@@ -33,10 +50,17 @@ TEST(CUDATest, Sanity) {
 }
 
 TEST(CUDATest, CUDAH) {
-  if (!HasCuda())
+  if (!HasCudaSDK())
     return;
 
   Cpp::CreateInterpreter({}, {"--cuda"});
   bool success = !Cpp::Declare("#include <cuda.h>");
   EXPECT_TRUE(success);
+}
+
+TEST(CUDATest, CUDARuntime) {
+  if (!HasCudaSDK())
+    return;
+
+  EXPECT_TRUE(HasCudaRuntime());
 }
