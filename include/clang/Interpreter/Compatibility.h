@@ -128,6 +128,12 @@ createClangInterpreter(std::vector<const char*>& args) {
                                 "Failed to build Interpreter:");
     return nullptr;
   }
+  if (CudaEnabled) {
+    if (auto Err = (*innerOrErr)->LoadDynamicLibrary("libcudart.so"))
+      llvm::logAllUnhandledErrors(std::move(Err), llvm::errs(),
+                                  "Failed load libcudart.so runtime:");
+  }
+
   return std::move(*innerOrErr);
 }
 
