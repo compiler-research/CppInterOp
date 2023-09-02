@@ -485,9 +485,10 @@ namespace Cpp {
     TemplateArgInfo(TCppScope_t type, const char* integral_value = nullptr)
       : m_Type(type), m_IntegralValue(integral_value) {}
   };
-  TCppScope_t InstantiateClassTemplate(TCppScope_t tmpl,
-                                       TemplateArgInfo* template_args,
-                                       size_t template_args_size);
+  /// Builds a template instantiation for a given templated declaration.
+  TCppScope_t InstantiateTemplate(TCppScope_t tmpl,
+                                  TemplateArgInfo* template_args,
+                                  size_t template_args_size);
 
   /// Returns the class template instantiation arguments of \c templ_instance.
   void GetClassTemplateInstantiationArgs(TCppScope_t templ_instance,
