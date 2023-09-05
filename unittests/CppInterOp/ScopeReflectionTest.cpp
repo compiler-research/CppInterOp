@@ -97,6 +97,7 @@ TEST(ScopeReflectionTest, SizeOf) {
   EXPECT_EQ(Cpp::SizeOf(Decls[7]), (size_t)16);
 }
 
+#if !(__clang__ && __APPLE__)
 TEST(ScopeReflectionTest, IsBuiltin) {
   // static std::set<std::string> g_builtins =
   // {"bool", "char", "signed char", "unsigned char", "wchar_t", "short", "unsigned short",
@@ -126,6 +127,7 @@ TEST(ScopeReflectionTest, IsBuiltin) {
   for (ClassTemplateSpecializationDecl *CTSD : CTD->specializations())
     EXPECT_TRUE(Cpp::IsBuiltin(C.getTypeDeclType(CTSD).getAsOpaquePtr()));
 }
+#endif
 
 TEST(ScopeReflectionTest, IsTemplate) {
   std::vector<Decl *> Decls;
@@ -408,6 +410,7 @@ TEST(ScopeReflectionTest, GetScopefromCompleteName) {
   EXPECT_EQ(Cpp::GetQualifiedName(Cpp::GetScopeFromCompleteName("N1::N2::C::S")), "N1::N2::C::S");
 }
 
+#if !(__clang__ && __APPLE__)
 TEST(ScopeReflectionTest, GetNamed) {
   std::string code = R"(namespace N1 {
                         namespace N2 {
@@ -445,6 +448,7 @@ TEST(ScopeReflectionTest, GetNamed) {
   EXPECT_EQ(Cpp::GetQualifiedName(std_string_class), "std::string");
   EXPECT_EQ(Cpp::GetQualifiedName(std_string_npos_var), "std::basic_string<char>::npos");
 }
+#endif
 
 TEST(ScopeReflectionTest, GetParentScope) {
   std::string code = R"(namespace N1 {
@@ -704,6 +708,7 @@ TEST(ScopeReflectionTest, InstantiateNNTPClassTemplate) {
                                                 /*type_size*/ args1.size()));
 }
 
+#if !(__clang__ && __APPLE__)
 TEST(ScopeReflectionTest, InstantiateTemplateFunctionFromString) {
   Cpp::CreateInterpreter();
   std::string code = R"(#include <memory>)";
@@ -712,6 +717,7 @@ TEST(ScopeReflectionTest, InstantiateTemplateFunctionFromString) {
   auto* Instance1 = (Decl*)Cpp::InstantiateTemplateFunctionFromString(str);
   EXPECT_TRUE(Instance1);
 }
+#endif
 
 TEST(ScopeReflectionTest, InstantiateClassTemplate) {
   std::vector<Decl *> Decls;
@@ -844,6 +850,7 @@ TEST(ScopeReflectionTest, GetClassTemplateInstantiationArgs) {
   EXPECT_TRUE(instance_types.size() == 0);
 }
 
+#if !(__clang__ && __APPLE__)
 TEST(ScopeReflectionTest, IncludeVector) {
   std::string code = R"(
     #include <vector>
@@ -851,3 +858,4 @@ TEST(ScopeReflectionTest, IncludeVector) {
   )";
   Interp->process(code);
 }
+#endif

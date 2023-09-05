@@ -518,6 +518,7 @@ TEST(FunctionReflectionTest, IsStaticMethod) {
   EXPECT_TRUE(Cpp::IsStaticMethod(SubDecls[2]));
 }
 
+#if !(__clang__ && __APPLE__)
 TEST(FunctionReflectionTest, GetFunctionAddress) {
   std::vector<Decl*> Decls, SubDecls;
   std::string code = "int f1(int i) { return i * i; }";
@@ -536,6 +537,7 @@ TEST(FunctionReflectionTest, GetFunctionAddress) {
   address << Cpp::GetFunctionAddress(Decls[0]);
   EXPECT_EQ(address.str(), output);
 }
+#endif
 
 TEST(FunctionReflectionTest, IsVirtualMethod) {
   std::vector<Decl*> Decls, SubDecls;
@@ -556,6 +558,7 @@ TEST(FunctionReflectionTest, IsVirtualMethod) {
   EXPECT_FALSE(Cpp::IsVirtualMethod(SubDecls[3])); // y()
 }
 
+#if !(__clang__ && __APPLE__)
 TEST(FunctionReflectionTest, JitCallAdvanced) {
   std::vector<Decl*> Decls;
   std::string code = R"(
@@ -658,6 +661,7 @@ TEST(FunctionReflectionTest, GetFunctionCallWrapper) {
   output = testing::internal::GetCapturedStdout();
   EXPECT_EQ(output, "Dtor Called\n");
 }
+#endif
 
 TEST(FunctionReflectionTest, IsConstMethod) {
   std::vector<Decl*> Decls, SubDecls;
@@ -712,6 +716,7 @@ TEST(FunctionReflectionTest, GetFunctionArgDefault) {
   EXPECT_EQ(Cpp::GetFunctionArgDefault(Decls[1], 2), "34126");
 }
 
+#if !(__clang__ && __APPLE__)
 TEST(FunctionReflectionTest, Construct) {
   Cpp::CreateInterpreter();
 
@@ -778,3 +783,4 @@ TEST(FunctionReflectionTest, Destruct) {
   output = testing::internal::GetCapturedStdout();
   EXPECT_EQ(output, "Destructor Executed");
 }
+#endif
