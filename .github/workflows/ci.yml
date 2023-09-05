@@ -223,7 +223,7 @@ jobs:
         cmake --build . --target check-cppinterop --parallel $(nproc --all)
         cppyy_on="${{ matrix.cppyy }}"
         if [[ "${cppyy_on^^}" != "ON" ]]; then
-          valgrind --error-exitcode=1 unittests/CppInterOp/CppInterOpTests 2>&1 >/dev/null
+          valgrind --track-origins=yes --error-exitcode=1 unittests/CppInterOp/CppInterOpTests 2>&1 >/dev/null
         fi
         cd ..
         # We need CB_PYTHON_DIR later
