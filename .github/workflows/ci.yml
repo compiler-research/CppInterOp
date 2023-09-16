@@ -285,6 +285,7 @@ jobs:
                 -DCMAKE_INSTALL_PREFIX=$CPPINTEROP_DIR \
                 ../
         fi
+
         os="${{ matrix.os }}"
         if [[ "${os}" == "macos*" ]]; then
           cmake --build . --target check-cppinterop --parallel $(sysctl -n hw.physicalcpu)
