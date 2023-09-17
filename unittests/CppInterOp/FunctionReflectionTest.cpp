@@ -518,8 +518,11 @@ TEST(FunctionReflectionTest, IsStaticMethod) {
   EXPECT_TRUE(Cpp::IsStaticMethod(SubDecls[2]));
 }
 
-#if !(__clang__ && __APPLE__)
+#ifdef __APPLE__
+TEST(FunctionReflectionTest, DISABLED_GetFunctionAddress) {
+#else
 TEST(FunctionReflectionTest, GetFunctionAddress) {
+#endif
   std::vector<Decl*> Decls, SubDecls;
   std::string code = "int f1(int i) { return i * i; }";
 
@@ -537,7 +540,6 @@ TEST(FunctionReflectionTest, GetFunctionAddress) {
   address << Cpp::GetFunctionAddress(Decls[0]);
   EXPECT_EQ(address.str(), output);
 }
-#endif
 
 TEST(FunctionReflectionTest, IsVirtualMethod) {
   std::vector<Decl*> Decls, SubDecls;
@@ -558,8 +560,11 @@ TEST(FunctionReflectionTest, IsVirtualMethod) {
   EXPECT_FALSE(Cpp::IsVirtualMethod(SubDecls[3])); // y()
 }
 
-#if !(__clang__ && __APPLE__)
+#ifdef __APPLE__
+TEST(FunctionReflectionTest, DISABLED_JitCallAdvanced) {
+#else
 TEST(FunctionReflectionTest, JitCallAdvanced) {
+#endif
   std::vector<Decl*> Decls;
   std::string code = R"(
       typedef struct _name {
@@ -580,7 +585,11 @@ TEST(FunctionReflectionTest, JitCallAdvanced) {
   Cpp::Destruct(object, Decls[1]);
 }
 
+#ifdef __APPLE__
+TEST(FunctionReflectionTest, DISABLED_GetFunctionCallWrapper) {
+#else
 TEST(FunctionReflectionTest, GetFunctionCallWrapper) {
+#endif
   std::vector<Decl*> Decls;
   std::string code = R"(
     int f1(int i) { return i * i; }
@@ -661,7 +670,6 @@ TEST(FunctionReflectionTest, GetFunctionCallWrapper) {
   output = testing::internal::GetCapturedStdout();
   EXPECT_EQ(output, "Dtor Called\n");
 }
-#endif
 
 TEST(FunctionReflectionTest, IsConstMethod) {
   std::vector<Decl*> Decls, SubDecls;
@@ -716,8 +724,11 @@ TEST(FunctionReflectionTest, GetFunctionArgDefault) {
   EXPECT_EQ(Cpp::GetFunctionArgDefault(Decls[1], 2), "34126");
 }
 
-#if !(__clang__ && __APPLE__)
+#ifdef __APPLE__
+TEST(FunctionReflectionTest, DISABLED_Construct) {
+#else
 TEST(FunctionReflectionTest, Construct) {
+#endif
   Cpp::CreateInterpreter();
 
   Interp->declare(R"(
@@ -751,7 +762,11 @@ TEST(FunctionReflectionTest, Construct) {
   EXPECT_EQ(output, "Constructor Executed");
 }
 
+#ifdef __APPLE__
+TEST(FunctionReflectionTest, DISABLED_Destruct) {
+#else
 TEST(FunctionReflectionTest, Destruct) {
+#endif
   Cpp::CreateInterpreter();
 
   Interp->declare(R"(
@@ -783,4 +798,3 @@ TEST(FunctionReflectionTest, Destruct) {
   output = testing::internal::GetCapturedStdout();
   EXPECT_EQ(output, "Destructor Executed");
 }
-#endif

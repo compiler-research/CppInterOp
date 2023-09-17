@@ -11,8 +11,11 @@ static int printf_jit(const char* format, ...) {
   return 0;
 }
 
-#if !(__clang__ && __APPLE__)
+#ifdef __APPLE__
+TEST(JitTest, DISABLED_InsertOrReplaceJitSymbol) {
+#else
 TEST(JitTest, InsertOrReplaceJitSymbol) {
+#endif
   std::vector<Decl*> Decls;
   std::string code = R"(
     extern "C" int printf(const char*,...);
@@ -31,7 +34,6 @@ TEST(JitTest, InsertOrReplaceJitSymbol) {
       Cpp::InsertOrReplaceJitSymbol("non_existent", (uint64_t)&printf_jit));
   EXPECT_TRUE(Cpp::InsertOrReplaceJitSymbol("non_existent", 0));
 }
-#endif
 
 TEST(Streams, StreamRedirect) {
   // printf and etc are fine here.

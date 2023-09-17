@@ -97,8 +97,11 @@ TEST(ScopeReflectionTest, SizeOf) {
   EXPECT_EQ(Cpp::SizeOf(Decls[7]), (size_t)16);
 }
 
-#if !(__clang__ && __APPLE__)
+#ifdef __APPLE__
+TEST(ScopeReflectionTest, DISABLED_IsBuiltin) {
+#else
 TEST(ScopeReflectionTest, IsBuiltin) {
+#endif
   // static std::set<std::string> g_builtins =
   // {"bool", "char", "signed char", "unsigned char", "wchar_t", "short", "unsigned short",
   //  "int", "unsigned int", "long", "unsigned long", "long long", "unsigned long long",
@@ -127,7 +130,6 @@ TEST(ScopeReflectionTest, IsBuiltin) {
   for (ClassTemplateSpecializationDecl *CTSD : CTD->specializations())
     EXPECT_TRUE(Cpp::IsBuiltin(C.getTypeDeclType(CTSD).getAsOpaquePtr()));
 }
-#endif
 
 TEST(ScopeReflectionTest, IsTemplate) {
   std::vector<Decl *> Decls;
@@ -410,8 +412,11 @@ TEST(ScopeReflectionTest, GetScopefromCompleteName) {
   EXPECT_EQ(Cpp::GetQualifiedName(Cpp::GetScopeFromCompleteName("N1::N2::C::S")), "N1::N2::C::S");
 }
 
-#if !(__clang__ && __APPLE__)
+#ifdef __APPLE__
+TEST(ScopeReflectionTest, DISABLED_GetNamed) {
+#else
 TEST(ScopeReflectionTest, GetNamed) {
+#endif
   std::string code = R"(namespace N1 {
                         namespace N2 {
                           class C {
@@ -448,7 +453,6 @@ TEST(ScopeReflectionTest, GetNamed) {
   EXPECT_EQ(Cpp::GetQualifiedName(std_string_class), "std::string");
   EXPECT_EQ(Cpp::GetQualifiedName(std_string_npos_var), "std::basic_string<char>::npos");
 }
-#endif
 
 TEST(ScopeReflectionTest, GetParentScope) {
   std::string code = R"(namespace N1 {
@@ -537,7 +541,6 @@ TEST(ScopeReflectionTest, GetNumBases) {
   // operation is not well defined if a class has no definition.
   EXPECT_EQ(Cpp::GetNumBases(Decls[5]), 0);
 }
-
 
 TEST(ScopeReflectionTest, GetBaseClass) {
   std::vector<Decl *> Decls;
@@ -708,8 +711,11 @@ TEST(ScopeReflectionTest, InstantiateNNTPClassTemplate) {
                                                 /*type_size*/ args1.size()));
 }
 
-#if !(__clang__ && __APPLE__)
+#ifdef __APPLE__
+TEST(ScopeReflectionTest, DISABLED_InstantiateTemplateFunctionFromString) {
+#else
 TEST(ScopeReflectionTest, InstantiateTemplateFunctionFromString) {
+#endif
   Cpp::CreateInterpreter();
   std::string code = R"(#include <memory>)";
   Interp->process(code);
@@ -717,7 +723,6 @@ TEST(ScopeReflectionTest, InstantiateTemplateFunctionFromString) {
   auto* Instance1 = (Decl*)Cpp::InstantiateTemplateFunctionFromString(str);
   EXPECT_TRUE(Instance1);
 }
-#endif
 
 TEST(ScopeReflectionTest, InstantiateClassTemplate) {
   std::vector<Decl *> Decls;
@@ -850,12 +855,14 @@ TEST(ScopeReflectionTest, GetClassTemplateInstantiationArgs) {
   EXPECT_TRUE(instance_types.size() == 0);
 }
 
-#if !(__clang__ && __APPLE__)
+#ifdef __APPLE__
+TEST(ScopeReflectionTest, DISABLED_IncludeVector) {
+#else
 TEST(ScopeReflectionTest, IncludeVector) {
+#endif
   std::string code = R"(
     #include <vector>
     #include <iostream>
   )";
   Interp->process(code);
 }
-#endif

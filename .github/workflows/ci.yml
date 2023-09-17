@@ -93,6 +93,12 @@ jobs:
       run: |
         echo "BUILD_TYPE=Release" >> $GITHUB_ENV
         echo "CODE_COVERAGE=0" >> $GITHUB_ENV
+        os="${{ matrix.os }}"
+        if [[ "${os}" == "macos"* ]]; then
+          echo "ncpus=$(sysctl -n hw.ncpu)" >> $GITHUB_ENV
+        else
+          echo "ncpus=$(nproc --all)" >> $GITHUB_ENV
+        fi
 
     - name: Setup compiler on Linux
       if: runner.os == 'Linux'
@@ -175,15 +181,7 @@ jobs:
         cd llvm-project
         # Apply patches
         echo "Apply clang${{ matrix.clang-runtime }}-*.patch patches:"
-    
-        # Adjust the find command for macOS
-        patch_dir="../patches/llvm"
-        patch_pattern="clang${{ matrix.clang-runtime }}-*.patch"
-
-        find "$patch_dir" -name "$patch_pattern" -print | while read -r patch_file; do
-          echo "Applying patch: $patch_file"
-          git apply "$patch_file"
-        done
+        compgen -G "../patches/llvm/clang${{ matrix.clang-runtime }}-*.patch" > /dev/null && find ../patches/llvm/clang${{ matrix.clang-runtime }}-*.patch -exec basename {} \; -print -exec git apply {} \;
         # Build
         mkdir build
         cd build
@@ -199,17 +197,10 @@ jobs:
                 -DCLANG_ENABLE_FORMAT=OFF                     \
                 -DCLANG_ENABLE_BOOTSTRAP=OFF                  \
                 ../llvm
-          if [[ "${os}" == "macos*" ]]; then
-            cmake --build . --target clang --parallel $(sysctl -n hw.physicalcpu)
-            cmake --build . --target cling --parallel $(sysctl -n hw.physicalcpu)
-            # Now build gtest.a and gtest_main for CppInterOp to run its tests.
-            cmake --build . --target gtest_main --parallel $(sysctl -n hw.physicalcpu)
-          else
-            cmake --build . --target clang --parallel $(nproc --all)
-            cmake --build . --target cling --parallel $(nproc --all)
-            # Now build gtest.a and gtest_main for CppInterOp to run its tests.
-            cmake --build . --target gtest_main --parallel $(nproc --all)
-          fi          
+          cmake --build . --target clang --parallel ${{ env.ncpus }}
+          cmake --build . --target cling --parallel ${{ env.ncpus }}
+          # Now build gtest.a and gtest_main for CppInterOp to run its tests.
+          cmake --build . --target gtest_main --parallel ${{ env.ncpus }}
         else
           cmake -DLLVM_ENABLE_PROJECTS=clang                  \
                 -DLLVM_TARGETS_TO_BUILD="host;NVPTX"          \
@@ -220,11 +211,7 @@ jobs:
                 -DCLANG_ENABLE_FORMAT=OFF                     \
                 -DCLANG_ENABLE_BOOTSTRAP=OFF                  \
                 ../llvm
-          if [[ "${os}" == "macos*" ]]; then
-            cmake --build . --target clang clang-repl --parallel $(sysctl -n hw.physicalcpu)
-          else
-            cmake --build . --target clang clang-repl --parallel $(nproc --all)
-          fi
+          cmake --build . --target clang clang-repl --parallel ${{ env.ncpus }}
         fi
         cd ../../
 
@@ -266,40 +253,35 @@ jobs:
         export CPPINTEROP_BUILD_DIR=$PWD
         cling_on=$(echo "${{ matrix.cling }}" | tr '[:lower:]' '[:upper:]')
         if [[ "${cling_on}" == "ON" ]]; then
-          cmake -DCMAKE_BUILD_TYPE=${BUILD_TYPE}        \
-                -DUSE_CLING=ON                          \
-                -DUSE_REPL=OFF                          \
-                -DCling_DIR=$LLVM_BUILD_DIR/tools/cling \
-                -DLLVM_DIR=$LLVM_BUILD_DIR              \
-                -DBUILD_SHARED_LIBS=ON                  \
-                -DCODE_COVERAGE=${CODE_COVERAGE}        \
-                -DCMAKE_INSTALL_PREFIX=$CPPINTEROP_DIR  \
+          cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}        \
+                -DUSE_CLING=ON                                  \
+                -DUSE_REPL=OFF                                  \
+                -DCling_DIR=$LLVM_BUILD_DIR/tools/cling         \
+                -DLLVM_DIR=$LLVM_BUILD_DIR                      \
+                -DBUILD_SHARED_LIBS=ON                          \
+                -DCODE_COVERAGE=${{ env.CODE_COVERAGE }}        \
+                -DCMAKE_INSTALL_PREFIX=$CPPINTEROP_DIR          \
                 ../
         else
-          cmake -DCMAKE_BUILD_TYPE=${BUILD_TYPE}    \
-                -DUSE_CLING=OFF                     \
-                -DUSE_REPL=ON                       \
-                -DLLVM_DIR=$LLVM_BUILD_DIR          \
-                -DBUILD_SHARED_LIBS=ON              \
-                -DCODE_COVERAGE=${CODE_COVERAGE}    \
-                -DCMAKE_INSTALL_PREFIX=$CPPINTEROP_DIR \
+          cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    \
+                -DUSE_CLING=OFF                             \
+                -DUSE_REPL=ON                               \
+                -DLLVM_DIR=$LLVM_BUILD_DIR                  \
+                -DBUILD_SHARED_LIBS=ON                      \
+                -DCODE_COVERAGE=${{ env.CODE_COVERAGE }}    \
+                -DCMAKE_INSTALL_PREFIX=$CPPINTEROP_DIR      \
                 ../
         fi
-
         os="${{ matrix.os }}"
-        if [[ "${os}" == "macos*" ]]; then
-          cmake --build . --target check-cppinterop --parallel $(sysctl -n hw.physicalcpu)
-        else
-          cmake --build . --target check-cppinterop --parallel $(nproc --all)
-        fi
+        cmake --build . --target check-cppinterop --parallel ${{ env.ncpus }}
         cppyy_on=$(echo "${{ matrix.cppyy }}" | tr '[:lower:]' '[:upper:]')
-        if [[ ("${cppyy_on}" != "ON") && ("${os}" = "ubuntu*") ]]; then
+        if [[ ("${cppyy_on}" != "ON") && ("${os}" == "ubuntu"*) ]]; then
           valgrind --track-origins=yes --error-exitcode=1 unittests/CppInterOp/CppInterOpTests 2>&1 >/dev/null
         fi
         cd ..
         # We need CB_PYTHON_DIR later
         echo "CB_PYTHON_DIR=$CB_PYTHON_DIR" >> $GITHUB_ENV
-        # We need CPPINTEROP_DIR, LLVM_BUILD_DIR, and CPLUS_INCLUDE_PATH later
+        # We need CPPINTEROP_DIR, LLVM_BUILD_DIR and CPLUS_INCLUDE_PATH later
         echo "CPPINTEROP_BUILD_DIR=$CPPINTEROP_BUILD_DIR" >> $GITHUB_ENV
         echo "CPPINTEROP_DIR=$CPPINTEROP_DIR" >> $GITHUB_ENV
         echo "LLVM_BUILD_DIR=$LLVM_BUILD_DIR" >> $GITHUB_ENV
