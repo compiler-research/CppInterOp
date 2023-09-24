@@ -1,0 +1,15 @@
+# This file allows users to call find_package(CppInterOp) and pick up our targets.
+
+# Compute the installation prefix from this CppInterOpConfig.cmake file location.
+get_filename_component(CPPINTEROP_INSTALL_PREFIX "${CMAKE_CURRENT_LIST_FILE}" PATH)
+get_filename_component(CPPINTEROP_INSTALL_PREFIX "${CPPINTEROP_INSTALL_PREFIX}" PATH)
+get_filename_component(CPPINTEROP_INSTALL_PREFIX "${CPPINTEROP_INSTALL_PREFIX}" PATH)
+
+set(CPPINTEROP_EXPORTED_TARGETS "clangCppInterOp")
+set(CPPINTEROP_CMAKE_DIR "${CPPINTEROP_INSTALL_PREFIX}/cmake")
+set(CPPINTEROP_INCLUDE_DIRS "${CPPINTEROP_INSTALL_PREFIX}/include")
+
+# Provide all our library targets to users.
+add_library(clangCppInterOp SHARED IMPORTED)
+set_property(TARGET clangCppInterOp PROPERTY IMPORTED_LOCATION "${CPPINTEROP_DIR}/lib/libclangCppInterOp.so")
+set_property(TARGET clangCppInterOp PROPERTY INTERFACE_INCLUDE_DIRECTORIES "${CPPINTEROP_DIR}/include")
