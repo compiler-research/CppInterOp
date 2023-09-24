@@ -5,11 +5,30 @@ get_filename_component(CPPINTEROP_INSTALL_PREFIX "${CMAKE_CURRENT_LIST_FILE}" PA
 get_filename_component(CPPINTEROP_INSTALL_PREFIX "${CPPINTEROP_INSTALL_PREFIX}" PATH)
 get_filename_component(CPPINTEROP_INSTALL_PREFIX "${CPPINTEROP_INSTALL_PREFIX}" PATH)
 
+### build/install workaround
+
+if (IS_DIRECTORY "${CPPINTEROP_INSTALL_PREFIX}/include")
+  set(_include "${CPPINTEROP_INSTALL_PREFIX}/include")
+else()
+  set(_include "@CMAKE_CURRENT_SOURCE_DIR@/include")
+endif()
+
+if (IS_DIRECTORY "${CPPINTEROP_INSTALL_PREFIX}/cmake")
+  set(_cmake "${CPPINTEROP_INSTALL_PREFIX}/cmake")
+else()
+  set(_cmake "@CMAKE_CURRENT_SOURCE_DIR@/cmake")
+endif()
+
+###
+
 set(CPPINTEROP_EXPORTED_TARGETS "clangCppInterOp")
-set(CPPINTEROP_CMAKE_DIR "${CPPINTEROP_INSTALL_PREFIX}/cmake")
-set(CPPINTEROP_INCLUDE_DIRS "${CPPINTEROP_INSTALL_PREFIX}/include")
+set(CPPINTEROP_CMAKE_DIR "${_cmake}")
+set(CPPINTEROP_INCLUDE_DIRS "${_include}")
 
 # Provide all our library targets to users.
 add_library(clangCppInterOp SHARED IMPORTED)
 set_property(TARGET clangCppInterOp PROPERTY IMPORTED_LOCATION "${CPPINTEROP_DIR}/lib/libclangCppInterOp.so")
-set_property(TARGET clangCppInterOp PROPERTY INTERFACE_INCLUDE_DIRECTORIES "${CPPINTEROP_DIR}/include")
+set_property(TARGET clangCppInterOp PROPERTY INTERFACE_INCLUDE_DIRECTORIES "${_include}")
+
+unset(_include)
+unset(_cmake)
