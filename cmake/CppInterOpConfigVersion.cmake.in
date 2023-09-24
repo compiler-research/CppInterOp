@@ -1,4 +1,4 @@
-set(PACKAGE_VERSION "1.1.0")
+set(PACKAGE_VERSION "1.1~dev")
 
 # LLVM is API-compatible only with matching major.minor versions
 # and patch versions not less than that requested.
