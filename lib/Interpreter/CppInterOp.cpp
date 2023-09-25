@@ -9,6 +9,7 @@
 
 #include "clang/Interpreter/Compatibility.h"
 #include "clang/Interpreter/CppInterOp.h"
+#include "clang/Interpreter/Version.h"
 
 #include "clang/AST/CXXInheritance.h"
 #include "clang/AST/Decl.h"
@@ -123,7 +124,7 @@ namespace Cpp {
 #undef DEBUG_TYPE
 
   std::string GetVersion() {
-    const char* const VERSION = "1.1~dev";
+    const char* const VERSION = InterOp::getInterOpRevision().c_str();
     std::string fullVersion = "CppInterOp version";
     fullVersion += VERSION;
     fullVersion += "\n (based on "

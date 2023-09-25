@@ -1,0 +1,1 @@
+#define CPPINTEROP_REVISION "1.1.0;dev"

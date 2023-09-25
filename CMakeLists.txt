@@ -317,6 +317,13 @@ include_directories(BEFORE SYSTEM
   )
 
 
+file(READ "include/clang/Interpreter/VCSVersion.inc" _header)
+string(REGEX MATCH "#define CPPINTEROP_REVISION \".*\"" _macrodef "${_header}")
+string(REGEX MATCH "\".*\"" INTEROP_PACKAGE_VERSION "${_macrodef}")
+string(REGEX MATCHALL "\"([0-9]*\.[0-9]*)\.([0-9]*).*" INTEROP_PACKAGE_VERSION_MM "${INTEROP_PACKAGE_VERSION}")
+set(INTEROP_PACKAGE_VERSION_MM "${CMAKE_MATCH_1}")
+set(INTEROP_PACKAGE_VERSION_P "${CMAKE_MATCH_2}")
+
 configure_file(
   ${CMAKE_CURRENT_SOURCE_DIR}/cmake/CppInterOpConfig.cmake.in
   ${CMAKE_CURRENT_BINARY_DIR}/lib/cmake/CppInterOpConfig.cmake
@@ -337,6 +344,7 @@ install(DIRECTORY include/
   FILES_MATCHING
   PATTERN "*.def"
   PATTERN "*.h"
+  PATTERN "*.inc"
   PATTERN ".svn" EXCLUDE
   )
 
