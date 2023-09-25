@@ -3,8 +3,8 @@
 // author:  Vassil Vassilev <vvasilev-at-cern.ch>
 //------------------------------------------------------------------------------
 
-#ifndef CPPINTEROP_VERSION
-#define CPPINTEROP_VERSION
+#ifndef CPPINTEROP_VERSION_H
+#define CPPINTEROP_VERSION_H
 
 #include <string>
 
@@ -20,4 +20,4 @@ namespace InterOp {
   } ;
 } // end namespace InterOp
 
-#endif //CPPINTEROP_VERSION
+#endif // CPPINTEROP_VERSION_H
