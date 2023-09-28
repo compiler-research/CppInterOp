@@ -41,7 +41,8 @@ target_link_libraries(clangCppInterOp PRIVATE
   dl
 )
 
-set_source_files_properties(CppInterOp.cpp
-  PROPERTIES COMPILE_DEFINITIONS "LLVM_BINARY_DIR=\"${LLVM_BINARY_DIR}\""
-             COMPILE_DEFINITIONS "CPPINTEROP_VERSION=\"${CPPINTEROP_VERSION}\"")
+string(REPLACE ";" "\;" _VER CPPINTEROP_VERSION)
+set_source_files_properties(CppInterOp.cpp PROPERTIES COMPILE_DEFINITIONS
+  "LLVM_BINARY_DIR=\"${LLVM_BINARY_DIR}\";CPPINTEROP_VERSION=\"${_VAR}\""
+)
 

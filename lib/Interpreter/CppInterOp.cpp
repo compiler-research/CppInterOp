@@ -9,7 +9,6 @@
 
 #include "clang/Interpreter/Compatibility.h"
 #include "clang/Interpreter/CppInterOp.h"
-#include "clang/Interpreter/Version.h"
 
 #include "clang/AST/CXXInheritance.h"
 #include "clang/AST/Decl.h"
