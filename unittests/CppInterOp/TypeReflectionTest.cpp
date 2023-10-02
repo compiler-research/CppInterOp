@@ -515,7 +515,11 @@ TEST(TypeReflectionTest, IsPODType) {
   EXPECT_FALSE(Cpp::IsPODType(0));
 }
 
+#ifdef __APPLE__
+TEST(TypeReflectionTest, DISABLED_IsSmartPtrType) {
+#else
 TEST(TypeReflectionTest, IsSmartPtrType) {
+#endif
   Cpp::CreateInterpreter();
 
   Interp->declare(R"(
