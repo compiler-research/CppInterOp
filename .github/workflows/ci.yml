@@ -27,6 +27,7 @@ jobs:
             clang-runtime: '17'
             cling: Off
             cppyy: Off
+            extra_cmake_options: '-DLLVM_USE_LINKER=lld'
 
           - name: ubu22-gcc9-clang-repl-16
             os: ubuntu-22.04
@@ -35,6 +36,7 @@ jobs:
             cling: Off
             cppyy: Off
             coverage: true
+            extra_cmake_options: '-DLLVM_USE_LINKER=lld'
 
           - name: ubu22-gcc9-clang13-cling
             os: ubuntu-22.04
@@ -42,12 +44,23 @@ jobs:
             clang-runtime: '13'
             cling: On
             cppyy: Off
+            extra_cmake_options: '-DLLVM_USE_LINKER=lld'
+
           - name: ubu22-gcc9-clang13-cling-cppyy
             os: ubuntu-22.04
             compiler: gcc-9
             clang-runtime: '13'
             cling: On
             cppyy: On
+            extra_cmake_options: '-DLLVM_USE_LINKER=lld'
+
+          - name: osx-clang-clang-repl-16
+            os: macos-latest
+            compiler: clang
+            clang-runtime: '16'
+            cling: Off
+            cppyy: Off
+
     steps:
     - uses: actions/checkout@v3
       with:
@@ -56,14 +69,15 @@ jobs:
       uses: actions/setup-python@v4
       with:
         python-version: '3.10'
+
     - name: Save PR Info
       run: |
         mkdir -p ./pr
         echo ${{ github.event.number }} > ./pr/NR
         echo ${{ github.repository }} > ./pr/REPO
 
-        cling_on="${{ matrix.cling }}"
-        if [[ "${cling_on^^}" == "ON" ]]; then
+        cling_on=$(echo "${{ matrix.cling }}" | tr '[:lower:]' '[:upper:]')
+        if [[ "$cling_on" == "ON" ]]; then
           export CLING_HASH=$(git ls-remote https://github.com/root-project/cling.git HEAD| tr '\t' '-')
         else
           export CLING_HASH="Repl"
@@ -73,6 +87,19 @@ jobs:
         echo "CLING_HASH=$CLING_HASH" >> $GITHUB_ENV
         echo "LLVM_HASH=$LLVM_HASH" >> $GITHUB_ENV
     - uses: nelonoel/branch-name@v1.0.1
+
+    - name: Setup default Build Type on *nux
+      if: runner.os != 'windows'
+      run: |
+        echo "BUILD_TYPE=Release" >> $GITHUB_ENV
+        echo "CODE_COVERAGE=0" >> $GITHUB_ENV
+        os="${{ matrix.os }}"
+        if [[ "${os}" == "macos"* ]]; then
+          echo "ncpus=$(sysctl -n hw.ncpu)" >> $GITHUB_ENV
+        else
+          echo "ncpus=$(nproc --all)" >> $GITHUB_ENV
+        fi
+
     - name: Setup compiler on Linux
       if: runner.os == 'Linux'
       run: |
@@ -96,15 +123,38 @@ jobs:
         fi
       env:
         compiler: ${{ matrix.compiler }}
+
+    - name: Setup compiler on macOS
+      if: runner.os == 'macOS'
+      run: |
+        vers="${compiler#*-}"
+        if [[ "${{ matrix.compiler }}" == *"gcc"* ]]; then
+          brew install "gcc@$vers"
+          echo "CC=gcc-${vers}" >> $GITHUB_ENV
+          echo "CXX=g++-${vers}" >> $GITHUB_ENV
+        else
+          echo "SDKROOT=$(xcrun --sdk macosx --show-sdk-path)" >> $GITHUB_ENV
+          echo "CC=clang" >> $GITHUB_ENV
+          echo "CXX=clang++" >> $GITHUB_ENV
+        fi
+      env:
+        compiler: ${{ matrix.compiler }}
+
     - name: Install deps on Linux
       if: runner.os == 'Linux'
       run: |
         # Install deps
-        ##sudo apt update
+        sudo apt update
         sudo apt install git g++ debhelper devscripts gnupg python3 valgrind
         conda install -y -q -c conda-forge \
           distro \
           pytest
+
+    - name: Install deps on MacOS
+      if: runner.os == 'macOS'
+      run: |
+        brew install git gcc gnupg python@3 
+        pip install distro pytest
 
     - name: Restore Cache LLVM/Clang runtime build directory
       uses: actions/cache/restore@v3
@@ -116,11 +166,13 @@ jobs:
         #key: ...-.x-patch-${{ hashFiles('patches/llvm/*') }}
         #key: ${{ env.CLING_HASH }}-${{ env.LLVM_HASH }}-${{ runner.os }}-${{ matrix.os }}-${{ matrix.compiler }}-clang-${{ matrix.clang-runtime }}.x
         key: ${{ env.CLING_HASH }}-${{ runner.os }}-${{ matrix.os }}-${{ matrix.compiler }}-clang-${{ matrix.clang-runtime }}.x-patch-${{ hashFiles(format('patches/llvm/clang{0}-*.patch', matrix.clang-runtime)) || 'none' }}
-    - name: Build LLVM/Cling on Linux if the cache is invalid
-      if: ${{ runner.os == 'Linux' && steps.cache.outputs.cache-hit != 'true' }}
+
+    - name: Build LLVM/Cling on Unix if the cache is invalid
+      if: ${{ runner.os != 'windows' && steps.cache.outputs.cache-hit != 'true' }}
       run: |
-        cling_on="${{ matrix.cling }}"
-        if [[ "${cling_on^^}" == "ON" ]]; then
+        os="${{ matrix.os }}"
+        cling_on=$(echo "${{ matrix.cling }}" | tr '[:lower:]' '[:upper:]')
+        if [[ "${cling_on}" == "ON" ]]; then
           git clone --depth=1 https://github.com/root-project/cling.git
           git clone --depth=1 -b cling-llvm${{ matrix.clang-runtime }} https://github.com/root-project/llvm-project.git
         else # repl
@@ -129,41 +181,40 @@ jobs:
         cd llvm-project
         # Apply patches
         echo "Apply clang${{ matrix.clang-runtime }}-*.patch patches:"
-        compgen -G "../patches/llvm/clang${{ matrix.clang-runtime }}-*.patch" > /dev/null && find ../patches/llvm/clang${{ matrix.clang-runtime }}-*.patch -printf "%f\n" && git apply ../patches/llvm/clang${{ matrix.clang-runtime }}-*.patch
+        compgen -G "../patches/llvm/clang${{ matrix.clang-runtime }}-*.patch" > /dev/null && find ../patches/llvm/clang${{ matrix.clang-runtime }}-*.patch -exec basename {} \; -print -exec git apply {} \;
         # Build
         mkdir build
         cd build
-        if [[ "${cling_on^^}" == "ON" ]]; then
+        if [[ "${cling_on}" == "ON" ]]; then
           cmake -DLLVM_ENABLE_PROJECTS=clang                  \
                 -DLLVM_EXTERNAL_PROJECTS=cling                \
                 -DLLVM_EXTERNAL_CLING_SOURCE_DIR=../../cling  \
                 -DLLVM_TARGETS_TO_BUILD="host;NVPTX"          \
                 -DCMAKE_BUILD_TYPE=Release                    \
                 -DLLVM_ENABLE_ASSERTIONS=ON                   \
-                -DLLVM_USE_LINKER=lld                         \
                 -DCLANG_ENABLE_STATIC_ANALYZER=OFF            \
                 -DCLANG_ENABLE_ARCMT=OFF                      \
                 -DCLANG_ENABLE_FORMAT=OFF                     \
                 -DCLANG_ENABLE_BOOTSTRAP=OFF                  \
                 ../llvm
-          cmake --build . --target clang --parallel $(nproc --all)
-          cmake --build . --target cling --parallel $(nproc --all)
+          cmake --build . --target clang --parallel ${{ env.ncpus }}
+          cmake --build . --target cling --parallel ${{ env.ncpus }}
           # Now build gtest.a and gtest_main for CppInterOp to run its tests.
-          cmake --build . --target gtest_main --parallel $(nproc --all)
+          cmake --build . --target gtest_main --parallel ${{ env.ncpus }}
         else
           cmake -DLLVM_ENABLE_PROJECTS=clang                  \
                 -DLLVM_TARGETS_TO_BUILD="host;NVPTX"          \
                 -DCMAKE_BUILD_TYPE=Release                    \
                 -DLLVM_ENABLE_ASSERTIONS=ON                   \
-                -DLLVM_USE_LINKER=lld                         \
                 -DCLANG_ENABLE_STATIC_ANALYZER=OFF            \
                 -DCLANG_ENABLE_ARCMT=OFF                      \
                 -DCLANG_ENABLE_FORMAT=OFF                     \
                 -DCLANG_ENABLE_BOOTSTRAP=OFF                  \
                 ../llvm
-          cmake --build . --target clang clang-repl --parallel $(nproc --all)
+          cmake --build . --target clang clang-repl --parallel ${{ env.ncpus }}
         fi
         cd ../../
+
     - name: Save Cache LLVM/Clang runtime build directory
       uses: actions/cache/save@v3
       if: ${{ steps.cache.outputs.cache-hit != 'true' }}
@@ -172,22 +223,25 @@ jobs:
           llvm-project
           ${{ matrix.cling=='On' && 'cling' || '' }}
         key: ${{ steps.cache.outputs.cache-primary-key }}
+
     - name: Setup code coverage
       if: ${{ success() && (matrix.coverage == true) }}
       run: |
         sudo apt install lcov
         echo "CODE_COVERAGE=1" >> $GITHUB_ENV
         echo "BUILD_TYPE=Debug" >> $GITHUB_ENV
-    - name: Build and Test/Install CppInterOp
+
+    - name: Build and Test/Install CppInterOp on Unix Systems
+      if: ${{ runner.os != 'windows' }}
       run: |
-        LLVM_DIR="$(realpath llvm-project)"
-        LLVM_BUILD_DIR="$(realpath llvm-project/build)"
-        cling_on="${{ matrix.cling }}"
-        if [[ "${cling_on^^}" == "ON" ]]; then
-          CLING_DIR="$(realpath cling)"
-          CLING_BUILD_DIR="$(realpath cling/build)"
+        LLVM_DIR="$(pwd)/llvm-project"
+        LLVM_BUILD_DIR="$(pwd)/llvm-project/build"
+        cling_on=$(echo "${{ matrix.cling }}" | tr '[:lower:]' '[:upper:]')
+        if [[ "${cling_on}" == "ON" ]]; then
+          CLING_DIR="$(pwd)/cling"
+          CLING_BUILD_DIR="$(pwd)/cling/build"
           CPLUS_INCLUDE_PATH="${CLING_DIR}/tools/cling/include:${CLING_BUILD_DIR}/include:${LLVM_DIR}/llvm/include:${LLVM_DIR}/clang/include:${LLVM_BUILD_DIR}/include:${LLVM_BUILD_DIR}/tools/clang/include:$PWD/include"
-        else # repl
+        else
           CPLUS_INCLUDE_PATH="${LLVM_DIR}/llvm/include:${LLVM_DIR}/clang/include:${LLVM_BUILD_DIR}/include:${LLVM_BUILD_DIR}/tools/clang/include:$PWD/include"
         fi
 
@@ -197,32 +251,31 @@ jobs:
         # Build CppInterOp next to cling and llvm-project.
         mkdir build && cd build
         export CPPINTEROP_BUILD_DIR=$PWD
-        cling_on="${{ matrix.cling }}"
-        if [[ "${cling_on^^}" == "ON" ]]; then
-          cmake -DCMAKE_BUILD_TYPE=${BUILD_TYPE}        \
-                -DUSE_CLING=ON                          \
-                -DUSE_REPL=OFF                          \
-                -DCling_DIR=$LLVM_BUILD_DIR/tools/cling \
-                -DLLVM_DIR=$LLVM_BUILD_DIR              \
-                -DLLVM_USE_LINKER=lld                   \
-                -DBUILD_SHARED_LIBS=ON                  \
-                -DCODE_COVERAGE=${CODE_COVERAGE}        \
-                -DCMAKE_INSTALL_PREFIX=$CPPINTEROP_DIR  \
+        cling_on=$(echo "${{ matrix.cling }}" | tr '[:lower:]' '[:upper:]')
+        if [[ "${cling_on}" == "ON" ]]; then
+          cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}        \
+                -DUSE_CLING=ON                                  \
+                -DUSE_REPL=OFF                                  \
+                -DCling_DIR=$LLVM_BUILD_DIR/tools/cling         \
+                -DLLVM_DIR=$LLVM_BUILD_DIR                      \
+                -DBUILD_SHARED_LIBS=ON                          \
+                -DCODE_COVERAGE=${{ env.CODE_COVERAGE }}        \
+                -DCMAKE_INSTALL_PREFIX=$CPPINTEROP_DIR          \
                 ../
         else
-          cmake -DCMAKE_BUILD_TYPE=${BUILD_TYPE}    \
-                -DUSE_CLING=OFF                     \
-                -DUSE_REPL=ON                       \
-                -DLLVM_DIR=$LLVM_BUILD_DIR          \
-                -DLLVM_USE_LINKER=lld               \
-                -DBUILD_SHARED_LIBS=ON              \
-                -DCODE_COVERAGE=${CODE_COVERAGE}    \
-                -DCMAKE_INSTALL_PREFIX=$CPPINTEROP_DIR \
+          cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    \
+                -DUSE_CLING=OFF                             \
+                -DUSE_REPL=ON                               \
+                -DLLVM_DIR=$LLVM_BUILD_DIR                  \
+                -DBUILD_SHARED_LIBS=ON                      \
+                -DCODE_COVERAGE=${{ env.CODE_COVERAGE }}    \
+                -DCMAKE_INSTALL_PREFIX=$CPPINTEROP_DIR      \
                 ../
         fi
-        cmake --build . --target check-cppinterop --parallel $(nproc --all)
-        cppyy_on="${{ matrix.cppyy }}"
-        if [[ "${cppyy_on^^}" != "ON" ]]; then
+        os="${{ matrix.os }}"
+        cmake --build . --target check-cppinterop --parallel ${{ env.ncpus }}
+        cppyy_on=$(echo "${{ matrix.cppyy }}" | tr '[:lower:]' '[:upper:]')
+        if [[ ("${cppyy_on}" != "ON") && ("${os}" == "ubuntu"*) ]]; then
           valgrind --track-origins=yes --error-exitcode=1 unittests/CppInterOp/CppInterOpTests 2>&1 >/dev/null
         fi
         cd ..
