@@ -156,11 +156,17 @@ TEST(EnumReflectionTest, GetIntegerTypeFromEnumType) {
       TwoDefault
     };
 
+    struct Employee {
+      int id;
+      int salary;
+    };
+
     Switch s;
     CharEnum ch;
     IntEnum in;
     LongEnum lng;
     DefaultEnum def;
+    Employee emp;
   )";
 
   GetAllTopLevelDecls(code, Decls);
@@ -169,11 +175,13 @@ TEST(EnumReflectionTest, GetIntegerTypeFromEnumType) {
     return Cpp::GetTypeAsString(Cpp::GetIntegerTypeFromEnumType(Cpp::GetVariableType(D)));
   };
 
-  EXPECT_EQ(get_int_type_from_enum_var(Decls[5]), "bool");
-  EXPECT_EQ(get_int_type_from_enum_var(Decls[6]), "char");
-  EXPECT_EQ(get_int_type_from_enum_var(Decls[7]), "int");
-  EXPECT_EQ(get_int_type_from_enum_var(Decls[8]), "long long");
-  EXPECT_EQ(get_int_type_from_enum_var(Decls[9]), "unsigned int");
+  EXPECT_EQ(get_int_type_from_enum_var(Decls[5]), "NULL TYPE"); // When a nullptr is returned by GetVariableType()
+  EXPECT_EQ(get_int_type_from_enum_var(Decls[6]), "bool");
+  EXPECT_EQ(get_int_type_from_enum_var(Decls[7]), "char");
+  EXPECT_EQ(get_int_type_from_enum_var(Decls[8]), "int");
+  EXPECT_EQ(get_int_type_from_enum_var(Decls[9]), "long long");
+  EXPECT_EQ(get_int_type_from_enum_var(Decls[10]), "unsigned int");
+  EXPECT_EQ(get_int_type_from_enum_var(Decls[11]), "NULL TYPE"); // When a non Enum Type variable is used 
 }
 
 TEST(EnumReflectionTest, GetEnumConstants) {
