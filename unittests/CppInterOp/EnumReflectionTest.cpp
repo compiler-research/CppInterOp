@@ -211,6 +211,11 @@ TEST(EnumReflectionTest, GetEnumConstants) {
       Three_FourEnum,
       Four_FourEnum,
     };
+
+    struct Employee {
+      int id;
+      int salary;
+    };
   )";
 
   GetAllTopLevelDecls(code, Decls);
@@ -220,6 +225,7 @@ TEST(EnumReflectionTest, GetEnumConstants) {
   EXPECT_EQ(Cpp::GetEnumConstants(Decls[2]).size(), 2);
   EXPECT_EQ(Cpp::GetEnumConstants(Decls[3]).size(), 3);
   EXPECT_EQ(Cpp::GetEnumConstants(Decls[4]).size(), 4);
+  EXPECT_EQ(Cpp::GetEnumConstants(Decls[5]).size(), 0);
 }
 
 TEST(EnumReflectionTest, GetEnumConstantType) {
@@ -261,6 +267,7 @@ TEST(EnumReflectionTest, GetEnumConstantValue) {
       MinusTen = -10,
       MinusNine
     };
+
   )";
 
   GetAllTopLevelDecls(code, Decls);
