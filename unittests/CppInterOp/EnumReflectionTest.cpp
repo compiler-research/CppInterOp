@@ -110,6 +110,12 @@ TEST(EnumReflectionTest, GetIntegerTypeFromEnumScope) {
       OneDefault,
       TwoDefault
     };
+
+    // Non enum type
+    struct Employee {
+      int id;
+      int salary;
+    };
   )";
 
   GetAllTopLevelDecls(code, Decls);
@@ -119,6 +125,7 @@ TEST(EnumReflectionTest, GetIntegerTypeFromEnumScope) {
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetIntegerTypeFromEnumScope(Decls[2])), "int");
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetIntegerTypeFromEnumScope(Decls[3])), "long long");
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetIntegerTypeFromEnumScope(Decls[4])), "unsigned int");
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetIntegerTypeFromEnumScope(Decls[5])),"NULL TYPE");
 }
 
 TEST(EnumReflectionTest, GetIntegerTypeFromEnumType) {
