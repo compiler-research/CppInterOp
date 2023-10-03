@@ -3,7 +3,7 @@ on:
   pull_request:
     branches: [main]
   push:
-    branches: [main]
+    branches: [CppInterOp_Coverage]
   release:
     types: [published]
   schedule:
@@ -21,13 +21,13 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: ubu22-gcc12-clang-repl-17
-            os: ubuntu-latest
-            compiler: gcc-12
-            clang-runtime: '17'
-            cling: Off
-            cppyy: Off
-            extra_cmake_options: '-DLLVM_USE_LINKER=lld'
+          # - name: ubu22-gcc12-clang-repl-17
+          #   os: ubuntu-latest
+          #   compiler: gcc-12
+          #   clang-runtime: '17'
+          #   cling: Off
+          #   cppyy: Off
+          #   extra_cmake_options: '-DLLVM_USE_LINKER=lld'
 
           - name: ubu22-gcc9-clang-repl-16
             os: ubuntu-22.04
@@ -38,28 +38,28 @@ jobs:
             coverage: true
             extra_cmake_options: '-DLLVM_USE_LINKER=lld'
 
-          - name: ubu22-gcc9-clang13-cling
-            os: ubuntu-22.04
-            compiler: gcc-9
-            clang-runtime: '13'
-            cling: On
-            cppyy: Off
-            extra_cmake_options: '-DLLVM_USE_LINKER=lld'
+          # - name: ubu22-gcc9-clang13-cling
+          #   os: ubuntu-22.04
+          #   compiler: gcc-9
+          #   clang-runtime: '13'
+          #   cling: On
+          #   cppyy: Off
+          #   extra_cmake_options: '-DLLVM_USE_LINKER=lld'
 
-          - name: ubu22-gcc9-clang13-cling-cppyy
-            os: ubuntu-22.04
-            compiler: gcc-9
-            clang-runtime: '13'
-            cling: On
-            cppyy: On
-            extra_cmake_options: '-DLLVM_USE_LINKER=lld'
+          # - name: ubu22-gcc9-clang13-cling-cppyy
+          #   os: ubuntu-22.04
+          #   compiler: gcc-9
+          #   clang-runtime: '13'
+          #   cling: On
+          #   cppyy: On
+          #   extra_cmake_options: '-DLLVM_USE_LINKER=lld'
 
-          - name: osx-clang-clang-repl-16
-            os: macos-latest
-            compiler: clang
-            clang-runtime: '16'
-            cling: Off
-            cppyy: Off
+          # - name: osx-clang-clang-repl-16
+          #   os: macos-latest
+          #   compiler: clang
+          #   clang-runtime: '16'
+          #   cling: Off
+          #   cppyy: Off
 
     steps:
     - uses: actions/checkout@v3
@@ -397,7 +397,7 @@ jobs:
       if: ${{ failure() }}
       uses: mxschmitt/action-tmate@v3
       # When debugging increase to a suitable value!
-      timeout-minutes: ${{ github.event.pull_request && 1 || 20 }}
+      timeout-minutes: 2
 
     - name: Prepare code coverage report
       if: ${{ success() && (matrix.coverage == true) }}

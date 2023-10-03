@@ -29,6 +29,7 @@ TEST(ScopeReflectionTest, IsAggregate) {
         int a[3];
       } b;
    };
+   int y = 10; // Not an aggregate type
   )";
 
   GetAllTopLevelDecls(code, Decls);
@@ -36,8 +37,8 @@ TEST(ScopeReflectionTest, IsAggregate) {
   EXPECT_TRUE(Cpp::IsAggregate(Decls[1]));
   EXPECT_TRUE(Cpp::IsAggregate(Decls[2]));
   EXPECT_TRUE(Cpp::IsAggregate(Decls[3]));
+  EXPECT_FALSE(Cpp::IsAggregate(Decls[4]));
 }
-
 
 // Check that the CharInfo table has been constructed reasonably.
 TEST(ScopeReflectionTest, IsNamespace) {
