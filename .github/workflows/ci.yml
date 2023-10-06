@@ -61,6 +61,13 @@ jobs:
             cling: Off
             cppyy: Off
 
+          - name: osx-clang-clang13-cling
+            os: macos-latest
+            compiler: clang
+            clang-runtime: '13'
+            cling: On
+            cppyy: Off
+
     steps:
     - uses: actions/checkout@v3
       with:
