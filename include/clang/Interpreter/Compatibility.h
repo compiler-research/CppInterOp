@@ -70,6 +70,7 @@ namespace compat {
 #ifdef USE_REPL
 
 #include "clang/AST/Mangle.h"
+#include "clang/Frontend/CompilerInstance.h"
 #include "clang/Interpreter/DynamicLibraryManager.h"
 #include "clang/Interpreter/Interpreter.h"
 #include "clang/Interpreter/Value.h"
@@ -117,6 +118,9 @@ createClangInterpreter(std::vector<const char*>& args) {
 #if CLANG_VERSION_MAJOR < 16
   auto innerOrErr = clang::Interpreter::create(std::move(*ciOrErr));
 #else
+  (*ciOrErr)->LoadRequestedPlugins();
+  if (CudaEnabled)
+    DeviceCI->LoadRequestedPlugins();
   auto innerOrErr =
       CudaEnabled ? clang::Interpreter::createWithCUDA(std::move(*ciOrErr),
                                                        std::move(DeviceCI))
