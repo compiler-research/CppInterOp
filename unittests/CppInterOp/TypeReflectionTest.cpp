@@ -122,6 +122,7 @@ TEST(TypeReflectionTest, GetType) {
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetType("signed int")), "int");
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetType("signed long")),"long");
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetType("signed long long")),"long long");
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetType("struct")),"NULL TYPE");
 }
 
 TEST(TypeReflectionTest, IsRecordType) {
