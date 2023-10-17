@@ -677,6 +677,9 @@ TEST(ScopeReflectionTest, GetAllCppNames) {
       class C : public A, public B { int c; };
       class D : public A, public B, public C { int d; };
     }
+    void myfunc() {
+      int a;
+    }
   )";
 
   GetAllTopLevelDecls(code, Decls);
@@ -695,6 +698,7 @@ TEST(ScopeReflectionTest, GetAllCppNames) {
   test_get_all_cpp_names(Decls[2], {"c"});
   test_get_all_cpp_names(Decls[3], {"d"});
   test_get_all_cpp_names(Decls[4], {"A", "B", "C", "D"});
+  test_get_all_cpp_names(Decls[5], {});
 }
 
 TEST(ScopeReflectionTest, InstantiateNNTPClassTemplate) {
