@@ -290,7 +290,7 @@ TEST(EnumReflectionTest, GetEnums) {
       Blue
     };
 
-    enum Days{
+    enum Days {
       Monday,
       Tuesday,
       Wednesday,
@@ -304,26 +304,43 @@ TEST(EnumReflectionTest, GetEnums) {
         Bird
       };
 
-      enum Months{
+      enum Months {
         January,
         February,
         March
       };
     }
+
+    class myClass {
+      public:
+        enum Color {
+          Red,
+          Green,
+          Blue
+        };
+    };
+
+    int myVariable;
     )";
 
   Cpp::CreateInterpreter();
   Interp->declare(code);
-  std::vector<std::string> enumNames1, enumNames2;
+  std::vector<std::string> enumNames1, enumNames2, enumNames3, enumNames4;
   Cpp::TCppScope_t globalscope = Cpp::GetScope("", 0);
   Cpp::TCppScope_t Animals_scope = Cpp::GetScope("Animals", 0);
+  Cpp::TCppScope_t myClass_scope = Cpp::GetScope("myClass", 0);
+  Cpp::TCppScope_t unsupported_scope = Cpp::GetScope("myVariable", 0);
 
   Cpp::GetEnums(globalscope,enumNames1);
   Cpp::GetEnums(Animals_scope,enumNames2);
+  Cpp::GetEnums(myClass_scope, enumNames3);
+  Cpp::GetEnums(unsupported_scope, enumNames4);
 
   // Check if the enum names are correctly retrieved
   EXPECT_TRUE(std::find(enumNames1.begin(), enumNames1.end(), "Color") != enumNames1.end());
   EXPECT_TRUE(std::find(enumNames1.begin(), enumNames1.end(), "Days") != enumNames1.end());
   EXPECT_TRUE(std::find(enumNames2.begin(), enumNames2.end(), "AnimalType") != enumNames2.end());
   EXPECT_TRUE(std::find(enumNames2.begin(), enumNames2.end(), "Months") != enumNames2.end());
+  EXPECT_TRUE(std::find(enumNames3.begin(), enumNames3.end(), "Color") != enumNames3.end());
+  EXPECT_TRUE(enumNames4.empty());
 }

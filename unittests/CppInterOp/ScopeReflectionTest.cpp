@@ -231,7 +231,7 @@ TEST(ScopeReflectionTest, GetName) {
   std::vector<Decl*> Decls;
   std::string code = R"(namespace N {} class C{}; int I; struct S;
                         enum E : int; union U{}; class Size4{int i;};
-                        struct Size16 {short a; double b;}; int ;
+                        struct Size16 {short a; double b;};
                        )";
   GetAllTopLevelDecls(code, Decls);
   EXPECT_EQ(Cpp::GetName(Decls[0]), "N");
