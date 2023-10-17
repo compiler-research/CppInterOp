@@ -231,7 +231,7 @@ TEST(ScopeReflectionTest, GetName) {
   std::vector<Decl*> Decls;
   std::string code = R"(namespace N {} class C{}; int I; struct S;
                         enum E : int; union U{}; class Size4{int i;};
-                        struct Size16 {short a; double b;};
+                        struct Size16 {short a; double b;}; int ;
                        )";
   GetAllTopLevelDecls(code, Decls);
   EXPECT_EQ(Cpp::GetName(Decls[0]), "N");
@@ -242,6 +242,7 @@ TEST(ScopeReflectionTest, GetName) {
   EXPECT_EQ(Cpp::GetName(Decls[5]), "U");
   EXPECT_EQ(Cpp::GetName(Decls[6]), "Size4");
   EXPECT_EQ(Cpp::GetName(Decls[7]), "Size16");
+  EXPECT_EQ(Cpp::GetName(Decls[8]), "<unnamed>");
 }
 
 TEST(ScopeReflectionTest, GetCompleteName) {
@@ -494,6 +495,7 @@ TEST(ScopeReflectionTest, GetScopeFromType) {
     class C {};
     struct S {};
     typedef C T;
+    enum E {};
     }
 
     N::C c;
@@ -503,6 +505,8 @@ TEST(ScopeReflectionTest, GetScopeFromType) {
     int i;
     
     N::T t;
+
+    N::E e;
   )";
 
   GetAllTopLevelDecls(code, Decls);
@@ -510,6 +514,7 @@ TEST(ScopeReflectionTest, GetScopeFromType) {
   QualType QT2 = llvm::dyn_cast<VarDecl>(Decls[2])->getType();
   QualType QT3 = llvm::dyn_cast<VarDecl>(Decls[3])->getType();
   QualType QT4 = llvm::dyn_cast<VarDecl>(Decls[4])->getType();
+  QualType QT5 = llvm::dyn_cast<VarDecl>(Decls[5])->getType();
   EXPECT_EQ(Cpp::GetQualifiedName(Cpp::GetScopeFromType(QT1.getAsOpaquePtr())),
           "N::C");
   EXPECT_EQ(Cpp::GetQualifiedName(Cpp::GetScopeFromType(QT2.getAsOpaquePtr())),
@@ -518,6 +523,8 @@ TEST(ScopeReflectionTest, GetScopeFromType) {
           (Cpp::TCppScope_t) 0);
   EXPECT_EQ(Cpp::GetQualifiedName(Cpp::GetScopeFromType(QT4.getAsOpaquePtr())),
           "N::C");
+  EXPECT_EQ(Cpp::GetQualifiedName(Cpp::GetScopeFromType(QT5.getAsOpaquePtr())),
+            "N::E");
 }
 
 TEST(ScopeReflectionTest, GetNumBases) {
