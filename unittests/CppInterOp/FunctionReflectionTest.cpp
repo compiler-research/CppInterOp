@@ -277,6 +277,7 @@ TEST(FunctionReflectionTest, GetFunctionRequiredArgs) {
     void f2(int i, double d, long l, char ch) {}
     void f3(int i, double d, long l = 0, char ch = 'a') {}
     void f4(int i = 0, double d = 0.0, long l = 0, char ch = 'a') {}
+    int a;
     )";
 
   GetAllTopLevelDecls(code, Decls);
@@ -284,6 +285,7 @@ TEST(FunctionReflectionTest, GetFunctionRequiredArgs) {
   EXPECT_EQ(Cpp::GetFunctionRequiredArgs(Decls[1]), (size_t) 4);
   EXPECT_EQ(Cpp::GetFunctionRequiredArgs(Decls[2]), (size_t) 2);
   EXPECT_EQ(Cpp::GetFunctionRequiredArgs(Decls[3]), (size_t) 0);
+  EXPECT_EQ(Cpp::GetFunctionRequiredArgs(Decls[4]), 0);
 }
 
 TEST(FunctionReflectionTest, GetFunctionArgType) {
