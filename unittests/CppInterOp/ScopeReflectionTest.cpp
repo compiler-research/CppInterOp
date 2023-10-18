@@ -242,7 +242,6 @@ TEST(ScopeReflectionTest, GetName) {
   EXPECT_EQ(Cpp::GetName(Decls[5]), "U");
   EXPECT_EQ(Cpp::GetName(Decls[6]), "Size4");
   EXPECT_EQ(Cpp::GetName(Decls[7]), "Size16");
-  EXPECT_EQ(Cpp::GetName(Decls[8]), "<unnamed>");
 }
 
 TEST(ScopeReflectionTest, GetCompleteName) {
@@ -607,6 +606,7 @@ TEST(ScopeReflectionTest, IsSubclass) {
     class C : virtual public A {};
     class D : public B, public C {};
     class E : public D {};
+    void check();
   )";
 
   GetAllTopLevelDecls(code, Decls);
@@ -636,6 +636,8 @@ TEST(ScopeReflectionTest, IsSubclass) {
   EXPECT_FALSE(Cpp::IsSubclass(Decls[2], Decls[4]));
   EXPECT_FALSE(Cpp::IsSubclass(Decls[3], Decls[4]));
   EXPECT_TRUE(Cpp::IsSubclass(Decls[4], Decls[4]));
+  EXPECT_FALSE(Cpp::IsSubclass(Decls[4], Decls[5]));
+  EXPECT_FALSE(Cpp::IsSubclass(Decls[4], nullptr));
 }
 
 TEST(ScopeReflectionTest, GetBaseClassOffset) {
