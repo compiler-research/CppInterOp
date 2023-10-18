@@ -207,10 +207,12 @@ TEST(FunctionReflectionTest, GetFunctionsUsingName) {
   EXPECT_EQ(get_number_of_funcs_using_name(Decls[0], "f1"), 3);
   EXPECT_EQ(get_number_of_funcs_using_name(Decls[0], "f2"), 1);
   EXPECT_EQ(get_number_of_funcs_using_name(Decls[0], "f3"), 1);
+  EXPECT_EQ(get_number_of_funcs_using_name(Decls[0], "f4"), 0);
   EXPECT_EQ(get_number_of_funcs_using_name(Decls[1], "f4"), 2);
   EXPECT_EQ(get_number_of_funcs_using_name(Decls[2], "f1"), 3);
   EXPECT_EQ(get_number_of_funcs_using_name(Decls[2], "f2"), 1);
   EXPECT_EQ(get_number_of_funcs_using_name(Decls[2], "f3"), 1);
+  EXPECT_EQ(get_number_of_funcs_using_name(Decls[2], ""), 0);
 }
 
 TEST(FunctionReflectionTest, GetFunctionReturnType) {
