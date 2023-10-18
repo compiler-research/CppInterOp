@@ -293,6 +293,7 @@ TEST(FunctionReflectionTest, GetFunctionArgType) {
   std::string code = R"(
     void f1(int i, double d, long l, char ch) {}
     void f2(const int i, double d[], long *l, char ch[4]) {}
+    int a;
     )";
 
   GetAllTopLevelDecls(code, Decls);
@@ -304,6 +305,7 @@ TEST(FunctionReflectionTest, GetFunctionArgType) {
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetFunctionArgType(Decls[1], 1)), "double[]");
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetFunctionArgType(Decls[1], 2)), "long *");
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetFunctionArgType(Decls[1], 3)), "char[4]");
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetFunctionArgType(Decls[2], 0)), "NULL TYPE");
 }
 
 TEST(FunctionReflectionTest, GetFunctionSignature) {
