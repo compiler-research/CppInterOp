@@ -140,11 +140,16 @@ TEST(FunctionReflectionTest, HasDefaultConstructor) {
         C() = delete;
         C(int i) : n(i) {}
     };
+    int sum(int a, int b){
+      return a+b;
+    }
+    
     )";
 
   GetAllTopLevelDecls(code, Decls);
   EXPECT_TRUE(Cpp::HasDefaultConstructor(Decls[0]));
   EXPECT_TRUE(Cpp::HasDefaultConstructor(Decls[1]));
+  EXPECT_FALSE(Cpp::HasDefaultConstructor(Decls[3]));
 }
 
 TEST(FunctionReflectionTest, GetDestructor) {
