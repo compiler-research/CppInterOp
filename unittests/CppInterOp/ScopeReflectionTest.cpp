@@ -565,7 +565,12 @@ TEST(ScopeReflectionTest, GetBaseClass) {
     template <typename T>
     class TC2 : TC1 <T> {};
 
+    template <typename T>
+    class TC3 :public A {};
+
     TC2<A> var;
+    TC3<A> var1;
+    int a;
   )";
 
   GetAllTopLevelDecls(code, Decls);
@@ -579,13 +584,19 @@ TEST(ScopeReflectionTest, GetBaseClass) {
   EXPECT_EQ(get_base_class_name(Decls[3], 0), "B");
   EXPECT_EQ(get_base_class_name(Decls[3], 1), "C");
   EXPECT_EQ(get_base_class_name(Decls[4], 0), "D");
+  EXPECT_EQ(get_base_class_name(Decls[10], 0), "<unnamed>");
 
   auto *VD = Cpp::GetNamed("var");
   auto *VT = Cpp::GetVariableType(VD);
   auto *TC2_A_Decl = Cpp::GetScopeFromType(VT);
   auto *TC1_A_Decl = Cpp::GetBaseClass(TC2_A_Decl, 0);
-
   EXPECT_EQ(Cpp::GetCompleteName(TC1_A_Decl), "TC1<A>");
+
+  auto* VD1 = Cpp::GetNamed("var1");
+  auto* VT1 = Cpp::GetVariableType(VD1);
+  auto* TC3_A_Decl = Cpp::GetScopeFromType(VT1);
+  auto* A_class = Cpp::GetBaseClass(TC3_A_Decl, 0);
+  EXPECT_EQ(Cpp::GetCompleteName(A_class), "A");
 }
 
 TEST(ScopeReflectionTest, IsSubclass) {
