@@ -324,6 +324,7 @@ TEST(FunctionReflectionTest, GetFunctionSignature) {
     C f2(int i, double d, long l = 0, char ch = 'a') { return C(); }
     C *f3(int i, double d, long l = 0, char ch = 'a') { return new C(); }
     void f4(int i = 0, double d = 0.0, long l = 0, char ch = 'a') {}
+    class ABC {};
     )";
 
   GetAllTopLevelDecls(code, Decls, true);
@@ -337,10 +338,13 @@ TEST(FunctionReflectionTest, GetFunctionSignature) {
             "C *f3(int i, double d, long l = 0, char ch = 'a')");
   EXPECT_EQ(Cpp::GetFunctionSignature(Decls[5]),
             "void f4(int i = 0, double d = 0., long l = 0, char ch = 'a')");
-  EXPECT_EQ(Cpp::GetFunctionSignature(Decls[7]),
+  EXPECT_EQ(Cpp::GetFunctionSignature(Decls[6]),
+            "<unknown>");
+  EXPECT_EQ(Cpp::GetFunctionSignature(Decls[8]),
             "void C::f(int i, double d, long l = 0, char ch = 'a')");
-  EXPECT_EQ(Cpp::GetFunctionSignature(Decls[12]),
+  EXPECT_EQ(Cpp::GetFunctionSignature(Decls[13]),
             "void N::f(int i, double d, long l = 0, char ch = 'a')");
+  EXPECT_EQ(Cpp::GetFunctionSignature(nullptr), "<unknown>");
 }
 
 TEST(FunctionReflectionTest, IsTemplatedFunction) {
