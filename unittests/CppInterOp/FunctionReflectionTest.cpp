@@ -233,6 +233,7 @@ TEST(FunctionReflectionTest, GetFunctionReturnType) {
     const N::C f6() { return N::C(); }
     volatile N::C f7() { return N::C(); }
     const volatile N::C f8() { return N::C(); }
+    int n;
     )";
 
   GetAllTopLevelDecls(code, Decls, true);
@@ -246,6 +247,7 @@ TEST(FunctionReflectionTest, GetFunctionReturnType) {
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetFunctionReturnType(Decls[8])), "const N::C");
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetFunctionReturnType(Decls[9])), "volatile N::C");
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetFunctionReturnType(Decls[10])), "const volatile N::C");
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetFunctionReturnType(Decls[11])), "NULL TYPE");
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetFunctionReturnType(SubDecls[1])), "void");
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetFunctionReturnType(SubDecls[2])), "int");
 }
