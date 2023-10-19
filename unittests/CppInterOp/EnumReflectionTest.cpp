@@ -271,7 +271,7 @@ TEST(EnumReflectionTest, GetEnumConstantValue) {
       MinusTen = -10,
       MinusNine
     };
-
+    int a = 10;
   )";
 
   GetAllTopLevelDecls(code, Decls);
@@ -284,6 +284,7 @@ TEST(EnumReflectionTest, GetEnumConstantValue) {
   EXPECT_EQ(Cpp::GetEnumConstantValue(EnumConstants[4]), 54);
   EXPECT_EQ(Cpp::GetEnumConstantValue(EnumConstants[5]), -10);
   EXPECT_EQ(Cpp::GetEnumConstantValue(EnumConstants[6]), -9);
+  EXPECT_EQ(Cpp::GetEnumConstantValue(Decls[1]), 0); // Checking value of non enum constant
 }
 
 TEST(EnumReflectionTest, GetEnums) {
