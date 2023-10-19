@@ -19,3 +19,15 @@ target_link_libraries(CppInterOpTests
   )
 
 export_executable_symbols(CppInterOpTests)
+
+unset(LLVM_LINK_COMPONENTS)
+
+add_cppinterop_unittest(DynamicLibraryManagerTests DynamicLibraryManagerTest.cpp)
+target_link_libraries(DynamicLibraryManagerTests
+  PRIVATE
+  clangCppInterOp
+  )
+
+add_dependencies(DynamicLibraryManagerTests TestSharedLib)
+#export_executable_symbols_for_plugins(TestSharedLib)
+add_subdirectory(TestSharedLib)
