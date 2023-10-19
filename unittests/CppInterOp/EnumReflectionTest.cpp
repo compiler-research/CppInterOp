@@ -253,6 +253,10 @@ TEST(EnumReflectionTest, GetEnumConstantType) {
   auto EnumConstants1 = Cpp::GetEnumConstants(Decls[1]);
 
   EXPECT_EQ(get_enum_constant_type_as_str(EnumConstants1[0]), "Enum1");
+
+  EXPECT_EQ(get_enum_constant_type_as_str(Decls[1]), "NULL TYPE");
+
+  EXPECT_EQ(get_enum_constant_type_as_str(nullptr), "NULL TYPE");
 }
 
 TEST(EnumReflectionTest, GetEnumConstantValue) {
