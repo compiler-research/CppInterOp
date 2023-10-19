@@ -79,6 +79,7 @@ TEST(ScopeReflectionTest, IsComplete) {
   EXPECT_TRUE(Cpp::IsComplete(Decls[5]));
   Cpp::TCppType_t retTy = Cpp::GetFunctionReturnType(Decls[7]);
   EXPECT_TRUE(Cpp::IsComplete(Cpp::GetScopeFromType(retTy)));
+  EXPECT_FALSE(Cpp::IsComplete(nullptr));
 }
 
 TEST(ScopeReflectionTest, SizeOf) {
