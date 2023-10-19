@@ -168,6 +168,9 @@ TEST(FunctionReflectionTest, GetDestructor) {
       public:
       ~C() = delete;
     };
+    int sum(int a, int b) {
+      return a+b;
+    }
     )";
 
   GetAllTopLevelDecls(code, Decls);
@@ -177,6 +180,7 @@ TEST(FunctionReflectionTest, GetDestructor) {
   auto DeletedDtor = Cpp::GetDestructor(Decls[2]);
   EXPECT_TRUE(DeletedDtor);
   EXPECT_TRUE(Cpp::IsFunctionDeleted(DeletedDtor));
+  EXPECT_FALSE(Cpp::GetDestructor(Decls[3]));
 }
 
 TEST(FunctionReflectionTest, GetFunctionsUsingName) {
