@@ -36,6 +36,7 @@ target_link_libraries(clangCppInterOp PRIVATE
   ${cling_clang_interp}
   clangAST
   clangBasic
+  clangFrontend
   clangLex
   clangSema
   dl
