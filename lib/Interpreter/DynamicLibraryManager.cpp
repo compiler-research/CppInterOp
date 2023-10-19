@@ -286,8 +286,10 @@ namespace Cpp {
     if (llvm::sys::path::is_absolute(libStem)) {
       if (isSharedLibrary(libStem))
         return normalizePath(libStem);
-      else
-        return std::string();
+
+      LLVM_DEBUG(dbgs() << "Dyld::lookupLibrary: '" << libStem.str() << "'"
+                        << "is not a shared library\n");
+      return std::string();
     }
 
     // Subst all known linker variables ($origin, @rpath, etc.)
