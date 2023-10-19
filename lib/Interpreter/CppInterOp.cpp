@@ -259,7 +259,6 @@ namespace Cpp {
     return QT->isEnumeralType();
   }
 
-
   static bool isSmartPointer(const RecordType* RT) {
     auto IsUseCountPresent = [](const RecordDecl *Record) {
       ASTContext &C = Record->getASTContext();

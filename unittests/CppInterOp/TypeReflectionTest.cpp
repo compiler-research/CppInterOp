@@ -91,11 +91,13 @@ TEST(TypeReflectionTest, GetCanonicalType) {
 
   auto D2 = Cpp::GetVariableType(Decls[2]);
   auto D3 = Cpp::GetVariableType(Decls[3]);
+  auto D4 = nullptr;
 
   EXPECT_EQ(Cpp::GetTypeAsString(D2), "I");
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetCanonicalType(D2)), "int");
   EXPECT_EQ(Cpp::GetTypeAsString(D3), "D");
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetCanonicalType(D3)), "double");
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetCanonicalType(D4)), "NULL TYPE");
 }
 
 TEST(TypeReflectionTest, GetType) {
@@ -111,6 +113,7 @@ TEST(TypeReflectionTest, GetType) {
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetType("double")), "double");
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetType("A")), "A");
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetType("unsigned char")), "unsigned char");
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetType("signed char")),"signed char");
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetType("unsigned short")), "unsigned short");
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetType("unsigned int")), "unsigned int");
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetType("unsigned long")),"unsigned long");
@@ -119,6 +122,7 @@ TEST(TypeReflectionTest, GetType) {
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetType("signed int")), "int");
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetType("signed long")),"long");
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetType("signed long long")),"long long");
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetType("struct")),"NULL TYPE");
 }
 
 TEST(TypeReflectionTest, IsRecordType) {

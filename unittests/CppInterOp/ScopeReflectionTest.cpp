@@ -29,6 +29,7 @@ TEST(ScopeReflectionTest, IsAggregate) {
         int a[3];
       } b;
    };
+   int y = 10; // Not an aggregate type
   )";
 
   GetAllTopLevelDecls(code, Decls);
@@ -36,8 +37,8 @@ TEST(ScopeReflectionTest, IsAggregate) {
   EXPECT_TRUE(Cpp::IsAggregate(Decls[1]));
   EXPECT_TRUE(Cpp::IsAggregate(Decls[2]));
   EXPECT_TRUE(Cpp::IsAggregate(Decls[3]));
+  EXPECT_FALSE(Cpp::IsAggregate(Decls[4]));
 }
-
 
 // Check that the CharInfo table has been constructed reasonably.
 TEST(ScopeReflectionTest, IsNamespace) {
@@ -78,6 +79,7 @@ TEST(ScopeReflectionTest, IsComplete) {
   EXPECT_TRUE(Cpp::IsComplete(Decls[5]));
   Cpp::TCppType_t retTy = Cpp::GetFunctionReturnType(Decls[7]);
   EXPECT_TRUE(Cpp::IsComplete(Cpp::GetScopeFromType(retTy)));
+  EXPECT_FALSE(Cpp::IsComplete(nullptr));
 }
 
 TEST(ScopeReflectionTest, SizeOf) {
@@ -195,11 +197,16 @@ TEST(ScopeReflectionTest, IsAbstract) {
     class B {
       virtual int f() = 0;
     };
+
+    int sum(int a, int b) {
+      return a+b;
+    }
   )";
 
   GetAllTopLevelDecls(code, Decls);
   EXPECT_FALSE(Cpp::IsAbstract(Decls[0]));
   EXPECT_TRUE(Cpp::IsAbstract(Decls[1]));
+  EXPECT_FALSE(Cpp::IsAbstract(Decls[2]));
 }
 
 TEST(ScopeReflectionTest, IsVariable) {
@@ -367,6 +374,7 @@ TEST(ScopeReflectionTest, GetUnderlyingScope) {
   EXPECT_EQ(Cpp::GetQualifiedName(Cpp::GetUnderlyingScope(Decls[0])), "N");
   EXPECT_EQ(Cpp::GetQualifiedName(Cpp::GetUnderlyingScope(Decls[1])), "N::C");
   EXPECT_EQ(Cpp::GetQualifiedName(Cpp::GetUnderlyingScope(Decls[2])), "INT");
+  EXPECT_EQ(Cpp::GetQualifiedName(Cpp::GetUnderlyingScope(nullptr)), "<unnamed>");
 }
 
 TEST(ScopeReflectionTest, GetScope) {
@@ -493,6 +501,7 @@ TEST(ScopeReflectionTest, GetScopeFromType) {
     class C {};
     struct S {};
     typedef C T;
+    enum E {};
     }
 
     N::C c;
@@ -502,6 +511,8 @@ TEST(ScopeReflectionTest, GetScopeFromType) {
     int i;
     
     N::T t;
+
+    N::E e;
   )";
 
   GetAllTopLevelDecls(code, Decls);
@@ -509,6 +520,7 @@ TEST(ScopeReflectionTest, GetScopeFromType) {
   QualType QT2 = llvm::dyn_cast<VarDecl>(Decls[2])->getType();
   QualType QT3 = llvm::dyn_cast<VarDecl>(Decls[3])->getType();
   QualType QT4 = llvm::dyn_cast<VarDecl>(Decls[4])->getType();
+  QualType QT5 = llvm::dyn_cast<VarDecl>(Decls[5])->getType();
   EXPECT_EQ(Cpp::GetQualifiedName(Cpp::GetScopeFromType(QT1.getAsOpaquePtr())),
           "N::C");
   EXPECT_EQ(Cpp::GetQualifiedName(Cpp::GetScopeFromType(QT2.getAsOpaquePtr())),
@@ -517,6 +529,8 @@ TEST(ScopeReflectionTest, GetScopeFromType) {
           (Cpp::TCppScope_t) 0);
   EXPECT_EQ(Cpp::GetQualifiedName(Cpp::GetScopeFromType(QT4.getAsOpaquePtr())),
           "N::C");
+  EXPECT_EQ(Cpp::GetQualifiedName(Cpp::GetScopeFromType(QT5.getAsOpaquePtr())),
+            "N::E");
 }
 
 TEST(ScopeReflectionTest, GetNumBases) {
@@ -557,7 +571,12 @@ TEST(ScopeReflectionTest, GetBaseClass) {
     template <typename T>
     class TC2 : TC1 <T> {};
 
+    template <typename T>
+    class TC3 :public A {};
+
     TC2<A> var;
+    TC3<A> var1;
+    int a;
   )";
 
   GetAllTopLevelDecls(code, Decls);
@@ -571,13 +590,19 @@ TEST(ScopeReflectionTest, GetBaseClass) {
   EXPECT_EQ(get_base_class_name(Decls[3], 0), "B");
   EXPECT_EQ(get_base_class_name(Decls[3], 1), "C");
   EXPECT_EQ(get_base_class_name(Decls[4], 0), "D");
+  EXPECT_EQ(get_base_class_name(Decls[10], 0), "<unnamed>");
 
   auto *VD = Cpp::GetNamed("var");
   auto *VT = Cpp::GetVariableType(VD);
   auto *TC2_A_Decl = Cpp::GetScopeFromType(VT);
   auto *TC1_A_Decl = Cpp::GetBaseClass(TC2_A_Decl, 0);
-
   EXPECT_EQ(Cpp::GetCompleteName(TC1_A_Decl), "TC1<A>");
+
+  auto* VD1 = Cpp::GetNamed("var1");
+  auto* VT1 = Cpp::GetVariableType(VD1);
+  auto* TC3_A_Decl = Cpp::GetScopeFromType(VT1);
+  auto* A_class = Cpp::GetBaseClass(TC3_A_Decl, 0);
+  EXPECT_EQ(Cpp::GetCompleteName(A_class), "A");
 }
 
 TEST(ScopeReflectionTest, IsSubclass) {
@@ -588,6 +613,7 @@ TEST(ScopeReflectionTest, IsSubclass) {
     class C : virtual public A {};
     class D : public B, public C {};
     class E : public D {};
+    void check();
   )";
 
   GetAllTopLevelDecls(code, Decls);
@@ -617,6 +643,8 @@ TEST(ScopeReflectionTest, IsSubclass) {
   EXPECT_FALSE(Cpp::IsSubclass(Decls[2], Decls[4]));
   EXPECT_FALSE(Cpp::IsSubclass(Decls[3], Decls[4]));
   EXPECT_TRUE(Cpp::IsSubclass(Decls[4], Decls[4]));
+  EXPECT_FALSE(Cpp::IsSubclass(Decls[4], Decls[5]));
+  EXPECT_FALSE(Cpp::IsSubclass(Decls[4], nullptr));
 }
 
 TEST(ScopeReflectionTest, GetBaseClassOffset) {
@@ -669,6 +697,9 @@ TEST(ScopeReflectionTest, GetAllCppNames) {
       class C : public A, public B { int c; };
       class D : public A, public B, public C { int d; };
     }
+    void myfunc() {
+      int a;
+    }
   )";
 
   GetAllTopLevelDecls(code, Decls);
@@ -687,6 +718,7 @@ TEST(ScopeReflectionTest, GetAllCppNames) {
   test_get_all_cpp_names(Decls[2], {"c"});
   test_get_all_cpp_names(Decls[3], {"d"});
   test_get_all_cpp_names(Decls[4], {"A", "B", "C", "D"});
+  test_get_all_cpp_names(Decls[5], {});
 }
 
 TEST(ScopeReflectionTest, InstantiateNNTPClassTemplate) {
