@@ -95,6 +95,9 @@ TEST(FunctionReflectionTest, GetClassMethods) {
   // Should not crash.
   auto methods4 = Cpp::GetClassMethods(Decls[4]);
   EXPECT_EQ(methods4.size(), 0);
+
+  auto methods5 = Cpp::GetClassMethods(nullptr);
+  EXPECT_EQ(methods5.size(), 0);
 }
 
 TEST(FunctionReflectionTest, ConstructorInGetClassMethods) {
@@ -140,11 +143,16 @@ TEST(FunctionReflectionTest, HasDefaultConstructor) {
         C() = delete;
         C(int i) : n(i) {}
     };
+    int sum(int a, int b){
+      return a+b;
+    }
+    
     )";
 
   GetAllTopLevelDecls(code, Decls);
   EXPECT_TRUE(Cpp::HasDefaultConstructor(Decls[0]));
   EXPECT_TRUE(Cpp::HasDefaultConstructor(Decls[1]));
+  EXPECT_FALSE(Cpp::HasDefaultConstructor(Decls[3]));
 }
 
 TEST(FunctionReflectionTest, GetDestructor) {
@@ -160,6 +168,9 @@ TEST(FunctionReflectionTest, GetDestructor) {
       public:
       ~C() = delete;
     };
+    int sum(int a, int b) {
+      return a+b;
+    }
     )";
 
   GetAllTopLevelDecls(code, Decls);
@@ -169,6 +180,7 @@ TEST(FunctionReflectionTest, GetDestructor) {
   auto DeletedDtor = Cpp::GetDestructor(Decls[2]);
   EXPECT_TRUE(DeletedDtor);
   EXPECT_TRUE(Cpp::IsFunctionDeleted(DeletedDtor));
+  EXPECT_FALSE(Cpp::GetDestructor(Decls[3]));
 }
 
 TEST(FunctionReflectionTest, GetFunctionsUsingName) {
@@ -207,10 +219,12 @@ TEST(FunctionReflectionTest, GetFunctionsUsingName) {
   EXPECT_EQ(get_number_of_funcs_using_name(Decls[0], "f1"), 3);
   EXPECT_EQ(get_number_of_funcs_using_name(Decls[0], "f2"), 1);
   EXPECT_EQ(get_number_of_funcs_using_name(Decls[0], "f3"), 1);
+  EXPECT_EQ(get_number_of_funcs_using_name(Decls[0], "f4"), 0);
   EXPECT_EQ(get_number_of_funcs_using_name(Decls[1], "f4"), 2);
   EXPECT_EQ(get_number_of_funcs_using_name(Decls[2], "f1"), 3);
   EXPECT_EQ(get_number_of_funcs_using_name(Decls[2], "f2"), 1);
   EXPECT_EQ(get_number_of_funcs_using_name(Decls[2], "f3"), 1);
+  EXPECT_EQ(get_number_of_funcs_using_name(Decls[2], ""), 0);
 }
 
 TEST(FunctionReflectionTest, GetFunctionReturnType) {
@@ -233,6 +247,7 @@ TEST(FunctionReflectionTest, GetFunctionReturnType) {
     const N::C f6() { return N::C(); }
     volatile N::C f7() { return N::C(); }
     const volatile N::C f8() { return N::C(); }
+    int n;
     )";
 
   GetAllTopLevelDecls(code, Decls, true);
@@ -246,6 +261,7 @@ TEST(FunctionReflectionTest, GetFunctionReturnType) {
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetFunctionReturnType(Decls[8])), "const N::C");
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetFunctionReturnType(Decls[9])), "volatile N::C");
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetFunctionReturnType(Decls[10])), "const volatile N::C");
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetFunctionReturnType(Decls[11])), "NULL TYPE");
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetFunctionReturnType(SubDecls[1])), "void");
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetFunctionReturnType(SubDecls[2])), "int");
 }
@@ -257,6 +273,7 @@ TEST(FunctionReflectionTest, GetFunctionNumArgs) {
     void f2(int i, double d, long l, char ch) {}
     void f3(int i, double d, long l = 0, char ch = 'a') {}
     void f4(int i = 0, double d = 0.0, long l = 0, char ch = 'a') {}
+    int a;
     )";
 
   GetAllTopLevelDecls(code, Decls);
@@ -264,6 +281,7 @@ TEST(FunctionReflectionTest, GetFunctionNumArgs) {
   EXPECT_EQ(Cpp::GetFunctionNumArgs(Decls[1]), (size_t) 4);
   EXPECT_EQ(Cpp::GetFunctionNumArgs(Decls[2]), (size_t) 4);
   EXPECT_EQ(Cpp::GetFunctionNumArgs(Decls[3]), (size_t) 4);
+  EXPECT_EQ(Cpp::GetFunctionNumArgs(Decls[4]), 0);
 }
 
 TEST(FunctionReflectionTest, GetFunctionRequiredArgs) {
@@ -273,6 +291,7 @@ TEST(FunctionReflectionTest, GetFunctionRequiredArgs) {
     void f2(int i, double d, long l, char ch) {}
     void f3(int i, double d, long l = 0, char ch = 'a') {}
     void f4(int i = 0, double d = 0.0, long l = 0, char ch = 'a') {}
+    int a;
     )";
 
   GetAllTopLevelDecls(code, Decls);
@@ -280,6 +299,7 @@ TEST(FunctionReflectionTest, GetFunctionRequiredArgs) {
   EXPECT_EQ(Cpp::GetFunctionRequiredArgs(Decls[1]), (size_t) 4);
   EXPECT_EQ(Cpp::GetFunctionRequiredArgs(Decls[2]), (size_t) 2);
   EXPECT_EQ(Cpp::GetFunctionRequiredArgs(Decls[3]), (size_t) 0);
+  EXPECT_EQ(Cpp::GetFunctionRequiredArgs(Decls[4]), 0);
 }
 
 TEST(FunctionReflectionTest, GetFunctionArgType) {
@@ -287,6 +307,7 @@ TEST(FunctionReflectionTest, GetFunctionArgType) {
   std::string code = R"(
     void f1(int i, double d, long l, char ch) {}
     void f2(const int i, double d[], long *l, char ch[4]) {}
+    int a;
     )";
 
   GetAllTopLevelDecls(code, Decls);
@@ -298,6 +319,7 @@ TEST(FunctionReflectionTest, GetFunctionArgType) {
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetFunctionArgType(Decls[1], 1)), "double[]");
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetFunctionArgType(Decls[1], 2)), "long *");
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetFunctionArgType(Decls[1], 3)), "char[4]");
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetFunctionArgType(Decls[2], 0)), "NULL TYPE");
 }
 
 TEST(FunctionReflectionTest, GetFunctionSignature) {
@@ -316,6 +338,7 @@ TEST(FunctionReflectionTest, GetFunctionSignature) {
     C f2(int i, double d, long l = 0, char ch = 'a') { return C(); }
     C *f3(int i, double d, long l = 0, char ch = 'a') { return new C(); }
     void f4(int i = 0, double d = 0.0, long l = 0, char ch = 'a') {}
+    class ABC {};
     )";
 
   GetAllTopLevelDecls(code, Decls, true);
@@ -329,10 +352,13 @@ TEST(FunctionReflectionTest, GetFunctionSignature) {
             "C *f3(int i, double d, long l = 0, char ch = 'a')");
   EXPECT_EQ(Cpp::GetFunctionSignature(Decls[5]),
             "void f4(int i = 0, double d = 0., long l = 0, char ch = 'a')");
-  EXPECT_EQ(Cpp::GetFunctionSignature(Decls[7]),
+  EXPECT_EQ(Cpp::GetFunctionSignature(Decls[6]),
+            "<unknown>");
+  EXPECT_EQ(Cpp::GetFunctionSignature(Decls[8]),
             "void C::f(int i, double d, long l = 0, char ch = 'a')");
-  EXPECT_EQ(Cpp::GetFunctionSignature(Decls[12]),
+  EXPECT_EQ(Cpp::GetFunctionSignature(Decls[13]),
             "void N::f(int i, double d, long l = 0, char ch = 'a')");
+  EXPECT_EQ(Cpp::GetFunctionSignature(nullptr), "<unknown>");
 }
 
 TEST(FunctionReflectionTest, IsTemplatedFunction) {

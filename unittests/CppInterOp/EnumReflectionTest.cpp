@@ -110,6 +110,12 @@ TEST(EnumReflectionTest, GetIntegerTypeFromEnumScope) {
       OneDefault,
       TwoDefault
     };
+
+    // Non enum type
+    struct Employee {
+      int id;
+      int salary;
+    };
   )";
 
   GetAllTopLevelDecls(code, Decls);
@@ -119,6 +125,7 @@ TEST(EnumReflectionTest, GetIntegerTypeFromEnumScope) {
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetIntegerTypeFromEnumScope(Decls[2])), "int");
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetIntegerTypeFromEnumScope(Decls[3])), "long long");
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetIntegerTypeFromEnumScope(Decls[4])), "unsigned int");
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetIntegerTypeFromEnumScope(Decls[5])),"NULL TYPE");
 }
 
 TEST(EnumReflectionTest, GetIntegerTypeFromEnumType) {
@@ -149,11 +156,17 @@ TEST(EnumReflectionTest, GetIntegerTypeFromEnumType) {
       TwoDefault
     };
 
+    struct Employee {
+      int id;
+      int salary;
+    };
+
     Switch s;
     CharEnum ch;
     IntEnum in;
     LongEnum lng;
     DefaultEnum def;
+    Employee emp;
   )";
 
   GetAllTopLevelDecls(code, Decls);
@@ -162,11 +175,13 @@ TEST(EnumReflectionTest, GetIntegerTypeFromEnumType) {
     return Cpp::GetTypeAsString(Cpp::GetIntegerTypeFromEnumType(Cpp::GetVariableType(D)));
   };
 
-  EXPECT_EQ(get_int_type_from_enum_var(Decls[5]), "bool");
-  EXPECT_EQ(get_int_type_from_enum_var(Decls[6]), "char");
-  EXPECT_EQ(get_int_type_from_enum_var(Decls[7]), "int");
-  EXPECT_EQ(get_int_type_from_enum_var(Decls[8]), "long long");
-  EXPECT_EQ(get_int_type_from_enum_var(Decls[9]), "unsigned int");
+  EXPECT_EQ(get_int_type_from_enum_var(Decls[5]), "NULL TYPE"); // When a nullptr is returned by GetVariableType()
+  EXPECT_EQ(get_int_type_from_enum_var(Decls[6]), "bool");
+  EXPECT_EQ(get_int_type_from_enum_var(Decls[7]), "char");
+  EXPECT_EQ(get_int_type_from_enum_var(Decls[8]), "int");
+  EXPECT_EQ(get_int_type_from_enum_var(Decls[9]), "long long");
+  EXPECT_EQ(get_int_type_from_enum_var(Decls[10]), "unsigned int");
+  EXPECT_EQ(get_int_type_from_enum_var(Decls[11]), "NULL TYPE"); // When a non Enum Type variable is used 
 }
 
 TEST(EnumReflectionTest, GetEnumConstants) {
@@ -196,6 +211,11 @@ TEST(EnumReflectionTest, GetEnumConstants) {
       Three_FourEnum,
       Four_FourEnum,
     };
+
+    struct Employee {
+      int id;
+      int salary;
+    };
   )";
 
   GetAllTopLevelDecls(code, Decls);
@@ -205,6 +225,7 @@ TEST(EnumReflectionTest, GetEnumConstants) {
   EXPECT_EQ(Cpp::GetEnumConstants(Decls[2]).size(), 2);
   EXPECT_EQ(Cpp::GetEnumConstants(Decls[3]).size(), 3);
   EXPECT_EQ(Cpp::GetEnumConstants(Decls[4]).size(), 4);
+  EXPECT_EQ(Cpp::GetEnumConstants(Decls[5]).size(), 0);
 }
 
 TEST(EnumReflectionTest, GetEnumConstantType) {
@@ -232,6 +253,10 @@ TEST(EnumReflectionTest, GetEnumConstantType) {
   auto EnumConstants1 = Cpp::GetEnumConstants(Decls[1]);
 
   EXPECT_EQ(get_enum_constant_type_as_str(EnumConstants1[0]), "Enum1");
+
+  EXPECT_EQ(get_enum_constant_type_as_str(Decls[1]), "NULL TYPE");
+
+  EXPECT_EQ(get_enum_constant_type_as_str(nullptr), "NULL TYPE");
 }
 
 TEST(EnumReflectionTest, GetEnumConstantValue) {
@@ -246,6 +271,7 @@ TEST(EnumReflectionTest, GetEnumConstantValue) {
       MinusTen = -10,
       MinusNine
     };
+    int a = 10;
   )";
 
   GetAllTopLevelDecls(code, Decls);
@@ -258,6 +284,7 @@ TEST(EnumReflectionTest, GetEnumConstantValue) {
   EXPECT_EQ(Cpp::GetEnumConstantValue(EnumConstants[4]), 54);
   EXPECT_EQ(Cpp::GetEnumConstantValue(EnumConstants[5]), -10);
   EXPECT_EQ(Cpp::GetEnumConstantValue(EnumConstants[6]), -9);
+  EXPECT_EQ(Cpp::GetEnumConstantValue(Decls[1]), 0); // Checking value of non enum constant
 }
 
 TEST(EnumReflectionTest, GetEnums) {
@@ -268,7 +295,7 @@ TEST(EnumReflectionTest, GetEnums) {
       Blue
     };
 
-    enum Days{
+    enum Days {
       Monday,
       Tuesday,
       Wednesday,
@@ -282,26 +309,43 @@ TEST(EnumReflectionTest, GetEnums) {
         Bird
       };
 
-      enum Months{
+      enum Months {
         January,
         February,
         March
       };
     }
+
+    class myClass {
+      public:
+        enum Color {
+          Red,
+          Green,
+          Blue
+        };
+    };
+
+    int myVariable;
     )";
 
   Cpp::CreateInterpreter();
   Interp->declare(code);
-  std::vector<std::string> enumNames1, enumNames2;
+  std::vector<std::string> enumNames1, enumNames2, enumNames3, enumNames4;
   Cpp::TCppScope_t globalscope = Cpp::GetScope("", 0);
   Cpp::TCppScope_t Animals_scope = Cpp::GetScope("Animals", 0);
+  Cpp::TCppScope_t myClass_scope = Cpp::GetScope("myClass", 0);
+  Cpp::TCppScope_t unsupported_scope = Cpp::GetScope("myVariable", 0);
 
   Cpp::GetEnums(globalscope,enumNames1);
   Cpp::GetEnums(Animals_scope,enumNames2);
+  Cpp::GetEnums(myClass_scope, enumNames3);
+  Cpp::GetEnums(unsupported_scope, enumNames4);
 
   // Check if the enum names are correctly retrieved
   EXPECT_TRUE(std::find(enumNames1.begin(), enumNames1.end(), "Color") != enumNames1.end());
   EXPECT_TRUE(std::find(enumNames1.begin(), enumNames1.end(), "Days") != enumNames1.end());
   EXPECT_TRUE(std::find(enumNames2.begin(), enumNames2.end(), "AnimalType") != enumNames2.end());
   EXPECT_TRUE(std::find(enumNames2.begin(), enumNames2.end(), "Months") != enumNames2.end());
+  EXPECT_TRUE(std::find(enumNames3.begin(), enumNames3.end(), "Color") != enumNames3.end());
+  EXPECT_TRUE(enumNames4.empty());
 }
