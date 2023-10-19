@@ -197,11 +197,16 @@ TEST(ScopeReflectionTest, IsAbstract) {
     class B {
       virtual int f() = 0;
     };
+
+    int sum(int a, int b) {
+      return a+b;
+    }
   )";
 
   GetAllTopLevelDecls(code, Decls);
   EXPECT_FALSE(Cpp::IsAbstract(Decls[0]));
   EXPECT_TRUE(Cpp::IsAbstract(Decls[1]));
+  EXPECT_FALSE(Cpp::IsAbstract(Decls[2]));
 }
 
 TEST(ScopeReflectionTest, IsVariable) {
