@@ -95,6 +95,9 @@ TEST(FunctionReflectionTest, GetClassMethods) {
   // Should not crash.
   auto methods4 = Cpp::GetClassMethods(Decls[4]);
   EXPECT_EQ(methods4.size(), 0);
+
+  auto methods5 = Cpp::GetClassMethods(nullptr);
+  EXPECT_EQ(methods5.size(), 0);
 }
 
 TEST(FunctionReflectionTest, ConstructorInGetClassMethods) {
