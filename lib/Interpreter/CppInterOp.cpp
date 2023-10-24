@@ -80,7 +80,7 @@ namespace Cpp {
       Valid &= (bool)args.m_Args;
     }
     if (!Cpp::IsConstructor(m_FD) && !Cpp::IsDestructor(m_FD) &&
-        Cpp::IsMethod(m_FD)) {
+        Cpp::IsMethod(m_FD) && !Cpp::IsStaticMethod(m_FD)) {
       assert(self && "Must pass the pointer to object");
       Valid &= (bool)self;
     }
@@ -970,9 +970,8 @@ namespace Cpp {
     return llvm::isa_and_nonnull<CXXDestructorDecl>(D);
   }
 
-  bool IsStaticMethod(TCppFunction_t method)
-  {
-    auto *D = (Decl *) method;
+  bool IsStaticMethod(TCppConstFunction_t method) {
+    const auto* D = (const Decl*)method;
     if (auto *CXXMD = llvm::dyn_cast_or_null<CXXMethodDecl>(D)) {
       return CXXMD->isStatic();
     }
