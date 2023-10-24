@@ -248,6 +248,7 @@ TEST(ScopeReflectionTest, GetName) {
   EXPECT_EQ(Cpp::GetName(Decls[5]), "U");
   EXPECT_EQ(Cpp::GetName(Decls[6]), "Size4");
   EXPECT_EQ(Cpp::GetName(Decls[7]), "Size16");
+  EXPECT_EQ(Cpp::GetName(nullptr), "<unnamed>");
 }
 
 TEST(ScopeReflectionTest, GetCompleteName) {
@@ -282,6 +283,7 @@ TEST(ScopeReflectionTest, GetCompleteName) {
                                              Cpp::GetVariableType(
                                                      Decls[9]))), "A<int>");
   EXPECT_EQ(Cpp::GetCompleteName(Decls[10]), "(unnamed)");
+  EXPECT_EQ(Cpp::GetCompleteName(nullptr), "<unnamed>");
 }
 
 TEST(ScopeReflectionTest, GetQualifiedName) {
@@ -330,7 +332,7 @@ TEST(ScopeReflectionTest, GetQualifiedCompleteName) {
 }
 
 TEST(ScopeReflectionTest, GetUsingNamespaces) {
-  std::vector<Decl *> Decls;
+  std::vector<Decl *> Decls, Decls1;
   std::string code = R"(
     namespace abc {
 
@@ -351,6 +353,15 @@ TEST(ScopeReflectionTest, GetUsingNamespaces) {
   //EXPECT_EQ(Cpp::GetName(usingNamespaces[0]), "runtime");
   EXPECT_EQ(Cpp::GetName(usingNamespaces[usingNamespaces.size()-2]), "std");
   EXPECT_EQ(Cpp::GetName(usingNamespaces[usingNamespaces.size()-1]), "abc");
+
+  std::string code1 = R"(
+    int x;
+  )";
+
+  GetAllTopLevelDecls(code1, Decls1);
+  std::vector<void*> usingNamespaces1;
+  usingNamespaces1 = Cpp::GetUsingNamespaces(Decls1[0]);
+  EXPECT_EQ(usingNamespaces1.size(), 0);
 }
 
 TEST(ScopeReflectionTest, GetGlobalScope) {
@@ -394,11 +405,13 @@ TEST(ScopeReflectionTest, GetScope) {
   Cpp::TCppScope_t ns_N = Cpp::GetScope("N", 0);
   Cpp::TCppScope_t cl_C = Cpp::GetScope("C", ns_N);
   Cpp::TCppScope_t td_T = Cpp::GetScope("T", 0);
+  Cpp::TCppScope_t non_existent = Cpp::GetScope("sum", 0);
 
   EXPECT_EQ(Cpp::GetQualifiedName(tu), "");
   EXPECT_EQ(Cpp::GetQualifiedName(ns_N), "N");
   EXPECT_EQ(Cpp::GetQualifiedName(cl_C), "N::C");
   EXPECT_EQ(Cpp::GetQualifiedName(td_T), "T");
+  EXPECT_EQ(Cpp::GetQualifiedName(non_existent), "<unnamed>");
 }
 
 TEST(ScopeReflectionTest, GetScopefromCompleteName) {
@@ -513,6 +526,8 @@ TEST(ScopeReflectionTest, GetScopeFromType) {
     N::T t;
 
     N::E e;
+
+    N::C myFunc();
   )";
 
   GetAllTopLevelDecls(code, Decls);
@@ -521,6 +536,7 @@ TEST(ScopeReflectionTest, GetScopeFromType) {
   QualType QT3 = llvm::dyn_cast<VarDecl>(Decls[3])->getType();
   QualType QT4 = llvm::dyn_cast<VarDecl>(Decls[4])->getType();
   QualType QT5 = llvm::dyn_cast<VarDecl>(Decls[5])->getType();
+  QualType QT6 = llvm::dyn_cast<FunctionDecl>(Decls[6])->getReturnType();
   EXPECT_EQ(Cpp::GetQualifiedName(Cpp::GetScopeFromType(QT1.getAsOpaquePtr())),
           "N::C");
   EXPECT_EQ(Cpp::GetQualifiedName(Cpp::GetScopeFromType(QT2.getAsOpaquePtr())),
@@ -531,6 +547,8 @@ TEST(ScopeReflectionTest, GetScopeFromType) {
           "N::C");
   EXPECT_EQ(Cpp::GetQualifiedName(Cpp::GetScopeFromType(QT5.getAsOpaquePtr())),
             "N::E");
+  EXPECT_EQ(Cpp::GetQualifiedName(Cpp::GetScopeFromType(QT6.getAsOpaquePtr())),
+            "N::C");
 }
 
 TEST(ScopeReflectionTest, GetNumBases) {

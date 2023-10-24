@@ -25,15 +25,18 @@ TEST(VariableReflectionTest, GetDatamembers) {
       int e;
       static int f;
     };
+    void sum(int,int);
     )";
 
   GetAllTopLevelDecls(code, Decls);
   auto datamembers = Cpp::GetDatamembers(Decls[0]);
+  auto datamembers1 = Cpp::GetDatamembers(Decls[1]);
 
   EXPECT_EQ(Cpp::GetQualifiedName(datamembers[0]), "C::a");
   EXPECT_EQ(Cpp::GetQualifiedName(datamembers[1]), "C::c");
   EXPECT_EQ(Cpp::GetQualifiedName(datamembers[2]), "C::e");
   EXPECT_EQ(datamembers.size(), 3);
+  EXPECT_EQ(datamembers1.size(), 0);
 }
 
 TEST(VariableReflectionTest, LookupDatamember) {
@@ -57,6 +60,7 @@ TEST(VariableReflectionTest, LookupDatamember) {
   EXPECT_EQ(Cpp::GetQualifiedName(Cpp::LookupDatamember("a", Decls[0])), "C::a");
   EXPECT_EQ(Cpp::GetQualifiedName(Cpp::LookupDatamember("c", Decls[0])), "C::c");
   EXPECT_EQ(Cpp::GetQualifiedName(Cpp::LookupDatamember("e", Decls[0])), "C::e");
+  EXPECT_EQ(Cpp::GetQualifiedName(Cpp::LookupDatamember("k", Decls[0])), "<unnamed>");
 }
 
 TEST(VariableReflectionTest, GetVariableType) {
@@ -138,6 +142,7 @@ TEST(VariableReflectionTest, IsPublicVariable) {
       int b;
     protected:
       int c;
+      int sum(int,int);
     };
     )";
 
@@ -147,6 +152,7 @@ TEST(VariableReflectionTest, IsPublicVariable) {
   EXPECT_TRUE(Cpp::IsPublicVariable(SubDecls[2]));
   EXPECT_FALSE(Cpp::IsPublicVariable(SubDecls[4]));
   EXPECT_FALSE(Cpp::IsPublicVariable(SubDecls[6]));
+  EXPECT_FALSE(Cpp::IsPublicVariable(SubDecls[7]));
 }
 
 TEST(VariableReflectionTest, IsProtectedVariable) {
@@ -219,6 +225,7 @@ TEST(VariableReflectionTest, IsConstVariable) {
   GetAllTopLevelDecls(code, Decls);
   GetAllSubDecls(Decls[0], SubDecls);
 
+  EXPECT_FALSE(Cpp::IsConstVariable(Decls[0]));
   EXPECT_FALSE(Cpp::IsConstVariable(SubDecls[1]));
   EXPECT_TRUE(Cpp::IsConstVariable(SubDecls[2]));
 }
