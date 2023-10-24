@@ -357,12 +357,15 @@ TEST(TypeReflectionTest, GetTypeFromScope) {
   std::string code =  R"(
     class C {};
     struct S {};
+    int a = 10;
     )";
   
   GetAllTopLevelDecls(code, Decls);
 
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetTypeFromScope(Decls[0])), "C");
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetTypeFromScope(Decls[1])), "S");
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetTypeFromScope(Decls[2])), "int");
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetTypeFromScope(nullptr)), "NULL TYPE");
 }
 
 TEST(TypeReflectionTest, IsTypeDerivedFrom) {

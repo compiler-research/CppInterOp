@@ -375,6 +375,8 @@ TEST(FunctionReflectionTest, IsTemplatedFunction) {
       template<typename T>
       void f2(T a) {}
     };
+
+    class ABC {};
     )";
 
   GetAllTopLevelDecls(code, Decls);
@@ -382,6 +384,7 @@ TEST(FunctionReflectionTest, IsTemplatedFunction) {
 
   EXPECT_FALSE(Cpp::IsTemplatedFunction(Decls[0]));
   EXPECT_TRUE(Cpp::IsTemplatedFunction(Decls[1]));
+  EXPECT_FALSE(Cpp::IsTemplatedFunction(Decls[3]));
   EXPECT_FALSE(Cpp::IsTemplatedFunction(SubDeclsC1[1]));
   EXPECT_TRUE(Cpp::IsTemplatedFunction(SubDeclsC1[2]));
 }
@@ -396,11 +399,14 @@ TEST(FunctionReflectionTest, ExistsFunctionTemplate) {
       template<typename T>
       void f(T a) {}
     };
+
+    void f(char ch) {}
     )";
 
   GetAllTopLevelDecls(code, Decls);
   EXPECT_TRUE(Cpp::ExistsFunctionTemplate("f", 0));
   EXPECT_TRUE(Cpp::ExistsFunctionTemplate("f", Decls[1]));
+  EXPECT_FALSE(Cpp::ExistsFunctionTemplate("f", Decls[2]));
 }
 
 TEST(FunctionReflectionTest, IsPublicMethod) {
@@ -415,6 +421,7 @@ TEST(FunctionReflectionTest, IsPublicMethod) {
       void pri_f() {}
     protected:
       void pro_f() {}
+      int a;
     };
     )";
 
@@ -426,6 +433,7 @@ TEST(FunctionReflectionTest, IsPublicMethod) {
   EXPECT_TRUE(Cpp::IsPublicMethod(SubDecls[4]));
   EXPECT_FALSE(Cpp::IsPublicMethod(SubDecls[6]));
   EXPECT_FALSE(Cpp::IsPublicMethod(SubDecls[8]));
+  EXPECT_FALSE(Cpp::IsPublicMethod(SubDecls[9]));
 }
 
 TEST(FunctionReflectionTest, IsProtectedMethod) {
@@ -540,6 +548,7 @@ TEST(FunctionReflectionTest, IsStaticMethod) {
   GetAllTopLevelDecls(code, Decls);
   GetAllSubDecls(Decls[0], SubDecls);
 
+  EXPECT_FALSE(Cpp::IsStaticMethod(Decls[0]));
   EXPECT_FALSE(Cpp::IsStaticMethod(SubDecls[1]));
   EXPECT_TRUE(Cpp::IsStaticMethod(SubDecls[2]));
 }
@@ -584,6 +593,7 @@ TEST(FunctionReflectionTest, IsVirtualMethod) {
   EXPECT_TRUE(Cpp::IsVirtualMethod(SubDecls[2]));
   EXPECT_EQ(Cpp::GetName(SubDecls[3]), "y");
   EXPECT_FALSE(Cpp::IsVirtualMethod(SubDecls[3])); // y()
+  EXPECT_FALSE(Cpp::IsVirtualMethod(Decls[0]));
 }
 
 #ifdef __APPLE__
@@ -695,6 +705,34 @@ TEST(FunctionReflectionTest, GetFunctionCallWrapper) {
   FCI_Dtor.Invoke(object);
   output = testing::internal::GetCapturedStdout();
   EXPECT_EQ(output, "Dtor Called\n");
+  
+  std::vector<Decl*> Decls1;
+  std::string code1 = R"(
+        template<typename T> 
+        struct S {
+        
+        static T Add(T a, T b) { return a + b; }
+
+        };
+    )";
+
+  GetAllTopLevelDecls(code1, Decls1);
+  ASTContext& C = Interp->getCI()->getASTContext();
+
+  std::vector<Cpp::TemplateArgInfo> argument = {C.IntTy.getAsOpaquePtr()};
+  auto Instance1 = Cpp::InstantiateClassTemplate(Decls1[0], argument.data(),
+                                                 /*type_size*/ argument.size());
+  EXPECT_TRUE(isa<ClassTemplateSpecializationDecl>((Decl*)Instance1));
+  auto* CTSD1 = static_cast<ClassTemplateSpecializationDecl*>(Instance1);
+  auto* Add_D = Cpp::GetNamed("Add",CTSD1);
+  Cpp::JitCall FCI_Add = Cpp::MakeFunctionCallable(Add_D);
+  EXPECT_TRUE(FCI_Add.getKind() == Cpp::JitCall::kGenericCall);
+
+  int a = 5, b = 10, result;
+  void* args[2] = {(void*)&a, (void*)&b};
+
+  FCI_Add.Invoke(&result, {args, /*args_size=*/2});
+  EXPECT_EQ(result, a + b);
 }
 
 TEST(FunctionReflectionTest, IsConstMethod) {

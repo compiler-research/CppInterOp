@@ -338,7 +338,7 @@ namespace Cpp {
   bool IsDestructor(TCppConstFunction_t method);
 
   /// Checks if the provided parameter is a 'Static' method.
-  bool IsStaticMethod(TCppFunction_t method);
+  bool IsStaticMethod(TCppConstFunction_t method);
 
   /// Gets the address of the function to be able to call it.
   TCppFuncAddr_t GetFunctionAddress(TCppFunction_t method);
