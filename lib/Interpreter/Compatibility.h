@@ -46,7 +46,11 @@ inline llvm::orc::LLJIT* getExecutionEngine(const cling::Interpreter& I) {
   // to directly.
 
   // sizeof (m_Opts) + sizeof(m_LLVMContext)
+#ifdef __APPLE__
+  const unsigned m_ExecutorOffset = 62;
+#else
   const unsigned m_ExecutorOffset = 72;
+#endif // __APPLE__
   int* IncrementalExecutor =
       ((int*)(const_cast<cling::Interpreter*>(&I))) + m_ExecutorOffset;
   int* IncrementalJit = *(int**)IncrementalExecutor + 0;

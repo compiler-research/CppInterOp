@@ -340,7 +340,10 @@ namespace Cpp {
   /// Checks if the provided parameter is a 'Static' method.
   bool IsStaticMethod(TCppConstFunction_t method);
 
-  /// Gets the address of the function to be able to call it.
+  ///\returns the address of the function given its potentially mangled name.
+  TCppFuncAddr_t GetFunctionAddress(const char* mangled_name);
+
+  ///\returns the address of the function given its function declaration.
   TCppFuncAddr_t GetFunctionAddress(TCppFunction_t method);
 
   /// Checks if the provided parameter is a 'Virtual' method.
@@ -461,9 +464,21 @@ namespace Cpp {
   ///\returns the path to the library.
   const std::string LookupLibrary(const char *lib_name);
 
-  /// Loads the library based on the path returned by the LookupLibrary()
+  /// Finds \c lib_stem considering the list of search paths and loads it by
+  /// calling dlopen.
+  /// \returns true on success.
+  bool LoadLibrary(const char* lib_stem, bool lookup = true);
+
+  /// Finds \c lib_stem considering the list of search paths and unloads it by
+  /// calling dlclose.
   /// function.
-  bool LoadLibrary(const char *lib_path, bool lookup = true);
+  void UnloadLibrary(const char* lib_stem);
+
+  /// Scans all libraries on the library search path for a given potentially
+  /// mangled symbol name.
+  ///\returns the path to the first library that contains the symbol definition.
+  std::string SearchLibrariesForSymbol(const char* mangled_name,
+                                       bool search_system /*true*/);
 
   /// Inserts or replaces a symbol in the JIT with the one provided. This is
   /// useful for providing our own implementations of facilities such as printf.

@@ -330,8 +330,12 @@ public:
 
   const DynamicLibraryManager* getDynamicLibraryManager() const {
     assert(compat::getExecutionEngine(*inner) && "We must have an executor");
-    static const DynamicLibraryManager* DLM = new DynamicLibraryManager();
-    return DLM;
+    static std::unique_ptr<DynamicLibraryManager> DLM = nullptr;
+    if (!DLM) {
+      DLM.reset(new DynamicLibraryManager());
+      DLM->initializeDyld([](llvm::StringRef) { /*ignore*/ return false; });
+    }
+    return DLM.get();
     // TODO: Add DLM to InternalExecutor and use executor->getDML()
     //      return inner->getExecutionEngine()->getDynamicLibraryManager();
   }

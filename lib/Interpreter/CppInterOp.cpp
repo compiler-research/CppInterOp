@@ -980,6 +980,17 @@ namespace Cpp {
     return false;
   }
 
+  TCppFuncAddr_t GetFunctionAddress(const char* mangled_name) {
+    auto& I = getInterp();
+    auto FDAorErr = compat::getSymbolAddress(I, mangled_name);
+    if (llvm::Error Err = FDAorErr.takeError())
+      llvm::consumeError(std::move(Err)); // nullptr if missing
+    else
+      return llvm::jitTargetAddressToPointer<void*>(*FDAorErr);
+
+    return nullptr;
+  }
+
   TCppFuncAddr_t GetFunctionAddress(TCppFunction_t method)
   {
     auto *D = (Decl *) method;
@@ -1002,14 +1013,8 @@ namespace Cpp {
       return mangled_name;
     };
 
-    auto &I = getInterp();
-    if (auto *FD = llvm::dyn_cast_or_null<FunctionDecl>(D)) {
-      auto FDAorErr = compat::getSymbolAddress(I, StringRef(get_mangled_name(FD)));
-      if (llvm::Error Err = FDAorErr.takeError())
-        llvm::logAllUnhandledErrors(std::move(Err), llvm::errs(), "Failed to GetFunctionAdress:");
-      else
-        return llvm::jitTargetAddressToPointer<void*>(*FDAorErr);
-    }
+    if (auto* FD = llvm::dyn_cast_or_null<FunctionDecl>(D))
+      return GetFunctionAddress(get_mangled_name(FD).c_str());
 
     return 0;
   }
@@ -2588,11 +2593,21 @@ namespace Cpp {
     return getInterp().getDynamicLibraryManager()->lookupLibrary(lib_name);
   }
 
-  bool LoadLibrary(const char *lib_name, bool lookup) {
+  bool LoadLibrary(const char* lib_stem, bool lookup) {
     compat::Interpreter::CompilationResult res =
-      getInterp().loadLibrary(lib_name, lookup);
+        getInterp().loadLibrary(lib_stem, lookup);
 
     return res == compat::Interpreter::kSuccess;
+  }
+
+  void UnloadLibrary(const char* lib_stem) {
+    getInterp().getDynamicLibraryManager()->unloadLibrary(lib_stem);
+  }
+
+  std::string SearchLibrariesForSymbol(const char* mangled_name,
+                                       bool search_system /*true*/) {
+    auto* DLM = getInterp().getDynamicLibraryManager();
+    return DLM->searchLibrariesForSymbol(mangled_name, search_system);
   }
 
   bool InsertOrReplaceJitSymbol(const char* linker_mangled_name,
