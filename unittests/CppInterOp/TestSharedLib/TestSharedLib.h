@@ -1,6 +1,7 @@
 #ifndef UNITTESTS_CPPINTEROP_TESTSHAREDLIB_TESTSHAREDLIB_H
 #define UNITTESTS_CPPINTEROP_TESTSHAREDLIB_TESTSHAREDLIB_H
 
-int ret_zero();
+// Avoid having to mangle/demangle the symbol name in tests.
+extern "C" int ret_zero();
 
 #endif // UNITTESTS_CPPINTEROP_TESTSHAREDLIB_TESTSHAREDLIB_H
