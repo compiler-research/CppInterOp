@@ -7,8 +7,8 @@
 // LICENSE.TXT for details.
 //------------------------------------------------------------------------------
 
-#include "clang/Interpreter/DynamicLibraryManager.h"
-#include "clang/Interpreter/Paths.h"
+#include "DynamicLibraryManager.h"
+#include "Paths.h"
 
 #include "llvm/ADT/StringSet.h"
 #include "llvm/BinaryFormat/Magic.h"

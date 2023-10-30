@@ -1,7 +1,7 @@
 #ifndef CPPINTEROP_UNITTESTS_LIBCPPINTEROP_UTILS_H
 #define CPPINTEROP_UNITTESTS_LIBCPPINTEROP_UTILS_H
 
-#include "clang/Interpreter/Compatibility.h"
+#include "../../../lib/Interpreter/Compatibility.h"
 
 #include <memory>
 #include <vector>
