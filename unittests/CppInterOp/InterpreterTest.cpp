@@ -80,3 +80,10 @@ TEST(InterpreterTest, CreateInterpreter) {
   EXPECT_TRUE(Cpp::GetNamed("cpp17"));
   EXPECT_FALSE(Cpp::GetNamed("cppUnknown"));
 }
+
+TEST(InterpreterTest, Declare) {
+  EXPECT_EQ(Cpp::Declare("int i;", true), 0);
+  EXPECT_EQ(Cpp::Declare("int i;", true), 1);
+  EXPECT_EQ(Cpp::Declare("integer i;", true), 1);
+  EXPECT_EQ(Cpp::Declare("int i1;", true), 0);
+}

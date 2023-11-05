@@ -2534,12 +2534,22 @@ namespace Cpp {
 
   class clangSilent {
   public:
-    clangSilent(clang::DiagnosticsEngine &diag) : fDiagEngine(diag) {
+    clangSilent(clang::DiagnosticsEngine& diag) : fDiagEngine(diag) {
+      auto& I = getInterp();
+      DiagnosticsEngine& parentDiagnostics = I.getSema().getDiagnostics();
+      clang::IgnoringDiagConsumer* ignoringDiagConsumer =
+          new clang::IgnoringDiagConsumer();
       fOldDiagValue = fDiagEngine.getSuppressAllDiagnostics();
-      fDiagEngine.setSuppressAllDiagnostics(true);
+      parentDiagnostics.setClient(ignoringDiagConsumer, /*owns*/ true);
     }
 
-    ~clangSilent() { fDiagEngine.setSuppressAllDiagnostics(fOldDiagValue); }
+    ~clangSilent() {
+      auto& I = getInterp();
+      DiagnosticsEngine& parentDiagnostics = I.getSema().getDiagnostics();
+      clang::IgnoringDiagConsumer* ignoringDiagConsumer =
+          new clang::IgnoringDiagConsumer();
+      parentDiagnostics.setClient(ignoringDiagConsumer, fOldDiagValue);
+    }
 
   protected:
     clang::DiagnosticsEngine &fDiagEngine;
