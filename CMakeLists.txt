@@ -147,11 +147,11 @@ if( CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR )
       set(CLANG_VERSION ${CLANG_MIN_SUPPORTED})
     endif()
 
-    find_package(Clang ${CLANG_VERSION} REQUIRED CONFIG ${clang_extra_hints} NO_DEFAULT_PATH)
+    find_package(Clang ${CLANG_VERSION} REQUIRED CONFIG ${clang_search_hints} NO_DEFAULT_PATH)
   endif()
 
   if (NOT Clang_FOUND AND DEFINED Clang_DIR)
-    find_package(Clang REQUIRED CONFIG ${clang_extra_hints} NO_DEFAULT_PATH)
+    find_package(Clang REQUIRED CONFIG ${clang_search_hints} NO_DEFAULT_PATH)
   endif()
 
   if (NOT Clang_FOUND)
