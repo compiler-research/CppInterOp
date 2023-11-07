@@ -13,8 +13,8 @@ CppInterOp exposes API from [Clang](http://clang.llvm.org/) and [LLVM](https://l
 </div>
 
 ## CppInterOp Introduction
-The CppInterOp library provides a minimalist approachfor other languages to 
-identify C++ entities (variables, classes, etc.). This 
+The CppInterOp library provides a minimalist approach for other languages to 
+bridge C++ entities (variables, classes, etc.). This 
 enables interoperability with C++ code, bringing the speed and 
 efficiency of C++ to simpler, more interactive languages like Python.
 
