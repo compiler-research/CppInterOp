@@ -9,7 +9,11 @@ TEST(InterpreterTest, Version) {
   EXPECT_THAT(Cpp::GetVersion(), StartsWith("CppInterOp version"));
 }
 
+#ifdef NDEBUG
+TEST(InterpreterTest, DISABLED_DebugFlag) {
+#else
 TEST(InterpreterTest, DebugFlag) {
+#endif // NDEBUG
   EXPECT_FALSE(Cpp::IsDebugOutputEnabled());
   std::string cerrs;
   testing::internal::CaptureStderr();
