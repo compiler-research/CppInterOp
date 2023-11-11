@@ -2,7 +2,7 @@ Introduction
 ============
 
 This document contains the release notes for the language interoperability
-library CppInterOp, release 1.1. CppInterOp is built on top of
+library CppInterOp, release 1.2.0. CppInterOp is built on top of
 [Clang](http://clang.llvm.org) and [LLVM](http://llvm.org>) compiler
 infrastructure. Here we describe the status of CppInterOp in some detail,
 including major improvements from the previous release and new feature work.
@@ -18,7 +18,7 @@ the necessary introspection information to the other side helping the language
 cross talk.
 
 
-What's New in CppInterOp 1.1?
+What's New in CppInterOp 1.2.0?
 =============================
 
 Some of the major new features and improvements to Clad are listed here. Generic
@@ -28,31 +28,45 @@ described first.
 External Dependencies
 ---------------------
 
-* Add llvm17 support.
-* CppInterOp now works with cling (based on patched clang13) and clang-repl
-  (based on clang16 with patches and clang17).
+* CppInterOp now works with:
+  * cling (based on patched clang13)
+  * clang-repl
+    * based on patched clang16
+    * clang17
+
+
+Introspection
+-------------
+
+* 
+
+
+Just-in-Time Compilation
+------------------------
+
+* 
 
 
 Incremental C++
 ---------------
 
-* Support clang plugins.
-
-
-Incremental CUDA
-----------------
-
-* Support incremental compilation of CUDA. Creating a CUDA-aware infrastructure
-  can be done with `Cpp::CreateInterpreter({}, {"--cuda"});`
+* 
 
 
 Misc
 ----
 
-* Improve discovery of clang/llvm based on `Clang_DIR` or `LLVM_DIR`.
-* Implement facilities connect with `find_package(CppInterOp)`.
-* Add basic OSX support.
+* 
 
+
+Fixed Bugs
+----------
+
+[XXX](https://github.com/compiler-research/CppInterOp/issues/XXX)
+
+ <!---Get release bugs
+ git log v1.1.0..main | grep 'Fixes|Closes'
+ --->
 
 Special Kudos
 =============
@@ -64,8 +78,7 @@ FirstName LastName (#commits)
 
 A B (N)
 
-Vassil Vassilev (25)
-Smit1603 (6)
-Alexander Penev (5)
-Smit Shah (2)
-Krishna-13-cyber (1)
+<!---Find contributor list for this release
+ git log --pretty=format:"%an"  v1.1.0...master | sort | uniq -c | sort -rn |\
+   sed -E 's,^ *([0-9]+) (.*)$,\2 \(\1\),'
+--->
