@@ -76,6 +76,12 @@ if (LLVM_LINK_LLVM_DYLIB)
     FrontendHLSL
     LTO
     )
+  # We will need to append the missing dependencies to pull in the right
+  # LLVM library dependencies. 
+  list(APPEND link_libs
+    clangCodeGen
+    clangStaticAnalyzerCore
+    )
 endif(LLVM_LINK_LLVM_DYLIB)
 
 add_llvm_library(clangCppInterOp
