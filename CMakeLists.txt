@@ -319,15 +319,15 @@ set(CPPINTEROP_VERSION_MINOR "${CMAKE_MATCH_2}")
 set(CPPINTEROP_VERSION_PATCH "${CMAKE_MATCH_3}")
 
 configure_file(
-  ${CMAKE_CURRENT_SOURCE_DIR}/cmake/CppInterOpConfig.cmake.in
-  ${CMAKE_CURRENT_BINARY_DIR}/lib/cmake/CppInterOpConfig.cmake
+  ${CMAKE_CURRENT_SOURCE_DIR}/cmake/CppInterOp/CppInterOpConfig.cmake.in
+  ${CMAKE_CURRENT_BINARY_DIR}/lib/cmake/CppInterOp/CppInterOpConfig.cmake
   @ONLY)
 configure_file(
-  ${CMAKE_CURRENT_SOURCE_DIR}/cmake/CppInterOpConfigVersion.cmake.in
-  ${CMAKE_CURRENT_BINARY_DIR}/lib/cmake/CppInterOpConfigVersion.cmake
+  ${CMAKE_CURRENT_SOURCE_DIR}/cmake/CppInterOp/CppInterOpConfigVersion.cmake.in
+  ${CMAKE_CURRENT_BINARY_DIR}/lib/cmake/CppInterOp/CppInterOpConfigVersion.cmake
   @ONLY)
-install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/lib/cmake/
-  DESTINATION lib/cmake
+install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/lib/cmake/CppInterOp
+  DESTINATION lib/cmake/CppInterOp
   FILES_MATCHING
   PATTERN "*.cmake"
   )
