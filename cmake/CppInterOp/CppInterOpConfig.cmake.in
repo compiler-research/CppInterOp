@@ -6,6 +6,9 @@ get_filename_component(CPPINTEROP_INSTALL_PREFIX "${CPPINTEROP_INSTALL_PREFIX}" 
 get_filename_component(CPPINTEROP_INSTALL_PREFIX "${CPPINTEROP_INSTALL_PREFIX}" PATH)
 get_filename_component(CPPINTEROP_INSTALL_PREFIX "${CPPINTEROP_INSTALL_PREFIX}" PATH)
 
+# Determine CMAKE_SHARED_LIBRARY_SUFFIX based on operating system
+include(CMakeSystemSpecificInformation)
+
 ### build/install workaround
 
 if (IS_DIRECTORY "${CPPINTEROP_INSTALL_PREFIX}/include")

@@ -96,7 +96,11 @@ createClangInterpreter(std::vector<const char*>& args) {
   };
   auto it = std::find_if(args.begin(), args.end(), has_arg);
   std::vector<const char*> gpu_args = {it, args.end()};
+#ifdef __APPLE__
+  bool CudaEnabled = false;
+#else
   bool CudaEnabled = !gpu_args.empty();
+#endif
 
   clang::IncrementalCompilerBuilder CB;
   CB.SetCompilerArgs({args.begin(), it});
