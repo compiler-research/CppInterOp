@@ -276,16 +276,11 @@ inline std::string FixTypeName(const std::string type_name) {
 // Clang >= 16 change CLANG_LIBDIR_SUFFIX to CLANG_INSTALL_LIBDIR_BASENAME
 #if CLANG_VERSION_MAJOR < 16
 #define CLANG_INSTALL_LIBDIR_BASENAME (llvm::Twine("lib") + CLANG_LIBDIR_SUFFIX)
+#define CLANG_RESOURCE_DIR ("clang/" CLANG_VERSION_STRING)
 #endif
 inline std::string MakeResourceDir(llvm::StringRef Dir) {
   llvm::SmallString<128> P(Dir);
-  llvm::sys::path::append(P, CLANG_INSTALL_LIBDIR_BASENAME, "clang",
-#if CLANG_VERSION_MAJOR < 16
-                          CLANG_VERSION_STRING
-#else
-                          CLANG_VERSION_MAJOR_STRING
-#endif
-  );
+  llvm::sys::path::append(P, CLANG_INSTALL_LIBDIR_BASENAME, CLANG_RESOURCE_DIR);
   return std::string(P.str());
 }
 

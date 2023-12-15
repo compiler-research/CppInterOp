@@ -29,11 +29,7 @@ endif()
 
 set(link_libs
   ${cling_clang_interp}
-  clangAST
-  clangBasic
-  clangFrontend
-  clangLex
-  clangSema
+  clang-cpp
   dl
   )
 
