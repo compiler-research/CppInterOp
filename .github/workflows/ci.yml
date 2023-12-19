@@ -29,8 +29,16 @@ jobs:
             cppyy: Off
             extra_cmake_options: '-DLLVM_USE_LINKER=lld'
 
+          - name: ubu22-gcc12-clang-repl-17-cppyy
+            os: ubuntu-latest
+            compiler: gcc-12
+            clang-runtime: '17'
+            cling: Off
+            cppyy: On
+            extra_cmake_options: '-DLLVM_USE_LINKER=lld'
+
           - name: ubu22-gcc9-clang-repl-16
-            os: ubuntu-22.04
+            os: ubuntu-latest
             compiler: gcc-9
             clang-runtime: '16'
             cling: Off
@@ -38,8 +46,17 @@ jobs:
             coverage: true
             extra_cmake_options: '-DLLVM_USE_LINKER=lld'
 
+          - name: ubu22-gcc9-clang-repl-16-cppyy
+            os: ubuntu-latest
+            compiler: gcc-9
+            clang-runtime: '16'
+            cling: Off
+            cppyy: On
+            coverage: true
+            extra_cmake_options: '-DLLVM_USE_LINKER=lld'
+
           - name: ubu22-gcc9-clang13-cling
-            os: ubuntu-22.04
+            os: ubuntu-latest
             compiler: gcc-9
             clang-runtime: '13'
             cling: On
@@ -47,22 +64,50 @@ jobs:
             extra_cmake_options: '-DLLVM_USE_LINKER=lld'
 
           - name: ubu22-gcc9-clang13-cling-cppyy
-            os: ubuntu-22.04
+            os: ubuntu-latest
             compiler: gcc-9
             clang-runtime: '13'
             cling: On
             cppyy: On
             extra_cmake_options: '-DLLVM_USE_LINKER=lld'
 
+          - name: osx-clang-clang-repl-17
+            os: macos-13-arm64
+            compiler: clang
+            clang-runtime: '17'
+            cling: Off
+            cppyy: Off
+
+          - name: osx-clang-clang-repl-17-cppyy
+            os: macos-13-arm64
+            compiler: clang
+            clang-runtime: '17'
+            cling: Off
+            cppyy: On
+
           - name: osx-clang-clang-repl-16
-            os: macos-latest
+            os: macos-13-arm64
             compiler: clang
             clang-runtime: '16'
             cling: Off
             cppyy: Off
 
+          - name: osx-clang-clang-repl-16-cppyy
+            os: macos-13-arm64
+            compiler: clang
+            clang-runtime: '16'
+            cling: Off
+            cppyy: On
+
           - name: osx-clang-clang13-cling
-            os: macos-latest
+            os: macos-13-arm64
+            compiler: clang
+            clang-runtime: '13'
+            cling: On
+            cppyy: Off
+
+          - name: osx-clang-clang13-cling-cppyy
+            os: macos-13-arm64
             compiler: clang
             clang-runtime: '13'
             cling: On
@@ -141,8 +186,11 @@ jobs:
           echo "CXX=g++-${vers}" >> $GITHUB_ENV
         else
           echo "SDKROOT=$(xcrun --sdk macosx --show-sdk-path)" >> $GITHUB_ENV
-          echo "CC=clang" >> $GITHUB_ENV
-          echo "CXX=clang++" >> $GITHUB_ENV
+          #Use clang-15 and clang++-15 compiler that is installed on runner, instead of one
+          #provided by MacOS (could brew install clang-16/17 to use consistent version
+          #of clang)
+          echo "CC=$(brew --prefix llvm@15)/bin/clang" >> $GITHUB_ENV
+          echo "CXX=$(brew --prefix llvm@15)/bin/clang++" >> $GITHUB_ENV
         fi
       env:
         compiler: ${{ matrix.compiler }}
@@ -160,7 +208,10 @@ jobs:
     - name: Install deps on MacOS
       if: runner.os == 'macOS'
       run: |
-        brew install git gcc gnupg python@3 
+        #gcc, gnupg and python3 installed on Github runner
+        #brew install git gcc gnupg python@3 
+        brew update
+        brew upgrade
         pip install distro pytest
 
     - name: Restore Cache LLVM/Clang runtime build directory
@@ -180,7 +231,11 @@ jobs:
         os="${{ matrix.os }}"
         cling_on=$(echo "${{ matrix.cling }}" | tr '[:lower:]' '[:upper:]')
         if [[ "${cling_on}" == "ON" ]]; then
-          git clone --depth=1 https://github.com/root-project/cling.git
+          #FIXME: Need latest version of cling not hardcoded.
+          git clone https://github.com/root-project/cling.git
+          cd ./cling 
+          git checkout tags/v1.0
+          cd ..
           git clone --depth=1 -b cling-llvm${{ matrix.clang-runtime }} https://github.com/root-project/llvm-project.git
         else # repl
           git clone --depth=1 -b release/${{ matrix.clang-runtime }}.x https://github.com/llvm/llvm-project.git
@@ -294,11 +349,11 @@ jobs:
         echo "LLVM_BUILD_DIR=$LLVM_BUILD_DIR" >> $GITHUB_ENV
         echo "CPLUS_INCLUDE_PATH=$CPLUS_INCLUDE_PATH" >> $GITHUB_ENV
 
-    - name: Build and Install cppyy-backend on Linux
-      if: ${{ (runner.os == 'Linux') && (matrix.cppyy == 'On') }}
+    - name: Build and Install cppyy-backend on Unix Systems
+      if: ${{ (runner.os != 'windows') && (matrix.cppyy == 'On') }}
       run: |
         # Download cppyy-backend
-        git clone https://github.com/compiler-research/cppyy-backend.git
+        git clone --depth=1 https://github.com/compiler-research/cppyy-backend.git
         cd cppyy-backend
         mkdir -p $CPPINTEROP_DIR/lib build && cd build
         # Install CppInterOp
@@ -306,23 +361,28 @@ jobs:
         # Build and Install cppyy-backend
         cmake -DCppInterOp_DIR=$CPPINTEROP_DIR ..
         cmake --build . --parallel $(nproc --all)
+        OS=$(uname -s)
+        if [[ "$OS" == "Darwin" ]]; then
+        cp libcppyy-backend.dylib $CPPINTEROP_DIR/lib/
+        else
         cp libcppyy-backend.so $CPPINTEROP_DIR/lib/
+        fi
         ##cling_on="${{ matrix.cling }}"
         ##if [[ "${cling_on^^}" == "ON" ]]; then
         ##  cp $LLVM_BUILD_DIR/lib/libcling.so $CPPINTEROP_DIR/lib/
         ##fi
         #
         cd ..
-    - name: Install CPyCppyy on Linux
-      if: ${{ (runner.os == 'Linux') && (matrix.cppyy == 'On') }}
+    - name: Install CPyCppyy on Unix Systems
+      if: ${{ (runner.os != 'windows') && (matrix.cppyy == 'On') }}
       run: |
         # Setup virtual environment
         python3 -m venv .venv
         source .venv/bin/activate
         # Install CPyCppyy
-        git clone https://github.com/compiler-research/CPyCppyy.git
-        cd CPyCppyy
-        mkdir build && cd build
+        git clone --depth=1 https://github.com/compiler-research/CPyCppyy.git
+        mkdir CPyCppyy/build
+        cd CPyCppyy/build
         cmake ..
         cmake --build . --parallel $(nproc --all)
         #
@@ -330,18 +390,18 @@ jobs:
         cd ../..
         # We need CPYCPPYY_DIR later
         echo "CPYCPPYY_DIR=$CPYCPPYY_DIR" >> $GITHUB_ENV
-    - name: Install cppyy on Linux
-      if: ${{ (runner.os == 'Linux') && (matrix.cppyy == 'On') }}
+    - name: Install cppyy on Unix Systems
+      if: ${{ (runner.os != 'windows') && (matrix.cppyy == 'On') }}
       run: |
         # source virtual environment
         source .venv/bin/activate
         # Install cppyy
-        git clone https://github.com/compiler-research/cppyy.git
+        git clone --depth=1 https://github.com/compiler-research/cppyy.git
         cd cppyy
         python -m pip install --upgrade . --no-deps
         cd ..
-    - name: Run cppyy on Linux
-      if: ${{ (runner.os == 'Linux') && (matrix.cppyy == 'On') }}
+    - name: Run cppyy on Unix Systems
+      if: ${{ (runner.os != 'windows') && (matrix.cppyy == 'On') }}
       run: |
         # Run cppyy
         source .venv/bin/activate
@@ -349,9 +409,9 @@ jobs:
         python -c "import cppyy"
         # We need PYTHONPATH later
         echo "PYTHONPATH=$PYTHONPATH" >> $GITHUB_ENV
-    - name: Run the tests on Linux
+    - name: Run the tests on Unix Systems
       continue-on-error: true
-      if: ${{ (runner.os == 'Linux') && (matrix.cppyy == 'On') }}
+      if: ${{ (runner.os != 'windows') && (matrix.cppyy == 'On') }}
       run: |
         # Run the tests
         source .venv/bin/activate
