@@ -71,47 +71,92 @@ jobs:
             cppyy: On
             extra_cmake_options: '-DLLVM_USE_LINKER=lld'
 
-          - name: osx-clang-clang-repl-17
-            os: macos-13-arm64
+          - name: osx-x86-clang-clang-repl-17
+            os: macos-13
             compiler: clang
             clang-runtime: '17'
             cling: Off
             cppyy: Off
 
-          - name: osx-clang-clang-repl-17-cppyy
-            os: macos-13-arm64
+          - name: osx-x86-clang-clang-repl-17-cppyy
+            os: macos-13
             compiler: clang
             clang-runtime: '17'
             cling: Off
             cppyy: On
 
-          - name: osx-clang-clang-repl-16
-            os: macos-13-arm64
+          - name: osx-x86-clang-clang-repl-16
+            os: macos-13
             compiler: clang
             clang-runtime: '16'
             cling: Off
             cppyy: Off
 
-          - name: osx-clang-clang-repl-16-cppyy
-            os: macos-13-arm64
+          - name: osx-x86-clang-clang-repl-16-cppyy
+            os: macos-13
             compiler: clang
             clang-runtime: '16'
             cling: Off
             cppyy: On
 
-          - name: osx-clang-clang13-cling
-            os: macos-13-arm64
+          - name: osx-x86-clang-clang13-cling
+            os: macos-13
             compiler: clang
             clang-runtime: '13'
             cling: On
             cppyy: Off
 
-          - name: osx-clang-clang13-cling-cppyy
-            os: macos-13-arm64
+          - name: osx-x86-clang-clang13-cling-cppyy
+            os: macos-13
             compiler: clang
             clang-runtime: '13'
             cling: On
             cppyy: Off
+
+          #Block commented out until free tier for m1
+          #exists (expected sometime 2024) and key for os 
+          #can be replaced
+          #- name: osx-arm-clang-clang-repl-17
+          #  os: macos-13-arm64
+          #  compiler: clang
+          #  clang-runtime: '17'
+          #  cling: Off
+          #  cppyy: Off
+          #
+          #- name: osx-arm-clang-clang-repl-17-cppyy
+          #  os: macos-13-arm64
+          #  compiler: clang
+          #  clang-runtime: '17'
+          #  cling: Off
+          #  cppyy: On
+          #
+          #- name: osx-arm-clang-clang-repl-16
+          #  os: macos-13-arm64
+          #  compiler: clang
+          #  clang-runtime: '16'
+          #  cling: Off
+          #  cppyy: Off
+          #
+          #- name: osx-arm-clang-clang-repl-16-cppyy
+          #  os: macos-13-arm64
+          #  compiler: clang
+          #  clang-runtime: '16'
+          #  cling: Off
+          #  cppyy: On
+          #
+          #- name: osx-arm-clang-clang13-cling
+          #  os: macos-13-arm64
+          #  compiler: clang
+          #  clang-runtime: '13'
+          #  cling: On
+          #  cppyy: Off
+          #
+          #- name: osx-arm-clang-clang13-cling-cppyy
+          #  os: macos-13-arm64
+          #  compiler: clang
+          #  clang-runtime: '13'
+          #  cling: On
+          #  cppyy: Off
 
     steps:
     - uses: actions/checkout@v3
