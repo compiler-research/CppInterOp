@@ -111,7 +111,7 @@ jobs:
             compiler: clang
             clang-runtime: '13'
             cling: On
-            cppyy: Off
+            cppyy: On
 
           #Block commented out until free tier for m1
           #exists (expected sometime 2024) and key for os 
@@ -156,7 +156,7 @@ jobs:
           #  compiler: clang
           #  clang-runtime: '13'
           #  cling: On
-          #  cppyy: Off
+          #  cppyy: On
 
     steps:
     - uses: actions/checkout@v3
@@ -255,6 +255,8 @@ jobs:
       run: |
         #gcc, gnupg and python3 installed on Github runner
         #brew install git gcc gnupg python@3 
+        #Select latest xcode available on macos-13
+        sudo xcode-select -s /Applications/Xcode_15.1.app/Contents/Developer
         brew update
         brew upgrade
         pip install distro pytest
