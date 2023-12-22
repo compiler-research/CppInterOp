@@ -60,6 +60,7 @@ jobs:
             compiler: gcc-9
             clang-runtime: '13'
             cling: On
+            cling-version: '1.0'
             cppyy: Off
             extra_cmake_options: '-DLLVM_USE_LINKER=lld'
 
@@ -68,6 +69,7 @@ jobs:
             compiler: gcc-9
             clang-runtime: '13'
             cling: On
+            cling-version: '1.0'
             cppyy: On
             extra_cmake_options: '-DLLVM_USE_LINKER=lld'
 
@@ -104,6 +106,7 @@ jobs:
             compiler: clang
             clang-runtime: '13'
             cling: On
+            cling-version: '1.0'
             cppyy: Off
 
           - name: osx13-x86-clang-clang13-cling-cppyy
@@ -111,6 +114,7 @@ jobs:
             compiler: clang
             clang-runtime: '13'
             cling: On
+            cling-version: '1.0'
             cppyy: On
 
           #Block commented out until free tier for m1
@@ -149,6 +153,7 @@ jobs:
           #  compiler: clang
           #  clang-runtime: '13'
           #  cling: On
+          #  cling-version: '1.0'
           #  cppyy: Off
           #
           #- name: osx13-arm64-clang-clang13-cling-cppyy
@@ -156,6 +161,7 @@ jobs:
           #  compiler: clang
           #  clang-runtime: '13'
           #  cling: On
+          #  cling-version: '1.0'
           #  cppyy: On
 
     steps:
@@ -278,10 +284,9 @@ jobs:
         os="${{ matrix.os }}"
         cling_on=$(echo "${{ matrix.cling }}" | tr '[:lower:]' '[:upper:]')
         if [[ "${cling_on}" == "ON" ]]; then
-          #FIXME: Need latest version of cling not hardcoded.
           git clone https://github.com/root-project/cling.git
           cd ./cling 
-          git checkout tags/v1.0
+          git checkout tags/v${{ matrix.cling-version }}
           cd ..
           git clone --depth=1 -b cling-llvm${{ matrix.clang-runtime }} https://github.com/root-project/llvm-project.git
         else # repl
