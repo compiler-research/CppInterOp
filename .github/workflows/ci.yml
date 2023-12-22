@@ -416,9 +416,9 @@ jobs:
         cmake --build . --parallel $(nproc --all)
         OS=$(uname -s)
         if [[ "$OS" == "Darwin" ]]; then
-        cp libcppyy-backend.dylib $CPPINTEROP_DIR/lib/
+          cp libcppyy-backend.dylib $CPPINTEROP_DIR/lib/
         else
-        cp libcppyy-backend.so $CPPINTEROP_DIR/lib/
+          cp libcppyy-backend.so $CPPINTEROP_DIR/lib/
         fi
         ##cling_on="${{ matrix.cling }}"
         ##if [[ "${cling_on^^}" == "ON" ]]; then
