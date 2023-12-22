@@ -22,7 +22,7 @@ jobs:
       matrix:
         include:
           - name: ubu22-gcc12-clang-repl-17
-            os: ubuntu-latest
+            os: ubuntu-22.04
             compiler: gcc-12
             clang-runtime: '17'
             cling: Off
@@ -30,7 +30,7 @@ jobs:
             extra_cmake_options: '-DLLVM_USE_LINKER=lld'
 
           - name: ubu22-gcc12-clang-repl-17-cppyy
-            os: ubuntu-latest
+            os: ubuntu-22.04
             compiler: gcc-12
             clang-runtime: '17'
             cling: Off
@@ -38,7 +38,7 @@ jobs:
             extra_cmake_options: '-DLLVM_USE_LINKER=lld'
 
           - name: ubu22-gcc9-clang-repl-16
-            os: ubuntu-latest
+            os: ubuntu-22.04
             compiler: gcc-9
             clang-runtime: '16'
             cling: Off
@@ -47,7 +47,7 @@ jobs:
             extra_cmake_options: '-DLLVM_USE_LINKER=lld'
 
           - name: ubu22-gcc9-clang-repl-16-cppyy
-            os: ubuntu-latest
+            os: ubuntu-22.04
             compiler: gcc-9
             clang-runtime: '16'
             cling: Off
@@ -56,7 +56,7 @@ jobs:
             extra_cmake_options: '-DLLVM_USE_LINKER=lld'
 
           - name: ubu22-gcc9-clang13-cling
-            os: ubuntu-latest
+            os: ubuntu-22.04
             compiler: gcc-9
             clang-runtime: '13'
             cling: On
@@ -64,49 +64,49 @@ jobs:
             extra_cmake_options: '-DLLVM_USE_LINKER=lld'
 
           - name: ubu22-gcc9-clang13-cling-cppyy
-            os: ubuntu-latest
+            os: ubuntu-22.04
             compiler: gcc-9
             clang-runtime: '13'
             cling: On
             cppyy: On
             extra_cmake_options: '-DLLVM_USE_LINKER=lld'
 
-          - name: osx-x86-clang-clang-repl-17
+          - name: osx13-x86-clang-clang-repl-17
             os: macos-13
             compiler: clang
             clang-runtime: '17'
             cling: Off
             cppyy: Off
 
-          - name: osx-x86-clang-clang-repl-17-cppyy
+          - name: osx13-x86-clang-clang-repl-17-cppyy
             os: macos-13
             compiler: clang
             clang-runtime: '17'
             cling: Off
             cppyy: On
 
-          - name: osx-x86-clang-clang-repl-16
+          - name: osx13-x86-clang-clang-repl-16
             os: macos-13
             compiler: clang
             clang-runtime: '16'
             cling: Off
             cppyy: Off
 
-          - name: osx-x86-clang-clang-repl-16-cppyy
+          - name: osx13-x86-clang-clang-repl-16-cppyy
             os: macos-13
             compiler: clang
             clang-runtime: '16'
             cling: Off
             cppyy: On
 
-          - name: osx-x86-clang-clang13-cling
+          - name: osx13-x86-clang-clang13-cling
             os: macos-13
             compiler: clang
             clang-runtime: '13'
             cling: On
             cppyy: Off
 
-          - name: osx-x86-clang-clang13-cling-cppyy
+          - name: osx13-x86-clang-clang13-cling-cppyy
             os: macos-13
             compiler: clang
             clang-runtime: '13'
@@ -116,42 +116,42 @@ jobs:
           #Block commented out until free tier for m1
           #exists (expected sometime 2024) and key for os 
           #can be replaced
-          #- name: osx-arm-clang-clang-repl-17
+          #- name: osx13-arm64-clang-clang-repl-17
           #  os: macos-13-arm64
           #  compiler: clang
           #  clang-runtime: '17'
           #  cling: Off
           #  cppyy: Off
           #
-          #- name: osx-arm-clang-clang-repl-17-cppyy
+          #- name: osx13-arm64-clang-clang-repl-17-cppyy
           #  os: macos-13-arm64
           #  compiler: clang
           #  clang-runtime: '17'
           #  cling: Off
           #  cppyy: On
           #
-          #- name: osx-arm-clang-clang-repl-16
+          #- name: osx13-arm64-clang-clang-repl-16
           #  os: macos-13-arm64
           #  compiler: clang
           #  clang-runtime: '16'
           #  cling: Off
           #  cppyy: Off
           #
-          #- name: osx-arm-clang-clang-repl-16-cppyy
+          #- name: osx13-arm64-clang-clang-repl-16-cppyy
           #  os: macos-13-arm64
           #  compiler: clang
           #  clang-runtime: '16'
           #  cling: Off
           #  cppyy: On
           #
-          #- name: osx-arm-clang-clang13-cling
+          #- name: osx13-arm64-clang-clang13-cling
           #  os: macos-13-arm64
           #  compiler: clang
           #  clang-runtime: '13'
           #  cling: On
           #  cppyy: Off
           #
-          #- name: osx-arm-clang-clang13-cling-cppyy
+          #- name: osx13-arm64-clang-clang13-cling-cppyy
           #  os: macos-13-arm64
           #  compiler: clang
           #  clang-runtime: '13'
