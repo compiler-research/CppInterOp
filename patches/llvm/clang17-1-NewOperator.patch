@@ -1,4 +1,4 @@
-From c5f5ea4b38e7248a404c0e591d16145faeac388f Mon Sep 17 00:00:00 2001
+From a3f213ef4a7e293152c272cce78ad5d10a3ede52 Mon Sep 17 00:00:00 2001
 From: Vassil Vassilev <v.g.vassilev@gmail.com>
 Date: Fri, 22 Dec 2023 08:38:23 +0000
 Subject: [PATCH] [clang-repl] Add a interpreter-specific overload of operator
@@ -40,7 +40,7 @@ index 01858dfcc90ac5..292fa566ae7037 100644
  } // namespace clang
  
 diff --git a/clang/lib/Interpreter/Interpreter.cpp b/clang/lib/Interpreter/Interpreter.cpp
-index c9fcef5b5b5af1..83ca750e299792 100644
+index c9fcef5b5b5af1..9f97a3c6b0be9e 100644
 --- a/clang/lib/Interpreter/Interpreter.cpp
 +++ b/clang/lib/Interpreter/Interpreter.cpp
 @@ -248,7 +248,7 @@ Interpreter::~Interpreter() {
@@ -133,8 +133,8 @@ index c9fcef5b5b5af1..83ca750e299792 100644
 +// definition in the interpreter runtime. We should move it in a runtime header
 +// which gets included by the interpreter and here.
 +struct __clang_Interpreter_NewTag {};
-+void *operator new(__SIZE_TYPE__ __sz, void *__p,
-+                   __clang_Interpreter_NewTag) noexcept {
++REPL_EXTERNAL_VISIBILITY void *
++operator new(size_t __sz, void *__p, __clang_Interpreter_NewTag) noexcept {
 +  // Just forward to the standard operator placement new.
 +  return operator new(__sz, __p);
 +}
