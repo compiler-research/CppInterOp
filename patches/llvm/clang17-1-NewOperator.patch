@@ -1,0 +1,76 @@
+From 0578f4c1582abdc6d4695d5c3c460213d1f02f00 Mon Sep 17 00:00:00 2001
+From: Vassil Vassilev <v.g.vassilev@gmail.com>
+Date: Fri, 22 Dec 2023 08:38:23 +0000
+Subject: [PATCH] [clang-repl] Add a interpreter-specific overload of operator
+ new for C++.
+
+This patch brings back the basic support for C by inserting the required for
+value printing runtime only when we are in C++ mode. Additionally, it defines
+a new overload of operator placement new because we can't really forward declare
+it in a library-agnostic way.
+
+Fixes the issue described in llvm/llvm-project#69072.
+---
+ clang/lib/Interpreter/Interpreter.cpp       | 19 +++++++++++++++++--
+ clang/test/Interpreter/incremental-mode.cpp |  3 ++-
+ 2 files changed, 19 insertions(+), 3 deletions(-)
+
+diff --git a/clang/lib/Interpreter/Interpreter.cpp b/clang/lib/Interpreter/Interpreter.cpp
+index c9fcef5b5b5af1..b94493699f7fb9 100644
+--- a/clang/lib/Interpreter/Interpreter.cpp
++++ b/clang/lib/Interpreter/Interpreter.cpp
+@@ -248,7 +248,7 @@ Interpreter::~Interpreter() {
+ // can't find the precise resource directory in unittests so we have to hard
+ // code them.
+ const char *const Runtimes = R"(
+-    void* operator new(__SIZE_TYPE__, void* __p) noexcept;
++#ifdef __cplusplus
+     void *__clang_Interpreter_SetValueWithAlloc(void*, void*, void*);
+     void __clang_Interpreter_SetValueNoAlloc(void*, void*, void*);
+     void __clang_Interpreter_SetValueNoAlloc(void*, void*, void*, void*);
+@@ -256,15 +256,18 @@ const char *const Runtimes = R"(
+     void __clang_Interpreter_SetValueNoAlloc(void*, void*, void*, double);
+     void __clang_Interpreter_SetValueNoAlloc(void*, void*, void*, long double);
+     void __clang_Interpreter_SetValueNoAlloc(void*,void*,void*,unsigned long long);
++    struct __clang_Interpreter_NewTag{};
++    void* operator new(__SIZE_TYPE__, void* __p, __clang_Interpreter_NewTag) noexcept;
+     template <class T, class = T (*)() /*disable for arrays*/>
+     void __clang_Interpreter_SetValueCopyArr(T* Src, void* Placement, unsigned long Size) {
+       for (auto Idx = 0; Idx < Size; ++Idx)
+-        new ((void*)(((T*)Placement) + Idx)) T(Src[Idx]);
++        new ((void*)(((T*)Placement) + Idx), __clang_Interpreter_NewTag()) T(Src[Idx]);
+     }
+     template <class T, unsigned long N>
+     void __clang_Interpreter_SetValueCopyArr(const T (*Src)[N], void* Placement, unsigned long Size) {
+       __clang_Interpreter_SetValueCopyArr(Src[0], Placement, Size);
+     }
++#endif // __cplusplus
+ )";
+ 
+ llvm::Expected<std::unique_ptr<Interpreter>>
+@@ -814,3 +817,15 @@ __clang_Interpreter_SetValueNoAlloc(void *This, void *OutVal, void *OpaqueType,
+   VRef = Value(static_cast<Interpreter *>(This), OpaqueType);
+   VRef.setLongDouble(Val);
+ }
++
++// A trampoline to work around the fact that operator placement new cannot
++// really be forward declared due to libc++ and libstdc++ declaration mismatch.
++// FIXME: __clang_Interpreter_NewTag is ODR violation because we get the same
++// definition in the interpreter runtime. We should move it in a runtime header
++// which gets included by the interpreter and here.
++struct __clang_Interpreter_NewTag {};
++void *operator new(__SIZE_TYPE__ __sz, void *__p,
++                   __clang_Interpreter_NewTag) noexcept {
++  // Just forward to the standard operator placement new.
++  return operator new(__sz, __p);
++}
+diff --git a/clang/test/Interpreter/incremental-mode.cpp b/clang/test/Interpreter/incremental-mode.cpp
+index e6350d237ef578..d63cee0dd6d15f 100644
+--- a/clang/test/Interpreter/incremental-mode.cpp
++++ b/clang/test/Interpreter/incremental-mode.cpp
+@@ -1,3 +1,4 @@
+ // RUN: clang-repl -Xcc -E
+-// RUN: clang-repl -Xcc -emit-llvm 
++// RUN: clang-repl -Xcc -emit-llvm
++// RUN: clang-repl -Xcc -xc
+ // expected-no-diagnostics
