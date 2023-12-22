@@ -145,6 +145,8 @@ public:
     llvm::InitializeAllAsmPrinters();
 
     std::vector<const char*> vargs(argv + 1, argv + argc);
+    vargs.push_back("-include");
+    vargs.push_back("new");
     inner = compat::createClangInterpreter(vargs);
   }
 
