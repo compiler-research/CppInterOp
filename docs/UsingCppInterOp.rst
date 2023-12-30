@@ -77,7 +77,7 @@ performance and usability.
 1. **CppInterOp enables interoperability with C++ code**: CppInterOp provides a
    minimalist and robust interface for language interoperability on the fly,
    which helps CPPYY generate dynamic Python-C++ bindings by using a C++
-   interpreter (e.g., Clang-REPL/ Cling) and LLVM.
+   interpreter (e.g., Clang-REPL/Cling) and LLVM.
 
 2. **Reducing dependencies**: Reducing domain-specific dependencies of cppyy
    (e.g., on the Cling interpreter and the ROOT framework) to enable more
@@ -96,7 +96,7 @@ performance and usability.
 
 cppyy is a major use case for CppInterOp. cppyy is an automatic run-time
 bindings generator for Python and C++, and supports a wide range of C++
-features (e.g., template instantiation). It operates on demand and generates
+features, including template instantiation. It operates on demand and generates
 only what is necessary. It requires a compiler (Cling or Clang-REPL) that can
 be available during program runtime.
 
@@ -104,8 +104,8 @@ be available during program runtime.
 
 Recent work done on cppyy has been focused on reducing dependencies on
 domain-specific infrastructure (e.g., the ROOT framework). Using an independent
-library such as CppInterOp helps accomplish that, while also reducing the code
-bloat in cppyy.
+library such as CppInterOp helps accomplish that, while also improving the code
+consistency in cppyy.
 
 The CppInterOp library can be configured to use the newly developed Clang-Repl
 backend available in LLVM upstream (or to use the Cling legacy backend, for
@@ -130,8 +130,8 @@ performance in the following ways:
 - *Simpler codebase:* The removal of string parsing logic will lead to a
   simpler code base.
 
-- *Built into the LLVM toolchain:* The CppInterOp interfaces will be part of
-  the LLVM toolchain (as part of Clang-REPL).
+- *Built into the LLVM toolchain:* The CppInterOp depends only on the LLVM
+  toolchain (as part of Clang-REPL).
 
 - *Better C++ Support:* Finer-grained control over template instantiation is
   available through CppInterOp.
@@ -150,7 +150,7 @@ that are working with legacy C++ code and would like to use simpler, more
 interactive languages.
 
 The goal of these enhancements is to eventually land these interoperability
-tools (including CppInterOp) to greater communities like LLVM and Clang, to
+tools (including CppInterOp) to broader communities like LLVM and Clang, to
 enable C++ to interact with other languages besides Python.
 
 Example: Template Instantiation
@@ -177,7 +177,6 @@ Python Interpreter
 ::
 
    >>> import cppyy
-   >>> import cppyy.gbl as Cpp
    >>> cppyy.include("Tmpl.h")
    >>> tmpl = Tmpl[int]()
    >>> tmpl.m_num = 4
