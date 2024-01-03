@@ -553,11 +553,7 @@ TEST(FunctionReflectionTest, IsStaticMethod) {
   EXPECT_TRUE(Cpp::IsStaticMethod(SubDecls[2]));
 }
 
-#ifdef __APPLE__
-TEST(FunctionReflectionTest, DISABLED_GetFunctionAddress) {
-#else
 TEST(FunctionReflectionTest, GetFunctionAddress) {
-#endif
   std::vector<Decl*> Decls, SubDecls;
   std::string code = "int f1(int i) { return i * i; }";
 
