@@ -264,6 +264,11 @@ jobs:
         #Select latest xcode available on macos-13
         sudo xcode-select -s /Applications/Xcode_15.1.app/Contents/Developer
         brew update
+        # workaround for https://github.com/actions/setup-python/issues/577
+        for pkg in $(brew list | grep '^python@'); do
+          brew unlink "$pkg"
+          brew link --overwrite "$pkg"
+        done
         brew upgrade
         pip install distro pytest
 
