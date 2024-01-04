@@ -445,6 +445,7 @@ namespace Cpp {
   /// GetResourceDir() function.
   void AddIncludePath(const char *dir);
 
+  /// Get Include Paths
   void GetIncludePath(const char *dir, std::vector <std::string> &includePaths);
 
   /// Only Declares a code snippet in \c code and does not execute it.

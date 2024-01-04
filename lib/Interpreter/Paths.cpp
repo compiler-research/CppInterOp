@@ -7,8 +7,9 @@
 // LICENSE.TXT for details.
 //------------------------------------------------------------------------------
 
+#include "Paths.h"
+
 #include "clang/Basic/FileManager.h"
-#include "clang/Interpreter/Paths.h"
 #include "clang/Lex/HeaderSearchOptions.h"
 
 #include "llvm/Support/Debug.h"

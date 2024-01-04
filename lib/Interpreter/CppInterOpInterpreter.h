@@ -6,11 +6,12 @@
 #ifndef CPPINTEROP_INTERPRETER_H
 #define CPPINTEROP_INTERPRETER_H
 
-#include "clang/Interpreter/Compatibility.h"
-#include "clang/Interpreter/DynamicLibraryManager.h"
+#include "Compatibility.h"
+#include "DynamicLibraryManager.h"
+#include "Paths.h"
+
 #include "clang/Interpreter/Interpreter.h"
 #include "clang/Interpreter/PartialTranslationUnit.h"
-#include "clang/Interpreter/Paths.h"
 
 #include "clang/AST/Decl.h"
 #include "clang/AST/DeclarationName.h"
@@ -22,9 +23,9 @@
 #include "clang/Sema/Lookup.h"
 #include "clang/Sema/Sema.h"
 
+#include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/SmallVector.h"
-#include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ExecutionEngine/Orc/LLJIT.h"
 #include "llvm/Support/Compiler.h"
@@ -32,96 +33,97 @@
 #include "llvm/Support/TargetSelect.h"
 
 namespace clang {
-  class CompilerInstance;
+class CompilerInstance;
 }
 
 namespace {
-  template<typename D>
-  static D* LookupResult2Decl(clang::LookupResult& R)
-  {
-    if (R.empty())
-      return nullptr;
+template <typename D> static D* LookupResult2Decl(clang::LookupResult& R) {
+  if (R.empty())
+    return nullptr;
 
-    R.resolveKind();
+  R.resolveKind();
 
-    if (R.isSingleResult())
-      return llvm::dyn_cast<D>(R.getFoundDecl());
-    return (D*)-1;
+  if (R.isSingleResult())
+    return llvm::dyn_cast<D>(R.getFoundDecl());
+  return (D*)-1;
+}
+} // namespace
+
+namespace Cpp {
+namespace utils {
+namespace Lookup {
+
+inline clang::NamespaceDecl* Namespace(clang::Sema* S, const char* Name,
+                                       const clang::DeclContext* Within) {
+  clang::DeclarationName DName = &(S->Context.Idents.get(Name));
+  clang::LookupResult R(*S, DName, clang::SourceLocation(),
+                        clang::Sema::LookupNestedNameSpecifierName);
+  R.suppressDiagnostics();
+  if (!Within)
+    S->LookupName(R, S->TUScope);
+  else {
+    if (const clang::TagDecl* TD = llvm::dyn_cast<clang::TagDecl>(Within)) {
+      if (!TD->getDefinition()) {
+        // No definition, no lookup result.
+        return nullptr;
+      }
+    }
+    S->LookupQualifiedName(R, const_cast<clang::DeclContext*>(Within));
+  }
+
+  if (R.empty())
+    return nullptr;
+
+  R.resolveKind();
+
+  return llvm::dyn_cast<clang::NamespaceDecl>(R.getFoundDecl());
+}
+
+inline void Named(clang::Sema* S, clang::LookupResult& R,
+                  const clang::DeclContext* Within = nullptr) {
+  R.suppressDiagnostics();
+  if (!Within)
+    S->LookupName(R, S->TUScope);
+  else {
+    const clang::DeclContext* primaryWithin = nullptr;
+    if (const clang::TagDecl* TD = llvm::dyn_cast<clang::TagDecl>(Within)) {
+      primaryWithin =
+          llvm::dyn_cast_or_null<clang::DeclContext>(TD->getDefinition());
+    } else {
+      primaryWithin = Within->getPrimaryContext();
+    }
+    if (!primaryWithin) {
+      // No definition, no lookup result.
+      return;
+    }
+    S->LookupQualifiedName(R, const_cast<clang::DeclContext*>(primaryWithin));
   }
 }
 
-namespace Cpp {
-  namespace utils {
-    namespace Lookup {
+inline clang::NamedDecl* Named(clang::Sema* S,
+                               const clang::DeclarationName& Name,
+                               const clang::DeclContext* Within = nullptr) {
+  clang::LookupResult R(*S, Name, clang::SourceLocation(),
+                        clang::Sema::LookupOrdinaryName,
+                        clang::Sema::ForVisibleRedeclaration);
+  Named(S, R, Within);
+  return LookupResult2Decl<clang::NamedDecl>(R);
+}
 
-  inline clang::NamespaceDecl* Namespace(clang::Sema* S, const char* Name,
-                                         const clang::DeclContext* Within) {
-    clang::DeclarationName DName = &(S->Context.Idents.get(Name));
-    clang::LookupResult R(*S, DName, clang::SourceLocation(),
-                   clang::Sema::LookupNestedNameSpecifierName);
-    R.suppressDiagnostics();
-    if (!Within)
-      S->LookupName(R, S->TUScope);
-    else {
-      if (const clang::TagDecl* TD = llvm::dyn_cast<clang::TagDecl>(Within)) {
-        if (!TD->getDefinition()) {
-          // No definition, no lookup result.
-          return nullptr;
-        }
-      }
-      S->LookupQualifiedName(R, const_cast<clang::DeclContext*>(Within));
-    }
+inline clang::NamedDecl* Named(clang::Sema* S, llvm::StringRef Name,
+                               const clang::DeclContext* Within = nullptr) {
+  clang::DeclarationName DName = &S->Context.Idents.get(Name);
+  return Named(S, DName, Within);
+}
 
-    if (R.empty())
-      return nullptr;
+inline clang::NamedDecl* Named(clang::Sema* S, const char* Name,
+                               const clang::DeclContext* Within = nullptr) {
+  return Named(S, llvm::StringRef(Name), Within);
+}
 
-    R.resolveKind();
-
-    return llvm::dyn_cast<clang::NamespaceDecl>(R.getFoundDecl());
-  }
-
-  inline void Named(clang::Sema* S, clang::LookupResult& R,
-                    const clang::DeclContext* Within = nullptr) {
-    R.suppressDiagnostics();
-    if (!Within)
-      S->LookupName(R, S->TUScope);
-    else {
-      const clang::DeclContext* primaryWithin = nullptr;
-      if (const clang::TagDecl *TD = llvm::dyn_cast<clang::TagDecl>(Within)) {
-        primaryWithin = llvm::dyn_cast_or_null<clang::DeclContext>(TD->getDefinition());
-      } else {
-        primaryWithin = Within->getPrimaryContext();
-      }
-      if (!primaryWithin) {
-        // No definition, no lookup result.
-        return;
-      }
-      S->LookupQualifiedName(R, const_cast<clang::DeclContext*>(primaryWithin));
-    }
-  }
-
-  inline clang::NamedDecl* Named(clang::Sema* S, const clang::DeclarationName& Name,
-                                 const clang::DeclContext* Within = nullptr) {
-    clang::LookupResult R(*S, Name, clang::SourceLocation(), clang::Sema::LookupOrdinaryName,
-                          clang::Sema::ForVisibleRedeclaration);
-    Named(S, R, Within);
-    return LookupResult2Decl<clang::NamedDecl>(R);
-  }
-
-  inline clang::NamedDecl* Named(clang::Sema* S, llvm::StringRef Name,
-                                 const clang::DeclContext* Within = nullptr) {
-    clang::DeclarationName DName = &S->Context.Idents.get(Name);
-    return Named(S, DName, Within);
-  }
-
-  inline clang::NamedDecl* Named(clang::Sema* S, const char* Name,
-                                 const clang::DeclContext* Within = nullptr) {
-    return Named(S, llvm::StringRef(Name), Within);
-  }
-
-    } // Lookup
-  }  // utils
-} // CppInterOp
+} // namespace Lookup
+} // namespace utils
+} // namespace Cpp
 
 namespace Cpp {
 
@@ -132,18 +134,20 @@ private:
   std::unique_ptr<clang::Interpreter> inner;
 
 public:
-  Interpreter(int argc, const char* const *argv,
-              const char* llvmdir = 0,
-              const std::vector<std::shared_ptr<clang::ModuleFileExtension>>& moduleExtensions = {},
-              void *extraLibHandle = 0, bool noRuntime = true) {
-      // Initialize all targets (required for device offloading)
-      llvm::InitializeAllTargetInfos();
-      llvm::InitializeAllTargets();
-      llvm::InitializeAllTargetMCs();
-      llvm::InitializeAllAsmPrinters();
+  Interpreter(int argc, const char* const* argv, const char* llvmdir = 0,
+              const std::vector<std::shared_ptr<clang::ModuleFileExtension>>&
+                  moduleExtensions = {},
+              void* extraLibHandle = 0, bool noRuntime = true) {
+    // Initialize all targets (required for device offloading)
+    llvm::InitializeAllTargetInfos();
+    llvm::InitializeAllTargets();
+    llvm::InitializeAllTargetMCs();
+    llvm::InitializeAllAsmPrinters();
 
-      std::vector<const char*> vargs(argv + 1, argv + argc);
-      inner = compat::createClangInterpreter(vargs);
+    std::vector<const char*> vargs(argv + 1, argv + argc);
+    vargs.push_back("-include");
+    vargs.push_back("new");
+    inner = compat::createClangInterpreter(vargs);
   }
 
   ~Interpreter() {}
@@ -154,35 +158,29 @@ public:
   ///\brief Describes the return result of the different routines that do the
   /// incremental compilation.
   ///
-  enum CompilationResult {
-    kSuccess,
-    kFailure,
-    kMoreInputExpected
-  };
+  enum CompilationResult { kSuccess, kFailure, kMoreInputExpected };
 
-  const clang::CompilerInstance *getCompilerInstance() const {
+  const clang::CompilerInstance* getCompilerInstance() const {
     return inner->getCompilerInstance();
   }
 
-  const llvm::orc::LLJIT *getExecutionEngine() const {
+  const llvm::orc::LLJIT* getExecutionEngine() const {
     return compat::getExecutionEngine(*inner);
   }
 
-  llvm::Expected<clang::PartialTranslationUnit &> Parse(llvm::StringRef Code) {
+  llvm::Expected<clang::PartialTranslationUnit&> Parse(llvm::StringRef Code) {
     return inner->Parse(Code);
   }
 
-  llvm::Error Execute(clang::PartialTranslationUnit &T) {
+  llvm::Error Execute(clang::PartialTranslationUnit& T) {
     return inner->Execute(T);
   }
 
-  llvm::Error ParseAndExecute(llvm::StringRef Code, clang::Value * V = nullptr) {
+  llvm::Error ParseAndExecute(llvm::StringRef Code, clang::Value* V = nullptr) {
     return inner->ParseAndExecute(Code, V);
   }
 
-  llvm::Error Undo(unsigned N = 1) {
-    return compat::Undo(*inner, N);
-  }
+  llvm::Error Undo(unsigned N = 1) { return compat::Undo(*inner, N); }
 
   void makeEngineOnce() const {
     static bool make_engine_once = true;
@@ -226,8 +224,8 @@ public:
   }
 
   bool isInSyntaxOnlyMode() const {
-    return getCompilerInstance()->getFrontendOpts().ProgramAction
-      == clang::frontend::ParseSyntaxOnly;
+    return getCompilerInstance()->getFrontendOpts().ProgramAction ==
+           clang::frontend::ParseSyntaxOnly;
   }
 
   // FIXME: Mangle GD and call the other overload.
@@ -244,7 +242,8 @@ public:
     if (isInSyntaxOnlyMode())
       return nullptr;
 
-    auto addressOrErr = getSymbolAddressFromLinkerName(SymName); //TODO: Or getSymbolAddress
+    auto addressOrErr =
+        getSymbolAddressFromLinkerName(SymName); // TODO: Or getSymbolAddress
     if (addressOrErr)
       return addressOrErr->toPtr<void*>();
 
@@ -252,8 +251,8 @@ public:
     return nullptr;
   }
 
-  CompilationResult
-  declare(const std::string& input, clang::PartialTranslationUnit **PTU = nullptr) {
+  CompilationResult declare(const std::string& input,
+                            clang::PartialTranslationUnit** PTU = nullptr) {
     auto PTUOrErr = Parse(input);
     if (!PTUOrErr) {
       llvm::logAllUnhandledErrors(PTUOrErr.takeError(), llvm::errs(),
@@ -268,10 +267,9 @@ public:
   ///\brief Maybe transform the input line to implement cint command line
   /// semantics (declarations are global) and compile to produce a module.
   ///
-  CompilationResult
-  process(const std::string& input, clang::Value* V = 0,
-          clang::PartialTranslationUnit **PTU = nullptr,
-          bool disableValuePrinting = false) {
+  CompilationResult process(const std::string& input, clang::Value* V = 0,
+                            clang::PartialTranslationUnit** PTU = nullptr,
+                            bool disableValuePrinting = false) {
     clang::PartialTranslationUnit* ParsePTU = nullptr;
     if (declare(input, &ParsePTU))
       return Interpreter::kFailure;
@@ -280,16 +278,17 @@ public:
       *PTU = ParsePTU;
 
     if (auto Err = Execute(*ParsePTU)) {
-      llvm::logAllUnhandledErrors(std::move(Err), llvm::errs(), "Failed to execute via ::process:");
+      llvm::logAllUnhandledErrors(std::move(Err), llvm::errs(),
+                                  "Failed to execute via ::process:");
       return Interpreter::kFailure;
     }
     return Interpreter::kSuccess;
   }
 
-  CompilationResult
-  evaluate(const std::string& input, clang::Value& V) {
+  CompilationResult evaluate(const std::string& input, clang::Value& V) {
     if (auto Err = ParseAndExecute(input, &V)) {
-      llvm::logAllUnhandledErrors(std::move(Err), llvm::errs(), "Failed to execute via ::evaluate:");
+      llvm::logAllUnhandledErrors(std::move(Err), llvm::errs(),
+                                  "Failed to execute via ::evaluate:");
       return Interpreter::kFailure;
     }
     return Interpreter::kSuccess;
@@ -310,8 +309,8 @@ public:
       }
     }
 
-    clang::LangOptions& LO
-      = const_cast<clang::LangOptions&>(getCompilerInstance()->getLangOpts());
+    clang::LangOptions& LO =
+        const_cast<clang::LangOptions&>(getCompilerInstance()->getLangOpts());
     bool SavedAccessControl = LO.AccessControl;
     LO.AccessControl = withAccessControl;
 
@@ -327,26 +326,25 @@ public:
     return getAddressOfGlobal(name);
   }
 
-  const clang::CompilerInstance *getCI() const {
-    return getCompilerInstance();
-  }
+  const clang::CompilerInstance* getCI() const { return getCompilerInstance(); }
 
-  clang::Sema& getSema() const {
-    return getCI()->getSema();
-  }
+  clang::Sema& getSema() const { return getCI()->getSema(); }
 
   const DynamicLibraryManager* getDynamicLibraryManager() const {
     assert(compat::getExecutionEngine(*inner) && "We must have an executor");
-    static const DynamicLibraryManager *DLM = new DynamicLibraryManager();
-    return DLM;
-    //TODO: Add DLM to InternalExecutor and use executor->getDML()
+    static std::unique_ptr<DynamicLibraryManager> DLM = nullptr;
+    if (!DLM) {
+      DLM.reset(new DynamicLibraryManager());
+      DLM->initializeDyld([](llvm::StringRef) { /*ignore*/ return false; });
+    }
+    return DLM.get();
+    // TODO: Add DLM to InternalExecutor and use executor->getDML()
     //      return inner->getExecutionEngine()->getDynamicLibraryManager();
   }
 
   DynamicLibraryManager* getDynamicLibraryManager() {
     return const_cast<DynamicLibraryManager*>(
-      const_cast<const Interpreter*>(this)->getDynamicLibraryManager()
-    );
+        const_cast<const Interpreter*>(this)->getDynamicLibraryManager());
   }
 
   ///\brief Adds multiple include paths separated by a delimter.
@@ -357,7 +355,7 @@ public:
   void AddIncludePaths(llvm::StringRef PathsStr, const char* Delim = ":") {
     const clang::CompilerInstance* CI = getCompilerInstance();
     clang::HeaderSearchOptions& HOpts =
-      const_cast<clang::HeaderSearchOptions&>(CI->getHeaderSearchOpts());
+        const_cast<clang::HeaderSearchOptions&>(CI->getHeaderSearchOpts());
 
     // Save the current number of entries
     size_t Idx = HOpts.UserEntries.size();
@@ -373,8 +371,9 @@ public:
     for (const size_t N = HOpts.UserEntries.size(); Idx < N; ++Idx) {
       const clang::HeaderSearchOptions::Entry& E = HOpts.UserEntries[Idx];
       if (auto DE = FM.getOptionalDirectoryRef(E.Path))
-        HSearch.AddSearchPath(clang::DirectoryLookup(*DE, clang::SrcMgr::C_User, isFramework),
-                              E.Group == clang::frontend::Angled);
+        HSearch.AddSearchPath(
+            clang::DirectoryLookup(*DE, clang::SrcMgr::C_User, isFramework),
+            E.Group == clang::frontend::Angled);
     }
   }
 
@@ -384,36 +383,16 @@ public:
     return AddIncludePaths(PathsStr, nullptr);
   }
 
-  ///\brief Returns multiple include paths separated by a delimter.
-  ///
-  ///\param[in] includePaths - Store Path(s)
-  ///\param[in] PathsStr - Path(s)
-  ///\param[in] Delim - Delimiter to separate paths or NULL if a single path
-  ///
-  void GetIncludePaths(std::vector<std::string> &includePaths, llvm::StringRef PathsStr, const char* Delim = ":") {
-    const clang::CompilerInstance* CI = getCompilerInstance();
-    clang::HeaderSearchOptions& HOpts =
-      const_cast<clang::HeaderSearchOptions&>(CI->getHeaderSearchOpts());
-
-    Cpp::utils::GetIncludePaths(includePaths, PathsStr, HOpts, Delim);
-  }
-
-  ///\brief Returns a single include path (-I).
-  ///
-  void GetIncludePath(llvm::StringRef PathsStr, std::vector<std::string> &includePaths) {
-    return GetIncludePaths(includePaths, PathsStr, nullptr);
-  }
-
-  CompilationResult
-  loadLibrary(const std::string& filename, bool lookup) {
+  CompilationResult loadLibrary(const std::string& filename, bool lookup) {
     DynamicLibraryManager* DLM = getDynamicLibraryManager();
     std::string canonicalLib;
     if (lookup)
       canonicalLib = DLM->lookupLibrary(filename);
 
-    const std::string &library = lookup ? canonicalLib : filename;
+    const std::string& library = lookup ? canonicalLib : filename;
     if (!library.empty()) {
-      switch (DLM->loadLibrary(library, /*permanent*/false, /*resolved*/true)) {
+      switch (
+          DLM->loadLibrary(library, /*permanent*/ false, /*resolved*/ true)) {
       case DynamicLibraryManager::kLoadLibSuccess: // Intentional fall through
       case DynamicLibraryManager::kLoadLibAlreadyLoaded:
         return kSuccess;
@@ -428,13 +407,34 @@ public:
     return kMoreInputExpected;
   }
 
+ ///\brief Returns multiple include paths separated by a delimter.
+ ///
+ ///\param[in] includePaths - Store Path(s)
+ ///\param[in] PathsStr - Path(s)
+ ///\param[in] Delim - Delimiter to separate paths or NULL if a single path
+ ///
+ void GetIncludePaths(std::vector<std::string> &includePaths, llvm::StringRef PathsStr, const char* Delim = ":") {
+   const clang::CompilerInstance* CI = getCompilerInstance();
+   clang::HeaderSearchOptions& HOpts =
+     const_cast<clang::HeaderSearchOptions&>(CI->getHeaderSearchOpts());
+
+
+   Cpp::utils::GetIncludePaths(includePaths, PathsStr, HOpts, Delim);
+ }
+
+ ///\brief Returns a single include path (-I).
+ ///
+ void GetIncludePath(llvm::StringRef PathsStr, std::vector<std::string> &includePaths) {
+   return GetIncludePaths(includePaths, PathsStr, nullptr);
+ }
+
   std::string toString(const char* type, void* obj) {
     assert(0 && "toString is not implemented!");
     std::string ret;
-    return ret; //TODO: Implement
+    return ret; // TODO: Implement
   }
 
-  }; //Interpreter
-} //CppInterOp
+}; // Interpreter
+} // namespace Cpp
 
-#endif //CPPINTEROP_INTERPRETER_H
+#endif // CPPINTEROP_INTERPRETER_H

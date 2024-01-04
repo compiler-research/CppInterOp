@@ -7,8 +7,9 @@
 // LICENSE.TXT for details.
 //------------------------------------------------------------------------------
 
-#include "clang/Interpreter/Compatibility.h"
 #include "clang/Interpreter/CppInterOp.h"
+
+#include "Compatibility.h"
 
 #include "clang/AST/CXXInheritance.h"
 #include "clang/AST/Decl.h"
