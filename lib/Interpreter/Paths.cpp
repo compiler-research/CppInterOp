@@ -416,7 +416,6 @@ void AddIncludePaths(llvm::StringRef PathStr,
                          clang::HeaderSearchOptions& HOpts,
                          const char* Delim /* = Cpp::utils::platform::kEnvDelim */) {
 #define DEBUG_TYPE "AddIncludePaths"
-
   llvm::SmallVector<llvm::StringRef, 10> Paths;
   if (Delim && *Delim)
     SplitPaths(PathStr, Paths, kAllowNonExistant, Delim, HOpts.Verbose);
@@ -447,6 +446,35 @@ void AddIncludePaths(llvm::StringRef PathStr,
   }
 
 #undef  DEBUG_TYPE
+}
+
+void GetIncludePaths(
+    std::vector<std::string>& includePaths, llvm::StringRef PathStr,
+    clang::HeaderSearchOptions& HOpts,
+    const char* Delim /* = Cpp::utils::platform::kEnvDelim */) {
+#define DEBUG_TYPE "GetIncludePaths"
+  const int val = 10;
+  llvm::SmallVector<llvm::StringRef, val> Paths;
+  if ((Delim != nullptr) && (*Delim != 0))
+    SplitPaths(PathStr, Paths, kAllowNonExistant, Delim, HOpts.Verbose);
+  else
+    Paths.push_back(PathStr);
+
+  // Avoid duplicates
+  llvm::SmallVector<llvm::StringRef, val> PathsChecked;
+  for (llvm::StringRef Path : Paths) {
+    bool Exists = false;
+    for (const clang::HeaderSearchOptions::Entry& E : HOpts.UserEntries) {
+      if ((E.Path == Path))
+        Exists = true;
+      break;
+    }
+    if (!Exists) {
+      PathsChecked.push_back(Path);
+      includePaths.push_back((std::string)Path);
+    }
+  }
+#undef DEBUG_TYPE
 }
 
 } // namespace utils

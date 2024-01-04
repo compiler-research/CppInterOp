@@ -84,3 +84,11 @@ TEST(InterpreterTest, CreateInterpreter) {
   EXPECT_TRUE(Cpp::GetNamed("cpp17"));
   EXPECT_FALSE(Cpp::GetNamed("cppUnknown"));
 }
+
+TEST(InterpreterTest, GetIncludePath) {
+    std::vector <std::string> includePaths;
+    const char* dir = Cpp::GetResourceDir();
+    Cpp::AddIncludePath(dir);
+    Cpp::GetIncludePath(dir, includePaths);
+    EXPECT_TRUE(includePaths.size() > 0);
+}

@@ -158,6 +158,19 @@ void CopyIncludePaths(const clang::HeaderSearchOptions& Opts,
 ///
 void DumpIncludePaths(const clang::HeaderSearchOptions& Opts,
                       llvm::raw_ostream& Out, bool WithSystem, bool WithFlags);
+
+///\brief Get multiple include paths separated by a delimter into the
+/// given HeaderSearchOptions. This helps us to store the include paths in
+/// a vector, includePaths.
+///
+///\param[in] includePaths - Store the include paths
+///\param[in] PathStr - Path(s)
+///\param[in] HOpts - HeaderSearchOptions to add paths into
+///\param[in] Delim - Delimiter to separate paths or NULL if a single path
+///
+void GetIncludePaths(std::vector<std::string>& includePaths,
+                     llvm::StringRef PathStr, clang::HeaderSearchOptions& HOpts,
+                     const char* Delim = Cpp::utils::platform::kEnvDelim);
 } // namespace utils
 } // namespace Cpp
 
