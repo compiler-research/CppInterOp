@@ -58,20 +58,30 @@ goals of CppInterOp is to stay backward compatible and be adopted in the High
 framework. Over time, parts of the Root framework can be swapped by this API,
  adding speed and resilience with it.
 
-### Build Instructions for Linux
-Build instructions for CppInterOp and its dependencies are as follows.
+### Build Instructions for Unix Systems
+Build instructions for CppInterOp and its dependencies are as follows. CppInterOP can be built with either Cling and Clang-REPL, so instructions will differ slightly depending on which option you would like to build, but should be clear from the section title which instructions to follow.
 
-#### Setup Clang-REPL
-Clone and checkout the LLVM project repository.
+#### Clone CppInterOp and cppyy-backend
+First clone the CppInterOp repository, as this contains patches that need to be applied to the subsequently cloned llvm-project repo (if building CppInterOP with Clang-REPL)
 ```
-git clone https://github.com/llvm/llvm-project.git
-git checkout release/16.x
+git clone --depth=1 https://github.com/compiler-research/CppInterOp.git
+```
+and clone cppyy-backend repository where we will be installing the CppInterOp library
+```
+git clone --depth=1 https://github.com/compiler-research/cppyy-backend.git
+```
+
+#### Setup Clang-REPL 
+Clone the 17.x release of the LLVM project repository.
+```
+git clone --depth=1 --branch release/17.x https://github.com/llvm/llvm-project.git
+cd llvm-project
 ```
 Get the following patches required for development work.
 ```
-compgen -G "../patches/llvm/clang16-*.patch" > /dev/null && find ../patches/llvm/clang16-*.patch -printf "%f\n" && git apply ../patches/llvm/clang16-*.patch
+compgen -G "../CppInterOp/patches/llvm/clang17-*.patch" > /dev/null && find ../CppInterOp/patches/llvm/clang17-*.patch -printf "%f\n" && git apply ../CppInterOp/patches/llvm/clang17-*.patch
 ```
-##### Build Clang
+##### Build Clang-REPL
 Clang-REPL is an interpreter that CppInterOp works alongside. Build Clang (and 
 Clang-REPL along with it).
 ```
@@ -94,28 +104,8 @@ cd ../
 export LLVM_DIR=$PWD
 cd ../
 ```
-Next, use the following export commands.
-```
-export CB_PYTHON_DIR="$PWD/cppyy-backend/python"
-export CPPINTEROP_DIR="$CB_PYTHON_DIR/cppyy_backend"
-```
-#### Build 'LLVM-Project' related dependencies
-Following steps are required to help build CppInterOp alongside the 
-LLVM-Project.
-```
-mkdir build && cd build
-export CPPINTEROP_BUILD_DIR=$PWD
-cmake -DCMAKE_BUILD_TYPE=Release  \
-                -DUSE_CLING=OFF             \
-                -DUSE_REPL=ON               \
-                -DLLVM_DIR=$LLVM_BUILD_DIR  \
-                -DLLVM_USE_LINKER=lld       \
-                -DBUILD_SHARED_LIBS=ON      \
-                -DCMAKE_INSTALL_PREFIX=$CPPINTEROP_DIR \
-                ../
-cmake --build . --target install --parallel $(nproc --all)
-```
-#### Build Cling related dependencies
+
+#### Build Cling and related dependencies
 Besides the Clang-REPL interpreter, CppInterOp also works alongside the Cling 
 interpreter. Cling depends on its own customised version of `llvm-project`, 
 hosted under the `root-project` (see the git path below). 
@@ -123,8 +113,8 @@ Use the following build instructions.
 ```
 git clone --depth=1 https://github.com/root-project/cling.git
 git clone --depth=1 -b cling-llvm13 https://github.com/root-project/llvm-project.git
-cd llvm-project
-mkdir build && cd build
+mkdir llvm-project/build
+cd llvm-project/build
 cmake -DLLVM_ENABLE_PROJECTS=clang                \
     -DLLVM_EXTERNAL_PROJECTS=cling                \
     -DLLVM_EXTERNAL_CLING_SOURCE_DIR=../../cling  \
@@ -147,20 +137,125 @@ cd ../
 export LLVM_DIR=$PWD
 cd ../
 ```
-Next, export the following directory.
+
+#### Environment variables 
+Regardless of whether you are building CppInterOP with Cling or Clang-REPL you will need to define the following Envirnoment variables (as they clear for a new session, it is recommended that you add these to your .bashrc in linux, or your .bash_profile if on MacOS)
 ```
-export CPPINTEROP_DIR=$PWD/cppyy-backend/python/cppyy_backend
+export CB_PYTHON_DIR="$PWD/cppyy-backend/python"
+export CPPINTEROP_DIR="$CB_PYTHON_DIR/cppyy_backend"
+export CPLUS_INCLUDE_PATH="${CPLUS_INCLUDE_PATH}:${LLVM_DIR}/llvm/include:${LLVM_DIR}/clang/include:${LLVM_DIR}/build/include:${LLVM_DIR}/build/tools/clang/include"
+export PYTHONPATH=$PYTHONPATH:$CPYCPPYY_DIR:$CB_PYTHON_DIR
 ```
+
 #### Build CppInterOp
-Finally, clone the CppInterOp repository.
+Now CppInterOp can be installed
 ```
-git clone https://github.com/compiler-research/CppInterOp.git
-cd CppInterOp
-mkdir build && cd build
-CPPINTEROP_BUILD_DIR=$(PWD)
-Execute the following.
+mkdir CppInterOp/build/
+cd CppInterOp/build/
+```
+
+Now if you want to build CppInterOp with Clang-REPL then execute the following commands
+```
 cmake -DBUILD_SHARED_LIBS=ON -DUSE_CLING=ON -DUSE_REPL=Off -DCling_DIR=$LLVM_DIR/build -DCMAKE_INSTALL_PREFIX=$CPPINTEROP_DIR ..
-cmake --build . --target install
+cmake --build . --target install --parallel $(nproc --all)
+```
+If alternatively you would like to install CppInterOp with clang then execute the following commands
+```
+cmake -DBUILD_SHARED_LIBS=ON -DUSE_CLING=ON -DUSE_REPL=Off -DCling_DIR=$LLVM_DIR/build -DCMAKE_INSTALL_PREFIX=$CPPINTEROP_DIR ..
+cmake --build . --target install --parallel $(nproc --all)
+```
+
+#### Testing CppInterOp 
+To test the built CppInterOp execute the following command in the CppInterOP build folder
+```
+cmake --build . --target check-cppinterop --parallel $(nproc --all)
+```
+Now go back to the top level directory in which your building CppInterOP
+```
+cd ../..
+```
+Now you are in a position to install cppyy following the instructions below.
+
+#### Building and Install cppyy-backend
+
+Clone the repo, build it and copy library files into `python/cppyy-backend` directory:
+
+```
+git clone --depth=1 https://github.com/compiler-research/cppyy-backend.git
+cd cppyy-backend
+mkdir -p python/cppyy_backend/lib build 
+cd build
+cmake -DCppInterOp_DIR=$CPPINTEROP_DIR ..
+cmake --build .
+```
+If on a linux system now execute the following command
+```
+cp libcppyy-backend.so ../python/cppyy_backend/lib/
+```
+and if on MacOS execute the following command
+```
+cp libcppyy-backend.dylib ../python/cppyy_backend/lib/
+```
+
+Note down the path to `cppyy-backend/python` directory as "CB_PYTHON_DIR":
+```
+cd ../python
+export CB_PYTHON_DIR=$PWD
+cd ../..
+```
+
+#### Install CPyCppyy
+
+Create virtual environment and activate it:
+```
+python3 -m venv .venv
+source .venv/bin/activate
+```
+
+```
+git clone --depth=1 https://github.com/compiler-research/CPyCppyy.git
+mkdir CPyCppyy/build
+cd CPyCppyy/build
+cmake ..
+cmake --build .
+```
+
+Note down the path to the `build` directory as `CPYCPPYY_DIR`:
+```
+export CPYCPPYY_DIR=$PWD
+cd ../..
+```
+
+#### Install cppyy
+
+```
+git clone --depth=1 https://github.com/compiler-research/cppyy.git
+cd cppyy
+python -m pip install --upgrade . --no-deps
+cd ..
+```
+
+#### Run cppyy
+
+Each time you want to run cppyy you need to:
+Activate the virtual environment
+```
+source .venv/bin/activate
+```
+
+Now you can `import cppyy` in `python`
+```
+python -c "import cppyy"
+```
+
+#### Run cppyy tests
+
+**Follow the steps in Run cppyy.** Change to the test directory, make the library files and run pytest:
+```
+cd cppyy/test
+make all
+python -m pip install pytest
+python -m pytest -sv
 ```
 
 ---
