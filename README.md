@@ -139,7 +139,7 @@ cd ../
 ```
 
 #### Environment variables 
-Regardless of whether you are building CppInterOP with Cling or Clang-REPL you will need to define the following Envirnoment variables (as they clear for a new session, it is recommended that you add these to your .bashrc in linux, or your .bash_profile if on MacOS)
+Regardless of whether you are building CppInterOP with Cling or Clang-REPL you will need to define the following Envirnoment variables (as they clear for a new session, it is recommended that you also add these to your .bashrc in linux, or your .bash_profile if on MacOS)
 ```
 export CB_PYTHON_DIR="$PWD/cppyy-backend/python"
 export CPPINTEROP_DIR="$CB_PYTHON_DIR/cppyy_backend"
@@ -159,7 +159,7 @@ Now if you want to build CppInterOp with Clang-REPL then execute the following c
 cmake -DBUILD_SHARED_LIBS=ON -DUSE_CLING=ON -DUSE_REPL=Off -DCling_DIR=$LLVM_DIR/build -DCMAKE_INSTALL_PREFIX=$CPPINTEROP_DIR ..
 cmake --build . --target install --parallel $(nproc --all)
 ```
-If alternatively you would like to install CppInterOp with clang then execute the following commands
+If alternatively you would like to install CppInterOp with Cling then execute the following commands
 ```
 cmake -DBUILD_SHARED_LIBS=ON -DUSE_CLING=ON -DUSE_REPL=Off -DCling_DIR=$LLVM_DIR/build -DCMAKE_INSTALL_PREFIX=$CPPINTEROP_DIR ..
 cmake --build . --target install --parallel $(nproc --all)
