@@ -197,10 +197,8 @@ and if on MacOS execute the following command
 cp libcppyy-backend.dylib ../python/cppyy_backend/lib/
 ```
 
-Note down the path to `cppyy-backend/python` directory as "CB_PYTHON_DIR":
+Note go back to the top level build directory
 ```
-cd ../python
-export CB_PYTHON_DIR=$PWD
 cd ../..
 ```
 
