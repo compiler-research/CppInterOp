@@ -146,6 +146,10 @@ export CPPINTEROP_DIR="$CB_PYTHON_DIR/cppyy_backend"
 export CPLUS_INCLUDE_PATH="${CPLUS_INCLUDE_PATH}:${LLVM_DIR}/llvm/include:${LLVM_DIR}/clang/include:${LLVM_DIR}/build/include:${LLVM_DIR}/build/tools/clang/include"
 export PYTHONPATH=$PYTHONPATH:$CPYCPPYY_DIR:$CB_PYTHON_DIR
 ```
+If on MacOS you will also need the following envirnoment variable defined
+```
+export SDKROOT=`xcrun --show-sdk-path`
+```
 
 #### Build CppInterOp
 Now CppInterOp can be installed
