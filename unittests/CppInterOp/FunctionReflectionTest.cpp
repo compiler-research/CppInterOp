@@ -592,11 +592,7 @@ TEST(FunctionReflectionTest, IsVirtualMethod) {
   EXPECT_FALSE(Cpp::IsVirtualMethod(Decls[0]));
 }
 
-#ifdef __APPLE__
-TEST(FunctionReflectionTest, DISABLED_JitCallAdvanced) {
-#else
 TEST(FunctionReflectionTest, JitCallAdvanced) {
-#endif
   std::vector<Decl*> Decls;
   std::string code = R"(
       typedef struct _name {
@@ -617,11 +613,8 @@ TEST(FunctionReflectionTest, JitCallAdvanced) {
   Cpp::Destruct(object, Decls[1]);
 }
 
-#ifdef __APPLE__
-TEST(FunctionReflectionTest, DISABLED_GetFunctionCallWrapper) {
-#else
+
 TEST(FunctionReflectionTest, GetFunctionCallWrapper) {
-#endif
   std::vector<Decl*> Decls;
   std::string code = R"(
     int f1(int i) { return i * i; }
@@ -784,11 +777,7 @@ TEST(FunctionReflectionTest, GetFunctionArgDefault) {
   EXPECT_EQ(Cpp::GetFunctionArgDefault(Decls[1], 2), "34126");
 }
 
-#ifdef __APPLE__
-TEST(FunctionReflectionTest, DISABLED_Construct) {
-#else
 TEST(FunctionReflectionTest, Construct) {
-#endif
   Cpp::CreateInterpreter();
 
   Interp->declare(R"(
@@ -822,11 +811,7 @@ TEST(FunctionReflectionTest, Construct) {
   EXPECT_EQ(output, "Constructor Executed");
 }
 
-#ifdef __APPLE__
-TEST(FunctionReflectionTest, DISABLED_Destruct) {
-#else
 TEST(FunctionReflectionTest, Destruct) {
-#endif
   Cpp::CreateInterpreter();
 
   Interp->declare(R"(

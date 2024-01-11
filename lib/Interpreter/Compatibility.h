@@ -216,10 +216,16 @@ getSymbolAddress(clang::Interpreter& I, clang::GlobalDecl GD) {
 }
 
 inline llvm::Expected<llvm::JITTargetAddress>
-getSymbolAddressFromLinkerName(const clang::Interpreter& I,
+getSymbolAddressFromLinkerName(clang::Interpreter& I,
                                llvm::StringRef LinkerName) {
 #if CLANG_VERSION_MAJOR >= 14
-  auto AddrOrErr = I.getSymbolAddressFromLinkerName(LinkerName);
+  const auto& DL = getExecutionEngine(I)->getDataLayout();
+  char GlobalPrefix = DL.getGlobalPrefix();
+  std::string LinkerNameTmp(LinkerName);
+  if (GlobalPrefix != '\0') {
+    LinkerNameTmp = std::string(1, GlobalPrefix) + LinkerNameTmp;
+  }
+  auto AddrOrErr = I.getSymbolAddressFromLinkerName(LinkerNameTmp);
   if (llvm::Error Err = AddrOrErr.takeError())
     return std::move(Err);
   return AddrOrErr->getValue();

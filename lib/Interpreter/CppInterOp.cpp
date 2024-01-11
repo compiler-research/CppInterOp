@@ -2661,7 +2661,13 @@ namespace Cpp {
     // Let's inject it.
     SymbolMap::iterator It;
     llvm::orc::SymbolMap InjectedSymbols;
-    auto Name = ES.intern(linker_mangled_name);
+    auto& DL = compat::getExecutionEngine(I)->getDataLayout();
+    char GlobalPrefix = DL.getGlobalPrefix();
+    std::string tmp(linker_mangled_name);
+    if (GlobalPrefix != '\0') {
+      tmp = std::string(1, GlobalPrefix) + tmp;
+    }
+    auto Name = ES.intern(tmp);
     InjectedSymbols[Name] =
 #if CLANG_VERSION_MAJOR < 17
         JITEvaluatedSymbol(address,

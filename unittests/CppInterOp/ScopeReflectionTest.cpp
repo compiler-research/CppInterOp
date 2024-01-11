@@ -99,11 +99,8 @@ TEST(ScopeReflectionTest, SizeOf) {
   EXPECT_EQ(Cpp::SizeOf(Decls[7]), (size_t)16);
 }
 
-#ifdef __APPLE__
-TEST(ScopeReflectionTest, DISABLED_IsBuiltin) {
-#else
+
 TEST(ScopeReflectionTest, IsBuiltin) {
-#endif
   // static std::set<std::string> g_builtins =
   // {"bool", "char", "signed char", "unsigned char", "wchar_t", "short", "unsigned short",
   //  "int", "unsigned int", "long", "unsigned long", "long long", "unsigned long long",
@@ -433,11 +430,7 @@ TEST(ScopeReflectionTest, GetScopefromCompleteName) {
   EXPECT_EQ(Cpp::GetQualifiedName(Cpp::GetScopeFromCompleteName("N1::N2::C::S")), "N1::N2::C::S");
 }
 
-#ifdef __APPLE__
-TEST(ScopeReflectionTest, DISABLED_GetNamed) {
-#else
 TEST(ScopeReflectionTest, GetNamed) {
-#endif
   std::string code = R"(namespace N1 {
                         namespace N2 {
                           class C {
@@ -761,11 +754,7 @@ TEST(ScopeReflectionTest, InstantiateNNTPClassTemplate) {
                                                 /*type_size*/ args1.size()));
 }
 
-#ifdef __APPLE__
-TEST(ScopeReflectionTest, DISABLED_InstantiateTemplateFunctionFromString) {
-#else
 TEST(ScopeReflectionTest, InstantiateTemplateFunctionFromString) {
-#endif
   Cpp::CreateInterpreter();
   std::string code = R"(#include <memory>)";
   Interp->process(code);
@@ -905,11 +894,8 @@ TEST(ScopeReflectionTest, GetClassTemplateInstantiationArgs) {
   EXPECT_TRUE(instance_types.size() == 0);
 }
 
-#ifdef __APPLE__
-TEST(ScopeReflectionTest, DISABLED_IncludeVector) {
-#else
+
 TEST(ScopeReflectionTest, IncludeVector) {
-#endif
   std::string code = R"(
     #include <vector>
     #include <iostream>
