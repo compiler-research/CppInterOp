@@ -11,11 +11,7 @@ static int printf_jit(const char* format, ...) {
   return 0;
 }
 
-#ifdef __APPLE__
-TEST(JitTest, DISABLED_InsertOrReplaceJitSymbol) {
-#else
 TEST(JitTest, InsertOrReplaceJitSymbol) {
-#endif
   std::vector<Decl*> Decls;
   std::string code = R"(
     extern "C" int printf(const char*,...);

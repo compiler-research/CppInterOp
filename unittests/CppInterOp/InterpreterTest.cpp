@@ -49,11 +49,7 @@ TEST(InterpreterTest, Evaluate) {
   EXPECT_FALSE(HadError) ;
 }
 
-#ifdef __APPLE__ //Fails for Cling Tests
-TEST(InterpreterTest, DISABLED_Process) {
-#else
 TEST(InterpreterTest, Process) {  
-#endif
   Cpp::CreateInterpreter();
   EXPECT_TRUE(Cpp::Process("") == 0);
   EXPECT_TRUE(Cpp::Process("int a = 12;") == 0);
