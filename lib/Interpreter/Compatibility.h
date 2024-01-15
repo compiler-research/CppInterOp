@@ -16,6 +16,7 @@
 #include "llvm/Config/llvm-config.h"
 #include "llvm/ExecutionEngine/JITSymbol.h"
 #include "llvm/ExecutionEngine/Orc/LLJIT.h"
+#include "llvm/Support/Casting.h"
 #include "llvm/Support/Path.h"
 
 #ifdef USE_CLING
@@ -169,7 +170,7 @@ inline void maybeMangleDeclName(const clang::GlobalDecl& GD,
 
 #if defined(_WIN32)
   // MicrosoftMangle.cpp:954 calls llvm_unreachable when mangling Dtor_Comdat
-  if (isa<clang::CXXDestructorDecl>(GD.getDecl()) &&
+  if (llvm::isa<clang::CXXDestructorDecl>(GD.getDecl()) &&
       GD.getDtorType() == clang::Dtor_Comdat) {
     if (const clang::IdentifierInfo* II = D->getIdentifier())
       RawStr << II->getName();
