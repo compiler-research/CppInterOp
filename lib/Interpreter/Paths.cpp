@@ -91,15 +91,13 @@ bool GetSystemLibraryPaths(llvm::SmallVectorImpl<std::string>& Paths) {
   return true;
 }
 
-#define PATH_MAXC (PATH_MAX+1)
-
 std::string NormalizePath(const std::string& Path) {
- char Buf[PATH_MAXC];
-  if (const char* Result = ::realpath(Path.c_str(), Buf))
-    return std::string(Result);
 
-  ::perror("realpath");
-  return std::string();
+  llvm::SmallVector<char, 256> Buffer;
+  std::error_code EC = llvm::sys::fs::real_path(Path, Buffer, true);
+  if (EC)
+    return std::string();
+  return std::string(Buffer.data());
 }
 
 static void DLErr(std::string* Err) {
