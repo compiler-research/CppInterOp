@@ -1084,7 +1084,8 @@ namespace Cpp {
       auto GD = GlobalDecl(VD);
       std::string mangledName;
       compat::maybeMangleDeclName(GD, mangledName);
-      auto address = dlsym(/*whole_process=*/0, mangledName.c_str());
+      void* address = llvm::sys::DynamicLibrary::SearchForAddressOfSymbol(
+          mangledName.c_str());
       auto &I = getInterp();
       if (!address)
         address = I.getAddressOfGlobal(GD);
