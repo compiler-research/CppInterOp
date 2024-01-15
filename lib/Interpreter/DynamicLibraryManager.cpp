@@ -449,7 +449,8 @@ namespace Cpp {
     // do its work.
     // TODO: Fix the code upstream and consider going back to calling the
     // convenience function after a future LLVM upgrade.
-    std::ifstream in(libFullPath.str(), std::ios::binary);
+    std::string path = libFullPath.str();
+    std::ifstream in(path, std::ios::binary);
     char header[1024] = {0};
     in.read(header, sizeof(header));
     if (in.fail()) {
