@@ -30,7 +30,6 @@
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_os_ostream.h"
 
-#include <dlfcn.h>
 #include <sstream>
 #include <string>
 
@@ -38,6 +37,7 @@
 #ifdef WIN32
 #include <io.h>
 #else
+#include <dlfcn.h>
 #include <unistd.h>
 #endif // WIN32
 
