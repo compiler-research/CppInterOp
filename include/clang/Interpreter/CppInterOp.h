@@ -462,7 +462,7 @@ namespace Cpp {
 
   /// Looks up the library if access is enabled.
   ///\returns the path to the library.
-  const std::string LookupLibrary(const char *lib_name);
+  std::string LookupLibrary(const char* lib_name);
 
   /// Finds \c lib_stem considering the list of search paths and loads it by
   /// calling dlopen.
