@@ -47,9 +47,9 @@ std::string NormalizePath(const std::string& Path);
 ///
 /// \returns the library handle
 ///
-const void* DLOpen(const std::string& Path, std::string* Err = nullptr);
+void* DLOpen(const std::string& Path, std::string* Err = nullptr);
 
-const void* DLSym(const std::string& Name, std::string* Err = nullptr);
+void* DLSym(const std::string& Name, std::string* Err = nullptr);
 
 ///\brief Close a handle to a shared library.
 ///
@@ -58,7 +58,7 @@ const void* DLSym(const std::string& Name, std::string* Err = nullptr);
 ///
 /// \returns the library handle
 ///
-void DLClose(const void* Lib, std::string* Err = nullptr);
+void DLClose(void* Lib, std::string* Err = nullptr);
 } // namespace platform
 
 ///\brief Replace all $TOKENS in a string with environent variable values.
