@@ -13,6 +13,7 @@
 #include "clang/Lex/HeaderSearchOptions.h"
 
 #include "llvm/Support/Debug.h"
+#include "llvm/Support/DynamicLibrary.h"
 #include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Path.h"
@@ -102,6 +103,7 @@ std::string NormalizePath(const std::string& Path) {
   return std::string(Buffer.data());
 }
 
+#if defined(LLVM_ON_UNIX)
 static void DLErr(std::string* Err) {
   if (!Err)
     return;
@@ -134,6 +136,21 @@ void DLClose(void* Lib, std::string* Err /* = nullptr*/) {
   ::dlclose(Lib);
   DLErr(Err);
 }
+#elif defined(_WIN32)
+
+void* DLOpen(const std::string& Path, std::string* Err /* = nullptr */) {
+  auto lib = llvm::sys::DynamicLibrary::getLibrary(Path.c_str(), Err);
+  return lib.getOSSpecificHandle();
+}
+
+void DLClose(void* Lib, std::string* Err /* = nullptr*/) {
+  auto dl = llvm::sys::DynamicLibrary(Lib);
+  llvm::sys::DynamicLibrary::closeLibrary(dl);
+  if (Err) {
+    *Err = std::string();
+  }
+}
+#endif
 
 } // namespace platform
 
