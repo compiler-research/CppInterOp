@@ -34,8 +34,11 @@ set(link_libs
   clangFrontend
   clangLex
   clangSema
-  dl
   )
+
+ if(NOT WIN32)
+  list(APPEND link_libs dl)
+ endif()
 
 # Get rid of libLLVM-X.so which is appended to the list of static libraries.
 if (LLVM_LINK_LLVM_DYLIB)
