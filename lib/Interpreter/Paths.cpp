@@ -65,7 +65,7 @@ bool GetSystemLibraryPaths(llvm::SmallVectorImpl<std::string>& Paths) {
   Paths.push_back("/usr/lib64/");
   Paths.push_back("/lib64/");
  #endif
-#else
+#elif defined(LLVM_ON_UNIX)
   llvm::SmallString<1024> Buf;
   platform::Popen("LD_DEBUG=libs LD_PRELOAD=DOESNOTEXIST ls", Buf, true);
   const llvm::StringRef Result = Buf.str();
