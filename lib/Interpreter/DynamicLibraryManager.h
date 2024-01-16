@@ -52,7 +52,7 @@ public:
   using SearchPathInfos = llvm::SmallVector<SearchPathInfo, 32>;
 
 private:
-  typedef const void* DyLibHandle;
+  typedef void* DyLibHandle;
   typedef llvm::DenseMap<DyLibHandle, std::string> DyLibs;
   ///\brief DynamicLibraries loaded by this Interpreter.
   ///

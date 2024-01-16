@@ -109,17 +109,17 @@ static void DLErr(std::string* Err) {
     *Err = DyLibError;
 }
 
-const void* DLOpen(const std::string& Path, std::string* Err /* = nullptr */) {
+void* DLOpen(const std::string& Path, std::string* Err /* = nullptr */) {
   void* Lib = ::dlopen(Path.c_str(), RTLD_LAZY|RTLD_GLOBAL);
   DLErr(Err);
   return Lib;
 }
 
-const void* DLSym(const std::string& Name, std::string* Err /* = nullptr*/) {
-  if (const void* Self = ::dlopen(nullptr, RTLD_GLOBAL)) {
+void* DLSym(const std::string& Name, std::string* Err /* = nullptr*/) {
+  if (void* Self = ::dlopen(nullptr, RTLD_GLOBAL)) {
     // get dlopen error if there is one
     DLErr(Err);
-    const void* Sym = ::dlsym(const_cast<void*>(Self), Name.c_str());
+    void* Sym = ::dlsym(Self, Name.c_str());
     // overwrite error if dlsym caused one
     DLErr(Err);
     // only get dlclose error if dlopen & dlsym haven't emited one
@@ -130,8 +130,8 @@ const void* DLSym(const std::string& Name, std::string* Err /* = nullptr*/) {
   return nullptr;
 }
 
-void DLClose(const void* Lib, std::string* Err /* = nullptr*/) {
-  ::dlclose(const_cast<void*>(Lib));
+void DLClose(void* Lib, std::string* Err /* = nullptr*/) {
+  ::dlclose(Lib);
   DLErr(Err);
 }
 
