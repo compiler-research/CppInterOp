@@ -17,7 +17,9 @@
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Path.h"
 
+#if defined(LLVM_ON_UNIX)
 #include <dlfcn.h>
+#endif
 
 namespace Cpp {
 namespace utils {
