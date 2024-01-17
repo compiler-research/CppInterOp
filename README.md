@@ -77,15 +77,23 @@ Clone the 17.x release of the LLVM project repository.
 git clone --depth=1 --branch release/17.x https://github.com/llvm/llvm-project.git
 cd llvm-project
 ```
-Get the following patches required for development work.
+Get the following patches required for development work. To apply these patches on Linux and MacOS execute the following command
 ```
-compgen -G "../CppInterOp/patches/llvm/clang17-*.patch" > /dev/null && find ../CppInterOp/patches/llvm/clang17-*.patch -printf "%f\n" && git apply ../CppInterOp/patches/llvm/clang17-*.patch
+git apply -v ..\patches\llvm\clang${{ matrix.clang-runtime }}-*.patch
 ```
+and
+```
+cp -r ..\patches\llvm\clang17*
+git apply -v clang17-1-NewOperator.patch
+```
+on Windows.
 ##### Build Clang-REPL
 Clang-REPL is an interpreter that CppInterOp works alongside. Build Clang (and 
-Clang-REPL along with it).
+Clang-REPL along with it). On Linux and MaxOS you do this by executing the following
+command
 ```
-mkdir build && cd build
+mkdir build \
+cd build \
 cmake -DLLVM_ENABLE_PROJECTS=clang                  \
                 -DLLVM_TARGETS_TO_BUILD="host;NVPTX"          \
                 -DCMAKE_BUILD_TYPE=Release                    \
@@ -98,18 +106,40 @@ cmake -DLLVM_ENABLE_PROJECTS=clang                  \
                 ../llvm
 cmake --build . --target clang clang-repl --parallel $(nproc --all)
 ```
-Note the 'llvm-project' directory location.
+On Windows you would do this by executing the following
+```
+$env:ncpus = %NUMBER_OF_PROCESSORS%
+mkdir build `
+cd build `
+cmake   -DLLVM_ENABLE_PROJECTS=clang                  `
+        -DLLVM_TARGETS_TO_BUILD="host;NVPTX"          `
+        -DCMAKE_BUILD_TYPE=Release                    `
+        -DLLVM_ENABLE_ASSERTIONS=ON                   `
+        -DCLANG_ENABLE_STATIC_ANALYZER=OFF            `
+        -DCLANG_ENABLE_ARCMT=OFF                      `
+        -DCLANG_ENABLE_FORMAT=OFF                     `
+        -DCLANG_ENABLE_BOOTSTRAP=OFF                  `
+        ../llvm
+        cmake --build . --target clang clang-repl --parallel $env:ncpus
+```
+Note the 'llvm-project' directory location. On linux and MacOS you execute the following
 ```
 cd ../
 export LLVM_DIR=$PWD
 cd ../
+```
+On Windows you execute the following
+```
+cd ..\
+$env:LLVM_DIR= $PWD.Path
+cd ..\
 ```
 
 #### Build Cling and related dependencies
 Besides the Clang-REPL interpreter, CppInterOp also works alongside the Cling 
 interpreter. Cling depends on its own customised version of `llvm-project`, 
 hosted under the `root-project` (see the git path below). 
-Use the following build instructions.
+Use the following build instructions to build on Linux and MacOS
 ```
 git clone --depth=1 https://github.com/root-project/cling.git
 git clone --depth=1 -b cling-llvm13 https://github.com/root-project/llvm-project.git
@@ -131,15 +161,46 @@ cmake --build . --target clang --parallel $(nproc --all)
 cmake --build . --target cling --parallel $(nproc --all)
 cmake --build . --target gtest_main --parallel $(nproc --all)
 ```
-Note the 'llvm-project' directory location.
+Use the following build instructions to build on Windows
+```
+git clone --depth=1 https://github.com/root-project/cling.git
+git clone --depth=1 -b cling-llvm13 https://github.com/root-project/llvm-project.git
+$env:ncpus = %NUMBER_OF_PROCESSORS%
+$env:PWD_DIR= $PWD.Path
+$env:CLING_DIR="$env:PWD_DIR\cling"
+mkdir llvm-project\build
+cd llvm-project\build
+cmake   -DLLVM_ENABLE_PROJECTS=clang                  `
+        -DLLVM_EXTERNAL_PROJECTS=cling                `
+        -DLLVM_EXTERNAL_CLING_SOURCE_DIR="$env:CLING_DIR"   `
+        -DLLVM_TARGETS_TO_BUILD="host;NVPTX"          `
+        -DCMAKE_BUILD_TYPE=Release                    `
+        -DLLVM_ENABLE_ASSERTIONS=ON                   `
+        -DCLANG_ENABLE_STATIC_ANALYZER=OFF            `
+        -DCLANG_ENABLE_ARCMT=OFF                      `
+        -DCLANG_ENABLE_FORMAT=OFF                     `
+        -DCLANG_ENABLE_BOOTSTRAP=OFF                  `
+        ../llvm
+cmake --build . --target clang --parallel $env:ncpus
+cmake --build . --target cling --parallel $env:ncpus
+# Now build gtest.a and gtest_main for CppInterOp to run its tests.
+cmake --build . --target gtest_main --parallel $env:ncpus
+```
+Note the 'llvm-project' directory location. On linux and MacOS you execute the following
 ```
 cd ../
 export LLVM_DIR=$PWD
 cd ../
 ```
+On Windows you execute the following
+```
+cd ..\
+$env:LLVM_DIR= $PWD.Path
+cd ..\
+```
 
 #### Environment variables 
-Regardless of whether you are building CppInterOP with Cling or Clang-REPL you will need to define the following Envirnoment variables (as they clear for a new session, it is recommended that you also add these to your .bashrc in linux, or your .bash_profile if on MacOS)
+Regardless of whether you are building CppInterOP with Cling or Clang-REPL you will need to define the following Envirnoment variables (as they clear for a new session, it is recommended that you also add these to your .bashrc in linux, .bash_profile if on MacOS, or profile.ps1 on Windows). On Linux and MacOS you define as follows
 ```
 export CB_PYTHON_DIR="$PWD/cppyy-backend/python"
 export CPPINTEROP_DIR="$CB_PYTHON_DIR/cppyy_backend"
@@ -150,35 +211,65 @@ If on MacOS you will also need the following envirnoment variable defined
 ```
 export SDKROOT=`xcrun --show-sdk-path`
 ```
+On Windows you define as follows (assumes you have defined $env:PWD_DIR= $PWD.Path )
+```
+$env:CB_PYTHON_DIR="$env:PWD_DIR\cppyy-backend\python"
+$env:CPPINTEROP_DIR="$env:CB_PYTHON_DIR\cppyy_backend"
+$env:CPLUS_INCLUDE_PATH="$env:CPLUS_INCLUDE_PATH;$env:LLVM_DIR\llvm\include;$env:LLVM_DIR\clang\include;$env:LLVM_DIR\build\include;$env:LLVM_DIR\build\tools\clang\include"
+$env:PYTHONPATH="$env:PYTHONPATH;$env:CPYCPPYY_DIR;$env:CB_PYTHON_DIR"
+```
 
 #### Build CppInterOp
-Now CppInterOp can be installed
+Now CppInterOp can be installed. On Linux and MacOS execute
 ```
 mkdir CppInterOp/build/
 cd CppInterOp/build/
 ```
+On Windows execute
+```
+mkdir CppInterOp\build\
+cd CppInterOp\build\
+```
 
-Now if you want to build CppInterOp with Clang-REPL then execute the following commands
+Now if you want to build CppInterOp with Clang-REPL then execute the following commands on Linux and MacOS
+```
+cmake -DBUILD_SHARED_LIBS=ON -DUSE_CLING=Off -DUSE_REPL=ON -DCling_DIR=$LLVM_DIR/build -DCMAKE_INSTALL_PREFIX=$CPPINTEROP_DIR ..
+cmake --build . --target install --parallel $(nproc --all)
+```
+and
+```
+cmake -DBUILD_SHARED_LIBS=ON -DUSE_CLING=Off -DUSE_REPL=ON -DCling_DIR=$LLVM_DIR\build -DCMAKE_INSTALL_PREFIX=$env:CPPINTEROP_DIR ..
+cmake --build . --target install --parallel $env:ncpus
+```
+on Windows. If alternatively you would like to install CppInterOp with Cling then execute the following commands on Linux and MacOS
 ```
 cmake -DBUILD_SHARED_LIBS=ON -DUSE_CLING=ON -DUSE_REPL=Off -DCling_DIR=$LLVM_DIR/build -DCMAKE_INSTALL_PREFIX=$CPPINTEROP_DIR ..
 cmake --build . --target install --parallel $(nproc --all)
 ```
-If alternatively you would like to install CppInterOp with Cling then execute the following commands
+and
 ```
-cmake -DBUILD_SHARED_LIBS=ON -DUSE_CLING=ON -DUSE_REPL=Off -DCling_DIR=$LLVM_DIR/build -DCMAKE_INSTALL_PREFIX=$CPPINTEROP_DIR ..
-cmake --build . --target install --parallel $(nproc --all)
+cmake -DBUILD_SHARED_LIBS=ON -DUSE_CLING=ON -DUSE_REPL=Off -DCling_DIR=$LLVM_DIR\build -DCMAKE_INSTALL_PREFIX=$env:CPPINTEROP_DIR ..
+cmake --build . --target install --parallel $env:ncpus
 ```
 
 #### Testing CppInterOp 
-To test the built CppInterOp execute the following command in the CppInterOP build folder
+To test the built CppInterOp execute the following command in the CppInterOP build folder on Linux and MacOS
 ```
 cmake --build . --target check-cppinterop --parallel $(nproc --all)
 ```
-Now go back to the top level directory in which your building CppInterOP
+and
+```
+cmake --build . --target check-cppinterop --parallel $env:ncpus
+```
+on Windows. Now go back to the top level directory in which your building CppInterOP. On Linux and MacOS you do this by executing
 ```
 cd ../..
 ```
-Now you are in a position to install cppyy following the instructions below.
+and
+```
+cd ..\..
+```
+on Windows. Now you are in a position to install cppyy following the instructions below.
 
 #### Building and Install cppyy-backend
 

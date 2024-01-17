@@ -206,6 +206,9 @@ if( CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR )
 
   endif()
 
+  ##Replace \ with / in LLVM_DIR (attempt to fix path parsing issue Windows)
+  string(REPLACE "\\" "/" LLVM_DIR "${LLVM_DIR}")
+
   # When in debug mode the llvm package thinks it is built with -frtti.
   # For consistency we should set it to the correct value.
   set(LLVM_CONFIG_HAS_RTTI NO CACHE BOOL "" FORCE)

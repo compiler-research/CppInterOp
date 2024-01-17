@@ -4,10 +4,10 @@ index 863f6ac57..feb6db113 100644
 +++ b/clang/include/clang/AST/Decl.h
 @@ -4308,6 +4308,7 @@ class TopLevelStmtDecl : public Decl {
    friend class ASTDeclWriter;
-
+ 
    Stmt *Statement = nullptr;
 +  bool IsSemiMissing = false;
-
+ 
    TopLevelStmtDecl(DeclContext *DC, SourceLocation L, Stmt *S)
        : Decl(TopLevelStmt, DC, L), Statement(S) {}
 @@ -4321,6 +4322,12 @@ public:
@@ -20,7 +20,7 @@ index 863f6ac57..feb6db113 100644
 +  }
 +  bool isSemiMissing() const { return IsSemiMissing; }
 +  void setSemiMissing(bool Missing = true) { IsSemiMissing = Missing; }
-
+ 
    static bool classof(const Decl *D) { return classofKind(D->getKind()); }
    static bool classofKind(Kind K) { return K == TopLevelStmt; }
 diff --git a/clang/include/clang/Basic/TokenKinds.def b/clang/include/clang/Basic/TokenKinds.def
@@ -30,7 +30,7 @@ index 96feae991..752629855 100644
 @@ -936,6 +936,9 @@ ANNOTATION(module_end)
  // into the name of a header unit.
  ANNOTATION(header_unit)
-
+ 
 +// Annotation for end of input in clang-repl.
 +ANNOTATION(repl_input_end)
 +
@@ -44,14 +44,14 @@ index fd22af976..e68021845 100644
 @@ -14,13 +14,15 @@
  #ifndef LLVM_CLANG_INTERPRETER_INTERPRETER_H
  #define LLVM_CLANG_INTERPRETER_INTERPRETER_H
-
+ 
 -#include "clang/Interpreter/PartialTranslationUnit.h"
 -
 +#include "clang/AST/Decl.h"
  #include "clang/AST/GlobalDecl.h"
 +#include "clang/Interpreter/PartialTranslationUnit.h"
 +#include "clang/Interpreter/Value.h"
-
+ 
 +#include "llvm/ADT/DenseMap.h"
  #include "llvm/ExecutionEngine/JITSymbol.h"
 +#include "llvm/ExecutionEngine/Orc/Shared/ExecutorAddress.h"
@@ -59,7 +59,7 @@ index fd22af976..e68021845 100644
 -
  #include <memory>
  #include <vector>
-
+ 
 @@ -28,7 +30,7 @@ namespace llvm {
  namespace orc {
  class LLJIT;
@@ -67,12 +67,12 @@ index fd22af976..e68021845 100644
 -}
 +} // namespace orc
  } // namespace llvm
-
+ 
  namespace clang {
 @@ -52,39 +54,64 @@ class Interpreter {
-
+ 
    Interpreter(std::unique_ptr<CompilerInstance> CI, llvm::Error &Err);
-
+ 
 +  llvm::Error CreateExecutor();
 +  unsigned InitPTUSize = 0;
 +
@@ -103,10 +103,10 @@ index fd22af976..e68021845 100644
 -  }
 +  llvm::Error ParseAndExecute(llvm::StringRef Code, Value *V = nullptr);
 +  llvm::Expected<llvm::orc::ExecutorAddr> CompileDtorCall(CXXRecordDecl *CXXRD);
-
+ 
    /// Undo N previous incremental inputs.
    llvm::Error Undo(unsigned N = 1);
-
+ 
 -  /// \returns the \c JITTargetAddress of a \c GlobalDecl. This interface uses
 +  /// Link a dynamic library
 +  llvm::Error LoadDynamicLibrary(const char *name);
@@ -116,13 +116,13 @@ index fd22af976..e68021845 100644
    /// mangled name.
 -  llvm::Expected<llvm::JITTargetAddress> getSymbolAddress(GlobalDecl GD) const;
 +  llvm::Expected<llvm::orc::ExecutorAddr> getSymbolAddress(GlobalDecl GD) const;
-
+ 
 -  /// \returns the \c JITTargetAddress of a given name as written in the IR.
 -  llvm::Expected<llvm::JITTargetAddress>
 +  /// \returns the \c ExecutorAddr of a given name as written in the IR.
 +  llvm::Expected<llvm::orc::ExecutorAddr>
    getSymbolAddress(llvm::StringRef IRName) const;
-
+ 
 -  /// \returns the \c JITTargetAddress of a given name as written in the object
 +  /// \returns the \c ExecutorAddr of a given name as written in the object
    /// file.
@@ -148,7 +148,7 @@ index fd22af976..e68021845 100644
 +  llvm::SmallVector<Expr *, 3> ValuePrintingInfo;
  };
  } // namespace clang
-
+ 
 diff --git a/clang/include/clang/Interpreter/Value.h b/clang/include/clang/Interpreter/Value.h
 new file mode 100644
 index 000000000..4df436703
@@ -377,7 +377,7 @@ index 6f9581b9e..6b73f43a1 100644
 +           Kind == tok::annot_module_end || Kind == tok::annot_module_include ||
 +           Kind == tok::annot_repl_input_end;
    }
-
+ 
    /// Checks if the \p Level is valid for use in a fold expression.
 diff --git a/clang/lib/Frontend/PrintPreprocessedOutput.cpp b/clang/lib/Frontend/PrintPreprocessedOutput.cpp
 index ffa85e523..1b262d9e6 100644
@@ -391,7 +391,7 @@ index ffa85e523..1b262d9e6 100644
 +       !Tok.is(tok::annot_module_begin) && !Tok.is(tok::annot_module_end) &&
 +       !Tok.is(tok::annot_repl_input_end)))
      return;
-
+ 
    // EmittedDirectiveOnThisLine takes priority over RequireSameLine.
 @@ -819,6 +820,9 @@ static void PrintPreprocessedTokens(Preprocessor &PP, Token &Tok,
        // -traditional-cpp the lexer keeps /all/ whitespace, including comments.
@@ -413,7 +413,7 @@ index c49f22fdd..565e824bf 100644
    Interpreter.cpp
 +  InterpreterUtils.cpp
 +  Value.cpp
-
+ 
    DEPENDS
    intrinsics_gen
 diff --git a/clang/lib/Interpreter/IncrementalExecutor.cpp b/clang/lib/Interpreter/IncrementalExecutor.cpp
@@ -423,20 +423,20 @@ index 37d230b61..489ea48e0 100644
 @@ -86,7 +86,7 @@ llvm::Error IncrementalExecutor::runCtors() const {
    return Jit->initialize(Jit->getMainJITDylib());
  }
-
+ 
 -llvm::Expected<llvm::JITTargetAddress>
 +llvm::Expected<llvm::orc::ExecutorAddr>
  IncrementalExecutor::getSymbolAddress(llvm::StringRef Name,
                                        SymbolNameKind NameKind) const {
    auto Sym = (NameKind == LinkerName) ? Jit->lookupLinkerMangled(Name)
 @@ -94,7 +94,7 @@ IncrementalExecutor::getSymbolAddress(llvm::StringRef Name,
-
+ 
    if (!Sym)
      return Sym.takeError();
 -  return Sym->getValue();
 +  return Sym;
  }
-
+ 
  } // end namespace clang
 diff --git a/clang/lib/Interpreter/IncrementalExecutor.h b/clang/lib/Interpreter/IncrementalExecutor.h
 index 54d37c763..dd0a210a0 100644
@@ -447,9 +447,9 @@ index 54d37c763..dd0a210a0 100644
  #include "llvm/ADT/StringRef.h"
  #include "llvm/ExecutionEngine/Orc/ExecutionUtils.h"
 +#include "llvm/ExecutionEngine/Orc/Shared/ExecutorAddress.h"
-
+ 
  #include <memory>
-
+ 
 @@ -51,9 +52,10 @@ public:
    llvm::Error removeModule(PartialTranslationUnit &PTU);
    llvm::Error runCtors() const;
@@ -461,7 +461,7 @@ index 54d37c763..dd0a210a0 100644
 +
 +  llvm::orc::LLJIT &GetExecutionEngine() { return *Jit; }
  };
-
+ 
  } // end namespace clang
 diff --git a/clang/lib/Interpreter/IncrementalParser.cpp b/clang/lib/Interpreter/IncrementalParser.cpp
 index 373e2844b..e43189071 100644
@@ -469,7 +469,7 @@ index 373e2844b..e43189071 100644
 +++ b/clang/lib/Interpreter/IncrementalParser.cpp
 @@ -11,7 +11,6 @@
  //===----------------------------------------------------------------------===//
-
+ 
  #include "IncrementalParser.h"
 -
  #include "clang/AST/DeclContextInternals.h"
@@ -487,9 +487,9 @@ index 373e2844b..e43189071 100644
  #include "llvm/Support/CrashRecoveryContext.h"
  #include "llvm/Support/Error.h"
 @@ -31,6 +30,79 @@
-
+ 
  namespace clang {
-
+ 
 +class IncrementalASTConsumer final : public ASTConsumer {
 +  Interpreter &Interp;
 +  std::unique_ptr<ASTConsumer> Consumer;
@@ -569,7 +569,7 @@ index 373e2844b..e43189071 100644
 @@ -122,7 +194,8 @@ public:
    }
  };
-
+ 
 -IncrementalParser::IncrementalParser(std::unique_ptr<CompilerInstance> Instance,
 +IncrementalParser::IncrementalParser(Interpreter &Interp,
 +                                     std::unique_ptr<CompilerInstance> Instance,
@@ -588,7 +588,7 @@ index 373e2844b..e43189071 100644
        new Parser(CI->getPreprocessor(), CI->getSema(), /*SkipBodies=*/false));
 @@ -158,8 +234,8 @@ IncrementalParser::ParseOrWrapTopLevelDecl() {
    LastPTU.TUPart = C.getTranslationUnitDecl();
-
+ 
    // Skip previous eof due to last incremental input.
 -  if (P->getCurToken().is(tok::eof)) {
 -    P->ConsumeToken();
@@ -609,7 +609,7 @@ index 373e2844b..e43189071 100644
 +    assert(AssertTok.is(tok::annot_repl_input_end) &&
 +           "Lexer must be EOF when starting incremental parse!");
    }
-
+ 
 -  Token AssertTok;
 -  PP.Lex(AssertTok);
 -  assert(AssertTok.is(tok::eof) &&
@@ -619,7 +619,7 @@ index 373e2844b..e43189071 100644
 +
 +  return PTU;
 +}
-
+ 
 +std::unique_ptr<llvm::Module> IncrementalParser::GenModule() {
 +  static unsigned ID = 0;
    if (CodeGenerator *CG = getCodeGen(Act.get())) {
@@ -635,7 +635,7 @@ index 373e2844b..e43189071 100644
 -  return PTU;
 +  return nullptr;
  }
-
+ 
  void IncrementalParser::CleanUpPTU(PartialTranslationUnit &PTU) {
 diff --git a/clang/lib/Interpreter/IncrementalParser.h b/clang/lib/Interpreter/IncrementalParser.h
 index 8e45d6b59..99e37588d 100644
@@ -643,7 +643,7 @@ index 8e45d6b59..99e37588d 100644
 +++ b/clang/lib/Interpreter/IncrementalParser.h
 @@ -16,7 +16,6 @@
  #include "clang/Interpreter/PartialTranslationUnit.h"
-
+ 
  #include "clang/AST/GlobalDecl.h"
 -
  #include "llvm/ADT/ArrayRef.h"
@@ -661,18 +661,18 @@ index 8e45d6b59..99e37588d 100644
  ///
 @@ -57,7 +56,8 @@ class IncrementalParser {
    std::list<PartialTranslationUnit> PTUs;
-
+ 
  public:
 -  IncrementalParser(std::unique_ptr<CompilerInstance> Instance,
 +  IncrementalParser(Interpreter &Interp,
 +                    std::unique_ptr<CompilerInstance> Instance,
                      llvm::LLVMContext &LLVMCtx, llvm::Error &Err);
    ~IncrementalParser();
-
+ 
 @@ -76,6 +76,8 @@ public:
-
+ 
    std::list<PartialTranslationUnit> &getPTUs() { return PTUs; }
-
+ 
 +  std::unique_ptr<llvm::Module> GenModule();
 +
  private:
@@ -685,7 +685,7 @@ index a6f5fdc6e..4391bd008 100644
 @@ -16,7 +16,11 @@
  #include "IncrementalExecutor.h"
  #include "IncrementalParser.h"
-
+ 
 +#include "InterpreterUtils.h"
  #include "clang/AST/ASTContext.h"
 +#include "clang/AST/Mangle.h"
@@ -711,7 +711,7 @@ index a6f5fdc6e..4391bd008 100644
  #include "llvm/Support/Host.h"
 -
  using namespace clang;
-
+ 
  // FIXME: Figure out how to unify with namespace init_convenience from
 @@ -176,7 +184,7 @@ Interpreter::Interpreter(std::unique_ptr<CompilerInstance> CI,
    llvm::ErrorAsOutParameter EAO(&Err);
@@ -721,11 +721,11 @@ index a6f5fdc6e..4391bd008 100644
 +  IncrParser = std::make_unique<IncrementalParser>(*this, std::move(CI),
                                                     *TSCtx->getContext(), Err);
  }
-
+ 
 @@ -189,6 +197,29 @@ Interpreter::~Interpreter() {
    }
  }
-
+ 
 +// These better to put in a runtime header but we can't. This is because we
 +// can't find the precise resource directory in unittests so we have to hard
 +// code them.
@@ -767,11 +767,11 @@ index a6f5fdc6e..4391bd008 100644
 +  Interp->InitPTUSize = Interp->IncrParser->getPTUs().size();
    return std::move(Interp);
  }
-
+ 
 @@ -203,25 +243,53 @@ const CompilerInstance *Interpreter::getCompilerInstance() const {
    return IncrParser->getCI();
  }
-
+ 
 -const llvm::orc::LLJIT *Interpreter::getExecutionEngine() const {
 -  if (IncrExecutor)
 -    return IncrExecutor->getExecutionEngine();
@@ -798,7 +798,7 @@ index a6f5fdc6e..4391bd008 100644
 +  assert(PTUs.size() >= InitPTUSize && "empty PTU list?");
 +  return PTUs.size() - InitPTUSize;
  }
-
+ 
  llvm::Expected<PartialTranslationUnit &>
  Interpreter::Parse(llvm::StringRef Code) {
 +  // Tell the interpreter sliently ignore unused expressions since value
@@ -807,7 +807,7 @@ index a6f5fdc6e..4391bd008 100644
 +      clang::diag::warn_unused_expr, diag::Severity::Ignored, SourceLocation());
    return IncrParser->Parse(Code);
  }
-
+ 
 +llvm::Error Interpreter::CreateExecutor() {
 +  const clang::TargetInfo &TI =
 +      getCompilerInstance()->getASTContext().getTargetInfo();
@@ -834,7 +834,7 @@ index a6f5fdc6e..4391bd008 100644
 @@ -235,7 +303,26 @@ llvm::Error Interpreter::Execute(PartialTranslationUnit &T) {
    return llvm::Error::success();
  }
-
+ 
 -llvm::Expected<llvm::JITTargetAddress>
 +llvm::Error Interpreter::ParseAndExecute(llvm::StringRef Code, Value *V) {
 +
@@ -862,7 +862,7 @@ index a6f5fdc6e..4391bd008 100644
 @@ -245,7 +332,7 @@ Interpreter::getSymbolAddress(GlobalDecl GD) const {
    return getSymbolAddress(MangledName);
  }
-
+ 
 -llvm::Expected<llvm::JITTargetAddress>
 +llvm::Expected<llvm::orc::ExecutorAddr>
  Interpreter::getSymbolAddress(llvm::StringRef IRName) const {
@@ -871,7 +871,7 @@ index a6f5fdc6e..4391bd008 100644
 @@ -255,7 +342,7 @@ Interpreter::getSymbolAddress(llvm::StringRef IRName) const {
    return IncrExecutor->getSymbolAddress(IRName, IncrementalExecutor::IRName);
  }
-
+ 
 -llvm::Expected<llvm::JITTargetAddress>
 +llvm::Expected<llvm::orc::ExecutorAddr>
  Interpreter::getSymbolAddressFromLinkerName(llvm::StringRef Name) const {
@@ -879,7 +879,7 @@ index a6f5fdc6e..4391bd008 100644
      return llvm::make_error<llvm::StringError>("Operation failed. "
 @@ -268,7 +355,7 @@ Interpreter::getSymbolAddressFromLinkerName(llvm::StringRef Name) const {
  llvm::Error Interpreter::Undo(unsigned N) {
-
+ 
    std::list<PartialTranslationUnit> &PTUs = IncrParser->getPTUs();
 -  if (N > PTUs.size())
 +  if (N > getEffectivePTUSize())
@@ -1718,7 +1718,7 @@ index 66168467e..0822f83b5 100644
 +  } else {
 +    CurLexer->FormTokenWithChars(Result, EndPos, tok::eof);
 +  }
-
+ 
    if (isCodeCompletionEnabled()) {
      // Inserting the code-completion point increases the source buffer by 1,
 diff --git a/clang/lib/Parse/ParseCXXInlineMethods.cpp b/clang/lib/Parse/ParseCXXInlineMethods.cpp
@@ -1732,7 +1732,7 @@ index 3a7f5426d..57a3dfba4 100644
 +    case tok::annot_repl_input_end:
        // Ran out of tokens.
        return false;
-
+ 
 @@ -1242,6 +1243,7 @@ bool Parser::ConsumeAndStoreInitializer(CachedTokens &Toks,
      case tok::annot_module_begin:
      case tok::annot_module_end:
@@ -1740,7 +1740,7 @@ index 3a7f5426d..57a3dfba4 100644
 +    case tok::annot_repl_input_end:
        // Ran out of tokens.
        return false;
-
+ 
 diff --git a/clang/lib/Parse/ParseDecl.cpp b/clang/lib/Parse/ParseDecl.cpp
 index e6812ac72..2f193a3b4 100644
 --- a/clang/lib/Parse/ParseDecl.cpp
@@ -1751,10 +1751,10 @@ index e6812ac72..2f193a3b4 100644
      case tok::annot_module_include:
 +    case tok::annot_repl_input_end:
        return;
-
+ 
      default:
 @@ -5394,6 +5395,13 @@ Parser::DeclGroupPtrTy Parser::ParseTopLevelStmtDecl() {
-
+ 
    SmallVector<Decl *, 2> DeclsInGroup;
    DeclsInGroup.push_back(Actions.ActOnTopLevelStmtDecl(R.get()));
 +
@@ -1774,7 +1774,7 @@ index 1c8441faf..d22e1d440 100644
 @@ -543,9 +543,22 @@ StmtResult Parser::ParseExprStatement(ParsedStmtContext StmtCtx) {
      return ParseCaseStatement(StmtCtx, /*MissingCase=*/true, Expr);
    }
-
+ 
 -  // Otherwise, eat the semicolon.
 -  ExpectAndConsumeSemi(diag::err_expected_semi_after_expr);
 -  return handleExprStmt(Expr, StmtCtx);
@@ -1795,7 +1795,7 @@ index 1c8441faf..d22e1d440 100644
 +
 +  return R;
  }
-
+ 
  /// ParseSEHTryBlockCommon
 diff --git a/clang/lib/Parse/Parser.cpp b/clang/lib/Parse/Parser.cpp
 index 6db3dc315..7fbb27057 100644
@@ -1812,7 +1812,7 @@ index 6db3dc315..7fbb27057 100644
 @@ -612,11 +613,6 @@ bool Parser::ParseTopLevelDecl(DeclGroupPtrTy &Result,
                                 Sema::ModuleImportState &ImportState) {
    DestroyTemplateIdAnnotationsRAIIObj CleanupRAII(*this);
-
+ 
 -  // Skip over the EOF token, flagging end of previous input for incremental
 -  // processing
 -  if (PP.isIncrementalProcessingEnabled() && Tok.is(tok::eof))
@@ -1823,7 +1823,7 @@ index 6db3dc315..7fbb27057 100644
    case tok::annot_pragma_unused:
 @@ -695,6 +691,7 @@ bool Parser::ParseTopLevelDecl(DeclGroupPtrTy &Result,
      return false;
-
+ 
    case tok::eof:
 +  case tok::annot_repl_input_end:
      // Check whether -fmax-tokens= was reached.
@@ -1872,7 +1872,7 @@ index b51a18c10..15d7f9439 100644
 +++ b/clang/tools/clang-repl/CMakeLists.txt
 @@ -12,6 +12,7 @@ add_clang_tool(clang-repl
    )
-
+ 
  clang_target_link_libraries(clang-repl PRIVATE
 +  clangAST
    clangBasic
@@ -1893,7 +1893,7 @@ index 401a31d34..33faf3fab 100644
 +        }
 +        continue;
 +      }
-
+ 
        if (auto Err = Interp->ParseAndExecute(*Line)) {
          llvm::logAllUnhandledErrors(std::move(Err), llvm::errs(), "error: ");
 diff --git a/clang/unittests/Interpreter/CMakeLists.txt b/clang/unittests/Interpreter/CMakeLists.txt
@@ -1915,7 +1915,7 @@ index f54c65568..6d0433a98 100644
  #include "llvm/Support/ManagedStatic.h"
  #include "llvm/Support/TargetSelect.h"
 -#include "llvm-c/Error.h"
-
+ 
  #include "gmock/gmock.h"
  #include "gtest/gtest.h"
 @@ -116,7 +115,8 @@ extern "C" int throw_exception() {
@@ -1939,11 +1939,11 @@ index d4900a0e4..330fd18ab 100644
 +#include "clang/Interpreter/Value.h"
  #include "clang/Sema/Lookup.h"
  #include "clang/Sema/Sema.h"
-
+ 
 @@ -33,6 +34,11 @@ using namespace clang;
  #define CLANG_INTERPRETER_NO_SUPPORT_EXEC
  #endif
-
+ 
 +int Global = 42;
 +// JIT reports symbol not found on Windows without the visibility attribute.
 +REPL_EXTERNAL_VISIBILITY int getGlobal() { return Global; }
@@ -1953,7 +1953,7 @@ index d4900a0e4..330fd18ab 100644
  using Args = std::vector<const char *>;
  static std::unique_ptr<Interpreter>
 @@ -225,7 +231,7 @@ TEST(IncrementalProcessing, FindMangledNameSymbol) {
-
+ 
    std::string MangledName = MangleName(FD);
    auto Addr = cantFail(Interp->getSymbolAddress(MangledName));
 -  EXPECT_NE(0U, Addr);
@@ -1964,7 +1964,7 @@ index d4900a0e4..330fd18ab 100644
 @@ -276,8 +282,7 @@ TEST(IncrementalProcessing, InstantiateTemplate) {
    std::vector<const char *> Args = {"-fno-delayed-template-parsing"};
    std::unique_ptr<Interpreter> Interp = createInterpreter(Args);
-
+ 
 -  llvm::cantFail(Interp->Parse("void* operator new(__SIZE_TYPE__, void* __p);"
 -                               "extern \"C\" int printf(const char*,...);"
 +  llvm::cantFail(Interp->Parse("extern \"C\" int printf(const char*,...);"
@@ -1972,7 +1972,7 @@ index d4900a0e4..330fd18ab 100644
                                 "struct B {"
                                 "  template<typename T>"
 @@ -309,9 +314,109 @@ TEST(IncrementalProcessing, InstantiateTemplate) {
-
+ 
    std::string MangledName = MangleName(TmpltSpec);
    typedef int (*TemplateSpecFn)(void *);
 -  auto fn = (TemplateSpecFn)cantFail(Interp->getSymbolAddress(MangledName));
@@ -1981,7 +1981,7 @@ index d4900a0e4..330fd18ab 100644
    EXPECT_EQ(42, fn(NewA));
    free(NewA);
  }
-
+ 
 +#ifdef CLANG_INTERPRETER_NO_SUPPORT_EXEC
 +TEST(InterpreterTest, DISABLED_Value) {
 +#else

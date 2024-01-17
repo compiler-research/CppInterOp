@@ -21,86 +21,157 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: ubu22-gcc12-clang-repl-17
+          - name: ubu22-x86-gcc12-clang-repl-17
             os: ubuntu-22.04
             compiler: gcc-12
             clang-runtime: '17'
             cling: Off
             cppyy: Off
-            extra_cmake_options: '-DLLVM_USE_LINKER=lld'
-
-          - name: ubu22-gcc12-clang-repl-17-cppyy
+            coverage: true
+          - name: ubu22-x86-gcc12-clang-repl-17-cppyy
             os: ubuntu-22.04
             compiler: gcc-12
             clang-runtime: '17'
             cling: Off
             cppyy: On
-            extra_cmake_options: '-DLLVM_USE_LINKER=lld'
-
-          - name: ubu22-gcc9-clang-repl-16
+            coverage: true
+          - name: ubu22-x86-gcc9-clang-repl-16
             os: ubuntu-22.04
             compiler: gcc-9
             clang-runtime: '16'
             cling: Off
             cppyy: Off
             coverage: true
-            extra_cmake_options: '-DLLVM_USE_LINKER=lld'
-
-          - name: ubu22-gcc9-clang-repl-16-cppyy
+          - name: ubu22-x86-gcc9-clang-repl-16-cppyy
             os: ubuntu-22.04
             compiler: gcc-9
             clang-runtime: '16'
             cling: Off
             cppyy: On
             coverage: true
-            extra_cmake_options: '-DLLVM_USE_LINKER=lld'
-
-          - name: ubu22-gcc9-clang13-cling
+          - name: ubu22-x86-gcc9-clang13-cling
             os: ubuntu-22.04
             compiler: gcc-9
             clang-runtime: '13'
             cling: On
             cling-version: '1.0'
             cppyy: Off
-            extra_cmake_options: '-DLLVM_USE_LINKER=lld'
-
-          - name: ubu22-gcc9-clang13-cling-cppyy
+            coverage: true
+          - name: ubu22-x86-gcc9-clang13-cling-cppyy
             os: ubuntu-22.04
             compiler: gcc-9
             clang-runtime: '13'
             cling: On
             cling-version: '1.0'
             cppyy: On
-            extra_cmake_options: '-DLLVM_USE_LINKER=lld'
-
+            coverage: true
+          #Commented out until Ubuntu on arm Github runner becomes available 
+          #os key to be replaced once known
+          #- name: ubu22-arm-gcc12-clang-repl-17
+          #  os: ubuntu-22.04-arm
+          #  compiler: gcc-12
+          #  clang-runtime: '17'
+          #  cling: Off
+          #  cppyy: Off
+          #- name: ubu22-arm-gcc12-clang-repl-17-cppyy
+          #  os: ubuntu-22.04-arm
+          #  compiler: gcc-12
+          #  clang-runtime: '17'
+          #  cling: Off
+          #  cppyy: On
+          #- name: ubu22-arm-gcc9-clang-repl-16
+          #  os: ubuntu-22.04-arm
+          #  compiler: gcc-9
+          #  clang-runtime: '16'
+          #  cling: Off
+          #  cppyy: Off
+          #  coverage: true
+          #- name: ubu22-arm-gcc9-clang-repl-16-cppyy
+          #  os: ubuntu-22.04-arm
+          #  compiler: gcc-9
+          #  clang-runtime: '16'
+          #  cling: Off
+          #  cppyy: On
+          #  coverage: true
+          #- name: ubu22-arm-gcc9-clang13-cling
+          #  os: ubuntu-22.04-arm
+          #  compiler: gcc-9
+          #  clang-runtime: '13'
+          #  cling: On
+          #  cling-version: '1.0'
+          #  cppyy: Off
+          #- name: ubu22-arm-gcc9-clang13-cling-cppyy
+          #  os: ubuntu-22.04-arm
+          #  compiler: gcc-9
+          #  clang-runtime: '13'
+          #  cling: On
+          #  cling-version: '1.0'
+          #  cppyy: On 
+          - name: win2022-msvc-clang-repl-17
+            os: windows-2022
+            compiler: msvc
+            clang-runtime: '17'
+            cling: Off
+            cppyy: Off
+          #Commented out until rest of ci for Windows tested
+          #- name: win2022-msvc-clang-repl-17-cppyy
+          #  os: windows-2022
+          #  compiler: msvc
+          #  clang-runtime: '17'
+          #  cling: Off
+          #  cppyy: On
+          - name: win2022-msvc-clang-repl-16
+            os: windows-2022
+            compiler: msvc
+            clang-runtime: '16'
+            cling: Off
+            cppyy: Off
+          #Commented out until rest of ci for Windows tested
+          #- name: win2022-msvc-clang-repl-16-cppyy
+          #  os: windows-2022
+          #  compiler: msvc
+          #  clang-runtime: '16'
+          #  cling: Off
+          #  cppyy: On
+          - name: win2022-msvc-cling
+            os: windows-2022
+            compiler: msvc
+            clang-runtime: '13'
+            cling: On
+            cling-version: '1.0'
+            cppyy: Off
+          #Commented out until rest of ci for Windows tested
+          #- name: win2022-msvc-cling-cppyy
+          #  os: windows-2022
+          #  compiler: msvc
+          #  clang-runtime: '13'
+          #  cling: On
+          #  cling-version: '1.0'
+          #  cppyy: On
           - name: osx13-x86-clang-clang-repl-17
             os: macos-13
             compiler: clang
             clang-runtime: '17'
             cling: Off
             cppyy: Off
-
           - name: osx13-x86-clang-clang-repl-17-cppyy
             os: macos-13
             compiler: clang
             clang-runtime: '17'
             cling: Off
             cppyy: On
-
           - name: osx13-x86-clang-clang-repl-16
             os: macos-13
             compiler: clang
             clang-runtime: '16'
             cling: Off
             cppyy: Off
-
           - name: osx13-x86-clang-clang-repl-16-cppyy
             os: macos-13
             compiler: clang
             clang-runtime: '16'
             cling: Off
             cppyy: On
-
           - name: osx13-x86-clang-clang13-cling
             os: macos-13
             compiler: clang
@@ -108,7 +179,6 @@ jobs:
             cling: On
             cling-version: '1.0'
             cppyy: Off
-
           - name: osx13-x86-clang-clang13-cling-cppyy
             os: macos-13
             compiler: clang
@@ -116,7 +186,6 @@ jobs:
             cling: On
             cling-version: '1.0'
             cppyy: On
-
           #Block commented out until free tier for m1
           #exists (expected sometime 2024) and key for os 
           #can be replaced
@@ -126,28 +195,24 @@ jobs:
           #  clang-runtime: '17'
           #  cling: Off
           #  cppyy: Off
-          #
           #- name: osx13-arm64-clang-clang-repl-17-cppyy
           #  os: macos-13-arm64
           #  compiler: clang
           #  clang-runtime: '17'
           #  cling: Off
           #  cppyy: On
-          #
           #- name: osx13-arm64-clang-clang-repl-16
           #  os: macos-13-arm64
           #  compiler: clang
           #  clang-runtime: '16'
           #  cling: Off
           #  cppyy: Off
-          #
           #- name: osx13-arm64-clang-clang-repl-16-cppyy
           #  os: macos-13-arm64
           #  compiler: clang
           #  clang-runtime: '16'
           #  cling: Off
           #  cppyy: On
-          #
           #- name: osx13-arm64-clang-clang13-cling
           #  os: macos-13-arm64
           #  compiler: clang
@@ -155,7 +220,6 @@ jobs:
           #  cling: On
           #  cling-version: '1.0'
           #  cppyy: Off
-          #
           #- name: osx13-arm64-clang-clang13-cling-cppyy
           #  os: macos-13-arm64
           #  compiler: clang
@@ -173,7 +237,8 @@ jobs:
       with:
         python-version: '3.10'
 
-    - name: Save PR Info
+    - name: Save PR Info on Unix systems
+      if: ${{ runner.os != 'windows' }}
       run: |
         mkdir -p ./pr
         echo ${{ github.event.number }} > ./pr/NR
@@ -181,14 +246,49 @@ jobs:
 
         cling_on=$(echo "${{ matrix.cling }}" | tr '[:lower:]' '[:upper:]')
         if [[ "$cling_on" == "ON" ]]; then
-          export CLING_HASH=$(git ls-remote https://github.com/root-project/cling.git HEAD| tr '\t' '-')
+          export CLING_HASH=$(git ls-remote https://github.com/root-project/cling.git refs/tags/v${{ matrix.cling-version }} | tr '\t' '-')
+          export LLVM_HASH=$(git ls-remote https://github.com/root-project/llvm-project.git cling-llvm${{ matrix.clang-runtime}} | tr '\t' '-')
         else
           export CLING_HASH="Repl"
+          # May need to revert back to both having same llvm_hash, as below cause llvm to be rebuilt everytime commit is made to llvm/llvm-project for release a.x
+          # which could be quite often for new releases
+          export LLVM_HASH=$(git ls-remote https://github.com/llvm/llvm-project.git refs/heads/release/${{ matrix.clang-runtime}}.x | tr '\t' '-')
         fi
-        # FIXME: We need something like cling-llvm to bump automatically...
-        export LLVM_HASH=$(git ls-remote https://github.com/root-project/llvm-project.git cling-llvm${{ matrix.clang-runtime}} | tr '\t' '-')
+
         echo "CLING_HASH=$CLING_HASH" >> $GITHUB_ENV
         echo "LLVM_HASH=$LLVM_HASH" >> $GITHUB_ENV
+
+    - uses: nelonoel/branch-name@v1.0.1
+
+    - name: Save PR Info on Windows systems
+      if: ${{ runner.os == 'windows' }}
+      run: |
+        #FIXME: CLING AND LLVM HASH currently hardcoded until windows equivalent of unix commands
+        #can be found
+        mkdir  ./pr
+        echo ${{ github.event.number }} > ./pr/NR
+        echo ${{ github.repository }} > ./pr/REPO
+
+        if ( "${{ matrix.cling }}" -imatch "On" )
+        { 
+          $env:CLING_HASH_TEMP = ( git ls-remote https://github.com/root-project/cling.git refs/tags/v${{ matrix.cling-version }} ) 
+          $env:CLING_HASH = $env:CLING_HASH_TEMP -replace "\t","-"
+        }
+        else
+        {
+          $env:CLING_HASH="Repl"
+          # May need to revert back to both having same llvm_hash, as below cause llvm to be rebuilt everytime commit is made to llvm/llvm-project for release a.x
+          # which could be quite often for new releases
+          $env:LLVM_HASH_TEMP = (git ls-remote https://github.com/llvm/llvm-project.git refs/heads/release/${{ matrix.clang-runtime}}.x )
+          $env:LLVM_HASH = $env:LLVM_HASH_TEMP -replace "\t","-"
+        }
+
+        echo "CLING_HASH=$env:CLING_HASH"
+        echo "LLVM_HASH=$env:LLVM_HASH"
+        
+        echo "CLING_HASH=$env:CLING_HASH" >> $GITHUB_ENV
+        echo "LLVM_HASH=$env:LLVM_HASH" >> $GITHUB_ENV
+        
     - uses: nelonoel/branch-name@v1.0.1
 
     - name: Setup default Build Type on *nux
@@ -202,6 +302,14 @@ jobs:
         else
           echo "ncpus=$(nproc --all)" >> $GITHUB_ENV
         fi
+
+    - name: Setup default Build Type on Windows
+      if: runner.os == 'windows'
+      run: |
+        echo "BUILD_TYPE=Release" >> $GITHUB_ENV
+        echo "CODE_COVERAGE=0" >> $GITHUB_ENV
+        echo "ncpus=%NUMBER_OF_PROCESSORS%" 
+        echo "ncpus=%NUMBER_OF_PROCESSORS%" >> $GITHUB_ENV
 
     - name: Setup compiler on Linux
       if: runner.os == 'Linux'
@@ -245,6 +353,31 @@ jobs:
         fi
       env:
         compiler: ${{ matrix.compiler }}
+        
+    #Section slightly modified version of
+    #https://github.com/vgvassilev/clad/blob/40d8bec11bde47b14a281078183a4f6147abeac5/.github/workflows/ci.yml#L510C1-L534C10
+    - name: Setup compiler on Windows
+      if: runner.os == 'windows'
+      run: |
+        if ( "${{ matrix.compiler }}" -imatch "clang" )
+        {
+          $ver="${{ matrix.compiler }}".split("-")[1]
+          choco install llvm --version=$ver --no-progress -my
+          clang --version
+          #
+          $env:CC="clang"
+          $env:CXX="clang++"
+          echo "CC=clang" >> $env:GITHUB_ENV
+          echo "CXX=clang++" >> $env:GITHUB_ENV
+        }
+        elseif ( "${{ matrix.compiler }}" -imatch "msvc" )
+        {
+          # MSVC is builtin in container image
+        }
+        else
+        {
+          echo "Unsupported compiler - fix YAML file"
+        }
 
     - name: Install deps on Linux
       if: runner.os == 'Linux'
@@ -259,10 +392,6 @@ jobs:
     - name: Install deps on MacOS
       if: runner.os == 'macOS'
       run: |
-        #gcc, gnupg and python3 installed on Github runner
-        #brew install git gcc gnupg python@3 
-        #Select latest xcode available on macos-13
-        sudo xcode-select -s /Applications/Xcode_15.1.app/Contents/Developer
         brew update
         # workaround for https://github.com/actions/setup-python/issues/577
         for pkg in $(brew list | grep '^python@'); do
@@ -279,14 +408,11 @@ jobs:
         path: |
           llvm-project
           ${{ matrix.cling=='On' && 'cling' || '' }}
-        #key: ...-.x-patch-${{ hashFiles('patches/llvm/*') }}
-        #key: ${{ env.CLING_HASH }}-${{ env.LLVM_HASH }}-${{ runner.os }}-${{ matrix.os }}-${{ matrix.compiler }}-clang-${{ matrix.clang-runtime }}.x
         key: ${{ env.CLING_HASH }}-${{ runner.os }}-${{ matrix.os }}-${{ matrix.compiler }}-clang-${{ matrix.clang-runtime }}.x-patch-${{ hashFiles(format('patches/llvm/clang{0}-*.patch', matrix.clang-runtime)) || 'none' }}
 
-    - name: Build LLVM/Cling on Unix if the cache is invalid
+    - name: Build LLVM/Cling on Unix systems if the cache is invalid
       if: ${{ runner.os != 'windows' && steps.cache.outputs.cache-hit != 'true' }}
       run: |
-        os="${{ matrix.os }}"
         cling_on=$(echo "${{ matrix.cling }}" | tr '[:lower:]' '[:upper:]')
         if [[ "${cling_on}" == "ON" ]]; then
           git clone https://github.com/root-project/cling.git
@@ -298,19 +424,17 @@ jobs:
           git clone --depth=1 -b release/${{ matrix.clang-runtime }}.x https://github.com/llvm/llvm-project.git
         fi
         cd llvm-project
-        # Apply patches
-        echo "Apply clang${{ matrix.clang-runtime }}-*.patch patches:"
-        compgen -G "../patches/llvm/clang${{ matrix.clang-runtime }}-*.patch" > /dev/null && find ../patches/llvm/clang${{ matrix.clang-runtime }}-*.patch -exec basename {} \; -print -exec git apply {} \;
         # Build
         mkdir build
-        cd build
         if [[ "${cling_on}" == "ON" ]]; then
+          cd build
           cmake -DLLVM_ENABLE_PROJECTS=clang                  \
                 -DLLVM_EXTERNAL_PROJECTS=cling                \
                 -DLLVM_EXTERNAL_CLING_SOURCE_DIR=../../cling  \
                 -DLLVM_TARGETS_TO_BUILD="host;NVPTX"          \
                 -DCMAKE_BUILD_TYPE=Release                    \
                 -DLLVM_ENABLE_ASSERTIONS=ON                   \
+                -DLLVM_ENABLE_LLD=ON                          \
                 -DCLANG_ENABLE_STATIC_ANALYZER=OFF            \
                 -DCLANG_ENABLE_ARCMT=OFF                      \
                 -DCLANG_ENABLE_FORMAT=OFF                     \
@@ -321,10 +445,15 @@ jobs:
           # Now build gtest.a and gtest_main for CppInterOp to run its tests.
           cmake --build . --target gtest_main --parallel ${{ env.ncpus }}
         else
+          # Apply patches
+          git apply -v ../patches/llvm/clang${{ matrix.clang-runtime }}-*.patch
+          echo "Apply clang${{ matrix.clang-runtime }}-*.patch patches:"
+          cd build
           cmake -DLLVM_ENABLE_PROJECTS=clang                  \
                 -DLLVM_TARGETS_TO_BUILD="host;NVPTX"          \
                 -DCMAKE_BUILD_TYPE=Release                    \
                 -DLLVM_ENABLE_ASSERTIONS=ON                   \
+                -DLLVM_ENABLE_LLD=ON                          \
                 -DCLANG_ENABLE_STATIC_ANALYZER=OFF            \
                 -DCLANG_ENABLE_ARCMT=OFF                      \
                 -DCLANG_ENABLE_FORMAT=OFF                     \
@@ -333,6 +462,79 @@ jobs:
           cmake --build . --target clang clang-repl --parallel ${{ env.ncpus }}
         fi
         cd ../../
+
+    - name: Build LLVM/Cling on Windows systems if the cache is invalid
+      if: ${{ runner.os == 'windows' && steps.cache.outputs.cache-hit != 'true' }}
+      run: |
+      
+        if ( "${{ matrix.cling }}" -imatch "On" )
+        {
+          git clone https://github.com/root-project/cling.git
+          cd ./cling 
+          git checkout tags/v${{ matrix.cling-version }}
+          cd ..
+          git clone --depth=1 -b cling-llvm${{ matrix.clang-runtime }} https://github.com/root-project/llvm-project.git
+          $env:PWD_DIR= $PWD.Path
+          $env:CLING_DIR="$env:PWD_DIR\cling"
+          echo "CLING_DIR=$env:CLING_DIR"
+        }
+        else
+        {
+          git clone --depth=1 -b release/${{ matrix.clang-runtime }}.x https://github.com/llvm/llvm-project.git
+        }
+
+        cd llvm-project
+        # Build
+        mkdir build
+        if ( "${{ matrix.cling }}" -imatch "On" )
+        {
+          cd build
+          cmake -DLLVM_ENABLE_PROJECTS=clang                  `
+                -DLLVM_EXTERNAL_PROJECTS=cling                `
+                -DLLVM_EXTERNAL_CLING_SOURCE_DIR="$env:CLING_DIR"   `
+                -DLLVM_TARGETS_TO_BUILD="host;NVPTX"          `
+                -DCMAKE_BUILD_TYPE=Release                    `
+                -DLLVM_ENABLE_ASSERTIONS=ON                   `
+                -DLLVM_ENABLE_LLD=ON                          `
+                -DCLANG_ENABLE_STATIC_ANALYZER=OFF            `
+                -DCLANG_ENABLE_ARCMT=OFF                      `
+                -DCLANG_ENABLE_FORMAT=OFF                     `
+                -DCLANG_ENABLE_BOOTSTRAP=OFF                  `
+                ../llvm
+          cmake --build . --target clang --parallel ${{ env.ncpus }}
+          cmake --build . --target cling --parallel ${{ env.ncpus }}
+          # Now build gtest.a and gtest_main for CppInterOp to run its tests.
+          cmake --build . --target gtest_main --parallel ${{ env.ncpus }}
+        }
+        else
+        {
+          cp -r ..\patches\llvm\clang${{ matrix.clang-runtime }}*
+          #FIXME: Apply patches without hardcoding
+          if ( "${{ matrix.clang-runtime }}" -imatch "16" )
+          {
+            git apply -v clang16-1-Value.patch
+            git apply -v clang16-2-CUDA.patch
+            git apply -v clang16-3-WeakRef.patch
+          }
+          elseif ( "${{ matrix.clang-runtime }}" -imatch "16" )
+          {
+            git apply -v clang17-1-NewOperator.patch
+          }
+          cd build
+          echo "Apply clang${{ matrix.clang-runtime }}-*.patch patches:"
+          cmake -DLLVM_ENABLE_PROJECTS=clang                  `
+                -DLLVM_TARGETS_TO_BUILD="host;NVPTX"          `
+                -DCMAKE_BUILD_TYPE=Release                    `
+                -DLLVM_ENABLE_ASSERTIONS=ON                   `
+                -DLLVM_ENABLE_LLD=ON                          `
+                -DCLANG_ENABLE_STATIC_ANALYZER=OFF            `
+                -DCLANG_ENABLE_ARCMT=OFF                      `
+                -DCLANG_ENABLE_FORMAT=OFF                     `
+                -DCLANG_ENABLE_BOOTSTRAP=OFF                  `
+                ../llvm
+          cmake --build . --target clang clang-repl --parallel ${{ env.ncpus }}
+        }
+        cd ../../        
 
     - name: Save Cache LLVM/Clang runtime build directory
       uses: actions/cache/save@v3
@@ -350,7 +552,7 @@ jobs:
         echo "CODE_COVERAGE=1" >> $GITHUB_ENV
         echo "BUILD_TYPE=Debug" >> $GITHUB_ENV
 
-    - name: Build and Test/Install CppInterOp on Unix Systems
+    - name: Build and Test/Install CppInterOp on Unix systems
       if: ${{ runner.os != 'windows' }}
       run: |
         LLVM_DIR="$(pwd)/llvm-project"
@@ -376,7 +578,8 @@ jobs:
                 -DUSE_CLING=ON                                  \
                 -DUSE_REPL=OFF                                  \
                 -DCling_DIR=$LLVM_BUILD_DIR/tools/cling         \
-                -DLLVM_DIR=$LLVM_BUILD_DIR                      \
+                -DLLVM_DIR=$LLVM_BUILD_DIR/lib/cmake/llvm       \
+                -DClang_DIR=$LLVM_BUILD_DIR/lib/cmake/clang     \
                 -DBUILD_SHARED_LIBS=ON                          \
                 -DCODE_COVERAGE=${{ env.CODE_COVERAGE }}        \
                 -DCMAKE_INSTALL_PREFIX=$CPPINTEROP_DIR          \
@@ -385,7 +588,8 @@ jobs:
           cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    \
                 -DUSE_CLING=OFF                             \
                 -DUSE_REPL=ON                               \
-                -DLLVM_DIR=$LLVM_BUILD_DIR                  \
+                -DLLVM_DIR=$LLVM_BUILD_DIR/lib/cmake/llvm       \
+                -DClang_DIR=$LLVM_BUILD_DIR/lib/cmake/clang     \
                 -DBUILD_SHARED_LIBS=ON                      \
                 -DCODE_COVERAGE=${{ env.CODE_COVERAGE }}    \
                 -DCMAKE_INSTALL_PREFIX=$CPPINTEROP_DIR      \
@@ -407,6 +611,74 @@ jobs:
         echo "LLVM_BUILD_DIR=$LLVM_BUILD_DIR" >> $GITHUB_ENV
         echo "CPLUS_INCLUDE_PATH=$CPLUS_INCLUDE_PATH" >> $GITHUB_ENV
 
+    - name: Build and Test/Install CppInterOp on Windows systems
+      if: ${{ runner.os == 'windows' }}
+      run: |
+        $env:PWD_DIR= $PWD.Path
+        
+        $env:LLVM_DIR="$env:PWD_DIR\llvm-project"
+        echo "LLVM_DIR=$env:LLVM_DIR"
+        echo "LLVM_DIR=$env:LLVM_DIR" >> $env:GITHUB_ENV
+
+        $env:LLVM_BUILD_DIR="$env:PWD_DIR\llvm-project\build"
+        echo "LLVM_BUILD_DIR=$env:LLVM_BUILD_DIR"
+        echo "LLVM_BUILD_DIR=$env:LLVM_BUILD_DIR" >> $env:GITHUB_ENV
+        
+        if ( "${{ matrix.cling }}" -imatch "On" )
+        {
+          $env:CLING_DIR="$env:PWD_DIR\cling"
+          echo "CLING_DIR=$env:CLING_DIR"
+          echo "CLING_DIR=$env:CLING_DIR" >> $env:GITHUB_ENV   
+          
+          $env:CLING_BUILD_DIR="$env:PWD_DIR\cling\build"
+          echo "CLING_BUILD_DIR=$env:CLING_BUILD_DIR"
+          echo "CLING_BUILD_DIR=$env:CLING_BUILD_DIR" >> $env:GITHUB_ENV   
+      
+          $env:CPLUS_INCLUDE_PATH="$env:CLING_DIR\tools\cling\include;$env:CLING_BUILD_DIR\include;$env:LLVM_DIR\llvm\include;$env:LLVM_DIR\clang\include;$env:LLVM_BUILD_DIR\include;$env:LLVM_BUILD_DIR\tools\clang\include;$env:PWD_DIR\include;"
+          echo "CPLUS_INCLUDE_PATH=$env:CPLUS_INCLUDE_PATH"
+          echo "CPLUS_INCLUDE_PATH=$env:CPLUS_INCLUDE_PATH" >> $env:GITHUB_ENV   
+        }
+        else
+        {
+          $env:CPLUS_INCLUDE_PATH="$env:LLVM_DIR\llvm\include;$env:LLVM_DIR\clang\include;$env:LLVM_BUILD_DIR\include;$env:LLVM_BUILD_DIR\tools\clang\include;$env:PWD_DIR\include;"
+          echo "CPLUS_INCLUDE_PATH=$env:CPLUS_INCLUDE_PATH"
+          echo "CPLUS_INCLUDE_PATH=$env:CPLUS_INCLUDE_PATH" >> $env:GITHUB_ENV   
+        }
+        
+        $env:CB_PYTHON_DIR="$env:PWD_DIR\cppyy-backend\python"
+        echo "CB_PYTHON_DIR=$env:CB_PYTHON_DIR"
+        echo "CB_PYTHON_DIR=$env:CB_PYTHON_DIR" >> $env:GITHUB_ENV  
+
+        $env:CPPINTEROP_DIR="$env:CB_PYTHON_DIR\cppyy-backend"
+        echo "CPPINTEROP_DIR=$env:CPPINTEROP_DIR"
+        echo "CPPINTEROP_DIR=$env:CPPINTEROP_DIR" >> $env:GITHUB_ENV  
+
+        # Build CppInterOp next to cling and llvm-project.
+        mkdir build 
+        cd build
+        $env:CPPINTEROP_BUILD_DIR="$env:PWD_DIR"
+        echo "CPPINTEROP_BUILD_DIR=$env:CPPINTEROP_BUILD_DIR"
+        echo "CPPINTEROP_BUILD_DIR=$env:CPPINTEROP_BUILD_DIR" >> $env:GITHUB_ENV  
+        if ( "${{ matrix.cling }}" -imatch "On" )
+        {
+          cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    `
+                -DUSE_CLING=ON                                  `
+                -DUSE_REPL=OFF                                  `
+                -DCling_DIR="$env:LLVM_BUILD_DIR\tools\cling"   `
+                -DLLVM_DIR="$env:LLVM_BUILD_DIR" `
+                -DClang_DIR="$env:LLVM_BUILD_DIR"  -DBUILD_SHARED_LIBS=ON -DCODE_COVERAGE=${{ env.CODE_COVERAGE }} -DCMAKE_INSTALL_PREFIX="$env:CPPINTEROP_DIR"  ..\
+        }
+        else
+        {
+          cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    `
+                -DUSE_CLING=OFF                             `
+                -DUSE_REPL=ON                               `
+                -DLLVM_DIR="$env:LLVM_BUILD_DIR\lib\cmake\llvm"  `
+                -DClang_DIR="$env:LLVM_BUILD_DIR\lib\cmake\clang"  -DBUILD_SHARED_LIBS=ON    -DCODE_COVERAGE=${{ env.CODE_COVERAGE }}  -DCMAKE_INSTALL_PREFIX="$env:CPPINTEROP_DIR"  ..\
+        }
+        cmake --build . --target check-cppinterop --parallel ${{ env.ncpus }}
+        cd ..
+
     - name: Build and Install cppyy-backend on Unix Systems
       if: ${{ (runner.os != 'windows') && (matrix.cppyy == 'On') }}
       run: |
@@ -425,12 +697,8 @@ jobs:
         else
           cp libcppyy-backend.so $CPPINTEROP_DIR/lib/
         fi
-        ##cling_on="${{ matrix.cling }}"
-        ##if [[ "${cling_on^^}" == "ON" ]]; then
-        ##  cp $LLVM_BUILD_DIR/lib/libcling.so $CPPINTEROP_DIR/lib/
-        ##fi
-        #
         cd ..
+        
     - name: Install CPyCppyy on Unix Systems
       if: ${{ (runner.os != 'windows') && (matrix.cppyy == 'On') }}
       run: |
