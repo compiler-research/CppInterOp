@@ -53,22 +53,22 @@ namespace platform {
       return !Buf.empty();
     }
     return false;
-}
+  }
 #endif
 
-bool GetSystemLibraryPaths(llvm::SmallVectorImpl<std::string>& Paths) {
+  bool GetSystemLibraryPaths(llvm::SmallVectorImpl<std::string>& Paths) {
 #if defined(__APPLE__) || defined(__CYGWIN__)
-  Paths.push_back("/usr/local/lib/");
-  Paths.push_back("/usr/X11R6/lib/");
-  Paths.push_back("/usr/lib/");
-  Paths.push_back("/lib/");
+    Paths.push_back("/usr/local/lib/");
+    Paths.push_back("/usr/X11R6/lib/");
+    Paths.push_back("/usr/lib/");
+    Paths.push_back("/lib/");
 
- #ifndef __APPLE__
-  Paths.push_back("/lib/x86_64-linux-gnu/");
-  Paths.push_back("/usr/local/lib64/");
-  Paths.push_back("/usr/lib64/");
-  Paths.push_back("/lib64/");
- #endif
+#ifndef __APPLE__
+    Paths.push_back("/lib/x86_64-linux-gnu/");
+    Paths.push_back("/usr/local/lib64/");
+    Paths.push_back("/usr/lib64/");
+    Paths.push_back("/lib64/");
+#endif
 #elif defined(LLVM_ON_UNIX)
     llvm::SmallString<1024> Buf;
     platform::Popen("LD_DEBUG=libs LD_PRELOAD=DOESNOTEXIST ls", Buf, true);
@@ -94,16 +94,16 @@ bool GetSystemLibraryPaths(llvm::SmallVectorImpl<std::string>& Paths) {
       }
     }
 #endif
-  return true;
+    return true;
 }
 
 std::string NormalizePath(const std::string& Path) {
 
-  llvm::SmallVector<char, 256> Buffer;
+  llvm::SmallString<256> Buffer;
   std::error_code EC = llvm::sys::fs::real_path(Path, Buffer, true);
   if (EC)
     return std::string();
-  return std::string(Buffer.data());
+  return std::string(Buffer.str());
 }
 
 #if defined(LLVM_ON_UNIX)
