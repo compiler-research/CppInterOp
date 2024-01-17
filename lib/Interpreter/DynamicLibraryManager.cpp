@@ -17,6 +17,11 @@
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Path.h"
 
+#if defined(_WIN32)
+#include "llvm/BinaryFormat/COFF.h"
+#include "llvm/Support/Endian.h"
+#endif
+
 #include <fstream>
 #include <system_error>
 #include <sys/stat.h>
@@ -429,6 +434,21 @@ namespace Cpp {
     }
   }
 
+#if defined(_WIN32)
+  static bool IsDLL(llvm::StringRef headers) {
+    using namespace llvm::support::endian;
+
+    uint32_t headeroffset = read32le(headers.data() + 0x3c);
+    auto peheader = headers.substr(headeroffset, 24);
+    if (peheader.size() != 24) {
+      return false;
+    }
+    // Read Characteristics from the coff header
+    uint32_t characteristics = read16le(peheader.data() + 22);
+    return (characteristics & llvm::COFF::IMAGE_FILE_DLL) != 0;
+  }
+#endif
+
   bool DynamicLibraryManager::isSharedLibrary(StringRef libFullPath,
                                               bool* exists /*=0*/) {
     using namespace llvm;
@@ -475,10 +495,9 @@ namespace Cpp {
       (Magic == file_magic::elf_shared_object)
 #endif
 #elif defined(_WIN32)
-      // We should only include dll libraries without including executables,
-      // object code and others...
-      (Magic == file_magic::pecoff_executable &&
-       platform::IsDLL(libFullPath.str()))
+        // We should only include dll libraries without including executables,
+        // object code and others...
+        (Magic == file_magic::pecoff_executable && IsDLL(headerStr))
 #else
 # error "Unsupported platform."
 #endif
