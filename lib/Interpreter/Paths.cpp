@@ -34,24 +34,27 @@ namespace platform {
   #error "Unknown platform (environmental delimiter)"
 #endif
 
-bool Popen(const std::string& Cmd, llvm::SmallVectorImpl<char>& Buf, bool RdE) {
-  if (FILE *PF = ::popen(RdE ? (Cmd + " 2>&1").c_str() : Cmd.c_str(), "r")) {
-    Buf.resize(0);
-    const size_t Chunk = Buf.capacity_in_bytes();
-    while (true) {
-      const size_t Len = Buf.size();
-      Buf.resize(Len + Chunk);
-      const size_t R = ::fread(&Buf[Len], sizeof(char), Chunk, PF);
-      if (R < Chunk) {
-        Buf.resize(Len + R);
-        break;
+#if defined(LLVM_ON_UNIX)
+  bool Popen(const std::string& Cmd, llvm::SmallVectorImpl<char>& Buf,
+             bool RdE) {
+    if (FILE* PF = ::popen(RdE ? (Cmd + " 2>&1").c_str() : Cmd.c_str(), "r")) {
+      Buf.resize(0);
+      const size_t Chunk = Buf.capacity_in_bytes();
+      while (true) {
+        const size_t Len = Buf.size();
+        Buf.resize(Len + Chunk);
+        const size_t R = ::fread(&Buf[Len], sizeof(char), Chunk, PF);
+        if (R < Chunk) {
+          Buf.resize(Len + R);
+          break;
+        }
       }
+      ::pclose(PF);
+      return !Buf.empty();
     }
-    ::pclose(PF);
-    return !Buf.empty();
-  }
-  return false;
+    return false;
 }
+#endif
 
 bool GetSystemLibraryPaths(llvm::SmallVectorImpl<std::string>& Paths) {
 #if defined(__APPLE__) || defined(__CYGWIN__)
@@ -67,29 +70,29 @@ bool GetSystemLibraryPaths(llvm::SmallVectorImpl<std::string>& Paths) {
   Paths.push_back("/lib64/");
  #endif
 #elif defined(LLVM_ON_UNIX)
-  llvm::SmallString<1024> Buf;
-  platform::Popen("LD_DEBUG=libs LD_PRELOAD=DOESNOTEXIST ls", Buf, true);
-  const llvm::StringRef Result = Buf.str();
+    llvm::SmallString<1024> Buf;
+    platform::Popen("LD_DEBUG=libs LD_PRELOAD=DOESNOTEXIST ls", Buf, true);
+    const llvm::StringRef Result = Buf.str();
 
-  const std::size_t NPos = std::string::npos;
-  const std::size_t LD = Result.find("(LD_LIBRARY_PATH)");
-  std::size_t From = Result.find("search path=", LD == NPos ? 0 : LD);
-  if (From != NPos) {
-    std::size_t To = Result.find("(system search path)", From);
-    if (To != NPos) {
-      From += 12;
-      while (To > From && isspace(Result[To - 1]))
-        --To;
-      std::string SysPath = Result.substr(From, To-From).str();
-      SysPath.erase(std::remove_if(SysPath.begin(), SysPath.end(), ::isspace),
-                    SysPath.end());
+    const std::size_t NPos = std::string::npos;
+    const std::size_t LD = Result.find("(LD_LIBRARY_PATH)");
+    std::size_t From = Result.find("search path=", LD == NPos ? 0 : LD);
+    if (From != NPos) {
+      std::size_t To = Result.find("(system search path)", From);
+      if (To != NPos) {
+        From += 12;
+        while (To > From && isspace(Result[To - 1]))
+          --To;
+        std::string SysPath = Result.substr(From, To - From).str();
+        SysPath.erase(std::remove_if(SysPath.begin(), SysPath.end(), ::isspace),
+                      SysPath.end());
 
-      llvm::SmallVector<llvm::StringRef, 10> CurPaths;
-      SplitPaths(SysPath, CurPaths);
-      for (const auto& Path : CurPaths)
-        Paths.push_back(Path.str());
+        llvm::SmallVector<llvm::StringRef, 10> CurPaths;
+        SplitPaths(SysPath, CurPaths);
+        for (const auto& Path : CurPaths)
+          Paths.push_back(Path.str());
+      }
     }
-  }
 #endif
   return true;
 }
