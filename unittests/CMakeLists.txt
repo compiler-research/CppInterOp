@@ -24,8 +24,11 @@ function(add_cppinterop_unittest name)
   target_include_directories(${name} PUBLIC ${CMAKE_CURRENT_BINARY_DIR} ${GTEST_INCLUDE_DIR})
   set_property(TARGET ${name} PROPERTY RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
+if(WIN32)
+  target_link_libraries(${name} PUBLIC ${ARG_LIBRARIES} ${gtest_libs})
+else()
   target_link_libraries(${name} PUBLIC ${ARG_LIBRARIES} ${gtest_libs} pthread)
-
+endif()
   add_test(NAME cppinterop-${name} COMMAND ${name})
   set_tests_properties(cppinterop-${name} PROPERTIES
                        TIMEOUT "${TIMEOUT_VALUE}"
