@@ -59,7 +59,11 @@ file(MAKE_DIRECTORY ${GTEST_INCLUDE_DIR} ${GMOCK_INCLUDE_DIR})
 
 # Libraries
 ExternalProject_Get_Property(googletest binary_dir)
-set(_G_LIBRARY_PATH ${binary_dir}/lib/)
+if(WIN32)
+  set(_G_LIBRARY_PATH  ${_gtest_byproduct_binary_dir}/lib)
+else()
+  set(_G_LIBRARY_PATH ${binary_dir}/lib/)
+endif()
 
 # Use gmock_main instead of gtest_main because it initializes gtest as well.
 # Note: The libraries are listed in reverse order of their dependancies.
