@@ -95,23 +95,23 @@ namespace platform {
     }
 #endif
     return true;
-}
+  }
 
-std::string NormalizePath(const std::string& Path) {
+  std::string NormalizePath(const std::string& Path) {
 
-  llvm::SmallString<256> Buffer;
-  std::error_code EC = llvm::sys::fs::real_path(Path, Buffer, true);
-  if (EC)
-    return std::string();
-  return std::string(Buffer.str());
-}
+    llvm::SmallString<256> Buffer;
+    std::error_code EC = llvm::sys::fs::real_path(Path, Buffer, true);
+    if (EC)
+      return std::string();
+    return std::string(Buffer.str());
+  }
 
 #if defined(LLVM_ON_UNIX)
-static void DLErr(std::string* Err) {
-  if (!Err)
-    return;
-  if (const char* DyLibError = ::dlerror())
-    *Err = DyLibError;
+  static void DLErr(std::string* Err) {
+    if (!Err)
+      return;
+    if (const char* DyLibError = ::dlerror())
+      *Err = DyLibError;
 }
 
 void* DLOpen(const std::string& Path, std::string* Err /* = nullptr */) {
@@ -141,18 +141,18 @@ void DLClose(void* Lib, std::string* Err /* = nullptr*/) {
 }
 #elif defined(_WIN32)
 
-void* DLOpen(const std::string& Path, std::string* Err /* = nullptr */) {
-  auto lib = llvm::sys::DynamicLibrary::getLibrary(Path.c_str(), Err);
-  return lib.getOSSpecificHandle();
-}
-
-void DLClose(void* Lib, std::string* Err /* = nullptr*/) {
-  auto dl = llvm::sys::DynamicLibrary(Lib);
-  llvm::sys::DynamicLibrary::closeLibrary(dl);
-  if (Err) {
-    *Err = std::string();
+  void* DLOpen(const std::string& Path, std::string* Err /* = nullptr */) {
+    auto lib = llvm::sys::DynamicLibrary::getLibrary(Path.c_str(), Err);
+    return lib.getOSSpecificHandle();
   }
-}
+
+  void DLClose(void* Lib, std::string* Err /* = nullptr*/) {
+    auto dl = llvm::sys::DynamicLibrary(Lib);
+    llvm::sys::DynamicLibrary::closeLibrary(dl);
+    if (Err) {
+      *Err = std::string();
+    }
+  }
 #endif
 
 } // namespace platform
