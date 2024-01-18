@@ -79,7 +79,7 @@ cd llvm-project
 ```
 Get the following patches required for development work. To apply these patches on Linux and MacOS execute the following command
 ```
-git apply -v ..\patches\llvm\clang${{ matrix.clang-runtime }}-*.patch
+git apply -v .../patches/llvm/clang17-*.patch
 ```
 and
 ```
