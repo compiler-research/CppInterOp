@@ -36,6 +36,9 @@
 // Stream redirect.
 #ifdef WIN32
 #include <io.h>
+#ifndef STDOUT_FILENO
+#define STDOUT_FILENO 1
+#endif
 #else
 #include <dlfcn.h>
 #include <unistd.h>
