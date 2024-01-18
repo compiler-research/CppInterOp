@@ -112,33 +112,33 @@ namespace platform {
       return;
     if (const char* DyLibError = ::dlerror())
       *Err = DyLibError;
-}
-
-void* DLOpen(const std::string& Path, std::string* Err /* = nullptr */) {
-  void* Lib = ::dlopen(Path.c_str(), RTLD_LAZY|RTLD_GLOBAL);
-  DLErr(Err);
-  return Lib;
-}
-
-void* DLSym(const std::string& Name, std::string* Err /* = nullptr*/) {
-  if (void* Self = ::dlopen(nullptr, RTLD_GLOBAL)) {
-    // get dlopen error if there is one
-    DLErr(Err);
-    void* Sym = ::dlsym(Self, Name.c_str());
-    // overwrite error if dlsym caused one
-    DLErr(Err);
-    // only get dlclose error if dlopen & dlsym haven't emited one
-    DLClose(Self, Err && Err->empty() ? Err : nullptr);
-    return Sym;
   }
-  DLErr(Err);
-  return nullptr;
-}
 
-void DLClose(void* Lib, std::string* Err /* = nullptr*/) {
-  ::dlclose(Lib);
-  DLErr(Err);
-}
+  void* DLOpen(const std::string& Path, std::string* Err /* = nullptr */) {
+    void* Lib = ::dlopen(Path.c_str(), RTLD_LAZY | RTLD_GLOBAL);
+    DLErr(Err);
+    return Lib;
+  }
+
+  void* DLSym(const std::string& Name, std::string* Err /* = nullptr*/) {
+    if (void* Self = ::dlopen(nullptr, RTLD_GLOBAL)) {
+      // get dlopen error if there is one
+      DLErr(Err);
+      void* Sym = ::dlsym(Self, Name.c_str());
+      // overwrite error if dlsym caused one
+      DLErr(Err);
+      // only get dlclose error if dlopen & dlsym haven't emited one
+      DLClose(Self, Err && Err->empty() ? Err : nullptr);
+      return Sym;
+    }
+    DLErr(Err);
+    return nullptr;
+  }
+
+  void DLClose(void* Lib, std::string* Err /* = nullptr*/) {
+    ::dlclose(Lib);
+    DLErr(Err);
+  }
 #elif defined(_WIN32)
 
   void* DLOpen(const std::string& Path, std::string* Err /* = nullptr */) {
