@@ -1,7 +1,11 @@
 #ifndef UNITTESTS_CPPINTEROP_TESTSHAREDLIB_TESTSHAREDLIB_H
 #define UNITTESTS_CPPINTEROP_TESTSHAREDLIB_TESTSHAREDLIB_H
 
-// Avoid having to mangle/demangle the symbol name in tests.
+// Avoid having to mangle/demangle the symbol name in tests
+#ifdef WIN32
+extern "C" __declspec(dllexport) int ret_zero();
+#else
 extern "C" int ret_zero();
+#endif
 
 #endif // UNITTESTS_CPPINTEROP_TESTSHAREDLIB_TESTSHAREDLIB_H
