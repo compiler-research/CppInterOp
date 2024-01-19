@@ -28,6 +28,8 @@ target_link_libraries(DynamicLibraryManagerTests
   clangCppInterOp
   )
 
+set_output_directory(DynamicLibraryManagerTests BINARY_DIR ${CMAKE_BINARY_DIR}/unittests/bin/$<CONFIG>/)
+
 add_dependencies(DynamicLibraryManagerTests TestSharedLib)
 #export_executable_symbols_for_plugins(TestSharedLib)
 add_subdirectory(TestSharedLib)
