@@ -666,7 +666,7 @@ jobs:
                 -DUSE_REPL=OFF                                  `
                 -DCling_DIR="$env:LLVM_BUILD_DIR\tools\cling"   `
                 -DLLVM_DIR="$env:LLVM_BUILD_DIR" `
-                -DClang_DIR="$env:LLVM_BUILD_DIR"  -DBUILD_SHARED_LIBS=ON -DCODE_COVERAGE=${{ env.CODE_COVERAGE }} -DCMAKE_INSTALL_PREFIX="$env:CPPINTEROP_DIR"  ..\
+                -DClang_DIR="$env:LLVM_BUILD_DIR"  -DCODE_COVERAGE=${{ env.CODE_COVERAGE }} -DCMAKE_INSTALL_PREFIX="$env:CPPINTEROP_DIR"  ..\
         }
         else
         {
@@ -674,7 +674,7 @@ jobs:
                 -DUSE_CLING=OFF                             `
                 -DUSE_REPL=ON                               `
                 -DLLVM_DIR="$env:LLVM_BUILD_DIR\lib\cmake\llvm"  `
-                -DClang_DIR="$env:LLVM_BUILD_DIR\lib\cmake\clang"  -DBUILD_SHARED_LIBS=ON    -DCODE_COVERAGE=${{ env.CODE_COVERAGE }}  -DCMAKE_INSTALL_PREFIX="$env:CPPINTEROP_DIR"  ..\
+                -DClang_DIR="$env:LLVM_BUILD_DIR\lib\cmake\clang"  -DCODE_COVERAGE=${{ env.CODE_COVERAGE }}  -DCMAKE_INSTALL_PREFIX="$env:CPPINTEROP_DIR"  ..\
         }
         cmake --build . --target check-cppinterop --parallel ${{ env.ncpus }}
         cd ..
