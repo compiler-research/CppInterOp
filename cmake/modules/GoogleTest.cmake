@@ -7,9 +7,7 @@ set(_gtest_byproducts
   ${_gtest_byproduct_binary_dir}/lib/libgmock_main.a
   )
 
-set(gtestbuild "Release")
 if(MSVC)
-  set(gtestbuild $<CONFIG>)
   set(EXTRA_GTEST_OPTS
     -DCMAKE_ARCHIVE_OUTPUT_DIRECTORY_DEBUG:PATH=${_gtest_byproduct_binary_dir}/lib/
     -DCMAKE_ARCHIVE_OUTPUT_DIRECTORY_MINSIZEREL:PATH=${_gtest_byproduct_binary_dir}/lib/
@@ -34,7 +32,7 @@ ExternalProject_Add(
   #            -DCMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELEASE:PATH=ReleaseLibs
   #            -Dgtest_force_shared_crt=ON
   CMAKE_ARGS -G ${CMAKE_GENERATOR}
-                -DCMAKE_BUILD_TYPE=${gtestbuild}
+                -DCMAKE_BUILD_TYPE=$<CONFIG>
                 -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}
                 -DCMAKE_C_FLAGS=${CMAKE_C_FLAGS}
                 -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}
