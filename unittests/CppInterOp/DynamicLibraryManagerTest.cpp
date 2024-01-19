@@ -41,7 +41,8 @@ TEST(DynamicLibraryManagerTest, Sanity) {
       << "'";
 
   EXPECT_TRUE(Cpp::LoadLibrary(PathToTestSharedLib.c_str()));
-
+  // Force ExecutionEngine to be created.
+  Cpp::Process("");
   // FIXME: Conda returns false to run this code on osx.
 #ifndef __APPLE__
   EXPECT_TRUE(Cpp::GetFunctionAddress("ret_zero"));
