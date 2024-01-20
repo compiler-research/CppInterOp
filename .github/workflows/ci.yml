@@ -501,10 +501,10 @@ jobs:
                 -DCLANG_ENABLE_FORMAT=OFF                     `
                 -DCLANG_ENABLE_BOOTSTRAP=OFF                  `
                 ../llvm
-          cmake --build . --target clang --parallel ${{ env.ncpus }}
-          cmake --build . --target cling --parallel ${{ env.ncpus }}
+          cmake --build . --config Release --target clang --parallel ${{ env.ncpus }}
+          cmake --build . --config Release --target cling --parallel ${{ env.ncpus }}
           # Now build gtest.a and gtest_main for CppInterOp to run its tests.
-          cmake --build . --target gtest_main --parallel ${{ env.ncpus }}
+          cmake --build . --config Release --target gtest_main --parallel ${{ env.ncpus }}
         }
         else
         {
@@ -532,7 +532,7 @@ jobs:
                 -DCLANG_ENABLE_FORMAT=OFF                     `
                 -DCLANG_ENABLE_BOOTSTRAP=OFF                  `
                 ../llvm
-          cmake --build . --target clang clang-repl --parallel ${{ env.ncpus }}
+          cmake --build . --config Release --target clang clang-repl --parallel ${{ env.ncpus }}
         }
         cd ../../        
 
@@ -676,7 +676,7 @@ jobs:
                 -DLLVM_DIR="$env:LLVM_BUILD_DIR\lib\cmake\llvm"  `
                 -DClang_DIR="$env:LLVM_BUILD_DIR\lib\cmake\clang"  -DCODE_COVERAGE=${{ env.CODE_COVERAGE }}  -DCMAKE_INSTALL_PREFIX="$env:CPPINTEROP_DIR"  ..\
         }
-        cmake --build . --target check-cppinterop --parallel ${{ env.ncpus }}
+        cmake --build . --config ${{ env.BUILD_TYPE }} --target check-cppinterop --parallel ${{ env.ncpus }}
         cd ..
 
     - name: Build and Install cppyy-backend on Unix Systems
