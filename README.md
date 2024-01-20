@@ -58,11 +58,11 @@ goals of CppInterOp is to stay backward compatible and be adopted in the High
 framework. Over time, parts of the Root framework can be swapped by this API,
  adding speed and resilience with it.
 
-### Build Instructions for Unix Systems
+### Build Instructions (Includes instructions both Unix systems and Windows)
 Build instructions for CppInterOp and its dependencies are as follows. CppInterOP can be built with either Cling and Clang-REPL, so instructions will differ slightly depending on which option you would like to build, but should be clear from the section title which instructions to follow.
 
 #### Clone CppInterOp and cppyy-backend
-First clone the CppInterOp repository, as this contains patches that need to be applied to the subsequently cloned llvm-project repo (if building CppInterOP with Clang-REPL)
+First clone the CppInterOp repository, as this contains patches that need to be applied to the subsequently cloned llvm-project repo (these patches are only applied if building CppInterOp with Clang-REPL)
 ```
 git clone --depth=1 https://github.com/compiler-research/CppInterOp.git
 ```
@@ -79,21 +79,22 @@ cd llvm-project
 ```
 Get the following patches required for development work. To apply these patches on Linux and MacOS execute the following command
 ```
-git apply -v .../patches/llvm/clang17-*.patch
+git apply -v ../CppInterOp/patches/llvm/clang17-*.patch
 ```
 and
 ```
-cp -r ..\patches\llvm\clang17*
+cp -r ..\CppInterOp\patches\llvm\clang17* .
 git apply -v clang17-1-NewOperator.patch
 ```
 on Windows.
+
 ##### Build Clang-REPL
 Clang-REPL is an interpreter that CppInterOp works alongside. Build Clang (and 
 Clang-REPL along with it). On Linux and MaxOS you do this by executing the following
 command
 ```
-mkdir build \
-cd build \
+mkdir build 
+cd build 
 cmake -DLLVM_ENABLE_PROJECTS=clang                  \
                 -DLLVM_TARGETS_TO_BUILD="host;NVPTX"          \
                 -DCMAKE_BUILD_TYPE=Release                    \
@@ -109,8 +110,8 @@ cmake --build . --target clang clang-repl --parallel $(nproc --all)
 On Windows you would do this by executing the following
 ```
 $env:ncpus = %NUMBER_OF_PROCESSORS%
-mkdir build `
-cd build `
+mkdir build 
+cd build 
 cmake   -DLLVM_ENABLE_PROJECTS=clang                  `
         -DLLVM_TARGETS_TO_BUILD="host;NVPTX"          `
         -DCMAKE_BUILD_TYPE=Release                    `
@@ -119,7 +120,7 @@ cmake   -DLLVM_ENABLE_PROJECTS=clang                  `
         -DCLANG_ENABLE_ARCMT=OFF                      `
         -DCLANG_ENABLE_FORMAT=OFF                     `
         -DCLANG_ENABLE_BOOTSTRAP=OFF                  `
-        ../llvm
+        ..\llvm
         cmake --build . --target clang clang-repl --parallel $env:ncpus
 ```
 Note the 'llvm-project' directory location. On linux and MacOS you execute the following
@@ -142,6 +143,9 @@ hosted under the `root-project` (see the git path below).
 Use the following build instructions to build on Linux and MacOS
 ```
 git clone --depth=1 https://github.com/root-project/cling.git
+cd ./cling/
+git checkout tags/v1.0
+cd ..
 git clone --depth=1 -b cling-llvm13 https://github.com/root-project/llvm-project.git
 mkdir llvm-project/build
 cd llvm-project/build
@@ -164,6 +168,9 @@ cmake --build . --target gtest_main --parallel $(nproc --all)
 Use the following build instructions to build on Windows
 ```
 git clone --depth=1 https://github.com/root-project/cling.git
+cd .\cling\
+git checkout tags/v1.0
+cd ..
 git clone --depth=1 -b cling-llvm13 https://github.com/root-project/llvm-project.git
 $env:ncpus = %NUMBER_OF_PROCESSORS%
 $env:PWD_DIR= $PWD.Path
@@ -183,7 +190,6 @@ cmake   -DLLVM_ENABLE_PROJECTS=clang                  `
         ../llvm
 cmake --build . --target clang --parallel $env:ncpus
 cmake --build . --target cling --parallel $env:ncpus
-# Now build gtest.a and gtest_main for CppInterOp to run its tests.
 cmake --build . --target gtest_main --parallel $env:ncpus
 ```
 Note the 'llvm-project' directory location. On linux and MacOS you execute the following
@@ -233,22 +239,22 @@ cd CppInterOp\build\
 
 Now if you want to build CppInterOp with Clang-REPL then execute the following commands on Linux and MacOS
 ```
-cmake -DBUILD_SHARED_LIBS=ON -DUSE_CLING=Off -DUSE_REPL=ON -DCling_DIR=$LLVM_DIR/build -DCMAKE_INSTALL_PREFIX=$CPPINTEROP_DIR ..
+cmake -DBUILD_SHARED_LIBS=ON -DUSE_CLING=Off -DUSE_REPL=ON -DLLVM_DIR=$LLVM_DIR/build/lib/cmake/llvm -DClang_DIR=$LLVM_DIR/build/lib/cmake/clang -DCMAKE_INSTALL_PREFIX=$CPPINTEROP_DIR ..
 cmake --build . --target install --parallel $(nproc --all)
 ```
 and
 ```
-cmake -DBUILD_SHARED_LIBS=ON -DUSE_CLING=Off -DUSE_REPL=ON -DCling_DIR=$LLVM_DIR\build -DCMAKE_INSTALL_PREFIX=$env:CPPINTEROP_DIR ..
+cmake -DUSE_CLING=Off -DUSE_REPL=ON -DLLVM_DIR=$LLVM_DIR\build\lib\cmake\llvm -DClang_DIR=$LLVM_DIR\build\lib\cmake\clang -DCMAKE_INSTALL_PREFIX=$env:CPPINTEROP_DIR ..
 cmake --build . --target install --parallel $env:ncpus
 ```
 on Windows. If alternatively you would like to install CppInterOp with Cling then execute the following commands on Linux and MacOS
 ```
-cmake -DBUILD_SHARED_LIBS=ON -DUSE_CLING=ON -DUSE_REPL=Off -DCling_DIR=$LLVM_DIR/build -DCMAKE_INSTALL_PREFIX=$CPPINTEROP_DIR ..
+cmake -DBUILD_SHARED_LIBS=ON -DUSE_CLING=ON -DUSE_REPL=Off -DCling_DIR=$LLVM_DIR/build/tools/cling -DLLVM_DIR=$LLVM_DIR/build/lib/cmake/llvm -DClang_DIR=$LLVM_DIR/build/lib/cmake/clang -DCMAKE_INSTALL_PREFIX=$CPPINTEROP_DIR ..
 cmake --build . --target install --parallel $(nproc --all)
 ```
 and
 ```
-cmake -DBUILD_SHARED_LIBS=ON -DUSE_CLING=ON -DUSE_REPL=Off -DCling_DIR=$LLVM_DIR\build -DCMAKE_INSTALL_PREFIX=$env:CPPINTEROP_DIR ..
+cmake -DUSE_CLING=ON -DUSE_REPL=Off -DCling_DIR=$LLVM_DIR\build\tools\cling -DLLVM_DIR=$LLVM_DIR\build\lib\cmake\llvm -DClang_DIR=$LLVM_DIR\build\lib\cmake\clang -DCMAKE_INSTALL_PREFIX=$env:CPPINTEROP_DIR ..
 cmake --build . --target install --parallel $env:ncpus
 ```
 
@@ -276,7 +282,6 @@ on Windows. Now you are in a position to install cppyy following the instruction
 Clone the repo, build it and copy library files into `python/cppyy-backend` directory:
 
 ```
-git clone --depth=1 https://github.com/compiler-research/cppyy-backend.git
 cd cppyy-backend
 mkdir -p python/cppyy_backend/lib build 
 cd build
