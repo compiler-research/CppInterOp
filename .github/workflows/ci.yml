@@ -266,7 +266,7 @@ jobs:
         #FIXME: CLING AND LLVM HASH currently hardcoded until windows equivalent of unix commands
         #can be found
         mkdir  ./pr
-        echo ${{ github.event.number }} > ./pr/NR
+        echo "${{ github.event.number }}" > ./pr/NR
         echo ${{ github.repository }} > ./pr/REPO
 
         if ( "${{ matrix.cling }}" -imatch "On" )
