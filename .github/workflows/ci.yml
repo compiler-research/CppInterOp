@@ -781,16 +781,12 @@ jobs:
         tail -n1 test_xfailed.log
         echo "Return Code: ${RETCODE}"
         exit $RETCODE
+
     - name: Show debug info
-      if: ${{ failure() }}
+      if: ${{ failure() && (runner.os != 'windows') }}
       run: |
         export
         echo $GITHUB_ENV
-    - name: Setup tmate session
-      if: ${{ failure() }}
-      uses: mxschmitt/action-tmate@v3
-      # When debugging increase to a suitable value!
-      timeout-minutes: ${{ github.event.pull_request && 1 || 20 }}
 
     - name: Prepare code coverage report
       if: ${{ success() && (matrix.coverage == true) }}
@@ -808,3 +804,9 @@ jobs:
       uses: codecov/codecov-action@v3
       with:
         file: ./coverage.info
+
+    - name: Setup tmate session
+      if: ${{ failure() && runner.debug }}
+      uses: mxschmitt/action-tmate@v3
+      # When debugging increase to a suitable value!
+      timeout-minutes: 30
