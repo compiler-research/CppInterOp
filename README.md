@@ -142,7 +142,7 @@ interpreter. Cling depends on its own customised version of `llvm-project`,
 hosted under the `root-project` (see the git path below). 
 Use the following build instructions to build on Linux and MacOS
 ```
-git clone --depth=1 https://github.com/root-project/cling.git
+git clone https://github.com/root-project/cling.git
 cd ./cling/
 git checkout tags/v1.0
 cd ..
@@ -167,7 +167,7 @@ cmake --build . --target gtest_main --parallel $(nproc --all)
 ```
 Use the following build instructions to build on Windows
 ```
-git clone --depth=1 https://github.com/root-project/cling.git
+git clone https://github.com/root-project/cling.git
 cd .\cling\
 git checkout tags/v1.0
 cd ..
@@ -279,7 +279,7 @@ on Windows. Now you are in a position to install cppyy following the instruction
 
 #### Building and Install cppyy-backend
 
-Clone the repo, build it and copy library files into `python/cppyy-backend` directory:
+Cd into the cppyy-backend directory, build it and copy library files into `python/cppyy-backend` directory:
 
 ```
 cd cppyy-backend
