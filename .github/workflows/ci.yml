@@ -773,6 +773,10 @@ jobs:
         export RETCODE=+$?
         echo ::endgroup::
 
+        echo ::group::Run complete test suite
+        python -m pytest --tb=short -ra -sv
+        echo ::endgroup::
+
         RETCODE=+$?
 
         echo "Crashing Summary: \n"
