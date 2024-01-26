@@ -894,7 +894,26 @@ jobs:
         python -m pip install --upgrade pip
         python -m pip install pytest
         python -m pip install pytest-xdist
+        python -m pip install numba
         echo ::endgroup::
+        echo ::group::Run complete test suite
+        python -m pytest --tb=short -ra -sv> pytest_dump.log 2>&1 || :
+        last_line=$(tail -n 1 pytest_dump.log)
+        passed=$(echo "$last_line" | grep -oP "\d+ passed")
+        failed=$(echo "$last_line" | grep -oP "\d+ failed")
+        skipped=$(echo "$last_line" | grep -oP "\d+ skipped")
+        xpassed=$(echo "$last_line" | grep -oP "\d+ xpassed")
+        xfailed=$(echo "$last_line" | grep -oP "\d+ xfailed")
+        errors=$(echo "$last_line" | grep -oP "\d+ errors")
+        echo -e "\e[32mPASS: $passed\e[0m"
+        echo -e "\e[31mFAIL: $failed\e[0m"
+        echo -e "\e[33mSKIP: $skipped\e[0m"
+        echo -e "\e[33mXPASS: $xpassed\e[0m"
+        echo -e "\e[33mXFAIL: $xfailed\e[0m"
+        echo -e "\e[33mERRORS: $errors\e[0m"
+        echo ::endgroup::
+        echo "Cppyy Test Logs:"
+        tail -n1 pytest_dump.log
         echo ::group::Crashing Test Logs
         # See if we don't have a crash that went away
         # Comment out all xfails but the ones that have a run=False condition.
