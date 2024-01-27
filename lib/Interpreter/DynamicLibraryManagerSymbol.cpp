@@ -580,13 +580,6 @@ namespace Cpp {
     return result;
   }
 
-  void CombinePaths(std::string& P1, const char* P2) {
-    if (!P2 || !P2[0]) return;
-    if (!P1.empty())
-      P1 += llvm::sys::EnvPathSeparator;
-    P1 += P2;
-  }
-
   template <class ELFT>
   void HandleDynTab(const ELFFile<ELFT>* Elf, StringRef FileName,
                     SmallVector<StringRef,2>& RPath,
