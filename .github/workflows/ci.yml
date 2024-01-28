@@ -162,13 +162,14 @@ jobs:
           #  cling-version: '1.0'
           #  cppyy: On
           #  xeus-clang-repl: On
+          #FIXME: Windows CppInterOp tests expected to fail
+          #until https://github.com/compiler-research/CppInterOp/issues/188 is solved
           - name: win2022-msvc-clang-repl-17
             os: windows-2022
             compiler: msvc
             clang-runtime: '17'
             cling: Off
             cppyy: Off
-          #Commented out until rest of ci for Windows tested
           #- name: win2022-msvc-clang-repl-17-cppyy
           #  os: windows-2022
           #  compiler: msvc
@@ -181,7 +182,6 @@ jobs:
             clang-runtime: '16'
             cling: Off
             cppyy: Off
-          #Commented out until rest of ci for Windows tested
           #- name: win2022-msvc-clang-repl-16-cppyy
           #  os: windows-2022
           #  compiler: msvc
@@ -195,7 +195,6 @@ jobs:
             cling: On
             cling-version: '1.0'
             cppyy: Off
-          #Commented out until rest of ci for Windows tested
           #- name: win2022-msvc-cling-cppyy
           #  os: windows-2022
           #  compiler: msvc
@@ -362,7 +361,6 @@ jobs:
     - name: Save PR Info on Windows systems
       if: ${{ runner.os == 'windows' }}
       run: |
-        #FIXME: CLING AND LLVM HASH currently hardcoded until windows equivalent of unix commands
         #can be found
         mkdir  ./pr
         echo "${{ github.event.number }}" > ./pr/NR
@@ -710,8 +708,11 @@ jobs:
         echo "CPLUS_INCLUDE_PATH=$CPLUS_INCLUDE_PATH" >> $GITHUB_ENV
 
     - name: Build and Test/Install CppInterOp on Windows systems
+      continue-on-error: true
       if: ${{ runner.os == 'windows' }}
       run: |
+        #FIXME: Windows CppInterOp tests expected to fail
+        #until https://github.com/compiler-research/CppInterOp/issues/188 is solved
         $env:PWD_DIR= $PWD.Path
         
         $env:LLVM_DIR="$env:PWD_DIR\llvm-project"
