@@ -86,7 +86,7 @@ TEST(InterpreterTest, CreateInterpreter) {
 }
 
 TEST(InterpreterTest, GetIncludePath) {
-    std::vector <std::string> includePaths;
+    std::vector <std::string> includePaths {};
     const char* dir = Cpp::GetResourceDir();
     Cpp::AddIncludePath(dir);
     Cpp::GetIncludePath(dir, includePaths);
