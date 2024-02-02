@@ -7,7 +7,7 @@ set(_gtest_byproducts
   ${_gtest_byproduct_binary_dir}/lib/libgmock_main.a
   )
 
-if(MSVC)
+if(WIN32)
   set(EXTRA_GTEST_OPTS
     -DCMAKE_ARCHIVE_OUTPUT_DIRECTORY_DEBUG:PATH=${_gtest_byproduct_binary_dir}/lib/
     -DCMAKE_ARCHIVE_OUTPUT_DIRECTORY_MINSIZEREL:PATH=${_gtest_byproduct_binary_dir}/lib/

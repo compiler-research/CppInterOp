@@ -34,7 +34,7 @@
 #include <string>
 
 // Stream redirect.
-#ifdef WIN32
+#ifdef _WIN32
 #include <io.h>
 #ifndef STDOUT_FILENO
 #define STDOUT_FILENO 1
