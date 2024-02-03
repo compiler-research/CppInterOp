@@ -26,6 +26,7 @@ function(add_cppinterop_unittest name)
 
 if(WIN32)
   target_link_libraries(${name} PUBLIC ${ARG_LIBRARIES} ${gtest_libs})
+  set_property(TARGET ${name} APPEND_STRING PROPERTY LINK_FLAGS "${MSVC_EXPORTS}")
 else()
   target_link_libraries(${name} PUBLIC ${ARG_LIBRARIES} ${gtest_libs} pthread)
 endif()
