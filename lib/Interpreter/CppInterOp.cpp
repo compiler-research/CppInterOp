@@ -2463,6 +2463,10 @@ namespace Cpp {
     std::vector<const char *> ClingArgv = {"-resource-dir", ResourceDir.c_str(),
                                            "-std=c++14"};
     ClingArgv.insert(ClingArgv.begin(), MainExecutableName.c_str());
+#ifdef _WIN32
+    // FIXME : Workaround Sema::PushDeclContext assert on windows
+    ClingArgv.push_back("-fno-delayed-template-parsing");
+#endif
     ClingArgv.insert(ClingArgv.end(), Args.begin(), Args.end());
     // To keep the Interpreter creation interface between cling and clang-repl
     // to some extent compatible we should put Args and GpuArgs together. On the
