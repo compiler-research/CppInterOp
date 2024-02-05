@@ -124,7 +124,12 @@ TEST(EnumReflectionTest, GetIntegerTypeFromEnumScope) {
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetIntegerTypeFromEnumScope(Decls[1])), "char");
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetIntegerTypeFromEnumScope(Decls[2])), "int");
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetIntegerTypeFromEnumScope(Decls[3])), "long long");
+#ifdef _WIN32
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetIntegerTypeFromEnumScope(Decls[4])),
+            "int");
+#else
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetIntegerTypeFromEnumScope(Decls[4])), "unsigned int");
+#endif
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetIntegerTypeFromEnumScope(Decls[5])),"NULL TYPE");
 }
 
@@ -180,7 +185,11 @@ TEST(EnumReflectionTest, GetIntegerTypeFromEnumType) {
   EXPECT_EQ(get_int_type_from_enum_var(Decls[7]), "char");
   EXPECT_EQ(get_int_type_from_enum_var(Decls[8]), "int");
   EXPECT_EQ(get_int_type_from_enum_var(Decls[9]), "long long");
+#ifdef _WIN32
+  EXPECT_EQ(get_int_type_from_enum_var(Decls[10]), "int");
+#else
   EXPECT_EQ(get_int_type_from_enum_var(Decls[10]), "unsigned int");
+#endif
   EXPECT_EQ(get_int_type_from_enum_var(Decls[11]), "NULL TYPE"); // When a non Enum Type variable is used 
 }
 
