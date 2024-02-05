@@ -911,8 +911,17 @@ namespace Cpp {
         // All the symbols are already flagged as exported. 
         // We cannot really ignore symbols based on flags as we do on unix.
         StringRef Name;
-        if (I->getSymbolName(Name))
+        auto Err = I->getSymbolName(Name);
+
+        if (Err) {
+          std::string Message;
+          handleAllErrors(std::move(Err), [&](llvm::ErrorInfoBase& EIB) {
+            Message += EIB.message() + "; ";
+          });
+          LLVM_DEBUG(dbgs() << "Dyld::BuildBloomFilter: Failed to read symbol "
+                            << Message << "\n");
           continue;
+        }
         if (Name.empty())
           continue;
 
