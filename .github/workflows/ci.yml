@@ -21,13 +21,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: ubu22-x86-gcc12-clang-repl-17
-            os: ubuntu-22.04
-            compiler: gcc-12
-            clang-runtime: '17'
-            cling: Off
-            cppyy: Off
-            coverage: true
           - name: ubu22-x86-gcc12-clang-repl-17-cppyy
             os: ubuntu-22.04
             compiler: gcc-12
@@ -43,13 +36,6 @@ jobs:
             cppyy: On
             xeus-clang-repl: On
             coverage: true
-          - name: ubu22-x86-gcc9-clang-repl-16
-            os: ubuntu-22.04
-            compiler: gcc-9
-            clang-runtime: '16'
-            cling: Off
-            cppyy: Off
-            coverage: true
           - name: ubu22-x86-gcc9-clang-repl-16-cppyy
             os: ubuntu-22.04
             compiler: gcc-9
@@ -64,14 +50,6 @@ jobs:
             cling: Off
             cppyy: On
             xeus-clang-repl: On
-            coverage: true
-          - name: ubu22-x86-gcc9-clang13-cling
-            os: ubuntu-22.04
-            compiler: gcc-9
-            clang-runtime: '13'
-            cling: On
-            cling-version: '1.0'
-            cppyy: Off
             coverage: true
           - name: ubu22-x86-gcc9-clang13-cling-cppyy
             os: ubuntu-22.04
@@ -92,12 +70,6 @@ jobs:
             coverage: true
           #Commented out until Ubuntu on arm Github runner becomes available 
           #os key to be replaced once known
-          #- name: ubu22-arm-gcc12-clang-repl-17
-          #  os: ubuntu-22.04-arm
-          #  compiler: gcc-12
-          #  clang-runtime: '17'
-          #  cling: Off
-          #  cppyy: Off
           #- name: ubu22-arm-gcc12-clang-repl-17-cppyy
           #  os: ubuntu-22.04-arm
           #  compiler: gcc-12
@@ -111,13 +83,6 @@ jobs:
           #  cling: Off
           #  cppyy: On
           #  xeus-clang-repl: On
-          #- name: ubu22-arm-gcc9-clang-repl-16
-          #  os: ubuntu-22.04-arm
-          #  compiler: gcc-9
-          #  clang-runtime: '16'
-          #  cling: Off
-          #  cppyy: Off
-          #  coverage: true
           #- name: ubu22-arm-gcc9-clang-repl-16-cppyy
           #  os: ubuntu-22.04-arm
           #  compiler: gcc-9
@@ -130,21 +95,6 @@ jobs:
           #  compiler: gcc-9
           #  clang-runtime: '16'
           #  cling: Off
-          #  cppyy: On
-          #  xeus-clang-repl: On
-          #- name: ubu22-arm-gcc9-clang13-cling
-          #  os: ubuntu-22.04-arm
-          #  compiler: gcc-9
-          #  clang-runtime: '13'
-          #  cling: On
-          #  cling-version: '1.0'
-          #  cppyy: Off
-          #- name: ubu22-arm-gcc9-clang13-cling-xeus-clang-repl
-          #  os: ubuntu-22.04-arm
-          #  compiler: gcc-9
-          #  clang-runtime: '13'
-          #  cling: On
-          #  cling-version: '1.0'
           #  cppyy: On
           #  xeus-clang-repl: On
           #- name: ubu22-arm-gcc9-clang13-cling-cppyy
@@ -202,12 +152,6 @@ jobs:
           #  cling: On
           #  cling-version: '1.0'
           #  cppyy: On
-          - name: osx14-arm-clang-clang-repl-17
-            os: macos-14
-            compiler: clang
-            clang-runtime: '17'
-            cling: Off
-            cppyy: Off
           - name: osx14-arm-clang-clang-repl-17-cppyy
             os: macos-14
             compiler: clang
@@ -221,12 +165,6 @@ jobs:
             cling: Off
             cppyy: On
             xeus-clang-repl: On
-          - name: osx14-arm-clang-clang-repl-16
-            os: macos-14
-            compiler: clang
-            clang-runtime: '16'
-            cling: Off
-            cppyy: Off
           - name: osx14-arm-clang-clang-repl-16-cppyy
             os: macos-14
             compiler: clang
@@ -240,13 +178,6 @@ jobs:
             cling: Off
             cppyy: On
             xeus-clang-repl: On
-          - name: osx14-arm-clang-clang13-cling
-            os: macos-14
-            compiler: clang
-            clang-runtime: '13'
-            cling: On
-            cling-version: '1.0'
-            cppyy: Off
           - name: osx14-arm-clang-clang13-cling-cppyy
             os: macos-14
             compiler: clang
@@ -262,12 +193,6 @@ jobs:
             cling-version: '1.0'
             cppyy: On
             xeus-clang-repl: On
-          - name: osx13-x86-clang-clang-repl-17
-            os: macos-13
-            compiler: clang
-            clang-runtime: '17'
-            cling: Off
-            cppyy: Off
           - name: osx13-x86-clang-clang-repl-17-cppyy
             os: macos-13
             compiler: clang
@@ -281,12 +206,6 @@ jobs:
             cling: Off
             cppyy: On
             xeus-clang-repl: On
-          - name: osx13-x86-clang-clang-repl-16
-            os: macos-13
-            compiler: clang
-            clang-runtime: '16'
-            cling: Off
-            cppyy: Off
           - name: osx13-x86-clang-clang-repl-16-cppyy
             os: macos-13
             compiler: clang
@@ -300,13 +219,6 @@ jobs:
             cling: Off
             cppyy: On
             xeus-clang-repl: On
-          - name: osx13-x86-clang-clang13-cling
-            os: macos-13
-            compiler: clang
-            clang-runtime: '13'
-            cling: On
-            cling-version: '1.0'
-            cppyy: Off
           - name: osx13-x86-clang-clang13-cling-cppyy
             os: macos-13
             compiler: clang
@@ -690,8 +602,7 @@ jobs:
         fi
         os="${{ matrix.os }}"
         cmake --build . --target check-cppinterop --parallel ${{ env.ncpus }}
-        cppyy_on=$(echo "${{ matrix.cppyy }}" | tr '[:lower:]' '[:upper:]')
-        if [[ ("${cppyy_on}" != "ON") && ("${os}" == "ubuntu"*) ]]; then
+        if [[ ("${os}" == "ubuntu"*) ]]; then
           # TODO: Remove "|| true" when fix memory issues in LLVM/Clang 17
           valgrind --track-origins=yes --error-exitcode=1 unittests/CppInterOp/CppInterOpTests 2>&1 >/dev/null || true
         fi
