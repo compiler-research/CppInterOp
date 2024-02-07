@@ -434,7 +434,6 @@ void AddIncludePaths(llvm::StringRef PathStr,
     if (!Exists)
       PathsChecked.push_back(Path);
   }
-
   const bool IsFramework = false;
   const bool IsSysRootRelative = true;
   for (llvm::StringRef Path : PathsChecked)
@@ -454,6 +453,7 @@ void GetIncludePaths(
     clang::HeaderSearchOptions& HOpts,
     const char* Delim /* = Cpp::utils::platform::kEnvDelim */) {
 #define DEBUG_TYPE "GetIncludePaths"
+
   const int val = 10;
   llvm::SmallVector<llvm::StringRef, val> Paths;
   if ((Delim != nullptr) && (*Delim != 0))
@@ -469,9 +469,8 @@ void GetIncludePaths(
         Exists = true;
       break;
     }
-    if (!Exists) {
+    if (!Exists)
       includePaths.push_back((std::string)Path);
-    }
   }
 #undef DEBUG_TYPE
 }

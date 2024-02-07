@@ -445,7 +445,7 @@ namespace Cpp {
   const char* GetResourceDir();
 
   /// Get Include Paths
-  void GetIncludePath(const char* dir, std::vector<std::string>& includePaths);
+  void GetIncludePath(std::vector<std::string>& includePaths);
 
   /// Secondary search path for headers, if not found using the
   /// GetResourceDir() function.

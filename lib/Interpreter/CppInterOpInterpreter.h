@@ -347,6 +347,10 @@ public:
         const_cast<const Interpreter*>(this)->getDynamicLibraryManager());
   }
 
+  /// @brief As a interface to store paths added in AddIncludePaths
+  std::vector<std::string> include;
+  ///
+
   ///\brief Adds multiple include paths separated by a delimter.
   ///
   ///\param[in] PathsStr - Path(s)
@@ -359,7 +363,7 @@ public:
 
     // Save the current number of entries
     size_t Idx = HOpts.UserEntries.size();
-    Cpp::utils::AddIncludePaths(PathsStr, HOpts, Delim);
+    Cpp::utils::GetIncludePaths(include, PathsStr, HOpts, Delim);
 
     clang::Preprocessor& PP = CI->getPreprocessor();
     clang::SourceManager& SM = PP.getSourceManager();
@@ -383,26 +387,15 @@ public:
     return AddIncludePaths(PathsStr, nullptr);
   }
 
-  ///\brief Returns multiple include paths separated by a delimter.
-  ///
+  ///\brief Stores include paths.
   ///\param[in] includePaths - Store Path(s)
-  ///\param[in] PathsStr - Path(s)
-  ///\param[in] Delim - Delimiter to separate paths or NULL if a single path
   ///
-  void GetIncludePaths(std::vector<std::string>& includePaths,
-                       llvm::StringRef PathsStr, const char* Delim = ":") {
-    const clang::CompilerInstance* CI = getCompilerInstance();
-    auto& HOpts =
-        const_cast<clang::HeaderSearchOptions&>(CI->getHeaderSearchOpts());
-
-    Cpp::utils::GetIncludePaths(includePaths, PathsStr, HOpts, Delim);
+  void GetIncludePaths(std::vector<std::string>& includePaths) {
+    includePaths = std::move(include);
   }
 
-  ///\brief Returns a single include path (-I).
-  ///
-  void GetIncludePath(llvm::StringRef PathsStr,
-                      std::vector<std::string>& includePaths) {
-    return GetIncludePaths(includePaths, PathsStr, nullptr);
+  void GetIncludePath(std::vector<std::string>& includePaths) {
+    return GetIncludePaths(includePaths);
   }
 
   CompilationResult loadLibrary(const std::string& filename, bool lookup) {

@@ -89,6 +89,6 @@ TEST(InterpreterTest, GetIncludePath) {
     std::vector <std::string> includePaths {};
     const char* dir = Cpp::GetResourceDir();
     Cpp::AddIncludePath(dir);
-    Cpp::GetIncludePath(dir, includePaths);
+    Cpp::GetIncludePath(includePaths);
     EXPECT_TRUE(includePaths.size() > 0);
 }

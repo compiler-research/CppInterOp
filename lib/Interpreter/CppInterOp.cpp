@@ -2530,8 +2530,8 @@ namespace Cpp {
     getInterp().AddIncludePath(dir);
   }
 
-  void GetIncludePath(const char* dir, std::vector<std::string>& Paths) {
-    getInterp().GetIncludePath(dir, Paths);
+  void GetIncludePath(std::vector<std::string>& Paths) {
+    getInterp().GetIncludePath(Paths);
   }
 
   namespace {
