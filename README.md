@@ -2,7 +2,7 @@
 
 # CppInterOp
 
-[![Biuld Statuses](https://github.com/compiler-research/CppInterOp/workflows/Main/badge.svg)](https://github.com/compiler-research/CppInterOp/actions?query=workflow%3AMain) 
+[![Build Status](https://github.com/compiler-research/CppInterOp/actions/workflows/ci.yml/badge.svg)](https://github.com/compiler-research/CppInterOp/actions/workflows/ci.yml) 
 [![codecov]( https://codecov.io/gh/compiler-research/CppInterOp/branch/main/graph/badge.svg)](https://codecov.io/gh/compiler-research/CppInterOp)
 
 
