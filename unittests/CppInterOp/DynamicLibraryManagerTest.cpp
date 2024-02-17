@@ -5,6 +5,8 @@
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Path.h"
 
+#include "../../lib/Interpreter/Paths.h"
+
 // This function isn't referenced outside its translation unit, but it
 // can't use the "static" keyword because its address is used for
 // GetMainExecutable (since some platforms don't support taking the
@@ -39,6 +41,17 @@ TEST(DynamicLibraryManagerTest, Sanity) {
   EXPECT_STRNE("", PathToTestSharedLib.c_str())
       << "Cannot find: '" << PathToTestSharedLib << "' in '" << Dir.str()
       << "'";
+
+  // DLOPEN DLCLOSE Test
+  std::string err = "";
+  auto* dlopen_handle = Cpp::utils::platform::DLOpen(PathToTestSharedLib, err);
+  EXPECT_TRUE(dlopen_handle) << "Error occurred: " << err << "\n";
+  Cpp::utils::platform::DLClose(dlopen_handle, err);
+  EXPECT_TRUE(err.empty()) << "Error occurred: " << err << "\n";
+  Cpp::utils::platform::DLOpen("missing", err);
+  EXPECT_TRUE(err.find("no such file") != std::string::npos ||
+              err.find("No such file") != std::string::npos);
+  // DLOPEN DLCLOSE Test end
 
   EXPECT_TRUE(Cpp::LoadLibrary(PathToTestSharedLib.c_str()));
   // Force ExecutionEngine to be created.

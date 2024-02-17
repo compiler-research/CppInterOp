@@ -22,7 +22,7 @@ export_executable_symbols(CppInterOpTests)
 
 unset(LLVM_LINK_COMPONENTS)
 
-add_cppinterop_unittest(DynamicLibraryManagerTests DynamicLibraryManagerTest.cpp)
+add_cppinterop_unittest(DynamicLibraryManagerTests DynamicLibraryManagerTest.cpp ${CMAKE_SOURCE_DIR}/lib/Interpreter/Paths.cpp)
 target_link_libraries(DynamicLibraryManagerTests
   PRIVATE
   clangCppInterOp

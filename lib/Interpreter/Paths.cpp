@@ -106,52 +106,37 @@ namespace platform {
     return std::string(Buffer.str());
   }
 
-#if defined(LLVM_ON_UNIX)
-  static void DLErr(std::string* Err) {
-    if (!Err)
-      return;
-    if (const char* DyLibError = ::dlerror())
-      *Err = DyLibError;
-  }
-
-  void* DLOpen(const std::string& Path, std::string* Err /* = nullptr */) {
-    void* Lib = ::dlopen(Path.c_str(), RTLD_LAZY | RTLD_GLOBAL);
-    DLErr(Err);
-    return Lib;
-  }
-
-  void* DLSym(const std::string& Name, std::string* Err /* = nullptr*/) {
-    if (void* Self = ::dlopen(nullptr, RTLD_GLOBAL)) {
-      // get dlopen error if there is one
-      DLErr(Err);
-      void* Sym = ::dlsym(Self, Name.c_str());
-      // overwrite error if dlsym caused one
-      DLErr(Err);
-      // only get dlclose error if dlopen & dlsym haven't emited one
-      DLClose(Self, Err && Err->empty() ? Err : nullptr);
-      return Sym;
-    }
-    DLErr(Err);
-    return nullptr;
-  }
-
-  void DLClose(void* Lib, std::string* Err /* = nullptr*/) {
-    ::dlclose(Lib);
-    DLErr(Err);
-  }
-#elif defined(_WIN32)
-
-  void* DLOpen(const std::string& Path, std::string* Err /* = nullptr */) {
-    auto lib = llvm::sys::DynamicLibrary::getLibrary(Path.c_str(), Err);
+#if defined(_WIN32)
+  void* DLOpen(const std::string& Path, std::string& Err) {
+    auto lib = llvm::sys::DynamicLibrary::getLibrary(Path.c_str(), &Err);
     return lib.getOSSpecificHandle();
   }
 
-  void DLClose(void* Lib, std::string* Err /* = nullptr*/) {
+  void DLClose(void* Lib, std::string& Err) {
     auto dl = llvm::sys::DynamicLibrary(Lib);
     llvm::sys::DynamicLibrary::closeLibrary(dl);
-    if (Err) {
-      *Err = std::string();
+    if (Err.empty()) {
+      Err = std::string();
     }
+  }
+#elif defined(LLVM_ON_UNIX)
+  static void DLErr(std::string& Err) {
+    if (const char* DyLibError = ::dlerror())
+      Err = std::string(DyLibError);
+  }
+
+  void* DLOpen(const std::string& Path, std::string& Err) {
+    void* Lib = ::dlopen(Path.c_str(), RTLD_LAZY | RTLD_GLOBAL);
+    if (Lib == nullptr) {
+      DLErr(Err);
+      return nullptr;
+    }
+    return Lib;
+  }
+
+  void DLClose(void* Lib, std::string& Err) {
+    ::dlclose(Lib);
+    DLErr(Err);
   }
 #endif
 
