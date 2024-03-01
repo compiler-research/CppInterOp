@@ -35,38 +35,15 @@ External Dependencies
     * clang17
 
 
-Introspection
--------------
-
-* 
-
-
-Just-in-Time Compilation
-------------------------
-
-* 
-
-
-Incremental C++
----------------
-
-* 
-
-
 Misc
 ----
 
-* 
+* Add support for Windows
+* Add support for Wasm
 
 
 Fixed Bugs
 ----------
-
-[XXX](https://github.com/compiler-research/CppInterOp/issues/XXX)
-
- <!---Get release bugs
- git log v1.1.0..main | grep 'Fixes|Closes'
- --->
 
 Special Kudos
 =============
@@ -78,7 +55,11 @@ FirstName LastName (#commits)
 
 A B (N)
 
-<!---Find contributor list for this release
- git log --pretty=format:"%an"  v1.1.0...master | sort | uniq -c | sort -rn |\
-   sed -E 's,^ *([0-9]+) (.*)$,\2 \(\1\),'
---->
+fsfod (30)
+mcbarton (10)
+Vassil Vassilev (6)
+Shreyas Atre (4)
+Alexander Penev (2)
+Saqib (1)
+Aaron  Jomy (1)
+
