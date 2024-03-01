@@ -2,7 +2,7 @@ Introduction
 ============
 
 This document contains the release notes for the language interoperability
-library CppInterOp, release 1.2.0. CppInterOp is built on top of
+library CppInterOp, release 1.3.0. CppInterOp is built on top of
 [Clang](http://clang.llvm.org) and [LLVM](http://llvm.org>) compiler
 infrastructure. Here we describe the status of CppInterOp in some detail,
 including major improvements from the previous release and new feature work.
@@ -18,7 +18,7 @@ the necessary introspection information to the other side helping the language
 cross talk.
 
 
-What's New in CppInterOp 1.2.0?
+What's New in CppInterOp 1.3.0?
 =============================
 
 Some of the major new features and improvements to Clad are listed here. Generic
@@ -35,15 +35,38 @@ External Dependencies
     * clang17
 
 
+Introspection
+-------------
+
+* 
+
+
+Just-in-Time Compilation
+------------------------
+
+* 
+
+
+Incremental C++
+---------------
+
+* 
+
+
 Misc
 ----
 
-* Add support for Windows
-* Add support for Wasm
+* 
 
 
 Fixed Bugs
 ----------
+
+[XXX](https://github.com/compiler-research/CppInterOp/issues/XXX)
+
+ <!---Get release bugs
+ git log v1.2.0..main | grep 'Fixes|Closes'
+ --->
 
 Special Kudos
 =============
@@ -55,11 +78,7 @@ FirstName LastName (#commits)
 
 A B (N)
 
-fsfod (30)
-mcbarton (10)
-Vassil Vassilev (6)
-Shreyas Atre (4)
-Alexander Penev (2)
-Saqib (1)
-Aaron  Jomy (1)
-
+<!---Find contributor list for this release
+ git log --pretty=format:"%an"  v1.2.0...master | sort | uniq -c | sort -rn |\
+   sed -E 's,^ *([0-9]+) (.*)$,\2 \(\1\),'
+--->
