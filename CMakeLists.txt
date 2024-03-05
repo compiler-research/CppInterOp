@@ -326,7 +326,7 @@ configure_file(
   ${CMAKE_CURRENT_SOURCE_DIR}/cmake/CppInterOp/CppInterOpConfigVersion.cmake.in
   ${CMAKE_CURRENT_BINARY_DIR}/lib/cmake/CppInterOp/CppInterOpConfigVersion.cmake
   @ONLY)
-install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/lib/cmake/CppInterOp
+install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/lib/cmake/CppInterOp/
   DESTINATION lib/cmake/CppInterOp
   FILES_MATCHING
   PATTERN "*.cmake"
