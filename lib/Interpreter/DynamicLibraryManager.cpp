@@ -69,12 +69,14 @@ namespace Cpp {
     for (const std::string& P : SysPaths)
       addSearchPath(P, /*IsUser*/ false);
   }
-
+#if LLVM_VERSION_MAJOR < 18
+#define starts_with_insensitive startswith_insensitive
+#endif
   ///\returns substitution of pattern in the front of original with replacement
   /// Example: substFront("@rpath/abc", "@rpath/", "/tmp") -> "/tmp/abc"
   static std::string substFront(StringRef original, StringRef pattern,
                                 StringRef replacement) {
-    if (!original.startswith_insensitive(pattern))
+    if (!original.starts_with_insensitive(pattern))
       return original.str();
     SmallString<512> result(replacement);
     result.append(original.drop_front(pattern.size()));
@@ -300,7 +302,7 @@ namespace Cpp {
     // Subst all known linker variables ($origin, @rpath, etc.)
 #ifdef __APPLE__
     // On MacOS @rpath is preplaced by all paths in RPATH one by one.
-    if (libStem.startswith_insensitive("@rpath")) {
+    if (libStem.starts_with_insensitive("@rpath")) {
       for (auto& P : RPath) {
         std::string result = substFront(libStem, "@rpath", P);
         if (isSharedLibrary(result))
