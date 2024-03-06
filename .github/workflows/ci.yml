@@ -21,6 +21,21 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - name: ubu22-x86-gcc12-clang-repl-18-cppyy
+            os: ubuntu-22.04
+            compiler: gcc-12
+            clang-runtime: '18'
+            cling: Off
+            cppyy: On
+            coverage: true
+          - name: ubu22-x86-gcc12-clang-repl-18-xeus-clang-repl
+            os: ubuntu-22.04
+            compiler: gcc-12
+            clang-runtime: '18'
+            cling: Off
+            cppyy: On
+            xeus-clang-repl: On
+            coverage: true
           - name: ubu22-x86-gcc12-clang-repl-17-cppyy
             os: ubuntu-22.04
             compiler: gcc-12
@@ -70,6 +85,19 @@ jobs:
             coverage: true
           #Commented out until Ubuntu on arm Github runner becomes available 
           #os key to be replaced once known
+          #- name: ubu22-arm-gcc12-clang-repl-18-cppyy
+          #  os: ubuntu-22.04-arm
+          #  compiler: gcc-12
+          #  clang-runtime: '18'
+          #  cling: Off
+          #  cppyy: On
+          #- name: ubu22-arm-gcc12-clang-repl-18-xeus-clang-repl
+          #  os: ubuntu-22.04-arm
+          #  compiler: gcc-12
+          #  clang-runtime: '18'
+          #  cling: Off
+          #  cppyy: On
+          #  xeus-clang-repl: On
           #- name: ubu22-arm-gcc12-clang-repl-17-cppyy
           #  os: ubuntu-22.04-arm
           #  compiler: gcc-12
@@ -114,6 +142,12 @@ jobs:
           #  xeus-clang-repl: On
           #FIXME: Windows CppInterOp tests expected to fail
           #until https://github.com/compiler-research/CppInterOp/issues/188 is solved
+          - name: win2022-msvc-clang-repl-18
+            os: windows-2022
+            compiler: msvc
+            clang-runtime: '18'
+            cling: Off
+            cppyy: Off
           - name: win2022-msvc-clang-repl-17
             os: windows-2022
             compiler: msvc
@@ -152,6 +186,19 @@ jobs:
           #  cling: On
           #  cling-version: '1.0'
           #  cppyy: On
+          - name: osx14-arm-clang-clang-repl-18-cppyy
+            os: macos-14
+            compiler: clang
+            clang-runtime: '18'
+            cling: Off
+            cppyy: On
+          - name: osx14-arm-clang-clang-repl-18-xeus-clang-repl
+            os: macos-14
+            compiler: clang
+            clang-runtime: '18'
+            cling: Off
+            cppyy: On
+            xeus-clang-repl: On
           - name: osx14-arm-clang-clang-repl-17-cppyy
             os: macos-14
             compiler: clang
@@ -191,6 +238,19 @@ jobs:
             clang-runtime: '13'
             cling: On
             cling-version: '1.0'
+            cppyy: On
+            xeus-clang-repl: On
+          - name: osx13-x86-clang-clang-repl-18-cppyy
+            os: macos-13
+            compiler: clang
+            clang-runtime: '18'
+            cling: Off
+            cppyy: On
+          - name: osx13-x86-clang-clang-repl-18-xeus-clang-repl
+            os: macos-13
+            compiler: clang
+            clang-runtime: '18'
+            cling: Off
             cppyy: On
             xeus-clang-repl: On
           - name: osx13-x86-clang-clang-repl-17-cppyy
@@ -454,8 +514,11 @@ jobs:
           cmake --build . --target gtest_main --parallel ${{ env.ncpus }}
         else
           # Apply patches
-          git apply -v ../patches/llvm/clang${{ matrix.clang-runtime }}-*.patch
-          echo "Apply clang${{ matrix.clang-runtime }}-*.patch patches:"
+          llvm_vers=$(echo "${{ matrix.clang-runtime }}" | tr '[:lower:]' '[:upper:]')
+          if [[ "${llvm_vers}" != "18" ]]; then
+            git apply -v ../patches/llvm/clang${{ matrix.clang-runtime }}-*.patch
+            echo "Apply clang${{ matrix.clang-runtime }}-*.patch patches:"
+          fi
           cd build
           cmake -DLLVM_ENABLE_PROJECTS="clang;lld"                  \
                 -DLLVM_TARGETS_TO_BUILD="WebAssembly;host;NVPTX"    \
@@ -526,7 +589,7 @@ jobs:
             git apply -v clang16-2-CUDA.patch
             git apply -v clang16-3-WeakRef.patch
           }
-          elseif ( "${{ matrix.clang-runtime }}" -imatch "16" )
+          elseif ( "${{ matrix.clang-runtime }}" -imatch "17" )
           {
             git apply -v clang17-1-NewOperator.patch
           }
@@ -920,6 +983,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - name: ubu22-x86-gcc12-clang-repl-18-emscripten_wasm
+            os: ubuntu-22.04
+            compiler: gcc-12
+            clang-runtime: '18'
+            cling: Off
           - name: ubu22-x86-gcc12-clang-repl-17-emscripten_wasm
             os: ubuntu-22.04
             compiler: gcc-12
@@ -936,6 +1004,11 @@ jobs:
             clang-runtime: '13'
             cling: On
             cling-version: '1.0'
+          - name: osx14-arm-clang-clang-repl-18-emscripten_wasm
+            os: macos-14
+            compiler: clang
+            clang-runtime: '18'
+            cling: Off
           - name: osx14-arm-clang-clang-repl-17-emscripten_wasm
             os: macos-14
             compiler: clang
@@ -952,6 +1025,11 @@ jobs:
             clang-runtime: '13'
             cling: On
             cling-version: '1.0'
+          - name: osx13-x86-clang-clang-repl-18-emscripten_wasm
+            os: macos-13
+            compiler: clang
+            clang-runtime: '18'
+            cling: Off
           - name: osx13-x86-clang-clang-repl-17-emscripten_wasm
             os: macos-13
             compiler: clang
@@ -1081,8 +1159,11 @@ jobs:
           cmake --build . --target gtest_main --parallel ${{ env.ncpus }}
         else
           # Apply patches
-          git apply -v ../patches/llvm/clang${{ matrix.clang-runtime }}-*.patch
-          echo "Apply clang${{ matrix.clang-runtime }}-*.patch patches:"
+          llvm_vers=$(echo "${{ matrix.clang-runtime }}" | tr '[:lower:]' '[:upper:]')
+          if [[ "${llvm_vers}" != "18" ]]; then
+            git apply -v ../patches/llvm/clang${{ matrix.clang-runtime }}-*.patch
+            echo "Apply clang${{ matrix.clang-runtime }}-*.patch patches:"
+          fi
           cd build
           cmake -DLLVM_ENABLE_PROJECTS="clang;lld"                  \
                 -DLLVM_TARGETS_TO_BUILD="WebAssembly;host;NVPTX"    \
