@@ -124,6 +124,19 @@ bool LookForFile(const std::vector<const char*>& Args, std::string& File,
 void AddIncludePaths(llvm::StringRef PathStr, clang::HeaderSearchOptions& HOpts,
                      const char* Delim = Cpp::utils::platform::kEnvDelim);
 
+///\brief Store multiple include paths separated by a delimter into the
+/// given HeaderSearchOptions.  This stores the paths but does no further
+/// processing.
+///
+///\param[in] includePaths - To store paths added in HeaderSearchOptions
+///\param[in] PathStr - Path(s)
+///\param[in] Opts - HeaderSearchOptions to add paths into
+///\param[in] Delim - Delimiter to separate paths or NULL if a single path
+///
+void GetIncludePaths(std::vector<std::string>& includePaths,
+                     llvm::StringRef PathStr, clang::HeaderSearchOptions& HOpts,
+                     const char* Delim = Cpp::utils::platform::kEnvDelim);
+
 ///\brief Write to cling::errs that directory does not exist in a format
 /// matching what 'clang -v' would do
 ///

@@ -347,6 +347,10 @@ public:
         const_cast<const Interpreter*>(this)->getDynamicLibraryManager());
   }
 
+  /// @brief As a interface to store paths added in AddIncludePaths
+  std::vector<std::string> include;
+  ///
+
   ///\brief Adds multiple include paths separated by a delimter.
   ///
   ///\param[in] PathsStr - Path(s)
@@ -359,7 +363,7 @@ public:
 
     // Save the current number of entries
     size_t Idx = HOpts.UserEntries.size();
-    Cpp::utils::AddIncludePaths(PathsStr, HOpts, Delim);
+    Cpp::utils::GetIncludePaths(include, PathsStr, HOpts, Delim);
 
     clang::Preprocessor& PP = CI->getPreprocessor();
     clang::SourceManager& SM = PP.getSourceManager();
@@ -381,6 +385,17 @@ public:
   ///
   void AddIncludePath(llvm::StringRef PathsStr) {
     return AddIncludePaths(PathsStr, nullptr);
+  }
+
+  ///\brief Stores include paths.
+  ///\param[in] includePaths - Store Path(s)
+  ///
+  void GetIncludePaths(std::vector<std::string>& includePaths) {
+    includePaths = std::move(include);
+  }
+
+  void GetIncludePath(std::vector<std::string>& includePaths) {
+    return GetIncludePaths(includePaths);
   }
 
   CompilationResult loadLibrary(const std::string& filename, bool lookup) {
