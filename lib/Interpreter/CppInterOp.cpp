@@ -38,6 +38,10 @@
 #include <io.h>
 #ifndef STDOUT_FILENO
 #define STDOUT_FILENO 1
+// For exec().
+#include <stdio.h>
+#define popen(x, y) (_popen(x, y))
+#define pclose (_pclose)
 #endif
 #else
 #include <dlfcn.h>
@@ -2532,6 +2536,64 @@ namespace Cpp {
 
   const char* GetResourceDir() {
     return getInterp().getCI()->getHeaderSearchOpts().ResourceDir.c_str();
+  }
+
+  ///\returns 0 on success.
+  static bool exec(const char* cmd, std::vector<std::string>& outputs) {
+#define DEBUG_TYPE "exec"
+
+    std::array<char, 256> buffer;
+    std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd, "r"), pclose);
+    LLVM_DEBUG(dbgs() << "Executing command '" << cmd << "'\n");
+
+    if (!pipe) {
+      LLVM_DEBUG(dbgs() << "Execute failed!\n");
+      perror("exec: ");
+      return false;
+    }
+
+    LLVM_DEBUG(dbgs() << "Execute returned:\n");
+    while (fgets(buffer.data(), static_cast<int>(buffer.size()), pipe.get())) {
+      LLVM_DEBUG(dbgs() << buffer.data());
+      llvm::StringRef trimmed = buffer.data();
+      outputs.push_back(trimmed.trim().str());
+    }
+
+#undef DEBUG_TYPE
+
+    return true;
+  }
+
+  std::string DetectResourceDir(const char* ClangBinaryName /* = clang */) {
+    std::string cmd = std::string(ClangBinaryName) + " -print-resource-dir";
+    std::vector<std::string> outs;
+    exec(cmd.c_str(), outs);
+    if (outs.empty() || outs.size() > 1)
+      return "";
+
+    std::string detected_resource_dir = outs.back();
+
+    std::string version =
+#if CLANG_VERSION_MAJOR < 16
+        CLANG_VERSION_STRING;
+#else
+        CLANG_VERSION_MAJOR_STRING;
+#endif
+    // We need to check if the detected resource directory is compatible.
+    if (llvm::sys::path::filename(detected_resource_dir) != version)
+      return "";
+
+    return detected_resource_dir;
+  }
+
+  void DetectSystemCompilerIncludePaths(std::vector<std::string>& Paths,
+                                        const char* CompilerName /*= "c++"*/) {
+    std::string cmd = "LC_ALL=C ";
+    cmd += CompilerName;
+    cmd += " -xc++ -E -v /dev/null 2>&1 | sed -n -e '/^.include/,${' -e '/^ "
+           "\\/.*/p' -e '}'";
+    std::vector<std::string> outs;
+    exec(cmd.c_str(), Paths);
   }
 
   void AddIncludePath(const char *dir) {

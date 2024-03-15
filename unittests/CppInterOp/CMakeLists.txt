@@ -18,6 +18,9 @@ target_link_libraries(CppInterOpTests
   clangCppInterOp
   )
 
+set_source_files_properties(InterpreterTest.cpp PROPERTIES COMPILE_DEFINITIONS
+  "LLVM_BINARY_DIR=\"${LLVM_BINARY_DIR}\""
+  )
 export_executable_symbols(CppInterOpTests)
 
 unset(LLVM_LINK_COMPONENTS)
