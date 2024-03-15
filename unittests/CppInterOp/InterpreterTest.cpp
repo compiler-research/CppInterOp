@@ -1,5 +1,8 @@
 #include "clang/Interpreter/CppInterOp.h"
 
+#include "llvm/ADT/SmallString.h"
+#include "llvm/Support/Path.h"
+
 #include <gmock/gmock.h>
 #include "gtest/gtest.h"
 
@@ -14,6 +17,7 @@ TEST(InterpreterTest, DISABLED_DebugFlag) {
 #else
 TEST(InterpreterTest, DebugFlag) {
 #endif // NDEBUG
+  Cpp::CreateInterpreter();
   EXPECT_FALSE(Cpp::IsDebugOutputEnabled());
   std::string cerrs;
   testing::internal::CaptureStderr();
@@ -49,7 +53,7 @@ TEST(InterpreterTest, Evaluate) {
   EXPECT_FALSE(HadError) ;
 }
 
-TEST(InterpreterTest, Process) {  
+TEST(InterpreterTest, Process) {
   Cpp::CreateInterpreter();
   EXPECT_TRUE(Cpp::Process("") == 0);
   EXPECT_TRUE(Cpp::Process("int a = 12;") == 0);
@@ -79,4 +83,23 @@ TEST(InterpreterTest, CreateInterpreter) {
                    "#endif");
   EXPECT_TRUE(Cpp::GetNamed("cpp17"));
   EXPECT_FALSE(Cpp::GetNamed("cppUnknown"));
+}
+
+#ifdef LLVM_BINARY_DIR
+TEST(InterpreterTest, DetectResourceDir) {
+#else
+TEST(InterpreterTest, DISABLED_DetectResourceDir) {
+#endif // LLVM_BINARY_DIR
+  Cpp::CreateInterpreter();
+  EXPECT_STRNE(Cpp::DetectResourceDir().c_str(), Cpp::GetResourceDir());
+  llvm::SmallString<256> Clang(LLVM_BINARY_DIR);
+  llvm::sys::path::append(Clang, "bin", "clang");
+  std::string DetectedPath = Cpp::DetectResourceDir(Clang.str().str().c_str());
+  EXPECT_STREQ(DetectedPath.c_str(), Cpp::GetResourceDir());
+}
+
+TEST(InterpreterTest, DetectSystemCompilerIncludePaths) {
+  std::vector<std::string> includes;
+  Cpp::DetectSystemCompilerIncludePaths(includes);
+  EXPECT_FALSE(includes.empty());
 }

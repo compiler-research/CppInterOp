@@ -444,6 +444,21 @@ namespace Cpp {
   /// Returns the resource-dir path (for headers).
   const char* GetResourceDir();
 
+  /// Uses the underlying clang compiler to detect the resource directory.
+  /// In essence calling clang -print-resource-dir and checks if it ends with
+  /// a compatible to CppInterOp version.
+  ///\param[in] ClangBinaryName - the name (or the full path) of the compiler
+  ///                             to ask.
+  std::string DetectResourceDir(const char* ClangBinaryName = "clang");
+
+  /// Asks the system compiler for its default include paths.
+  ///\param[out] Paths - the list of include paths returned by eg.
+  ///                     `c++ -xc++ -E -v /dev/null 2>&1`
+  ///\param[in] CompilerName - the name (or the full path) of the compiler
+  ///                          binary file.
+  void DetectSystemCompilerIncludePaths(std::vector<std::string>& Paths,
+                                        const char* CompilerName = "c++");
+
   /// Secondary search path for headers, if not found using the
   /// GetResourceDir() function.
   void AddIncludePath(const char *dir);
