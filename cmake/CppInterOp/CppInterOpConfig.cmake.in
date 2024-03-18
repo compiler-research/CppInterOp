@@ -9,21 +9,27 @@ get_filename_component(CPPINTEROP_INSTALL_PREFIX "${CPPINTEROP_INSTALL_PREFIX}" 
 # Determine CMAKE_SHARED_LIBRARY_SUFFIX based on operating system
 include(CMakeSystemSpecificInformation)
 
+if(MSVC)
+  set(shared_lib_dir bin)
+else()
+  set(shared_lib_dir lib)
+endif()
+
 ### build/install workaround
 if (@BUILD_SHARED_LIBS@)
-  set(__lib_suffix ${CMAKE_SHARED_LIBRARY_SUFFIX})
-  set(__lib_prefix ${CMAKE_SHARED_LIBRARY_PREFIX})
+  set(_lib_suffix ${CMAKE_SHARED_LIBRARY_SUFFIX})
+  set(_lib_prefix ${CMAKE_SHARED_LIBRARY_PREFIX})
 else()    
-  set(__lib_suffix ${CMAKE_STATIC_LIBRARY_SUFFIX})
-  set(__lib_prefix ${CMAKE_STATIC_LIBRARY_PREFIX})
+  set(_lib_suffix ${CMAKE_STATIC_LIBRARY_SUFFIX})
+  set(_lib_prefix ${CMAKE_STATIC_LIBRARY_PREFIX})
 endif()
 
 if (IS_DIRECTORY "${CPPINTEROP_INSTALL_PREFIX}/include")
   set(_include "${CPPINTEROP_INSTALL_PREFIX}/include")
-  set(_libs "${CPPINTEROP_INSTALL_PREFIX}/lib/${__lib_prefix}clangCppInterOp${__lib_suffix}")
+  set(_lib "${CPPINTEROP_INSTALL_PREFIX}/${shared_lib_dir}/${_lib_prefix}clangCppInterOp${_lib_suffix}")
 else()
   set(_include "@CMAKE_CURRENT_SOURCE_DIR@/include")
-  set(_libs "@CMAKE_CURRENT_BINARY_DIR@/lib/${__lib_prefix}clangCppInterOp${__lib_suffix}")
+  set(_lib "@CMAKE_CURRENT_BINARY_DIR@/${shared_lib_dir}/${_lib_prefix}clangCppInterOp${_lib_suffix}")
 endif()
 
 ###
@@ -31,7 +37,7 @@ endif()
 set(CPPINTEROP_EXPORTED_TARGETS "clangCppInterOp")
 set(CPPINTEROP_CMAKE_DIR "${_cmake}")
 set(CPPINTEROP_INCLUDE_DIRS "${_include}")
-set(CPPINTEROP_LIBRARIES "${_libs}")
+set(CPPINTEROP_LIBRARIES "${_lib}")
 
 # Provide all our library targets to users.
 if (@BUILD_SHARED_LIBS@)
@@ -39,9 +45,24 @@ if (@BUILD_SHARED_LIBS@)
 else()    
   add_library(clangCppInterOp STATIC IMPORTED)
 endif()
-set_property(TARGET clangCppInterOp PROPERTY INTERFACE_INCLUDE_DIRECTORIES "${_include}")
-set_property(TARGET clangCppInterOp PROPERTY IMPORTED_LOCATION "${_libs}")
+set_target_properties(clangCppInterOp PROPERTIES
+  INTERFACE_INCLUDE_DIRECTORIES ${_include}
+  IMPORTED_LOCATION ${_lib}
+  )
+if (MSVC)
+  if (IS_DIRECTORY "${CPPINTEROP_INSTALL_PREFIX}/include")
+    set(_static_lib "${CPPINTEROP_INSTALL_PREFIX}/lib/${_lib_prefix}clangCppInterOp.lib")
+  else()
+    set(_static_lib "@CMAKE_CURRENT_BINARY_DIR@/lib/${_lib_prefix}clangCppInterOp.lib")
+  endif()
 
+  set_target_properties(clangCppInterOp PROPERTIES
+    IMPORTED_IMPLIB ${_static_lib}
+    )
+endif(MSVC)
+
+unset(_lib_prefix)
+unset(_lib_suffix)
 unset(_cmake)
 unset(_include)
-unset(_libs)
+unset(_lib)
