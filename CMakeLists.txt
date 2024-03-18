@@ -1,5 +1,8 @@
 cmake_minimum_required(VERSION 3.13)
 
+enable_language(CXX)
+set(CMAKE_CXX_EXTENSIONS NO)
+
 include(GNUInstallDirs)
 
 set(CMAKE_MODULE_PATH
