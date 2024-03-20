@@ -2415,7 +2415,7 @@ namespace Cpp {
     } // namespace
       // End of JitCall Helper Functions
 
-  JitCall MakeFunctionCallable(TCppConstFunction_t func) {
+  CPPINTEROP_API JitCall MakeFunctionCallable(TCppConstFunction_t func) {
     auto* D = (const clang::Decl*)func;
     if (!D)
       return {};
