@@ -684,7 +684,6 @@ jobs:
         echo "CPLUS_INCLUDE_PATH=$CPLUS_INCLUDE_PATH" >> $GITHUB_ENV
 
     - name: Build and Test/Install CppInterOp on Windows systems
-      continue-on-error: true
       if: ${{ runner.os == 'windows' }}
       run: |
         #FIXME: Windows CppInterOp tests expected to fail

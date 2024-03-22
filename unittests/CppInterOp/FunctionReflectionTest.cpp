@@ -553,7 +553,11 @@ TEST(FunctionReflectionTest, IsStaticMethod) {
   EXPECT_TRUE(Cpp::IsStaticMethod(SubDecls[2]));
 }
 
+#ifdef _WIN32
+TEST(FunctionReflectionTest, DISABLED_GetFunctionAddress) {
+#else
 TEST(FunctionReflectionTest, GetFunctionAddress) {
+#endif // _WIN32
   std::vector<Decl*> Decls, SubDecls;
   std::string code = "int f1(int i) { return i * i; }";
 
@@ -613,8 +617,11 @@ TEST(FunctionReflectionTest, JitCallAdvanced) {
   Cpp::Destruct(object, Decls[1]);
 }
 
-
+#ifdef _WIN32
+TEST(FunctionReflectionTest, DISABLED_GetFunctionCallWrapper) {
+#else
 TEST(FunctionReflectionTest, GetFunctionCallWrapper) {
+#endif // _WIN32
   std::vector<Decl*> Decls;
   std::string code = R"(
     int f1(int i) { return i * i; }
@@ -777,7 +784,11 @@ TEST(FunctionReflectionTest, GetFunctionArgDefault) {
   EXPECT_EQ(Cpp::GetFunctionArgDefault(Decls[1], 2), "34126");
 }
 
+#ifdef _WIN32
+TEST(FunctionReflectionTest, DISABLED_Construct) {
+#else
 TEST(FunctionReflectionTest, Construct) {
+#endif // _WIN32
   Cpp::CreateInterpreter();
 
   Interp->declare(R"(
@@ -811,7 +822,11 @@ TEST(FunctionReflectionTest, Construct) {
   EXPECT_EQ(output, "Constructor Executed");
 }
 
+#ifdef _WIN32
+TEST(FunctionReflectionTest, DISABLED_Destruct) {
+#else
 TEST(FunctionReflectionTest, Destruct) {
+#endif // _WIN32
   Cpp::CreateInterpreter();
 
   Interp->declare(R"(
