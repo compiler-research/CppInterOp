@@ -367,7 +367,7 @@ namespace Cpp {
     // TODO: !permanent case
 
     std::string errMsg;
-    DyLibHandle dyLibHandle = platform::DLOpen(canonicalLoadedLib, &errMsg);
+    DyLibHandle dyLibHandle = platform::DLOpen(canonicalLoadedLib, errMsg);
     if (!dyLibHandle) {
       // We emit callback to LibraryLoadingFailed when we get error with error message.
       //TODO: Implement callbacks
@@ -405,7 +405,7 @@ namespace Cpp {
     // TODO: !permanent case
 
     std::string errMsg;
-    platform::DLClose(dyLibHandle, &errMsg);
+    platform::DLClose(dyLibHandle, errMsg);
     if (!errMsg.empty()) {
       LLVM_DEBUG(dbgs() << "cling::DynamicLibraryManager::unloadLibrary(): "
                         << errMsg << '\n');
