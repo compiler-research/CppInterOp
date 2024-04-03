@@ -288,6 +288,10 @@ namespace Cpp {
   /// supplied as a parameter.
   CPPINTEROP_API std::vector<TCppFunction_t> GetClassMethods(TCppScope_t klass);
 
+  ///\returns Template function pointer list to add proxies for
+  /// un-instantiated/non-overloaded templated methods
+  std::vector<TCppFunction_t> GetTemplatedFuncs(TCppScope_t klass);
+
   ///\returns if a class has a default constructor.
   CPPINTEROP_API bool HasDefaultConstructor(TCppScope_t scope);
 
@@ -330,6 +334,16 @@ namespace Cpp {
   /// templated function of that type.
   CPPINTEROP_API bool ExistsFunctionTemplate(const std::string& name,
                                              TCppScope_t parent = 0);
+
+  CPPINTEROP_API std::vector<TCppFunction_t>
+  GetTemplatedMethods(const std::string& name, TCppScope_t parent = 0,
+                      const std::string& filter = "");
+
+  CPPINTEROP_API TCppIndex_t GetNumTemplatedMethods(TCppScope_t scope,
+                                                    bool accept_namespace);
+
+  CPPINTEROP_API std::string GetTemplatedMethodName(TCppScope_t scope,
+                                                    TCppIndex_t imeth);
 
   /// Checks if the provided parameter is a method.
   CPPINTEROP_API bool IsMethod(TCppConstFunction_t method);
@@ -549,6 +563,13 @@ namespace Cpp {
   ///\returns the instantiated function template declaration.
   CPPINTEROP_API TCppFunction_t
   InstantiateTemplateFunctionFromString(const char* function_template);
+
+  // Find best template match based on explicit template parameters and arg
+  // types
+  CPPINTEROP_API TCppFunction_t
+  BestTemplateFunctionMatch(std::vector<TCppFunction_t> candidates,
+                            std::vector<TemplateArgInfo> explicit_types,
+                            std::vector<TemplateArgInfo> arg_types);
 
   CPPINTEROP_API std::vector<std::string> GetAllCppNames(TCppScope_t scope);
 

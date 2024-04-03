@@ -480,6 +480,63 @@ TEST(FunctionReflectionTest, ExistsFunctionTemplate) {
   EXPECT_FALSE(Cpp::ExistsFunctionTemplate("f", Decls[2]));
 }
 
+// TEST(ScopeReflectionTest, InstantiateTemplateFunctionFromString) {
+//   Cpp::CreateInterpreter();
+//   std::string code = R"(#include <memory>)";
+//   Interp->process(code);
+//   const char* str = "std::make_unique<int,int>";
+//   auto* Instance1 = (Decl*)Cpp::InstantiateTemplateFunctionFromString(str);
+//   EXPECT_TRUE(Instance1);
+// }
+
+TEST(FunctionReflectionTest, InstantiateFunctionTemplate) {
+  std::vector<Decl*> Decls;
+  std::string code = R"(
+template<typename T> T TrivialFnTemplate() { return T(); }
+)";
+
+  GetAllTopLevelDecls(code, Decls);
+  ASTContext& C = Interp->getCI()->getASTContext();
+
+  std::vector<Cpp::TemplateArgInfo> args1 = {C.IntTy.getAsOpaquePtr()};
+  auto Instance1 = Cpp::InstantiateTemplate(Decls[0], args1.data(),
+                                            /*type_size*/ args1.size());
+  EXPECT_TRUE(isa<FunctionDecl>((Decl*)Instance1));
+  FunctionDecl* FD = cast<FunctionDecl>((Decl*)Instance1);
+  FunctionDecl* FnTD1 = FD->getTemplateInstantiationPattern();
+  EXPECT_TRUE(FnTD1->isThisDeclarationADefinition());
+  TemplateArgument TA1 = FD->getTemplateSpecializationArgs()->get(0);
+  EXPECT_TRUE(TA1.getAsType()->isIntegerType());
+}
+
+TEST(FunctionReflectionTest, InstantiateTemplateMethod) {
+  std::vector<Decl*> Decls;
+  std::string code = R"(
+    class MyTemplatedMethodClass {
+      public:
+          template<class A> long get_size(A&);
+      };
+
+      template<class A>
+      long MyTemplatedMethodClass::get_size(A&) {
+          return sizeof(A);
+      }
+  )";
+
+  GetAllTopLevelDecls(code, Decls);
+  ASTContext& C = Interp->getCI()->getASTContext();
+
+  std::vector<Cpp::TemplateArgInfo> args1 = {C.IntTy.getAsOpaquePtr()};
+  auto Instance1 = Cpp::InstantiateTemplate(Decls[1], args1.data(),
+                                            /*type_size*/ args1.size());
+  EXPECT_TRUE(isa<FunctionDecl>((Decl*)Instance1));
+  FunctionDecl* FD = cast<FunctionDecl>((Decl*)Instance1);
+  FunctionDecl* FnTD1 = FD->getTemplateInstantiationPattern();
+  EXPECT_TRUE(FnTD1->isThisDeclarationADefinition());
+  TemplateArgument TA1 = FD->getTemplateSpecializationArgs()->get(0);
+  EXPECT_TRUE(TA1.getAsType()->isIntegerType());
+}
+
 TEST(FunctionReflectionTest, IsPublicMethod) {
   std::vector<Decl *> Decls, SubDecls;
   std::string code = R"(
