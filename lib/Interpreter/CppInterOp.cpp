@@ -719,57 +719,45 @@ namespace Cpp {
     return ComputeBaseOffset(getSema().getASTContext(), DCXXRD, Paths.front());
   }
 
-  // FIXME: We should make the std::vector<TCppFunction_t> an out parameter to
-  // avoid copies.
-  std::vector<TCppFunction_t> GetClassMethods(TCppScope_t klass)
+  void GetClassMethods(TCppScope_t klass, std::vector<TCppFunction_t> &methods)
   {
+    if (klass) {
+      auto *D = (clang::Decl *) klass;
 
-    if (!klass)
-      return {};
+      if (auto *TD = dyn_cast<TypedefNameDecl>(D))
+        D = GetScopeFromType(TD->getUnderlyingType());
 
-    auto *D = (clang::Decl *) klass;
-
-    if (auto *TD = dyn_cast<TypedefNameDecl>(D))
-      D = GetScopeFromType(TD->getUnderlyingType());
-
-    std::vector<TCppFunction_t> methods;
-    if (auto *CXXRD = dyn_cast_or_null<CXXRecordDecl>(D)) {
-      getSema().ForceDeclarationOfImplicitMembers(CXXRD);
-      for (Decl* DI : CXXRD->decls()) {
-        if (auto* MD = dyn_cast<CXXMethodDecl>(DI))
-          methods.push_back(MD);
-        else if (auto* USD = dyn_cast<UsingShadowDecl>(DI))
-          if (auto* MD = dyn_cast<CXXMethodDecl>(USD->getTargetDecl()))
+      if (auto *CXXRD = dyn_cast_or_null<CXXRecordDecl>(D)) {
+        getSema().ForceDeclarationOfImplicitMembers(CXXRD);
+        for (Decl* DI : CXXRD->decls()) {
+          if (auto* MD = dyn_cast<CXXMethodDecl>(DI))
             methods.push_back(MD);
+          else if (auto* USD = dyn_cast<UsingShadowDecl>(DI))
+            if (auto* MD = dyn_cast<CXXMethodDecl>(USD->getTargetDecl()))
+              methods.push_back(MD);
+        }
       }
     }
-    return methods;
   }
 
-  // FIXME: We should make the std::vector<TCppFunction_t> an out parameter to
-  // avoid copies.
-  std::vector<TCppFunction_t> GetTemplatedFuncs(TCppScope_t klass) {
+  void GetFunctionTemplatedDecls(TCppScope_t klass, std::vector<TCppFunction_t> &methods) {
+    if (klass) {
+      auto* D = (clang::Decl*)klass;
 
-    if (!klass)
-      return {};
+      if (auto* TD = dyn_cast<TypedefNameDecl>(D))
+        D = GetScopeFromType(TD->getUnderlyingType());
 
-    auto* D = (clang::Decl*)klass;
-
-    if (auto* TD = dyn_cast<TypedefNameDecl>(D))
-      D = GetScopeFromType(TD->getUnderlyingType());
-
-    std::vector<TCppFunction_t> methods;
-    if (auto* CXXRD = dyn_cast_or_null<CXXRecordDecl>(D)) {
-      getSema().ForceDeclarationOfImplicitMembers(CXXRD);
-      for (Decl* DI : CXXRD->decls()) {
-        if (auto* MD = dyn_cast<FunctionTemplateDecl>(DI))
-          methods.push_back(MD);
-        else if (auto* USD = dyn_cast<UsingShadowDecl>(DI))
-          if (auto* MD = dyn_cast<FunctionTemplateDecl>(USD->getTargetDecl()))
+      if (auto* CXXRD = dyn_cast_or_null<CXXRecordDecl>(D)) {
+        getSema().ForceDeclarationOfImplicitMembers(CXXRD);
+        for (Decl* DI : CXXRD->decls()) {
+          if (auto* MD = dyn_cast<FunctionTemplateDecl>(DI))
             methods.push_back(MD);
+          else if (auto* USD = dyn_cast<UsingShadowDecl>(DI))
+            if (auto* MD = dyn_cast<FunctionTemplateDecl>(USD->getTargetDecl()))
+              methods.push_back(MD);
+        }
       }
     }
-    return methods;
   }
 
   bool HasDefaultConstructor(TCppScope_t scope) {
@@ -1005,7 +993,6 @@ namespace Cpp {
       return {};
 
     R.resolveKind();
-    TCppFunction_t best_match;
 
     for (auto* Found : R) {
       if (llvm::isa<FunctionTemplateDecl>(Found))
@@ -1022,7 +1009,8 @@ namespace Cpp {
     if (!accept_namespace && IsNamespace(scope))
       return (TCppIndex_t)0; // Enforce lazy
 
-    std::vector<TCppFunction_t> mc = GetTemplatedFuncs(scope);
+    std::vector<TCppFunction_t> mc; 
+    GetFunctionTemplatedDecls(scope, mc);
     TCppIndex_t res = 0;
 
     for (auto method : mc) {
@@ -1032,16 +1020,17 @@ namespace Cpp {
   }
 
   std::string GetTemplatedMethodName(TCppScope_t scope, TCppIndex_t imeth) {
-    std::vector<TCppFunction_t> mc = GetTemplatedFuncs(scope);
+    std::vector<TCppFunction_t> mc; 
+    GetFunctionTemplatedDecls(scope, mc);
     auto* D = (FunctionTemplateDecl*)mc[imeth];
 
     return D->getNameAsString();
   }
 
   TCppFunction_t
-  BestTemplateFunctionMatch(std::vector<TCppFunction_t> candidates,
-                            std::vector<TemplateArgInfo> explicit_types,
-                            std::vector<TemplateArgInfo> arg_types) {
+  BestTemplateFunctionMatch(const std::vector<TCppFunction_t>& candidates,
+                            const std::vector<TemplateArgInfo>& explicit_types,
+                            const std::vector<TemplateArgInfo>& arg_types) {
 
     int k = 1;
     for (const auto& candidate : candidates) {
@@ -1056,10 +1045,9 @@ namespace Cpp {
 
       else {
         // right now uninstantiated functions give template typenames instead of
-        // actual types We make this match solely based on count
+        // actual types. We make this match solely based on count
 
         const FunctionDecl* func = TFD->getTemplatedDecl();
-        const auto& params = func->parameters();
 
         // Check if number of function parameters match
         if (func->getNumParams() != arg_types.size()) {
@@ -2990,7 +2978,7 @@ namespace Cpp {
   }
 
   TCppScope_t InstantiateTemplate(TCppScope_t tmpl,
-                                  TemplateArgInfo* template_args,
+                                  const TemplateArgInfo* template_args,
                                   size_t template_args_size) {
     ASTContext &C = getASTContext();
 

@@ -246,7 +246,7 @@ namespace Cpp {
   /// passed as a parameter, and if the parent is not passed, 
   /// then global scope will be assumed.
   CPPINTEROP_API TCppScope_t GetScope(const std::string& name,
-                                      TCppScope_t parent = 0);
+                                      TCppScope_t parent = nullptr);
 
   /// When the namespace is known, then the parent doesn't need
   /// to be specified. This will probably be phased-out in
@@ -286,11 +286,11 @@ namespace Cpp {
 
   /// Gets a list of all the Methods that are in the Class that is
   /// supplied as a parameter.
-  CPPINTEROP_API std::vector<TCppFunction_t> GetClassMethods(TCppScope_t klass);
+  CPPINTEROP_API void GetClassMethods(TCppScope_t klass, std::vector<TCppFunction_t> &methods);
 
   ///\returns Template function pointer list to add proxies for
   /// un-instantiated/non-overloaded templated methods
-  std::vector<TCppFunction_t> GetTemplatedFuncs(TCppScope_t klass);
+  CPPINTEROP_API void GetFunctionTemplatedDecls(TCppScope_t klass, std::vector<TCppFunction_t> &methods);
 
   ///\returns if a class has a default constructor.
   CPPINTEROP_API bool HasDefaultConstructor(TCppScope_t scope);
@@ -333,10 +333,10 @@ namespace Cpp {
   /// This function performs a lookup to check if there is a
   /// templated function of that type.
   CPPINTEROP_API bool ExistsFunctionTemplate(const std::string& name,
-                                             TCppScope_t parent = 0);
+                                             TCppScope_t parent = nullptr);
 
   CPPINTEROP_API std::vector<TCppFunction_t>
-  GetTemplatedMethods(const std::string& name, TCppScope_t parent = 0,
+  GetTemplatedMethods(const std::string& name, TCppScope_t parent = nullptr,
                       const std::string& filter = "");
 
   CPPINTEROP_API TCppIndex_t GetNumTemplatedMethods(TCppScope_t scope,
@@ -550,7 +550,7 @@ namespace Cpp {
   };
   /// Builds a template instantiation for a given templated declaration.
   CPPINTEROP_API TCppScope_t InstantiateTemplate(TCppScope_t tmpl,
-                                                 TemplateArgInfo* template_args,
+                                                 const TemplateArgInfo* template_args,
                                                  size_t template_args_size);
 
   /// Returns the class template instantiation arguments of \c templ_instance.
@@ -567,9 +567,9 @@ namespace Cpp {
   // Find best template match based on explicit template parameters and arg
   // types
   CPPINTEROP_API TCppFunction_t
-  BestTemplateFunctionMatch(std::vector<TCppFunction_t> candidates,
-                            std::vector<TemplateArgInfo> explicit_types,
-                            std::vector<TemplateArgInfo> arg_types);
+  BestTemplateFunctionMatch(const std::vector<TCppFunction_t>& candidates,
+                            const std::vector<TemplateArgInfo>& explicit_types,
+                            const std::vector<TemplateArgInfo>& arg_types);
 
   CPPINTEROP_API std::vector<std::string> GetAllCppNames(TCppScope_t scope);
 
