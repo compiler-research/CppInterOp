@@ -879,7 +879,8 @@ TEST(ScopeReflectionTest, InstantiateTemplate) {
   EXPECT_TRUE(TA3_0.getAsType()->isIntegerType());
   EXPECT_TRUE(Cpp::IsRecordType(TA3_1.getAsType().getAsOpaquePtr()));
 
-  auto Inst3_methods = Cpp::GetClassMethods(Instance3);
+  std::vector<Cpp::TCppFunction_t> Inst3_methods;
+  Cpp::GetClassMethods(Instance3, Inst3_methods);
   EXPECT_EQ(Cpp::GetFunctionSignature(Inst3_methods[0]),
             "C1<int>::C1(const C0<int> &val)");
 
