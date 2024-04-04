@@ -719,46 +719,51 @@ namespace Cpp {
     return ComputeBaseOffset(getSema().getASTContext(), DCXXRD, Paths.front());
   }
 
-  void GetClassMethods(TCppScope_t klass, std::vector<TCppFunction_t> &methods)
-  {
-    if (klass) {
-      auto *D = (clang::Decl *) klass;
+  void GetClassMethods(TCppScope_t klass, std::vector<TCppFunction_t> &methods) {
+    if (!klass) return;
+    
+    auto *D = (clang::Decl *) klass;
 
-      if (auto *TD = dyn_cast<TypedefNameDecl>(D))
-        D = GetScopeFromType(TD->getUnderlyingType());
+    if (auto *TD = dyn_cast<TypedefNameDecl>(D))
+      D = GetScopeFromType(TD->getUnderlyingType());
 
-      if (auto *CXXRD = dyn_cast_or_null<CXXRecordDecl>(D)) {
-        getSema().ForceDeclarationOfImplicitMembers(CXXRD);
+    if (D && isa<CXXRecordDecl>(D)) {
+      auto* CXXRD = dyn_cast<CXXRecordDecl>(D);
+      getSema().ForceDeclarationOfImplicitMembers(CXXRD);
         for (Decl* DI : CXXRD->decls()) {
           if (auto* MD = dyn_cast<CXXMethodDecl>(DI))
             methods.push_back(MD);
           else if (auto* USD = dyn_cast<UsingShadowDecl>(DI))
             if (auto* MD = dyn_cast<CXXMethodDecl>(USD->getTargetDecl()))
               methods.push_back(MD);
-        }
       }
     }
   }
+  
+  
 
   void GetFunctionTemplatedDecls(TCppScope_t klass, std::vector<TCppFunction_t> &methods) {
-    if (klass) {
-      auto* D = (clang::Decl*)klass;
+    if (!klass) return;
 
-      if (auto* TD = dyn_cast<TypedefNameDecl>(D))
-        D = GetScopeFromType(TD->getUnderlyingType());
+    auto* D = (clang::Decl*)klass;
 
-      if (auto* CXXRD = dyn_cast_or_null<CXXRecordDecl>(D)) {
-        getSema().ForceDeclarationOfImplicitMembers(CXXRD);
-        for (Decl* DI : CXXRD->decls()) {
-          if (auto* MD = dyn_cast<FunctionTemplateDecl>(DI))
+    if (auto* TD = dyn_cast<TypedefNameDecl>(D))
+      D = GetScopeFromType(TD->getUnderlyingType());
+
+    if (D && isa<CXXRecordDecl>(D)) {
+      auto* CXXRD = dyn_cast<CXXRecordDecl>(D);
+      getSema().ForceDeclarationOfImplicitMembers(CXXRD);
+      for (Decl* DI : CXXRD->decls()) {
+        if (auto* MD = dyn_cast<FunctionTemplateDecl>(DI))
+          methods.push_back(MD);
+        else if (auto* USD = dyn_cast<UsingShadowDecl>(DI))
+          if (auto* MD = dyn_cast<FunctionTemplateDecl>(USD->getTargetDecl()))
             methods.push_back(MD);
-          else if (auto* USD = dyn_cast<UsingShadowDecl>(DI))
-            if (auto* MD = dyn_cast<FunctionTemplateDecl>(USD->getTargetDecl()))
-              methods.push_back(MD);
-        }
       }
     }
   }
+  
+  
 
   bool HasDefaultConstructor(TCppScope_t scope) {
     auto *D = (clang::Decl *) scope;
@@ -1004,7 +1009,7 @@ namespace Cpp {
 
     return {};
   }
-  
+
   TCppFunction_t
   BestTemplateFunctionMatch(const std::vector<TCppFunction_t>& candidates,
                             const std::vector<TemplateArgInfo>& explicit_types,
