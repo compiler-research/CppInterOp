@@ -807,7 +807,7 @@ TEST(ScopeReflectionTest, InstantiateTemplateFunctionFromString) {
   EXPECT_TRUE(Instance1);
 }
 
-TEST(ScopeReflectionTest, InstantiateClassTemplate) {
+TEST(ScopeReflectionTest, InstantiateTemplate) {
   std::vector<Decl *> Decls;
   std::string code = R"(
     template<typename T>
