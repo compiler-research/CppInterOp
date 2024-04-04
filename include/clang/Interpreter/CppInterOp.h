@@ -338,13 +338,7 @@ namespace Cpp {
   CPPINTEROP_API std::vector<TCppFunction_t>
   GetTemplatedMethods(const std::string& name, TCppScope_t parent = nullptr,
                       const std::string& filter = "");
-
-  CPPINTEROP_API TCppIndex_t GetNumTemplatedMethods(TCppScope_t scope,
-                                                    bool accept_namespace);
-
-  CPPINTEROP_API std::string GetTemplatedMethodName(TCppScope_t scope,
-                                                    TCppIndex_t imeth);
-
+                      
   /// Checks if the provided parameter is a method.
   CPPINTEROP_API bool IsMethod(TCppConstFunction_t method);
 

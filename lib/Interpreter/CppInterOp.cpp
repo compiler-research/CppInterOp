@@ -1004,29 +1004,7 @@ namespace Cpp {
 
     return {};
   }
-
-  TCppIndex_t GetNumTemplatedMethods(TCppScope_t scope, bool accept_namespace) {
-    if (!accept_namespace && IsNamespace(scope))
-      return (TCppIndex_t)0; // Enforce lazy
-
-    std::vector<TCppFunction_t> mc; 
-    GetFunctionTemplatedDecls(scope, mc);
-    TCppIndex_t res = 0;
-
-    for (auto method : mc) {
-      res += IsTemplatedFunction(method) ? 1 : 0;
-    }
-    return res;
-  }
-
-  std::string GetTemplatedMethodName(TCppScope_t scope, TCppIndex_t imeth) {
-    std::vector<TCppFunction_t> mc; 
-    GetFunctionTemplatedDecls(scope, mc);
-    auto* D = (FunctionTemplateDecl*)mc[imeth];
-
-    return D->getNameAsString();
-  }
-
+  
   TCppFunction_t
   BestTemplateFunctionMatch(const std::vector<TCppFunction_t>& candidates,
                             const std::vector<TemplateArgInfo>& explicit_types,
