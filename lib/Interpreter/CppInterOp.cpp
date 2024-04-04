@@ -739,8 +739,6 @@ namespace Cpp {
       }
     }
   }
-  
-  
 
   void GetFunctionTemplatedDecls(TCppScope_t klass, std::vector<TCppFunction_t> &methods) {
     if (!klass) return;
@@ -762,8 +760,6 @@ namespace Cpp {
       }
     }
   }
-  
-  
 
   bool HasDefaultConstructor(TCppScope_t scope) {
     auto *D = (clang::Decl *) scope;
@@ -975,8 +971,7 @@ namespace Cpp {
   }
 
   std::vector<TCppFunction_t> GetTemplatedMethods(const std::string& name,
-                                                  TCppScope_t parent,
-                                                  const std::string& filter) {
+                                                  TCppScope_t parent) {
 
     auto* D = (Decl*)parent;
 
