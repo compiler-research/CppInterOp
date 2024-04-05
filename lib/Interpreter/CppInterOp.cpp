@@ -822,6 +822,10 @@ namespace Cpp {
         return FD->getReturnType().getAsOpaquePtr();
     }
 
+    if (auto* FD = llvm::dyn_cast_or_null<clang::FunctionTemplateDecl>(D)) {
+      return (FD->getTemplatedDecl())->getReturnType().getAsOpaquePtr();
+    }
+
     return 0;
   }
 
