@@ -828,9 +828,12 @@ namespace Cpp {
   TCppIndex_t GetFunctionNumArgs(TCppFunction_t func)
   {
     auto *D = (clang::Decl *) func;
-    if (auto *FD = llvm::dyn_cast_or_null<FunctionDecl>(D)) {
+    if (auto *FD = llvm::dyn_cast_or_null<FunctionDecl>(D))
       return FD->getNumParams();
-    }
+
+    if (auto* FD = llvm::dyn_cast_or_null<clang::FunctionTemplateDecl>(D))
+      return (FD->getTemplatedDecl())->getNumParams();
+
     return 0;
   }
 
@@ -882,9 +885,8 @@ namespace Cpp {
   // encompassed in an anonymous namespace as follows.
   namespace {
     bool IsTemplatedFunction(Decl *D) {
-      if (llvm::isa_and_nonnull<FunctionTemplateDecl>(D)) {
+      if (llvm::isa_and_nonnull<FunctionTemplateDecl>(D))
         return true;
-      }
 
       if (auto *FD = llvm::dyn_cast_or_null<FunctionDecl>(D)) {
         auto TK = FD->getTemplatedKind();
