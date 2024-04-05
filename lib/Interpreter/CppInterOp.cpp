@@ -840,6 +840,11 @@ namespace Cpp {
     if (auto *FD = llvm::dyn_cast_or_null<FunctionDecl> (D)) {
       return FD->getMinRequiredArguments();
     }
+
+    if (auto* FD = llvm::dyn_cast_or_null<clang::FunctionTemplateDecl>(D)) {
+      return (FD->getTemplatedDecl())->getMinRequiredArguments();
+    }
+
     return 0;
   }
 

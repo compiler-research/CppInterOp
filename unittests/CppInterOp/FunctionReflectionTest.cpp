@@ -285,21 +285,38 @@ TEST(FunctionReflectionTest, GetFunctionNumArgs) {
 }
 
 TEST(FunctionReflectionTest, GetFunctionRequiredArgs) {
-  std::vector<Decl*> Decls, SubDecls;
+  std::vector<Decl*> Decls, TemplateSubDecls;
   std::string code = R"(
     void f1() {}
     void f2(int i, double d, long l, char ch) {}
     void f3(int i, double d, long l = 0, char ch = 'a') {}
     void f4(int i = 0, double d = 0.0, long l = 0, char ch = 'a') {}
     int a;
+
+    class MyTemplatedMethodClass {
+      template<class A, class B>
+      long get_size(A, B, int i = 0) {}
+
+      template<class A = int, class B = char>
+      long get_size(int i, A a = A(), B b = B()) {}
+           
+      template<class A>
+      void get_size(long k, A, char ch = 'a', double l = 0.0) {}
+    };
     )";
 
   GetAllTopLevelDecls(code, Decls);
+  GetAllSubDecls(Decls[5], TemplateSubDecls);
+
   EXPECT_EQ(Cpp::GetFunctionRequiredArgs(Decls[0]), (size_t) 0);
   EXPECT_EQ(Cpp::GetFunctionRequiredArgs(Decls[1]), (size_t) 4);
   EXPECT_EQ(Cpp::GetFunctionRequiredArgs(Decls[2]), (size_t) 2);
   EXPECT_EQ(Cpp::GetFunctionRequiredArgs(Decls[3]), (size_t) 0);
   EXPECT_EQ(Cpp::GetFunctionRequiredArgs(Decls[4]), 0);
+
+  EXPECT_EQ(Cpp::GetFunctionRequiredArgs(TemplateSubDecls[1]), 2);
+  EXPECT_EQ(Cpp::GetFunctionRequiredArgs(TemplateSubDecls[2]), 1);
+  EXPECT_EQ(Cpp::GetFunctionRequiredArgs(TemplateSubDecls[3]), 2);
 }
 
 TEST(FunctionReflectionTest, GetFunctionArgType) {
