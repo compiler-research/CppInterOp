@@ -823,7 +823,7 @@ namespace Cpp {
     }
 
     if (auto* FD = llvm::dyn_cast_or_null<clang::FunctionTemplateDecl>(D)) {
-      return (FD->getTemplatedDecl())->getReturnType().getAsOpaquePtr();
+        return (FD->getTemplatedDecl())->getReturnType().getAsOpaquePtr();
     }
 
     return 0;
