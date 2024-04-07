@@ -1,7 +1,7 @@
 name: clang-tidy-review
 
 on: 
-  pull_request:
+  issue_comment:
     paths:
       - '**.h'
       - '**.cpp'
@@ -12,6 +12,7 @@ concurrency:
 
 jobs:
   review:
+    if: ${{ github.event.issue.pull_request && contains(github.event.comment.body, 'clang-tidy-review') }}
     runs-on: ubuntu-latest
     steps:
       - name: Checkout PR branch
