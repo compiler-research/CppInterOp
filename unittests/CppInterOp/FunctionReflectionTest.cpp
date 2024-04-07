@@ -228,7 +228,7 @@ TEST(FunctionReflectionTest, GetFunctionsUsingName) {
 }
 
 TEST(FunctionReflectionTest, GetFunctionReturnType) {
-  std::vector<Decl*> Decls, SubDecls;
+  std::vector<Decl*> Decls, SubDecls, TemplateSubDecls;
   std::string code = R"(
     namespace N { class C {}; }
     enum Switch { OFF, ON };
@@ -237,7 +237,6 @@ TEST(FunctionReflectionTest, GetFunctionReturnType) {
       A (int i) { i++; }
       int f () { return 0; }
     };
-
 
     void f1() {}
     double f2() { return 0.2; }
@@ -248,22 +247,56 @@ TEST(FunctionReflectionTest, GetFunctionReturnType) {
     volatile N::C f7() { return N::C(); }
     const volatile N::C f8() { return N::C(); }
     int n;
+
+    class MyTemplatedMethodClass {
+      template<class A>
+      char get_string(A) {
+          return 'A';
+      }
+              
+      template<class A>
+      void get_size() {}
+
+      template<class A>
+      long add_size (int i) {
+          return sizeof(A) + i;
+      }
+    };
     )";
 
   GetAllTopLevelDecls(code, Decls, true);
   GetAllSubDecls(Decls[2], SubDecls);
+  GetAllSubDecls(Decls[12], TemplateSubDecls);
+
+  // #include <string>
 
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetFunctionReturnType(Decls[3])), "void");
-  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetFunctionReturnType(Decls[4])), "double");
-  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetFunctionReturnType(Decls[5])), "Switch");
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetFunctionReturnType(Decls[4])),
+            "double");
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetFunctionReturnType(Decls[5])),
+            "Switch");
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetFunctionReturnType(Decls[6])), "N::C");
-  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetFunctionReturnType(Decls[7])), "N::C *");
-  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetFunctionReturnType(Decls[8])), "const N::C");
-  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetFunctionReturnType(Decls[9])), "volatile N::C");
-  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetFunctionReturnType(Decls[10])), "const volatile N::C");
-  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetFunctionReturnType(Decls[11])), "NULL TYPE");
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetFunctionReturnType(Decls[7])),
+            "N::C *");
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetFunctionReturnType(Decls[8])),
+            "const N::C");
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetFunctionReturnType(Decls[9])),
+            "volatile N::C");
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetFunctionReturnType(Decls[10])),
+            "const volatile N::C");
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetFunctionReturnType(Decls[11])),
+            "NULL TYPE");
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetFunctionReturnType(SubDecls[1])), "void");
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetFunctionReturnType(SubDecls[2])), "int");
+  EXPECT_EQ(
+      Cpp::GetTypeAsString(Cpp::GetFunctionReturnType(TemplateSubDecls[1])),
+      "char");
+  EXPECT_EQ(
+      Cpp::GetTypeAsString(Cpp::GetFunctionReturnType(TemplateSubDecls[2])),
+      "void");
+  EXPECT_EQ(
+      Cpp::GetTypeAsString(Cpp::GetFunctionReturnType(TemplateSubDecls[3])),
+      "long");
 }
 
 TEST(FunctionReflectionTest, GetFunctionNumArgs) {
