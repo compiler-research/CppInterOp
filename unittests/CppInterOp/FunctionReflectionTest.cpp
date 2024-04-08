@@ -836,9 +836,20 @@ TEST(FunctionReflectionTest, GetFunctionArgDefault) {
   std::string code = R"(
     void f1(int i, double d = 4.0, const char *s = "default", char ch = 'c') {}
     void f2(float i = 0.0, double d = 3.123, long m = 34126) {}
+
+    template<class A, class B>
+    long get_size(A, B, int i = 0) {}
+
+    template<class A = int, class B = char>
+    long get_size(int i, A a = A(), B b = B()) {}
+          
+    template<class A>
+    void get_size(long k, A, char ch = 'a', double l = 0.0) {}
+
     )";
 
   GetAllTopLevelDecls(code, Decls);
+
   EXPECT_EQ(Cpp::GetFunctionArgDefault(Decls[0], 0), "");
   EXPECT_EQ(Cpp::GetFunctionArgDefault(Decls[0], 1), "4.");
   EXPECT_EQ(Cpp::GetFunctionArgDefault(Decls[0], 2), "\"default\"");
@@ -846,6 +857,19 @@ TEST(FunctionReflectionTest, GetFunctionArgDefault) {
   EXPECT_EQ(Cpp::GetFunctionArgDefault(Decls[1], 0), "0.");
   EXPECT_EQ(Cpp::GetFunctionArgDefault(Decls[1], 1), "3.123");
   EXPECT_EQ(Cpp::GetFunctionArgDefault(Decls[1], 2), "34126");
+
+  EXPECT_EQ(Cpp::GetFunctionArgDefault(Decls[2], 0), "");
+  EXPECT_EQ(Cpp::GetFunctionArgDefault(Decls[2], 1), "");
+  EXPECT_EQ(Cpp::GetFunctionArgDefault(Decls[2], 2), "0");
+
+  EXPECT_EQ(Cpp::GetFunctionArgDefault(Decls[3], 0), "");
+  EXPECT_EQ(Cpp::GetFunctionArgDefault(Decls[3], 1), "A()");
+  EXPECT_EQ(Cpp::GetFunctionArgDefault(Decls[3], 2), "B()");
+
+  EXPECT_EQ(Cpp::GetFunctionArgDefault(Decls[4], 0), "");
+  EXPECT_EQ(Cpp::GetFunctionArgDefault(Decls[4], 1), "");
+  EXPECT_EQ(Cpp::GetFunctionArgDefault(Decls[4], 2), "\'a\'");
+  EXPECT_EQ(Cpp::GetFunctionArgDefault(Decls[4], 3), "0.");
 }
 
 TEST(FunctionReflectionTest, Construct) {

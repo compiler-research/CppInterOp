@@ -3005,8 +3005,13 @@ namespace Cpp {
   std::string GetFunctionArgDefault(TCppFunction_t func,
                                     TCppIndex_t param_index) {
     auto *D = (clang::Decl *)func;
-    auto *FD = llvm::dyn_cast_or_null<clang::FunctionDecl>(D);
-    auto PI = FD->getParamDecl(param_index);
+    clang::ParmVarDecl* PI;
+
+    if (auto* FD = llvm::dyn_cast_or_null<clang::FunctionDecl>(D))
+      PI = FD->getParamDecl(param_index);
+
+    else if (auto* FD = llvm::dyn_cast_or_null<clang::FunctionTemplateDecl>(D))
+      PI = (FD->getTemplatedDecl())->getParamDecl(param_index);
 
     if (PI->hasDefaultArg())
     {
