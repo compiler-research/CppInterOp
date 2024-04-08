@@ -117,7 +117,7 @@ TEST(FunctionReflectionTest, ConstructorInGetClassMethods) {
 
   GetAllTopLevelDecls(code, Decls);
 
-  auto has_constructor = [](Decl *D) {
+  auto has_constructor = [](Decl* D) {
     std::vector<Cpp::TCppFunction_t> methods;
     Cpp::GetClassMethods(D, methods);
     for (auto method : methods) {

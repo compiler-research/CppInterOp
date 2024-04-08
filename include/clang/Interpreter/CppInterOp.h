@@ -284,13 +284,19 @@ namespace Cpp {
   CPPINTEROP_API int64_t GetBaseClassOffset(TCppScope_t derived,
                                             TCppScope_t base);
 
-  /// Gets a list of all the Methods that are in the Class that is
+  /// Sets a list of all the Methods that are in the Class that is
   /// supplied as a parameter.
-  CPPINTEROP_API void GetClassMethods(TCppScope_t klass, std::vector<TCppFunction_t> &methods);
+  ///\param[in] klass - Pointer to the scope/class under which the methods have
+  ///           to be retrieved
+  ///\param[out] methods - Vector of methods in the class
+  CPPINTEROP_API void GetClassMethods(TCppScope_t klass,
+                                      std::vector<TCppFunction_t>& methods);
 
   ///\returns Template function pointer list to add proxies for
   /// un-instantiated/non-overloaded templated methods
-  CPPINTEROP_API void GetFunctionTemplatedDecls(TCppScope_t klass, std::vector<TCppFunction_t> &methods);
+  CPPINTEROP_API void
+  GetFunctionTemplatedDecls(TCppScope_t klass,
+                            std::vector<TCppFunction_t>& methods);
 
   ///\returns if a class has a default constructor.
   CPPINTEROP_API bool HasDefaultConstructor(TCppScope_t scope);
@@ -335,8 +341,15 @@ namespace Cpp {
   CPPINTEROP_API bool ExistsFunctionTemplate(const std::string& name,
                                              TCppScope_t parent = nullptr);
 
-  CPPINTEROP_API std::vector<TCppFunction_t>
-  GetTemplatedMethods(const std::string& name, TCppScope_t parent = nullptr);
+  /// Sets a list of all the Templated Methods that are in the Class that is
+  /// supplied as a parameter.
+  ///\param[in] name - method name
+  ///\param[in] parent - Pointer to the scope/class under which the methods have
+  ///           to be retrieved
+  ///\param[out] funcs - vector of function pointers matching the name
+  CPPINTEROP_API void
+  GetClassTemplatedMethods(const std::string& name, TCppScope_t parent,
+                           std::vector<TCppFunction_t>& funcs);
 
   /// Checks if the provided parameter is a method.
   CPPINTEROP_API bool IsMethod(TCppConstFunction_t method);
@@ -542,11 +555,24 @@ namespace Cpp {
       : m_Type(type), m_IntegralValue(integral_value) {}
   };
   /// Builds a template instantiation for a given templated declaration.
-  CPPINTEROP_API TCppScope_t InstantiateTemplate(TCppScope_t tmpl,
-                                                 const TemplateArgInfo* template_args,
-                                                 size_t template_args_size);
+  /// Offers a single interface for instantiation of class, function and
+  /// variable templates
+  ///
+  ///\param[in] tmpl - Uninstantiated template class/function
+  ///\param[in] template_args - Pointer to vector of template arguments stored
+  ///           in the \c TemplateArgInfo struct
+  ///\param[in] template_args_size - Size of the vector of template arguments
+  ///           passed as \c template_args
+  ///
+  ///\returns Instantiated templated class/function/variable pointer
+  CPPINTEROP_API TCppScope_t
+  InstantiateTemplate(TCppScope_t tmpl, const TemplateArgInfo* template_args,
+                      size_t template_args_size);
 
-  /// Returns the class template instantiation arguments of \c templ_instance.
+  /// Sets the class template instantiation arguments of \c templ_instance.
+  ///
+  ///\param[in] templ_instance - Pointer to the template instance
+  ///\param[out] args - Vector of instantiation arguments
   CPPINTEROP_API void
   GetClassTemplateInstantiationArgs(TCppScope_t templ_instance,
                                     std::vector<TemplateArgInfo>& args);
@@ -557,8 +583,15 @@ namespace Cpp {
   CPPINTEROP_API TCppFunction_t
   InstantiateTemplateFunctionFromString(const char* function_template);
 
-  // Find best template match based on explicit template parameters and arg
-  // types
+  /// Finds best template match based on explicit template parameters and
+  /// argument types
+  ///
+  ///\param[in] candidates - Vector of suitable candidates that come under the
+  ///           parent scope and have the same name (obtained using
+  ///           GetClassTemplatedMethods)
+  ///\param[in] explicit_types - set of expicitly instantiated template types
+  ///\param[in] arg_types - set of argument types
+  ///\returns Instantiated function pointer
   CPPINTEROP_API TCppFunction_t
   BestTemplateFunctionMatch(const std::vector<TCppFunction_t>& candidates,
                             const std::vector<TemplateArgInfo>& explicit_types,
