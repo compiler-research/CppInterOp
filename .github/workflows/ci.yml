@@ -977,6 +977,7 @@ jobs:
       timeout-minutes: 30
 
   emscripten_wasm:
+    needs: [build]
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
     strategy:
