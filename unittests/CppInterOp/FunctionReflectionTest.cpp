@@ -839,18 +839,18 @@ TEST(FunctionReflectionTest, GetFunctionArgName) {
   EXPECT_EQ(Cpp::GetFunctionArgName(Decls[1], 2), "l");
   EXPECT_EQ(Cpp::GetFunctionArgName(Decls[1], 3), "ch");
 
-  // EXPECT_EQ(Cpp::GetFunctionArgName(Decls[2], 0), "");
-  // EXPECT_EQ(Cpp::GetFunctionArgName(Decls[2], 1), "");
-  // EXPECT_EQ(Cpp::GetFunctionArgName(Decls[2], 2), "i");
+  EXPECT_EQ(Cpp::GetFunctionArgName(Decls[2], 0), "");
+  EXPECT_EQ(Cpp::GetFunctionArgName(Decls[2], 1), "");
+  EXPECT_EQ(Cpp::GetFunctionArgName(Decls[2], 2), "i");
 
-  // EXPECT_EQ(Cpp::GetFunctionArgName(Decls[3], 0), "i");
-  // EXPECT_EQ(Cpp::GetFunctionArgName(Decls[3], 1), "a");
-  // EXPECT_EQ(Cpp::GetFunctionArgName(Decls[3], 2), "b");
+  EXPECT_EQ(Cpp::GetFunctionArgName(Decls[3], 0), "i");
+  EXPECT_EQ(Cpp::GetFunctionArgName(Decls[3], 1), "a");
+  EXPECT_EQ(Cpp::GetFunctionArgName(Decls[3], 2), "b");
 
-  // EXPECT_EQ(Cpp::GetFunctionArgName(Decls[4], 0), "k");
-  // EXPECT_EQ(Cpp::GetFunctionArgName(Decls[4], 1), "");
-  // EXPECT_EQ(Cpp::GetFunctionArgName(Decls[4], 2), "ch");
-  // EXPECT_EQ(Cpp::GetFunctionArgName(Decls[4], 3), "l");
+  EXPECT_EQ(Cpp::GetFunctionArgName(Decls[4], 0), "k");
+  EXPECT_EQ(Cpp::GetFunctionArgName(Decls[4], 1), "");
+  EXPECT_EQ(Cpp::GetFunctionArgName(Decls[4], 2), "ch");
+  EXPECT_EQ(Cpp::GetFunctionArgName(Decls[4], 3), "l");
 }
 
 TEST(FunctionReflectionTest, GetFunctionArgDefault) {
