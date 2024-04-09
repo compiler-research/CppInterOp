@@ -402,7 +402,7 @@ jobs:
                 -DLLVM_ENABLE_TERMINFO=OFF                          \
                 -DLLVM_ENABLE_LIBXML2=OFF                           \
                 ../llvm
-          cmake --build . --target all --parallel ${{ env.ncpus }}
+          cmake --build . --target clang clang-repl --parallel ${{ env.ncpus }}
         fi
         cd ../../
 
