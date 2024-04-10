@@ -993,10 +993,10 @@ namespace Cpp {
       if (func->getNumParams() != arg_types.size())
         continue;
 
-      // TODO : first score based on the type similarity before forcing
+      // FIXME : first score based on the type similarity before forcing
       // instantiation try instantiating
-      TCppFunction_t instantiated = InstantiateTemplate(
-          candidate, arg_types.data(), arg_types.size());
+      TCppFunction_t instantiated =
+          InstantiateTemplate(candidate, arg_types.data(), arg_types.size());
       if (instantiated)
         return instantiated;
 

@@ -487,14 +487,14 @@ TEST(FunctionReflectionTest, ExistsFunctionTemplate) {
   EXPECT_FALSE(Cpp::ExistsFunctionTemplate("f", Decls[2]));
 }
 
-// TEST(ScopeReflectionTest, InstantiateTemplateFunctionFromString) {
-//   Cpp::CreateInterpreter();
-//   std::string code = R"(#include <memory>)";
-//   Interp->process(code);
-//   const char* str = "std::make_unique<int,int>";
-//   auto* Instance1 = (Decl*)Cpp::InstantiateTemplateFunctionFromString(str);
-//   EXPECT_TRUE(Instance1);
-// }
+TEST(FunctionReflectionTest, InstantiateTemplateFunctionFromString) {
+  Cpp::CreateInterpreter();
+  std::string code = R"(#include <memory>)";
+  Interp->process(code);
+  const char* str = "std::make_unique<int,int>";
+  auto* Instance1 = (Decl*)Cpp::InstantiateTemplateFunctionFromString(str);
+  EXPECT_TRUE(Instance1);
+}
 
 TEST(FunctionReflectionTest, InstantiateFunctionTemplate) {
   std::vector<Decl*> Decls;

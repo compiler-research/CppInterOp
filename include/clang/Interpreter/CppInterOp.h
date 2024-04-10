@@ -292,8 +292,11 @@ namespace Cpp {
   CPPINTEROP_API void GetClassMethods(TCppScope_t klass,
                                       std::vector<TCppFunction_t>& methods);
 
-  ///\returns Template function pointer list to add proxies for
-  /// un-instantiated/non-overloaded templated methods
+  /// Template function pointer list to add proxies for un-instantiated/
+  /// non-overloaded templated methods
+  ///\param[in] klass - Pointer to the scope/class under which the methods have
+  ///           to be retrieved
+  ///\param[out] methods - Vector of methods in the class
   CPPINTEROP_API void
   GetFunctionTemplatedDecls(TCppScope_t klass,
                             std::vector<TCppFunction_t>& methods);
