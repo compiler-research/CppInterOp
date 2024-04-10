@@ -35,9 +35,9 @@ jobs:
             cling: Off
             cppyy: On
             coverage: true
-          - name: ubu22-x86-gcc9-clang-repl-16
+          - name: ubu22-x86-gcc12-clang-repl-16
             os: ubuntu-22.04
-            compiler: gcc-9
+            compiler: gcc-12
             clang-runtime: '16'
             cling: Off
             cppyy: On
@@ -487,16 +487,16 @@ jobs:
             cppyy: On
             xeus-clang-repl: On
             coverage: true
-          - name: ubu22-x86-gcc9-clang-repl-16-cppyy
+          - name: ubu22-x86-gcc12-clang-repl-16-cppyy
             os: ubuntu-22.04
-            compiler: gcc-9
+            compiler: gcc-12
             clang-runtime: '16'
             cling: Off
             cppyy: On
             coverage: true
-          - name: ubu22-x86-gcc9-clang-repl-16-xeus-clang-repl
+          - name: ubu22-x86-gcc12-clang-repl-16-xeus-clang-repl
             os: ubuntu-22.04
-            compiler: gcc-9
+            compiler: gcc-12
             clang-runtime: '16'
             cling: Off
             cppyy: On
