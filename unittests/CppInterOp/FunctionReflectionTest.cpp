@@ -818,6 +818,15 @@ TEST(FunctionReflectionTest, GetFunctionArgName) {
   std::string code = R"(
     void f1(int i, double d, long l, char ch) {}
     void f2(const int i, double d[], long *l, char ch[4]) {}
+
+    template<class A, class B>
+    long get_size(A, B, int i = 0) {}
+
+    template<class A = int, class B = char>
+    long get_size(int i, A a = A(), B b = B()) {}
+          
+    template<class A>
+    void get_size(long k, A, char ch = 'a', double l = 0.0) {}
     )";
 
   GetAllTopLevelDecls(code, Decls);
@@ -829,6 +838,19 @@ TEST(FunctionReflectionTest, GetFunctionArgName) {
   EXPECT_EQ(Cpp::GetFunctionArgName(Decls[1], 1), "d");
   EXPECT_EQ(Cpp::GetFunctionArgName(Decls[1], 2), "l");
   EXPECT_EQ(Cpp::GetFunctionArgName(Decls[1], 3), "ch");
+
+  EXPECT_EQ(Cpp::GetFunctionArgName(Decls[2], 0), "");
+  EXPECT_EQ(Cpp::GetFunctionArgName(Decls[2], 1), "");
+  EXPECT_EQ(Cpp::GetFunctionArgName(Decls[2], 2), "i");
+
+  EXPECT_EQ(Cpp::GetFunctionArgName(Decls[3], 0), "i");
+  EXPECT_EQ(Cpp::GetFunctionArgName(Decls[3], 1), "a");
+  EXPECT_EQ(Cpp::GetFunctionArgName(Decls[3], 2), "b");
+
+  EXPECT_EQ(Cpp::GetFunctionArgName(Decls[4], 0), "k");
+  EXPECT_EQ(Cpp::GetFunctionArgName(Decls[4], 1), "");
+  EXPECT_EQ(Cpp::GetFunctionArgName(Decls[4], 2), "ch");
+  EXPECT_EQ(Cpp::GetFunctionArgName(Decls[4], 3), "l");
 }
 
 TEST(FunctionReflectionTest, GetFunctionArgDefault) {
