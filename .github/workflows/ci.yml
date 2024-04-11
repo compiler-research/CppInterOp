@@ -365,7 +365,9 @@ jobs:
                 ../llvm
           cmake --build . --target clang clang-repl lld --parallel ${{ env.ncpus }}
         fi
-        cd ../../
+        cd ../
+        rm -rf $(find . -maxdepth 1 ! -name "build" ! -name "llvm" ! -name "clang" ! -name ".")
+        cd ../
 
     - name: Build LLVM/Cling on Windows systems if the cache is invalid
       if: ${{ runner.os == 'windows' && steps.cache.outputs.cache-hit != 'true' }}
