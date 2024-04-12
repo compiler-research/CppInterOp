@@ -1,0 +1,54 @@
+Metadata-Version: 2.1
+Name: cppyy
+Version: 3.0.0
+Summary: Cling-based Python-C++ bindings
+Home-page: http://cppyy.readthedocs.org
+Author: Wim Lavrijsen
+Author-email: WLavrijsen@lbl.gov
+License: LBNL BSD
+Keywords: C++ bindings data science calling language integration
+Classifier: Development Status :: 5 - Production/Stable
+Classifier: Intended Audience :: Developers
+Classifier: Topic :: Software Development
+Classifier: Topic :: Software Development :: Interpreters
+Classifier: License :: OSI Approved :: BSD License
+Classifier: Programming Language :: Python :: Implementation :: PyPy
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.6
+Classifier: Programming Language :: Python :: 3.7
+Classifier: Programming Language :: Python :: 3.8
+Classifier: Programming Language :: Python :: 3.9
+Classifier: Programming Language :: Python :: 3.10
+Classifier: Programming Language :: C
+Classifier: Programming Language :: C++
+Classifier: Natural Language :: English
+License-File: LICENSE.txt
+
+.. -*- mode: rst -*-
+
+cppyy: Python-C++ bindings interface based on Cling/LLVM
+========================================================
+
+cppyy provides fully automatic, dynamic Python-C++ bindings by leveraging
+the Cling C++ interpreter and LLVM.
+It supports both PyPy (natively), CPython, and C++ language standards
+through C++17 (and parts of C++20).
+
+Details and performance are described in
+`this paper <http://cern.ch/wlav/Cppyy_LavrijsenDutta_PyHPC16.pdf>`_,
+originally presented at PyHPC'16, but since updated with improved performance
+numbers.
+
+Full documentation: `cppyy.readthedocs.io <http://cppyy.readthedocs.io/>`_.
+
+Notebook-based tutorial: `Cppyy Tutorial <https://github.com/wlav/cppyy/blob/master/doc/tutorial/CppyyTutorial.ipynb>`_.
+
+For Anaconda/miniconda, install cppyy from `conda-forge <https://anaconda.org/conda-forge/cppyy>`_.
+
+----
+
+Change log:
+  https://cppyy.readthedocs.io/en/latest/changelog.html
+
+Bug reports/feedback:
+  https://github.com/wlav/cppyy/issues
