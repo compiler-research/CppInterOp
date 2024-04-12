@@ -719,39 +719,46 @@ namespace Cpp {
     return ComputeBaseOffset(getSema().getASTContext(), DCXXRD, Paths.front());
   }
 
-  // FIXME: We should make the std::vector<TCppFunction_t> an out parameter to
-  // avoid copies.
-  std::vector<TCppFunction_t> GetClassMethods(TCppScope_t klass)
-  {
-
+  template <typename DeclType>
+  static void GetClassDecls(TCppScope_t klass,
+                            std::vector<TCppFunction_t>& methods) {
     if (!klass)
-      return {};
+      return;
 
-    auto *D = (clang::Decl *) klass;
+    auto* D = (clang::Decl*)klass;
 
-    if (auto *TD = dyn_cast<TypedefNameDecl>(D))
+    if (auto* TD = dyn_cast<TypedefNameDecl>(D))
       D = GetScopeFromType(TD->getUnderlyingType());
 
-    std::vector<TCppFunction_t> methods;
-    if (auto *CXXRD = dyn_cast_or_null<CXXRecordDecl>(D)) {
-      getSema().ForceDeclarationOfImplicitMembers(CXXRD);
-      for (Decl* DI : CXXRD->decls()) {
-        if (auto* MD = dyn_cast<CXXMethodDecl>(DI))
+    if (!D || !isa<CXXRecordDecl>(D))
+      return;
+
+    auto* CXXRD = dyn_cast<CXXRecordDecl>(D);
+    getSema().ForceDeclarationOfImplicitMembers(CXXRD);
+    for (Decl* DI : CXXRD->decls()) {
+      if (auto* MD = dyn_cast<DeclType>(DI))
+        methods.push_back(MD);
+      else if (auto* USD = dyn_cast<UsingShadowDecl>(DI))
+        if (auto* MD = dyn_cast<DeclType>(USD->getTargetDecl()))
           methods.push_back(MD);
-        else if (auto* USD = dyn_cast<UsingShadowDecl>(DI))
-          if (auto* MD = dyn_cast<CXXMethodDecl>(USD->getTargetDecl()))
-            methods.push_back(MD);
-      }
     }
-    return methods;
+  }
+
+  void GetClassMethods(TCppScope_t klass,
+                       std::vector<TCppFunction_t>& methods) {
+    GetClassDecls<CXXMethodDecl>(klass, methods);
+  }
+
+  void GetFunctionTemplatedDecls(TCppScope_t klass,
+                                 std::vector<TCppFunction_t>& methods) {
+    GetClassDecls<FunctionTemplateDecl>(klass, methods);
   }
 
   bool HasDefaultConstructor(TCppScope_t scope) {
     auto *D = (clang::Decl *) scope;
 
-    if (auto *CXXRD = llvm::dyn_cast_or_null<CXXRecordDecl>(D)) {
+    if (auto* CXXRD = llvm::dyn_cast_or_null<CXXRecordDecl>(D))
       return CXXRD->hasDefaultConstructor();
-    }
 
     return false;
   }
@@ -818,13 +825,11 @@ namespace Cpp {
   TCppType_t GetFunctionReturnType(TCppFunction_t func)
   {
     auto *D = (clang::Decl *) func;
-    if (auto *FD = llvm::dyn_cast_or_null<clang::FunctionDecl>(D)) {
-        return FD->getReturnType().getAsOpaquePtr();
-    }
+    if (auto* FD = llvm::dyn_cast_or_null<clang::FunctionDecl>(D))
+      return FD->getReturnType().getAsOpaquePtr();
 
-    if (auto* FD = llvm::dyn_cast_or_null<clang::FunctionTemplateDecl>(D)) {
-        return (FD->getTemplatedDecl())->getReturnType().getAsOpaquePtr();
-    }
+    if (auto* FD = llvm::dyn_cast_or_null<clang::FunctionTemplateDecl>(D))
+      return (FD->getTemplatedDecl())->getReturnType().getAsOpaquePtr();
 
     return 0;
   }
@@ -832,7 +837,7 @@ namespace Cpp {
   TCppIndex_t GetFunctionNumArgs(TCppFunction_t func)
   {
     auto *D = (clang::Decl *) func;
-    if (auto *FD = llvm::dyn_cast_or_null<FunctionDecl>(D))
+    if (auto* FD = llvm::dyn_cast_or_null<FunctionDecl>(D))
       return FD->getNumParams();
 
     if (auto* FD = llvm::dyn_cast_or_null<clang::FunctionTemplateDecl>(D))
@@ -844,9 +849,8 @@ namespace Cpp {
   TCppIndex_t GetFunctionRequiredArgs(TCppConstFunction_t func)
   {
     auto *D = (const clang::Decl *) func;
-    if (auto *FD = llvm::dyn_cast_or_null<FunctionDecl> (D)) {
+    if (auto* FD = llvm::dyn_cast_or_null<FunctionDecl>(D))
       return FD->getMinRequiredArguments();
-    }
 
     if (auto* FD = llvm::dyn_cast_or_null<clang::FunctionTemplateDecl>(D))
       return (FD->getTemplatedDecl())->getMinRequiredArguments();
@@ -868,8 +872,7 @@ namespace Cpp {
     return 0;
   }
 
-  std::string GetFunctionSignature(TCppFunction_t func)
-  {
+  std::string GetFunctionSignature(TCppFunction_t func) {
     if (!func)
       return "<unknown>";
 
@@ -886,6 +889,7 @@ namespace Cpp {
       SS.flush();
       return Signature;
     }
+
     return "<unknown>";
   }
 
@@ -925,7 +929,7 @@ namespace Cpp {
   {
     DeclContext *Within = 0;
     if (parent) {
-      auto *D = (Decl *)parent;
+      auto* D = (Decl*)parent;
       Within = llvm::dyn_cast<DeclContext>(D);
     }
 
@@ -939,6 +943,72 @@ namespace Cpp {
 
     // FIXME: Cycle through the Decls and check if there is a templated function
     return true;
+  }
+
+  void GetClassTemplatedMethods(const std::string& name, TCppScope_t parent,
+                                std::vector<TCppFunction_t>& funcs) {
+
+    auto* D = (Decl*)parent;
+
+    if (!parent || name.empty())
+      return;
+
+    D = GetUnderlyingScope(D);
+
+    llvm::StringRef Name(name);
+    auto& S = getSema();
+    DeclarationName DName = &getASTContext().Idents.get(name);
+    clang::LookupResult R(S, DName, SourceLocation(), Sema::LookupOrdinaryName,
+                          Sema::ForVisibleRedeclaration);
+
+    Cpp_utils::Lookup::Named(&S, R, Decl::castToDeclContext(D));
+
+    if (R.empty())
+      return;
+
+    R.resolveKind();
+
+    for (auto* Found : R)
+      if (llvm::isa<FunctionTemplateDecl>(Found))
+        funcs.push_back(Found);
+  }
+
+  TCppFunction_t
+  BestTemplateFunctionMatch(const std::vector<TCppFunction_t>& candidates,
+                            const std::vector<TemplateArgInfo>& explicit_types,
+                            const std::vector<TemplateArgInfo>& arg_types) {
+
+    for (const auto& candidate : candidates) {
+      auto* TFD = (FunctionTemplateDecl*)candidate;
+      clang::TemplateParameterList* tpl = TFD->getTemplateParameters();
+
+      // template parameter size does not match
+      if (tpl->size() < explicit_types.size())
+        continue;
+
+      // right now uninstantiated functions give template typenames instead of
+      // actual types. We make this match solely based on count
+
+      const FunctionDecl* func = TFD->getTemplatedDecl();
+      if (func->getNumParams() != arg_types.size())
+        continue;
+
+      // FIXME : first score based on the type similarity before forcing
+      // instantiation try instantiating
+      TCppFunction_t instantiated =
+          InstantiateTemplate(candidate, arg_types.data(), arg_types.size());
+      if (instantiated)
+        return instantiated;
+
+      // Force the instantiation with template params in case of no args
+      // maybe steer instantiation better with arg set returned from
+      // TemplateProxy?
+      instantiated = InstantiateTemplate(candidate, explicit_types.data(),
+                                          explicit_types.size());
+      if (instantiated)
+        return instantiated;
+    }
+    return nullptr;
   }
 
   // Gets the AccessSpecifier of the function and checks if it is equal to
@@ -2836,7 +2906,7 @@ namespace Cpp {
   }
 
   TCppScope_t InstantiateTemplate(TCppScope_t tmpl,
-                                  TemplateArgInfo* template_args,
+                                  const TemplateArgInfo* template_args,
                                   size_t template_args_size) {
     ASTContext &C = getASTContext();
 

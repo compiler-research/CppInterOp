@@ -47,7 +47,8 @@ TEST(FunctionReflectionTest, GetClassMethods) {
     return Cpp::GetFunctionSignature(method);
   };
 
-  auto methods0 = Cpp::GetClassMethods(Decls[0]);
+  std::vector<Cpp::TCppFunction_t> methods0;
+  Cpp::GetClassMethods(Decls[0], methods0);
 
   EXPECT_EQ(methods0.size(), 11);
   EXPECT_EQ(get_method_name(methods0[0]), "int A::f1(int a, int b)");
@@ -62,7 +63,8 @@ TEST(FunctionReflectionTest, GetClassMethods) {
   EXPECT_EQ(get_method_name(methods0[9]), "inline constexpr A &A::operator=(A &&)");
   EXPECT_EQ(get_method_name(methods0[10]), "inline A::~A()");
 
-  auto methods1 = Cpp::GetClassMethods(Decls[1]);
+  std::vector<Cpp::TCppFunction_t> methods1;
+  Cpp::GetClassMethods(Decls[1], methods1);
   EXPECT_EQ(methods0.size(), methods1.size());
   EXPECT_EQ(methods0[0], methods1[0]);
   EXPECT_EQ(methods0[1], methods1[1]);
@@ -70,7 +72,8 @@ TEST(FunctionReflectionTest, GetClassMethods) {
   EXPECT_EQ(methods0[3], methods1[3]);
   EXPECT_EQ(methods0[4], methods1[4]);
 
-  auto methods2 = Cpp::GetClassMethods(Decls[2]);
+  std::vector<Cpp::TCppFunction_t> methods2;
+  Cpp::GetClassMethods(Decls[2], methods2);
 
   EXPECT_EQ(methods2.size(), 6);
   EXPECT_EQ(get_method_name(methods2[0]), "B::B(int n)");
@@ -80,7 +83,8 @@ TEST(FunctionReflectionTest, GetClassMethods) {
   EXPECT_EQ(get_method_name(methods2[4]), "inline B &B::operator=(const B &)");
   EXPECT_EQ(get_method_name(methods2[5]), "inline B &B::operator=(B &&)");
 
-  auto methods3 = Cpp::GetClassMethods(Decls[3]);
+  std::vector<Cpp::TCppFunction_t> methods3;
+  Cpp::GetClassMethods(Decls[3], methods3);
 
   EXPECT_EQ(methods3.size(), 9);
   EXPECT_EQ(get_method_name(methods3[0]), "B::B(int n)");
@@ -93,10 +97,12 @@ TEST(FunctionReflectionTest, GetClassMethods) {
   EXPECT_EQ(get_method_name(methods3[8]), "inline C::~C()");
 
   // Should not crash.
-  auto methods4 = Cpp::GetClassMethods(Decls[4]);
+  std::vector<Cpp::TCppFunction_t> methods4;
+  Cpp::GetClassMethods(Decls[4], methods4);
   EXPECT_EQ(methods4.size(), 0);
 
-  auto methods5 = Cpp::GetClassMethods(nullptr);
+  std::vector<Cpp::TCppFunction_t> methods5;
+  Cpp::GetClassMethods(nullptr, methods5);
   EXPECT_EQ(methods5.size(), 0);
 }
 
@@ -111,8 +117,9 @@ TEST(FunctionReflectionTest, ConstructorInGetClassMethods) {
 
   GetAllTopLevelDecls(code, Decls);
 
-  auto has_constructor = [](Decl *D) {
-    auto methods = Cpp::GetClassMethods(D);
+  auto has_constructor = [](Decl* D) {
+    std::vector<Cpp::TCppFunction_t> methods;
+    Cpp::GetClassMethods(D, methods);
     for (auto method : methods) {
       if (Cpp::IsConstructor(method))
         return true;
@@ -478,6 +485,63 @@ TEST(FunctionReflectionTest, ExistsFunctionTemplate) {
   EXPECT_TRUE(Cpp::ExistsFunctionTemplate("f", 0));
   EXPECT_TRUE(Cpp::ExistsFunctionTemplate("f", Decls[1]));
   EXPECT_FALSE(Cpp::ExistsFunctionTemplate("f", Decls[2]));
+}
+
+TEST(FunctionReflectionTest, InstantiateTemplateFunctionFromString) {
+  Cpp::CreateInterpreter();
+  std::string code = R"(#include <memory>)";
+  Interp->process(code);
+  const char* str = "std::make_unique<int,int>";
+  auto* Instance1 = (Decl*)Cpp::InstantiateTemplateFunctionFromString(str);
+  EXPECT_TRUE(Instance1);
+}
+
+TEST(FunctionReflectionTest, InstantiateFunctionTemplate) {
+  std::vector<Decl*> Decls;
+  std::string code = R"(
+template<typename T> T TrivialFnTemplate() { return T(); }
+)";
+
+  GetAllTopLevelDecls(code, Decls);
+  ASTContext& C = Interp->getCI()->getASTContext();
+
+  std::vector<Cpp::TemplateArgInfo> args1 = {C.IntTy.getAsOpaquePtr()};
+  auto Instance1 = Cpp::InstantiateTemplate(Decls[0], args1.data(),
+                                            /*type_size*/ args1.size());
+  EXPECT_TRUE(isa<FunctionDecl>((Decl*)Instance1));
+  FunctionDecl* FD = cast<FunctionDecl>((Decl*)Instance1);
+  FunctionDecl* FnTD1 = FD->getTemplateInstantiationPattern();
+  EXPECT_TRUE(FnTD1->isThisDeclarationADefinition());
+  TemplateArgument TA1 = FD->getTemplateSpecializationArgs()->get(0);
+  EXPECT_TRUE(TA1.getAsType()->isIntegerType());
+}
+
+TEST(FunctionReflectionTest, InstantiateTemplateMethod) {
+  std::vector<Decl*> Decls;
+  std::string code = R"(
+    class MyTemplatedMethodClass {
+      public:
+          template<class A> long get_size(A&);
+      };
+
+      template<class A>
+      long MyTemplatedMethodClass::get_size(A&) {
+          return sizeof(A);
+      }
+  )";
+
+  GetAllTopLevelDecls(code, Decls);
+  ASTContext& C = Interp->getCI()->getASTContext();
+
+  std::vector<Cpp::TemplateArgInfo> args1 = {C.IntTy.getAsOpaquePtr()};
+  auto Instance1 = Cpp::InstantiateTemplate(Decls[1], args1.data(),
+                                            /*type_size*/ args1.size());
+  EXPECT_TRUE(isa<FunctionDecl>((Decl*)Instance1));
+  FunctionDecl* FD = cast<FunctionDecl>((Decl*)Instance1);
+  FunctionDecl* FnTD1 = FD->getTemplateInstantiationPattern();
+  EXPECT_TRUE(FnTD1->isThisDeclarationADefinition());
+  TemplateArgument TA1 = FD->getTemplateSpecializationArgs()->get(0);
+  EXPECT_TRUE(TA1.getAsType()->isIntegerType());
 }
 
 TEST(FunctionReflectionTest, IsPublicMethod) {
