@@ -1168,7 +1168,7 @@ jobs:
         echo ::endgroup::
         echo ::group::Run complete test suite
         python -m pytest --tb=short -ra -sv> pytest_dump.log 2>&1 || :
-        last_line=$(tail -n 1 pytest_dump.log)
+        last_line=$(tail -n 2 pytest_dump.log)
         passed=$(echo "$last_line" | grep -oP "\d+ passed")
         failed=$(echo "$last_line" | grep -oP "\d+ failed")
         skipped=$(echo "$last_line" | grep -oP "\d+ skipped")
