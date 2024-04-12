@@ -234,6 +234,49 @@ TEST(FunctionReflectionTest, GetFunctionsUsingName) {
   EXPECT_EQ(get_number_of_funcs_using_name(Decls[2], ""), 0);
 }
 
+TEST(FunctionReflectionTest, GetClassDecls) {
+  std::vector<Decl*> Decls, SubDecls;
+  std::string code = R"(
+    class MyTemplatedMethodClass {
+      template<class A, class B>
+      long get_size(A, B, int i = 0) {}
+
+      template<class A = int, class B = char>
+      long get_float_size(int i, A a = A(), B b = B()) {}
+           
+      template<class A>
+      void get_char_size(long k, A, char ch = 'a', double l = 0.0) {}
+
+      void f1() {}
+      void f2(int i, double d, long l, char ch) {}
+
+      template<class A>
+      void get_size(long k, A, char ch = 'a', double l = 0.0) {}
+
+      void f3(int i, double d, long l = 0, char ch = 'a') {}
+      void f4(int i = 0, double d = 0.0, long l = 0, char ch = 'a') {}
+    };
+    )";
+
+  GetAllTopLevelDecls(code, Decls);
+  GetAllSubDecls(Decls[0], SubDecls);
+  
+  std::vector<Cpp::TCppFunction_t> methods;
+  std::vector<Cpp::TCppFunction_t> template_methods;
+
+  Cpp::GetClassMethods(Decls[0], methods);
+  Cpp::GetFunctionTemplatedDecls(Decls[0], template_methods);
+
+  EXPECT_EQ(Cpp::GetName(template_methods[0]), Cpp::GetName(SubDecls[1]));
+  EXPECT_EQ(Cpp::GetName(template_methods[1]), Cpp::GetName(SubDecls[2]));
+  EXPECT_EQ(Cpp::GetName(template_methods[2]), Cpp::GetName(SubDecls[3]));
+  EXPECT_EQ(Cpp::GetName(methods[0])         , Cpp::GetName(SubDecls[4]));
+  EXPECT_EQ(Cpp::GetName(methods[1])         , Cpp::GetName(SubDecls[5]));
+  EXPECT_EQ(Cpp::GetName(template_methods[3]), Cpp::GetName(SubDecls[6]));
+  EXPECT_EQ(Cpp::GetName(methods[2])         , Cpp::GetName(SubDecls[7]));
+  EXPECT_EQ(Cpp::GetName(methods[3])         , Cpp::GetName(SubDecls[8]));
+}
+
 TEST(FunctionReflectionTest, GetFunctionReturnType) {
   std::vector<Decl*> Decls, SubDecls, TemplateSubDecls;
   std::string code = R"(
