@@ -1156,6 +1156,9 @@ jobs:
       continue-on-error: true
       if: ${{ (runner.os != 'windows') && (matrix.cppyy == 'On') && (matrix.xeus-clang-repl != 'On') }}
       run: |
+        # Install libraries used by the cppyy test suite
+        sudo apt install libeigen3-dev
+        sudo apt install libboost-all-dev
         # Run the tests
         source .venv/bin/activate
         cd cppyy/test
