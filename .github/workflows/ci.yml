@@ -102,32 +102,7 @@ jobs:
             cling: On
             cling-version: '1.0'
             cppyy: On
-          - name: osx13-x86-clang-clang-repl-18
-            os: macos-13
-            compiler: clang
-            clang-runtime: '18'
-            cling: Off
-            cppyy: On
-          - name: osx13-x86-clang-clang-repl-17
-            os: macos-13
-            compiler: clang
-            clang-runtime: '17'
-            cling: Off
-            cppyy: On
-          - name: osx13-x86-clang-clang-repl-16
-            os: macos-13
-            compiler: clang
-            clang-runtime: '16'
-            cling: Off
-            cppyy: On
-          - name: osx13-x86-clang-clang13-cling
-            os: macos-13
-            compiler: clang
-            clang-runtime: '13'
-            cling: On
-            cling-version: '1.0'
-            cppyy: On
-          
+
     steps:
     - uses: actions/checkout@v3
       with:
@@ -670,60 +645,6 @@ jobs:
             cppyy: On
           - name: osx14-arm-clang-clang13-cling-xeus-clang-repl
             os: macos-14
-            compiler: clang
-            clang-runtime: '13'
-            cling: On
-            cling-version: '1.0'
-            cppyy: On
-            xeus-clang-repl: On
-          - name: osx13-x86-clang-clang-repl-18-cppyy
-            os: macos-13
-            compiler: clang
-            clang-runtime: '18'
-            cling: Off
-            cppyy: On
-          - name: osx13-x86-clang-clang-repl-18-xeus-clang-repl
-            os: macos-13
-            compiler: clang
-            clang-runtime: '18'
-            cling: Off
-            cppyy: On
-            xeus-clang-repl: On
-          - name: osx13-x86-clang-clang-repl-17-cppyy
-            os: macos-13
-            compiler: clang
-            clang-runtime: '17'
-            cling: Off
-            cppyy: On
-          - name: osx13-x86-clang-clang-repl-17-xeus-clang-repl
-            os: macos-13
-            compiler: clang
-            clang-runtime: '17'
-            cling: Off
-            cppyy: On
-            xeus-clang-repl: On
-          - name: osx13-x86-clang-clang-repl-16-cppyy
-            os: macos-13
-            compiler: clang
-            clang-runtime: '16'
-            cling: Off
-            cppyy: On
-          - name: osx13-x86-clang-clang-repl-16-xeus-clang-repl
-            os: macos-13
-            compiler: clang
-            clang-runtime: '16'
-            cling: Off
-            cppyy: On
-            xeus-clang-repl: On
-          - name: osx13-x86-clang-clang13-cling-cppyy
-            os: macos-13
-            compiler: clang
-            clang-runtime: '13'
-            cling: On
-            cling-version: '1.0'
-            cppyy: On
-          - name: osx13-x86-clang-clang13-cling-xeus-clang-repl
-            os: macos-13
             compiler: clang
             clang-runtime: '13'
             cling: On
@@ -1318,27 +1239,6 @@ jobs:
             cling: Off  
           - name: osx14-arm-clang-clang13-cling-emscripten_wasm
             os: macos-14
-            compiler: clang
-            clang-runtime: '13'
-            cling: On
-            cling-version: '1.0'
-          - name: osx13-x86-clang-clang-repl-18-emscripten_wasm
-            os: macos-13
-            compiler: clang
-            clang-runtime: '18'
-            cling: Off
-          - name: osx13-x86-clang-clang-repl-17-emscripten_wasm
-            os: macos-13
-            compiler: clang
-            clang-runtime: '17'
-            cling: Off
-          - name: osx13-x86-clang-clang-repl-16-emscripten_wasm
-            os: macos-13
-            compiler: clang
-            clang-runtime: '16'
-            cling: Off
-          - name: osx13-x86-clang-clang13-cling-emscripten_wasm
-            os: macos-13
             compiler: clang
             clang-runtime: '13'
             cling: On
