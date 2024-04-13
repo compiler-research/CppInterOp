@@ -889,6 +889,9 @@ jobs:
         sudo apt install git g++ debhelper devscripts gnupg python3 valgrind
         sudo apt autoremove
         sudo apt clean
+        # Install libraries used by the cppyy test suite
+        sudo apt install libeigen3-dev
+        sudo apt install libboost-all-dev
 
     - name: Install deps on MacOS
       if: runner.os == 'macOS'
@@ -900,6 +903,8 @@ jobs:
           brew link --overwrite "$pkg"
         done
         brew upgrade
+        brew install eigen
+        brew install boost
         pip install distro pytest
 
     - name: Restore Cache LLVM/Clang runtime build directory
@@ -1156,9 +1161,6 @@ jobs:
       continue-on-error: true
       if: ${{ (runner.os != 'windows') && (matrix.cppyy == 'On') && (matrix.xeus-clang-repl != 'On') }}
       run: |
-        # Install libraries used by the cppyy test suite
-        sudo apt install libeigen3-dev
-        sudo apt install libboost-all-dev
         # Run the tests
         source .venv/bin/activate
         cd cppyy/test
