@@ -104,7 +104,7 @@ jobs:
             cppyy: On
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         fetch-depth: 0
     - name: Set up Python
@@ -273,7 +273,7 @@ jobs:
         brew upgrade
 
     - name: Restore Cache LLVM/Clang runtime build directory
-      uses: actions/cache/restore@v3
+      uses: actions/cache/restore@v4
       id: cache
       with:
         path: |
@@ -416,7 +416,7 @@ jobs:
         cd ../../        
 
     - name: Save Cache LLVM/Clang runtime build directory
-      uses: actions/cache/save@v3
+      uses: actions/cache/save@v4
       if: ${{ steps.cache.outputs.cache-hit != 'true' }}
       with:
         path: |
@@ -653,7 +653,7 @@ jobs:
             xeus-clang-repl: On
           
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         fetch-depth: 0
     - name: Set up Python
@@ -824,7 +824,7 @@ jobs:
         pip install distro pytest
 
     - name: Restore Cache LLVM/Clang runtime build directory
-      uses: actions/cache/restore@v3
+      uses: actions/cache/restore@v4
       id: cache
       with:
         path: |
@@ -1245,7 +1245,7 @@ jobs:
             cling-version: '1.0'
             
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         fetch-depth: 0
     - name: Set up Python
@@ -1309,7 +1309,7 @@ jobs:
         emsdk install 3.1.45     
 
     - name: Restore Cache LLVM/Clang runtime build directory
-      uses: actions/cache/restore@v3
+      uses: actions/cache/restore@v4
       id: cache
       with:
         path: |
