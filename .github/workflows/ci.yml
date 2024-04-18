@@ -133,8 +133,6 @@ jobs:
         echo "CLING_HASH=$CLING_HASH" >> $GITHUB_ENV
         echo "LLVM_HASH=$LLVM_HASH" >> $GITHUB_ENV
 
-    - uses: nelonoel/branch-name@v1.0.1
-
     - name: Save PR Info on Windows systems
       if: ${{ runner.os == 'windows' }}
       run: |
@@ -162,8 +160,6 @@ jobs:
         
         echo "CLING_HASH=$env:CLING_HASH" >> $GITHUB_ENV
         echo "LLVM_HASH=$env:LLVM_HASH" >> $GITHUB_ENV
-        
-    - uses: nelonoel/branch-name@v1.0.1
 
     - name: Setup default Build Type on *nux
       if: runner.os != 'windows'
@@ -682,8 +678,6 @@ jobs:
         echo "CLING_HASH=$CLING_HASH" >> $GITHUB_ENV
         echo "LLVM_HASH=$LLVM_HASH" >> $GITHUB_ENV
 
-    - uses: nelonoel/branch-name@v1.0.1
-
     - name: Save PR Info on Windows systems
       if: ${{ runner.os == 'windows' }}
       run: |
@@ -711,8 +705,6 @@ jobs:
         
         echo "CLING_HASH=$env:CLING_HASH" >> $GITHUB_ENV
         echo "LLVM_HASH=$env:LLVM_HASH" >> $GITHUB_ENV
-        
-    - uses: nelonoel/branch-name@v1.0.1
 
     - name: Setup default Build Type on *nux
       if: runner.os != 'windows'
@@ -1273,8 +1265,6 @@ jobs:
 
         echo "CLING_HASH=$CLING_HASH" >> $GITHUB_ENV
         echo "LLVM_HASH=$LLVM_HASH" >> $GITHUB_ENV
-
-    - uses: nelonoel/branch-name@v1.0.1    
 
     - name: Setup default Build Type on *nux
       if: runner.os != 'windows'
