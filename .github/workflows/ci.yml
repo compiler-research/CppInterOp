@@ -104,11 +104,11 @@ jobs:
             cppyy: On
 
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         fetch-depth: 0
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.10'
 
@@ -132,8 +132,6 @@ jobs:
 
         echo "CLING_HASH=$CLING_HASH" >> $GITHUB_ENV
         echo "LLVM_HASH=$LLVM_HASH" >> $GITHUB_ENV
-
-    - uses: nelonoel/branch-name@v1.0.1
 
     - name: Save PR Info on Windows systems
       if: ${{ runner.os == 'windows' }}
@@ -162,8 +160,6 @@ jobs:
         
         echo "CLING_HASH=$env:CLING_HASH" >> $GITHUB_ENV
         echo "LLVM_HASH=$env:LLVM_HASH" >> $GITHUB_ENV
-        
-    - uses: nelonoel/branch-name@v1.0.1
 
     - name: Setup default Build Type on *nux
       if: runner.os != 'windows'
@@ -273,7 +269,7 @@ jobs:
         brew upgrade
 
     - name: Restore Cache LLVM/Clang runtime build directory
-      uses: actions/cache/restore@v3
+      uses: actions/cache/restore@v4
       id: cache
       with:
         path: |
@@ -416,7 +412,7 @@ jobs:
         cd ../../        
 
     - name: Save Cache LLVM/Clang runtime build directory
-      uses: actions/cache/save@v3
+      uses: actions/cache/save@v4
       if: ${{ steps.cache.outputs.cache-hit != 'true' }}
       with:
         path: |
@@ -653,11 +649,11 @@ jobs:
             xeus-clang-repl: On
           
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         fetch-depth: 0
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.10'
 
@@ -681,8 +677,6 @@ jobs:
 
         echo "CLING_HASH=$CLING_HASH" >> $GITHUB_ENV
         echo "LLVM_HASH=$LLVM_HASH" >> $GITHUB_ENV
-
-    - uses: nelonoel/branch-name@v1.0.1
 
     - name: Save PR Info on Windows systems
       if: ${{ runner.os == 'windows' }}
@@ -711,8 +705,6 @@ jobs:
         
         echo "CLING_HASH=$env:CLING_HASH" >> $GITHUB_ENV
         echo "LLVM_HASH=$env:LLVM_HASH" >> $GITHUB_ENV
-        
-    - uses: nelonoel/branch-name@v1.0.1
 
     - name: Setup default Build Type on *nux
       if: runner.os != 'windows'
@@ -829,7 +821,7 @@ jobs:
         pip install distro pytest
 
     - name: Restore Cache LLVM/Clang runtime build directory
-      uses: actions/cache/restore@v3
+      uses: actions/cache/restore@v4
       id: cache
       with:
         path: |
@@ -1231,11 +1223,11 @@ jobs:
             cling-version: '1.0'
             
     steps:
-    - uses: actions/checkout@v3
+    - uses: actions/checkout@v4
       with:
         fetch-depth: 0
     - name: Set up Python
-      uses: actions/setup-python@v4
+      uses: actions/setup-python@v5
       with:
         python-version: '3.10'
 
@@ -1259,8 +1251,6 @@ jobs:
 
         echo "CLING_HASH=$CLING_HASH" >> $GITHUB_ENV
         echo "LLVM_HASH=$LLVM_HASH" >> $GITHUB_ENV
-
-    - uses: nelonoel/branch-name@v1.0.1    
 
     - name: Setup default Build Type on *nux
       if: runner.os != 'windows'
@@ -1295,7 +1285,7 @@ jobs:
         emsdk install 3.1.45     
 
     - name: Restore Cache LLVM/Clang runtime build directory
-      uses: actions/cache/restore@v3
+      uses: actions/cache/restore@v4
       id: cache
       with:
         path: |
