@@ -253,15 +253,7 @@ public:
 
   CompilationResult declare(const std::string& input,
                             clang::PartialTranslationUnit** PTU = nullptr) {
-    auto PTUOrErr = Parse(input);
-    if (!PTUOrErr) {
-      llvm::logAllUnhandledErrors(PTUOrErr.takeError(), llvm::errs(),
-                                  "Failed to parse via ::process:");
-      return Interpreter::kFailure;
-    }
-    if (PTU)
-      *PTU = &*PTUOrErr;
-    return Interpreter::kSuccess;
+    return process(input, /*Value=*/nullptr, PTU);
   }
 
   ///\brief Maybe transform the input line to implement cint command line
@@ -270,14 +262,17 @@ public:
   CompilationResult process(const std::string& input, clang::Value* V = 0,
                             clang::PartialTranslationUnit** PTU = nullptr,
                             bool disableValuePrinting = false) {
-    clang::PartialTranslationUnit* ParsePTU = nullptr;
-    if (declare(input, &ParsePTU))
+    auto PTUOrErr = Parse(input);
+    if (!PTUOrErr) {
+      llvm::logAllUnhandledErrors(PTUOrErr.takeError(), llvm::errs(),
+                                  "Failed to parse via ::process:");
       return Interpreter::kFailure;
+    }
 
     if (PTU)
-      *PTU = ParsePTU;
+      *PTU = &*PTUOrErr;
 
-    if (auto Err = Execute(*ParsePTU)) {
+    if (auto Err = Execute(*PTUOrErr)) {
       llvm::logAllUnhandledErrors(std::move(Err), llvm::errs(),
                                   "Failed to execute via ::process:");
       return Interpreter::kFailure;
