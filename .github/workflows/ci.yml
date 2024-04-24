@@ -805,8 +805,8 @@ jobs:
         sudo apt autoremove
         sudo apt clean
         # Install libraries used by the cppyy test suite
-        sudo apt-get install libeigen3-dev
-        sudo apt-get install libboost-all-dev
+        sudo apt install libeigen3-dev
+        sudo apt install libboost-all-dev
 
     - name: Install deps on MacOS
       if: runner.os == 'macOS'
@@ -1084,6 +1084,7 @@ jobs:
         python -m pip install pytest
         python -m pip install pytest-xdist
         python -m pip install numba
+        python -m pip install psutil
         echo ::endgroup::
         echo ::group::Run complete test suite
         python -m pytest
