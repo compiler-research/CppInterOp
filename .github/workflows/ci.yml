@@ -1109,7 +1109,7 @@ jobs:
         declare -i RETCODE=0
 
         set -o pipefail
-        valgrind --error-exitcode=1 --suppressions=../etc/valgrind-cppyy-cling.supp python -m pytest -m "not xfail" -v || true
+        valgrind --error-exitcode=1 --suppressions=../etc/valgrind-cppyy-cling.supp python -m pytest -m "not xfail" -v || "${{ matrix.clang-runtime }}" -imatch "17" || "${{ matrix.clang-runtime }}" -imatch "18"
         export RETCODE=+$?
         echo ::endgroup::
 
