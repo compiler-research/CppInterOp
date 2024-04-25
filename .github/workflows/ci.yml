@@ -1087,12 +1087,12 @@ jobs:
         python -m pip install psutil
         echo ::endgroup::
         echo ::group::Run complete test suite
-        python -m pytest
+        python -m pytest -sv | tee complete_testrun.log 2>&1 || true
         echo ::group::Crashing Test Logs
         # See if we don't have a crash that went away
         # Comment out all xfails but the ones that have a run=False condition.
         find . -name "*.py" -exec sed -i '/run=False/!s/^ *@mark.xfail\(.*\)/#&/' {} \;
-        python -m pytest -n 1 -m "xfail" --runxfail -sv --max-worker-restart 512 | tee test_crashed.log 2>&1 || true
+        python -m pytest -m "xfail" --runxfail -sv | tee test_crashed.log 2>&1 || true
         git checkout .
         echo ::endgroup::
         echo ::group::XFAIL Test Logs
@@ -1109,12 +1109,20 @@ jobs:
         declare -i RETCODE=0
 
         set -o pipefail
-        valgrind --error-exitcode=1 --suppressions=../etc/valgrind-cppyy-cling.supp python -m pytest -m "not xfail" -v || "${{ matrix.clang-runtime }}" -imatch "17" || "${{ matrix.clang-runtime }}" -imatch "18"
+        if [[ "${{ matrix.clang-runtime }}" == "17" || "${{ matrix.clang-runtime }}" == "18" ]]; then
+          echo "Valgrind reports true for clang-runtime 17 or 18, due to memory leaks with LLVM"
+          valgrind --error-exitcode=1 --suppressions=../etc/valgrind-cppyy-cling.supp python -m pytest -m "not xfail" -v || true
+        else
+          echo "Running valgrind on passing tests"
+          valgrind --error-exitcode=1 --suppressions=../etc/valgrind-cppyy-cling.supp python -m pytest -m "not xfail" -v
+        fi
         export RETCODE=+$?
         echo ::endgroup::
 
         RETCODE=+$?
 
+        echo "Complete Test Suite Summary: \n"
+        tail -n1 complete_testrun.log
         echo "Crashing Summary: \n"
         tail -n1 test_crashed.log
         echo "XFAIL Summary:"
