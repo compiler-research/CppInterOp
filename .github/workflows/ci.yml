@@ -1084,10 +1084,9 @@ jobs:
         python -m pip install pytest
         python -m pip install pytest-xdist
         python -m pip install numba
-        python -m pip install psutil
         echo ::endgroup::
         echo ::group::Run complete test suite
-        python -m pytest -sv | tee complete_testrun.log 2>&1 || true
+        python -m pytest -sv | tee complete_testrun.log 2>&1
         echo ::group::Crashing Test Logs
         # See if we don't have a crash that went away
         # Comment out all xfails but the ones that have a run=False condition.
