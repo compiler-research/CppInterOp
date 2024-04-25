@@ -196,8 +196,8 @@ jobs:
           if ! sudo apt install -y clang-${vers}; then
             curl https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
             echo "deb https://apt.llvm.org/${os_codename}/ llvm-toolchain-${os_codename}-${vers} main" | sudo tee -a /etc/apt/sources.list
-            sudo apt update
-            sudo apt install -y clang-${vers}
+            sudo apt-get update
+            sudo apt-get install -y clang-${vers}
           fi
           echo "CC=clang-${vers}" >> $GITHUB_ENV
           echo "CXX=clang++-${vers}" >> $GITHUB_ENV
@@ -253,9 +253,9 @@ jobs:
       if: runner.os == 'Linux'
       run: |
         # Install deps
-        sudo apt update
-        sudo apt autoremove
-        sudo apt clean
+        sudo apt-get update
+        sudo apt-get autoremove
+        sudo apt-get clean
 
     - name: Install deps on MacOS
       if: runner.os == 'macOS'
@@ -743,7 +743,7 @@ jobs:
           if ! sudo apt install -y clang-${vers}; then
             curl https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
             echo "deb https://apt.llvm.org/${os_codename}/ llvm-toolchain-${os_codename}-${vers} main" | sudo tee -a /etc/apt/sources.list
-            sudo apt update
+            sudo apt-get update
             sudo apt install -y clang-${vers}
           fi
           echo "CC=clang-${vers}" >> $GITHUB_ENV
@@ -800,8 +800,8 @@ jobs:
       if: runner.os == 'Linux'
       run: |
         # Install deps
-        sudo apt update
-        sudo apt install git g++ debhelper devscripts gnupg python3 valgrind
+        sudo apt-get update
+        sudo apt-get install git g++ debhelper devscripts gnupg python3 valgrind
         sudo apt autoremove
         sudo apt clean
         # Install libraries used by the cppyy test suite
@@ -1073,7 +1073,6 @@ jobs:
         # We need PYTHONPATH later
         echo "PYTHONPATH=$PYTHONPATH" >> $GITHUB_ENV
     - name: Run the tests on Unix Systems
-      continue-on-error: true
       if: ${{ (runner.os != 'windows') && (matrix.cppyy == 'On') && (matrix.xeus-clang-repl != 'On') }}
       run: |
         # Run the tests
@@ -1087,12 +1086,12 @@ jobs:
         python -m pip install numba
         echo ::endgroup::
         echo ::group::Run complete test suite
-        python -m pytest
+        python -m pytest -sv | tee complete_testrun.log 2>&1
         echo ::group::Crashing Test Logs
         # See if we don't have a crash that went away
         # Comment out all xfails but the ones that have a run=False condition.
         find . -name "*.py" -exec sed -i '/run=False/!s/^ *@mark.xfail\(.*\)/#&/' {} \;
-        python -m pytest -n 1 -m "xfail" --runxfail -sv --max-worker-restart 512 | tee test_crashed.log 2>&1
+        python -m pytest -m "xfail" --runxfail -sv | tee test_crashed.log 2>&1 || true
         git checkout .
         echo ::endgroup::
         echo ::group::XFAIL Test Logs
@@ -1100,7 +1099,7 @@ jobs:
         # avoid conditionally crashing xfails
         find . -name "*.py" -exec sed -i -E 's/(^ *)@mark.xfail\(run=(.*)/\1@mark.skipif(condition=not \2/g' {} \;
         # See if we don't have an xfail that went away
-        python -m pytest --runxfail -sv  | tee test_xfailed.log 2>&1
+        python -m pytest --runxfail -sv  | tee test_xfailed.log 2>&1 || true
         git checkout .
         echo ::endgroup::
         echo ::group::Passing Test Logs
@@ -1109,12 +1108,20 @@ jobs:
         declare -i RETCODE=0
 
         set -o pipefail
-        valgrind --error-exitcode=1 --suppressions=../etc/valgrind-cppyy-cling.supp python -m pytest -m "not xfail" -v
+        if [[ "${{ matrix.clang-runtime }}" == "17" || "${{ matrix.clang-runtime }}" == "18" ]] && [[ "${{ matrix.os }}" != "macos-14" ]]; then
+          echo "Valgrind reports true for clang-runtime 17 or 18, due to memory leaks with LLVM"
+          valgrind --error-exitcode=1 --suppressions=../etc/valgrind-cppyy-cling.supp python -m pytest -m "not xfail" -v || true
+        else
+          echo "Running valgrind on passing tests"
+          valgrind --error-exitcode=1 --suppressions=../etc/valgrind-cppyy-cling.supp python -m pytest -m "not xfail" -v
+        fi
         export RETCODE=+$?
         echo ::endgroup::
 
         RETCODE=+$?
 
+        echo "Complete Test Suite Summary: \n"
+        tail -n1 complete_testrun.log
         echo "Crashing Summary: \n"
         tail -n1 test_crashed.log
         echo "XFAIL Summary:"
@@ -1270,10 +1277,10 @@ jobs:
       if: runner.os == 'Linux'
       run: |
         # Install deps
-        sudo apt update
-        sudo apt install git g++ debhelper devscripts gnupg python3 valgrind
-        sudo apt autoremove
-        sudo apt clean
+        sudo apt-get update
+        sudo apt-get install git g++ debhelper devscripts gnupg python3 valgrind
+        sudo apt-get autoremove
+        sudo apt-get clean
 
     - name: Install mamba
       uses: mamba-org/provision-with-micromamba@main
