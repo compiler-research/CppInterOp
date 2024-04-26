@@ -1091,7 +1091,7 @@ jobs:
         # See if we don't have a crash that went away
         # Comment out all xfails but the ones that have a run=False condition.
         find . -name "*.py" -exec sed -i '/run=False/!s/^ *@mark.xfail\(.*\)/#&/' {} \;
-        python -m pytest -m "xfail" --runxfail -sv | tee test_crashed.log 2>&1 || true
+        python -m pytest -n 1 -m "xfail" --runxfail -sv --max-worker-restart 512 | tee test_crashed.log 2>&1 || true
         git checkout .
         echo ::endgroup::
         echo ::group::XFAIL Test Logs
