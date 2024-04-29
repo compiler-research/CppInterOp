@@ -3,9 +3,16 @@ set(LLVM_LINK_COMPONENTS
   BinaryFormat
   Core
   Object
-  OrcJIT
+  OrcJit
   Support
 )
+# FIXME: Investigate why this needs to be conditionally included.
+if ("LLVMFrontendDriver" IN_LIST LLVM_AVAILABLE_LIBS)
+  list(APPEND LLVM_LINK_COMPONENTS  FrontendDriver)
+endif()
+if ("LLVMOrcDebugging" IN_LIST LLVM_AVAILABLE_LIBS)
+  list(APPEND LLVM_LINK_COMPONENTS OrcDebugging)
+endif()
 
 set(DLM
   DynamicLibraryManager.cpp

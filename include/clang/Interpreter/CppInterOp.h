@@ -648,6 +648,18 @@ namespace Cpp {
   CPPINTEROP_API std::string EndStdStreamCapture();
 
   ///@}
+
+  /// Append all Code completion suggestions to Results.
+  ///\param[out] Results - CC suggestions for code fragment. Suggestions are
+  /// appended.
+  ///\param[in] code - code fragmet to complete
+  ///\param[in] complete_line - position (line) in code for suggestion
+  ///\param[in] complete_column - position (column) in code for suggestion
+  CPPINTEROP_API void CodeComplete(std::vector<std::string>& Results,
+                                   const char* code,
+                                   unsigned complete_line = 1U,
+                                   unsigned complete_column = 1U);
+
 } // end namespace Cpp
 
 #endif // CPPINTEROP_CPPINTEROP_H
