@@ -23,13 +23,13 @@ Checks: >
   -modernize-use-trailing-return-type,
   -readability-braces-around-statements,
   -readability-identifier-length,
-  -readability-implicit-bool-conversion
+  -readability-implicit-bool-conversion,
   -readability-magic-numbers,
   -readability-named-parameter,
   -readability-function-cognitive-complexity,
   -readability-redundant-access-specifiers,
   -cppcoreguidelines-avoid-magic-numbers,
-  -cppcoreguidelines-init-variables
+  -cppcoreguidelines-init-variables,
   -cppcoreguidelines-pro-bounds-pointer-arithmetic,
   -cppcoreguidelines-pro-type-member-init,
   -llvm-namespace-comment
