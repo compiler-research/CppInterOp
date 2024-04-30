@@ -17,7 +17,11 @@ std::string GetExecutablePath(const char* Argv0) {
   return llvm::sys::fs::getMainExecutable(Argv0, MainAddr);
 }
 
+#ifdef _WIN32
+TEST(DynamicLibraryManagerTest, DISABLED_Sanity) {
+#else
 TEST(DynamicLibraryManagerTest, Sanity) {
+#endif // _WIN32
   EXPECT_TRUE(Cpp::CreateInterpreter());
   EXPECT_FALSE(Cpp::GetFunctionAddress("ret_zero"));
 

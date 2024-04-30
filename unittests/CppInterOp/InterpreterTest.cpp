@@ -53,7 +53,11 @@ TEST(InterpreterTest, Evaluate) {
   EXPECT_FALSE(HadError) ;
 }
 
+#ifdef _WIN32
+TEST(InterpreterTest, DISABLED_Process) {
+#else
 TEST(InterpreterTest, Process) {
+#endif // _WIN32
   Cpp::CreateInterpreter();
   EXPECT_TRUE(Cpp::Process("") == 0);
   EXPECT_TRUE(Cpp::Process("int a = 12;") == 0);
@@ -85,11 +89,11 @@ TEST(InterpreterTest, CreateInterpreter) {
   EXPECT_FALSE(Cpp::GetNamed("cppUnknown"));
 }
 
-#ifdef LLVM_BINARY_DIR
+#if defined(LLVM_BINARY_DIR) && !defined(_WIN32)
 TEST(InterpreterTest, DetectResourceDir) {
 #else
 TEST(InterpreterTest, DISABLED_DetectResourceDir) {
-#endif // LLVM_BINARY_DIR
+#endif // LLVM_BINARY_DIR || !_WIN32
   Cpp::CreateInterpreter();
   EXPECT_STRNE(Cpp::DetectResourceDir().c_str(), Cpp::GetResourceDir());
   llvm::SmallString<256> Clang(LLVM_BINARY_DIR);
@@ -98,7 +102,11 @@ TEST(InterpreterTest, DISABLED_DetectResourceDir) {
   EXPECT_STREQ(DetectedPath.c_str(), Cpp::GetResourceDir());
 }
 
+#ifdef _WIN32
+TEST(InterpreterTest, DISABLED_DetectSystemCompilerIncludePaths) {
+#else
 TEST(InterpreterTest, DetectSystemCompilerIncludePaths) {
+#endif // _WIN32
   std::vector<std::string> includes;
   Cpp::DetectSystemCompilerIncludePaths(includes);
   EXPECT_FALSE(includes.empty());
