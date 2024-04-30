@@ -252,7 +252,7 @@ jobs:
     - name: Install deps on Windows
       if: runner.os == 'windows'
       run: |
-        winget install -e --id GnuWin32.FindUtils
+        choco install findutils
         $env:PATH="C:\Program Files (x86)\GnuWin32\bin;$env:PATH"
 
     - name: Install deps on Linux
