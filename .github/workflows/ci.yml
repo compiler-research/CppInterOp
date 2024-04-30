@@ -1086,7 +1086,9 @@ jobs:
         python -m pip install numba
         echo ::endgroup::
         echo ::group::Run complete test suite
+        set -o pipefail
         python -m pytest -sv | tee complete_testrun.log 2>&1
+        set +o pipefail
         echo ::group::Crashing Test Logs
         # See if we don't have a crash that went away
         # Comment out all xfails but the ones that have a run=False condition.
@@ -1108,12 +1110,16 @@ jobs:
         declare -i RETCODE=0
 
         set -o pipefail
-        if [[ "${{ matrix.clang-runtime }}" == "17" || "${{ matrix.clang-runtime }}" == "18" ]] && [[ "${{ matrix.os }}" != "macos-14" ]]; then
-          echo "Valgrind reports true for clang-runtime 17 or 18, due to memory leaks with LLVM"
-          valgrind --error-exitcode=1 --suppressions=../etc/valgrind-cppyy-cling.supp python -m pytest -m "not xfail" -v || true
+        if [[ "${{ matrix.os }}" == macos-* ]]; then
+        echo "Skipping Valgrind checks on OS X"
         else
-          echo "Running valgrind on passing tests"
-          valgrind --error-exitcode=1 --suppressions=../etc/valgrind-cppyy-cling.supp python -m pytest -m "not xfail" -v
+            if [[ "${{ matrix.clang-runtime }}" == "17" || "${{ matrix.clang-runtime }}" == "18" ]]; then
+                echo "Valgrind reports true for clang-runtime 17 or 18, due to memory leaks with LLVM"
+                valgrind --error-exitcode=1 --suppressions=../etc/valgrind-cppyy-cling.supp python -m pytest -m "not xfail" -v || true
+            else
+                echo "Running valgrind on passing tests"
+                valgrind --error-exitcode=1 --suppressions=../etc/valgrind-cppyy-cling.supp python -m pytest -m "not xfail" -v
+            fi
         fi
         export RETCODE=+$?
         echo ::endgroup::
