@@ -423,7 +423,7 @@ jobs:
           cmake --build . --config Release --target clang clang-repl lld --parallel ${{ env.ncpus }}
         }
         cd ..\
-        rm -rf $(find.exe . -maxdepth 1 ! -name "build" ! -name "llvm" ! -name "clang" ! -name ".")
+        rm -r -force $(find.exe . -maxdepth 1 ! -name "build" ! -name "llvm" ! -name "clang" ! -name ".")
         cd ..\        
 
     - name: Save Cache LLVM/Clang runtime build directory
