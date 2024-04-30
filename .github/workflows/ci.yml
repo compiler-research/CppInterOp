@@ -249,6 +249,12 @@ jobs:
           echo "Unsupported compiler - fix YAML file"
         }
 
+    - name: Install deps on Windows
+      if: runner.os == 'windows'
+      run: |
+        winget install -e --id GnuWin32.FindUtils
+        $env:PATH="C:\Program Files (x86)\GnuWin32\bin;$env:PATH"
+
     - name: Install deps on Linux
       if: runner.os == 'Linux'
       run: |
@@ -411,7 +417,9 @@ jobs:
                 ../llvm
           cmake --build . --config Release --target clang clang-repl --parallel ${{ env.ncpus }}
         }
-        cd ../../        
+        cd ..\
+        rm -rf $(find.exe . -maxdepth 1 ! -name "build" ! -name "llvm" ! -name "clang" ! -name ".")
+        cd ..\        
 
     - name: Save Cache LLVM/Clang runtime build directory
       uses: actions/cache/save@v4
