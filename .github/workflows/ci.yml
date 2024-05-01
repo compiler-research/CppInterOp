@@ -1128,10 +1128,10 @@ jobs:
         else
             if [[ "${{ matrix.clang-runtime }}" == "17" || "${{ matrix.clang-runtime }}" == "18" ]]; then
                 echo "Valgrind reports true for clang-runtime 17 or 18, due to memory leaks with LLVM"
-                valgrind --error-exitcode=1 --suppressions=../etc/valgrind-cppyy-cling.supp python -m pytest -m "not xfail" -v || true
+                valgrind --show-error-list=yes --error-exitcode=1 --suppressions=../etc/valgrind-cppyy-cling.supp python -m pytest -m "not xfail" -v || true
             else
                 echo "Running valgrind on passing tests"
-                valgrind --error-exitcode=1 --suppressions=../etc/valgrind-cppyy-cling.supp python -m pytest -m "not xfail" -v
+                valgrind --show-error-list=yes --error-exitcode=1 --suppressions=../etc/valgrind-cppyy-cling.supp python -m pytest -m "not xfail" -v
             fi
         fi
         export RETCODE=+$?
