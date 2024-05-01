@@ -249,6 +249,12 @@ jobs:
           echo "Unsupported compiler - fix YAML file"
         }
 
+    - name: Install deps on Windows
+      if: runner.os == 'windows'
+      run: |
+        choco install findutils
+        $env:PATH="C:\Program Files (x86)\GnuWin32\bin;$env:PATH"
+
     - name: Install deps on Linux
       if: runner.os == 'Linux'
       run: |
@@ -366,18 +372,21 @@ jobs:
         if ( "${{ matrix.cling }}" -imatch "On" )
         {
           cd build
-          cmake -DLLVM_ENABLE_PROJECTS=clang                  `
+          cmake -DLLVM_ENABLE_PROJECTS="clang;lld"                  `
                 -DLLVM_EXTERNAL_PROJECTS=cling                `
                 -DLLVM_EXTERNAL_CLING_SOURCE_DIR="$env:CLING_DIR"   `
-                -DLLVM_TARGETS_TO_BUILD="host;NVPTX"          `
-                -DCMAKE_BUILD_TYPE=Release                    `
-                -DLLVM_ENABLE_ASSERTIONS=ON                   `
-                -DLLVM_ENABLE_LLD=ON                          `
-                -DCLANG_ENABLE_STATIC_ANALYZER=OFF            `
-                -DCLANG_ENABLE_ARCMT=OFF                      `
-                -DCLANG_ENABLE_FORMAT=OFF                     `
-                -DCLANG_ENABLE_BOOTSTRAP=OFF                  `
-                ../llvm
+                -DLLVM_TARGETS_TO_BUILD="WebAssembly;host;NVPTX"          `
+                -DCMAKE_BUILD_TYPE=Release                         `
+                -DLLVM_ENABLE_ASSERTIONS=ON                        `
+                -DCLANG_ENABLE_STATIC_ANALYZER=OFF                 `
+                -DCLANG_ENABLE_ARCMT=OFF                           `
+                -DCLANG_ENABLE_FORMAT=OFF                          `
+                -DCLANG_ENABLE_BOOTSTRAP=OFF                       `
+                -DLLVM_ENABLE_ZSTD=OFF                             `
+                -DLLVM_ENABLE_TERMINFO=OFF                         `
+                -DLLVM_ENABLE_LIBXML2=OFF                          `
+                ..\llvm
+          cmake --build . --config Release --target lld --parallel ${{ env.ncpus }}
           cmake --build . --config Release --target clang --parallel ${{ env.ncpus }}
           cmake --build . --config Release --target cling --parallel ${{ env.ncpus }}
           # Now build gtest.a and gtest_main for CppInterOp to run its tests.
@@ -399,19 +408,23 @@ jobs:
           }
           cd build
           echo "Apply clang${{ matrix.clang-runtime }}-*.patch patches:"
-          cmake -DLLVM_ENABLE_PROJECTS=clang                  `
-                -DLLVM_TARGETS_TO_BUILD="host;NVPTX"          `
-                -DCMAKE_BUILD_TYPE=Release                    `
-                -DLLVM_ENABLE_ASSERTIONS=ON                   `
-                -DLLVM_ENABLE_LLD=ON                          `
-                -DCLANG_ENABLE_STATIC_ANALYZER=OFF            `
-                -DCLANG_ENABLE_ARCMT=OFF                      `
-                -DCLANG_ENABLE_FORMAT=OFF                     `
-                -DCLANG_ENABLE_BOOTSTRAP=OFF                  `
-                ../llvm
-          cmake --build . --config Release --target clang clang-repl --parallel ${{ env.ncpus }}
+          cmake -DLLVM_ENABLE_PROJECTS="clang;lld"                  `
+                -DLLVM_TARGETS_TO_BUILD="WebAssembly;host;NVPTX"          `
+                -DCMAKE_BUILD_TYPE=Release                          `
+                -DLLVM_ENABLE_ASSERTIONS=ON                         `
+                -DCLANG_ENABLE_STATIC_ANALYZER=OFF                  `
+                -DCLANG_ENABLE_ARCMT=OFF                            `
+                -DCLANG_ENABLE_FORMAT=OFF                           `
+                -DCLANG_ENABLE_BOOTSTRAP=OFF                        `
+                -DLLVM_ENABLE_ZSTD=OFF                              `
+                -DLLVM_ENABLE_TERMINFO=OFF                          `
+                -DLLVM_ENABLE_LIBXML2=OFF                           `
+                ..\llvm
+          cmake --build . --config Release --target clang clang-repl lld --parallel ${{ env.ncpus }}
         }
-        cd ../../        
+        cd ..\
+        rm -r -force $(find.exe . -maxdepth 1 ! -name "build" ! -name "llvm" ! -name "clang" ! -name ".")
+        cd ..\        
 
     - name: Save Cache LLVM/Clang runtime build directory
       uses: actions/cache/save@v4
