@@ -311,3 +311,25 @@ if (llvm::sys::RunningOnValgrind())
   delete ExtInterp;
 #endif
 }
+
+TEST(InterpreterTest, InterpreterExceptions) {
+  Cpp::CreateInterpreter();
+  EXPECT_TRUE(Cpp::Declare("int f() { throw 1; return 2; }") == 0);
+  EXPECT_TRUE(
+      Cpp::Process(
+          "int ex() { try { f(); return 0; } catch(...){return 1;} }") == 0);
+  EXPECT_EQ(Cpp::Evaluate("ex()"), 1)
+      << "Failed to catch exceptions in interpreter";
+}
+
+TEST(InterpreterTest, InterpreterExceptionsCompiledCode) {
+  Cpp::CreateInterpreter();
+  bool caught = false;
+  try {
+    EXPECT_TRUE(Cpp::Declare("int f() { throw 1; return 2; }") == 0);
+    EXPECT_TRUE(Cpp::Process("int res = f();") == 0);
+  } catch (...) {
+    caught = true;
+  }
+  EXPECT_TRUE(caught) << "Unable to catch exception coming from interpreter";
+}
