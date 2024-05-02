@@ -1109,7 +1109,6 @@ jobs:
             set +o pipefail
             python -m pytest -sv | tee complete_testrun.log 2>&1 || true
         fi
-        set +o pipefail
         echo ::group::Crashing Test Logs
         # See if we don't have a crash that went away
         # Comment out all xfails but the ones that have a run=False condition.
