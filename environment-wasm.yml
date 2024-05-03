@@ -3,3 +3,9 @@ channels:
   - https://repo.mamba.pm/emscripten-forge
 dependencies:
   - zlib
+  - nlohmann_json
+  - xeus-lite
+  - xeus >=3.0.5,<4.0
+  - xtl >=0.7,<0.8
+  - cpp-argparse
+  - pugixml

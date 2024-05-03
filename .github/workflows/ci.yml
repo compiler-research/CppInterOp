@@ -1496,3 +1496,27 @@ jobs:
         echo "CPPINTEROP_DIR=$CPPINTEROP_DIR" >> $GITHUB_ENV
         echo "LLVM_BUILD_DIR=$LLVM_BUILD_DIR" >> $GITHUB_ENV
         echo "CPLUS_INCLUDE_PATH=$CPLUS_INCLUDE_PATH" >> $GITHUB_ENV
+        echo "PREFIX=$PREFIX" >> $GITHUB_ENV
+
+    - name: Build xeus-cpp
+      shell: bash -l {0}
+      run: |
+        emsdk activate 3.1.45
+        source $CONDA_EMSDK_DIR/emsdk_env.sh
+        micromamba activate CppInterOp-wasm  
+        git clone https://github.com/compiler-research/xeus-cpp.git
+        cd ./xeus-cpp
+        mkdir build
+        pushd build
+        export EMPACK_PREFIX=$MAMBA_ROOT_PREFIX/envs/CppInterOp-wasm-build
+        export CMAKE_PREFIX_PATH=${{ env.PREFIX }} 
+        export CMAKE_SYSTEM_PREFIX_PATH=${{ env.PREFIX }} 
+        emcmake cmake \
+          -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}          \
+          -DCMAKE_PREFIX_PATH=${{ env.PREFIX }}             \
+          -DCMAKE_INSTALL_PREFIX=${{ env.PREFIX }}          \
+          -DXEUS_CPP_EMSCRIPTEN_WASM_BUILD=ON               \
+          -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            \
+          -DCppInterOp_DIR="${{ env.CPPINTEROP_BUILD_DIR }}/lib/cmake/CppInterOp"  \
+          ..
+        EMCC_CFLAGS='-sERROR_ON_UNDEFINED_SYMBOLS=0' emmake make -j ${{ env.ncpus }}
