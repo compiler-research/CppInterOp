@@ -900,7 +900,7 @@ jobs:
         cmake --build . --target check-cppinterop --parallel ${{ env.ncpus }}
         if [[ ("${os}" == "ubuntu"*) ]]; then
           # TODO: Remove "|| true" when fix memory issues in LLVM/Clang 17
-          valgrind --track-origins=yes --error-exitcode=1 unittests/CppInterOp/CppInterOpTests 2>&1 >/dev/null || true
+          valgrind --show-error-list=yes --track-origins=yes --error-exitcode=1 unittests/CppInterOp/CppInterOpTests
         fi
         cd ..
         # We need CB_PYTHON_DIR later
@@ -1133,12 +1133,12 @@ jobs:
         if [[ "${{ matrix.os }}" == macos-* ]]; then
         echo "Skipping Valgrind checks on OS X"
         else
-            if [[ "${{ matrix.clang-runtime }}" == "17" || "${{ matrix.clang-runtime }}" == "18" ]]; then
-                echo "Valgrind reports true for clang-runtime 17 or 18, due to memory leaks with LLVM"
-                valgrind --show-error-list=yes --error-exitcode=1 --suppressions=../etc/valgrind-cppyy-cling.supp python -m pytest -m "not xfail" -v || true
+            if [[ "${{ matrix.clang-runtime }}" == "17" ]]; then
+                echo "Valgrind reports true for clang-runtime 17 due to problems with LLVM"
+                valgrind --show-error-list=yes --error-exitcode=1 --track-origins=yes --suppressions=../etc/valgrind-cppyy-cling.supp python -m pytest -m "not xfail" -v || true
             else
                 echo "Running valgrind on passing tests"
-                valgrind --show-error-list=yes --error-exitcode=1 --suppressions=../etc/valgrind-cppyy-cling.supp python -m pytest -m "not xfail" -v
+                valgrind --show-error-list=yes --error-exitcode=1 --track-origins=yes --suppressions=../etc/valgrind-cppyy-cling.supp python -m pytest -m "not xfail" -v
             fi
         fi
         export RETCODE=+$?
