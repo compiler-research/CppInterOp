@@ -10,6 +10,10 @@
 #include "clang/Basic/Version.h"
 #include "clang/Config/config.h"
 
+#if CLANG_VERSION_MAJOR >= 18
+#include "clang/Interpreter/CodeCompletion.h"
+#endif
+
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/Twine.h"
@@ -27,6 +31,8 @@
 #include "cling/Interpreter/Value.h"
 
 #include "cling/Utils/AST.h"
+
+#include <regex>
 
 namespace Cpp {
 namespace Cpp_utils = cling::utils;
@@ -69,6 +75,30 @@ getSymbolAddress(const cling::Interpreter& I, llvm::StringRef IRName) {
   Names.push_back(Jit.getExecutionSession().intern(IRName));
   return llvm::make_error<llvm::orc::SymbolsNotFound>(Names);
 }
+
+inline void codeComplete(std::vector<std::string>& Results,
+                         const cling::Interpreter& I, const char* code,
+                         unsigned complete_line = 1U,
+                         unsigned complete_column = 1U) {
+  std::vector<std::string> results;
+  size_t column = complete_column;
+  I.codeComplete(code, column, results);
+
+  // append cleaned results
+  for (auto& r : results) {
+    // remove the definition at the beginning (for example [#int#])
+    r = std::regex_replace(r, std::regex("\\[\\#.*\\#\\]"), "");
+    // remove the variable name in <#type name#>
+    r = std::regex_replace(r, std::regex("(\\ |\\*)+(\\w+)(\\#\\>)"), "$1$3");
+    // remove unnecessary space at the end of <#type   #>
+    r = std::regex_replace(r, std::regex("\\ *(\\#\\>)"), "$1");
+    // remove <# #> to keep only the type
+    r = std::regex_replace(r, std::regex("\\<\\#([^#>]*)\\#\\>"), "$1");
+    if (r.find(code) == 0)
+      Results.push_back(r);
+  }
+}
+
 } // namespace compat
 
 #endif // USE_CLING
@@ -184,6 +214,7 @@ inline void maybeMangleDeclName(const clang::GlobalDecl& GD,
 // Clang 14 - Add new Interpreter methods: getExecutionEngine,
 //            getSymbolAddress, getSymbolAddressFromLinkerName
 // Clang 15 - Add new Interpreter methods: Undo
+// Clang 18 - Add new Interpreter methods: CodeComplete
 
 inline llvm::orc::LLJIT* getExecutionEngine(clang::Interpreter& I) {
 #if CLANG_VERSION_MAJOR >= 14
@@ -244,6 +275,39 @@ inline llvm::Error Undo(clang::Interpreter& I, unsigned N = 1) {
   assert(0 && "Not implemented in Clang <15!");
   return llvm::createStringError(llvm::inconvertibleErrorCode(),
                                  "Not implemented in Clang <15!");
+#endif
+}
+
+inline void codeComplete(std::vector<std::string>& Results,
+                         clang::Interpreter& I, const char* code,
+                         unsigned complete_line = 1U,
+                         unsigned complete_column = 1U) {
+#if CLANG_VERSION_MAJOR >= 18
+  // FIXME: We should match the invocation arguments of the main interpreter.
+  //        That can affect the returned completion results.
+  auto CB = clang::IncrementalCompilerBuilder();
+  auto CI = CB.CreateCpp();
+  if (auto Err = CI.takeError()) {
+    llvm::logAllUnhandledErrors(std::move(Err), llvm::errs(), "error: ");
+    return;
+  }
+  auto Interp = clang::Interpreter::create(std::move(*CI));
+  if (auto Err = Interp.takeError()) {
+    llvm::logAllUnhandledErrors(std::move(Err), llvm::errs(), "error: ");
+    return;
+  }
+
+  std::vector<std::string> results;
+  std::vector<std::string> Comps;
+  clang::CompilerInstance* MainCI = (*Interp)->getCompilerInstance();
+  auto CC = clang::ReplCodeCompleter();
+  CC.codeComplete(MainCI, code, complete_line, complete_column,
+                  I.getCompilerInstance(), results);
+  for (llvm::StringRef r : results)
+    if (r.find(CC.Prefix) == 0)
+      Results.push_back(r.str());
+#else
+  assert(false && "CodeCompletion API only available in Clang >= 18.");
 #endif
 }
 

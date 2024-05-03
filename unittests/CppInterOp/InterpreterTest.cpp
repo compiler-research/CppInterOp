@@ -1,10 +1,14 @@
 #include "clang/Interpreter/CppInterOp.h"
 
+#include "clang/Basic/Version.h"
+
 #include "llvm/ADT/SmallString.h"
 #include "llvm/Support/Path.h"
 
 #include <gmock/gmock.h>
 #include "gtest/gtest.h"
+
+#include <algorithm>
 
 using ::testing::StartsWith;
 
@@ -102,4 +106,24 @@ TEST(InterpreterTest, DetectSystemCompilerIncludePaths) {
   std::vector<std::string> includes;
   Cpp::DetectSystemCompilerIncludePaths(includes);
   EXPECT_FALSE(includes.empty());
+}
+
+TEST(InterpreterTest, CodeCompletion) {
+#if CLANG_VERSION_MAJOR >= 18 || defined(USE_CLING)
+  Cpp::CreateInterpreter();
+  std::vector<std::string> cc;
+  Cpp::Declare("int foo = 12;");
+  Cpp::CodeComplete(cc, "f", 1, 2);
+  // We check only for 'float' and 'foo', because they
+  // must be present in the result. Other hints may appear
+  // there, depending on the implementation, but these two
+  // are required to say that the test is working.
+  size_t cnt = 0;
+  for (auto& r : cc)
+    if (r == "float" || r == "foo")
+      cnt++;
+  EXPECT_EQ(2U, cnt); // float and foo
+#else
+  GTEST_SKIP();
+#endif
 }

@@ -3257,4 +3257,11 @@ namespace Cpp {
     return result;
   }
 
+  void CodeComplete(std::vector<std::string>& Results, const char* code,
+                    unsigned complete_line /* = 1U */,
+                    unsigned complete_column /* = 1U */) {
+    compat::codeComplete(Results, getInterp(), code, complete_line,
+                         complete_column);
+  }
+
   } // end namespace Cpp
