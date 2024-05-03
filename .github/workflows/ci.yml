@@ -899,7 +899,6 @@ jobs:
         os="${{ matrix.os }}"
         cmake --build . --target check-cppinterop --parallel ${{ env.ncpus }}
         if [[ ("${os}" == "ubuntu"*) ]]; then
-          # TODO: Remove "|| true" when fix memory issues in LLVM/Clang 17
           valgrind --show-error-list=yes --track-origins=yes --error-exitcode=1 unittests/CppInterOp/CppInterOpTests
         fi
         cd ..
@@ -1131,7 +1130,7 @@ jobs:
 
         set -o pipefail
         if [[ "${{ matrix.os }}" == macos-* ]]; then
-        echo "Skipping Valgrind checks on OS X"
+            echo "Skipping Valgrind checks on OS X"
         else
             if [[ "${{ matrix.clang-runtime }}" == "17" ]]; then
                 echo "Valgrind reports true for clang-runtime 17 due to problems with LLVM"
