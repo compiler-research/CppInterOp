@@ -734,9 +734,9 @@ namespace Cpp {
       return;
 
     auto* CXXRD = dyn_cast<CXXRecordDecl>(D);
-    #ifdef USE_CLING
-      cling::Interpreter::PushTransactionRAII RAII(&getInterp());
-    #endif // USE_CLING
+#ifdef USE_CLING
+    cling::Interpreter::PushTransactionRAII RAII(&getInterp());
+#endif // USE_CLING
     getSema().ForceDeclarationOfImplicitMembers(CXXRD);
     for (Decl* DI : CXXRD->decls()) {
       if (auto* MD = dyn_cast<DeclType>(DI))
