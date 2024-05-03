@@ -475,14 +475,6 @@ jobs:
             cling: Off
             cppyy: On
             coverage: true
-          - name: ubu22-x86-gcc12-clang-repl-18-xeus-clang-repl
-            os: ubuntu-22.04
-            compiler: gcc-12
-            clang-runtime: '18'
-            cling: Off
-            cppyy: On
-            xeus-clang-repl: On
-            coverage: true
           - name: ubu22-x86-gcc12-clang-repl-17-cppyy
             os: ubuntu-22.04
             compiler: gcc-12
@@ -490,28 +482,12 @@ jobs:
             cling: Off
             cppyy: On
             coverage: true
-          - name: ubu22-x86-gcc12-clang-repl-17-xeus-clang-repl
-            os: ubuntu-22.04
-            compiler: gcc-12
-            clang-runtime: '17'
-            cling: Off
-            cppyy: On
-            xeus-clang-repl: On
-            coverage: true
           - name: ubu22-x86-gcc12-clang-repl-16-cppyy
             os: ubuntu-22.04
             compiler: gcc-12
             clang-runtime: '16'
             cling: Off
             cppyy: On
-            coverage: true
-          - name: ubu22-x86-gcc12-clang-repl-16-xeus-clang-repl
-            os: ubuntu-22.04
-            compiler: gcc-12
-            clang-runtime: '16'
-            cling: Off
-            cppyy: On
-            xeus-clang-repl: On
             coverage: true
           - name: ubu22-x86-gcc9-clang13-cling-cppyy
             os: ubuntu-22.04
@@ -521,15 +497,6 @@ jobs:
             cling-version: '1.0'
             cppyy: On
             coverage: true
-          - name: ubu22-x86-gcc9-clang13-cling-xeus-clang-repl
-            os: ubuntu-22.04
-            compiler: gcc-9
-            clang-runtime: '13'
-            cling: On
-            cling-version: '1.0'
-            cppyy: On
-            xeus-clang-repl: On
-            coverage: true
           #Commented out until Ubuntu on arm Github runner becomes available 
           #os key to be replaced once known
           #- name: ubu22-arm-gcc12-clang-repl-18-cppyy
@@ -538,26 +505,12 @@ jobs:
           #  clang-runtime: '18'
           #  cling: Off
           #  cppyy: On
-          #- name: ubu22-arm-gcc12-clang-repl-18-xeus-clang-repl
-          #  os: ubuntu-22.04-arm
-          #  compiler: gcc-12
-          #  clang-runtime: '18'
-          #  cling: Off
-          #  cppyy: On
-          #  xeus-clang-repl: On
           #- name: ubu22-arm-gcc12-clang-repl-17-cppyy
           #  os: ubuntu-22.04-arm
           #  compiler: gcc-12
           #  clang-runtime: '17'
           #  cling: Off
           #  cppyy: On
-          #- name: ubu22-arm-gcc12-clang-repl-17-xeus-clang-repl
-          #  os: ubuntu-22.04-arm
-          #  compiler: gcc-12
-          #  clang-runtime: '17'
-          #  cling: Off
-          #  cppyy: On
-          #  xeus-clang-repl: On
           #- name: ubu22-arm-gcc9-clang-repl-16-cppyy
           #  os: ubuntu-22.04-arm
           #  compiler: gcc-9
@@ -565,13 +518,6 @@ jobs:
           #  cling: Off
           #  cppyy: On
           #  coverage: true
-          #- name: ubu22-arm-gcc9-clang-repl-16-xeus-clang-repl
-          #  os: ubuntu-22.04-arm
-          #  compiler: gcc-9
-          #  clang-runtime: '16'
-          #  cling: Off
-          #  cppyy: On
-          #  xeus-clang-repl: On
           #- name: ubu22-arm-gcc9-clang13-cling-cppyy
           #  os: ubuntu-22.04-arm
           #  compiler: gcc-9
@@ -579,14 +525,6 @@ jobs:
           #  cling: On
           #  cling-version: '1.0'
           #  cppyy: On 
-          #- name: ubu22-arm-gcc9-clang13-cling-xeus-clang-repl
-          #  os: ubuntu-22.04-arm
-          #  compiler: gcc-9
-          #  clang-runtime: '13'
-          #  cling: On
-          #  cling-version: '1.0'
-          #  cppyy: On
-          #  xeus-clang-repl: On
           #FIXME: Windows CppInterOp tests expected to fail
           #until https://github.com/compiler-research/CppInterOp/issues/188 is solved
           - name: win2022-msvc-clang-repl-18
@@ -639,39 +577,18 @@ jobs:
             clang-runtime: '18'
             cling: Off
             cppyy: On
-          - name: osx14-arm-clang-clang-repl-18-xeus-clang-repl
-            os: macos-14
-            compiler: clang
-            clang-runtime: '18'
-            cling: Off
-            cppyy: On
-            xeus-clang-repl: On
           - name: osx14-arm-clang-clang-repl-17-cppyy
             os: macos-14
             compiler: clang
             clang-runtime: '17'
             cling: Off
             cppyy: On
-          - name: osx14-arm-clang-clang-repl-17-xeus-clang-repl
-            os: macos-14
-            compiler: clang
-            clang-runtime: '17'
-            cling: Off
-            cppyy: On
-            xeus-clang-repl: On
           - name: osx14-arm-clang-clang-repl-16-cppyy
             os: macos-14
             compiler: clang
             clang-runtime: '16'
             cling: Off
             cppyy: On
-          - name: osx14-arm-clang-clang-repl-16-xeus-clang-repl
-            os: macos-14
-            compiler: clang
-            clang-runtime: '16'
-            cling: Off
-            cppyy: On
-            xeus-clang-repl: On
           - name: osx14-arm-clang-clang13-cling-cppyy
             os: macos-14
             compiler: clang
@@ -679,53 +596,24 @@ jobs:
             cling: On
             cling-version: '1.0'
             cppyy: On
-          - name: osx14-arm-clang-clang13-cling-xeus-clang-repl
-            os: macos-14
-            compiler: clang
-            clang-runtime: '13'
-            cling: On
-            cling-version: '1.0'
-            cppyy: On
-            xeus-clang-repl: On
           - name: osx13-x86-clang-clang-repl-18-cppyy
             os: macos-13
             compiler: clang
             clang-runtime: '18'
             cling: Off
             cppyy: On
-          - name: osx13-x86-clang-clang-repl-18-xeus-clang-repl
-            os: macos-13
-            compiler: clang
-            clang-runtime: '18'
-            cling: Off
-            cppyy: On
-            xeus-clang-repl: On
           - name: osx13-x86-clang-clang-repl-17-cppyy
             os: macos-13
             compiler: clang
             clang-runtime: '17'
             cling: Off
             cppyy: On
-          - name: osx13-x86-clang-clang-repl-17-xeus-clang-repl
-            os: macos-13
-            compiler: clang
-            clang-runtime: '17'
-            cling: Off
-            cppyy: On
-            xeus-clang-repl: On
           - name: osx13-x86-clang-clang-repl-16-cppyy
             os: macos-13
             compiler: clang
             clang-runtime: '16'
             cling: Off
             cppyy: On
-          - name: osx13-x86-clang-clang-repl-16-xeus-clang-repl
-            os: macos-13
-            compiler: clang
-            clang-runtime: '16'
-            cling: Off
-            cppyy: On
-            xeus-clang-repl: On
           - name: osx13-x86-clang-clang13-cling-cppyy
             os: macos-13
             compiler: clang
@@ -733,14 +621,6 @@ jobs:
             cling: On
             cling-version: '1.0'
             cppyy: On
-          - name: osx13-x86-clang-clang13-cling-xeus-clang-repl
-            os: macos-13
-            compiler: clang
-            clang-runtime: '13'
-            cling: On
-            cling-version: '1.0'
-            cppyy: On
-            xeus-clang-repl: On
 
     steps:
     - uses: actions/checkout@v4
@@ -1082,44 +962,8 @@ jobs:
     - name: Install CPyCppyy on Unix Systems
       if: ${{ (runner.os != 'windows') && (matrix.cppyy == 'On') }}
       run: |
-        # Setup and activate virtual environment (mamba envirnoment if building xeus-clang-repl)
-        xeus_clang_repl_on=$(echo "${{ matrix.xeus-clang-repl }}" | tr '[:lower:]' '[:upper:]')
-        if [[ "$xeus_clang_repl_on" == "ON" ]]; then
-          echo "Installing dependencies related to xeus-clang-repl build" 
-          wget -O Miniforge3.sh "https://github.com/conda-forge/miniforge/releases/latest/download/Miniforge3-$(uname)-$(uname -m).sh"
-          bash Miniforge3.sh -b -p "${HOME}/conda"
-          source "${HOME}/conda/etc/profile.d/conda.sh"
-          source "${HOME}/conda/etc/profile.d/mamba.sh"
-          mamba create -y -n .venv python=3.10.6
-          mamba activate .venv 
-          mamba install --quiet --yes -c conda-forge \
-            cmake \
-            'xeus>=2.0' \
-            xeus-zmq \
-            'nlohmann_json>=3.9.1,<3.10' \
-            'cppzmq>=4.6.0,<5' \
-            'xtl>=0.7,<0.8' \
-            'openssl<4' \
-            ipykernel \
-            pugixml \
-            zlib \
-            libxml2 \
-            'cxxopts>=2.2.1,<2.3' \
-            libuuid \
-            pytest \
-            jupyter_kernel_test 
-          mamba install -y jupyter
-          hash -r 
-          pip install ipython 
-          jupyter notebook --generate-config -y 
-          mamba clean --all -f -y 
-          npm cache clean --force 
-          jupyter lab clean 
-        else
-          python3 -m venv .venv
-          source .venv/bin/activate
-        fi
-
+        python3 -m venv .venv
+        source .venv/bin/activate
         # Install CPyCppyy
         git clone --depth=1 https://github.com/compiler-research/CPyCppyy.git
         mkdir CPyCppyy/build
@@ -1135,14 +979,7 @@ jobs:
       if: ${{ (runner.os != 'windows') && (matrix.cppyy == 'On') }}
       run: |
         # source virtual environment
-        xeus_clang_repl_on=$(echo "${{ matrix.xeus-clang-repl }}" | tr '[:lower:]' '[:upper:]')
-        if [[ "$xeus_clang_repl_on" == "ON" ]]; then
-          source "${HOME}/conda/etc/profile.d/conda.sh"
-          source "${HOME}/conda/etc/profile.d/mamba.sh"
-          mamba activate .venv 
-        else
-          source .venv/bin/activate
-        fi
+        source .venv/bin/activate
         # Install cppyy
         git clone --depth=1 https://github.com/compiler-research/cppyy.git
         cd cppyy
@@ -1152,14 +989,7 @@ jobs:
       if: ${{ (runner.os != 'windows') && (matrix.cppyy == 'On') }}
       run: |
         # Run cppyy
-        xeus_clang_repl_on=$(echo "${{ matrix.xeus-clang-repl }}" | tr '[:lower:]' '[:upper:]')
-        if [[ "$xeus_clang_repl_on" == "ON" ]]; then
-          source "${HOME}/conda/etc/profile.d/conda.sh"
-          source "${HOME}/conda/etc/profile.d/mamba.sh"
-          mamba activate .venv 
-        else
-          source .venv/bin/activate
-        fi
+        source .venv/bin/activate
         export PYTHONPATH=$PYTHONPATH:$CPYCPPYY_DIR:$CB_PYTHON_DIR
         python -c "import cppyy"
         # We need PYTHONPATH later
@@ -1226,28 +1056,6 @@ jobs:
         tail -n1 test_xfailed.log
         echo "Return Code: ${RETCODE}"
         exit $RETCODE
-
-    - name: Build xeus-clang-repl on Unix Systems
-      if: ${{ (runner.os != 'windows') && (matrix.xeus-clang-repl == 'On') }}
-      run: |
-        source "${HOME}/conda/etc/profile.d/conda.sh"
-        source "${HOME}/conda/etc/profile.d/mamba.sh"
-        mamba activate .venv 
-        #Build xeus-clang-repl
-        LLVM_BUILD_DIR="$(pwd)/llvm-project/build"
-        git clone --depth=1 https://github.com/compiler-research/xeus-clang-repl.git
-        mkdir ./xeus-clang-repl/build/
-        cd ./xeus-clang-repl/build/
-        cmake -DCMAKE_BUILD_TYPE=Release \
-              -DLLVM_CMAKE_DIR=$LLVM_BUILD_DIR \
-              -DCMAKE_PREFIX_PATH=$(python -m site --user-site) \
-              -DCMAKE_INSTALL_PREFIX=$(python -m site --user-site) \
-              -DCMAKE_INSTALL_LIBDIR=lib \
-              -DLLVM_CONFIG_EXTRA_PATH_HINTS=$LLVM_BUILD_DIR/lib \
-              -DCPPINTEROP_DIR=$CPPINTEROP_BUILD_DIR \
-              -DLLVM_USE_LINKER=lld  \
-              .. 
-        make install -j ${{ env.ncpus }}       
             
     - name: Show debug info
       if: ${{ failure() && (runner.os != 'windows') }}
@@ -1496,3 +1304,27 @@ jobs:
         echo "CPPINTEROP_DIR=$CPPINTEROP_DIR" >> $GITHUB_ENV
         echo "LLVM_BUILD_DIR=$LLVM_BUILD_DIR" >> $GITHUB_ENV
         echo "CPLUS_INCLUDE_PATH=$CPLUS_INCLUDE_PATH" >> $GITHUB_ENV
+        echo "PREFIX=$PREFIX" >> $GITHUB_ENV
+
+    - name: Build xeus-cpp
+      shell: bash -l {0}
+      run: |
+        emsdk activate 3.1.45
+        source $CONDA_EMSDK_DIR/emsdk_env.sh
+        micromamba activate CppInterOp-wasm  
+        git clone https://github.com/compiler-research/xeus-cpp.git
+        cd ./xeus-cpp
+        mkdir build
+        pushd build
+        export EMPACK_PREFIX=$MAMBA_ROOT_PREFIX/envs/CppInterOp-wasm-build
+        export CMAKE_PREFIX_PATH=${{ env.PREFIX }} 
+        export CMAKE_SYSTEM_PREFIX_PATH=${{ env.PREFIX }} 
+        emcmake cmake \
+          -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}          \
+          -DCMAKE_PREFIX_PATH=${{ env.PREFIX }}             \
+          -DCMAKE_INSTALL_PREFIX=${{ env.PREFIX }}          \
+          -DXEUS_CPP_EMSCRIPTEN_WASM_BUILD=ON               \
+          -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            \
+          -DCppInterOp_DIR="${{ env.CPPINTEROP_BUILD_DIR }}/lib/cmake/CppInterOp"  \
+          ..
+        EMCC_CFLAGS='-sERROR_ON_UNDEFINED_SYMBOLS=0' emmake make -j ${{ env.ncpus }}
