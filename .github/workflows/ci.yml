@@ -773,7 +773,9 @@ jobs:
       run: |
         # Install deps
         sudo apt-get update
-        sudo apt-get install git g++ debhelper devscripts gnupg python3 valgrind
+        sudo apt-get install git g++ debhelper devscripts gnupg python3
+        sudo apt-get install -y libc6-dbg
+        sudo snap install valgrind --classic
         sudo apt autoremove
         sudo apt clean
         # Install libraries used by the cppyy test suite
@@ -856,8 +858,7 @@ jobs:
         os="${{ matrix.os }}"
         cmake --build . --target check-cppinterop --parallel ${{ env.ncpus }}
         if [[ ("${os}" == "ubuntu"*) ]]; then
-          # TODO: Remove "|| true" when fix memory issues in LLVM/Clang 17
-          valgrind --track-origins=yes --error-exitcode=1 unittests/CppInterOp/CppInterOpTests 2>&1 >/dev/null || true
+          valgrind --show-error-list=yes --track-origins=yes --error-exitcode=1 unittests/CppInterOp/CppInterOpTests
         fi
         cd ..
         # We need CB_PYTHON_DIR later
@@ -1009,8 +1010,13 @@ jobs:
         echo ::endgroup::
         echo ::group::Run complete test suite
         set -o pipefail
-        python -m pytest -sv | tee complete_testrun.log 2>&1
-        set +o pipefail
+        if [[ "${{ matrix.os }}" != macos-* ]]; then
+            python -m pytest -sv | tee complete_testrun.log 2>&1
+            set +o pipefail
+        else
+            set +o pipefail
+            python -m pytest -sv | tee complete_testrun.log 2>&1 || true
+        fi
         echo ::group::Crashing Test Logs
         # See if we don't have a crash that went away
         # Comment out all xfails but the ones that have a run=False condition.
@@ -1033,14 +1039,14 @@ jobs:
 
         set -o pipefail
         if [[ "${{ matrix.os }}" == macos-* ]]; then
-        echo "Skipping Valgrind checks on OS X"
+            echo "Skipping Valgrind checks on OS X"
         else
-            if [[ "${{ matrix.clang-runtime }}" == "17" || "${{ matrix.clang-runtime }}" == "18" ]]; then
-                echo "Valgrind reports true for clang-runtime 17 or 18, due to memory leaks with LLVM"
-                valgrind --show-error-list=yes --error-exitcode=1 --suppressions=../etc/valgrind-cppyy-cling.supp python -m pytest -m "not xfail" -v || true
+            if [[ "${{ matrix.clang-runtime }}" == "17" ]]; then
+                echo "Valgrind reports true for clang-runtime 17 due to problems with LLVM"
+                valgrind --show-error-list=yes --error-exitcode=1 --track-origins=yes --suppressions=../etc/valgrind-cppyy-cling.supp python -m pytest -m "not xfail" -v || true
             else
                 echo "Running valgrind on passing tests"
-                valgrind --show-error-list=yes --error-exitcode=1 --suppressions=../etc/valgrind-cppyy-cling.supp python -m pytest -m "not xfail" -v
+                valgrind --show-error-list=yes --error-exitcode=1 --track-origins=yes --suppressions=../etc/valgrind-cppyy-cling.supp python -m pytest -m "not xfail" -v
             fi
         fi
         export RETCODE=+$?
