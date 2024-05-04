@@ -1040,6 +1040,7 @@ jobs:
         set -o pipefail
         if [[ "${{ matrix.os }}" == macos-* ]]; then
             echo "Skipping Valgrind checks on OS X"
+            python -m pytest -m "not xfail" -v
         else
             if [[ "${{ matrix.clang-runtime }}" == "17" ]]; then
                 echo "Valgrind reports true for clang-runtime 17 due to problems with LLVM"
