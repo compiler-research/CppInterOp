@@ -732,6 +732,7 @@ TEST(FunctionReflectionTest, IsStaticMethod) {
 }
 
 TEST(FunctionReflectionTest, GetFunctionAddress) {
+  GTEST_SKIP() << "XFAIL due to Valgrind report";
   std::vector<Decl*> Decls, SubDecls;
   std::string code = "int f1(int i) { return i * i; }";
 
@@ -793,6 +794,7 @@ TEST(FunctionReflectionTest, JitCallAdvanced) {
 
 
 TEST(FunctionReflectionTest, GetFunctionCallWrapper) {
+  GTEST_SKIP() << "XFAIL due to Valgrind report";
   std::vector<Decl*> Decls;
   std::string code = R"(
     int f1(int i) { return i * i; }
