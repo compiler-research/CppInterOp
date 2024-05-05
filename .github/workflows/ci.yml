@@ -50,8 +50,6 @@ jobs:
             cling-version: '1.0'
             cppyy: On
             coverage: true
-          #FIXME: Windows CppInterOp tests expected to fail
-          #until https://github.com/compiler-research/CppInterOp/issues/188 is solved
           - name: win2022-msvc-clang-repl-18
             os: windows-2022
             compiler: msvc
@@ -132,10 +130,11 @@ jobs:
     - uses: actions/checkout@v4
       with:
         fetch-depth: 0
-    - name: Set up Python
+
+    - name: Set up Python 
       uses: actions/setup-python@v5
       with:
-        python-version: '3.10'
+        python-version: '3.12'
 
     - name: Save PR Info on Unix systems
       if: ${{ runner.os != 'windows' }}
@@ -292,6 +291,7 @@ jobs:
       if: runner.os == 'macOS'
       run: |
         brew update
+        brew remove ruby@3.0
         # workaround for https://github.com/actions/setup-python/issues/577
         for pkg in $(brew list | grep '^python@'); do
           brew unlink "$pkg"
@@ -460,7 +460,7 @@ jobs:
           ${{ matrix.cling=='On' && 'cling' || '' }}
         key: ${{ steps.cache.outputs.cache-primary-key }}
 
-  cppyy_and_xeus_clang_repl:
+  cppinterop_and_cppyy_build:
     needs: [build_cache]
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
@@ -497,34 +497,6 @@ jobs:
             cling-version: '1.0'
             cppyy: On
             coverage: true
-          #Commented out until Ubuntu on arm Github runner becomes available 
-          #os key to be replaced once known
-          #- name: ubu22-arm-gcc12-clang-repl-18-cppyy
-          #  os: ubuntu-22.04-arm
-          #  compiler: gcc-12
-          #  clang-runtime: '18'
-          #  cling: Off
-          #  cppyy: On
-          #- name: ubu22-arm-gcc12-clang-repl-17-cppyy
-          #  os: ubuntu-22.04-arm
-          #  compiler: gcc-12
-          #  clang-runtime: '17'
-          #  cling: Off
-          #  cppyy: On
-          #- name: ubu22-arm-gcc9-clang-repl-16-cppyy
-          #  os: ubuntu-22.04-arm
-          #  compiler: gcc-9
-          #  clang-runtime: '16'
-          #  cling: Off
-          #  cppyy: On
-          #  coverage: true
-          #- name: ubu22-arm-gcc9-clang13-cling-cppyy
-          #  os: ubuntu-22.04-arm
-          #  compiler: gcc-9
-          #  clang-runtime: '13'
-          #  cling: On
-          #  cling-version: '1.0'
-          #  cppyy: On 
           #FIXME: Windows CppInterOp tests expected to fail
           #until https://github.com/compiler-research/CppInterOp/issues/188 is solved
           - name: win2022-msvc-clang-repl-18
@@ -626,10 +598,11 @@ jobs:
     - uses: actions/checkout@v4
       with:
         fetch-depth: 0
-    - name: Set up Python
+
+    - name: Set up Python 
       uses: actions/setup-python@v5
       with:
-        python-version: '3.10'
+        python-version: '3.12'
 
     - name: Save PR Info on Unix systems
       if: ${{ runner.os != 'windows' }}
@@ -786,6 +759,7 @@ jobs:
       if: runner.os == 'macOS'
       run: |
         brew update
+        brew remove ruby@3.0
         # workaround for https://github.com/actions/setup-python/issues/577
         for pkg in $(brew list | grep '^python@'); do
           brew unlink "$pkg"
@@ -996,7 +970,7 @@ jobs:
         # We need PYTHONPATH later
         echo "PYTHONPATH=$PYTHONPATH" >> $GITHUB_ENV
     - name: Run the tests on Unix Systems
-      if: ${{ (runner.os != 'windows') && (matrix.cppyy == 'On') && (matrix.xeus-clang-repl != 'On') }}
+      if: ${{ (runner.os != 'windows') && (matrix.cppyy == 'On') }}
       run: |
         # Run the tests
         source .venv/bin/activate
@@ -1089,7 +1063,7 @@ jobs:
       timeout-minutes: 30
 
   emscripten_wasm:
-    needs: [cppyy_and_xeus_clang_repl]
+    needs: [cppinterop_and_cppyy_build]
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
     strategy:
@@ -1164,10 +1138,11 @@ jobs:
     - uses: actions/checkout@v4
       with:
         fetch-depth: 0
-    - name: Set up Python
+
+    - name: Set up Python 
       uses: actions/setup-python@v5
       with:
-        python-version: '3.10'
+        python-version: '3.12'
 
     - name: Save PR Info on Unix systems
       if: ${{ runner.os != 'windows' }}
