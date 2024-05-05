@@ -799,6 +799,7 @@ template<typename T> T TrivialFnTemplate() { return T(); }
 }
 
 TEST(ScopeReflectionTest, InstantiateTemplateFunctionFromString) {
+  GTEST_SKIP() << "XFAIL due to Valgrind report";
   Cpp::CreateInterpreter();
   std::string code = R"(#include <memory>)";
   Interp->process(code);
