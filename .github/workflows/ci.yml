@@ -1010,13 +1010,8 @@ jobs:
         echo ::endgroup::
         echo ::group::Run complete test suite
         set -o pipefail
-        if [[ "${{ matrix.os }}" != macos-* ]]; then
-            python -m pytest -sv | tee complete_testrun.log 2>&1
-            set +o pipefail
-        else
-            set +o pipefail
-            python -m pytest -sv | tee complete_testrun.log 2>&1 || true
-        fi
+        python -m pytest -sv | tee complete_testrun.log 2>&1
+        set +o pipefail
         echo ::group::Crashing Test Logs
         # See if we don't have a crash that went away
         # Comment out all xfails but the ones that have a run=False condition.
