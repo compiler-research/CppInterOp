@@ -2,8 +2,17 @@ set(LLVM_LINK_COMPONENTS
   Support
   )
 
+option(TEST_INTEROP_CUDA "Enables the CUDA Tests" ON)
+
+if (TEST_INTEROP_CUDA)
+    add_definitions(-DTEST_INTEROP_CUDA)
+endif()
+
+if(TEST_INTEROP_CUDA)
+  add_cppinterop_unittest(CppInterOpTests CUDATest.cpp)
+endif()
+
 add_cppinterop_unittest(CppInterOpTests
-  CUDATest.cpp
   EnumReflectionTest.cpp
   FunctionReflectionTest.cpp
   InterpreterTest.cpp
@@ -13,6 +22,7 @@ add_cppinterop_unittest(CppInterOpTests
   Utils.cpp
   VariableReflectionTest.cpp
   )
+
 target_link_libraries(CppInterOpTests
   PRIVATE
   clangCppInterOp

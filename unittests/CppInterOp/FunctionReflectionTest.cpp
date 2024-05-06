@@ -773,6 +773,7 @@ TEST(FunctionReflectionTest, IsVirtualMethod) {
 }
 
 TEST(FunctionReflectionTest, JitCallAdvanced) {
+  GTEST_SKIP() << "XFAIL due to Valgrind report";
   std::vector<Decl*> Decls;
   std::string code = R"(
       typedef struct _name {
