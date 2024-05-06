@@ -46,12 +46,14 @@ TEST(DISABLED_CUDATest, Sanity) {
 #else
 TEST(CUDATest, Sanity) {
 #endif // CLANG_VERSION_MAJOR < 16
+  if (!HasCudaSDK())
+    GTEST_SKIP() << "Skipping CUDA tests as CUDA SDK not found";
   EXPECT_TRUE(Cpp::CreateInterpreter({}, {"--cuda"}));
 }
 
 TEST(CUDATest, CUDAH) {
   if (!HasCudaSDK())
-    return;
+    GTEST_SKIP() << "Skipping CUDA tests as CUDA SDK not found";
 
   Cpp::CreateInterpreter({}, {"--cuda"});
   bool success = !Cpp::Declare("#include <cuda.h>");
@@ -60,7 +62,7 @@ TEST(CUDATest, CUDAH) {
 
 TEST(CUDATest, CUDARuntime) {
   if (!HasCudaSDK())
-    return;
+    GTEST_SKIP() << "Skipping CUDA tests as CUDA SDK not found";
 
   EXPECT_TRUE(HasCudaRuntime());
 }

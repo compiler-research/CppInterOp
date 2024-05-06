@@ -827,7 +827,6 @@ jobs:
                 -DBUILD_SHARED_LIBS=ON                      \
                 -DCODE_COVERAGE=${{ env.CODE_COVERAGE }}    \
                 -DCMAKE_INSTALL_PREFIX=$CPPINTEROP_DIR      \
-                -DTEST_INTEROP_CUDA=0                       \
                 ../
         fi
         os="${{ matrix.os }}"
