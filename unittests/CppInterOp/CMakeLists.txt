@@ -6,10 +6,7 @@ option(TEST_INTEROP_CUDA "Enables the CUDA Tests" ON)
 
 if (TEST_INTEROP_CUDA)
     add_definitions(-DTEST_INTEROP_CUDA)
-endif()
-
-if(TEST_INTEROP_CUDA)
-  add_cppinterop_unittest(CppInterOpTests CUDATest.cpp)
+    add_cppinterop_unittest(CppInterOpCUDATests CUDATest.cpp)
 endif()
 
 add_cppinterop_unittest(CppInterOpTests
@@ -28,10 +25,18 @@ target_link_libraries(CppInterOpTests
   clangCppInterOp
   )
 
+target_link_libraries(CppInterOpCUDATests
+  PRIVATE
+  clangCppInterOp
+  )
+
 set_source_files_properties(InterpreterTest.cpp PROPERTIES COMPILE_DEFINITIONS
   "LLVM_BINARY_DIR=\"${LLVM_BINARY_DIR}\""
   )
-export_executable_symbols(CppInterOpTests)
+  
+export_executable_symbols(CppInterOpTests
+  CppInterOpCUDATests
+  )
 
 unset(LLVM_LINK_COMPONENTS)
 
