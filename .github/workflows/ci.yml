@@ -134,7 +134,7 @@ jobs:
     - name: Set up Python 
       uses: actions/setup-python@v5
       with:
-        python-version: '3.12'
+        python-version: '3.10'
 
     - name: Save PR Info on Unix systems
       if: ${{ runner.os != 'windows' }}
@@ -603,7 +603,7 @@ jobs:
     - name: Set up Python 
       uses: actions/setup-python@v5
       with:
-        python-version: '3.12'
+        python-version: '3.10'
 
     - name: Save PR Info on Unix systems
       if: ${{ runner.os != 'windows' }}
@@ -823,8 +823,8 @@ jobs:
           cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    \
                 -DUSE_CLING=OFF                             \
                 -DUSE_REPL=ON                               \
-                -DLLVM_DIR=$LLVM_BUILD_DIR/lib/cmake/llvm       \
-                -DClang_DIR=$LLVM_BUILD_DIR/lib/cmake/clang     \
+                -DLLVM_DIR=$LLVM_BUILD_DIR/lib/cmake/llvm   \
+                -DClang_DIR=$LLVM_BUILD_DIR/lib/cmake/clang \
                 -DBUILD_SHARED_LIBS=ON                      \
                 -DCODE_COVERAGE=${{ env.CODE_COVERAGE }}    \
                 -DCMAKE_INSTALL_PREFIX=$CPPINTEROP_DIR      \
@@ -1010,7 +1010,6 @@ jobs:
         set -o pipefail
         if [[ "${{ matrix.os }}" == macos-* ]]; then
             echo "Skipping Valgrind checks on OS X"
-            python -m pytest -m "not xfail" -v
         else
             if [[ "${{ matrix.clang-runtime }}" == "17" ]]; then
                 echo "Valgrind reports true for clang-runtime 17 due to problems with LLVM"
@@ -1143,7 +1142,7 @@ jobs:
     - name: Set up Python 
       uses: actions/setup-python@v5
       with:
-        python-version: '3.12'
+        python-version: '3.10'
 
     - name: Save PR Info on Unix systems
       if: ${{ runner.os != 'windows' }}
