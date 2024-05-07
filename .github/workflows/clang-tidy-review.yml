@@ -34,6 +34,7 @@ jobs:
           build_dir: build
           apt_packages: libxml2,libxml2-dev,libtinfo-dev,zlib1g-dev,libzstd-dev
           split_workflow: true
+          clang_tidy_version: 17
           cmake_command: >
             pip install cmake lit &&
             cmake --version &&
