@@ -27,6 +27,9 @@ jobs:
         with:
           version: "16.0.0"
 
+      - name: install lit
+        run: pip install lit
+        
       - name: Run clang-tidy
         uses: ZedThree/clang-tidy-review@v0.18.0
         id: review
@@ -35,7 +38,6 @@ jobs:
           apt_packages: cmake,libxml2,libxml2-dev,libtinfo-dev,zlib1g-dev,libzstd-dev
           split_workflow: true
           cmake_command: >
-            pip install lit &&
             cmake . -B build -DCMAKE_BUILD_TYPE="Release"
             -DUSE_CLING=OFF
             -DUSE_REPL=ON
