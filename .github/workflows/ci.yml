@@ -185,8 +185,18 @@ jobs:
         echo "CLING_HASH=$env:CLING_HASH" >> $GITHUB_ENV
         echo "LLVM_HASH=$env:LLVM_HASH" >> $GITHUB_ENV
 
+    - name: Restore Cache LLVM/Clang runtime build directory
+      uses: actions/cache/restore@v4
+      id: cache
+      with:
+        path: |
+          llvm-project
+          ${{ matrix.cling=='On' && 'cling' || '' }}
+        key: ${{ env.CLING_HASH }}-${{ runner.os }}-${{ matrix.os }}-${{ matrix.compiler }}-clang-${{ matrix.clang-runtime }}.x-patch-${{ hashFiles(format('patches/llvm/clang{0}-*.patch', matrix.clang-runtime)) || 'none' }}
+        lookup-only: true
+
     - name: Setup default Build Type on *nux
-      if: runner.os != 'windows'
+      if: ${{ runner.os != 'windows' && steps.cache.outputs.cache-hit != 'true' }}
       run: |
         echo "BUILD_TYPE=Release" >> $GITHUB_ENV
         echo "CODE_COVERAGE=0" >> $GITHUB_ENV
@@ -198,7 +208,7 @@ jobs:
         fi
 
     - name: Setup default Build Type on Windows
-      if: runner.os == 'windows'
+      if: ${{ runner.os == 'windows' && steps.cache.outputs.cache-hit != 'true' }}
       run: |
         echo "BUILD_TYPE=Release" >> $env:GITHUB_ENV
         echo "CODE_COVERAGE=0" >>  $env:GITHUB_ENV
@@ -206,7 +216,7 @@ jobs:
         echo "ncpus=%NUMBER_OF_PROCESSORS%" >> $GITHUB_ENV
 
     - name: Setup compiler on Linux
-      if: runner.os == 'Linux'
+      if: ${{ runner.os == 'Linux' && steps.cache.outputs.cache-hit != 'true' }}
       run: |
         # https://www.gnu.org/software/bash/manual/html_node/Shell-Parameter-Expansion.html
         vers="${compiler#*-}"
@@ -230,7 +240,7 @@ jobs:
         compiler: ${{ matrix.compiler }}
 
     - name: Setup compiler on macOS
-      if: runner.os == 'macOS'
+      if: ${{ runner.os == 'macOS' && steps.cache.outputs.cache-hit != 'true' }}
       run: |
         vers="${compiler#*-}"
         if [[ "${{ matrix.compiler }}" == *"gcc"* ]]; then
@@ -251,7 +261,7 @@ jobs:
     #Section slightly modified version of
     #https://github.com/vgvassilev/clad/blob/40d8bec11bde47b14a281078183a4f6147abeac5/.github/workflows/ci.yml#L510C1-L534C10
     - name: Setup compiler on Windows
-      if: runner.os == 'windows'
+      if: ${{ runner.os == 'windows' && steps.cache.outputs.cache-hit != 'true' }}
       run: |
         if ( "${{ matrix.compiler }}" -imatch "clang" )
         {
@@ -274,13 +284,13 @@ jobs:
         }
 
     - name: Install deps on Windows
-      if: runner.os == 'windows'
+      if: ${{ runner.os == 'windows' && steps.cache.outputs.cache-hit != 'true' }}
       run: |
         choco install findutils
         $env:PATH="C:\Program Files (x86)\GnuWin32\bin;$env:PATH"
 
     - name: Install deps on Linux
-      if: runner.os == 'Linux'
+      if: ${{ runner.os == 'Linux' && steps.cache.outputs.cache-hit != 'true' }}
       run: |
         # Install deps
         sudo apt-get update
@@ -288,7 +298,7 @@ jobs:
         sudo apt-get clean
 
     - name: Install deps on MacOS
-      if: runner.os == 'macOS'
+      if: ${{ runner.os == 'macOS' && steps.cache.outputs.cache-hit != 'true' }}
       run: |
         brew update
         brew remove ruby@3.0
@@ -298,15 +308,6 @@ jobs:
           brew link --overwrite "$pkg"
         done
         brew upgrade
-
-    - name: Restore Cache LLVM/Clang runtime build directory
-      uses: actions/cache/restore@v4
-      id: cache
-      with:
-        path: |
-          llvm-project
-          ${{ matrix.cling=='On' && 'cling' || '' }}
-        key: ${{ env.CLING_HASH }}-${{ runner.os }}-${{ matrix.os }}-${{ matrix.compiler }}-clang-${{ matrix.clang-runtime }}.x-patch-${{ hashFiles(format('patches/llvm/clang{0}-*.patch', matrix.clang-runtime)) || 'none' }}
 
     - name: Build LLVM/Cling on Unix systems if the cache is invalid
       if: ${{ runner.os != 'windows' && steps.cache.outputs.cache-hit != 'true' }}
@@ -822,8 +823,8 @@ jobs:
           cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    \
                 -DUSE_CLING=OFF                             \
                 -DUSE_REPL=ON                               \
-                -DLLVM_DIR=$LLVM_BUILD_DIR/lib/cmake/llvm       \
-                -DClang_DIR=$LLVM_BUILD_DIR/lib/cmake/clang     \
+                -DLLVM_DIR=$LLVM_BUILD_DIR/lib/cmake/llvm   \
+                -DClang_DIR=$LLVM_BUILD_DIR/lib/cmake/clang \
                 -DBUILD_SHARED_LIBS=ON                      \
                 -DCODE_COVERAGE=${{ env.CODE_COVERAGE }}    \
                 -DCMAKE_INSTALL_PREFIX=$CPPINTEROP_DIR      \
@@ -1009,7 +1010,6 @@ jobs:
         set -o pipefail
         if [[ "${{ matrix.os }}" == macos-* ]]; then
             echo "Skipping Valgrind checks on OS X"
-            python -m pytest -m "not xfail" -v
         else
             if [[ "${{ matrix.clang-runtime }}" == "17" ]]; then
                 echo "Valgrind reports true for clang-runtime 17 due to problems with LLVM"
