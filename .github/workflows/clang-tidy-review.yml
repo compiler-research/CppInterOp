@@ -32,12 +32,10 @@ jobs:
         id: review
         with:
           build_dir: build
-          apt_packages: libxml2,libxml2-dev,libtinfo-dev,zlib1g-dev,libzstd-dev
+          apt_packages: cmake,libxml2,libxml2-dev,libtinfo-dev,zlib1g-dev,libzstd-dev
           split_workflow: true
           cmake_command: >
-            python -m ensurepip --upgrade &&
-            pip install cmake lit &&
-            cmake --version &&
+            pip install lit &&
             cmake . -B build -DCMAKE_BUILD_TYPE="Release"
             -DUSE_CLING=OFF
             -DUSE_REPL=ON
