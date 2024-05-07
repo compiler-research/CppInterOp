@@ -482,14 +482,12 @@ jobs:
             clang-runtime: '17'
             cling: Off
             cppyy: On
-            coverage: true
           - name: ubu22-x86-gcc12-clang-repl-16-cppyy
             os: ubuntu-22.04
             compiler: gcc-12
             clang-runtime: '16'
             cling: Off
             cppyy: On
-            coverage: true
           - name: ubu22-x86-gcc9-clang13-cling-cppyy
             os: ubuntu-22.04
             compiler: gcc-9
@@ -497,7 +495,6 @@ jobs:
             cling: On
             cling-version: '1.0'
             cppyy: On
-            coverage: true
           #FIXME: Windows CppInterOp tests expected to fail
           #until https://github.com/compiler-research/CppInterOp/issues/188 is solved
           - name: win2022-msvc-clang-repl-18
@@ -915,6 +912,23 @@ jobs:
         cmake --build . --config ${{ env.BUILD_TYPE }} --target check-cppinterop --parallel ${{ env.ncpus }}
         cd ..
 
+    - name: Prepare code coverage report
+      if: ${{ success() && (matrix.coverage == true) }}
+      run: |
+        # Create lcov report
+        # capture coverage info
+        vers="${CC#*-}"
+        lcov --directory build/ --capture --output-file coverage.info --gcov-tool /usr/bin/gcov-${vers}
+        lcov --remove coverage.info '/usr/*' "${HOME}"'/.cache/*' ${{ github.workspace }}'/llvm-project/*' ${{ github.workspace }}'/unittests/*' --output-file coverage.info
+        # output coverage data for debugging (optional)
+        lcov --list coverage.info
+
+    - name: Upload to codecov.io
+      if: ${{ success() && (matrix.coverage == true) }}
+      uses: codecov/codecov-action@v4
+      with:
+        file: ./coverage.info
+
     - name: Build and Install cppyy-backend on Unix Systems
       if: ${{ (runner.os != 'windows') && (matrix.cppyy == 'On') }}
       run: |
@@ -1038,23 +1052,6 @@ jobs:
       run: |
         export
         echo $GITHUB_ENV
-
-    - name: Prepare code coverage report
-      if: ${{ success() && (matrix.coverage == true) }}
-      run: |
-        # Create lcov report
-        # capture coverage info
-        vers="${CC#*-}"
-        lcov --directory build/ --capture --output-file coverage.info --gcov-tool /usr/bin/gcov-${vers}
-        lcov --remove coverage.info '/usr/*' "${HOME}"'/.cache/*' ${{ github.workspace }}'/llvm-project/*' ${{ github.workspace }}'/unittests/*' --output-file coverage.info
-        # output coverage data for debugging (optional)
-        lcov --list coverage.info
-
-    - name: Upload to codecov.io
-      if: ${{ success() && (matrix.coverage == true) }}
-      uses: codecov/codecov-action@v4
-      with:
-        file: ./coverage.info
 
     - name: Setup tmate session
       if: ${{ failure() && runner.debug }}
