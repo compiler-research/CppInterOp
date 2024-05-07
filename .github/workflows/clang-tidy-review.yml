@@ -34,7 +34,6 @@ jobs:
           build_dir: build
           apt_packages: libxml2,libxml2-dev,libtinfo-dev,zlib1g-dev,libzstd-dev
           split_workflow: true
-          clang_tidy_version: 17
           cmake_command: >
             cmake . -B build -DCMAKE_BUILD_TYPE="Release"
             -DUSE_CLING=OFF
