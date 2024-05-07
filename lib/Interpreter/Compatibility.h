@@ -10,6 +10,11 @@
 #include "clang/Basic/Version.h"
 #include "clang/Config/config.h"
 
+#if LLVM_VERSION_MAJOR < 18
+#define starts_with startswith
+#define ends_with endswith
+#endif
+
 #if CLANG_VERSION_MAJOR >= 18
 #include "clang/Interpreter/CodeCompletion.h"
 #endif
