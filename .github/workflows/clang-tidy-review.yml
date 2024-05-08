@@ -17,21 +17,27 @@ jobs:
       - name: Checkout PR branch
         uses: actions/checkout@v4
 
-      - name: Install LLVM and Clang
-        uses: KyleMayes/install-llvm-action@v2
+      - name: Setup Python
+        uses: actions/setup-python@v5
         with:
-          version: "18.1.3"
+          python-version: "3.11"
 
+      - name: Install LLVM and Clang
+        uses: KyleMayes/install-llvm-action@v2.0.2
+        with:
+          version: "16.0.0"
+
+      - name: install lit
+        run: pip install lit
+        
       - name: Run clang-tidy
         uses: ZedThree/clang-tidy-review@v0.18.0
         id: review
         with:
           build_dir: build
-          apt_packages: libxml2,libxml2-dev,libtinfo-dev,zlib1g-dev,libzstd-dev
+          apt_packages: cmake,libxml2,libxml2-dev,libtinfo-dev,zlib1g-dev,libzstd-dev
           split_workflow: true
           cmake_command: >
-            pip install cmake lit &&
-            cmake --version &&
             cmake . -B build -DCMAKE_BUILD_TYPE="Release"
             -DUSE_CLING=OFF
             -DUSE_REPL=ON

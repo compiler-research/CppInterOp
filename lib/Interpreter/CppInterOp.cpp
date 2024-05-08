@@ -316,9 +316,9 @@ namespace Cpp {
       // Add quick checks for the std smart prts to cover most of the cases.
       std::string typeString = GetTypeAsString(type);
       llvm::StringRef tsRef(typeString);
-      if (tsRef.startswith("std::unique_ptr") ||
-          tsRef.startswith("std::shared_ptr") ||
-          tsRef.startswith("std::weak_ptr"))
+      if (tsRef.starts_with("std::unique_ptr") ||
+          tsRef.starts_with("std::shared_ptr") ||
+          tsRef.starts_with("std::weak_ptr"))
         return true;
       return isSmartPointer(RT);
     }
