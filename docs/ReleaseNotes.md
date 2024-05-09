@@ -22,7 +22,7 @@ What's New in CppInterOp 1.3.0?
 =============================
 
 Some of the major new features and improvements to CppInterOp are listed here.
-Generic improvements to CladCppInterOp as a whole or to its underlying
+Generic improvements to CppInterOp as a whole or to its underlying
 infrastructure are described first.
 
 External Dependencies
