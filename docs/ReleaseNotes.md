@@ -21,52 +21,49 @@ cross talk.
 What's New in CppInterOp 1.3.0?
 =============================
 
-Some of the major new features and improvements to Clad are listed here. Generic
-improvements to Clad as a whole or to its underlying infrastructure are
-described first.
+Some of the major new features and improvements to CppInterOp are listed here.
+Generic improvements to CladCppInterOp as a whole or to its underlying
+infrastructure are described first.
 
 External Dependencies
 ---------------------
 
 * CppInterOp now works with:
-  * cling (based on patched clang13)
+  * cling (based on patched clang16)
   * clang-repl
     * based on patched clang16
     * clang17
+    * clang18
 
 
 Introspection
 -------------
 
-* 
-
-
-Just-in-Time Compilation
-------------------------
-
-* 
+*
+* `GetFunctionArgDefault` and `GetFunctionArgName` now consider template
+  functions
+* Consolidate the template instantiation logic.
 
 
 Incremental C++
 ---------------
 
-* 
+* Add Code Completion API
+* Improved Windows support
+* Add API for detection of resource and include directories from the system
+  compiler
 
 
 Misc
 ----
 
-* 
+* Improved installation of the CppInterOp folder.
 
 
 Fixed Bugs
 ----------
 
-[XXX](https://github.com/compiler-research/CppInterOp/issues/XXX)
-
- <!---Get release bugs
- git log v1.2.0..main | grep 'Fixes|Closes'
- --->
+[257](https://github.com/compiler-research/CppInterOp/issues/257)
 
 Special Kudos
 =============
@@ -78,7 +75,7 @@ FirstName LastName (#commits)
 
 A B (N)
 
-<!---Find contributor list for this release
- git log --pretty=format:"%an"  v1.2.0...master | sort | uniq -c | sort -rn |\
-   sed -E 's,^ *([0-9]+) (.*)$,\2 \(\1\),'
---->
+Aaron  Jomy (19)
+mcbarton (17)
+Vassil Vassilev (10)
+Alexander Penev (4)
