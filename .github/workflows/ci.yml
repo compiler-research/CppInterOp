@@ -1063,7 +1063,7 @@ jobs:
       timeout-minutes: 30
 
   emscripten_wasm:
-    needs: [cppinterop_and_cppyy_build]
+    needs: [build_cache]
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
     strategy:
