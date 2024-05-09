@@ -1013,10 +1013,10 @@ jobs:
         else
             if [[ "${{ matrix.clang-runtime }}" == "17" ]]; then
                 echo "Valgrind reports true for clang-runtime 17 due to problems with LLVM"
-                valgrind --show-error-list=yes --error-exitcode=1 --track-origins=yes --suppressions=../etc/valgrind-cppyy-cling.supp python -m pytest -m "not xfail" -v || true
+                valgrind --show-error-list=yes --error-exitcode=1 --track-origins=yes --gen-suppressions=all --suppressions=../etc/valgrind-cppyy-cling.supp python -m pytest -m "not xfail" -v || true
             else
                 echo "Running valgrind on passing tests"
-                valgrind --show-error-list=yes --error-exitcode=1 --track-origins=yes --suppressions=../etc/valgrind-cppyy-cling.supp python -m pytest -m "not xfail" -v
+                valgrind --show-error-list=yes --error-exitcode=1 --track-origins=yes --gen-suppressions=all --suppressions=../etc/valgrind-cppyy-cling.supp python -m pytest -m "not xfail" -v
             fi
         fi
         export RETCODE=+$?
