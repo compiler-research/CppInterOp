@@ -2,7 +2,7 @@ Introduction
 ============
 
 This document contains the release notes for the language interoperability
-library CppInterOp, release 1.3.0. CppInterOp is built on top of
+library CppInterOp, release 1.4.0. CppInterOp is built on top of
 [Clang](http://clang.llvm.org) and [LLVM](http://llvm.org>) compiler
 infrastructure. Here we describe the status of CppInterOp in some detail,
 including major improvements from the previous release and new feature work.
@@ -18,7 +18,7 @@ the necessary introspection information to the other side helping the language
 cross talk.
 
 
-What's New in CppInterOp 1.3.0?
+What's New in CppInterOp 1.4.0?
 =============================
 
 Some of the major new features and improvements to CppInterOp are listed here.
@@ -39,31 +39,35 @@ External Dependencies
 Introspection
 -------------
 
-*
-* `GetFunctionArgDefault` and `GetFunctionArgName` now consider template
-  functions
-* Consolidate the template instantiation logic.
+* 
+
+
+Just-in-Time Compilation
+------------------------
+
+* 
 
 
 Incremental C++
 ---------------
 
-* Add Code Completion API
-* Improved Windows support
-* Add API for detection of resource and include directories from the system
-  compiler
+* 
 
 
 Misc
 ----
 
-* Improved installation of the CppInterOp folder.
+* 
 
 
 Fixed Bugs
 ----------
 
-[257](https://github.com/compiler-research/CppInterOp/issues/257)
+[XXX](https://github.com/compiler-research/CppInterOp/issues/XXX)
+
+ <!---Get release bugs
+ git log v1.3.0..main | grep 'Fixes|Closes'
+ --->
 
 Special Kudos
 =============
@@ -75,7 +79,7 @@ FirstName LastName (#commits)
 
 A B (N)
 
-Aaron  Jomy (19)
-mcbarton (17)
-Vassil Vassilev (10)
-Alexander Penev (4)
+<!---Find contributor list for this release
+ git log --pretty=format:"%an"  v1.3.0...main | sort | uniq -c | sort -rn |\
+   sed -E 's,^ *([0-9]+) (.*)$,\2 \(\1\),'
+--->
