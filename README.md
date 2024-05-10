@@ -109,7 +109,7 @@ cmake --build . --target clang clang-repl --parallel $(nproc --all)
 ```
 On Windows you would do this by executing the following
 ```
-$env:ncpus = %NUMBER_OF_PROCESSORS%
+$env:ncpus = $([Environment]::ProcessorCount)
 mkdir build 
 cd build 
 cmake   -DLLVM_ENABLE_PROJECTS=clang                  `
