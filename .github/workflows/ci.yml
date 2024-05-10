@@ -212,8 +212,8 @@ jobs:
       run: |
         echo "BUILD_TYPE=Release" >> $env:GITHUB_ENV
         echo "CODE_COVERAGE=0" >>  $env:GITHUB_ENV
-        echo "ncpus=%NUMBER_OF_PROCESSORS%" 
-        echo "ncpus=%NUMBER_OF_PROCESSORS%" >> $GITHUB_ENV
+        $env:ncpus=$([Environment]::ProcessorCount) 
+        echo "ncpus=$env:ncpus" >> $env:GITHUB_ENV
 
     - name: Setup compiler on Linux
       if: ${{ runner.os == 'Linux' && steps.cache.outputs.cache-hit != 'true' }}
@@ -671,8 +671,8 @@ jobs:
       run: |
         echo "BUILD_TYPE=Release" >> $env:GITHUB_ENV
         echo "CODE_COVERAGE=0" >>  $env:GITHUB_ENV
-        echo "ncpus=%NUMBER_OF_PROCESSORS%" 
-        echo "ncpus=%NUMBER_OF_PROCESSORS%" >> $GITHUB_ENV
+        $env:ncpus=$([Environment]::ProcessorCount) 
+        echo "ncpus=$env:ncpus" >> $env:GITHUB_ENV
 
     - name: Setup compiler on Linux
       if: runner.os == 'Linux'
