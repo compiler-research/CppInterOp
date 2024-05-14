@@ -1026,7 +1026,9 @@ jobs:
             echo "Skipping Valgrind checks on OS X"
         else
             echo "Running valgrind on passing tests"
-            valgrind --show-error-list=yes --error-exitcode=1 --track-origins=yes --suppressions=../etc/valgrind-cppyy-cling.supp python -m pytest -m "not xfail" -v
+            CLANG_VERSION="${{ matrix.clang-runtime }}"
+            SUPPRESSION_FILE="../etc/clang${CLANG_VERSION}-valgrind.supp"
+            valgrind --show-error-list=yes --error-exitcode=1 --track-origins=yes --suppressions="${SUPPRESSION_FILE}" --suppressions=../etc/valgrind-cppyy-cling.supp python -m pytest -m "not xfail" -v
         fi
         export RETCODE=+$?
         echo ::endgroup::
