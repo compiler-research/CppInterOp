@@ -125,11 +125,6 @@ jobs:
             cling: On
             cling-version: '1.0'
             cppyy: On
-            
-    steps:
-    - uses: actions/checkout@v4
-      with:
-        fetch-depth: 0
 
     - name: Set up Python 
       uses: actions/setup-python@v5
@@ -139,10 +134,6 @@ jobs:
     - name: Save PR Info on Unix systems
       if: ${{ runner.os != 'windows' }}
       run: |
-        mkdir -p ./pr
-        echo ${{ github.event.number }} > ./pr/NR
-        echo ${{ github.repository }} > ./pr/REPO
-
         cling_on=$(echo "${{ matrix.cling }}" | tr '[:lower:]' '[:upper:]')
         if [[ "$cling_on" == "ON" ]]; then
           export CLING_HASH=$(git ls-remote https://github.com/root-project/cling.git refs/tags/v${{ matrix.cling-version }} | tr '\t' '-')
@@ -160,11 +151,6 @@ jobs:
     - name: Save PR Info on Windows systems
       if: ${{ runner.os == 'windows' }}
       run: |
-        #can be found
-        mkdir  ./pr
-        echo "${{ github.event.number }}" > ./pr/NR
-        echo ${{ github.repository }} > ./pr/REPO
-
         if ( "${{ matrix.cling }}" -imatch "On" )
         { 
           $env:CLING_HASH_TEMP = ( git ls-remote https://github.com/root-project/cling.git refs/tags/v${{ matrix.cling-version }} ) 
