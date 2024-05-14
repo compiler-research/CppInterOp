@@ -782,7 +782,7 @@ jobs:
       run: |
         sudo apt install lcov
         echo "CODE_COVERAGE=1" >> $GITHUB_ENV
-        echo "BUILD_TYPE=Debug" >> $GITHUB_ENV
+        echo "BUILD_TYPE=RelWithDebInfo" >> $GITHUB_ENV
 
     - name: Build and Test/Install CppInterOp on Unix systems
       if: ${{ runner.os != 'windows' }}
