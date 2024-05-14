@@ -1,5 +1,6 @@
 #include "Utils.h"
 
+#include "llvm/Support/Valgrind.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/Interpreter/CppInterOp.h"
 #include "clang/Frontend/CompilerInstance.h"
@@ -523,7 +524,8 @@ TEST(TypeReflectionTest, IsPODType) {
 }
 
 TEST(TypeReflectionTest, IsSmartPtrType) {
-  GTEST_SKIP() << "XFAIL due to Valgrind report";
+  if (llvm::sys::RunningOnValgrind())
+    GTEST_SKIP() << "XFAIL due to Valgrind report";
   Cpp::CreateInterpreter();
 
   Interp->declare(R"(

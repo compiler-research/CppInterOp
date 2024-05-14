@@ -61,8 +61,8 @@ TEST(CUDATest, CUDAH) {
 }
 
 TEST(CUDATest, CUDARuntime) {
-  if (!HasCudaSDK())
-    GTEST_SKIP() << "Skipping CUDA tests as CUDA SDK not found";
+  if (!HasCudaRuntime())
+    GTEST_SKIP() << "Skipping CUDA tests as CUDA runtime not found";
 
   EXPECT_TRUE(HasCudaRuntime());
 }
