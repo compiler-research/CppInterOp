@@ -1069,64 +1069,76 @@ jobs:
             compiler: gcc-12
             clang-runtime: '18'
             cling: Off
+            micromamba_shell_init: bash
           - name: ubu22-x86-gcc12-clang-repl-17-emscripten_wasm
             os: ubuntu-22.04
             compiler: gcc-12
             clang-runtime: '17'
             cling: Off
+            micromamba_shell_init: bash
           - name: ubu22-x86-gcc12-clang-repl-16-emscripten_wasm
             os: ubuntu-22.04
             compiler: gcc-12
             clang-runtime: '16'
             cling: Off
+            micromamba_shell_init: bash
           - name: ubu22-x86-gcc9-clang13-cling-emscripten_wasm
             os: ubuntu-22.04
             compiler: gcc-9
             clang-runtime: '13'
             cling: On
             cling-version: '1.0'
+            micromamba_shell_init: bash
           - name: osx14-arm-clang-clang-repl-18-emscripten_wasm
             os: macos-14
             compiler: clang
             clang-runtime: '18'
             cling: Off
+            micromamba_shell_init: bash
           - name: osx14-arm-clang-clang-repl-17-emscripten_wasm
             os: macos-14
             compiler: clang
             clang-runtime: '17'
             cling: Off
+            micromamba_shell_init: bash
           - name: osx14-arm-clang-clang-repl-16-emscripten_wasm
             os: macos-14
             compiler: clang
             clang-runtime: '16'
-            cling: Off  
+            cling: Off
+            micromamba_shell_init: bash  
           - name: osx14-arm-clang-clang13-cling-emscripten_wasm
             os: macos-14
             compiler: clang
             clang-runtime: '13'
             cling: On
             cling-version: '1.0'
+            micromamba_shell_init: bash
           - name: osx13-x86-clang-clang-repl-18-emscripten_wasm
             os: macos-13
             compiler: clang
             clang-runtime: '18'
             cling: Off
+            micromamba_shell_init: bash
           - name: osx13-x86-clang-clang-repl-17-emscripten_wasm
             os: macos-13
             compiler: clang
             clang-runtime: '17'
             cling: Off
+            micromamba_shell_init: bash
           - name: osx13-x86-clang-clang-repl-16-emscripten_wasm
             os: macos-13
             compiler: clang
             clang-runtime: '16'
             cling: Off
+            micromamba_shell_init: bash
           - name: osx13-x86-clang-clang13-cling-emscripten_wasm
             os: macos-13
             compiler: clang
             clang-runtime: '13'
             cling: On
             cling-version: '1.0'
+            micromamba_shell_init: bash
 
     steps:
     - uses: actions/checkout@v4
@@ -1180,10 +1192,12 @@ jobs:
         sudo apt-get autoremove
         sudo apt-get clean
 
-    - name: Install mamba
-      uses: mamba-org/provision-with-micromamba@main
+    - name: install mamba
+      uses: mamba-org/setup-micromamba@main
       with:
         environment-file: environment-wasm-build.yml
+        init-shell: >-
+          ${{ matrix.micromamba_shell_init }}
         environment-name: CppInterOp-wasm-build
 
     - name: Setup emsdk
