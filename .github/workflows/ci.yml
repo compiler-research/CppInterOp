@@ -21,29 +21,29 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: ubu22-x86-gcc12-clang-repl-18
-            os: ubuntu-22.04
+          - name: ubu24-x86-gcc12-clang-repl-18
+            os: ubuntu-24.04
             compiler: gcc-12
             clang-runtime: '18'
             cling: Off
             cppyy: On
             coverage: true
-          - name: ubu22-x86-gcc12-clang-repl-17
-            os: ubuntu-22.04
+          - name: ubu24-x86-gcc12-clang-repl-17
+            os: ubuntu-24.04
             compiler: gcc-12
             clang-runtime: '17'
             cling: Off
             cppyy: On
             coverage: true
-          - name: ubu22-x86-gcc12-clang-repl-16
-            os: ubuntu-22.04
+          - name: ubu24-x86-gcc12-clang-repl-16
+            os: ubuntu-24.04
             compiler: gcc-12
             clang-runtime: '16'
             cling: Off
             cppyy: On
             coverage: true
-          - name: ubu22-x86-gcc9-clang13-cling
-            os: ubuntu-22.04
+          - name: ubu24-x86-gcc9-clang13-cling
+            os: ubuntu-24.04
             compiler: gcc-9
             clang-runtime: '13'
             cling: On
@@ -469,27 +469,27 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: ubu22-x86-gcc12-clang-repl-18-cppyy
-            os: ubuntu-22.04
+          - name: ubu24-x86-gcc12-clang-repl-18-cppyy
+            os: ubuntu-24.04
             compiler: gcc-12
             clang-runtime: '18'
             cling: Off
             cppyy: On
             coverage: true
-          - name: ubu22-x86-gcc12-clang-repl-17-cppyy
-            os: ubuntu-22.04
+          - name: ubu24-x86-gcc12-clang-repl-17-cppyy
+            os: ubuntu-24.04
             compiler: gcc-12
             clang-runtime: '17'
             cling: Off
             cppyy: On
-          - name: ubu22-x86-gcc12-clang-repl-16-cppyy
-            os: ubuntu-22.04
+          - name: ubu24-x86-gcc12-clang-repl-16-cppyy
+            os: ubuntu-24.04
             compiler: gcc-12
             clang-runtime: '16'
             cling: Off
             cppyy: On
-          - name: ubu22-x86-gcc9-clang13-cling-cppyy
-            os: ubuntu-22.04
+          - name: ubu24-x86-gcc9-clang13-cling-cppyy
+            os: ubuntu-24.04
             compiler: gcc-9
             clang-runtime: '13'
             cling: On
@@ -1067,23 +1067,23 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: ubu22-x86-gcc12-clang-repl-18-emscripten_wasm
-            os: ubuntu-22.04
+          - name: ubu24-x86-gcc12-clang-repl-18-emscripten_wasm
+            os: ubuntu-24.04
             compiler: gcc-12
             clang-runtime: '18'
             cling: Off
-          - name: ubu22-x86-gcc12-clang-repl-17-emscripten_wasm
-            os: ubuntu-22.04
+          - name: ubu24-x86-gcc12-clang-repl-17-emscripten_wasm
+            os: ubuntu-24.04
             compiler: gcc-12
             clang-runtime: '17'
             cling: Off
-          - name: ubu22-x86-gcc12-clang-repl-16-emscripten_wasm
-            os: ubuntu-22.04
+          - name: ubu24-x86-gcc12-clang-repl-16-emscripten_wasm
+            os: ubuntu-24.04
             compiler: gcc-12
             clang-runtime: '16'
             cling: Off
-          - name: ubu22-x86-gcc9-clang13-cling-emscripten_wasm
-            os: ubuntu-22.04
+          - name: ubu24-x86-gcc9-clang13-cling-emscripten_wasm
+            os: ubuntu-24.04
             compiler: gcc-9
             clang-runtime: '13'
             cling: On
