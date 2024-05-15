@@ -928,6 +928,9 @@ jobs:
       uses: codecov/codecov-action@v4
       with:
         file: ./coverage.info
+        fail_ci_if_error: true
+        verbose: true
+        token: ${{ secrets.CODECOV_TOKEN }}
 
     - name: Build and Install cppyy-backend on Unix Systems
       if: ${{ (runner.os != 'windows') && (matrix.cppyy == 'On') }}
