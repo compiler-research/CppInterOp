@@ -1204,7 +1204,8 @@ namespace Cpp {
         for (auto &GV : GeneratedPTU->TheModule->globals()) {
           llvm::GlobalValue::LinkageTypes LT = GV.getLinkage();
           if (GV.isDeclaration() || !GV.hasName() ||
-              GV.getName().startswith(".str") || !GV.isDiscardableIfUnused(LT) ||
+              GV.getName().starts_with(".str") ||
+              !GV.isDiscardableIfUnused(LT) ||
               LT != llvm::GlobalValue::InternalLinkage)
             continue; //nothing to do
           GV.setLinkage(llvm::GlobalValue::WeakAnyLinkage);
@@ -1333,11 +1334,11 @@ namespace Cpp {
     {
       bool issigned = false;
       bool isunsigned = false;
-      if (typeName.startswith("signed ")) {
+      if (typeName.starts_with("signed ")) {
         issigned = true;
         typeName = StringRef(typeName.data()+7, typeName.size()-7);
       }
-      if (!issigned && typeName.startswith("unsigned ")) {
+      if (!issigned && typeName.starts_with("unsigned ")) {
         isunsigned = true;
         typeName = StringRef(typeName.data()+9, typeName.size()-9);
       }
@@ -2813,7 +2814,6 @@ namespace Cpp {
     }
 
     // Let's inject it.
-    SymbolMap::iterator It;
     llvm::orc::SymbolMap InjectedSymbols;
     auto& DL = compat::getExecutionEngine(I)->getDataLayout();
     char GlobalPrefix = DL.getGlobalPrefix();
@@ -3078,7 +3078,7 @@ namespace Cpp {
   std::string GetFunctionArgDefault(TCppFunction_t func,
                                     TCppIndex_t param_index) {
     auto *D = (clang::Decl *)func;
-    clang::ParmVarDecl* PI;
+    clang::ParmVarDecl* PI = nullptr;
 
     if (auto* FD = llvm::dyn_cast_or_null<clang::FunctionDecl>(D))
       PI = FD->getParamDecl(param_index);
@@ -3125,7 +3125,7 @@ namespace Cpp {
   std::string GetFunctionArgName(TCppFunction_t func, TCppIndex_t param_index)
   {
     auto *D = (clang::Decl *)func;
-    clang::ParmVarDecl* PI;
+    clang::ParmVarDecl* PI = nullptr;
 
     if (auto* FD = llvm::dyn_cast_or_null<clang::FunctionDecl>(D))
       PI = FD->getParamDecl(param_index);
@@ -3154,7 +3154,7 @@ namespace Cpp {
     auto* const Ctor = GetDefaultConstructor(Class);
     if (JitCall JC = MakeFunctionCallable(Ctor)) {
       if (arena) {
-        JC.Invoke(&arena, {}, (void *)~0U); // Tell Invoke to use placement new.
+        JC.Invoke(&arena, {}, (void*)0); // Tell Invoke to use placement new.
         return arena;
       }
 

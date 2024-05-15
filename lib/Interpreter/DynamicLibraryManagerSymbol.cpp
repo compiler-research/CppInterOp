@@ -93,7 +93,7 @@ struct BloomFilter {
   // bloomSize = ceil((-1.44 * n * log2f(p)) / bits)
 
   const int m_Bits = 8 * sizeof(uint64_t);
-  const float m_P = 0.02;
+  const float m_P = 0.02f;
 
   bool m_IsInitialized = false;
   uint32_t m_SymbolsCount = 0;

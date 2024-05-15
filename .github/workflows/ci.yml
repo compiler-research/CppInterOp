@@ -819,6 +819,7 @@ jobs:
                 -DBUILD_SHARED_LIBS=ON                          \
                 -DCODE_COVERAGE=${{ env.CODE_COVERAGE }}        \
                 -DCMAKE_INSTALL_PREFIX=$CPPINTEROP_DIR          \
+                -DLLVM_ENABLE_WERROR=On                         \
                 ../
         else
           cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    \
@@ -829,6 +830,7 @@ jobs:
                 -DBUILD_SHARED_LIBS=ON                      \
                 -DCODE_COVERAGE=${{ env.CODE_COVERAGE }}    \
                 -DCMAKE_INSTALL_PREFIX=$CPPINTEROP_DIR      \
+                -DLLVM_ENABLE_WERROR=On                     \
                 ../
         fi
         os="${{ matrix.os }}"
@@ -844,7 +846,7 @@ jobs:
         echo "CPPINTEROP_DIR=$CPPINTEROP_DIR" >> $GITHUB_ENV
         echo "LLVM_BUILD_DIR=$LLVM_BUILD_DIR" >> $GITHUB_ENV
         echo "CPLUS_INCLUDE_PATH=$CPLUS_INCLUDE_PATH" >> $GITHUB_ENV
-
+         
     - name: Build and Test/Install CppInterOp on Windows systems
       continue-on-error: true
       if: ${{ runner.os == 'windows' }}
@@ -903,6 +905,7 @@ jobs:
                 -DUSE_REPL=OFF                                  `
                 -DCling_DIR="$env:LLVM_BUILD_DIR\tools\cling"   `
                 -DLLVM_DIR="$env:LLVM_BUILD_DIR" `
+                -DLLVM_ENABLE_WERROR=On                          `
                 -DClang_DIR="$env:LLVM_BUILD_DIR"  -DCODE_COVERAGE=${{ env.CODE_COVERAGE }} -DCMAKE_INSTALL_PREFIX="$env:CPPINTEROP_DIR"  ..\
         }
         else
@@ -911,6 +914,7 @@ jobs:
                 -DUSE_CLING=OFF                             `
                 -DUSE_REPL=ON                               `
                 -DLLVM_DIR="$env:LLVM_BUILD_DIR\lib\cmake\llvm"  `
+                -DLLVM_ENABLE_WERROR=On                          `
                 -DClang_DIR="$env:LLVM_BUILD_DIR\lib\cmake\clang"  -DCODE_COVERAGE=${{ env.CODE_COVERAGE }}  -DCMAKE_INSTALL_PREFIX="$env:CPPINTEROP_DIR"  ..\
         }
         cmake --build . --config ${{ env.BUILD_TYPE }} --target check-cppinterop --parallel ${{ env.ncpus }}

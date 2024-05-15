@@ -663,15 +663,15 @@ TEST(ScopeReflectionTest, GetBaseClassOffset) {
 #define Stringify(s) Stringifyx(s)
 #define Stringifyx(...) #__VA_ARGS__
 #define CODE                                                    \
-  class A { int m_a; };                                         \
-  class B { int m_b; };                                         \
-  class C : virtual A, virtual B { int m_c; };                  \
-  class D : virtual A, virtual B, public C { int m_d; };        \
-  class E : public A, public B { int m_e; };                    \
-  class F : public A { int m_f; };                              \
-  class G : public F { int m_g; };
+  struct A { int m_a; };                                         \
+  struct B { int m_b; };                                         \
+  struct C : virtual A, virtual B { int m_c; };                  \
+  struct D : virtual A, virtual B, public C { int m_d; };        \
+  struct E : public A, public B { int m_e; };                    \
+  struct F : public A { int m_f; };                              \
+  struct G : public F { int m_g; };
 
-  CODE;
+CODE;
 
   GetAllTopLevelDecls(Stringify(CODE), Decls);
 #undef Stringifyx

@@ -13,6 +13,7 @@
 #if LLVM_VERSION_MAJOR < 18
 #define starts_with startswith
 #define ends_with endswith
+#define starts_with_insensitive startswith_insensitive
 #endif
 
 #if CLANG_VERSION_MAJOR >= 18
