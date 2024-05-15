@@ -93,7 +93,7 @@ TEST(VariableReflectionTest, GetVariableType) {
 
 #define CODE                                                    \
   int a;                                                        \
-  const int N = 5;                                              \
+  int N = 5;                                              \
   class C {                                                     \
   public:                                                       \
     int a;                                                      \
@@ -121,12 +121,13 @@ TEST(VariableReflectionTest, GetVariableOffset) {
   EXPECT_TRUE((bool) Cpp::GetVariableOffset(Decls[1])); // N
 
   EXPECT_EQ(Cpp::GetVariableOffset(datamembers[0]), 0);
+
   EXPECT_EQ(Cpp::GetVariableOffset(datamembers[1]),
-          ((unsigned long) &(c.b)) - ((unsigned long) &(c.a)));
+          ((intptr_t) &(c.b)) - ((intptr_t) &(c.a)));
   EXPECT_EQ(Cpp::GetVariableOffset(datamembers[2]),
-          ((unsigned long) &(c.c)) - ((unsigned long) &(c.a)));
+          ((intptr_t) &(c.c)) - ((intptr_t) &(c.a)));
   EXPECT_EQ(Cpp::GetVariableOffset(datamembers[3]),
-          ((unsigned long) &(c.d)) - ((unsigned long) &(c.a)));
+          ((intptr_t) &(c.d)) - ((intptr_t) &(c.a)));
 
   auto *VD_C_s_a = Cpp::GetNamed("s_a", Decls[2]); // C::s_a
   EXPECT_TRUE((bool) Cpp::GetVariableOffset(VD_C_s_a));
@@ -240,13 +241,14 @@ TEST(VariableReflectionTest, DISABLED_GetArrayDimensions) {
 
   GetAllTopLevelDecls(code, Decls);
 
-  auto is_vec_eq = [](const std::vector<size_t> &arr_dims,
-                      const std::vector<size_t> &truth_vals) {
-    if (arr_dims.size() != truth_vals.size()) 
-      return false;
-
-    return std::equal(arr_dims.begin(), arr_dims.end(), truth_vals.begin());
-  };
+  //FIXME: is_vec_eq is an unused variable until test does something
+  //auto is_vec_eq = [](const std::vector<size_t> &arr_dims,
+  //                    const std::vector<size_t> &truth_vals) {
+  //  if (arr_dims.size() != truth_vals.size()) 
+  //    return false;
+  //
+  //  return std::equal(arr_dims.begin(), arr_dims.end(), truth_vals.begin());
+  //};
 
   // EXPECT_TRUE(is_vec_eq(Cpp::GetArrayDimensions(Decls[0]), {}));
   // EXPECT_TRUE(is_vec_eq(Cpp::GetArrayDimensions(Decls[1]), {1}));

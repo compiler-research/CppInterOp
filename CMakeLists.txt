@@ -211,7 +211,7 @@ if( CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR )
 
   endif()
 
-  ##Replace \ with / in LLVM_DIR (attempt to fix path parsing issue Windows)
+  #Replace \ with / in LLVM_DIR (attempt to fix path parsing issue Windows)
   string(REPLACE "\\" "/" LLVM_DIR "${LLVM_DIR}")
 
   # When in debug mode the llvm package thinks it is built with -frtti.
@@ -302,6 +302,11 @@ if (LLVM_COMPILER_IS_GCC_COMPATIBLE)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-common -Woverloaded-virtual -Wcast-qual -fno-strict-aliasing -pedantic -Wno-long-long -Wall -W -Wno-unused-parameter -Wwrite-strings")
 endif ()
 
+# Fixes "C++ exception handler used, but unwind semantics are not enabled" warning Windows
+if (WIN32)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /EHsc")
+endif ()
+
 if (APPLE)
   set(CMAKE_MODULE_LINKER_FLAGS "-Wl,-flat_namespace -Wl,-undefined -Wl,suppress")
 endif ()
@@ -319,6 +324,8 @@ include_directories(BEFORE SYSTEM
   ${CMAKE_CURRENT_SOURCE_DIR}/include
   )
 
+#Removes flag due to issue with Google test download when LLVM_ENABLE_WERROR=On
+string(REPLACE "-Wcovered-switch-default" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 
 file(STRINGS "VERSION" CPPINTEROP_VERSION)
 string(REGEX MATCH "([0-9]*)\.([0-9]*)\.([0-9]*)" CPPINTEROP_VERSION_ONLY "${CPPINTEROP_VERSION}")
