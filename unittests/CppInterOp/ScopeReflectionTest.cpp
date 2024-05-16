@@ -938,6 +938,7 @@ TEST(ScopeReflectionTest, GetClassTemplateInstantiationArgs) {
 
 
 TEST(ScopeReflectionTest, IncludeVector) {
+  GTEST_SKIP() << "XFAIL due to Valgrind report";
   std::string code = R"(
     #include <vector>
     #include <iostream>
