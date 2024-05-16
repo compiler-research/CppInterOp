@@ -1,10 +1,11 @@
-#include "clang/Interpreter/CppInterOp.h"
+#include "Utils.h"
 
+#include "clang/Interpreter/CppInterOp.h"
 #include "clang/Basic/Version.h"
 
 #include "llvm/ADT/SmallString.h"
 #include "llvm/Support/Path.h"
-#include "llvm/Support/Valgrind.h"
+
 #include <gmock/gmock.h>
 #include "gtest/gtest.h"
 
@@ -44,7 +45,7 @@ TEST(InterpreterTest, DebugFlag) {
 }
 
 TEST(InterpreterTest, Evaluate) {
-  if (llvm::sys::RunningOnValgrind())
+  if (RUNNING_ON_VALGRIND)
     GTEST_SKIP() << "XFAIL due to Valgrind report";
   //  EXPECT_TRUE(Cpp::Evaluate(I, "") == 0);
   //EXPECT_TRUE(Cpp::Evaluate(I, "__cplusplus;") == 201402);
@@ -60,7 +61,7 @@ TEST(InterpreterTest, Evaluate) {
 }
 
 TEST(InterpreterTest, Process) {
-  if (llvm::sys::RunningOnValgrind())
+  if (RUNNING_ON_VALGRIND)
     GTEST_SKIP() << "XFAIL due to Valgrind report";
   Cpp::CreateInterpreter();
   EXPECT_TRUE(Cpp::Process("") == 0);

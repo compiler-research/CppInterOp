@@ -744,7 +744,7 @@ jobs:
       run: |
         # Install deps
         sudo apt-get update
-        sudo apt-get install git g++ debhelper devscripts gnupg python3
+        sudo apt-get install git g++ debhelper devscripts gnupg python3 valgrind
         sudo apt-get install -y libc6-dbg
         sudo snap install valgrind --classic
         sudo apt autoremove

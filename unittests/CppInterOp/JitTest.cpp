@@ -1,7 +1,6 @@
 #include "Utils.h"
 
 #include "clang/Interpreter/CppInterOp.h"
-#include "llvm/Support/Valgrind.h"
 
 #include "gtest/gtest.h"
 
@@ -13,7 +12,7 @@ static int printf_jit(const char* format, ...) {
 }
 
 TEST(JitTest, InsertOrReplaceJitSymbol) {
-  if (llvm::sys::RunningOnValgrind())
+  if (RUNNING_ON_VALGRIND)
     GTEST_SKIP() << "XFAIL due to Valgrind report";
   std::vector<Decl*> Decls;
   std::string code = R"(

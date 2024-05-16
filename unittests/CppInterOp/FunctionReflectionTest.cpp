@@ -1,6 +1,5 @@
 #include "Utils.h"
 
-#include "llvm/Support/Valgrind.h"
 #include "clang/AST/ASTContext.h"
 #include "clang/Interpreter/CppInterOp.h"
 #include "clang/Frontend/CompilerInstance.h"
@@ -532,7 +531,7 @@ TEST(FunctionReflectionTest, ExistsFunctionTemplate) {
 }
 
 TEST(FunctionReflectionTest, InstantiateTemplateFunctionFromString) {
-  if (llvm::sys::RunningOnValgrind())
+  if (RUNNING_ON_VALGRIND)
     GTEST_SKIP() << "XFAIL due to Valgrind report";
   Cpp::CreateInterpreter();
   std::string code = R"(#include <memory>)";
@@ -735,7 +734,7 @@ TEST(FunctionReflectionTest, IsStaticMethod) {
 }
 
 TEST(FunctionReflectionTest, GetFunctionAddress) {
-  if (llvm::sys::RunningOnValgrind())
+  if (RUNNING_ON_VALGRIND)
     GTEST_SKIP() << "XFAIL due to Valgrind report";
   std::vector<Decl*> Decls, SubDecls;
   std::string code = "int f1(int i) { return i * i; }";
@@ -776,7 +775,7 @@ TEST(FunctionReflectionTest, IsVirtualMethod) {
 }
 
 TEST(FunctionReflectionTest, JitCallAdvanced) {
-  if (llvm::sys::RunningOnValgrind())
+  if (RUNNING_ON_VALGRIND)
     GTEST_SKIP() << "XFAIL due to Valgrind report";
   std::vector<Decl*> Decls;
   std::string code = R"(
@@ -800,7 +799,7 @@ TEST(FunctionReflectionTest, JitCallAdvanced) {
 
 
 TEST(FunctionReflectionTest, GetFunctionCallWrapper) {
-  if (llvm::sys::RunningOnValgrind())
+  if (RUNNING_ON_VALGRIND)
     GTEST_SKIP() << "XFAIL due to Valgrind report";
   std::vector<Decl*> Decls;
   std::string code = R"(
@@ -1011,7 +1010,7 @@ TEST(FunctionReflectionTest, GetFunctionArgDefault) {
 }
 
 TEST(FunctionReflectionTest, Construct) {
-  if (llvm::sys::RunningOnValgrind())
+  if (RUNNING_ON_VALGRIND)
     GTEST_SKIP() << "XFAIL due to Valgrind report";
   Cpp::CreateInterpreter();
 
@@ -1047,7 +1046,7 @@ TEST(FunctionReflectionTest, Construct) {
 }
 
 TEST(FunctionReflectionTest, Destruct) {
-  if (llvm::sys::RunningOnValgrind())
+  if (RUNNING_ON_VALGRIND)
     GTEST_SKIP() << "XFAIL due to Valgrind report";
   Cpp::CreateInterpreter();
 
