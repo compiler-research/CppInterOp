@@ -45,7 +45,7 @@ TEST(InterpreterTest, DebugFlag) {
 }
 
 TEST(InterpreterTest, Evaluate) {
-  if (RUNNING_ON_VALGRIND)
+  if (llvm::sys::RunningOnValgrind())
     GTEST_SKIP() << "XFAIL due to Valgrind report";
   //  EXPECT_TRUE(Cpp::Evaluate(I, "") == 0);
   //EXPECT_TRUE(Cpp::Evaluate(I, "__cplusplus;") == 201402);
@@ -61,7 +61,7 @@ TEST(InterpreterTest, Evaluate) {
 }
 
 TEST(InterpreterTest, Process) {
-  if (RUNNING_ON_VALGRIND)
+  if (llvm::sys::RunningOnValgrind())
     GTEST_SKIP() << "XFAIL due to Valgrind report";
   Cpp::CreateInterpreter();
   EXPECT_TRUE(Cpp::Process("") == 0);

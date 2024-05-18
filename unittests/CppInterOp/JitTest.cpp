@@ -12,7 +12,7 @@ static int printf_jit(const char* format, ...) {
 }
 
 TEST(JitTest, InsertOrReplaceJitSymbol) {
-  if (RUNNING_ON_VALGRIND)
+  if (llvm::sys::RunningOnValgrind())
     GTEST_SKIP() << "XFAIL due to Valgrind report";
   std::vector<Decl*> Decls;
   std::string code = R"(

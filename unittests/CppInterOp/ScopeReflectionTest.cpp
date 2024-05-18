@@ -800,7 +800,7 @@ template<typename T> T TrivialFnTemplate() { return T(); }
 }
 
 TEST(ScopeReflectionTest, InstantiateTemplateFunctionFromString) {
-  if (RUNNING_ON_VALGRIND)
+  if (llvm::sys::RunningOnValgrind())
     GTEST_SKIP() << "XFAIL due to Valgrind report";
   Cpp::CreateInterpreter();
   std::string code = R"(#include <memory>)";
@@ -940,7 +940,7 @@ TEST(ScopeReflectionTest, GetClassTemplateInstantiationArgs) {
 
 
 TEST(ScopeReflectionTest, IncludeVector) {
-  if (RUNNING_ON_VALGRIND)
+  if (llvm::sys::RunningOnValgrind())
       GTEST_SKIP() << "XFAIL due to Valgrind report";
   std::string code = R"(
     #include <vector>
