@@ -758,6 +758,10 @@ jobs:
       run: |
         brew update
         brew remove ruby@3.0
+        export ARCHITECHURE=$(uname -m)
+        if [[ "$ARCHITECHURE" == "x86_64" ]]; then
+          brew remove swiftlint
+        fi
         # workaround for https://github.com/actions/setup-python/issues/577
         for pkg in $(brew list | grep '^python@'); do
           brew unlink "$pkg"
