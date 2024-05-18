@@ -1230,13 +1230,7 @@ jobs:
         micromamba create -f environment-wasm.yml --platform=emscripten-wasm32
 
         export EMPACK_PREFIX=$MAMBA_ROOT_PREFIX/envs/CppInterOp-wasm-build
-        #FIXME: Remove hardcoding of PREFIX path
-        os="${{ matrix.os }}"
-        if [[ "${os}" == "macos"* ]]; then
-          export PREFIX=/Users/runner/micromamba-root/envs/CppInterOp-wasm
-        else
-          export PREFIX=/home/runner/micromamba-root/envs/CppInterOp-wasm
-        fi
+        export PREFIX=$MAMBA_ROOT_PREFIX/envs/CppInterOp-wasm
         export CMAKE_PREFIX_PATH=$PREFIX
         export CMAKE_SYSTEM_PREFIX_PATH=$PREFIX
         
@@ -1275,7 +1269,7 @@ jobs:
           emcmake cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    \
                 -DUSE_CLING=OFF                             \
                 -DUSE_REPL=ON                               \
-                -DCMAKE_PREFIX_PATH="/home/runner/micromamba-root/envs/CppInterOp-wasm/"                      \
+                -DCMAKE_PREFIX_PATH=$PREFIX                      \
                 -DLLVM_DIR=$LLVM_BUILD_DIR/lib/cmake/llvm       \
                 -DClang_DIR=$LLVM_BUILD_DIR/lib/cmake/clang     \
                 -DBUILD_SHARED_LIBS=OFF                      \
