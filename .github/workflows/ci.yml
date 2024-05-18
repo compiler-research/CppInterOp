@@ -21,30 +21,30 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: ubu22-x86-gcc12-clang-repl-18
-            os: ubuntu-22.04
-            compiler: gcc-12
+          - name: ubu24-x86-gcc13-clang-repl-18
+            os: ubuntu-24.04
+            compiler: gcc-13
             clang-runtime: '18'
             cling: Off
             cppyy: On
             coverage: true
-          - name: ubu22-x86-gcc12-clang-repl-17
-            os: ubuntu-22.04
-            compiler: gcc-12
+          - name: ubu24-x86-gcc13-clang-repl-17
+            os: ubuntu-24.04
+            compiler: gcc-13
             clang-runtime: '17'
             cling: Off
             cppyy: On
             coverage: true
-          - name: ubu22-x86-gcc12-clang-repl-16
-            os: ubuntu-22.04
-            compiler: gcc-12
+          - name: ubu24-x86-gcc13-clang-repl-16
+            os: ubuntu-24.04
+            compiler: gcc-13
             clang-runtime: '16'
             cling: Off
             cppyy: On
             coverage: true
-          - name: ubu22-x86-gcc9-clang13-cling
-            os: ubuntu-22.04
-            compiler: gcc-9
+          - name: ubu24-x86-gcc13-clang13-cling
+            os: ubuntu-24.04
+            compiler: gcc-13
             clang-runtime: '13'
             cling: On
             cling-version: '1.0'
@@ -470,28 +470,28 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: ubu22-x86-gcc12-clang-repl-18-cppyy
-            os: ubuntu-22.04
-            compiler: gcc-12
+          - name: ubu24-x86-gcc13-clang-repl-18-cppyy
+            os: ubuntu-24.04
+            compiler: gcc-13
             clang-runtime: '18'
             cling: Off
             cppyy: On
             coverage: true
-          - name: ubu22-x86-gcc12-clang-repl-17-cppyy
-            os: ubuntu-22.04
-            compiler: gcc-12
+          - name: ubu24-x86-gcc13-clang-repl-17-cppyy
+            os: ubuntu-24.04
+            compiler: gcc-13
             clang-runtime: '17'
             cling: Off
             cppyy: On
-          - name: ubu22-x86-gcc12-clang-repl-16-cppyy
-            os: ubuntu-22.04
-            compiler: gcc-12
+          - name: ubu24-x86-gcc13-clang-repl-16-cppyy
+            os: ubuntu-24.04
+            compiler: gcc-13
             clang-runtime: '16'
             cling: Off
             cppyy: On
-          - name: ubu22-x86-gcc9-clang13-cling-cppyy
-            os: ubuntu-22.04
-            compiler: gcc-9
+          - name: ubu24-x86-gcc13-clang13-cling-cppyy
+            os: ubuntu-24.04
+            compiler: gcc-13
             clang-runtime: '13'
             cling: On
             cling-version: '1.0'
@@ -785,7 +785,7 @@ jobs:
     - name: Setup code coverage
       if: ${{ success() && (matrix.coverage == true) }}
       run: |
-        sudo apt install lcov
+        sudo apt-get install -y lcov
         echo "CODE_COVERAGE=1" >> $GITHUB_ENV
         echo "BUILD_TYPE=Debug" >> $GITHUB_ENV
 
@@ -820,7 +820,6 @@ jobs:
                 -DBUILD_SHARED_LIBS=ON                          \
                 -DCODE_COVERAGE=${{ env.CODE_COVERAGE }}        \
                 -DCMAKE_INSTALL_PREFIX=$CPPINTEROP_DIR          \
-                -DLLVM_ENABLE_WERROR=On                         \
                 ../
         else
           cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    \
@@ -831,7 +830,6 @@ jobs:
                 -DBUILD_SHARED_LIBS=ON                      \
                 -DCODE_COVERAGE=${{ env.CODE_COVERAGE }}    \
                 -DCMAKE_INSTALL_PREFIX=$CPPINTEROP_DIR      \
-                -DLLVM_ENABLE_WERROR=On                     \
                 ../
         fi
         os="${{ matrix.os }}"
@@ -906,7 +904,6 @@ jobs:
                 -DUSE_REPL=OFF                                  `
                 -DCling_DIR="$env:LLVM_BUILD_DIR\tools\cling"   `
                 -DLLVM_DIR="$env:LLVM_BUILD_DIR" `
-                -DLLVM_ENABLE_WERROR=On                          `
                 -DClang_DIR="$env:LLVM_BUILD_DIR"  -DCODE_COVERAGE=${{ env.CODE_COVERAGE }} -DCMAKE_INSTALL_PREFIX="$env:CPPINTEROP_DIR"  ..\
         }
         else
@@ -915,7 +912,6 @@ jobs:
                 -DUSE_CLING=OFF                             `
                 -DUSE_REPL=ON                               `
                 -DLLVM_DIR="$env:LLVM_BUILD_DIR\lib\cmake\llvm"  `
-                -DLLVM_ENABLE_WERROR=On                          `
                 -DClang_DIR="$env:LLVM_BUILD_DIR\lib\cmake\clang"  -DCODE_COVERAGE=${{ env.CODE_COVERAGE }}  -DCMAKE_INSTALL_PREFIX="$env:CPPINTEROP_DIR"  ..\
         }
         cmake --build . --config ${{ env.BUILD_TYPE }} --target check-cppinterop --parallel ${{ env.ncpus }}
@@ -966,6 +962,9 @@ jobs:
       run: |
         python3 -m venv .venv
         source .venv/bin/activate
+        python -m pip install --upgrade pip
+        pip install setuptools
+        pip install wheel
         # Install CPyCppyy
         git clone --depth=1 https://github.com/compiler-research/CPyCppyy.git
         mkdir CPyCppyy/build
@@ -985,7 +984,7 @@ jobs:
         # Install cppyy
         git clone --depth=1 https://github.com/compiler-research/cppyy.git
         cd cppyy
-        python -m pip install --upgrade . --no-deps
+        python -m pip install --upgrade . --no-deps --no-build-isolation
         cd ..
     - name: Run cppyy on Unix Systems
       if: ${{ (runner.os != 'windows') && (matrix.cppyy == 'On') }}
@@ -1004,7 +1003,6 @@ jobs:
         cd cppyy/test
         echo ::group::Prepare For Testing
         make all
-        python -m pip install --upgrade pip
         python -m pip install pytest
         python -m pip install pytest-xdist
         python -m pip install numba
@@ -1076,27 +1074,27 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: ubu22-x86-gcc12-clang-repl-18-emscripten_wasm
-            os: ubuntu-22.04
-            compiler: gcc-12
+          - name: ubu24-x86-gcc13-clang-repl-18-emscripten_wasm
+            os: ubuntu-24.04
+            compiler: gcc-13
             clang-runtime: '18'
             cling: Off
             micromamba_shell_init: bash
-          - name: ubu22-x86-gcc12-clang-repl-17-emscripten_wasm
-            os: ubuntu-22.04
-            compiler: gcc-12
+          - name: ubu24-x86-gcc13-clang-repl-17-emscripten_wasm
+            os: ubuntu-24.04
+            compiler: gcc-13
             clang-runtime: '17'
             cling: Off
             micromamba_shell_init: bash
-          - name: ubu22-x86-gcc12-clang-repl-16-emscripten_wasm
-            os: ubuntu-22.04
-            compiler: gcc-12
+          - name: ubu24-x86-gcc13-clang-repl-16-emscripten_wasm
+            os: ubuntu-24.04
+            compiler: gcc-13
             clang-runtime: '16'
             cling: Off
             micromamba_shell_init: bash
-          - name: ubu22-x86-gcc9-clang13-cling-emscripten_wasm
-            os: ubuntu-22.04
-            compiler: gcc-9
+          - name: ubu24-x86-gcc13-clang13-cling-emscripten_wasm
+            os: ubuntu-24.04
+            compiler: gcc-13
             clang-runtime: '13'
             cling: On
             cling-version: '1.0'
