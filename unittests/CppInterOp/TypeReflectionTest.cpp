@@ -523,7 +523,8 @@ TEST(TypeReflectionTest, IsPODType) {
 }
 
 TEST(TypeReflectionTest, IsSmartPtrType) {
-  GTEST_SKIP() << "XFAIL due to Valgrind report";
+  if (llvm::sys::RunningOnValgrind())
+    GTEST_SKIP() << "XFAIL due to Valgrind report";
   Cpp::CreateInterpreter();
 
   Interp->declare(R"(

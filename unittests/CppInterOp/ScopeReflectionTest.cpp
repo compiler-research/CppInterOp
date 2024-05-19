@@ -1,4 +1,5 @@
 #include "Utils.h"
+
 #include "clang/Interpreter/CppInterOp.h"
 
 #include "clang/AST/ASTContext.h"
@@ -799,7 +800,8 @@ template<typename T> T TrivialFnTemplate() { return T(); }
 }
 
 TEST(ScopeReflectionTest, InstantiateTemplateFunctionFromString) {
-  GTEST_SKIP() << "XFAIL due to Valgrind report";
+  if (llvm::sys::RunningOnValgrind())
+    GTEST_SKIP() << "XFAIL due to Valgrind report";
   Cpp::CreateInterpreter();
   std::string code = R"(#include <memory>)";
   Interp->process(code);
@@ -938,7 +940,8 @@ TEST(ScopeReflectionTest, GetClassTemplateInstantiationArgs) {
 
 
 TEST(ScopeReflectionTest, IncludeVector) {
-  GTEST_SKIP() << "XFAIL due to Valgrind report";
+  if (llvm::sys::RunningOnValgrind())
+      GTEST_SKIP() << "XFAIL due to Valgrind report";
   std::string code = R"(
     #include <vector>
     #include <iostream>

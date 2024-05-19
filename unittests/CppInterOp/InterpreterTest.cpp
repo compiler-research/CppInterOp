@@ -1,5 +1,6 @@
-#include "clang/Interpreter/CppInterOp.h"
+#include "Utils.h"
 
+#include "clang/Interpreter/CppInterOp.h"
 #include "clang/Basic/Version.h"
 
 #include "llvm/ADT/SmallString.h"
@@ -44,7 +45,8 @@ TEST(InterpreterTest, DebugFlag) {
 }
 
 TEST(InterpreterTest, Evaluate) {
-  GTEST_SKIP() << "XFAIL due to Valgrind report";
+  if (llvm::sys::RunningOnValgrind())
+    GTEST_SKIP() << "XFAIL due to Valgrind report";
   //  EXPECT_TRUE(Cpp::Evaluate(I, "") == 0);
   //EXPECT_TRUE(Cpp::Evaluate(I, "__cplusplus;") == 201402);
   // Due to a deficiency in the clang-repl implementation to get the value we
@@ -59,7 +61,8 @@ TEST(InterpreterTest, Evaluate) {
 }
 
 TEST(InterpreterTest, Process) {
-  GTEST_SKIP() << "XFAIL due to Valgrind report";
+  if (llvm::sys::RunningOnValgrind())
+    GTEST_SKIP() << "XFAIL due to Valgrind report";
   Cpp::CreateInterpreter();
   EXPECT_TRUE(Cpp::Process("") == 0);
   EXPECT_TRUE(Cpp::Process("int a = 12;") == 0);

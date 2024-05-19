@@ -5,6 +5,7 @@
 
 #include <memory>
 #include <vector>
+#include "llvm/Support/Valgrind.h"
 
 using namespace clang;
 using namespace llvm;

@@ -531,7 +531,8 @@ TEST(FunctionReflectionTest, ExistsFunctionTemplate) {
 }
 
 TEST(FunctionReflectionTest, InstantiateTemplateFunctionFromString) {
-  GTEST_SKIP() << "XFAIL due to Valgrind report";
+  if (llvm::sys::RunningOnValgrind())
+    GTEST_SKIP() << "XFAIL due to Valgrind report";
   Cpp::CreateInterpreter();
   std::string code = R"(#include <memory>)";
   Interp->process(code);
@@ -733,7 +734,8 @@ TEST(FunctionReflectionTest, IsStaticMethod) {
 }
 
 TEST(FunctionReflectionTest, GetFunctionAddress) {
-  GTEST_SKIP() << "XFAIL due to Valgrind report";
+  if (llvm::sys::RunningOnValgrind())
+    GTEST_SKIP() << "XFAIL due to Valgrind report";
   std::vector<Decl*> Decls, SubDecls;
   std::string code = "int f1(int i) { return i * i; }";
 
@@ -773,7 +775,8 @@ TEST(FunctionReflectionTest, IsVirtualMethod) {
 }
 
 TEST(FunctionReflectionTest, JitCallAdvanced) {
-  GTEST_SKIP() << "XFAIL due to Valgrind report";
+  if (llvm::sys::RunningOnValgrind())
+    GTEST_SKIP() << "XFAIL due to Valgrind report";
   std::vector<Decl*> Decls;
   std::string code = R"(
       typedef struct _name {
@@ -796,7 +799,8 @@ TEST(FunctionReflectionTest, JitCallAdvanced) {
 
 
 TEST(FunctionReflectionTest, GetFunctionCallWrapper) {
-  GTEST_SKIP() << "XFAIL due to Valgrind report";
+  if (llvm::sys::RunningOnValgrind())
+    GTEST_SKIP() << "XFAIL due to Valgrind report";
   std::vector<Decl*> Decls;
   std::string code = R"(
     int f1(int i) { return i * i; }
@@ -1006,7 +1010,8 @@ TEST(FunctionReflectionTest, GetFunctionArgDefault) {
 }
 
 TEST(FunctionReflectionTest, Construct) {
-  GTEST_SKIP() << "XFAIL due to Valgrind report";
+  if (llvm::sys::RunningOnValgrind())
+    GTEST_SKIP() << "XFAIL due to Valgrind report";
   Cpp::CreateInterpreter();
 
   Interp->declare(R"(
@@ -1041,7 +1046,8 @@ TEST(FunctionReflectionTest, Construct) {
 }
 
 TEST(FunctionReflectionTest, Destruct) {
-  GTEST_SKIP() << "XFAIL due to Valgrind report";
+  if (llvm::sys::RunningOnValgrind())
+    GTEST_SKIP() << "XFAIL due to Valgrind report";
   Cpp::CreateInterpreter();
 
   Interp->declare(R"(
