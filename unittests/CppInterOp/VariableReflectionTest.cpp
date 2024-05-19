@@ -93,7 +93,7 @@ TEST(VariableReflectionTest, GetVariableType) {
 
 #define CODE                                                    \
   int a;                                                        \
-  int N = 5;                                              \
+  const int N = 5;                                              \
   class C {                                                     \
   public:                                                       \
     int a;                                                      \
@@ -102,7 +102,7 @@ TEST(VariableReflectionTest, GetVariableType) {
     int d;                                                      \
     static int s_a;                                             \
   } c;                                                            \
-  int C::s_a = 12;
+  int C::s_a = 7 + N;
 
 CODE
 
