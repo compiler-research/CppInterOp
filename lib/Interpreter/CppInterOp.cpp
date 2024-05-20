@@ -3154,7 +3154,7 @@ namespace Cpp {
     auto* const Ctor = GetDefaultConstructor(Class);
     if (JitCall JC = MakeFunctionCallable(Ctor)) {
       if (arena) {
-        JC.Invoke(&arena, {}, (void*)0); // Tell Invoke to use placement new.
+        JC.Invoke(&arena, {}, (void*)~0); // Tell Invoke to use placement new.
         return arena;
       }
 
