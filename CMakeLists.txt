@@ -379,6 +379,10 @@ if (TARGET clang-headers)
   list(APPEND LLVM_COMMON_DEPENDS clang-headers)
 endif()
 
+if(EMSCRIPTEN)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -sERROR_ON_UNDEFINED_SYMBOLS=0")
+endif()
+
 # Generate docs for CppInterOp
 option(CPPINTEROP_INCLUDE_DOCS "Generate build targets for the CppInterOp docs.")
 option(CPPINTEROP_ENABLE_DOXYGEN "Use doxygen to generate CppInterOp interal API documentation.")
