@@ -1425,7 +1425,7 @@ jobs:
         cd build
         if ( "${{ matrix.cling }}" -imatch "On" )
         {
-          cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    `
+          ..\emsdk\upstream\emscripten\emcmake cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    `
                 -DUSE_CLING=ON                                  `
                 -DUSE_REPL=OFF                                  `
                 -DCMAKE_PREFIX_PATH=$env:PREFIX                      `
@@ -1433,28 +1433,20 @@ jobs:
                 -DCling_DIR="$env:LLVM_BUILD_DIR\tools\cling"   `
                 -DLLVM_DIR="$env:LLVM_BUILD_DIR\lib\cmake\llvm" `
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            `
-                -DCMAKE_TOOLCHAIN_FILE=D:\a\CppInterOp\CppInterOp\emsdk\upstream\emscripten\cmake\Modules\Platform\Emscripten.cmake `
-                -DCMAKE_CROSSCOMPILING_EMULATOR=D:/a/CppInterOp/CppInterOp/emsdk/node/16.20.0_64bit/bin/node.exe `
-                -G "Visual Studio 17 2022" `
-                -DCPPINTEROP_ENABLE_TESTING=OFF                 `
                 -DClang_DIR="$env:LLVM_BUILD_DIR\lib\cmake\clang"  -DCODE_COVERAGE=${{ env.CODE_COVERAGE }} -DCMAKE_INSTALL_PREFIX="$env:CPPINTEROP_DIR"  ..\
         }
         else
         {
-          cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    `
+          ..\emsdk\upstream\emscripten\emcmake cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    `
                 -DUSE_CLING=OFF                             `
                 -DUSE_REPL=ON                               `
                 -DCMAKE_PREFIX_PATH=$env:PREFIX                      `
                 -DCMAKE_INSTALL_PREFIX=$env:PREFIX      `
                 -DLLVM_DIR="$env:LLVM_BUILD_DIR\lib\cmake\llvm"  `
-                -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            `
-                -DCMAKE_TOOLCHAIN_FILE=D:\a\CppInterOp\CppInterOp\emsdk\upstream\emscripten\cmake\Modules\Platform\Emscripten.cmake `
-                -DCMAKE_CROSSCOMPILING_EMULATOR=D:/a/CppInterOp/CppInterOp/emsdk/node/16.20.0_64bit/bin/node.exe `
-                -G "Visual Studio 17 2022" `
-                -DCPPINTEROP_ENABLE_TESTING=OFF                 `
+                -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON           `
                 -DClang_DIR="$env:LLVM_BUILD_DIR\lib\cmake\clang"  -DCODE_COVERAGE=${{ env.CODE_COVERAGE }}  -DCMAKE_INSTALL_PREFIX="$env:CPPINTEROP_DIR"  ..\
         }
-         cmake --build . --parallel ${{ env.ncpus }}
+        ..\emsdk\upstream\emscripten\emmake make -j ${{ env.ncpus }}
         cd ..
 
     - name: Build xeus-cpp
