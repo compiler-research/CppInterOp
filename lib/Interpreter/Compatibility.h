@@ -5,7 +5,11 @@
 
 #ifndef CPPINTEROP_COMPATIBILITY_H
 #define CPPINTEROP_COMPATIBILITY_H
-
+#if defined(__EMSCRIPTEN__)
+#ifndef __unix__
+#define _WIN32 1
+#endif
+#endif
 #include "clang/AST/GlobalDecl.h"
 #include "clang/Basic/Version.h"
 #include "clang/Config/config.h"
