@@ -240,6 +240,9 @@ if( CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR )
   include_directories(SYSTEM ${CLANG_INCLUDE_DIRS})
   include_directories(SYSTEM ${LLVM_INCLUDE_DIRS})
   separate_arguments(LLVM_DEFINITIONS_LIST NATIVE_COMMAND ${LLVM_DEFINITIONS})
+  if(EMSCRIPTEN)
+    add_definitions(-D _WIN32)
+  endif()
   add_definitions(${LLVM_DEFINITIONS_LIST})
 
   if (USE_CLING)
@@ -381,9 +384,6 @@ endif()
 
 if(EMSCRIPTEN)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -sERROR_ON_UNDEFINED_SYMBOLS=0")
-  if (WIN32)
-    add_definitions(-D_WIN32)
-  endif ()
 endif()
 
 # Generate docs for CppInterOp
