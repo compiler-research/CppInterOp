@@ -7,7 +7,7 @@
 #define CPPINTEROP_COMPATIBILITY_H
 
 #if defined(__EMSCRIPTEN__)
-#ifdef defined(_WIN32)
+#if defined(_WIN32)
 #undef unix
 #undef __unix
 #undef __unix__
