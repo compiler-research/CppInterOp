@@ -6,14 +6,6 @@
 #ifndef CPPINTEROP_COMPATIBILITY_H
 #define CPPINTEROP_COMPATIBILITY_H
 
-#if defined(__EMSCRIPTEN__)
-#if defined(_WIN32)
-#undef unix
-#undef __unix
-#undef __unix__
-#endif
-#endif
-
 #include "clang/AST/GlobalDecl.h"
 #include "clang/Basic/Version.h"
 #include "clang/Config/config.h"
