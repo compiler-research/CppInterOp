@@ -6,7 +6,7 @@
 #ifndef CPPINTEROP_COMPATIBILITY_H
 #define CPPINTEROP_COMPATIBILITY_H
 #if defined(__EMSCRIPTEN__)
-#ifndef __unix__
+#ifndef __APPLE__
 #define _WIN32 1
 #endif
 #endif
