@@ -382,7 +382,7 @@ endif()
 if(EMSCRIPTEN)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -sERROR_ON_UNDEFINED_SYMBOLS=0")
   if (WIN32)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -D _WIN32")
+    add_definitions(-D_WIN32)
   endif ()
 endif()
 
