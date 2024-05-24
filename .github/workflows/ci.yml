@@ -1450,15 +1450,13 @@ jobs:
       shell: powershell
       if: ${{ runner.os == 'windows' }}
       run: |
-        echo $env:CC
-        echo $env:CXX
+        choco install ninja
         mkdir build 
         cd build
         if ( "${{ matrix.cling }}" -imatch "On" )
         {
-                cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    `
-                -DCMAKE_C_COMPILER=${{ matrix.compiler }} `
-                -DCMAKE_CXX_COMPILER="${{ matrix.compiler }}++"  `
+                cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} `   
+                -G "Ninja" `
                 -DUSE_CLING=ON                                  `
                 -DUSE_REPL=OFF                                  `
                 -DUSE_WASM=ON `
@@ -1472,8 +1470,7 @@ jobs:
         else
         {
                 cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    `
-                -DCMAKE_C_COMPILER=${{ matrix.compiler }} `
-                -DCMAKE_CXX_COMPILER="${{ matrix.compiler }}++"  `
+                -G "Ninja" `
                 -DUSE_CLING=OFF                             `
                 -DUSE_REPL=ON                               `
                 -DUSE_WASM=ON `
@@ -1483,7 +1480,7 @@ jobs:
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON           `
                 -DClang_DIR="$env:LLVM_BUILD_DIR\lib\cmake\clang"  -DCODE_COVERAGE=${{ env.CODE_COVERAGE }}  -DCMAKE_INSTALL_PREFIX="$env:CPPINTEROP_DIR"  ..\
         }
-        cmake --build . --parallel ${{ env.ncpus }}
+        ninja
         cd ..
 
     - name: Build xeus-cpp
