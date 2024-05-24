@@ -117,8 +117,7 @@ if( CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR )
 
     find_package(LLVM ${LLVM_VERSION} REQUIRED CONFIG ${llvm_search_hints} NO_DEFAULT_PATHS)
   endif()
-  string(REPLACE "/" "\\" llvm_search_hints "${llvm_search_hints}")
-  message(Search_hint_paths_llvm "${llvm_search_hints}")
+
   if (NOT LLVM_FOUND AND DEFINED LLVM_DIR)
     find_package(LLVM REQUIRED CONFIG ${llvm_search_hints} NO_DEFAULT_PATH)
   endif()

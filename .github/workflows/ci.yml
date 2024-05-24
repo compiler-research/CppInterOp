@@ -68,6 +68,24 @@ jobs:
             clang-runtime: '16'
             cling: Off
             cppyy: Off
+          - name: win2022-clang-clang-repl-18
+            os: windows-2022
+            compiler: clang
+            clang-runtime: '18'
+            cling: Off
+            cppyy: Off
+          - name: win2022-clang-clang-repl-17
+            os: windows-2022
+            compiler: clang
+            clang-runtime: '17'
+            cling: Off
+            cppyy: Off
+          - name: win2022-clang-clang-repl-16
+            os: windows-2022
+            compiler: clang
+            clang-runtime: '16'
+            cling: Off
+            cppyy: Off
           - name: win2022-msvc-cling
             os: windows-2022
             compiler: msvc
@@ -1443,7 +1461,7 @@ jobs:
                 -DCMAKE_PREFIX_PATH=$env:PREFIX                      `
                 -DCMAKE_INSTALL_PREFIX=$env:PREFIX      `
                 -DCling_DIR="$env:LLVM_BUILD_DIR\tools\cling"   `
-                -DLLVM_DIR="$env:LLVM_BUILD_DIR" `
+                -DLLVM_DIR="$env:LLVM_BUILD_DIR\lib\cmake\llvm" `
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            `
                 -DClang_DIR="$env:LLVM_BUILD_DIR"  -DCODE_COVERAGE=${{ env.CODE_COVERAGE }} -DCMAKE_INSTALL_PREFIX="$env:CPPINTEROP_DIR"  ..\
         }
@@ -1454,9 +1472,9 @@ jobs:
                 -DUSE_REPL=ON                               `
                 -DCMAKE_PREFIX_PATH=$env:PREFIX                      `
                 -DCMAKE_INSTALL_PREFIX=$env:PREFIX      `
-                -DLLVM_DIR="$env:LLVM_BUILD_DIR"  `
+                -DLLVM_DIR="$env:LLVM_BUILD_DIR\lib\cmake\llvm"  `
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON           `
-                -DClang_DIR="$env:LLVM_BUILD_DIR"  -DCODE_COVERAGE=${{ env.CODE_COVERAGE }}  -DCMAKE_INSTALL_PREFIX="$env:CPPINTEROP_DIR"  ..\
+                -DClang_DIR="$env:LLVM_BUILD_DIR\lib\cmake\clang"  -DCODE_COVERAGE=${{ env.CODE_COVERAGE }}  -DCMAKE_INSTALL_PREFIX="$env:CPPINTEROP_DIR"  ..\
         }
         cmake --build . --parallel ${{ env.ncpus }}
         cd ..
