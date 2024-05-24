@@ -1457,6 +1457,7 @@ jobs:
                 cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    `
                 -DUSE_CLING=ON                                  `
                 -DUSE_REPL=OFF                                  `
+                -DUSE_WASM=ON `
                 -DCMAKE_PREFIX_PATH=$env:PREFIX                      `
                 -DCMAKE_INSTALL_PREFIX=$env:PREFIX      `
                 -DCling_DIR="$env:LLVM_BUILD_DIR\tools\cling"   `
@@ -1469,6 +1470,7 @@ jobs:
                 cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    `
                 -DUSE_CLING=OFF                             `
                 -DUSE_REPL=ON                               `
+                -DUSE_WASM=ON `
                 -DCMAKE_PREFIX_PATH=$env:PREFIX                      `
                 -DCMAKE_INSTALL_PREFIX=$env:PREFIX      `
                 -DLLVM_DIR="$env:LLVM_BUILD_DIR\lib\cmake\llvm"  `

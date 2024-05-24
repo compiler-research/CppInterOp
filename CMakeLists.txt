@@ -44,6 +44,7 @@ if( CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR )
 
   option(USE_CLING "Use Cling as backend" OFF)
   option(USE_REPL "Use clang-repl as backend" OFF)
+  option(USE_WASM "Build Web Assembley Version" OFF)
 
   if (USE_CLING)
     add_definitions(-DUSE_CLING)
@@ -379,7 +380,7 @@ if (TARGET clang-headers)
   list(APPEND LLVM_COMMON_DEPENDS clang-headers)
 endif()
 
-if(EMSCRIPTEN)
+if(USE_WASM)
   if (WIN32)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -sERROR_ON_UNDEFINED_SYMBOLS=0 -ObjC++ --compile --target=wasm32-unknown-unknown-wasm")
   endif ()
@@ -391,7 +392,7 @@ option(CPPINTEROP_ENABLE_DOXYGEN "Use doxygen to generate CppInterOp interal API
 option(CPPINTEROP_ENABLE_SPHINX "Use sphinx to generage CppInterOp user documentation")
 
 
-if(EMSCRIPTEN)
+if(EMSCRIPTEN OR USE_WASM)
     message("Build with emscripten")
     option(CPPINTEROP_ENABLE_TESTING "Enables the testing infrastructure." OFF)
 else()
