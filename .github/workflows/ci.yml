@@ -1153,23 +1153,23 @@ jobs:
             cling: On
             cling-version: '1.0'
             micromamba_shell_init: bash
-          - name: win2022-msvc-clang-repl-18-emscripten_wasm
+          - name: win2022-clang-clang-repl-18-emscripten_wasm
             os: windows-2022
-            compiler: msvc
+            compiler: clang
             clang-runtime: '18'
             cling: Off
             cppyy: Off
             micromamba_shell_init: powershell
-          - name: win2022-msvc-clang-repl-17-emscripten_wasm
+          - name: win2022-clang-clang-repl-17-emscripten_wasm
             os: windows-2022
-            compiler: msvc
+            compiler: clang
             clang-runtime: '17'
             cling: Off
             cppyy: Off
             micromamba_shell_init: powershell
-          - name: win2022-msvc-clang-repl-16-emscripten_wasm
+          - name: win2022-clang-clang-repl-16-emscripten_wasm
             os: windows-2022
-            compiler: msvc
+            compiler: clang
             clang-runtime: '16'
             cling: Off
             cppyy: Off
@@ -1300,7 +1300,31 @@ jobs:
         $env:CPPINTEROP_DIR="$env:CB_PYTHON_DIR\cppyy-backend"
         echo "CPPINTEROP_DIR=$env:CPPINTEROP_DIR"
         echo "CPPINTEROP_DIR=$env:CPPINTEROP_DIR" >> $env:GITHUB_ENV  
-        
+
+    #Section slightly modified version of
+    #https://github.com/vgvassilev/clad/blob/40d8bec11bde47b14a281078183a4f6147abeac5/.github/workflows/ci.yml#L510C1-L534C10
+    - name: Setup compiler on Windows
+      if: runner.os == 'windows'
+      run: |
+        if ( "${{ matrix.compiler }}" -imatch "clang" )
+        {
+          choco install llvm
+          clang --version
+          #
+          $env:CC="clang"
+          $env:CXX="clang++"
+          echo "CC=clang" >> $env:GITHUB_ENV
+          echo "CXX=clang++" >> $env:GITHUB_ENV
+        }
+        elseif ( "${{ matrix.compiler }}" -imatch "msvc" )
+        {
+          # MSVC is builtin in container image
+        }
+        else
+        {
+          echo "Unsupported compiler - fix YAML file"
+        }
+
     - name: Install deps on Linux
       if: runner.os == 'Linux'
       run: |
@@ -1425,7 +1449,7 @@ jobs:
         cd build
         if ( "${{ matrix.cling }}" -imatch "On" )
         {
-          ..\emsdk\upstream\emscripten\emcmake cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    `
+                cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    `
                 -DUSE_CLING=ON                                  `
                 -DUSE_REPL=OFF                                  `
                 -DCMAKE_PREFIX_PATH=$env:PREFIX                      `
@@ -1437,7 +1461,7 @@ jobs:
         }
         else
         {
-          ..\emsdk\upstream\emscripten\emcmake cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    `
+                cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    `
                 -DUSE_CLING=OFF                             `
                 -DUSE_REPL=ON                               `
                 -DCMAKE_PREFIX_PATH=$env:PREFIX                      `
@@ -1446,7 +1470,7 @@ jobs:
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON           `
                 -DClang_DIR="$env:LLVM_BUILD_DIR\lib\cmake\clang"  -DCODE_COVERAGE=${{ env.CODE_COVERAGE }}  -DCMAKE_INSTALL_PREFIX="$env:CPPINTEROP_DIR"  ..\
         }
-        ..\emsdk\upstream\emscripten\emmake make -j ${{ env.ncpus }}
+        cmake --build . --parallel ${{ env.ncpus }}
         cd ..
 
     - name: Build xeus-cpp

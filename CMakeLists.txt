@@ -380,7 +380,7 @@ if (TARGET clang-headers)
 endif()
 
 if(EMSCRIPTEN)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -sERROR_ON_UNDEFINED_SYMBOLS=0")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -sERROR_ON_UNDEFINED_SYMBOLS=0 -ObjC++ --compile --target=wasm32-unknown-unknown-wasm")
 endif()
 
 # Generate docs for CppInterOp

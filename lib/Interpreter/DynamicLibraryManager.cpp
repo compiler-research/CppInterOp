@@ -222,8 +222,6 @@ namespace Cpp {
       static const char* DyLibExt = ".so";
 #elif defined(_WIN32)
       static const char* DyLibExt = ".dll";
-#elif defined(__EMSCRIPTEN__) && not defined(__APPLE__)
-      static const char* DyLibExt = ".dll";
 #else
 # error "Unsupported platform."
 #endif
