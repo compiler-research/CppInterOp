@@ -283,8 +283,7 @@ jobs:
       run: |
         if ( "${{ matrix.compiler }}" -imatch "clang" )
         {
-          $ver="${{ matrix.compiler }}".split("-")[1]
-          choco install llvm --version=$ver --no-progress -my
+          choco install llvm
           clang --version
           #
           $env:CC="clang"
