@@ -1343,12 +1343,6 @@ jobs:
           ${{ matrix.micromamba_shell_init }}
         environment-name: CppInterOp-wasm-build
 
-    - name: micromamba shell hook
-      if: ${{ runner.os == 'windows' }}
-      shell: powershell
-      run: |
-          micromamba shell hook -s cmd.exe -p C:\Users\runneradmin\micromamba-root
-
     - name: Setup emsdk
       if: ${{ runner.os != 'windows' }}
       shell: bash -l {0}
