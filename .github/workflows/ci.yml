@@ -1450,11 +1450,15 @@ jobs:
       shell: powershell
       if: ${{ runner.os == 'windows' }}
       run: |
+        echo $env:CC
+        echo $env:CXX
         mkdir build 
         cd build
         if ( "${{ matrix.cling }}" -imatch "On" )
         {
                 cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    `
+                -DCMAKE_C_COMPILER=${{ matrix.compiler }} `
+                -DCMAKE_CXX_COMPILER="${{ matrix.compiler }}++"  `
                 -DUSE_CLING=ON                                  `
                 -DUSE_REPL=OFF                                  `
                 -DUSE_WASM=ON `
@@ -1468,6 +1472,8 @@ jobs:
         else
         {
                 cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    `
+                -DCMAKE_C_COMPILER=${{ matrix.compiler }} `
+                -DCMAKE_CXX_COMPILER="${{ matrix.compiler }}++"  `
                 -DUSE_CLING=OFF                             `
                 -DUSE_REPL=ON                               `
                 -DUSE_WASM=ON `
