@@ -304,7 +304,7 @@ if (LLVM_COMPILER_IS_GCC_COMPATIBLE)
 endif ()
 
 # Fixes "C++ exception handler used, but unwind semantics are not enabled" warning Windows
-if (WIN32)
+if (WIN32 AND NOT USE_WASM)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /EHsc")
 endif ()
 
