@@ -1443,9 +1443,9 @@ jobs:
                 -DCMAKE_PREFIX_PATH=$env:PREFIX                      `
                 -DCMAKE_INSTALL_PREFIX=$env:PREFIX      `
                 -DCling_DIR="$env:LLVM_BUILD_DIR\tools\cling"   `
-                -DLLVM_DIR="$env:LLVM_BUILD_DIR\lib\cmake\llvm" `
+                -DLLVM_DIR="$env:LLVM_BUILD_DIR" `
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            `
-                -DClang_DIR="$env:LLVM_BUILD_DIR\lib\cmake\clang"  -DCODE_COVERAGE=${{ env.CODE_COVERAGE }} -DCMAKE_INSTALL_PREFIX="$env:CPPINTEROP_DIR"  ..\
+                -DClang_DIR="$env:LLVM_BUILD_DIR"  -DCODE_COVERAGE=${{ env.CODE_COVERAGE }} -DCMAKE_INSTALL_PREFIX="$env:CPPINTEROP_DIR"  ..\
         }
         else
         {
@@ -1454,9 +1454,9 @@ jobs:
                 -DUSE_REPL=ON                               `
                 -DCMAKE_PREFIX_PATH=$env:PREFIX                      `
                 -DCMAKE_INSTALL_PREFIX=$env:PREFIX      `
-                -DLLVM_DIR="$env:LLVM_BUILD_DIR\lib\cmake\llvm"  `
+                -DLLVM_DIR="$env:LLVM_BUILD_DIR"  `
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON           `
-                -DClang_DIR="$env:LLVM_BUILD_DIR\lib\cmake\clang"  -DCODE_COVERAGE=${{ env.CODE_COVERAGE }}  -DCMAKE_INSTALL_PREFIX="$env:CPPINTEROP_DIR"  ..\
+                -DClang_DIR="$env:LLVM_BUILD_DIR"  -DCODE_COVERAGE=${{ env.CODE_COVERAGE }}  -DCMAKE_INSTALL_PREFIX="$env:CPPINTEROP_DIR"  ..\
         }
         cmake --build . --parallel ${{ env.ncpus }}
         cd ..
