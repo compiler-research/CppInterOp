@@ -382,7 +382,7 @@ endif()
 
 if(USE_WASM)
   if (WIN32)
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -sERROR_ON_UNDEFINED_SYMBOLS=0 -ObjC++ --compile --target=wasm32-unknown-unknown-wasm")
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ObjC++ --compile --target=wasm32")
   endif ()
 endif()
 
