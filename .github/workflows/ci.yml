@@ -1335,6 +1335,7 @@ jobs:
         sudo apt-get clean
 
     - name: install mamba
+      if: ${{ runner.os != 'windows' }}
       uses: mamba-org/setup-micromamba@main
       with:
         environment-file: environment-wasm-build.yml
@@ -1438,13 +1439,6 @@ jobs:
       shell: powershell
       if: ${{ runner.os == 'windows' }}
       run: |
-        micromamba activate CppInterOp-wasm-build
-        Set-Alias -Name python3 -Value python
-        git clone https://github.com/emscripten-core/emsdk.git
-        cd emsdk
-        .\emsdk.bat install 3.1.45
-        .\emsdk.bat activate 3.1.45
-        cd ..
         mkdir build 
         cd build
         if ( "${{ matrix.cling }}" -imatch "On" )
