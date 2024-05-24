@@ -117,7 +117,7 @@ if( CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR )
 
     find_package(LLVM ${LLVM_VERSION} REQUIRED CONFIG ${llvm_search_hints} NO_DEFAULT_PATHS)
   endif()
-
+  message(Search_hint_paths_llvm "${llvm_search_hints}")
   if (NOT LLVM_FOUND AND DEFINED LLVM_DIR)
     find_package(LLVM REQUIRED CONFIG ${llvm_search_hints} NO_DEFAULT_PATH)
   endif()
@@ -380,7 +380,9 @@ if (TARGET clang-headers)
 endif()
 
 if(EMSCRIPTEN)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -sERROR_ON_UNDEFINED_SYMBOLS=0 -ObjC++ --compile --target=wasm32-unknown-unknown-wasm")
+  if (WIN32)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -sERROR_ON_UNDEFINED_SYMBOLS=0 -ObjC++ --compile --target=wasm32-unknown-unknown-wasm")
+  endif ()
 endif()
 
 # Generate docs for CppInterOp
