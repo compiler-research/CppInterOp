@@ -1195,15 +1195,6 @@ jobs:
           echo "ncpus=$(nproc --all)" >> $GITHUB_ENV
         fi
 
-    - name: Install deps on Linux
-      if: runner.os == 'Linux'
-      run: |
-        # Install deps
-        sudo apt-get update
-        sudo apt-get install git g++ debhelper devscripts gnupg python3 valgrind
-        sudo apt-get autoremove
-        sudo apt-get clean
-
     - name: install mamba
       uses: mamba-org/setup-micromamba@main
       with:
