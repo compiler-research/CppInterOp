@@ -44,6 +44,7 @@ if( CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR )
 
   option(USE_CLING "Use Cling as backend" OFF)
   option(USE_REPL "Use clang-repl as backend" OFF)
+  option(USE_WASM "Build Web Assembley Version" OFF)
 
   if (USE_CLING)
     add_definitions(-DUSE_CLING)
@@ -303,7 +304,7 @@ if (LLVM_COMPILER_IS_GCC_COMPATIBLE)
 endif ()
 
 # Fixes "C++ exception handler used, but unwind semantics are not enabled" warning Windows
-if (WIN32)
+if (WIN32 AND NOT USE_WASM)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /EHsc")
 endif ()
 
@@ -379,13 +380,19 @@ if (TARGET clang-headers)
   list(APPEND LLVM_COMMON_DEPENDS clang-headers)
 endif()
 
+if(USE_WASM)
+  if (WIN32)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -ObjC++ --compile --target=wasm32")
+  endif ()
+endif()
+
 # Generate docs for CppInterOp
 option(CPPINTEROP_INCLUDE_DOCS "Generate build targets for the CppInterOp docs.")
 option(CPPINTEROP_ENABLE_DOXYGEN "Use doxygen to generate CppInterOp interal API documentation.")
 option(CPPINTEROP_ENABLE_SPHINX "Use sphinx to generage CppInterOp user documentation")
 
 
-if(EMSCRIPTEN)
+if(EMSCRIPTEN OR USE_WASM)
     message("Build with emscripten")
     option(CPPINTEROP_ENABLE_TESTING "Enables the testing infrastructure." OFF)
 else()
