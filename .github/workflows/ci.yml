@@ -1303,13 +1303,13 @@ jobs:
           echo "CLING_BUILD_DIR=$env:CLING_BUILD_DIR"
           echo "CLING_BUILD_DIR=$env:CLING_BUILD_DIR" >> $env:GITHUB_ENV   
       
-          $env:CPLUS_INCLUDE_PATH="$env:LLVM_DIR\libcxx\include;$env:CLING_DIR\tools\cling\include;$env:CLING_BUILD_DIR\include;$env:LLVM_DIR\llvm\include;$env:LLVM_DIR\clang\include;$env:LLVM_BUILD_DIR\include;$env:LLVM_BUILD_DIR\tools\clang\include;$env:PWD_DIR\include;"
+          $env:CPLUS_INCLUDE_PATH="C:\Program Files\LLVM\include;$env:CLING_DIR\tools\cling\include;$env:CLING_BUILD_DIR\include;$env:LLVM_DIR\llvm\include;$env:LLVM_DIR\clang\include;$env:LLVM_BUILD_DIR\include;$env:LLVM_BUILD_DIR\tools\clang\include;$env:PWD_DIR\include;"
           echo "CPLUS_INCLUDE_PATH=$env:CPLUS_INCLUDE_PATH"
           echo "CPLUS_INCLUDE_PATH=$env:CPLUS_INCLUDE_PATH" >> $env:GITHUB_ENV   
         }
         else
         {
-          $env:CPLUS_INCLUDE_PATH="$env:LLVM_DIR\libcxx\include;$env:LLVM_DIR\llvm\include;$env:LLVM_DIR\clang\include;$env:LLVM_BUILD_DIR\include;$env:LLVM_BUILD_DIR\tools\clang\include;$env:PWD_DIR\include;"
+          $env:CPLUS_INCLUDE_PATH="C:\Program Files\LLVM\include;$env:LLVM_DIR\llvm\include;$env:LLVM_DIR\clang\include;$env:LLVM_BUILD_DIR\include;$env:LLVM_BUILD_DIR\tools\clang\include;$env:PWD_DIR\include;"
           echo "CPLUS_INCLUDE_PATH=$env:CPLUS_INCLUDE_PATH"
           echo "CPLUS_INCLUDE_PATH=$env:CPLUS_INCLUDE_PATH" >> $env:GITHUB_ENV   
         }
@@ -1329,7 +1329,8 @@ jobs:
       run: |
         if ( "${{ matrix.compiler }}" -imatch "clang" )
         {
-          choco install llvm
+          $ver="${{ matrix.compiler }}".split("-")[1]
+          choco install llvm --version=$ver
           clang --version
           #
           $env:CC="clang"
