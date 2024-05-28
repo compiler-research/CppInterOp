@@ -417,6 +417,7 @@ jobs:
         {
           cd build
           cmake -DLLVM_ENABLE_PROJECTS="clang;lld"                  `
+                -DLLVM_ENABLE_RUNTIMES="libcxx" `
                 -DLLVM_EXTERNAL_PROJECTS=cling                `
                 -DLLVM_EXTERNAL_CLING_SOURCE_DIR="$env:CLING_DIR"   `
                 -DLLVM_TARGETS_TO_BUILD="WebAssembly;host;NVPTX"          `
@@ -433,6 +434,7 @@ jobs:
                 ..\llvm
           cmake --build . --config Release --target lld --parallel ${{ env.ncpus }}
           cmake --build . --config Release --target clang --parallel ${{ env.ncpus }}
+          cmake --build . --config Release --target cxx --parallel ${{ env.ncpus }}
           cmake --build . --config Release --target cling --parallel ${{ env.ncpus }}
           # Now build gtest.a and gtest_main for CppInterOp to run its tests.
           cmake --build . --config Release --target gtest_main --parallel ${{ env.ncpus }}
@@ -454,6 +456,7 @@ jobs:
           cd build
           echo "Apply clang${{ matrix.clang-runtime }}-*.patch patches:"
           cmake -DLLVM_ENABLE_PROJECTS="clang;lld"                  `
+                -DLLVM_ENABLE_RUNTIMES="libcxx" `
                 -DLLVM_TARGETS_TO_BUILD="WebAssembly;host;NVPTX"          `
                 -DCMAKE_BUILD_TYPE=Release                          `
                 -DLLVM_ENABLE_ASSERTIONS=ON                         `
@@ -466,10 +469,11 @@ jobs:
                 -DLLVM_ENABLE_LIBXML2=OFF                           `
                 -DLLVM_ENABLE_ZLIB=OFF                             `
                 ..\llvm
-          cmake --build . --config Release --target clang clang-repl lld --parallel ${{ env.ncpus }}
+          cmake --build . --config Release --target clang clang-repl lld --parallel $env::ncpus
+          cmake --build . --config Release --target cxx --parallel $env::ncpus
         }
         cd ..\
-        rm -r -force $(find.exe . -maxdepth 1 ! -name "build" ! -name "llvm" ! -name "clang" ! -name ".")
+        rm -r -force $(find.exe . -maxdepth 1 ! -name "build" ! -name "llvm" ! -name "clang" ! -name "libcxx" ! -name ".")
         cd ..\        
 
     - name: Save Cache LLVM/Clang runtime build directory
@@ -1299,13 +1303,13 @@ jobs:
           echo "CLING_BUILD_DIR=$env:CLING_BUILD_DIR"
           echo "CLING_BUILD_DIR=$env:CLING_BUILD_DIR" >> $env:GITHUB_ENV   
       
-          $env:CPLUS_INCLUDE_PATH="'C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Tools\MSVC\14.29.30133\include';$env:CLING_DIR\tools\cling\include;$env:CLING_BUILD_DIR\include;$env:LLVM_DIR\llvm\include;$env:LLVM_DIR\clang\include;$env:LLVM_BUILD_DIR\include;$env:LLVM_BUILD_DIR\tools\clang\include;$env:PWD_DIR\include;"
+          $env:CPLUS_INCLUDE_PATH="$env:LLVM_DIR\libcxx\include;$env:CLING_DIR\tools\cling\include;$env:CLING_BUILD_DIR\include;$env:LLVM_DIR\llvm\include;$env:LLVM_DIR\clang\include;$env:LLVM_BUILD_DIR\include;$env:LLVM_BUILD_DIR\tools\clang\include;$env:PWD_DIR\include;"
           echo "CPLUS_INCLUDE_PATH=$env:CPLUS_INCLUDE_PATH"
           echo "CPLUS_INCLUDE_PATH=$env:CPLUS_INCLUDE_PATH" >> $env:GITHUB_ENV   
         }
         else
         {
-          $env:CPLUS_INCLUDE_PATH="'C:\Program Files\Microsoft Visual Studio\2022\Enterprise\VC\Tools\MSVC\14.29.30133\include';$env:LLVM_DIR\llvm\include;$env:LLVM_DIR\clang\include;$env:LLVM_BUILD_DIR\include;$env:LLVM_BUILD_DIR\tools\clang\include;$env:PWD_DIR\include;"
+          $env:CPLUS_INCLUDE_PATH="$env:LLVM_DIR\libcxx\include;$env:LLVM_DIR\llvm\include;$env:LLVM_DIR\clang\include;$env:LLVM_BUILD_DIR\include;$env:LLVM_BUILD_DIR\tools\clang\include;$env:PWD_DIR\include;"
           echo "CPLUS_INCLUDE_PATH=$env:CPLUS_INCLUDE_PATH"
           echo "CPLUS_INCLUDE_PATH=$env:CPLUS_INCLUDE_PATH" >> $env:GITHUB_ENV   
         }
@@ -1450,13 +1454,11 @@ jobs:
       shell: powershell
       if: ${{ runner.os == 'windows' }}
       run: |
-        choco install ninja
         mkdir build 
         cd build
         if ( "${{ matrix.cling }}" -imatch "On" )
         {
                 cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} `   
-                -G "Ninja" `
                 -DUSE_CLING=ON                                  `
                 -DUSE_REPL=OFF                                  `
                 -DUSE_WASM=ON `
@@ -1470,7 +1472,6 @@ jobs:
         else
         {
                 cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    `
-                -G "Ninja" `
                 -DUSE_CLING=OFF                             `
                 -DUSE_REPL=ON                               `
                 -DUSE_WASM=ON `
@@ -1480,7 +1481,7 @@ jobs:
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON           `
                 -DClang_DIR="$env:LLVM_BUILD_DIR\lib\cmake\clang"  -DCODE_COVERAGE=${{ env.CODE_COVERAGE }}  -DCMAKE_INSTALL_PREFIX="$env:CPPINTEROP_DIR"  ..\
         }
-        ninja
+        cmake --build . --parallel $env.ncpus
         cd ..
 
     - name: Build xeus-cpp
