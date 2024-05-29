@@ -17,13 +17,13 @@
 
 // The cross-platform CPPINTEROP_API macro definition
 #if defined _WIN32 || defined __CYGWIN__
-  #define CPPINTEROP_API __declspec(dllexport)
+#define CPPINTEROP_API __declspec(dllexport)
 #else
-  #ifdef __GNUC__
-    #define CPPINTEROP_API __attribute__((__visibility__("default")))
-  #else
-    #define CPPINTEROP_API
-  #endif
+#ifdef __GNUC__
+#define CPPINTEROP_API __attribute__((__visibility__("default")))
+#else
+#define CPPINTEROP_API
+#endif
 #endif
 
 namespace Cpp {
@@ -276,8 +276,7 @@ namespace Cpp {
   /// is used to get the number of Base Classes, and then that number
   /// can be used to iterate through the index value to get each specific
   /// base class.
-  CPPINTEROP_API CPPINTEROP_API TCppScope_t GetBaseClass(TCppType_t klass,
-                                                         TCppIndex_t ibase);
+  CPPINTEROP_API TCppScope_t GetBaseClass(TCppType_t klass, TCppIndex_t ibase);
 
   /// Checks if the supplied Derived Class is a sub-class of the
   /// provided Base Class.
@@ -522,7 +521,7 @@ namespace Cpp {
 
   /// Looks up the library if access is enabled.
   ///\returns the path to the library.
-  std::string LookupLibrary(const char* lib_name);
+  CPPINTEROP_API std::string LookupLibrary(const char* lib_name);
 
   /// Finds \c lib_stem considering the list of search paths and loads it by
   /// calling dlopen.
