@@ -16,10 +16,14 @@
 #include <vector>
 
 // The cross-platform CPPINTEROP_API macro definition
-#ifdef _WIN32
-#define CPPINTEROP_API __declspec(dllexport)
+#if defined _WIN32 || defined __CYGWIN__
+  #define CPPINTEROP_API __declspec(dllexport)
 #else
-#define CPPINTEROP_API __attribute__((visibility("default")))
+  #ifdef __GNUC__
+    #define CPPINTEROP_API __attribute__((__visibility__("default")))
+  #else
+    #define CPPINTEROP_API
+  #endif
 #endif
 
 namespace Cpp {
