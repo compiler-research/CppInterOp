@@ -293,7 +293,12 @@ jobs:
       if: ${{ runner.os == 'Linux' && steps.cache.outputs.cache-hit != 'true' }}
       run: |
         # Install deps
+        sudo apt remove needrestart
+        sudo apt-get update
         sudo apt-get install valgrind
+        sudo apt-get autoremove
+        sudo apt-get clean
+        
 
     - name: Install deps on MacOS
       if: ${{ runner.os == 'macOS' && steps.cache.outputs.cache-hit != 'true' }}
