@@ -49,6 +49,44 @@
 #include <unistd.h>
 #endif // WIN32
 
+#ifdef __APPLE__
+// Define a minimal mach header for JIT'd code, to support exceptions on osx 14
+// and later. See llvm/llvm-project#49036
+static llvm::MachO::mach_header_64 fake_mach_header = {
+    .magic = llvm::MachO::MH_MAGIC_64,
+    .cputype = llvm::MachO::CPU_TYPE_ARM64,
+    .cpusubtype = llvm::MachO::CPU_SUBTYPE_ARM64_ALL,
+    .filetype = llvm::MachO::MH_DYLIB,
+    .ncmds = 0,
+    .sizeofcmds = 0,
+    .flags = 0,
+    .reserved = 0};
+
+// Declare libunwind SPI types and functions.
+struct unw_dynamic_unwind_sections {
+  uintptr_t dso_base;
+  uintptr_t dwarf_section;
+  size_t dwarf_section_length;
+  uintptr_t compact_unwind_section;
+  size_t compact_unwind_section_length;
+};
+
+int find_dynamic_unwind_sections(uintptr_t addr,
+                                 unw_dynamic_unwind_sections* info) {
+  info->dso_base = (uintptr_t)&fake_mach_header;
+  info->dwarf_section = 0;
+  info->dwarf_section_length = 0;
+  info->compact_unwind_section = 0;
+  info->compact_unwind_section_length = 0;
+  return 1;
+}
+
+// Typedef for callback above.
+typedef int (*unw_find_dynamic_unwind_sections)(
+    uintptr_t addr, struct unw_dynamic_unwind_sections* info);
+
+#endif // __APPLE__
+
 namespace Cpp {
 
   using namespace clang;
@@ -62,7 +100,15 @@ namespace Cpp {
   // This might fix the issue https://reviews.llvm.org/D107087
   // FIXME: For now we just leak the Interpreter.
   struct InterpDeleter {
-    ~InterpDeleter() { sInterpreter.release(); }
+    ~InterpDeleter() {
+#ifdef __APPLE__
+      if (auto* unw_remove_find_dynamic_unwind_sections = (int (*)(
+              unw_find_dynamic_unwind_sections find_dynamic_unwind_sections))
+              dlsym(RTLD_DEFAULT, "__unw_remove_find_dynamic_unwind_sections"))
+        unw_remove_find_dynamic_unwind_sections(find_dynamic_unwind_sections);
+#endif
+      sInterpreter.release();
+    }
   } Deleter;
 
   static compat::Interpreter& getInterp() {
@@ -2606,6 +2652,14 @@ namespace Cpp {
     // FIXME: Enable this assert once we figure out how to fix the multiple
     // calls to CreateInterpreter.
     //assert(!sInterpreter && "Interpreter already set.");
+#ifdef __APPLE__
+    // Add a handler to support exceptions from interpreted code.
+    // See llvm/llvm-project#49036
+    if (auto* unw_add_find_dynamic_unwind_sections = (int (*)(
+            unw_find_dynamic_unwind_sections find_dynamic_unwind_sections))
+            dlsym(RTLD_DEFAULT, "__unw_add_find_dynamic_unwind_sections"))
+      unw_add_find_dynamic_unwind_sections(find_dynamic_unwind_sections);
+#endif // __APPLE__
     sInterpreter.reset(I);
     return I;
   }
