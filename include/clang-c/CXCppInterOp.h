@@ -325,7 +325,7 @@ CXQualType clang_qualtype_getCanonicalType(CXQualType type);
  * Used to either get the built-in type of the provided string, or
  * use the name to lookup the actual type.
  */
-CXQualType clang_qualtype_getType(const char* name);
+CXQualType clang_qualtype_getType(CXInterpreter I, const char* name);
 
 /**
  * Returns the complex of the provided type.
@@ -678,11 +678,6 @@ bool clang_scope_isPublicMethod(CXScope method);
  * Checks if the provided parameter is a 'Protected' method.
  */
 bool clang_scope_isProtectedMethod(CXScope method);
-
-/**
- * Checks if the provided parameter is a 'Private' method.
- */
-bool clang_scope_isPrivateMethod(CXScope method);
 
 /**
  * Checks if the provided parameter is a 'Private' method.

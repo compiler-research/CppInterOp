@@ -30,9 +30,9 @@ CXString makeCXString(const std::string& S) {
 }
 
 CXStringSet* makeCXStringSet(const std::vector<std::string>& Strs) {
-  CXStringSet* Set = new CXStringSet;
+  auto* Set = new CXStringSet; // NOLINT(*-owning-memory)
   Set->Count = Strs.size();
-  Set->Strings = new CXString[Set->Count];
+  Set->Strings = new CXString[Set->Count]; // NOLINT(*-owning-memory)
   for (auto [Idx, Val] : llvm::enumerate(Strs)) {
     Set->Strings[Idx] = makeCXString(Val);
   }
@@ -50,24 +50,24 @@ static inline compat::Interpreter* getInterpreter(const CXInterpreterImpl* I) {
 }
 
 CXInterpreter clang_createInterpreter(const char* const* argv, int argc) {
-  auto* I = new CXInterpreterImpl();
+  auto* I = new CXInterpreterImpl(); // NOLINT(*-owning-memory)
   I->Interp = std::make_unique<compat::Interpreter>(argc, argv);
   // reserved for future use
   return I;
 }
 
 CXInterpreter clang_createInterpreterFromPtr(TInterp_t I) {
-  auto* II = new CXInterpreterImpl();
-  II->Interp.reset(reinterpret_cast<compat::Interpreter*>(I)); // NOLINT(*-cast)
+  auto* II = new CXInterpreterImpl(); // NOLINT(*-owning-memory)
+  II->Interp.reset(static_cast<compat::Interpreter*>(I)); // NOLINT(*-cast)
   return II;
 }
 
 TInterp_t clang_interpreter_getInterpreterAsPtr(CXInterpreter I) {
-  return reinterpret_cast<TInterp_t>(getInterpreter(I)); // NOLINT(*-cast)
+  return getInterpreter(I);
 }
 
 void clang_interpreter_dispose(CXInterpreter I) {
-  delete static_cast<CXInterpreterImpl*>(I); // NOLINT(*-owning-memory)
+  delete I; // NOLINT(*-owning-memory)
 }
 
 void clang_interpreter_addSearchPath(CXInterpreter I, const char* dir,
@@ -81,7 +81,7 @@ void clang_interpreter_addIncludePath(CXInterpreter I, const char* dir) {
 }
 
 const char* clang_interpreter_getResourceDir(CXInterpreter I) {
-  auto* interp = getInterpreter(I);
+  const auto* interp = getInterpreter(I);
   return interp->getCI()->getHeaderSearchOpts().ResourceDir.c_str();
 }
 
@@ -90,10 +90,10 @@ enum CXErrorCode clang_interpreter_declare(CXInterpreter I, const char* code,
   auto* interp = getInterpreter(I);
   auto& diag = interp->getSema().getDiagnostics();
 
-  bool is_silent_old = diag.getSuppressAllDiagnostics();
+  const bool is_silent_old = diag.getSuppressAllDiagnostics();
 
   diag.setSuppressAllDiagnostics(silent);
-  auto result = interp->declare(code);
+  const auto result = interp->declare(code);
   diag.setSuppressAllDiagnostics(is_silent_old);
 
   if (result)
@@ -103,8 +103,7 @@ enum CXErrorCode clang_interpreter_declare(CXInterpreter I, const char* code,
 }
 
 enum CXErrorCode clang_interpreter_process(CXInterpreter I, const char* code) {
-  auto result = getInterpreter(I)->process(code);
-  if (result)
+  if (getInterpreter(I)->process(code))
     return CXError_Failure;
 
   return CXError_Success;
@@ -136,8 +135,7 @@ enum CXErrorCode clang_interpreter_evaluate(CXInterpreter I, const char* code,
   auto* val = static_cast<clang::Value*>(V);
 #endif // USE_CLING
 
-  auto result = getInterpreter(I)->evaluate(code, *val);
-  if (result)
+  if (getInterpreter(I)->evaluate(code, *val))
     return CXError_Failure;
 
   return CXError_Success;
@@ -199,22 +197,22 @@ clang_interpreter_getFunctionAddressFromMangledName(CXInterpreter I,
 }
 
 static inline CXQualType
-makeCXQualType(const CXInterpreterImpl* I, clang::QualType Ty,
-               CXQualTypeKind K = CXQualType_Unexposed) {
+makeCXQualType(const CXInterpreterImpl* I, const clang::QualType Ty,
+               const CXQualTypeKind K = CXQualType_Unexposed) {
   assert(I && "Invalid interpreter");
-  return CXQualType{K, Ty.getAsOpaquePtr(), reinterpret_cast<const void*>(I)};
+  return CXQualType{K, Ty.getAsOpaquePtr(), static_cast<const void*>(I)};
 }
 
-static inline clang::QualType getType(CXQualType Ty) {
+static inline clang::QualType getType(const CXQualType& Ty) {
   return clang::QualType::getFromOpaquePtr(Ty.data);
 }
 
-static inline const CXInterpreterImpl* getMeta(CXQualType Ty) {
-  return reinterpret_cast<const CXInterpreterImpl*>(Ty.meta);
+static inline const CXInterpreterImpl* getMeta(const CXQualType& Ty) {
+  return static_cast<const CXInterpreterImpl*>(Ty.meta);
 }
 
-static inline compat::Interpreter* getInterpreter(CXQualType Ty) {
-  return getInterpreter(reinterpret_cast<const CXInterpreterImpl*>(Ty.meta));
+static inline compat::Interpreter* getInterpreter(const CXQualType& Ty) {
+  return getInterpreter(static_cast<const CXInterpreterImpl*>(Ty.meta));
 }
 
 bool clang_qualtype_isBuiltin(CXQualType type) {
@@ -234,14 +232,14 @@ bool clang_scope_isRecordType(CXQualType type) {
 }
 
 bool clang_scope_isPODType(CXQualType type) {
-  clang::QualType QT = getType(type);
+  const clang::QualType QT = getType(type);
   if (QT.isNull())
     return false;
   return QT.isPODType(getInterpreter(type)->getSema().getASTContext());
 }
 
 CXQualType clang_qualtype_getIntegerTypeFromEnumType(CXQualType type) {
-  void* Ptr = Cpp::GetIntegerTypeFromEnumType(type.data);
+  const void* Ptr = Cpp::GetIntegerTypeFromEnumType(type.data);
   return makeCXQualType(getMeta(type), clang::QualType::getFromOpaquePtr(Ptr));
 }
 
@@ -264,8 +262,8 @@ CXQualType clang_qualtype_getUnderlyingType(CXQualType type) {
 }
 
 CXString clang_qualtype_getTypeAsString(CXQualType type) {
-  clang::QualType QT = getType(type);
-  auto& C = getInterpreter(type)->getSema().getASTContext();
+  const clang::QualType QT = getType(type);
+  const auto& C = getInterpreter(type)->getSema().getASTContext();
   clang::PrintingPolicy Policy = C.getPrintingPolicy();
   Policy.Bool = true;               // Print bool instead of _Bool.
   Policy.SuppressTagKeyword = true; // Do not print `class std::string`.
@@ -273,7 +271,7 @@ CXString clang_qualtype_getTypeAsString(CXQualType type) {
 }
 
 CXQualType clang_qualtype_getCanonicalType(CXQualType type) {
-  clang::QualType QT = getType(type);
+  const clang::QualType QT = getType(type);
   if (QT.isNull())
     return makeCXQualType(getMeta(type), clang::QualType(), CXQualType_Invalid);
 
@@ -286,7 +284,7 @@ clang::QualType GetType(const std::string& name, clang::Sema& sema);
 
 CXQualType clang_qualtype_getType(CXInterpreter I, const char* name) {
   auto& S = getInterpreter(I)->getSema();
-  clang::QualType QT = Cpp::GetType(std::string(name), S);
+  const clang::QualType QT = Cpp::GetType(std::string(name), S);
   if (QT.isNull())
     return makeCXQualType(I, QT, CXQualType_Invalid);
 
@@ -294,34 +292,34 @@ CXQualType clang_qualtype_getType(CXInterpreter I, const char* name) {
 }
 
 CXQualType clang_qualtype_getComplexType(CXQualType eltype) {
-  auto& C = getInterpreter(eltype)->getSema().getASTContext();
+  const auto& C = getInterpreter(eltype)->getSema().getASTContext();
   return makeCXQualType(getMeta(eltype), C.getComplexType(getType(eltype)));
 }
 
 static inline CXScope makeCXScope(const CXInterpreterImpl* I, clang::Decl* D,
                                   CXScopeKind K = CXScope_Unexposed) {
   assert(I && "Invalid interpreter");
-  return CXScope{K, D, reinterpret_cast<const void*>(I)};
+  return CXScope{K, D, static_cast<const void*>(I)};
 }
 
 size_t clang_qualtype_getSizeOfType(CXQualType type) {
-  clang::QualType QT = getType(type);
-  if (const clang::TagType* TT = QT->getAs<clang::TagType>())
+  const clang::QualType QT = getType(type);
+  if (const auto* TT = QT->getAs<clang::TagType>())
     return clang_scope_sizeOf(makeCXScope(getMeta(type), TT->getDecl()));
 
   // FIXME: Can we get the size of a non-tag type?
-  auto* I = getInterpreter(type);
-  auto TI = I->getSema().getASTContext().getTypeInfo(QT);
-  size_t TypeSize = TI.Width;
+  const auto* I = getInterpreter(type);
+  const auto TI = I->getSema().getASTContext().getTypeInfo(QT);
+  const size_t TypeSize = TI.Width;
   return TypeSize / 8;
 }
 
 bool clang_qualtype_isTypeDerivedFrom(CXQualType derived, CXQualType base) {
   auto* I = getInterpreter(derived);
-  auto& SM = I->getSema().getSourceManager();
-  auto fakeLoc = SM.getLocForStartOfFile(SM.getMainFileID());
-  auto derivedType = getType(derived);
-  auto baseType = getType(base);
+  const auto& SM = I->getSema().getSourceManager();
+  const auto fakeLoc = SM.getLocForStartOfFile(SM.getMainFileID());
+  const auto derivedType = getType(derived);
+  const auto baseType = getType(base);
 
 #ifdef USE_CLING
   cling::Interpreter::PushTransactionRAII RAII(I);
@@ -329,20 +327,20 @@ bool clang_qualtype_isTypeDerivedFrom(CXQualType derived, CXQualType base) {
   return I->getSema().IsDerivedFrom(fakeLoc, derivedType, baseType);
 }
 
-static inline bool isNull(CXScope S) { return !S.data; }
+static inline bool isNull(const CXScope& S) { return !S.data; }
 
-static inline clang::Decl* getDecl(CXScope S) {
+static inline clang::Decl* getDecl(const CXScope& S) {
   return static_cast<clang::Decl*>(S.data);
 }
 
-static inline const CXInterpreterImpl* getMeta(CXScope S) {
-  return reinterpret_cast<const CXInterpreterImpl*>(S.meta);
+static inline const CXInterpreterImpl* getMeta(const CXScope& S) {
+  return static_cast<const CXInterpreterImpl*>(S.meta);
 }
 
-static inline CXScopeKind kind(CXScope S) { return S.kind; }
+static inline CXScopeKind kind(const CXScope& S) { return S.kind; }
 
-static inline compat::Interpreter* getInterpreter(CXScope S) {
-  return getInterpreter(reinterpret_cast<const CXInterpreterImpl*>(S.meta));
+static inline compat::Interpreter* getInterpreter(const CXScope& S) {
+  return getInterpreter(static_cast<const CXInterpreterImpl*>(S.meta));
 }
 
 void clang_scope_dump(CXScope S) { getDecl(S)->dump(); }
@@ -355,7 +353,7 @@ CXQualType clang_scope_getTypeFromScope(CXScope S) {
   if (const auto* VD = llvm::dyn_cast<clang::ValueDecl>(D))
     return makeCXQualType(getMeta(S), VD->getType());
 
-  auto& Ctx = getInterpreter(S)->getCI()->getASTContext();
+  const auto& Ctx = getInterpreter(S)->getCI()->getASTContext();
   return makeCXQualType(getMeta(S),
                         Ctx.getTypeDeclType(llvm::cast<clang::TypeDecl>(D)));
 }
@@ -376,17 +374,18 @@ bool clang_scope_isComplete(CXScope S) {
 
   auto* D = getDecl(S);
   if (llvm::isa<clang::ClassTemplateSpecializationDecl>(D)) {
-    clang::QualType QT = getType(clang_scope_getTypeFromScope(S));
+    const clang::QualType QT = getType(clang_scope_getTypeFromScope(S));
     const auto* CI = getInterpreter(S)->getCI();
-    auto& S = CI->getSema();
-    auto& SM = S.getSourceManager();
-    clang::SourceLocation fakeLoc = SM.getLocForStartOfFile(SM.getMainFileID());
-    return S.isCompleteType(fakeLoc, QT);
+    auto& Sema = CI->getSema();
+    const auto& SM = Sema.getSourceManager();
+    const clang::SourceLocation fakeLoc = SM.getLocForStartOfFile(SM.getMainFileID());
+    return Sema.isCompleteType(fakeLoc, QT);
   }
 
-  if (auto* CXXRD = llvm::dyn_cast<clang::CXXRecordDecl>(D))
+  if (const auto* CXXRD = llvm::dyn_cast<clang::CXXRecordDecl>(D))
     return CXXRD->hasDefinition();
-  else if (auto* TD = llvm::dyn_cast<clang::TagDecl>(D))
+
+  if (const auto* TD = llvm::dyn_cast<clang::TagDecl>(D))
     return TD->getDefinition();
 
   // Everything else is considered complete.
@@ -397,8 +396,8 @@ size_t clang_scope_sizeOf(CXScope S) {
   if (!clang_scope_isComplete(S))
     return 0;
 
-  if (auto* RD = llvm::dyn_cast<clang::RecordDecl>(getDecl(S))) {
-    clang::ASTContext& Context = RD->getASTContext();
+  if (const auto* RD = llvm::dyn_cast<clang::RecordDecl>(getDecl(S))) {
+    const clang::ASTContext& Context = RD->getASTContext();
     const clang::ASTRecordLayout& Layout = Context.getASTRecordLayout(RD);
     return Layout.getSize().getQuantity();
   }
@@ -440,26 +439,25 @@ CXStringSet* clang_scope_getEnums(CXScope S) {
 }
 
 CXQualType clang_scope_getIntegerTypeFromEnumScope(CXScope S) {
-  auto* ED = llvm::dyn_cast_or_null<clang::EnumDecl>(getDecl(S));
-  if (ED)
+  if (const auto* ED = llvm::dyn_cast_or_null<clang::EnumDecl>(getDecl(S)))
     return makeCXQualType(getMeta(S), ED->getIntegerType());
 
   return makeCXQualType(getMeta(S), clang::QualType(), CXQualType_Invalid);
 }
 
 void clang_disposeScopeSet(CXScopeSet* set) {
-  delete[] set->Scopes;
-  delete set;
+  delete[] set->Scopes; // NOLINT(*-owning-memory)
+  delete set;           // NOLINT(*-owning-memory)
 }
 
 CXScopeSet* clang_scope_getEnumConstants(CXScope S) {
-  auto* ED = llvm::dyn_cast_or_null<clang::EnumDecl>(getDecl(S));
+  const auto* ED = llvm::dyn_cast_or_null<clang::EnumDecl>(getDecl(S));
   if (!ED || ED->enumerators().empty())
     return nullptr;
 
-  CXScopeSet* Set = new CXScopeSet;
+  auto* Set = new CXScopeSet; // NOLINT(*-owning-memory)
   Set->Count = std::distance(ED->enumerator_begin(), ED->enumerator_end());
-  Set->Scopes = new CXScope[Set->Count];
+  Set->Scopes = new CXScope[Set->Count]; // NOLINT(*-owning-memory)
   for (auto [Idx, Val] : llvm::enumerate(ED->enumerators())) {
     Set->Scopes[Idx] = makeCXScope(getMeta(S), Val, CXScope_EnumConstant);
   }
@@ -471,16 +469,15 @@ CXQualType clang_scope_getEnumConstantType(CXScope S) {
   if (isNull(S))
     return makeCXQualType(getMeta(S), clang::QualType(), CXQualType_Invalid);
 
-  auto* ECD = llvm::dyn_cast_or_null<clang::EnumConstantDecl>(getDecl(S));
-  if (ECD)
+  if (const auto* ECD =
+          llvm::dyn_cast_or_null<clang::EnumConstantDecl>(getDecl(S)))
     return makeCXQualType(getMeta(S), ECD->getType());
 
   return makeCXQualType(getMeta(S), clang::QualType(), CXQualType_Invalid);
 }
 
 size_t clang_scope_getEnumConstantValue(CXScope S) {
-  auto* ECD = llvm::dyn_cast_or_null<clang::EnumConstantDecl>(getDecl(S));
-  if (ECD) {
+  if (const auto* ECD = llvm::dyn_cast_or_null<clang::EnumConstantDecl>(getDecl(S))) {
     const llvm::APSInt& Val = ECD->getInitVal();
     return Val.getExtValue();
   }
@@ -497,20 +494,20 @@ CXString clang_scope_getName(CXScope S) {
   if (llvm::isa_and_nonnull<clang::TranslationUnitDecl>(D))
     return makeCXString("");
 
-  if (auto* ND = llvm::dyn_cast_or_null<clang::NamedDecl>(D))
+  if (const auto* ND = llvm::dyn_cast_or_null<clang::NamedDecl>(D))
     return makeCXString(ND->getNameAsString());
 
   return makeCXString("<unnamed>");
 }
 
 CXString clang_scope_getCompleteName(CXScope S) {
-  auto& C = getInterpreter(S)->getSema().getASTContext();
+  const auto& C = getInterpreter(S)->getSema().getASTContext();
   auto* D = getDecl(S);
 
   if (auto* ND = llvm::dyn_cast_or_null<clang::NamedDecl>(D)) {
-    if (auto* TD = llvm::dyn_cast<clang::TagDecl>(ND)) {
+    if (const auto* TD = llvm::dyn_cast<clang::TagDecl>(ND)) {
       std::string type_name;
-      clang::QualType QT = C.getTagDeclType(TD);
+      const clang::QualType QT = C.getTagDeclType(TD);
       clang::PrintingPolicy Policy = C.getPrintingPolicy();
       Policy.SuppressUnwrittenScope = true;
       Policy.SuppressScope = true;
@@ -531,7 +528,7 @@ CXString clang_scope_getCompleteName(CXScope S) {
 
 CXString clang_scope_getQualifiedName(CXScope S) {
   auto* D = getDecl(S);
-  if (auto* ND = llvm::dyn_cast_or_null<clang::NamedDecl>(D))
+  if (const auto* ND = llvm::dyn_cast_or_null<clang::NamedDecl>(D))
     return makeCXString(ND->getQualifiedNameAsString());
 
   if (llvm::isa_and_nonnull<clang::TranslationUnitDecl>(D))
@@ -541,13 +538,13 @@ CXString clang_scope_getQualifiedName(CXScope S) {
 }
 
 CXString clang_scope_getQualifiedCompleteName(CXScope S) {
-  auto& C = getInterpreter(S)->getSema().getASTContext();
+  const auto& C = getInterpreter(S)->getSema().getASTContext();
   auto* D = getDecl(S);
 
   if (auto* ND = llvm::dyn_cast_or_null<clang::NamedDecl>(D)) {
-    if (auto* TD = llvm::dyn_cast<clang::TagDecl>(ND)) {
+    if (const auto* TD = llvm::dyn_cast<clang::TagDecl>(ND)) {
       std::string type_name;
-      clang::QualType QT = C.getTagDeclType(TD);
+      const clang::QualType QT = C.getTagDeclType(TD);
       QT.getAsStringInternal(type_name, C.getPrintingPolicy());
 
       return makeCXString(type_name);
@@ -564,14 +561,14 @@ CXString clang_scope_getQualifiedCompleteName(CXScope S) {
 }
 
 CXScopeSet* clang_scope_getUsingNamespaces(CXScope S) {
-  auto* DC = llvm::dyn_cast_or_null<clang::DeclContext>(getDecl(S));
+  const auto* DC = llvm::dyn_cast_or_null<clang::DeclContext>(getDecl(S));
   if (!DC || DC->using_directives().empty())
     return nullptr;
 
-  CXScopeSet* Set = new CXScopeSet;
+  auto* Set = new CXScopeSet; // NOLINT(*-owning-memory)
   Set->Count = std::distance(DC->using_directives().begin(),
                              DC->using_directives().end());
-  Set->Scopes = new CXScope[Set->Count];
+  Set->Scopes = new CXScope[Set->Count]; // NOLINT(*-owning-memory)
   for (auto [Idx, Val] : llvm::enumerate(DC->using_directives())) {
     Set->Scopes[Idx] = makeCXScope(getMeta(S), Val->getNominatedNamespace(),
                                    CXScope_Namespace);
@@ -581,18 +578,18 @@ CXScopeSet* clang_scope_getUsingNamespaces(CXScope S) {
 }
 
 CXScope clang_scope_getGlobalScope(CXInterpreter I) {
-  auto& C = getInterpreter(I)->getSema().getASTContext();
+  const auto& C = getInterpreter(I)->getSema().getASTContext();
   auto* DC = C.getTranslationUnitDecl();
   return makeCXScope(I, DC, CXScope_Global);
 }
 
 CXScope clang_scope_getUnderlyingScope(CXScope S) {
-  auto* TND = llvm::dyn_cast_or_null<clang::TypedefNameDecl>(getDecl(S));
+  const auto* TND = llvm::dyn_cast_or_null<clang::TypedefNameDecl>(getDecl(S));
   if (!TND)
     return makeCXScope(getMeta(S), nullptr, CXScope_Invalid);
 
-  clang::QualType QT = TND->getUnderlyingType();
-  auto D = Cpp::GetScopeFromType(QT.getAsOpaquePtr());
+  const clang::QualType QT = TND->getUnderlyingType();
+  auto* D = Cpp::GetScopeFromType(QT.getAsOpaquePtr());
   if (!D)
     return makeCXScope(getMeta(S), nullptr, CXScope_Invalid);
 
@@ -600,12 +597,12 @@ CXScope clang_scope_getUnderlyingScope(CXScope S) {
 }
 
 CXScope clang_scope_getScope(const char* name, CXScope parent) {
-  auto S = clang_scope_getNamed(name, parent);
+  const auto S = clang_scope_getNamed(name, parent);
   if (kind(S) == CXScope_Invalid)
     return S;
 
-  clang::NamedDecl* ND = llvm::dyn_cast<clang::NamedDecl>(getDecl(S));
-  if (llvm::isa<clang::NamespaceDecl>(ND) || llvm::isa<clang::RecordDecl>(ND) ||
+  if (auto* ND = llvm::dyn_cast<clang::NamedDecl>(getDecl(S));
+      llvm::isa<clang::NamespaceDecl>(ND) || llvm::isa<clang::RecordDecl>(ND) ||
       llvm::isa<clang::ClassTemplateDecl>(ND) ||
       llvm::isa<clang::TypedefNameDecl>(ND)) {
     return makeCXScope(getMeta(S), ND->getCanonicalDecl());
@@ -615,16 +612,17 @@ CXScope clang_scope_getScope(const char* name, CXScope parent) {
 }
 
 CXScope clang_scope_getNamed(const char* name, CXScope parent) {
-  clang::DeclContext* Within = 0;
+  const clang::DeclContext* Within = nullptr;
   if (kind(parent) != CXScope_Invalid) {
-    auto US = clang_scope_getUnderlyingScope(parent);
-    if (kind(US) != CXScope_Invalid)
+    if (const auto US = clang_scope_getUnderlyingScope(parent);
+        kind(US) != CXScope_Invalid)
       Within = llvm::dyn_cast<clang::DeclContext>(getDecl(US));
   }
 
   auto& sema = getInterpreter(parent)->getSema();
-  auto* ND = Cpp::Cpp_utils::Lookup::Named(&sema, std::string(name), Within);
-  if (ND && ND != (clang::NamedDecl*)-1) {
+  if (auto* ND =
+          Cpp::Cpp_utils::Lookup::Named(&sema, std::string(name), Within);
+      ND && intptr_t(ND) != (intptr_t)-1) {
     return makeCXScope(getMeta(parent), ND->getCanonicalDecl());
   }
 
@@ -637,8 +635,7 @@ CXScope clang_scope_getParentScope(CXScope parent) {
   if (llvm::isa_and_nonnull<clang::TranslationUnitDecl>(D))
     return makeCXScope(getMeta(parent), nullptr, CXScope_Invalid);
 
-  auto* ParentDC = D->getDeclContext();
-
+  const auto* ParentDC = D->getDeclContext();
   if (!ParentDC)
     return makeCXScope(getMeta(parent), nullptr, CXScope_Invalid);
 
@@ -655,7 +652,7 @@ CXScope clang_scope_getScopeFromType(CXQualType type) {
 size_t clang_scope_getNumBases(CXScope S) {
   auto* D = getDecl(S);
 
-  if (auto* CXXRD = llvm::dyn_cast_or_null<clang::CXXRecordDecl>(D)) {
+  if (const auto* CXXRD = llvm::dyn_cast_or_null<clang::CXXRecordDecl>(D)) {
     if (CXXRD->hasDefinition())
       return CXXRD->getNumBases();
   }
@@ -669,8 +666,8 @@ CXScope clang_scope_getBaseClass(CXScope S, size_t ibase) {
   if (!CXXRD || CXXRD->getNumBases() <= ibase)
     return makeCXScope(getMeta(S), nullptr, CXScope_Invalid);
 
-  auto type = (CXXRD->bases_begin() + ibase)->getType();
-  if (auto RT = type->getAs<clang::RecordType>())
+  const auto type = (CXXRD->bases_begin() + ibase)->getType();
+  if (const auto* RT = type->getAs<clang::RecordType>())
     return makeCXScope(getMeta(S), RT->getDecl());
 
   return makeCXScope(getMeta(S), nullptr, CXScope_Invalid);
@@ -713,13 +710,13 @@ int64_t clang_scope_getBaseClassOffset(CXScope derived, CXScope base) {
       !llvm::isa<clang::CXXRecordDecl>(B))
     return -1;
 
-  auto* DCXXRD = llvm::cast<clang::CXXRecordDecl>(D);
-  auto* BCXXRD = llvm::cast<clang::CXXRecordDecl>(B);
+  const auto* DCXXRD = llvm::cast<clang::CXXRecordDecl>(D);
+  const auto* BCXXRD = llvm::cast<clang::CXXRecordDecl>(B);
   clang::CXXBasePaths Paths(/*FindAmbiguities=*/false, /*RecordPaths=*/true,
                             /*DetectVirtual=*/false);
   DCXXRD->isDerivedFrom(BCXXRD, Paths);
 
-  auto* I = getInterpreter(derived);
+  const auto* I = getInterpreter(derived);
   return Cpp::ComputeBaseOffset(I->getSema().getASTContext(), DCXXRD,
                                 Paths.front());
 }
@@ -728,7 +725,7 @@ CXScopeSet* clang_scope_getClassMethods(CXScope S) {
   if (kind(S) == CXScope_Invalid)
     return nullptr;
 
-  auto US = clang_scope_getUnderlyingScope(S);
+  const auto US = clang_scope_getUnderlyingScope(S);
   if (kind(US) == CXScope_Invalid || !clang_scope_isClass(US))
     return nullptr;
 
@@ -744,15 +741,15 @@ CXScopeSet* clang_scope_getClassMethods(CXScope S) {
     if (auto* MD = llvm::dyn_cast<clang::CXXMethodDecl>(DI)) {
       Methods.push_back(MD);
     } else if (auto* USD = llvm::dyn_cast<clang::UsingShadowDecl>(DI)) {
-      auto* MD = llvm::dyn_cast<clang::CXXMethodDecl>(USD->getTargetDecl());
-      if (MD)
-        Methods.push_back(MD);
+      if (auto* TMD =
+              llvm::dyn_cast<clang::CXXMethodDecl>(USD->getTargetDecl()))
+        Methods.push_back(TMD);
     }
   }
 
-  CXScopeSet* Set = new CXScopeSet;
+  auto* Set = new CXScopeSet; // NOLINT(*-owning-memory)
   Set->Count = Methods.size();
-  Set->Scopes = new CXScope[Set->Count];
+  Set->Scopes = new CXScope[Set->Count]; // NOLINT(*-owning-memory)
   for (auto [Idx, Val] : llvm::enumerate(Methods)) {
     Set->Scopes[Idx] = makeCXScope(getMeta(S), Val, CXScope_Function);
   }
@@ -764,7 +761,7 @@ CXScopeSet* clang_scope_getFunctionTemplatedDecls(CXScope S) {
   if (kind(S) == CXScope_Invalid)
     return nullptr;
 
-  auto US = clang_scope_getUnderlyingScope(S);
+  const auto US = clang_scope_getUnderlyingScope(S);
   if (kind(US) == CXScope_Invalid || !clang_scope_isClass(US))
     return nullptr;
 
@@ -779,17 +776,16 @@ CXScopeSet* clang_scope_getFunctionTemplatedDecls(CXScope S) {
   for (clang::Decl* DI : CXXRD->decls()) {
     if (auto* MD = llvm::dyn_cast<clang::FunctionTemplateDecl>(DI)) {
       Methods.push_back(MD);
-    } else if (auto* USD = llvm::dyn_cast<clang::UsingShadowDecl>(DI)) {
-      auto* MD =
-          llvm::dyn_cast<clang::FunctionTemplateDecl>(USD->getTargetDecl());
-      if (MD)
-        Methods.push_back(MD);
+    } else if (const auto* USD = llvm::dyn_cast<clang::UsingShadowDecl>(DI)) {
+      if (auto* TMD =
+              llvm::dyn_cast<clang::FunctionTemplateDecl>(USD->getTargetDecl()))
+        Methods.push_back(TMD);
     }
   }
 
-  CXScopeSet* Set = new CXScopeSet;
+  auto* Set = new CXScopeSet; // NOLINT(*-owning-memory)
   Set->Count = Methods.size();
-  Set->Scopes = new CXScope[Set->Count];
+  Set->Scopes = new CXScope[Set->Count]; // NOLINT(*-owning-memory)
   for (auto [Idx, Val] : llvm::enumerate(Methods)) {
     Set->Scopes[Idx] = makeCXScope(getMeta(S), Val, CXScope_Function);
   }
@@ -800,7 +796,7 @@ CXScopeSet* clang_scope_getFunctionTemplatedDecls(CXScope S) {
 bool clang_scope_hasDefaultConstructor(CXScope S) {
   auto* D = getDecl(S);
 
-  if (auto* CXXRD = llvm::dyn_cast_or_null<clang::CXXRecordDecl>(D))
+  if (const auto* CXXRD = llvm::dyn_cast_or_null<clang::CXXRecordDecl>(D))
     return CXXRD->hasDefaultConstructor();
 
   return false;
@@ -830,15 +826,15 @@ CXScope clang_scope_getDestructor(CXScope S) {
 }
 
 CXScopeSet* clang_scope_getFunctionsUsingName(CXScope S, const char* name) {
-  auto* D = getDecl(clang_scope_getUnderlyingScope(S));
+  const auto* D = getDecl(clang_scope_getUnderlyingScope(S));
 
   if (!D || !name)
     return nullptr;
 
-  llvm::StringRef Name(name);
-  auto* I = getInterpreter(S);
+  const llvm::StringRef Name(name);
+  const auto* I = getInterpreter(S);
   auto& SM = I->getSema();
-  clang::DeclarationName DName = &SM.getASTContext().Idents.get(name);
+  const clang::DeclarationName DName = &SM.getASTContext().Idents.get(Name);
   clang::LookupResult R(SM, DName, clang::SourceLocation(),
                         clang::Sema::LookupOrdinaryName,
                         clang::Sema::ForVisibleRedeclaration);
@@ -855,9 +851,9 @@ CXScopeSet* clang_scope_getFunctionsUsingName(CXScope S, const char* name) {
     if (llvm::isa<clang::FunctionDecl>(Found))
       Funcs.push_back(Found);
 
-  CXScopeSet* Set = new CXScopeSet;
+  auto* Set = new CXScopeSet; // NOLINT(*-owning-memory)
   Set->Count = Funcs.size();
-  Set->Scopes = new CXScope[Set->Count];
+  Set->Scopes = new CXScope[Set->Count]; // NOLINT(*-owning-memory)
   for (auto [Idx, Val] : llvm::enumerate(Funcs)) {
     Set->Scopes[Idx] = makeCXScope(getMeta(S), Val, CXScope_Function);
   }
@@ -867,11 +863,11 @@ CXScopeSet* clang_scope_getFunctionsUsingName(CXScope S, const char* name) {
 
 CXQualType clang_scope_getFunctionReturnType(CXScope func) {
   auto* D = getDecl(func);
-  if (auto* FD = llvm::dyn_cast_or_null<clang::FunctionDecl>(D))
+  if (const auto* FD = llvm::dyn_cast_or_null<clang::FunctionDecl>(D))
     return makeCXQualType(getMeta(func), FD->getReturnType());
 
-  if (auto* FD = llvm::dyn_cast_or_null<clang::FunctionTemplateDecl>(D)) {
-    auto* FTD = FD->getTemplatedDecl();
+  if (const auto* FD = llvm::dyn_cast_or_null<clang::FunctionTemplateDecl>(D)) {
+    const auto* FTD = FD->getTemplatedDecl();
     return makeCXQualType(getMeta(func), FTD->getReturnType());
   }
 
@@ -880,10 +876,10 @@ CXQualType clang_scope_getFunctionReturnType(CXScope func) {
 
 size_t clang_scope_getFunctionNumArgs(CXScope func) {
   auto* D = getDecl(func);
-  if (auto* FD = llvm::dyn_cast_or_null<clang::FunctionDecl>(D))
+  if (const auto* FD = llvm::dyn_cast_or_null<clang::FunctionDecl>(D))
     return FD->getNumParams();
 
-  if (auto* FD = llvm::dyn_cast_or_null<clang::FunctionTemplateDecl>(D))
+  if (const auto* FD = llvm::dyn_cast_or_null<clang::FunctionTemplateDecl>(D))
     return FD->getTemplatedDecl()->getNumParams();
 
   return 0;
@@ -891,10 +887,10 @@ size_t clang_scope_getFunctionNumArgs(CXScope func) {
 
 size_t clang_scope_getFunctionRequiredArgs(CXScope func) {
   auto* D = getDecl(func);
-  if (auto* FD = llvm::dyn_cast_or_null<clang::FunctionDecl>(D))
+  if (const auto* FD = llvm::dyn_cast_or_null<clang::FunctionDecl>(D))
     return FD->getMinRequiredArguments();
 
-  if (auto* FD = llvm::dyn_cast_or_null<clang::FunctionTemplateDecl>(D))
+  if (const auto* FD = llvm::dyn_cast_or_null<clang::FunctionTemplateDecl>(D))
     return FD->getTemplatedDecl()->getMinRequiredArguments();
 
   return 0;
@@ -905,7 +901,7 @@ CXQualType clang_scope_getFunctionArgType(CXScope func, size_t iarg) {
 
   if (auto* FD = llvm::dyn_cast_or_null<clang::FunctionDecl>(D)) {
     if (iarg < FD->getNumParams()) {
-      auto* PVD = FD->getParamDecl(iarg);
+      const auto* PVD = FD->getParamDecl(iarg);
       return makeCXQualType(getMeta(func), PVD->getOriginalType());
     }
   }
@@ -918,10 +914,10 @@ CXString clang_scope_getFunctionSignature(CXScope func) {
     return makeCXString("");
 
   auto* D = getDecl(func);
-  if (auto* FD = llvm::dyn_cast<clang::FunctionDecl>(D)) {
+  if (const auto* FD = llvm::dyn_cast<clang::FunctionDecl>(D)) {
     std::string Signature;
     llvm::raw_string_ostream SS(Signature);
-    auto& C = getInterpreter(func)->getSema().getASTContext();
+    const auto& C = getInterpreter(func)->getSema().getASTContext();
     clang::PrintingPolicy Policy = C.getPrintingPolicy();
     // Skip printing the body
     Policy.TerseOutput = true;
@@ -936,7 +932,7 @@ CXString clang_scope_getFunctionSignature(CXScope func) {
 }
 
 bool clang_scope_isFunctionDeleted(CXScope func) {
-  auto* FD = llvm::cast<clang::FunctionDecl>(getDecl(func));
+  const auto* FD = llvm::cast<clang::FunctionDecl>(getDecl(func));
   return FD->isDeleted();
 }
 
@@ -945,8 +941,8 @@ bool clang_scope_isTemplatedFunction(CXScope func) {
   if (llvm::isa_and_nonnull<clang::FunctionTemplateDecl>(D))
     return true;
 
-  if (auto* FD = llvm::dyn_cast_or_null<clang::FunctionDecl>(D)) {
-    auto TK = FD->getTemplatedKind();
+  if (const auto* FD = llvm::dyn_cast_or_null<clang::FunctionDecl>(D)) {
+    const auto TK = FD->getTemplatedKind();
     return TK == clang::FunctionDecl::TemplatedKind::
                      TK_FunctionTemplateSpecialization ||
            TK == clang::FunctionDecl::TemplatedKind::
@@ -961,15 +957,15 @@ bool clang_scope_existsFunctionTemplate(const char* name, CXScope parent) {
   if (kind(parent) == CXScope_Invalid || !name)
     return false;
 
-  auto* Within = llvm::dyn_cast<clang::DeclContext>(getDecl(parent));
+  const auto* Within = llvm::dyn_cast<clang::DeclContext>(getDecl(parent));
 
   auto& S = getInterpreter(parent)->getSema();
   auto* ND = Cpp::Cpp_utils::Lookup::Named(&S, name, Within);
 
-  if ((intptr_t)ND == (intptr_t)0)
+  if (!ND)
     return false;
 
-  if ((intptr_t)ND != (intptr_t)-1)
+  if (intptr_t(ND) != (intptr_t)-1)
     return clang_scope_isTemplatedFunction(makeCXScope(getMeta(parent), ND));
 
   // FIXME: Cycle through the Decls and check if there is a templated function
@@ -978,15 +974,15 @@ bool clang_scope_existsFunctionTemplate(const char* name, CXScope parent) {
 
 CXScopeSet* clang_scope_getClassTemplatedMethods(const char* name,
                                                  CXScope parent) {
-  auto* D = getDecl(clang_scope_getUnderlyingScope(parent));
+  const auto* D = getDecl(clang_scope_getUnderlyingScope(parent));
 
   if (!D || !name)
     return nullptr;
 
-  llvm::StringRef Name(name);
-  auto* I = getInterpreter(parent);
+  const llvm::StringRef Name(name);
+  const auto* I = getInterpreter(parent);
   auto& SM = I->getSema();
-  clang::DeclarationName DName = &SM.getASTContext().Idents.get(name);
+  const clang::DeclarationName DName = &SM.getASTContext().Idents.get(Name);
   clang::LookupResult R(SM, DName, clang::SourceLocation(),
                         clang::Sema::LookupOrdinaryName,
                         clang::Sema::ForVisibleRedeclaration);
@@ -1003,9 +999,9 @@ CXScopeSet* clang_scope_getClassTemplatedMethods(const char* name,
     if (llvm::isa<clang::FunctionTemplateDecl>(Found))
       Funcs.push_back(Found);
 
-  CXScopeSet* Set = new CXScopeSet;
+  auto* Set = new CXScopeSet; // NOLINT(*-owning-memory)
   Set->Count = Funcs.size();
-  Set->Scopes = new CXScope[Set->Count];
+  Set->Scopes = new CXScope[Set->Count]; // NOLINT(*-owning-memory)
   for (auto [Idx, Val] : llvm::enumerate(Funcs)) {
     Set->Scopes[Idx] = makeCXScope(getMeta(parent), Val, CXScope_Function);
   }
@@ -1020,7 +1016,7 @@ bool clang_scope_isMethod(CXScope method) {
 
 bool clang_scope_isPublicMethod(CXScope method) {
   auto* D = getDecl(method);
-  if (auto* CXXMD = llvm::dyn_cast_or_null<clang::CXXMethodDecl>(D))
+  if (const auto* CXXMD = llvm::dyn_cast_or_null<clang::CXXMethodDecl>(D))
     return CXXMD->getAccess() == clang::AccessSpecifier::AS_public;
 
   return false;
@@ -1028,7 +1024,7 @@ bool clang_scope_isPublicMethod(CXScope method) {
 
 bool clang_scope_isProtectedMethod(CXScope method) {
   auto* D = getDecl(method);
-  if (auto* CXXMD = llvm::dyn_cast_or_null<clang::CXXMethodDecl>(D))
+  if (const auto* CXXMD = llvm::dyn_cast_or_null<clang::CXXMethodDecl>(D))
     return CXXMD->getAccess() == clang::AccessSpecifier::AS_protected;
 
   return false;
@@ -1036,7 +1032,7 @@ bool clang_scope_isProtectedMethod(CXScope method) {
 
 bool clang_scope_isPrivateMethod(CXScope method) {
   auto* D = getDecl(method);
-  if (auto* CXXMD = llvm::dyn_cast_or_null<clang::CXXMethodDecl>(D))
+  if (const auto* CXXMD = llvm::dyn_cast_or_null<clang::CXXMethodDecl>(D))
     return CXXMD->getAccess() == clang::AccessSpecifier::AS_private;
 
   return false;
@@ -1054,7 +1050,7 @@ bool clang_scope_isDestructor(CXScope method) {
 
 bool clang_scope_isStaticMethod(CXScope method) {
   auto* D = getDecl(method);
-  if (auto* CXXMD = llvm::dyn_cast_or_null<clang::CXXMethodDecl>(D))
+  if (const auto* CXXMD = llvm::dyn_cast_or_null<clang::CXXMethodDecl>(D))
     return CXXMD->isStatic();
 
   return false;
@@ -1065,7 +1061,7 @@ CXFuncAddr clang_scope_getFunctionAddress(CXScope method) {
   auto* I = getInterpreter(method);
 
   const auto get_mangled_name = [I](clang::FunctionDecl* FD) {
-    auto MangleCtx = I->getSema().getASTContext().createMangleContext();
+    auto* MangleCtx = I->getSema().getASTContext().createMangleContext();
 
     if (!MangleCtx->shouldMangleDeclName(FD)) {
       return FD->getNameInfo().getName().getAsString();
@@ -1077,13 +1073,13 @@ CXFuncAddr clang_scope_getFunctionAddress(CXScope method) {
     MangleCtx->mangleName(FD, ostream);
 
     ostream.flush();
-    delete MangleCtx;
+    delete MangleCtx; // NOLINT(*-owning-memory)
 
     return mangled_name;
   };
 
   if (auto* FD = llvm::dyn_cast_or_null<clang::FunctionDecl>(D)) {
-    auto FDAorErr = compat::getSymbolAddress(*I, get_mangled_name(FD).c_str());
+    auto FDAorErr = compat::getSymbolAddress(*I, get_mangled_name(FD));
     if (llvm::Error Err = FDAorErr.takeError())
       llvm::consumeError(std::move(Err)); // nullptr if missing
     else
@@ -1095,7 +1091,7 @@ CXFuncAddr clang_scope_getFunctionAddress(CXScope method) {
 
 bool clang_scope_isVirtualMethod(CXScope method) {
   auto* D = getDecl(method);
-  if (auto* CXXMD = llvm::dyn_cast_or_null<clang::CXXMethodDecl>(D))
+  if (const auto* CXXMD = llvm::dyn_cast_or_null<clang::CXXMethodDecl>(D))
     return CXXMD->isVirtual();
 
   return false;
@@ -1103,7 +1099,7 @@ bool clang_scope_isVirtualMethod(CXScope method) {
 
 bool clang_scope_isConstMethod(CXScope method) {
   auto* D = getDecl(method);
-  if (auto* CXXMD = llvm::dyn_cast_or_null<clang::CXXMethodDecl>(D))
+  if (const auto* CXXMD = llvm::dyn_cast_or_null<clang::CXXMethodDecl>(D))
     return CXXMD->getMethodQualifiers().hasConst();
 
   return false;
@@ -1118,13 +1114,13 @@ CXString clang_scope_getFunctionArgName(CXScope func, size_t param_index) {
 }
 
 CXScopeSet* clang_scope_getDatamembers(CXScope S) {
-  auto* CXXRD = llvm::dyn_cast_or_null<clang::CXXRecordDecl>(getDecl(S));
+  const auto* CXXRD = llvm::dyn_cast_or_null<clang::CXXRecordDecl>(getDecl(S));
   if (!CXXRD)
     return nullptr;
 
-  CXScopeSet* Set = new CXScopeSet;
+  auto* Set = new CXScopeSet; // NOLINT(*-owning-memory)
   Set->Count = std::distance(CXXRD->field_begin(), CXXRD->field_end());
-  Set->Scopes = new CXScope[Set->Count];
+  Set->Scopes = new CXScope[Set->Count]; // NOLINT(*-owning-memory)
   for (auto [Idx, Val] : llvm::enumerate(CXXRD->fields())) {
     Set->Scopes[Idx] = makeCXScope(getMeta(S), Val, CXScope_Function);
   }
@@ -1136,12 +1132,11 @@ CXScope clang_scope_lookupDatamember(const char* name, CXScope parent) {
   if (kind(parent) == CXScope_Invalid || !name)
     return makeCXScope(getMeta(parent), nullptr, CXScope_Invalid);
 
-  clang::DeclContext* Within =
-      llvm::dyn_cast<clang::DeclContext>(getDecl(parent));
+  const auto* Within = llvm::dyn_cast<clang::DeclContext>(getDecl(parent));
 
   auto& S = getInterpreter(parent)->getSema();
   auto* ND = Cpp::Cpp_utils::Lookup::Named(&S, name, Within);
-  if (ND && ND != (clang::NamedDecl*)-1) {
+  if (ND && intptr_t(ND) != (intptr_t)-1) {
     if (llvm::isa_and_nonnull<clang::FieldDecl>(ND)) {
       return makeCXScope(getMeta(parent), ND, CXScope_Field);
     }
@@ -1167,7 +1162,7 @@ CXScope clang_scope_instantiateTemplate(CXScope tmpl,
   llvm::SmallVector<clang::TemplateArgument> TemplateArgs;
   TemplateArgs.reserve(template_args_size);
   for (size_t i = 0; i < template_args_size; ++i) {
-    clang::QualType ArgTy =
+    const clang::QualType ArgTy =
         clang::QualType::getFromOpaquePtr(template_args[i].Type);
     if (template_args[i].IntegralValue) {
       // We have a non-type template parameter. Create an integral value from
@@ -1180,7 +1175,7 @@ CXScope clang_scope_instantiateTemplate(CXScope tmpl,
     }
   }
 
-  clang::TemplateDecl* TmplD = static_cast<clang::TemplateDecl*>(getDecl(tmpl));
+  auto* TmplD = llvm::dyn_cast<clang::TemplateDecl>(getDecl(tmpl));
 
   // We will create a new decl, push a transaction.
 #ifdef USE_CLING
@@ -1191,9 +1186,9 @@ CXScope clang_scope_instantiateTemplate(CXScope tmpl,
 }
 
 CXQualType clang_scope_getVariableType(CXScope var) {
-  auto D = getDecl(var);
+  auto* D = getDecl(var);
 
-  if (auto DD = llvm::dyn_cast_or_null<clang::DeclaratorDecl>(D))
+  if (const auto* DD = llvm::dyn_cast_or_null<clang::DeclaratorDecl>(D))
     return makeCXQualType(getMeta(var), DD->getType());
 
   return makeCXQualType(getMeta(var), clang::QualType(), CXQualType_Invalid);
@@ -1209,7 +1204,7 @@ intptr_t clang_scope_getVariableOffset(CXScope var) {
 
 bool clang_scope_isPublicVariable(CXScope var) {
   auto* D = getDecl(var);
-  if (auto* CXXMD = llvm::dyn_cast_or_null<clang::DeclaratorDecl>(D))
+  if (const auto* CXXMD = llvm::dyn_cast_or_null<clang::DeclaratorDecl>(D))
     return CXXMD->getAccess() == clang::AccessSpecifier::AS_public;
 
   return false;
@@ -1217,7 +1212,7 @@ bool clang_scope_isPublicVariable(CXScope var) {
 
 bool clang_scope_isProtectedVariable(CXScope var) {
   auto* D = getDecl(var);
-  if (auto* CXXMD = llvm::dyn_cast_or_null<clang::DeclaratorDecl>(D))
+  if (const auto* CXXMD = llvm::dyn_cast_or_null<clang::DeclaratorDecl>(D))
     return CXXMD->getAccess() == clang::AccessSpecifier::AS_protected;
 
   return false;
@@ -1225,7 +1220,7 @@ bool clang_scope_isProtectedVariable(CXScope var) {
 
 bool clang_scope_isPrivateVariable(CXScope var) {
   auto* D = getDecl(var);
-  if (auto* CXXMD = llvm::dyn_cast_or_null<clang::DeclaratorDecl>(D))
+  if (const auto* CXXMD = llvm::dyn_cast_or_null<clang::DeclaratorDecl>(D))
     return CXXMD->getAccess() == clang::AccessSpecifier::AS_private;
 
   return false;
@@ -1233,15 +1228,12 @@ bool clang_scope_isPrivateVariable(CXScope var) {
 
 bool clang_scope_isStaticVariable(CXScope var) {
   auto* D = getDecl(var);
-  if (llvm::isa_and_nonnull<clang::VarDecl>(D))
-    return true;
-
-  return false;
+  return llvm::isa_and_nonnull<clang::VarDecl>(D);
 }
 
 bool clang_scope_isConstVariable(CXScope var) {
   auto* D = getDecl(var);
-  if (auto* VD = llvm::dyn_cast_or_null<clang::ValueDecl>(D)) {
+  if (const auto* VD = llvm::dyn_cast_or_null<clang::ValueDecl>(D)) {
     return VD->getType().isConstQualified();
   }
 
@@ -1262,19 +1254,19 @@ CXObject clang_construct(CXScope scope, void* arena) {
   if (!clang_scope_hasDefaultConstructor(scope))
     return nullptr;
 
-  auto Ctor = clang_scope_getDefaultConstructor(scope);
+  const auto Ctor = clang_scope_getDefaultConstructor(scope);
   if (kind(Ctor) == CXScope_Invalid)
     return nullptr;
 
   auto* I = getInterpreter(scope);
-  if (Cpp::JitCall JC = Cpp::MakeFunctionCallableImpl(I, getDecl(Ctor))) {
+  if (const Cpp::JitCall JC = Cpp::MakeFunctionCallableImpl(I, getDecl(Ctor))) {
     if (arena) {
-      JC.Invoke(&arena, {}, (void*)~0); // Tell Invoke to use placement new.
+      JC.Invoke(arena, {}, (void*)~0); // Tell Invoke to use placement new.
       return arena;
     }
 
     void* obj = nullptr;
-    JC.Invoke(&obj);
+    JC.Invoke(obj);
     return obj;
   }
 
@@ -1291,7 +1283,7 @@ void clang_destruct(CXObject This, CXScope S, bool withFree) {
 }
 
 CXJitCallKind clang_jitcall_getKind(CXJitCall J) {
-  auto* call = reinterpret_cast<Cpp::JitCall*>(J); // NOLINT(*-cast)
+  const auto* call = reinterpret_cast<Cpp::JitCall*>(J); // NOLINT(*-cast)
   return static_cast<CXJitCallKind>(call->getKind());
 }
 
@@ -1301,14 +1293,14 @@ bool clang_jitcall_isValid(CXJitCall J) {
 
 void clang_jitcall_invoke(CXJitCall J, void* result, CXJitCallArgList args,
                           void* self) {
-  auto* call = reinterpret_cast<Cpp::JitCall*>(J); // NOLINT(*-cast)
-  return call->Invoke(result, {args.data, args.numArgs}, self);
+  const auto* call = reinterpret_cast<Cpp::JitCall*>(J); // NOLINT(*-cast)
+  call->Invoke(result, {args.data, args.numArgs}, self);
 }
 
 CXJitCall clang_jitcall_makeFunctionCallable(CXScope func) {
   auto J = Cpp::MakeFunctionCallableImpl(getInterpreter(func), getDecl(func));
-  return reinterpret_cast<CXJitCall>(
-      std::make_unique<Cpp::JitCall>(J).release()); // NOLINT(*-cast)
+  auto Ptr = std::make_unique<Cpp::JitCall>(J);
+  return reinterpret_cast<CXJitCall>(Ptr.release()); // NOLINT(*-cast)
 }
 
 void clang_jitcall_dispose(CXJitCall J) {
