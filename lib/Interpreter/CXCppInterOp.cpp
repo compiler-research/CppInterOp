@@ -460,8 +460,9 @@ CXScopeSet* clang_scope_getEnumConstants(CXScope S) {
   Set->Count = std::distance(ED->enumerator_begin(), ED->enumerator_end());
   Set->Scopes = new CXScope[Set->Count]; // NOLINT(*-owning-memory)
   for (auto En : llvm::enumerate(ED->enumerators())) {
-    Set->Scopes[En.index()] =
-        makeCXScope(getMeta(S), En.value(), CXScope_EnumConstant);
+    auto Idx = En.index();
+    auto Val = En.value();
+    Set->Scopes[Idx] = makeCXScope(getMeta(S), Val, CXScope_EnumConstant);
   }
 
   return Set;
@@ -573,8 +574,10 @@ CXScopeSet* clang_scope_getUsingNamespaces(CXScope S) {
                              DC->using_directives().end());
   Set->Scopes = new CXScope[Set->Count]; // NOLINT(*-owning-memory)
   for (auto En : llvm::enumerate(DC->using_directives())) {
-    Set->Scopes[En.index()] = makeCXScope(
-        getMeta(S), En.value()->getNominatedNamespace(), CXScope_Namespace);
+    auto Idx = En.index();
+    auto Val = En.value();
+    Set->Scopes[Idx] = makeCXScope(getMeta(S), Val->getNominatedNamespace(),
+                                   CXScope_Namespace);
   }
 
   return Set;
@@ -753,8 +756,9 @@ CXScopeSet* clang_scope_getClassMethods(CXScope S) {
   Set->Count = Methods.size();
   Set->Scopes = new CXScope[Set->Count]; // NOLINT(*-owning-memory)
   for (auto En : llvm::enumerate(Methods)) {
-    Set->Scopes[En.index()] =
-        makeCXScope(getMeta(S), En.value(), CXScope_Function);
+    auto Idx = En.index();
+    auto Val = En.value();
+    Set->Scopes[Idx] = makeCXScope(getMeta(S), Val, CXScope_Function);
   }
 
   return Set;
@@ -790,8 +794,9 @@ CXScopeSet* clang_scope_getFunctionTemplatedDecls(CXScope S) {
   Set->Count = Methods.size();
   Set->Scopes = new CXScope[Set->Count]; // NOLINT(*-owning-memory)
   for (auto En : llvm::enumerate(Methods)) {
-    Set->Scopes[En.index()] =
-        makeCXScope(getMeta(S), En.value(), CXScope_Function);
+    auto Idx = En.index();
+    auto Val = En.value();
+    Set->Scopes[Idx] = makeCXScope(getMeta(S), Val, CXScope_Function);
   }
 
   return Set;
@@ -859,8 +864,9 @@ CXScopeSet* clang_scope_getFunctionsUsingName(CXScope S, const char* name) {
   Set->Count = Funcs.size();
   Set->Scopes = new CXScope[Set->Count]; // NOLINT(*-owning-memory)
   for (auto En : llvm::enumerate(Funcs)) {
-    Set->Scopes[En.index()] =
-        makeCXScope(getMeta(S), En.value(), CXScope_Function);
+    auto Idx = En.index();
+    auto Val = En.value();
+    Set->Scopes[Idx] = makeCXScope(getMeta(S), Val, CXScope_Function);
   }
 
   return Set;
@@ -1008,8 +1014,9 @@ CXScopeSet* clang_scope_getClassTemplatedMethods(const char* name,
   Set->Count = Funcs.size();
   Set->Scopes = new CXScope[Set->Count]; // NOLINT(*-owning-memory)
   for (auto En : llvm::enumerate(Funcs)) {
-    Set->Scopes[En.index()] =
-        makeCXScope(getMeta(parent), En.value(), CXScope_Function);
+    auto Idx = En.index();
+    auto Val = En.value();
+    Set->Scopes[Idx] = makeCXScope(getMeta(parent), Val, CXScope_Function);
   }
 
   return Set;
@@ -1128,8 +1135,9 @@ CXScopeSet* clang_scope_getDatamembers(CXScope S) {
   Set->Count = std::distance(CXXRD->field_begin(), CXXRD->field_end());
   Set->Scopes = new CXScope[Set->Count]; // NOLINT(*-owning-memory)
   for (auto En : llvm::enumerate(CXXRD->fields())) {
-    Set->Scopes[En.index()] =
-        makeCXScope(getMeta(S), En.value(), CXScope_Function);
+    auto Idx = En.index();
+    auto Val = En.value();
+    Set->Scopes[Idx] = makeCXScope(getMeta(S), Val, CXScope_Function);
   }
 
   return Set;
