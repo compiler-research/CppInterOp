@@ -378,7 +378,8 @@ bool clang_scope_isComplete(CXScope S) {
     const auto* CI = getInterpreter(S)->getCI();
     auto& Sema = CI->getSema();
     const auto& SM = Sema.getSourceManager();
-    const clang::SourceLocation fakeLoc = SM.getLocForStartOfFile(SM.getMainFileID());
+    const clang::SourceLocation fakeLoc =
+        SM.getLocForStartOfFile(SM.getMainFileID());
     return Sema.isCompleteType(fakeLoc, QT);
   }
 
@@ -603,8 +604,8 @@ CXScope clang_scope_getScope(const char* name, CXScope parent) {
   if (kind(S) == CXScope_Invalid)
     return S;
 
-  if (auto* ND = llvm::dyn_cast<clang::NamedDecl>(getDecl(S));
-      llvm::isa<clang::NamespaceDecl>(ND) || llvm::isa<clang::RecordDecl>(ND) ||
+  auto* ND = llvm::dyn_cast<clang::NamedDecl>(getDecl(S));
+  if (llvm::isa<clang::NamespaceDecl>(ND) || llvm::isa<clang::RecordDecl>(ND) ||
       llvm::isa<clang::ClassTemplateDecl>(ND) ||
       llvm::isa<clang::TypedefNameDecl>(ND)) {
     return makeCXScope(getMeta(S), ND->getCanonicalDecl());
@@ -616,15 +617,14 @@ CXScope clang_scope_getScope(const char* name, CXScope parent) {
 CXScope clang_scope_getNamed(const char* name, CXScope parent) {
   const clang::DeclContext* Within = nullptr;
   if (kind(parent) != CXScope_Invalid) {
-    if (const auto US = clang_scope_getUnderlyingScope(parent);
-        kind(US) != CXScope_Invalid)
+    const auto US = clang_scope_getUnderlyingScope(parent);
+    if (kind(US) != CXScope_Invalid)
       Within = llvm::dyn_cast<clang::DeclContext>(getDecl(US));
   }
 
   auto& sema = getInterpreter(parent)->getSema();
-  if (auto* ND =
-          Cpp::Cpp_utils::Lookup::Named(&sema, std::string(name), Within);
-      ND && intptr_t(ND) != (intptr_t)-1) {
+  auto* ND = Cpp::Cpp_utils::Lookup::Named(&sema, std::string(name), Within);
+  if (ND && intptr_t(ND) != (intptr_t)-1) {
     return makeCXScope(getMeta(parent), ND->getCanonicalDecl());
   }
 
