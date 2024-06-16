@@ -16,7 +16,6 @@ add_cppinterop_unittest(CppInterOpTests
 target_link_libraries(CppInterOpTests
   PRIVATE
   clangCppInterOp
-  libclang
   )
 
 if(NOT WIN32)

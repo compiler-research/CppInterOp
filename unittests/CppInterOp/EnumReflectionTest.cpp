@@ -5,7 +5,6 @@
 #include "clang/Interpreter/CppInterOp.h"
 #include "clang/Sema/Sema.h"
 #include "clang-c/CXCppInterOp.h"
-#include "clang-c/CXString.h"
 
 #include "gtest/gtest.h"
 
