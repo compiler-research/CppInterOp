@@ -198,7 +198,7 @@ clang_interpreter_getFunctionAddressFromMangledName(CXInterpreter I,
 
 static inline CXQualType
 makeCXQualType(const CXInterpreterImpl* I, const clang::QualType Ty,
-               const CXQualTypeKind K = CXQualType_Unexposed) {
+               const CXTypeKind K = CXType_Unexposed) {
   assert(I && "Invalid interpreter");
   return CXQualType{K, Ty.getAsOpaquePtr(), static_cast<const void*>(I)};
 }
@@ -273,7 +273,7 @@ CXString clang_qualtype_getTypeAsString(CXQualType type) {
 CXQualType clang_qualtype_getCanonicalType(CXQualType type) {
   const clang::QualType QT = getType(type);
   if (QT.isNull())
-    return makeCXQualType(getMeta(type), clang::QualType(), CXQualType_Invalid);
+    return makeCXQualType(getMeta(type), clang::QualType(), CXType_Invalid);
 
   return makeCXQualType(getMeta(type), QT.getCanonicalType());
 }
@@ -286,7 +286,7 @@ CXQualType clang_qualtype_getType(CXInterpreter I, const char* name) {
   auto& S = getInterpreter(I)->getSema();
   const clang::QualType QT = Cpp::GetType(std::string(name), S);
   if (QT.isNull())
-    return makeCXQualType(I, QT, CXQualType_Invalid);
+    return makeCXQualType(I, QT, CXType_Invalid);
 
   return makeCXQualType(I, QT);
 }
@@ -347,7 +347,7 @@ void clang_scope_dump(CXScope S) { getDecl(S)->dump(); }
 
 CXQualType clang_scope_getTypeFromScope(CXScope S) {
   if (isNull(S))
-    return makeCXQualType(getMeta(S), clang::QualType(), CXQualType_Invalid);
+    return makeCXQualType(getMeta(S), clang::QualType(), CXType_Invalid);
 
   auto* D = getDecl(S);
   if (const auto* VD = llvm::dyn_cast<clang::ValueDecl>(D))
@@ -443,7 +443,7 @@ CXQualType clang_scope_getIntegerTypeFromEnumScope(CXScope S) {
   if (const auto* ED = llvm::dyn_cast_or_null<clang::EnumDecl>(getDecl(S)))
     return makeCXQualType(getMeta(S), ED->getIntegerType());
 
-  return makeCXQualType(getMeta(S), clang::QualType(), CXQualType_Invalid);
+  return makeCXQualType(getMeta(S), clang::QualType(), CXType_Invalid);
 }
 
 void clang_disposeScopeSet(CXScopeSet* set) {
@@ -453,16 +453,20 @@ void clang_disposeScopeSet(CXScopeSet* set) {
 
 CXScopeSet* clang_scope_getEnumConstants(CXScope S) {
   const auto* ED = llvm::dyn_cast_or_null<clang::EnumDecl>(getDecl(S));
-  if (!ED || ED->enumerators().empty())
+  if (!ED)
+    return nullptr;
+
+  auto EI = ED->enumerator_begin();
+  auto EE = ED->enumerator_end();
+  if (EI == EE)
     return nullptr;
 
   auto* Set = new CXScopeSet; // NOLINT(*-owning-memory)
-  Set->Count = std::distance(ED->enumerator_begin(), ED->enumerator_end());
+  Set->Count = std::distance(EI, EE);
   Set->Scopes = new CXScope[Set->Count]; // NOLINT(*-owning-memory)
-  for (auto En : llvm::enumerate(ED->enumerators())) {
-    auto Idx = En.index();
-    auto* Val = En.value();
-    Set->Scopes[Idx] = makeCXScope(getMeta(S), Val, CXScope_EnumConstant);
+  for (auto I = EI; I != EE; ++I) {
+    auto Idx = std::distance(EI, I);
+    Set->Scopes[Idx] = makeCXScope(getMeta(S), *I, CXScope_EnumConstant);
   }
 
   return Set;
@@ -470,13 +474,13 @@ CXScopeSet* clang_scope_getEnumConstants(CXScope S) {
 
 CXQualType clang_scope_getEnumConstantType(CXScope S) {
   if (isNull(S))
-    return makeCXQualType(getMeta(S), clang::QualType(), CXQualType_Invalid);
+    return makeCXQualType(getMeta(S), clang::QualType(), CXType_Invalid);
 
   if (const auto* ECD =
           llvm::dyn_cast_or_null<clang::EnumConstantDecl>(getDecl(S)))
     return makeCXQualType(getMeta(S), ECD->getType());
 
-  return makeCXQualType(getMeta(S), clang::QualType(), CXQualType_Invalid);
+  return makeCXQualType(getMeta(S), clang::QualType(), CXType_Invalid);
 }
 
 size_t clang_scope_getEnumConstantValue(CXScope S) {
@@ -566,17 +570,20 @@ CXString clang_scope_getQualifiedCompleteName(CXScope S) {
 
 CXScopeSet* clang_scope_getUsingNamespaces(CXScope S) {
   const auto* DC = llvm::dyn_cast_or_null<clang::DeclContext>(getDecl(S));
-  if (!DC || DC->using_directives().empty())
+  if (!DC)
+    return nullptr;
+
+  auto DI = DC->using_directives().begin();
+  auto DE = DC->using_directives().end();
+  if (DI == DE)
     return nullptr;
 
   auto* Set = new CXScopeSet; // NOLINT(*-owning-memory)
-  Set->Count = std::distance(DC->using_directives().begin(),
-                             DC->using_directives().end());
+  Set->Count = std::distance(DI, DE);
   Set->Scopes = new CXScope[Set->Count]; // NOLINT(*-owning-memory)
-  for (auto En : llvm::enumerate(DC->using_directives())) {
-    auto Idx = En.index();
-    auto* Val = En.value();
-    Set->Scopes[Idx] = makeCXScope(getMeta(S), Val->getNominatedNamespace(),
+  for (auto I = DI; I != DE; ++I) {
+    auto Idx = std::distance(DI, I);
+    Set->Scopes[Idx] = makeCXScope(getMeta(S), (*I)->getNominatedNamespace(),
                                    CXScope_Namespace);
   }
 
@@ -882,7 +889,7 @@ CXQualType clang_scope_getFunctionReturnType(CXScope func) {
     return makeCXQualType(getMeta(func), FTD->getReturnType());
   }
 
-  return makeCXQualType(getMeta(func), clang::QualType(), CXQualType_Invalid);
+  return makeCXQualType(getMeta(func), clang::QualType(), CXType_Invalid);
 }
 
 size_t clang_scope_getFunctionNumArgs(CXScope func) {
@@ -917,7 +924,7 @@ CXQualType clang_scope_getFunctionArgType(CXScope func, size_t iarg) {
     }
   }
 
-  return makeCXQualType(getMeta(func), clang::QualType(), CXQualType_Invalid);
+  return makeCXQualType(getMeta(func), clang::QualType(), CXType_Invalid);
 }
 
 CXString clang_scope_getFunctionSignature(CXScope func) {
@@ -1131,13 +1138,17 @@ CXScopeSet* clang_scope_getDatamembers(CXScope S) {
   if (!CXXRD)
     return nullptr;
 
+  auto FI = CXXRD->field_begin();
+  auto FE = CXXRD->field_end();
+  if (FI == FE)
+    return nullptr;
+
   auto* Set = new CXScopeSet; // NOLINT(*-owning-memory)
-  Set->Count = std::distance(CXXRD->field_begin(), CXXRD->field_end());
+  Set->Count = std::distance(FI, FE);
   Set->Scopes = new CXScope[Set->Count]; // NOLINT(*-owning-memory)
-  for (auto En : llvm::enumerate(CXXRD->fields())) {
-    auto Idx = En.index();
-    auto* Val = En.value();
-    Set->Scopes[Idx] = makeCXScope(getMeta(S), Val, CXScope_Function);
+  for (auto I = FE; I != FE; ++I) {
+    auto Idx = std::distance(FI, I);
+    Set->Scopes[Idx] = makeCXScope(getMeta(S), *I, CXScope_Field);
   }
 
   return Set;
@@ -1206,7 +1217,7 @@ CXQualType clang_scope_getVariableType(CXScope var) {
   if (const auto* DD = llvm::dyn_cast_or_null<clang::DeclaratorDecl>(D))
     return makeCXQualType(getMeta(var), DD->getType());
 
-  return makeCXQualType(getMeta(var), clang::QualType(), CXQualType_Invalid);
+  return makeCXQualType(getMeta(var), clang::QualType(), CXType_Invalid);
 }
 
 namespace Cpp {

@@ -5,8 +5,8 @@
 #include "clang-c/CXErrorCode.h"
 #include "clang-c/CXString.h"
 #include "clang-c/ExternC.h"
+#include "clang-c/Index.h"
 #include "clang-c/Platform.h"
-#include "llvm-c/LLJIT.h"
 
 #include <stdbool.h>
 #include <stddef.h>
@@ -256,19 +256,10 @@ clang_interpreter_getFunctionAddressFromMangledName(CXInterpreter I,
  */
 
 /**
- * Describes the kind of entity that a type refers to.
- */
-enum CXQualTypeKind {
-  CXQualType_Unexposed = 0,
-  CXQualType_Invalid = 1,
-  // reserved for future use
-};
-
-/**
  * An opaque pointer representing a type.
  */
 typedef struct {
-  enum CXQualTypeKind kind;
+  enum CXTypeKind kind;
   void* data;
   const void* meta;
 } CXQualType;
