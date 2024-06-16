@@ -196,9 +196,9 @@ clang_interpreter_getFunctionAddressFromMangledName(CXInterpreter I,
   return nullptr;
 }
 
-static inline CXQualType
-makeCXQualType(const CXInterpreterImpl* I, const clang::QualType Ty,
-               const CXTypeKind K = CXType_Unexposed) {
+static inline CXQualType makeCXQualType(const CXInterpreterImpl* I,
+                                        const clang::QualType Ty,
+                                        const CXTypeKind K = CXType_Unexposed) {
   assert(I && "Invalid interpreter");
   return CXQualType{K, Ty.getAsOpaquePtr(), static_cast<const void*>(I)};
 }
