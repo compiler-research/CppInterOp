@@ -51,6 +51,12 @@ CXInterpreter clang_createInterpreterFromPtr(TInterp_t I);
 TInterp_t clang_interpreter_getInterpreterAsPtr(CXInterpreter I);
 
 /**
+ * Similar to \c clang_interpreter_getInterpreterAsPtr() but it takes the
+ * ownership.
+ */
+TInterp_t clang_interpreter_takeInterpreterAsPtr(CXInterpreter I);
+
+/**
  * Dispose of the given interpreter context.
  */
 void clang_interpreter_dispose(CXInterpreter I);

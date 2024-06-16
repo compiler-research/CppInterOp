@@ -5,6 +5,7 @@
 #include "clang/Interpreter/CppInterOp.h"
 #include "clang/Sema/Sema.h"
 #include "clang-c/CXCppInterOp.h"
+#include "clang-c/CXString.h"
 
 #include "gtest/gtest.h"
 
@@ -34,16 +35,18 @@ TEST(ScopeReflectionTest, IsEnumScope) {
   EXPECT_FALSE(Cpp::IsEnumScope(SubDecls[1]));
 
   // C API
-  auto I = Cpp::GetInterpreter();
-  EXPECT_TRUE(clang_scope_isEnumScope(CXScope{CXScope_Unexposed, Decls[0], I}));
-  EXPECT_FALSE(
-      clang_scope_isEnumScope(CXScope{CXScope_Unexposed, Decls[1], I}));
-  EXPECT_FALSE(
-      clang_scope_isEnumScope(CXScope{CXScope_Unexposed, Decls[2], I}));
-  EXPECT_FALSE(
-      clang_scope_isEnumScope(CXScope{CXScope_Unexposed, SubDecls[0], I}));
-  EXPECT_FALSE(
-      clang_scope_isEnumScope(CXScope{CXScope_Unexposed, SubDecls[1], I}));
+  auto I = clang_createInterpreterFromPtr(Cpp::GetInterpreter());
+  auto C_API_SHIM = [&](auto Decl) {
+    return clang_scope_isEnumScope(CXScope{CXScope_Unexposed, Decl, I});
+  };
+  EXPECT_TRUE(C_API_SHIM(Decls[0]));
+  EXPECT_FALSE(C_API_SHIM(Decls[1]));
+  EXPECT_FALSE(C_API_SHIM(Decls[2]));
+  EXPECT_FALSE(C_API_SHIM(SubDecls[0]));
+  EXPECT_FALSE(C_API_SHIM(SubDecls[1]));
+  // Clean up resources
+  clang_interpreter_takeInterpreterAsPtr(I);
+  clang_interpreter_dispose(I);
 }
 
 TEST(ScopeReflectionTest, IsEnumConstant) {
@@ -68,17 +71,18 @@ TEST(ScopeReflectionTest, IsEnumConstant) {
   EXPECT_TRUE(Cpp::IsEnumConstant(SubDecls[1]));
 
   // C API
-  auto I = Cpp::GetInterpreter();
-  EXPECT_FALSE(
-      clang_scope_isEnumConstant(CXScope{CXScope_Unexposed, Decls[0], I}));
-  EXPECT_FALSE(
-      clang_scope_isEnumConstant(CXScope{CXScope_Unexposed, Decls[1], I}));
-  EXPECT_FALSE(
-      clang_scope_isEnumConstant(CXScope{CXScope_Unexposed, Decls[2], I}));
-  EXPECT_TRUE(
-      clang_scope_isEnumConstant(CXScope{CXScope_Unexposed, SubDecls[0], I}));
-  EXPECT_TRUE(
-      clang_scope_isEnumConstant(CXScope{CXScope_Unexposed, SubDecls[1], I}));
+  auto I = clang_createInterpreterFromPtr(Cpp::GetInterpreter());
+  auto C_API_SHIM = [&](auto Decl) {
+    return clang_scope_isEnumConstant(CXScope{CXScope_Unexposed, Decl, I});
+  };
+  EXPECT_FALSE(C_API_SHIM(Decls[0]));
+  EXPECT_FALSE(C_API_SHIM(Decls[1]));
+  EXPECT_FALSE(C_API_SHIM(Decls[2]));
+  EXPECT_TRUE(C_API_SHIM(SubDecls[0]));
+  EXPECT_TRUE(C_API_SHIM(SubDecls[1]));
+  // Clean up resources
+  clang_interpreter_takeInterpreterAsPtr(I);
+  clang_interpreter_dispose(I);
 }
 
 TEST(EnumReflectionTest, IsEnumType) {
@@ -109,19 +113,18 @@ TEST(EnumReflectionTest, IsEnumType) {
   EXPECT_TRUE(Cpp::IsEnumType(Cpp::GetVariableType(Decls[5])));
 
   // C API
-  auto I = Cpp::GetInterpreter();
-  auto VarTy2 =
-      clang_scope_getVariableType(CXScope{CXScope_Unexposed, Decls[2], I});
-  auto VarTy3 =
-      clang_scope_getVariableType(CXScope{CXScope_Unexposed, Decls[3], I});
-  auto VarTy4 =
-      clang_scope_getVariableType(CXScope{CXScope_Unexposed, Decls[4], I});
-  auto VarTy5 =
-      clang_scope_getVariableType(CXScope{CXScope_Unexposed, Decls[5], I});
-  EXPECT_TRUE(clang_qualtype_isEnumType(VarTy2));
-  EXPECT_TRUE(clang_qualtype_isEnumType(VarTy3));
-  EXPECT_TRUE(clang_qualtype_isEnumType(VarTy4));
-  EXPECT_TRUE(clang_qualtype_isEnumType(VarTy5));
+  auto I = clang_createInterpreterFromPtr(Cpp::GetInterpreter());
+  auto C_API_SHIM = [&](auto Decl) {
+    auto Ty = clang_scope_getVariableType(CXScope{CXScope_Unexposed, Decl, I});
+    return clang_qualtype_isEnumType(Ty);
+  };
+  EXPECT_TRUE(C_API_SHIM(Decls[2]));
+  EXPECT_TRUE(C_API_SHIM(Decls[3]));
+  EXPECT_TRUE(C_API_SHIM(Decls[4]));
+  EXPECT_TRUE(C_API_SHIM(Decls[5]));
+  // Clean up resources
+  clang_interpreter_takeInterpreterAsPtr(I);
+  clang_interpreter_dispose(I);
 }
 
 TEST(EnumReflectionTest, GetIntegerTypeFromEnumScope) {
@@ -178,6 +181,30 @@ TEST(EnumReflectionTest, GetIntegerTypeFromEnumScope) {
 #endif
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetIntegerTypeFromEnumScope(Decls[5])),
             "NULL TYPE");
+
+  // C API
+  auto I = clang_createInterpreterFromPtr(Cpp::GetInterpreter());
+  auto C_API_SHIM = [&](auto Decl) {
+    auto Ty = clang_scope_getIntegerTypeFromEnumScope(
+        CXScope{CXScope_Unexposed, Decl, I});
+    auto Str = clang_qualtype_getTypeAsString(Ty);
+    auto Res = std::string(clang_getCString(Str));
+    clang_disposeString(Str);
+    return Res;
+  };
+  EXPECT_EQ(C_API_SHIM(Decls[0]), "bool");
+  EXPECT_EQ(C_API_SHIM(Decls[1]), "char");
+  EXPECT_EQ(C_API_SHIM(Decls[2]), "int");
+  EXPECT_EQ(C_API_SHIM(Decls[3]), "long long");
+#ifdef _WIN32
+  EXPECT_EQ(C_API_SHIM(Decls[4]), "int");
+#else
+  EXPECT_EQ(C_API_SHIM(Decls[4]), "unsigned int");
+#endif
+  EXPECT_EQ(C_API_SHIM(Decls[5]), "NULL TYPE");
+  // Clean up resources
+  clang_interpreter_takeInterpreterAsPtr(I);
+  clang_interpreter_dispose(I);
 }
 
 TEST(EnumReflectionTest, GetIntegerTypeFromEnumType) {
@@ -241,6 +268,31 @@ TEST(EnumReflectionTest, GetIntegerTypeFromEnumType) {
 #endif
   EXPECT_EQ(get_int_type_from_enum_var(Decls[11]),
             "NULL TYPE"); // When a non Enum Type variable is used
+
+  // C API
+  auto I = clang_createInterpreterFromPtr(Cpp::GetInterpreter());
+  auto C_API_SHIM = [&](auto Decl) {
+    auto Ty = clang_scope_getVariableType(CXScope{CXScope_Unexposed, Decl, I});
+    auto IntTy = clang_qualtype_getIntegerTypeFromEnumType(Ty);
+    auto Str = clang_qualtype_getTypeAsString(IntTy);
+    auto Res = std::string(clang_getCString(Str));
+    clang_disposeString(Str);
+    return Res;
+  };
+  EXPECT_EQ(C_API_SHIM(Decls[5]), "NULL TYPE");
+  EXPECT_EQ(C_API_SHIM(Decls[6]), "bool");
+  EXPECT_EQ(C_API_SHIM(Decls[7]), "char");
+  EXPECT_EQ(C_API_SHIM(Decls[8]), "int");
+  EXPECT_EQ(C_API_SHIM(Decls[9]), "long long");
+#ifdef _WIN32
+  EXPECT_EQ(C_API_SHIM(Decls[10]), "int");
+#else
+  EXPECT_EQ(C_API_SHIM(Decls[10]), "unsigned int");
+#endif
+  EXPECT_EQ(C_API_SHIM(Decls[11]), "NULL TYPE");
+  // Clean up resources
+  clang_interpreter_takeInterpreterAsPtr(I);
+  clang_interpreter_dispose(I);
 }
 
 TEST(EnumReflectionTest, GetEnumConstants) {
@@ -285,6 +337,25 @@ TEST(EnumReflectionTest, GetEnumConstants) {
   EXPECT_EQ(Cpp::GetEnumConstants(Decls[3]).size(), 3);
   EXPECT_EQ(Cpp::GetEnumConstants(Decls[4]).size(), 4);
   EXPECT_EQ(Cpp::GetEnumConstants(Decls[5]).size(), 0);
+
+  // C API
+  auto I = clang_createInterpreterFromPtr(Cpp::GetInterpreter());
+  auto C_API_SHIM = [&](auto Decl) {
+    auto ECs =
+        clang_scope_getEnumConstants(CXScope{CXScope_Unexposed, Decl, I});
+    auto Res = ECs->Count;
+    clang_disposeScopeSet(ECs);
+    return Res;
+  };
+  EXPECT_EQ(C_API_SHIM(Decls[0]), 0);
+  EXPECT_EQ(C_API_SHIM(Decls[1]), 1);
+  EXPECT_EQ(C_API_SHIM(Decls[2]), 2);
+  EXPECT_EQ(C_API_SHIM(Decls[3]), 3);
+  EXPECT_EQ(C_API_SHIM(Decls[4]), 4);
+  EXPECT_EQ(C_API_SHIM(Decls[5]), 0);
+  // Clean up resources
+  clang_interpreter_takeInterpreterAsPtr(I);
+  clang_interpreter_dispose(I);
 }
 
 TEST(EnumReflectionTest, GetEnumConstantType) {
@@ -316,6 +387,24 @@ TEST(EnumReflectionTest, GetEnumConstantType) {
   EXPECT_EQ(get_enum_constant_type_as_str(Decls[1]), "NULL TYPE");
 
   EXPECT_EQ(get_enum_constant_type_as_str(nullptr), "NULL TYPE");
+
+  // C API
+  auto I = clang_createInterpreterFromPtr(Cpp::GetInterpreter());
+  auto C_API_SHIM = [&](auto Decl) {
+    auto ECs =
+        clang_scope_getEnumConstants(CXScope{CXScope_Unexposed, Decl, I});
+    auto Ty = clang_scope_getEnumConstantType(ECs->Scopes[0]);
+    clang_disposeScopeSet(ECs);
+    auto Str = clang_qualtype_getTypeAsString(Ty);
+    auto Res = std::string(clang_getCString(Str));
+    clang_disposeString(Str);
+    return Res;
+  };
+  EXPECT_EQ(C_API_SHIM(Decls[0]), "Enum0");
+  EXPECT_EQ(C_API_SHIM(Decls[1]), "Enum1");
+  // Clean up resources
+  clang_interpreter_takeInterpreterAsPtr(I);
+  clang_interpreter_dispose(I);
 }
 
 TEST(EnumReflectionTest, GetEnumConstantValue) {
@@ -345,6 +434,25 @@ TEST(EnumReflectionTest, GetEnumConstantValue) {
   EXPECT_EQ(Cpp::GetEnumConstantValue(EnumConstants[6]), -9);
   EXPECT_EQ(Cpp::GetEnumConstantValue(Decls[1]),
             0); // Checking value of non enum constant
+
+  // C API
+  auto I = clang_createInterpreterFromPtr(Cpp::GetInterpreter());
+  auto ECs =
+      clang_scope_getEnumConstants(CXScope{CXScope_Unexposed, Decls[0], I});
+  EXPECT_EQ(clang_scope_getEnumConstantValue(ECs->Scopes[0]), 0);
+  EXPECT_EQ(clang_scope_getEnumConstantValue(ECs->Scopes[1]), 1);
+  EXPECT_EQ(clang_scope_getEnumConstantValue(ECs->Scopes[2]), 52);
+  EXPECT_EQ(clang_scope_getEnumConstantValue(ECs->Scopes[3]), 53);
+  EXPECT_EQ(clang_scope_getEnumConstantValue(ECs->Scopes[4]), 54);
+  EXPECT_EQ(clang_scope_getEnumConstantValue(ECs->Scopes[5]), -10);
+  EXPECT_EQ(clang_scope_getEnumConstantValue(ECs->Scopes[6]), -9);
+  EXPECT_EQ(clang_scope_getEnumConstantValue(
+                CXScope{CXScope_EnumConstant, Decls[1], I}),
+            0);
+  clang_disposeScopeSet(ECs);
+  // Clean up resources
+  clang_interpreter_takeInterpreterAsPtr(I);
+  clang_interpreter_dispose(I);
 }
 
 TEST(EnumReflectionTest, GetEnums) {
@@ -413,4 +521,30 @@ TEST(EnumReflectionTest, GetEnums) {
   EXPECT_TRUE(std::find(enumNames3.begin(), enumNames3.end(), "Color") !=
               enumNames3.end());
   EXPECT_TRUE(enumNames4.empty());
+
+  // C API
+  auto I = clang_createInterpreterFromPtr(Cpp::GetInterpreter());
+  auto GS = clang_scope_getGlobalScope(I);
+  auto C_API_SHIM = [](const auto& Scope, auto EnumName) -> bool {
+    auto EMStrSet = clang_scope_getEnums(Scope);
+    if (!EMStrSet)
+      return false;
+
+    std::vector<std::string> Names;
+    for (size_t i = 0; i < EMStrSet->Count; ++i)
+      Names.push_back(clang_getCString(EMStrSet->Strings[i]));
+
+    return std::find(Names.begin(), Names.end(), std::string(EnumName)) !=
+           Names.end();
+  };
+  EXPECT_TRUE(C_API_SHIM(GS, "Color"));
+  EXPECT_TRUE(C_API_SHIM(GS, "Days"));
+  EXPECT_TRUE(C_API_SHIM(clang_scope_getScope("Animals", GS), "AnimalType"));
+  EXPECT_TRUE(C_API_SHIM(clang_scope_getScope("Animals", GS), "Months"));
+  EXPECT_TRUE(C_API_SHIM(clang_scope_getScope("myClass", GS), "Color"));
+  EXPECT_EQ(clang_scope_getEnums(clang_scope_getScope("myVariable", GS))->Count,
+            0);
+  // Clean up resources
+  clang_interpreter_takeInterpreterAsPtr(I);
+  clang_interpreter_dispose(I);
 }

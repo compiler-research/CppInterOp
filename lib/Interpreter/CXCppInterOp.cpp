@@ -66,6 +66,10 @@ TInterp_t clang_interpreter_getInterpreterAsPtr(CXInterpreter I) {
   return getInterpreter(I);
 }
 
+TInterp_t clang_interpreter_takeInterpreterAsPtr(CXInterpreter I) {
+  return static_cast<CXInterpreterImpl*>(I)->Interp.release();
+}
+
 void clang_interpreter_dispose(CXInterpreter I) {
   delete I; // NOLINT(*-owning-memory)
 }
@@ -447,6 +451,9 @@ CXQualType clang_scope_getIntegerTypeFromEnumScope(CXScope S) {
 }
 
 void clang_disposeScopeSet(CXScopeSet* set) {
+  if (!set)
+    return;
+
   delete[] set->Scopes; // NOLINT(*-owning-memory)
   delete set;           // NOLINT(*-owning-memory)
 }
@@ -454,12 +461,12 @@ void clang_disposeScopeSet(CXScopeSet* set) {
 CXScopeSet* clang_scope_getEnumConstants(CXScope S) {
   const auto* ED = llvm::dyn_cast_or_null<clang::EnumDecl>(getDecl(S));
   if (!ED)
-    return nullptr;
+    return new CXScopeSet{nullptr, 0}; // NOLINT(*-owning-memory)
 
   auto EI = ED->enumerator_begin();
   auto EE = ED->enumerator_end();
   if (EI == EE)
-    return nullptr;
+    return new CXScopeSet{nullptr, 0}; // NOLINT(*-owning-memory)
 
   auto* Set = new CXScopeSet; // NOLINT(*-owning-memory)
   Set->Count = std::distance(EI, EE);
@@ -571,12 +578,12 @@ CXString clang_scope_getQualifiedCompleteName(CXScope S) {
 CXScopeSet* clang_scope_getUsingNamespaces(CXScope S) {
   const auto* DC = llvm::dyn_cast_or_null<clang::DeclContext>(getDecl(S));
   if (!DC)
-    return nullptr;
+    return new CXScopeSet{nullptr, 0}; // NOLINT(*-owning-memory)
 
   auto DI = DC->using_directives().begin();
   auto DE = DC->using_directives().end();
   if (DI == DE)
-    return nullptr;
+    return new CXScopeSet{nullptr, 0}; // NOLINT(*-owning-memory)
 
   auto* Set = new CXScopeSet; // NOLINT(*-owning-memory)
   Set->Count = std::distance(DI, DE);
@@ -735,11 +742,11 @@ int64_t clang_scope_getBaseClassOffset(CXScope derived, CXScope base) {
 
 CXScopeSet* clang_scope_getClassMethods(CXScope S) {
   if (kind(S) == CXScope_Invalid)
-    return nullptr;
+    return new CXScopeSet{nullptr, 0}; // NOLINT(*-owning-memory)
 
   const auto US = clang_scope_getUnderlyingScope(S);
   if (kind(US) == CXScope_Invalid || !clang_scope_isClass(US))
-    return nullptr;
+    return new CXScopeSet{nullptr, 0}; // NOLINT(*-owning-memory)
 
   auto* CXXRD = llvm::dyn_cast<clang::CXXRecordDecl>(getDecl(US));
 
@@ -773,11 +780,11 @@ CXScopeSet* clang_scope_getClassMethods(CXScope S) {
 
 CXScopeSet* clang_scope_getFunctionTemplatedDecls(CXScope S) {
   if (kind(S) == CXScope_Invalid)
-    return nullptr;
+    return new CXScopeSet{nullptr, 0}; // NOLINT(*-owning-memory)
 
   const auto US = clang_scope_getUnderlyingScope(S);
   if (kind(US) == CXScope_Invalid || !clang_scope_isClass(US))
-    return nullptr;
+    return new CXScopeSet{nullptr, 0}; // NOLINT(*-owning-memory)
 
   auto* CXXRD = llvm::dyn_cast<clang::CXXRecordDecl>(getDecl(US));
 
@@ -845,7 +852,7 @@ CXScopeSet* clang_scope_getFunctionsUsingName(CXScope S, const char* name) {
   const auto* D = getDecl(clang_scope_getUnderlyingScope(S));
 
   if (!D || !name)
-    return nullptr;
+    return new CXScopeSet{nullptr, 0}; // NOLINT(*-owning-memory)
 
   const llvm::StringRef Name(name);
   const auto* I = getInterpreter(S);
@@ -858,7 +865,7 @@ CXScopeSet* clang_scope_getFunctionsUsingName(CXScope S, const char* name) {
   Cpp::Cpp_utils::Lookup::Named(&SM, R, clang::Decl::castToDeclContext(D));
 
   if (R.empty())
-    return nullptr;
+    return new CXScopeSet{nullptr, 0}; // NOLINT(*-owning-memory)
 
   R.resolveKind();
 
@@ -995,7 +1002,7 @@ CXScopeSet* clang_scope_getClassTemplatedMethods(const char* name,
   const auto* D = getDecl(clang_scope_getUnderlyingScope(parent));
 
   if (!D || !name)
-    return nullptr;
+    return new CXScopeSet{nullptr, 0}; // NOLINT(*-owning-memory)
 
   const llvm::StringRef Name(name);
   const auto* I = getInterpreter(parent);
@@ -1008,7 +1015,7 @@ CXScopeSet* clang_scope_getClassTemplatedMethods(const char* name,
   Cpp::Cpp_utils::Lookup::Named(&SM, R, clang::Decl::castToDeclContext(D));
 
   if (R.empty())
-    return nullptr;
+    return new CXScopeSet{nullptr, 0}; // NOLINT(*-owning-memory)
 
   R.resolveKind();
 
@@ -1136,12 +1143,12 @@ CXString clang_scope_getFunctionArgName(CXScope func, size_t param_index) {
 CXScopeSet* clang_scope_getDatamembers(CXScope S) {
   const auto* CXXRD = llvm::dyn_cast_or_null<clang::CXXRecordDecl>(getDecl(S));
   if (!CXXRD)
-    return nullptr;
+    return new CXScopeSet{nullptr, 0}; // NOLINT(*-owning-memory)
 
   auto FI = CXXRD->field_begin();
   auto FE = CXXRD->field_end();
   if (FI == FE)
-    return nullptr;
+    return new CXScopeSet{nullptr, 0}; // NOLINT(*-owning-memory)
 
   auto* Set = new CXScopeSet; // NOLINT(*-owning-memory)
   Set->Count = std::distance(FI, FE);
