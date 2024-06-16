@@ -543,11 +543,12 @@ CXString clang_scope_getCompleteName(CXScope S) {
 
 CXString clang_scope_getQualifiedName(CXScope S) {
   auto* D = getDecl(S);
-  if (const auto* ND = llvm::dyn_cast_or_null<clang::NamedDecl>(D))
-    return makeCXString(ND->getQualifiedNameAsString());
 
   if (llvm::isa_and_nonnull<clang::TranslationUnitDecl>(D))
     return makeCXString("");
+
+  if (const auto* ND = llvm::dyn_cast_or_null<clang::NamedDecl>(D))
+    return makeCXString(ND->getQualifiedNameAsString());
 
   return makeCXString("<unnamed>");
 }
@@ -606,12 +607,12 @@ CXScope clang_scope_getGlobalScope(CXInterpreter I) {
 CXScope clang_scope_getUnderlyingScope(CXScope S) {
   const auto* TND = llvm::dyn_cast_or_null<clang::TypedefNameDecl>(getDecl(S));
   if (!TND)
-    return makeCXScope(getMeta(S), nullptr, CXScope_Invalid);
+    return S;
 
   const clang::QualType QT = TND->getUnderlyingType();
   auto* D = Cpp::GetScopeFromType(QT.getAsOpaquePtr());
   if (!D)
-    return makeCXScope(getMeta(S), nullptr, CXScope_Invalid);
+    return S;
 
   return makeCXScope(getMeta(S), static_cast<clang::Decl*>(D));
 }
