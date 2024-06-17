@@ -1,8 +1,10 @@
 #include "Utils.h"
 
+#include "clang-c/CXCppInterOp.h"
+
 #include "clang/AST/ASTContext.h"
-#include "clang/Interpreter/CppInterOp.h"
 #include "clang/Frontend/CompilerInstance.h"
+#include "clang/Interpreter/CppInterOp.h"
 #include "clang/Sema/Sema.h"
 
 #include "gtest/gtest.h"
@@ -12,7 +14,7 @@ using namespace llvm;
 using namespace clang;
 
 TEST(TypeReflectionTest, GetTypeAsString) {
-  std::vector<Decl *> Decls;
+  std::vector<Decl*> Decls;
   std::string code = R"(
     namespace N {
     class C {};
@@ -40,20 +42,38 @@ TEST(TypeReflectionTest, GetTypeAsString) {
   QualType QT5 = llvm::dyn_cast<VarDecl>(Decls[5])->getType();
   QualType QT6 = llvm::dyn_cast<VarDecl>(Decls[6])->getType();
   QualType QT7 = llvm::dyn_cast<VarDecl>(Decls[7])->getType();
-  EXPECT_EQ(Cpp::GetTypeAsString(QT1.getAsOpaquePtr()),
-          "N::C");
-  EXPECT_EQ(Cpp::GetTypeAsString(QT2.getAsOpaquePtr()),
-          "N::S");
+  EXPECT_EQ(Cpp::GetTypeAsString(QT1.getAsOpaquePtr()), "N::C");
+  EXPECT_EQ(Cpp::GetTypeAsString(QT2.getAsOpaquePtr()), "N::S");
   EXPECT_EQ(Cpp::GetTypeAsString(QT3.getAsOpaquePtr()), "int");
   EXPECT_EQ(Cpp::GetTypeAsString(QT4.getAsOpaquePtr()), "char");
   EXPECT_EQ(Cpp::GetTypeAsString(QT5.getAsOpaquePtr()), "char &");
   EXPECT_EQ(Cpp::GetTypeAsString(QT6.getAsOpaquePtr()), "const char *");
   EXPECT_EQ(Cpp::GetTypeAsString(QT7.getAsOpaquePtr()), "char[4]");
+
+  // C API
+  auto I = clang_createInterpreterFromPtr(Cpp::GetInterpreter());
+  auto C_API_SHIM = [&](auto Type) {
+    auto Ty = CXQualType{CXType_Unexposed, Type.getAsOpaquePtr(), I};
+    auto Str = clang_qualtype_getTypeAsString(Ty);
+    auto Res = std::string(clang_getCString(Str));
+    clang_disposeString(Str);
+    return Res;
+  };
+  EXPECT_EQ(C_API_SHIM(QT1), "N::C");
+  EXPECT_EQ(C_API_SHIM(QT2), "N::S");
+  EXPECT_EQ(C_API_SHIM(QT3), "int");
+  EXPECT_EQ(C_API_SHIM(QT4), "char");
+  EXPECT_EQ(C_API_SHIM(QT5), "char &");
+  EXPECT_EQ(C_API_SHIM(QT6), "const char *");
+  EXPECT_EQ(C_API_SHIM(QT7), "char[4]");
+  // Clean up resources
+  clang_interpreter_takeInterpreterAsPtr(I);
+  clang_interpreter_dispose(I);
 }
 
 TEST(TypeReflectionTest, GetSizeOfType) {
-  std::vector<Decl *> Decls;
-  std::string code =  R"(
+  std::vector<Decl*> Decls;
+  std::string code = R"(
     struct S {
       int a;
       double b;
@@ -75,11 +95,26 @@ TEST(TypeReflectionTest, GetSizeOfType) {
   EXPECT_EQ(Cpp::GetSizeOfType(Cpp::GetVariableType(Decls[4])), 16);
   EXPECT_EQ(Cpp::GetSizeOfType(Cpp::GetTypeFromScope(Decls[5])), 0);
   EXPECT_EQ(Cpp::GetSizeOfType(Cpp::GetVariableType(Decls[6])), 8);
+
+  // C API
+  auto I = clang_createInterpreterFromPtr(Cpp::GetInterpreter());
+  auto C_API_SHIM = [&](auto Decl) {
+    auto Ty = clang_scope_getVariableType(CXScope{CXScope_Unexposed, Decl, I});
+    return clang_qualtype_getSizeOfType(Ty);
+  };
+  EXPECT_EQ(C_API_SHIM(Decls[1]), 1);
+  EXPECT_EQ(C_API_SHIM(Decls[2]), 4);
+  EXPECT_EQ(C_API_SHIM(Decls[3]), 8);
+  EXPECT_EQ(C_API_SHIM(Decls[4]), 16);
+  EXPECT_EQ(C_API_SHIM(Decls[6]), 8);
+  // Clean up resources
+  clang_interpreter_takeInterpreterAsPtr(I);
+  clang_interpreter_dispose(I);
 }
 
 TEST(TypeReflectionTest, GetCanonicalType) {
-  std::vector<Decl *> Decls;
-  std::string code =  R"(
+  std::vector<Decl*> Decls;
+  std::string code = R"(
     typedef int I;
     typedef double D;
 
@@ -98,12 +133,29 @@ TEST(TypeReflectionTest, GetCanonicalType) {
   EXPECT_EQ(Cpp::GetTypeAsString(D3), "D");
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetCanonicalType(D3)), "double");
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetCanonicalType(D4)), "NULL TYPE");
+
+  // C API
+  auto I = clang_createInterpreterFromPtr(Cpp::GetInterpreter());
+  auto C_API_SHIM = [&](auto Type) {
+    auto Ty =
+        clang_qualtype_getCanonicalType(CXQualType{CXType_Unexposed, Type, I});
+    auto Str = clang_qualtype_getTypeAsString(Ty);
+    auto Res = std::string(clang_getCString(Str));
+    clang_disposeString(Str);
+    return Res;
+  };
+  EXPECT_EQ(C_API_SHIM(D2), "int");
+  EXPECT_EQ(C_API_SHIM(D3), "double");
+  EXPECT_EQ(C_API_SHIM(D4), "NULL TYPE");
+  // Clean up resources
+  clang_interpreter_takeInterpreterAsPtr(I);
+  clang_interpreter_dispose(I);
 }
 
 TEST(TypeReflectionTest, GetType) {
   Cpp::CreateInterpreter();
 
-  std::string code =  R"(
+  std::string code = R"(
     class A {};
     )";
 
@@ -112,21 +164,53 @@ TEST(TypeReflectionTest, GetType) {
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetType("int")), "int");
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetType("double")), "double");
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetType("A")), "A");
-  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetType("unsigned char")), "unsigned char");
-  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetType("signed char")),"signed char");
-  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetType("unsigned short")), "unsigned short");
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetType("unsigned char")),
+            "unsigned char");
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetType("signed char")), "signed char");
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetType("unsigned short")),
+            "unsigned short");
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetType("unsigned int")), "unsigned int");
-  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetType("unsigned long")),"unsigned long");
-  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetType("unsigned long long")), "unsigned long long");
-  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetType("signed short")),"short");
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetType("unsigned long")),
+            "unsigned long");
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetType("unsigned long long")),
+            "unsigned long long");
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetType("signed short")), "short");
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetType("signed int")), "int");
-  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetType("signed long")),"long");
-  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetType("signed long long")),"long long");
-  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetType("struct")),"NULL TYPE");
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetType("signed long")), "long");
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetType("signed long long")),
+            "long long");
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetType("struct")), "NULL TYPE");
+
+  // C API
+  auto I = clang_createInterpreterFromPtr(Cpp::GetInterpreter());
+  auto C_API_SHIM = [&](const char* name) {
+    auto Ty = clang_qualtype_getType(I, name);
+    auto Str = clang_qualtype_getTypeAsString(Ty);
+    auto Res = std::string(clang_getCString(Str));
+    clang_disposeString(Str);
+    return Res;
+  };
+  EXPECT_EQ(C_API_SHIM("int"), "int");
+  EXPECT_EQ(C_API_SHIM("double"), "double");
+  EXPECT_EQ(C_API_SHIM("A"), "A");
+  EXPECT_EQ(C_API_SHIM("unsigned char"), "unsigned char");
+  EXPECT_EQ(C_API_SHIM("signed char"), "signed char");
+  EXPECT_EQ(C_API_SHIM("unsigned short"), "unsigned short");
+  EXPECT_EQ(C_API_SHIM("unsigned int"), "unsigned int");
+  EXPECT_EQ(C_API_SHIM("unsigned long"), "unsigned long");
+  EXPECT_EQ(C_API_SHIM("unsigned long long"), "unsigned long long");
+  EXPECT_EQ(C_API_SHIM("signed short"), "short");
+  EXPECT_EQ(C_API_SHIM("signed int"), "int");
+  EXPECT_EQ(C_API_SHIM("signed long"), "long");
+  EXPECT_EQ(C_API_SHIM("signed long long"), "long long");
+  EXPECT_EQ(C_API_SHIM("struct"), "NULL TYPE");
+  // Clean up resources
+  clang_interpreter_takeInterpreterAsPtr(I);
+  clang_interpreter_dispose(I);
 }
 
 TEST(TypeReflectionTest, IsRecordType) {
-  std::vector<Decl *> Decls;
+  std::vector<Decl*> Decls;
 
   std::string code = R"(
     const int var0 = 0;
@@ -161,7 +245,7 @@ TEST(TypeReflectionTest, IsRecordType) {
     )";
   GetAllTopLevelDecls(code, Decls);
 
-  auto is_var_of_record_ty = [] (Decl *D) {
+  auto is_var_of_record_ty = [](Decl* D) {
     return Cpp::IsRecordType(Cpp::GetVariableType(D));
   };
 
@@ -190,10 +274,44 @@ TEST(TypeReflectionTest, IsRecordType) {
   EXPECT_FALSE(is_var_of_record_ty(Decls[22]));
   EXPECT_FALSE(is_var_of_record_ty(Decls[23]));
   EXPECT_FALSE(is_var_of_record_ty(Decls[24]));
+
+  // C API
+  auto I = clang_createInterpreterFromPtr(Cpp::GetInterpreter());
+  auto C_API_SHIM = [&](auto Decl) {
+    auto Ty = clang_scope_getVariableType(CXScope{CXScope_Unexposed, Decl, I});
+    return clang_scope_isRecordType(Ty);
+  };
+  EXPECT_FALSE(C_API_SHIM(Decls[0]));
+  EXPECT_FALSE(C_API_SHIM(Decls[1]));
+  EXPECT_FALSE(C_API_SHIM(Decls[2]));
+  EXPECT_FALSE(C_API_SHIM(Decls[3]));
+  EXPECT_FALSE(C_API_SHIM(Decls[4]));
+  EXPECT_FALSE(C_API_SHIM(Decls[5]));
+  EXPECT_FALSE(C_API_SHIM(Decls[6]));
+  EXPECT_FALSE(C_API_SHIM(Decls[7]));
+  EXPECT_FALSE(C_API_SHIM(Decls[8]));
+  EXPECT_FALSE(C_API_SHIM(Decls[9]));
+  EXPECT_FALSE(C_API_SHIM(Decls[10]));
+  EXPECT_FALSE(C_API_SHIM(Decls[11]));
+  EXPECT_TRUE(C_API_SHIM(Decls[13]));
+  EXPECT_FALSE(C_API_SHIM(Decls[14]));
+  EXPECT_FALSE(C_API_SHIM(Decls[15]));
+  EXPECT_FALSE(C_API_SHIM(Decls[16]));
+  EXPECT_FALSE(C_API_SHIM(Decls[17]));
+  EXPECT_FALSE(C_API_SHIM(Decls[18]));
+  EXPECT_TRUE(C_API_SHIM(Decls[19]));
+  EXPECT_FALSE(C_API_SHIM(Decls[20]));
+  EXPECT_FALSE(C_API_SHIM(Decls[21]));
+  EXPECT_FALSE(C_API_SHIM(Decls[22]));
+  EXPECT_FALSE(C_API_SHIM(Decls[23]));
+  EXPECT_FALSE(C_API_SHIM(Decls[24]));
+  // Clean up resources
+  clang_interpreter_takeInterpreterAsPtr(I);
+  clang_interpreter_dispose(I);
 }
 
 TEST(TypeReflectionTest, GetUnderlyingType) {
-  std::vector<Decl *> Decls;
+  std::vector<Decl*> Decls;
 
   std::string code = R"(
     const int var0 = 0;
@@ -234,8 +352,9 @@ TEST(TypeReflectionTest, GetUnderlyingType) {
     E evar0 = e1;
     )";
   GetAllTopLevelDecls(code, Decls);
-  auto get_underly_var_type_as_str = [] (Decl *D) {
-    return Cpp::GetTypeAsString(Cpp::GetUnderlyingType(Cpp::GetVariableType(D)));
+  auto get_underly_var_type_as_str = [](Decl* D) {
+    return Cpp::GetTypeAsString(
+        Cpp::GetUnderlyingType(Cpp::GetVariableType(D)));
   };
   EXPECT_EQ(get_underly_var_type_as_str(Decls[0]), "int");
   EXPECT_EQ(get_underly_var_type_as_str(Decls[1]), "int");
@@ -268,10 +387,55 @@ TEST(TypeReflectionTest, GetUnderlyingType) {
   EXPECT_EQ(get_underly_var_type_as_str(Decls[28]), "C");
 
   EXPECT_EQ(get_underly_var_type_as_str(Decls[30]), "E");
+
+  // C API
+  auto I = clang_createInterpreterFromPtr(Cpp::GetInterpreter());
+  auto C_API_SHIM = [&](auto Decl) {
+    auto Ty = clang_scope_getVariableType(CXScope{CXScope_Unexposed, Decl, I});
+    auto Str =
+        clang_qualtype_getTypeAsString(clang_qualtype_getUnderlyingType(Ty));
+    auto Res = std::string(clang_getCString(Str));
+    clang_disposeString(Str);
+    return Res;
+  };
+  EXPECT_EQ(C_API_SHIM(Decls[0]), "int");
+  EXPECT_EQ(C_API_SHIM(Decls[1]), "int");
+  EXPECT_EQ(C_API_SHIM(Decls[2]), "int");
+  EXPECT_EQ(C_API_SHIM(Decls[3]), "int");
+  EXPECT_EQ(C_API_SHIM(Decls[4]), "int");
+  EXPECT_EQ(C_API_SHIM(Decls[5]), "int");
+  EXPECT_EQ(C_API_SHIM(Decls[6]), "int");
+  EXPECT_EQ(C_API_SHIM(Decls[7]), "int");
+  EXPECT_EQ(C_API_SHIM(Decls[8]), "int");
+  EXPECT_EQ(C_API_SHIM(Decls[9]), "int");
+  EXPECT_EQ(C_API_SHIM(Decls[10]), "int");
+  EXPECT_EQ(C_API_SHIM(Decls[11]), "int");
+  EXPECT_EQ(C_API_SHIM(Decls[12]), "int");
+  EXPECT_EQ(C_API_SHIM(Decls[13]), "int");
+
+  EXPECT_EQ(C_API_SHIM(Decls[15]), "C");
+  EXPECT_EQ(C_API_SHIM(Decls[16]), "C");
+  EXPECT_EQ(C_API_SHIM(Decls[17]), "C");
+  EXPECT_EQ(C_API_SHIM(Decls[18]), "C");
+  EXPECT_EQ(C_API_SHIM(Decls[19]), "C");
+  EXPECT_EQ(C_API_SHIM(Decls[20]), "C");
+  EXPECT_EQ(C_API_SHIM(Decls[21]), "C");
+  EXPECT_EQ(C_API_SHIM(Decls[22]), "C");
+  EXPECT_EQ(C_API_SHIM(Decls[23]), "C");
+  EXPECT_EQ(C_API_SHIM(Decls[24]), "C");
+  EXPECT_EQ(C_API_SHIM(Decls[25]), "C");
+  EXPECT_EQ(C_API_SHIM(Decls[26]), "C");
+  EXPECT_EQ(C_API_SHIM(Decls[27]), "C");
+  EXPECT_EQ(C_API_SHIM(Decls[28]), "C");
+
+  EXPECT_EQ(C_API_SHIM(Decls[30]), "E");
+  // Clean up resources
+  clang_interpreter_takeInterpreterAsPtr(I);
+  clang_interpreter_dispose(I);
 }
 
 TEST(TypeReflectionTest, IsUnderlyingTypeRecordType) {
-  std::vector<Decl *> Decls;
+  std::vector<Decl*> Decls;
 
   std::string code = R"(
     const int var0 = 0;
@@ -306,7 +470,7 @@ TEST(TypeReflectionTest, IsUnderlyingTypeRecordType) {
     )";
   GetAllTopLevelDecls(code, Decls);
 
-  auto is_var_of_underly_record_ty = [] (Decl *D) {
+  auto is_var_of_underly_record_ty = [](Decl* D) {
     return Cpp::IsRecordType(Cpp::GetUnderlyingType(Cpp::GetVariableType(D)));
   };
 
@@ -340,7 +504,7 @@ TEST(TypeReflectionTest, IsUnderlyingTypeRecordType) {
 TEST(TypeReflectionTest, GetComplexType) {
   Cpp::CreateInterpreter();
 
-  auto get_complex_type_as_string = [&](const std::string &element_type) {
+  auto get_complex_type_as_string = [&](const std::string& element_type) {
     auto ElementQT = Cpp::GetType(element_type);
     auto ComplexQT = Cpp::GetComplexType(ElementQT);
     return Cpp::GetTypeAsString(Cpp::GetCanonicalType(ComplexQT));
@@ -352,14 +516,14 @@ TEST(TypeReflectionTest, GetComplexType) {
 }
 
 TEST(TypeReflectionTest, GetTypeFromScope) {
-  std::vector<Decl *> Decls;
+  std::vector<Decl*> Decls;
 
-  std::string code =  R"(
+  std::string code = R"(
     class C {};
     struct S {};
     int a = 10;
     )";
-  
+
   GetAllTopLevelDecls(code, Decls);
 
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetTypeFromScope(Decls[0])), "C");
@@ -369,7 +533,7 @@ TEST(TypeReflectionTest, GetTypeFromScope) {
 }
 
 TEST(TypeReflectionTest, IsTypeDerivedFrom) {
-  std::vector<Decl *> Decls;
+  std::vector<Decl*> Decls;
 
   std::string code = R"(
       class A {};
@@ -406,7 +570,7 @@ TEST(TypeReflectionTest, IsTypeDerivedFrom) {
 }
 
 TEST(TypeReflectionTest, GetDimensions) {
-  std::vector<Decl *> Decls, SubDecls;
+  std::vector<Decl*> Decls, SubDecls;
 
   std::string code = R"(
       int a;
@@ -438,8 +602,7 @@ TEST(TypeReflectionTest, GetDimensions) {
   dims = Cpp::GetDimensions(Cpp::GetVariableType(Decls[0]));
   truth_dims = std::vector<long int>({});
   EXPECT_EQ(dims.size(), truth_dims.size());
-  for (unsigned i = 0; i < truth_dims.size() && i < dims.size(); i++)
-  {
+  for (unsigned i = 0; i < truth_dims.size() && i < dims.size(); i++) {
     EXPECT_EQ(dims[i], truth_dims[i]);
   }
 
@@ -447,17 +610,15 @@ TEST(TypeReflectionTest, GetDimensions) {
   dims = Cpp::GetDimensions(Cpp::GetVariableType(Decls[1]));
   truth_dims = std::vector<long int>({1});
   EXPECT_EQ(dims.size(), truth_dims.size());
-  for (unsigned i = 0; i < truth_dims.size() && i < dims.size(); i++)
-  {
+  for (unsigned i = 0; i < truth_dims.size() && i < dims.size(); i++) {
     EXPECT_EQ(dims[i], truth_dims[i]);
   }
-  
+
   // Variable c
   dims = Cpp::GetDimensions(Cpp::GetVariableType(Decls[2]));
   truth_dims = std::vector<long int>({1, 2});
   EXPECT_EQ(dims.size(), truth_dims.size());
-  for (unsigned i = 0; i < truth_dims.size() && i < dims.size(); i++)
-  {
+  for (unsigned i = 0; i < truth_dims.size() && i < dims.size(); i++) {
     EXPECT_EQ(dims[i], truth_dims[i]);
   }
 
@@ -465,8 +626,7 @@ TEST(TypeReflectionTest, GetDimensions) {
   dims = Cpp::GetDimensions(Cpp::GetVariableType(Decls[3]));
   truth_dims = std::vector<long int>({1, 2, 3});
   EXPECT_EQ(dims.size(), truth_dims.size());
-  for (unsigned i = 0; i < truth_dims.size() && i < dims.size(); i++)
-  {
+  for (unsigned i = 0; i < truth_dims.size() && i < dims.size(); i++) {
     EXPECT_EQ(dims[i], truth_dims[i]);
   }
 
@@ -475,8 +635,7 @@ TEST(TypeReflectionTest, GetDimensions) {
   dims = Cpp::GetDimensions(Cpp::GetVariableType(SubDecls[1]));
   truth_dims = std::vector<long int>({Cpp::DimensionValue::UNKNOWN_SIZE});
   EXPECT_EQ(dims.size(), truth_dims.size());
-  for (unsigned i = 0; i < truth_dims.size() && i < dims.size(); i++)
-  {
+  for (unsigned i = 0; i < truth_dims.size() && i < dims.size(); i++) {
     EXPECT_EQ(dims[i], truth_dims[i]);
   }
 
@@ -485,8 +644,7 @@ TEST(TypeReflectionTest, GetDimensions) {
   dims = Cpp::GetDimensions(Cpp::GetVariableType(SubDecls[3]));
   truth_dims = std::vector<long int>({Cpp::DimensionValue::UNKNOWN_SIZE, 3, 4});
   EXPECT_EQ(dims.size(), truth_dims.size());
-  for (unsigned i = 0; i < truth_dims.size() && i < dims.size(); i++)
-  {
+  for (unsigned i = 0; i < truth_dims.size() && i < dims.size(); i++) {
     EXPECT_EQ(dims[i], truth_dims[i]);
   }
 
@@ -494,14 +652,13 @@ TEST(TypeReflectionTest, GetDimensions) {
   dims = Cpp::GetDimensions(Cpp::GetVariableType(Decls[7]));
   truth_dims = std::vector<long int>({6});
   EXPECT_EQ(dims.size(), truth_dims.size());
-  for (unsigned i = 0; i < truth_dims.size() && i < dims.size(); i++)
-  {
+  for (unsigned i = 0; i < truth_dims.size() && i < dims.size(); i++) {
     EXPECT_EQ(dims[i], truth_dims[i]);
   }
 }
 
 TEST(TypeReflectionTest, IsPODType) {
-  std::vector<Decl *> Decls;
+  std::vector<Decl*> Decls;
 
   std::string code = R"(
     struct A {};
@@ -548,11 +705,11 @@ TEST(TypeReflectionTest, IsSmartPtrType) {
     C object();
   )");
 
-  auto get_type_from_varname = [&](const std::string &varname) {
+  auto get_type_from_varname = [&](const std::string& varname) {
     return Cpp::GetVariableType(Cpp::GetNamed(varname));
   };
 
-  //EXPECT_TRUE(Cpp::IsSmartPtrType(get_type_from_varname("smart_ptr1")));
+  // EXPECT_TRUE(Cpp::IsSmartPtrType(get_type_from_varname("smart_ptr1")));
   EXPECT_TRUE(Cpp::IsSmartPtrType(get_type_from_varname("smart_ptr2")));
   EXPECT_TRUE(Cpp::IsSmartPtrType(get_type_from_varname("smart_ptr3")));
   EXPECT_TRUE(Cpp::IsSmartPtrType(get_type_from_varname("smart_ptr4")));
