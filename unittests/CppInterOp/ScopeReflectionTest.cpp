@@ -963,6 +963,21 @@ TEST(ScopeReflectionTest, GetNumBases) {
   // FIXME: Perhaps we should have a special number or error out as this
   // operation is not well defined if a class has no definition.
   EXPECT_EQ(Cpp::GetNumBases(Decls[5]), 0);
+
+  // C API
+  auto I = clang_createInterpreterFromPtr(Cpp::GetInterpreter());
+  auto C_API_SHIM = [&](auto Decl) {
+    return clang_scope_getNumBases(CXScope{CXScope_Unexposed, Decl, I});
+  };
+  EXPECT_EQ(C_API_SHIM(Decls[0]), 0);
+  EXPECT_EQ(C_API_SHIM(Decls[1]), 1);
+  EXPECT_EQ(C_API_SHIM(Decls[2]), 1);
+  EXPECT_EQ(C_API_SHIM(Decls[3]), 2);
+  EXPECT_EQ(C_API_SHIM(Decls[4]), 1);
+  EXPECT_EQ(C_API_SHIM(Decls[5]), 0);
+  // Clean up resources
+  clang_interpreter_takeInterpreterAsPtr(I);
+  clang_interpreter_dispose(I);
 }
 
 TEST(ScopeReflectionTest, GetBaseClass) {
@@ -1012,6 +1027,40 @@ TEST(ScopeReflectionTest, GetBaseClass) {
   auto* TC3_A_Decl = Cpp::GetScopeFromType(VT1);
   auto* A_class = Cpp::GetBaseClass(TC3_A_Decl, 0);
   EXPECT_EQ(Cpp::GetCompleteName(A_class), "A");
+
+  // C API
+  auto I = clang_createInterpreterFromPtr(Cpp::GetInterpreter());
+  auto C_API_SHIM = [&](auto Decl, int i) {
+    auto Scope =
+        clang_scope_getBaseClass(CXScope{CXScope_Unexposed, Decl, I}, i);
+    auto Str = clang_scope_getQualifiedName(Scope);
+    auto Res = std::string(clang_getCString(Str));
+    clang_disposeString(Str);
+    return Res;
+  };
+  EXPECT_EQ(C_API_SHIM(Decls[1], 0), "A");
+  EXPECT_EQ(C_API_SHIM(Decls[2], 0), "A");
+  EXPECT_EQ(C_API_SHIM(Decls[3], 0), "B");
+  EXPECT_EQ(C_API_SHIM(Decls[3], 1), "C");
+  EXPECT_EQ(C_API_SHIM(Decls[4], 0), "D");
+  EXPECT_EQ(C_API_SHIM(Decls[10], 0), "<unnamed>");
+
+  auto C_API_SHIM2 = [&](const char* name) {
+    auto GS = clang_scope_getGlobalScope(I);
+    auto VD = clang_scope_getNamed(name, GS);
+    auto VT = clang_scope_getVariableType(VD);
+    auto TC2_A_Decl = clang_scope_getScopeFromType(VT);
+    auto TC1_A_Decl = clang_scope_getBaseClass(TC2_A_Decl, 0);
+    auto Str = clang_scope_getCompleteName(TC1_A_Decl);
+    auto Res = std::string(clang_getCString(Str));
+    clang_disposeString(Str);
+    return Res;
+  };
+  EXPECT_EQ(C_API_SHIM2("var"), "TC1<A>");
+  EXPECT_EQ(C_API_SHIM2("var1"), "A");
+  // Clean up resources
+  clang_interpreter_takeInterpreterAsPtr(I);
+  clang_interpreter_dispose(I);
 }
 
 TEST(ScopeReflectionTest, IsSubclass) {
@@ -1054,6 +1103,38 @@ TEST(ScopeReflectionTest, IsSubclass) {
   EXPECT_TRUE(Cpp::IsSubclass(Decls[4], Decls[4]));
   EXPECT_FALSE(Cpp::IsSubclass(Decls[4], Decls[5]));
   EXPECT_FALSE(Cpp::IsSubclass(Decls[4], nullptr));
+
+  // C API
+  auto I = clang_createInterpreterFromPtr(Cpp::GetInterpreter());
+  auto C_API_SHIM = [&](auto D, auto B) {
+    return clang_scope_isSubclass(CXScope{CXScope_Unexposed, D, I},
+                                  CXScope{CXScope_Unexposed, B, I});
+  };
+  EXPECT_FALSE(C_API_SHIM(Decls[0], Decls[1]));
+  EXPECT_TRUE(C_API_SHIM(Decls[1], Decls[1]));
+  EXPECT_FALSE(C_API_SHIM(Decls[2], Decls[1]));
+  EXPECT_TRUE(C_API_SHIM(Decls[3], Decls[1]));
+  EXPECT_TRUE(C_API_SHIM(Decls[4], Decls[1]));
+  EXPECT_FALSE(C_API_SHIM(Decls[0], Decls[2]));
+  EXPECT_FALSE(C_API_SHIM(Decls[1], Decls[2]));
+  EXPECT_TRUE(C_API_SHIM(Decls[2], Decls[2]));
+  EXPECT_TRUE(C_API_SHIM(Decls[3], Decls[2]));
+  EXPECT_TRUE(C_API_SHIM(Decls[4], Decls[2]));
+  EXPECT_FALSE(C_API_SHIM(Decls[0], Decls[3]));
+  EXPECT_FALSE(C_API_SHIM(Decls[1], Decls[3]));
+  EXPECT_FALSE(C_API_SHIM(Decls[2], Decls[3]));
+  EXPECT_TRUE(C_API_SHIM(Decls[3], Decls[3]));
+  EXPECT_TRUE(C_API_SHIM(Decls[4], Decls[3]));
+  EXPECT_FALSE(C_API_SHIM(Decls[0], Decls[4]));
+  EXPECT_FALSE(C_API_SHIM(Decls[1], Decls[4]));
+  EXPECT_FALSE(C_API_SHIM(Decls[2], Decls[4]));
+  EXPECT_FALSE(C_API_SHIM(Decls[3], Decls[4]));
+  EXPECT_TRUE(C_API_SHIM(Decls[4], Decls[4]));
+  EXPECT_FALSE(C_API_SHIM(Decls[4], Decls[5]));
+  EXPECT_FALSE(C_API_SHIM(Decls[4], nullptr));
+  // Clean up resources
+  clang_interpreter_takeInterpreterAsPtr(I);
+  clang_interpreter_dispose(I);
 }
 
 TEST(ScopeReflectionTest, GetBaseClassOffset) {
@@ -1113,6 +1194,24 @@ TEST(ScopeReflectionTest, GetBaseClassOffset) {
   auto* g = new G();
   EXPECT_EQ(Cpp::GetBaseClassOffset(Decls[6], Decls[0]),
             (char*)(A*)g - (char*)g);
+
+  // C API
+  auto I = clang_createInterpreterFromPtr(Cpp::GetInterpreter());
+  auto C_API_SHIM = [&](auto D, auto B) {
+    return clang_scope_getBaseClassOffset(CXScope{CXScope_Unexposed, D, I},
+                                          CXScope{CXScope_Unexposed, B, I});
+  };
+  EXPECT_EQ(C_API_SHIM(Decls[2], Decls[0]), (char*)(A*)c - (char*)c);
+  EXPECT_EQ(C_API_SHIM(Decls[2], Decls[1]), (char*)(B*)c - (char*)c);
+  EXPECT_EQ(C_API_SHIM(Decls[3], Decls[0]), (char*)(A*)d - (char*)d);
+  EXPECT_EQ(C_API_SHIM(Decls[3], Decls[1]), (char*)(B*)d - (char*)d);
+  EXPECT_EQ(C_API_SHIM(Decls[3], Decls[2]), (char*)(C*)d - (char*)d);
+  EXPECT_EQ(C_API_SHIM(Decls[4], Decls[0]), (char*)(A*)e - (char*)e);
+  EXPECT_EQ(C_API_SHIM(Decls[4], Decls[1]), (char*)(B*)e - (char*)e);
+  EXPECT_EQ(C_API_SHIM(Decls[6], Decls[0]), (char*)(A*)g - (char*)g);
+  // Clean up resources
+  clang_interpreter_takeInterpreterAsPtr(I);
+  clang_interpreter_dispose(I);
 }
 
 TEST(ScopeReflectionTest, GetAllCppNames) {
@@ -1173,6 +1272,19 @@ TEST(ScopeReflectionTest, InstantiateNNTPClassTemplate) {
   std::vector<Cpp::TemplateArgInfo> args1 = {{IntTy, "5"}};
   EXPECT_TRUE(Cpp::InstantiateTemplate(Decls[0], args1.data(),
                                        /*type_size*/ args1.size()));
+
+  // C API
+  auto I = clang_createInterpreterFromPtr(Cpp::GetInterpreter());
+  CXTemplateArgInfo Args1[] = {{IntTy, "5"}};
+  auto C_API_SHIM = [&](auto Decl) {
+    return clang_scope_instantiateTemplate(CXScope{CXScope_Function, Decl, I},
+                                           Args1, 1)
+        .data;
+  };
+  EXPECT_NE(C_API_SHIM(Decls[0]), nullptr);
+  // Clean up resources
+  clang_interpreter_takeInterpreterAsPtr(I);
+  clang_interpreter_dispose(I);
 }
 
 TEST(ScopeReflectionTest, InstantiateVarTemplate) {
