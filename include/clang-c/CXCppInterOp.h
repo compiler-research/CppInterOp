@@ -57,6 +57,11 @@ TInterp_t clang_interpreter_getInterpreterAsPtr(CXInterpreter I);
 TInterp_t clang_interpreter_takeInterpreterAsPtr(CXInterpreter I);
 
 /**
+ * Undo N previous incremental inputs.
+ */
+CXErrorCode clang_interpreter_Undo(CXInterpreter I, unsigned int N);
+
+/**
  * Dispose of the given interpreter context.
  */
 void clang_interpreter_dispose(CXInterpreter I);
@@ -144,7 +149,7 @@ typedef void* CXValue;
  *
  * \returns a \c CXValue.
  */
-CXValue clang_createValue();
+CXValue clang_createValue(void);
 
 /**
  * Dispose of the given CXValue.

@@ -70,6 +70,10 @@ TInterp_t clang_interpreter_takeInterpreterAsPtr(CXInterpreter I) {
   return static_cast<CXInterpreterImpl*>(I)->Interp.release();
 }
 
+CXErrorCode clang_interpreter_Undo(CXInterpreter I, unsigned int N) {
+  return getInterpreter(I)->Undo(N) ? CXError_Failure : CXError_Success;
+}
+
 void clang_interpreter_dispose(CXInterpreter I) {
   delete I; // NOLINT(*-owning-memory)
 }
@@ -113,7 +117,7 @@ enum CXErrorCode clang_interpreter_process(CXInterpreter I, const char* code) {
   return CXError_Success;
 }
 
-CXValue clang_createValue() {
+CXValue clang_createValue(void) {
 #ifdef USE_CLING
   auto val = std::make_unique<cling::Value>();
 #else
