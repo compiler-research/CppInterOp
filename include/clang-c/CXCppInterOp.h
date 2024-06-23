@@ -59,7 +59,7 @@ TInterp_t clang_interpreter_takeInterpreterAsPtr(CXInterpreter I);
 /**
  * Undo N previous incremental inputs.
  */
-CXErrorCode clang_interpreter_Undo(CXInterpreter I, unsigned int N);
+enum CXErrorCode clang_interpreter_Undo(CXInterpreter I, unsigned int N);
 
 /**
  * Dispose of the given interpreter context.

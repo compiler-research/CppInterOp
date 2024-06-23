@@ -70,7 +70,7 @@ TInterp_t clang_interpreter_takeInterpreterAsPtr(CXInterpreter I) {
   return static_cast<CXInterpreterImpl*>(I)->Interp.release();
 }
 
-CXErrorCode clang_interpreter_Undo(CXInterpreter I, unsigned int N) {
+enum CXErrorCode clang_interpreter_Undo(CXInterpreter I, unsigned int N) {
   return getInterpreter(I)->Undo(N) ? CXError_Failure : CXError_Success;
 }
 
