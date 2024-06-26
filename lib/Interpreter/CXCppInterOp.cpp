@@ -71,7 +71,11 @@ TInterp_t clang_interpreter_takeInterpreterAsPtr(CXInterpreter I) {
 }
 
 enum CXErrorCode clang_interpreter_Undo(CXInterpreter I, unsigned int N) {
+#ifdef USE_CLING
+  return CXError_Failure;
+#else
   return getInterpreter(I)->Undo(N) ? CXError_Failure : CXError_Success;
+#endif // USE_CLING
 }
 
 void clang_interpreter_dispose(CXInterpreter I) {
@@ -286,19 +290,6 @@ CXQualType clang_qualtype_getCanonicalType(CXQualType type) {
   return makeCXQualType(getMeta(type), QT.getCanonicalType());
 }
 
-namespace Cpp {
-clang::QualType GetType(const std::string& name, clang::Sema& sema);
-} // namespace Cpp
-
-CXQualType clang_qualtype_getType(CXInterpreter I, const char* name) {
-  auto& S = getInterpreter(I)->getSema();
-  const clang::QualType QT = Cpp::GetType(std::string(name), S);
-  if (QT.isNull())
-    return makeCXQualType(I, QT, CXType_Invalid);
-
-  return makeCXQualType(I, QT);
-}
-
 CXQualType clang_qualtype_getComplexType(CXQualType eltype) {
   const auto& C = getInterpreter(eltype)->getSema().getASTContext();
   return makeCXQualType(getMeta(eltype), C.getComplexType(getType(eltype)));
@@ -352,6 +343,28 @@ static inline compat::Interpreter* getInterpreter(const CXScope& S) {
 }
 
 void clang_scope_dump(CXScope S) { getDecl(S)->dump(); }
+
+namespace Cpp {
+clang::QualType GetBuiltinType(const std::string& name, clang::Sema& sema);
+} // namespace Cpp
+
+CXQualType clang_qualtype_getType(CXInterpreter I, const char* name) {
+  auto& S = getInterpreter(I)->getSema();
+  const clang::QualType builtin = Cpp::GetBuiltinType(std::string(name), S);
+  if (!builtin.isNull())
+    return makeCXQualType(I, builtin);
+
+  auto scope = clang_scope_getNamed(name, clang_scope_getGlobalScope(I));
+  if (isNull(scope))
+    return makeCXQualType(I, clang::QualType(), CXType_Invalid);
+
+  if (auto* TD = llvm::dyn_cast_or_null<clang::TypeDecl>(getDecl(scope))) {
+    auto QT = clang::QualType(TD->getTypeForDecl(), 0);
+    return makeCXQualType(I, QT);
+  }
+
+  return makeCXQualType(I, clang::QualType(), CXType_Invalid);
+}
 
 CXQualType clang_scope_getTypeFromScope(CXScope S) {
   if (isNull(S))
@@ -605,7 +618,7 @@ CXScopeSet* clang_scope_getUsingNamespaces(CXScope S) {
 CXScope clang_scope_getGlobalScope(CXInterpreter I) {
   const auto& C = getInterpreter(I)->getSema().getASTContext();
   auto* DC = C.getTranslationUnitDecl();
-  return makeCXScope(I, DC, CXScope_Global);
+  return makeCXScope(I, DC, CXScope_TranslationUnit);
 }
 
 CXScope clang_scope_getUnderlyingScope(CXScope S) {
@@ -627,11 +640,21 @@ CXScope clang_scope_getScope(const char* name, CXScope parent) {
     return S;
 
   auto* ND = llvm::dyn_cast<clang::NamedDecl>(getDecl(S));
-  if (llvm::isa<clang::NamespaceDecl>(ND) || llvm::isa<clang::RecordDecl>(ND) ||
-      llvm::isa<clang::ClassTemplateDecl>(ND) ||
-      llvm::isa<clang::TypedefNameDecl>(ND)) {
-    return makeCXScope(getMeta(S), ND->getCanonicalDecl());
-  }
+  if (llvm::isa<clang::NamespaceDecl>(ND))
+    return makeCXScope(getMeta(S), ND->getCanonicalDecl(), CXScope_Namespace);
+
+  if (llvm::isa<clang::TypedefDecl>(ND))
+    return makeCXScope(getMeta(S), ND->getCanonicalDecl(), CXScope_Typedef);
+
+  if (llvm::isa<clang::TypeAliasDecl>(ND))
+    return makeCXScope(getMeta(S), ND->getCanonicalDecl(), CXScope_TypeAlias);
+
+  if (llvm::isa<clang::RecordDecl>(ND))
+    return makeCXScope(getMeta(S), ND->getCanonicalDecl(), CXScope_Record);
+
+  if (llvm::isa<clang::ClassTemplateDecl>(ND))
+    return makeCXScope(getMeta(S), ND->getCanonicalDecl(),
+                       CXScope_ClassTemplate);
 
   return S;
 }

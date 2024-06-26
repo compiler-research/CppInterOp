@@ -571,27 +571,21 @@ namespace Cpp {
     return GetScope(name.substr(start, end), curr_scope);
   }
 
-  Decl* GetNamedImpl(Sema* sema, const std::string& name,
-                     Decl* parent /*= nullptr*/) {
+  TCppScope_t GetNamed(const std::string& name,
+                       TCppScope_t parent /*= nullptr*/) {
     clang::DeclContext *Within = 0;
     if (parent) {
-      Decl* D = GetUnderlyingScope(parent);
+      auto* D = (clang::Decl*)parent;
+      D = GetUnderlyingScope(D);
       Within = llvm::dyn_cast<clang::DeclContext>(D);
     }
 
-    auto* ND = Cpp_utils::Lookup::Named(sema, name, Within);
+    auto* ND = Cpp_utils::Lookup::Named(&getSema(), name, Within);
     if (ND && ND != (clang::NamedDecl*) -1) {
-      return ND->getCanonicalDecl();
+      return (TCppScope_t)(ND->getCanonicalDecl());
     }
 
-    return nullptr;
-  }
-
-  TCppScope_t GetNamed(const std::string& name,
-                       TCppScope_t parent /*= nullptr*/) {
-    auto& sema = getSema();
-    auto* D = static_cast<Decl*>(parent);
-    return GetNamedImpl(&sema, name, D);
+    return 0;
   }
 
   TCppScope_t GetParentScope(TCppScope_t scope)
@@ -1457,17 +1451,8 @@ namespace Cpp {
     }
   }
 
-  QualType GetType(const std::string& name, Sema& sema) {
-    QualType builtin = findBuiltinType(name, sema.getASTContext());
-    if (!builtin.isNull())
-      return builtin;
-
-    auto* D = (Decl*)GetNamedImpl(&sema, name, /* Within= */ 0);
-    if (auto* TD = llvm::dyn_cast_or_null<TypeDecl>(D)) {
-      return QualType(TD->getTypeForDecl(), 0);
-    }
-
-    return QualType();
+  QualType GetBuiltinType(const std::string& name, Sema& sema) {
+    return findBuiltinType(name, sema.getASTContext());
   }
 
   TCppType_t GetType(const std::string &name) {

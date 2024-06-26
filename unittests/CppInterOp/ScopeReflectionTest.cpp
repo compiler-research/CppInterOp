@@ -783,7 +783,7 @@ TEST(ScopeReflectionTest, GetNamed) {
   auto NS_N1 = clang_scope_getNamed("N1", GS);
   auto NS_N2 = clang_scope_getNamed("N2", NS_N1);
   auto CL_C = clang_scope_getNamed("C", NS_N2);
-  auto EN_E = clang_scope_getScope("E", CL_C);
+  auto EN_E = clang_scope_getNamed("E", CL_C);
 
   EXPECT_EQ(C_API_SHIM(NS_N1), "N1");
   EXPECT_EQ(C_API_SHIM(NS_N2), "N1::N2");

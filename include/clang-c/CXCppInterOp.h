@@ -358,21 +358,19 @@ bool clang_qualtype_isTypeDerivedFrom(CXQualType derived, CXQualType base);
  * Describes the kind of entity that a scope refers to.
  */
 enum CXScopeKind {
-  CXScope_Unexposed = 0,
-  CXScope_Invalid = 1,
-  /** The global scope. */
-  CXScope_Global = 2,
-  /** Namespaces. */
-  CXScope_Namespace = 3,
-  /** Function, methods, constructor etc. */
-  CXScope_Function = 4,
-  /** Variables. */
-  CXScope_Variable = 5,
-  /** Enum Constants. */
-  CXScope_EnumConstant = 6,
-  /** Fields. */
-  CXScope_Field = 7,
-  // reserved for future use
+  CXScope_Unexposed = 1, // FIXME: merge with CXCursorKind?
+  CXScope_Typedef = 20,
+  CXScope_Namespace = 22,
+  CXScope_ClassTemplate = 31,
+  CXScope_TypeAlias = 36,
+  CXScope_Invalid = 70,
+  CXScope_TranslationUnit = 350,
+
+  CXScope_Record,
+  CXScope_Function,
+  CXScope_Variable,
+  CXScope_EnumConstant,
+  CXScope_Field,
 };
 
 /**
@@ -834,8 +832,6 @@ CXObject clang_construct(CXScope scope, void* arena);
 /**
  * Calls the destructor of object of type \c type. When withFree is true it
  * calls operator delete/free.
- *
- * \param I The interpreter.
  *
  * \param This The object to destruct.
  *
