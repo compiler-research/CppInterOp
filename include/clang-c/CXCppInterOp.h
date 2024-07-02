@@ -46,13 +46,12 @@ typedef void* TInterp_t;
 CXInterpreter clang_createInterpreterFromPtr(TInterp_t I);
 
 /**
- * Returns a \c TInterp_t.
+ * Returns a pointer to the underlying interpreter.
  */
-TInterp_t clang_interpreter_getInterpreterAsPtr(CXInterpreter I);
+void* clang_interpreter_getUnderlyingInterpreter(CXInterpreter I);
 
 /**
- * Similar to \c clang_interpreter_getInterpreterAsPtr() but it takes the
- * ownership.
+ * Returns a \c TInterp_t and takes the ownership.
  */
 TInterp_t clang_interpreter_takeInterpreterAsPtr(CXInterpreter I);
 
@@ -359,6 +358,11 @@ bool clang_qualtype_isTypeDerivedFrom(CXQualType derived, CXQualType base);
  */
 enum CXScopeKind {
   CXScope_Unexposed = 1, // FIXME: merge with CXCursorKind?
+  CXScope_Enum = 5,
+  CXScope_Field = 6,
+  CXScope_EnumConstant = 7,
+  CXScope_Function = 8,
+  CXCursor_Var = 9,
   CXScope_Typedef = 20,
   CXScope_Namespace = 22,
   CXScope_ClassTemplate = 31,
@@ -366,11 +370,8 @@ enum CXScopeKind {
   CXScope_Invalid = 70,
   CXScope_TranslationUnit = 350,
 
-  CXScope_Record,
-  CXScope_Function,
-  CXScope_Variable,
-  CXScope_EnumConstant,
-  CXScope_Field,
+  CXScope_Record = 999,
+  CXScope_CXXRecord,
 };
 
 /**
@@ -858,6 +859,14 @@ void clang_destruct(CXObject This, CXScope S, bool withFree);
 typedef struct CXJitCallImpl* CXJitCall;
 
 /**
+ * Creates a trampoline function by using the interpreter and returns a uniform
+ * interface to call it from compiled code.
+ *
+ * \returns a \c CXJitCall.
+ */
+CXJitCall clang_jitcall_create(CXScope func);
+
+/**
  * Dispose of the given CXJitCall.
  *
  * \param J The CXJitCall to dispose.
@@ -891,32 +900,21 @@ CXJitCallKind clang_jitcall_getKind(CXJitCall J);
  */
 bool clang_jitcall_isValid(CXJitCall J);
 
-typedef struct {
-  void** data;
-  size_t numArgs;
-} CXJitCallArgList;
-
 /**
  * Makes a call to a generic function or method.
  *
- * \param[in] J The CXJitCall.
+ * \param J The CXJitCall.
  *
- * \param[in] result The location where the return result will be placed.
+ * \param result The location where the return result will be placed.
  *
- * \param[in] args The arguments to pass to the invocation.
+ * \param args The arguments to pass to the invocation.
  *
- * \param[in] self The 'this pointer' of the object.
+ * \param n The number of arguments.
+ *
+ * \param self The 'this pointer' of the object.
  */
-void clang_jitcall_invoke(CXJitCall J, void* result, CXJitCallArgList args,
-                          void* self);
-
-/**
- * Creates a trampoline function by using the interpreter and returns a uniform
- * interface to call it from compiled code.
- *
- * \returns a \c CXJitCall.
- */
-CXJitCall clang_jitcall_makeFunctionCallable(CXScope func);
+void clang_jitcall_invoke(CXJitCall J, void* result, void** args,
+                          unsigned int n, void* self);
 
 /**
  * @}

@@ -62,8 +62,14 @@ CXInterpreter clang_createInterpreterFromPtr(TInterp_t I) {
   return II;
 }
 
-TInterp_t clang_interpreter_getInterpreterAsPtr(CXInterpreter I) {
-  return getInterpreter(I);
+void* clang_interpreter_getUnderlyingInterpreter(CXInterpreter I) {
+#ifdef USE_CLING
+  return nullptr;
+#else
+  auto* interp = getInterpreter(I);
+  auto* clInterp = &static_cast<clang::Interpreter&>(*interp);
+  return clInterp;
+#endif // USE_CLING
 }
 
 TInterp_t clang_interpreter_takeInterpreterAsPtr(CXInterpreter I) {
@@ -251,8 +257,16 @@ bool clang_scope_isPODType(CXQualType type) {
 }
 
 CXQualType clang_qualtype_getIntegerTypeFromEnumType(CXQualType type) {
-  const void* Ptr = Cpp::GetIntegerTypeFromEnumType(type.data);
-  return makeCXQualType(getMeta(type), clang::QualType::getFromOpaquePtr(Ptr));
+  const clang::QualType QT = getType(type);
+  if (QT.isNull())
+    return makeCXQualType(getMeta(type), clang::QualType(), CXType_Invalid);
+
+  if (auto* ET = QT->getAs<clang::EnumType>())
+    return makeCXQualType(
+        getMeta(type),
+        ET->getDecl()->getIntegerType()); // TODO: expose type kind?
+
+  return makeCXQualType(getMeta(type), clang::QualType(), CXType_Invalid);
 }
 
 CXQualType clang_qualtype_getUnderlyingType(CXQualType type) {
@@ -627,11 +641,11 @@ CXScope clang_scope_getUnderlyingScope(CXScope S) {
     return S;
 
   const clang::QualType QT = TND->getUnderlyingType();
-  auto* D = Cpp::GetScopeFromType(QT.getAsOpaquePtr());
-  if (!D)
+  auto D = clang_scope_getScopeFromType(makeCXQualType(getMeta(S), QT));
+  if (isNull(D))
     return S;
 
-  return makeCXScope(getMeta(S), static_cast<clang::Decl*>(D));
+  return D;
 }
 
 CXScope clang_scope_getScope(const char* name, CXScope parent) {
@@ -676,24 +690,36 @@ CXScope clang_scope_getNamed(const char* name, CXScope parent) {
   return makeCXScope(getMeta(parent), nullptr, CXScope_Invalid);
 }
 
-CXScope clang_scope_getParentScope(CXScope parent) {
-  auto* D = getDecl(parent);
+CXScope clang_scope_getParentScope(CXScope scope) {
+  auto* D = getDecl(scope);
 
   if (llvm::isa_and_nonnull<clang::TranslationUnitDecl>(D))
-    return makeCXScope(getMeta(parent), nullptr, CXScope_Invalid);
+    return makeCXScope(getMeta(scope), nullptr, CXScope_Invalid);
 
   const auto* ParentDC = D->getDeclContext();
   if (!ParentDC)
-    return makeCXScope(getMeta(parent), nullptr, CXScope_Invalid);
+    return makeCXScope(getMeta(scope), nullptr, CXScope_Invalid);
 
   auto* CD = clang::Decl::castFromDeclContext(ParentDC)->getCanonicalDecl();
 
-  return makeCXScope(getMeta(parent), CD);
+  return makeCXScope(getMeta(scope), CD);
 }
 
 CXScope clang_scope_getScopeFromType(CXQualType type) {
-  auto* D = Cpp::GetScopeFromType(type.data);
-  return makeCXScope(getMeta(type), static_cast<clang::Decl*>(D));
+  const clang::QualType QT = getType(type);
+  if (auto* Type = QT.getCanonicalType().getTypePtrOrNull()) {
+    Type = Type->getPointeeOrArrayElementType();
+    Type = Type->getUnqualifiedDesugaredType();
+    if (auto* ET = llvm::dyn_cast<clang::EnumType>(Type))
+      return makeCXScope(getMeta(type), ET->getDecl(), CXScope_Enum);
+
+    if (auto* FnType = llvm::dyn_cast<clang::FunctionProtoType>(Type))
+      Type = const_cast<clang::Type*>(FnType->getReturnType().getTypePtr());
+
+    auto* CXXRD = Type->getAsCXXRecordDecl();
+    return makeCXScope(getMeta(type), CXXRD, CXScope_CXXRecord);
+  }
+  return makeCXScope(getMeta(type), nullptr, CXScope_Invalid);
 }
 
 size_t clang_scope_getNumBases(CXScope S) {
@@ -1343,6 +1369,16 @@ void clang_destruct(CXObject This, CXScope S, bool withFree) {
   Cpp::DestructImpl(*getInterpreter(S), This, getDecl(S), withFree);
 }
 
+CXJitCall clang_jitcall_create(CXScope func) {
+  auto J = Cpp::MakeFunctionCallableImpl(getInterpreter(func), getDecl(func));
+  auto Ptr = std::make_unique<Cpp::JitCall>(J);
+  return reinterpret_cast<CXJitCall>(Ptr.release()); // NOLINT(*-cast)
+}
+
+void clang_jitcall_dispose(CXJitCall J) {
+  delete reinterpret_cast<Cpp::JitCall*>(J); // NOLINT(*-owning-memory, *-cast)
+}
+
 CXJitCallKind clang_jitcall_getKind(CXJitCall J) {
   const auto* call = reinterpret_cast<Cpp::JitCall*>(J); // NOLINT(*-cast)
   return static_cast<CXJitCallKind>(call->getKind());
@@ -1352,18 +1388,8 @@ bool clang_jitcall_isValid(CXJitCall J) {
   return reinterpret_cast<Cpp::JitCall*>(J)->isValid(); // NOLINT(*-cast)
 }
 
-void clang_jitcall_invoke(CXJitCall J, void* result, CXJitCallArgList args,
-                          void* self) {
+void clang_jitcall_invoke(CXJitCall J, void* result, void** args,
+                          unsigned int n, void* self) {
   const auto* call = reinterpret_cast<Cpp::JitCall*>(J); // NOLINT(*-cast)
-  call->Invoke(result, {args.data, args.numArgs}, self);
-}
-
-CXJitCall clang_jitcall_makeFunctionCallable(CXScope func) {
-  auto J = Cpp::MakeFunctionCallableImpl(getInterpreter(func), getDecl(func));
-  auto Ptr = std::make_unique<Cpp::JitCall>(J);
-  return reinterpret_cast<CXJitCall>(Ptr.release()); // NOLINT(*-cast)
-}
-
-void clang_jitcall_dispose(CXJitCall J) {
-  delete reinterpret_cast<Cpp::JitCall*>(J); // NOLINT(*-owning-memory, *-cast)
+  call->Invoke(result, {args, n}, self);
 }
