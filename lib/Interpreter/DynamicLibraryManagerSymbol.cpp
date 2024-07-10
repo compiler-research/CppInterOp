@@ -1153,8 +1153,8 @@ namespace Cpp {
   std::string Dyld::searchLibrariesForSymbol(StringRef mangledName,
                                              bool searchSystem/* = true*/) {
 #define DEBUG_TYPE "Dyld:searchLibrariesForSymbol:"
-    assert(!llvm::sys::DynamicLibrary::SearchForAddressOfSymbol(mangledName.str()) &&
-           "Library already loaded, please use dlsym!");
+//    assert(!llvm::sys::DynamicLibrary::SearchForAddressOfSymbol(mangledName.str()) &&
+//           "Library already loaded, please use dlsym!");
     assert(!mangledName.empty());
 
     using namespace llvm::sys::path;
