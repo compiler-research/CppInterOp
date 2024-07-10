@@ -42,3 +42,7 @@ set_output_directory(DynamicLibraryManagerTests BINARY_DIR ${CMAKE_BINARY_DIR}/u
 add_dependencies(DynamicLibraryManagerTests TestSharedLib)
 #export_executable_symbols_for_plugins(TestSharedLib)
 add_subdirectory(TestSharedLib)
+# TODO: Remove when libraryunload work correctly
+add_dependencies(DynamicLibraryManagerTests TestSharedLib1)
+#export_executable_symbols_for_plugins(TestSharedLib1)
+add_subdirectory(TestSharedLib1)
