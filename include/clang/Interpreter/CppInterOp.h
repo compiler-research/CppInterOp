@@ -757,6 +757,14 @@ namespace Cpp {
                                    unsigned complete_line = 1U,
                                    unsigned complete_column = 1U);
 
+  /// Set libraries autoload.
+  ///\param[in] autoload - true = libraries autoload is on.
+  CPPINTEROP_API void SetLibrariesAutoload(bool autoload = true);
+
+  /// Get libraries autoload.
+  ///\returns LibraryAutoLoad state (true = libraries autoload is on).
+  CPPINTEROP_API bool GetLibrariesAutoload();
+
 } // end namespace Cpp
 
 #endif // CPPINTEROP_CPPINTEROP_H

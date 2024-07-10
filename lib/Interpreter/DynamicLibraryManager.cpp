@@ -243,7 +243,7 @@ namespace Cpp {
     // get canonical path name and check if already loaded
     const std::string Path = platform::NormalizePath(foundDyLib);
     if (Path.empty()) {
-      LLVM_DEBUG(dbgs() << "cling::DynamicLibraryManager::lookupLibMaybeAddExt(): "
+      LLVM_DEBUG(dbgs() << "DynamicLibraryManager::lookupLibMaybeAddExt(): "
                         << "error getting real (canonical) path of library " << foundDyLib << '\n');
       return foundDyLib;
     }
@@ -392,8 +392,7 @@ namespace Cpp {
       return;
 
     DyLibHandle dyLibHandle = nullptr;
-    for (DyLibs::const_iterator I = m_DyLibs.begin(), E = m_DyLibs.end();
-         I != E; ++I) {
+    for (DyLibs::const_iterator I = m_DyLibs.begin(), E = m_DyLibs.end(); I != E; ++I) {
       if (I->second == canonicalLoadedLib) {
         dyLibHandle = I->first;
         break;
@@ -405,7 +404,7 @@ namespace Cpp {
     std::string errMsg;
     platform::DLClose(dyLibHandle, &errMsg);
     if (!errMsg.empty()) {
-      LLVM_DEBUG(dbgs() << "cling::DynamicLibraryManager::unloadLibrary(): "
+      LLVM_DEBUG(dbgs() << "DynamicLibraryManager::unloadLibrary(): "
                         << errMsg << '\n');
     }
 

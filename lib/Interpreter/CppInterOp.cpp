@@ -32,6 +32,7 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Demangle/Demangle.h"
+#include "llvm/ExecutionEngine/Orc/Core.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_os_ostream.h"
@@ -3545,5 +3546,176 @@ namespace Cpp {
     compat::codeComplete(Results, getInterp(), code, complete_line,
                          complete_column);
   }
+
+#define DEBUG_TYPE "autoload"
+
+  static inline std::string DemangleNameForDlsym(const std::string& name) {
+    std::string nameForDlsym = name;
+
+#if defined(R__MACOSX) || defined(R__WIN32)
+    // The JIT gives us a mangled name which has an additional leading underscore
+    // on macOS and Windows, for instance __ZN8TRandom34RndmEv. However, dlsym
+    // requires us to remove it.
+    // FIXME: get this information from the DataLayout via getGlobalPrefix()!
+    if (nameForDlsym[0] == '_')
+      nameForDlsym.erase(0, 1);
+#endif //R__MACOSX
+
+    return nameForDlsym;
+  }
+
+  class AutoLoadLibrarySearchGenerator;
+  static AutoLoadLibrarySearchGenerator *ALLSG = nullptr;
+
+  class AutoLoadLibrarySearchGenerator : public llvm::orc::DefinitionGenerator {
+  public:
+    bool Enabled = false;
+
+    // Lazy materialization unit class helper
+    class AutoloadLibraryMU : public llvm::orc::MaterializationUnit {
+      std::string lib;
+      llvm::orc::SymbolNameVector syms;
+    public:
+      AutoloadLibraryMU(const std::string &Library, const llvm::orc::SymbolNameVector &Symbols)
+        : MaterializationUnit({getSymbolFlagsMap(Symbols), nullptr}), lib(Library), syms(Symbols) {}
+
+      StringRef getName() const override {
+        return "<Symbols from Autoloaded Library>";
+      }
+
+      void materialize(std::unique_ptr<llvm::orc::MaterializationResponsibility> R) override {
+        if (!ALLSG || !ALLSG->Enabled) {
+          R->failMaterialization();
+          return;
+        }
+
+        LLVM_DEBUG(dbgs() << "Materialize " << lib << " syms=" << syms);
+
+        auto& I = getInterp();
+        auto DLM = I.getDynamicLibraryManager();
+
+        llvm::orc::SymbolMap loadedSymbols;
+        llvm::orc::SymbolNameSet failedSymbols;
+        bool loadedLibrary = false;
+
+        for (auto symbol : syms) {
+          std::string symbolStr = (*symbol).str();
+          std::string nameForDlsym = DemangleNameForDlsym(symbolStr);
+
+          // Check if the symbol is available without loading the library.
+          void *addr = llvm::sys::DynamicLibrary::SearchForAddressOfSymbol(nameForDlsym);
+
+          if (!addr && !loadedLibrary) {
+            // Try to load the library which should provide the symbol definition.
+            if (DLM->loadLibrary(lib, false) != DynamicLibraryManager::LoadLibResult::kLoadLibSuccess) {
+              LLVM_DEBUG(dbgs() << "MU: Failed to load library " << lib);
+              string err = "MU: Failed to load library! " + lib;
+              perror(err.c_str());
+            } else {
+              LLVM_DEBUG(dbgs() << "MU: Autoload library " << lib);
+            }
+
+            // Only try loading the library once.
+            loadedLibrary = true;
+
+            addr = llvm::sys::DynamicLibrary::SearchForAddressOfSymbol(nameForDlsym);
+          }
+
+          if (addr) {
+            loadedSymbols[symbol] =
+              llvm::orc::ExecutorSymbolDef(llvm::orc::ExecutorAddr::fromPtr(addr), JITSymbolFlags::Exported);
+          } else {
+            // Collect all failing symbols, delegate their responsibility and then
+            // fail their materialization. R->defineNonExistent() sounds like it
+            // should do that, but it's not implemented?!
+            failedSymbols.insert(symbol);
+          }
+        }
+
+        if (!failedSymbols.empty()) {
+          auto failingMR = R->delegate(failedSymbols);
+          if (failingMR) {
+            (*failingMR)->failMaterialization();
+          }
+        }
+
+        if (!loadedSymbols.empty()) {
+          llvm::cantFail(R->notifyResolved(loadedSymbols));
+          llvm::cantFail(R->notifyEmitted());
+        }
+      }
+
+      void discard(const llvm::orc::JITDylib &JD, const llvm::orc::SymbolStringPtr &Name) override {}
+
+      private:
+        static llvm::orc::SymbolFlagsMap getSymbolFlagsMap(const llvm::orc::SymbolNameVector &Symbols) {
+          llvm::orc::SymbolFlagsMap map;
+          for (auto symbolName : Symbols)
+            map[symbolName] = llvm::JITSymbolFlags::Exported;
+          return map;
+        }
+    };
+
+    llvm::Error tryToGenerate(llvm::orc::LookupState &LS, llvm::orc::LookupKind K, llvm::orc::JITDylib &JD,
+                              llvm::orc::JITDylibLookupFlags JDLookupFlags, const llvm::orc::SymbolLookupSet &Symbols) override {
+      if (Enabled) {
+        LLVM_DEBUG(dbgs() << "tryToGenerate");
+
+        auto& I = getInterp();
+        auto DLM = I.getDynamicLibraryManager();
+
+        std::unordered_map<std::string, llvm::orc::SymbolNameVector> found;
+        llvm::orc::SymbolMap NewSymbols;
+        for (auto &KV : Symbols) {
+          auto &Name = KV.first;
+          if ((*Name).empty())
+            continue;
+
+          auto lib = DLM->searchLibrariesForSymbol(*Name, /*searchSystem=*/true); // false?
+          if (lib.empty())
+            continue;
+
+          found[lib].push_back(Name);
+
+          // Workaround: This getAddressOfGlobal call make first symbol search
+          // to work, immediatelly after library auto load. This approach do not
+          // use MU
+          //DLM->loadLibrary(lib, true);
+          //I.getAddressOfGlobal(*Name);
+        }
+
+        for (auto &&KV : found) {
+          auto MU = std::make_unique<AutoloadLibraryMU>(KV.first, std::move(KV.second));
+          if (auto Err = JD.define(MU))
+            return Err;
+        }
+      }
+
+      return llvm::Error::success();
+    }
+  };
+
+  void SetLibrariesAutoload(bool autoload /* = true */) {
+    auto& I = getInterp();
+    llvm::orc::LLJIT& EE = *compat::getExecutionEngine(I);
+#if CLANG_VERSION_MAJOR < 17
+    llvm::orc::JITDylib& DyLib = EE.getMainJITDylib();
+#else
+    llvm::orc::JITDylib& DyLib = *EE.getProcessSymbolsJITDylib().get();
+#endif // CLANG_VERSION_MAJOR
+
+    if (!ALLSG)
+      ALLSG = &DyLib.addGenerator(std::make_unique<AutoLoadLibrarySearchGenerator>());
+    ALLSG->Enabled = autoload;
+
+    LLVM_DEBUG(dbgs() << "Autoload=" << (ALLSG && ALLSG->Enabled ? "ON" : "OFF"));
+  }
+
+  bool GetLibrariesAutoload() {
+    LLVM_DEBUG(dbgs() << "Autoload is " << (ALLSG && ALLSG->Enabled ? "ON" : "OFF"));
+    return ALLSG && ALLSG->Enabled;
+  }
+
+#undef DEBUG_TYPE
 
   } // end namespace Cpp
