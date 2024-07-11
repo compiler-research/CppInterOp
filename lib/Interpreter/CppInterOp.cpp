@@ -41,6 +41,7 @@
 #include <set>
 #include <sstream>
 #include <string>
+#include <utility>
 
 // Stream redirect.
 #ifdef _WIN32
@@ -3565,26 +3566,36 @@ namespace Cpp {
   }
 
   class AutoLoadLibrarySearchGenerator;
-  static AutoLoadLibrarySearchGenerator *ALLSG = nullptr;
+
+  // Last assigned Autoload SearchGenerator
+  // TODO: Test for thread safe.
+  static AutoLoadLibrarySearchGenerator *AutoSG = nullptr;
 
   class AutoLoadLibrarySearchGenerator : public llvm::orc::DefinitionGenerator {
-  public:
     bool Enabled = false;
+  public:
+    bool isEnabled() {
+      return Enabled;
+    }
+
+    void setEnabled(bool enabled) {
+      Enabled = enabled;
+    }
 
     // Lazy materialization unit class helper
     class AutoloadLibraryMU : public llvm::orc::MaterializationUnit {
-      std::string lib;
+      const std::string lib;
       llvm::orc::SymbolNameVector syms;
     public:
-      AutoloadLibraryMU(const std::string &Library, const llvm::orc::SymbolNameVector &Symbols)
+      AutoloadLibraryMU(const std::string Library, const llvm::orc::SymbolNameVector &Symbols)
         : MaterializationUnit({getSymbolFlagsMap(Symbols), nullptr}), lib(Library), syms(Symbols) {}
 
-      StringRef getName() const override {
+      [[nodiscard]] StringRef getName() const override {
         return "<Symbols from Autoloaded Library>";
       }
 
       void materialize(std::unique_ptr<llvm::orc::MaterializationResponsibility> R) override {
-        if (!ALLSG || !ALLSG->Enabled) {
+        if (!AutoSG || !AutoSG->isEnabled()) {
           R->failMaterialization();
           return;
         }
@@ -3592,13 +3603,13 @@ namespace Cpp {
         LLVM_DEBUG(dbgs() << "Materialize " << lib << " syms=" << syms);
 
         auto& I = getInterp();
-        auto DLM = I.getDynamicLibraryManager();
+        auto *DLM = I.getDynamicLibraryManager();
 
         llvm::orc::SymbolMap loadedSymbols;
         llvm::orc::SymbolNameSet failedSymbols;
         bool loadedLibrary = false;
 
-        for (auto symbol : syms) {
+        for (const auto &symbol : syms) {
           std::string symbolStr = (*symbol).str();
           std::string nameForDlsym = DemangleNameForDlsym(symbolStr);
 
@@ -3650,7 +3661,7 @@ namespace Cpp {
       private:
         static llvm::orc::SymbolFlagsMap getSymbolFlagsMap(const llvm::orc::SymbolNameVector &Symbols) {
           llvm::orc::SymbolFlagsMap map;
-          for (auto symbolName : Symbols)
+          for (const auto &symbolName : Symbols)
             map[symbolName] = llvm::JITSymbolFlags::Exported;
           return map;
         }
@@ -3658,16 +3669,16 @@ namespace Cpp {
 
     llvm::Error tryToGenerate(llvm::orc::LookupState &LS, llvm::orc::LookupKind K, llvm::orc::JITDylib &JD,
                               llvm::orc::JITDylibLookupFlags JDLookupFlags, const llvm::orc::SymbolLookupSet &Symbols) override {
-      if (Enabled) {
+      if (isEnabled()) {
         LLVM_DEBUG(dbgs() << "tryToGenerate");
 
         auto& I = getInterp();
-        auto DLM = I.getDynamicLibraryManager();
+        auto *DLM = I.getDynamicLibraryManager();
 
         std::unordered_map<std::string, llvm::orc::SymbolNameVector> found;
         llvm::orc::SymbolMap NewSymbols;
-        for (auto &KV : Symbols) {
-          auto &Name = KV.first;
+        for (const auto &KV : Symbols) {
+          const auto &Name = KV.first;
           if ((*Name).empty())
             continue;
 
@@ -3693,6 +3704,7 @@ namespace Cpp {
 
       return llvm::Error::success();
     }
+
   };
 
   void SetLibrariesAutoload(bool autoload /* = true */) {
@@ -3704,16 +3716,16 @@ namespace Cpp {
     llvm::orc::JITDylib& DyLib = *EE.getProcessSymbolsJITDylib().get();
 #endif // CLANG_VERSION_MAJOR
 
-    if (!ALLSG)
-      ALLSG = &DyLib.addGenerator(std::make_unique<AutoLoadLibrarySearchGenerator>());
-    ALLSG->Enabled = autoload;
+    if (!AutoSG)
+      AutoSG = &DyLib.addGenerator(std::make_unique<AutoLoadLibrarySearchGenerator>());
+    AutoSG->setEnabled(autoload);
 
-    LLVM_DEBUG(dbgs() << "Autoload=" << (ALLSG && ALLSG->Enabled ? "ON" : "OFF"));
+    LLVM_DEBUG(dbgs() << "Autoload=" << (AutoSG->isEnabled() ? "ON" : "OFF"));
   }
 
   bool GetLibrariesAutoload() {
-    LLVM_DEBUG(dbgs() << "Autoload is " << (ALLSG && ALLSG->Enabled ? "ON" : "OFF"));
-    return ALLSG && ALLSG->Enabled;
+    LLVM_DEBUG(dbgs() << "Autoload is " << (AutoSG && AutoSG->isEnabled() ? "ON" : "OFF"));
+    return AutoSG && AutoSG->isEnabled();
   }
 
 #undef DEBUG_TYPE
