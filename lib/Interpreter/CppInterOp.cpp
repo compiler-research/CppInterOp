@@ -3584,10 +3584,10 @@ namespace Cpp {
 
     // Lazy materialization unit class helper
     class AutoloadLibraryMU : public llvm::orc::MaterializationUnit {
-      const std::string lib;
+      std::string lib;
       llvm::orc::SymbolNameVector syms;
     public:
-      AutoloadLibraryMU(const std::string Library, const llvm::orc::SymbolNameVector &Symbols)
+      AutoloadLibraryMU(const std::string& Library, const llvm::orc::SymbolNameVector &Symbols)
         : MaterializationUnit({getSymbolFlagsMap(Symbols), nullptr}), lib(Library), syms(Symbols) {}
 
       [[nodiscard]] StringRef getName() const override {
