@@ -392,9 +392,9 @@ namespace Cpp {
       return;
 
     DyLibHandle dyLibHandle = nullptr;
-    for (DyLibs::const_iterator I = m_DyLibs.begin(), E = m_DyLibs.end(); I != E; ++I) {
-      if (I->second == canonicalLoadedLib) {
-        dyLibHandle = I->first;
+    for (const auto& dylib : m_DyLibs) {
+      if (dylib.second == canonicalLoadedLib) {
+        dyLibHandle = dylib.first;
         break;
       }
     }
