@@ -277,6 +277,83 @@ TEST(FunctionReflectionTest, GetClassDecls) {
   EXPECT_EQ(Cpp::GetName(methods[3])         , Cpp::GetName(SubDecls[8]));
 }
 
+TEST(FunctionReflectionTest, GetFunctionUsingArgs) {
+  std::vector<Decl*> Decls;
+  std::string code = R"(
+    // Overloaded functions
+    void f1(int a) {}
+    void f1() {}
+
+    // Templated functions
+    template <typename T>
+    void f2() { T t; }
+
+    // Templated functions deducible from args
+    template <typename T>
+    void f3(const T& t1, T* t2) {}
+
+    // Overloaded templated functions
+    template <typename T>
+    void f4() { T t; }
+    template <typename T1, typename T2>
+    void f4() { T1 t1; T2 t2; }
+    )";
+
+  auto get_function_name_using_args =
+      [&](Cpp::TCppScope_t scope, const std::string& name,
+          std::vector<Cpp::TCppType_t> arg_types,
+          std::vector<Cpp::TemplateArgInfo> template_args = {}) {
+        Cpp::TCppFunction_t function = Cpp::GetFunctionUsingArgs(
+            scope, name, arg_types.data(), arg_types.size(),
+            template_args.data(), template_args.size());
+
+        if (function == (void*)-1 || function == 0)
+          return std::string("");
+
+        return Cpp::GetFunctionSignature(function);
+      };
+
+  std::vector<Cpp::TCppType_t> arg_types;
+  std::vector<Cpp::TemplateArgInfo> template_args;
+
+  arg_types = {};
+  EXPECT_EQ(get_function_name_using_args(nullptr, "f1", arg_types),
+            "void f1()");
+  arg_types = {Cpp::GetType("int")};
+  EXPECT_EQ(get_function_name_using_args(nullptr, "f1", arg_types),
+            "void f1(int a)");
+
+  arg_types = {};
+  template_args = {{Cpp::GetType("int")}};
+  EXPECT_EQ(
+      get_function_name_using_args(nullptr, "f2", arg_types, template_args),
+      "void f2()");
+  arg_types = {};
+  template_args = {{Cpp::GetType("double")}};
+  EXPECT_EQ(
+      get_function_name_using_args(nullptr, "f2", arg_types, template_args),
+      "void f2()");
+
+  arg_types = {Cpp::GetType("const std::string &"),
+               Cpp::GetType("std::string *")};
+  EXPECT_EQ(get_function_name_using_args(nullptr, "f3", arg_types),
+            "void f3(const std::string &t1, std::string *t2)");
+  arg_types = {Cpp::GetType("const int &"), Cpp::GetType("int *")};
+  EXPECT_EQ(get_function_name_using_args(nullptr, "f3", arg_types),
+            "void f3(const int &t1, int *t2)");
+
+  arg_types = {};
+  template_args = {{Cpp::GetType("double")}};
+  EXPECT_EQ(
+      get_function_name_using_args(nullptr, "f4", arg_types, template_args),
+      "void f4()");
+  arg_types = {};
+  template_args = {{Cpp::GetType("double")}, {Cpp::GetType("int")}};
+  EXPECT_EQ(
+      get_function_name_using_args(nullptr, "f4", arg_types, template_args),
+      "void f4()");
+}
+
 TEST(FunctionReflectionTest, GetFunctionReturnType) {
   std::vector<Decl*> Decls, SubDecls, TemplateSubDecls;
   std::string code = R"(
