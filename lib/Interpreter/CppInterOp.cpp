@@ -993,11 +993,17 @@ namespace Cpp {
       // actual types. We make this match solely based on count
 
       const FunctionDecl* func = TFD->getTemplatedDecl();
-      if (func->getNumParams() != arg_types.size())
+
+#ifdef USE_CLING
+      if (func->getNumParams() > arg_types.size())
         continue;
+#else // CLANG_REPL
+      if (func->getMinRequiredArguments() > arg_types.size())
+        continue;
+#endif
 
       // FIXME : first score based on the type similarity before forcing
-      // instantiation try instantiating
+      // instantiation.
       TCppFunction_t instantiated =
           InstantiateTemplate(candidate, arg_types.data(), arg_types.size());
       if (instantiated)

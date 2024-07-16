@@ -589,6 +589,60 @@ TEST(FunctionReflectionTest, InstantiateTemplateMethod) {
   EXPECT_TRUE(TA1.getAsType()->isIntegerType());
 }
 
+TEST(FunctionReflectionTest, BestTemplateFunctionMatch) {
+  std::vector<Decl*> Decls;
+  std::string code = R"(
+    class MyTemplatedMethodClass {
+      public:
+          template<class A> long get_size(A&);
+          template<class A> long get_size();
+          template<class A, class B> long get_size(A a, B b);
+      };
+
+      template<class A>
+      long MyTemplatedMethodClass::get_size(A&) {
+          return sizeof(A);
+      }
+
+      template<class A>
+      long MyTemplatedMethodClass::get_size() {
+          return sizeof(A) + 1;
+      }
+
+      template<class A, class B>
+      long MyTemplatedMethodClass::get_size(A a, B b) {
+          return sizeof(A) + sizeof(B);
+      }
+  )";
+
+  GetAllTopLevelDecls(code, Decls);
+  std::vector<Cpp::TCppFunction_t> candidates;
+
+  for (auto decl : Decls)
+    if (Cpp::IsTemplatedFunction(decl)) candidates.push_back((Cpp::TCppFunction_t)decl);
+
+  ASTContext& C = Interp->getCI()->getASTContext();
+
+  std::vector<Cpp::TemplateArgInfo> args0;
+  std::vector<Cpp::TemplateArgInfo> args1 = {C.IntTy.getAsOpaquePtr()};
+  std::vector<Cpp::TemplateArgInfo> args2 = {C.CharTy.getAsOpaquePtr(), C.FloatTy.getAsOpaquePtr()};
+
+  std::vector<Cpp::TemplateArgInfo> explicit_args0;
+  std::vector<Cpp::TemplateArgInfo> explicit_args1 = {C.IntTy.getAsOpaquePtr()};
+  
+
+  Cpp::TCppFunction_t func1 = Cpp::BestTemplateFunctionMatch(candidates, explicit_args0, args1);
+  Cpp::TCppFunction_t func2 = Cpp::BestTemplateFunctionMatch(candidates, explicit_args1, args0);
+  Cpp::TCppFunction_t func3 = Cpp::BestTemplateFunctionMatch(candidates, explicit_args0, args2);
+
+  EXPECT_EQ(Cpp::GetFunctionSignature(func1),
+            "template<> long MyTemplatedMethodClass::get_size<int>(int &)");
+  EXPECT_EQ(Cpp::GetFunctionSignature(func2),
+            "template<> long MyTemplatedMethodClass::get_size<int>()");
+  EXPECT_EQ(Cpp::GetFunctionSignature(func3),
+            "template<> long MyTemplatedMethodClass::get_size<char, float>(char a, float b)");
+}
+
 TEST(FunctionReflectionTest, IsPublicMethod) {
   std::vector<Decl *> Decls, SubDecls;
   std::string code = R"(
