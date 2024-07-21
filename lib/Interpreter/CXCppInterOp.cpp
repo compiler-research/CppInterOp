@@ -1360,6 +1360,12 @@ CXObject clang_construct(CXScope scope, void* arena) {
   return nullptr;
 }
 
+void clang_invoke(CXScope func, void* result, void** args, size_t n,
+                  void* self) {
+  Cpp::MakeFunctionCallableImpl(getInterpreter(func), getDecl(func))
+      .Invoke(result, {args, n}, self);
+}
+
 namespace Cpp {
 void DestructImpl(compat::Interpreter& interp, TCppObject_t This,
                   clang::Decl* Class, bool withFree);
@@ -1367,29 +1373,4 @@ void DestructImpl(compat::Interpreter& interp, TCppObject_t This,
 
 void clang_destruct(CXObject This, CXScope S, bool withFree) {
   Cpp::DestructImpl(*getInterpreter(S), This, getDecl(S), withFree);
-}
-
-CXJitCall clang_jitcall_create(CXScope func) {
-  auto J = Cpp::MakeFunctionCallableImpl(getInterpreter(func), getDecl(func));
-  auto Ptr = std::make_unique<Cpp::JitCall>(J);
-  return reinterpret_cast<CXJitCall>(Ptr.release()); // NOLINT(*-cast)
-}
-
-void clang_jitcall_dispose(CXJitCall J) {
-  delete reinterpret_cast<Cpp::JitCall*>(J); // NOLINT(*-owning-memory, *-cast)
-}
-
-CXJitCallKind clang_jitcall_getKind(CXJitCall J) {
-  const auto* call = reinterpret_cast<Cpp::JitCall*>(J); // NOLINT(*-cast)
-  return static_cast<CXJitCallKind>(call->getKind());
-}
-
-bool clang_jitcall_isValid(CXJitCall J) {
-  return reinterpret_cast<Cpp::JitCall*>(J)->isValid(); // NOLINT(*-cast)
-}
-
-void clang_jitcall_invoke(CXJitCall J, void* result, void** args,
-                          unsigned int n, void* self) {
-  const auto* call = reinterpret_cast<Cpp::JitCall*>(J); // NOLINT(*-cast)
-  call->Invoke(result, {args, n}, self);
 }
