@@ -831,6 +831,23 @@ void clang_deallocate(CXObject address);
 CXObject clang_construct(CXScope scope, void* arena);
 
 /**
+ * Creates a trampoline function and makes a call to a generic function or
+ * method.
+ *
+ * \param func The function or method to call.
+ *
+ * \param result The location where the return result will be placed.
+ *
+ * \param args The arguments to pass to the invocation.
+ *
+ * \param n The number of arguments.
+ *
+ * \param self The 'this pointer' of the object.
+ */
+void clang_invoke(CXScope func, void* result, void** args, size_t n,
+                  void* self);
+
+/**
  * Calls the destructor of object of type \c type. When withFree is true it
  * calls operator delete/free.
  *
@@ -841,80 +858,6 @@ CXObject clang_construct(CXScope scope, void* arena);
  * \param withFree Whether to call operator delete/free or not.
  */
 void clang_destruct(CXObject This, CXScope S, bool withFree);
-
-/**
- * @}
- */
-
-/**
- * \defgroup CPPINTEROP_JITCALL_MANIP JitCall manipulations
- *
- * @{
- */
-
-/**
- * An opaque pointer representing CppInterOp's JitCall, a class modeling
- * function calls for functions produced by the interpreter in compiled code.
- */
-typedef struct CXJitCallImpl* CXJitCall;
-
-/**
- * Creates a trampoline function by using the interpreter and returns a uniform
- * interface to call it from compiled code.
- *
- * \returns a \c CXJitCall.
- */
-CXJitCall clang_jitcall_create(CXScope func);
-
-/**
- * Dispose of the given CXJitCall.
- *
- * \param J The CXJitCall to dispose.
- */
-void clang_jitcall_dispose(CXJitCall J);
-
-/**
- * The kind of the JitCall.
- */
-typedef enum {
-  CXJitCall_Unknown = 0,
-  CXJitCall_GenericCall = 1,
-  CXJitCall_DestructorCall = 2,
-} CXJitCallKind;
-
-/**
- * Get the kind of the given CXJitCall.
- *
- * \param J The CXJitCall.
- *
- * \returns the kind of the given CXJitCall.
- */
-CXJitCallKind clang_jitcall_getKind(CXJitCall J);
-
-/**
- * Check if the given CXJitCall is valid.
- *
- * \param J The CXJitCall.
- *
- * \returns true if the given CXJitCall is valid.
- */
-bool clang_jitcall_isValid(CXJitCall J);
-
-/**
- * Makes a call to a generic function or method.
- *
- * \param J The CXJitCall.
- *
- * \param result The location where the return result will be placed.
- *
- * \param args The arguments to pass to the invocation.
- *
- * \param n The number of arguments.
- *
- * \param self The 'this pointer' of the object.
- */
-void clang_jitcall_invoke(CXJitCall J, void* result, void** args,
-                          unsigned int n, void* self);
 
 /**
  * @}
