@@ -381,6 +381,19 @@ public:
     return AddIncludePaths(PathsStr, nullptr);
   }
 
+  /// \returns include paths as string with ':' as delimiter
+  std::string GetIncludePaths() {
+    const clang::CompilerInstance* CI = getCompilerInstance();
+    clang::HeaderSearchOptions& HOpts =
+        const_cast<clang::HeaderSearchOptions&>(CI->getHeaderSearchOpts());
+    
+    std::string Paths;
+    for (const clang::HeaderSearchOptions::Entry& E : HOpts.UserEntries) {
+      Paths += E.Path + ":";
+    }
+    return Paths;
+  }
+
   CompilationResult loadLibrary(const std::string& filename, bool lookup) {
     DynamicLibraryManager* DLM = getDynamicLibraryManager();
     std::string canonicalLib;

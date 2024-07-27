@@ -2702,6 +2702,10 @@ namespace Cpp {
     getInterp().AddIncludePath(dir);
   }
 
+  std::string GetIncludePaths() {
+    return getInterp().GetIncludePaths();
+  }
+
   namespace {
 
   class clangSilent {
