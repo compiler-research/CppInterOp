@@ -381,17 +381,12 @@ public:
     return AddIncludePaths(PathsStr, nullptr);
   }
 
-  /// \returns include paths as string with ':' as delimiter
-  std::string GetIncludePaths() {
-    const clang::CompilerInstance* CI = getCompilerInstance();
-    clang::HeaderSearchOptions& HOpts =
-        const_cast<clang::HeaderSearchOptions&>(CI->getHeaderSearchOpts());
-    
-    std::string Paths;
-    for (const clang::HeaderSearchOptions::Entry& E : HOpts.UserEntries) {
-      Paths += E.Path + ":";
-    }
-    return Paths;
+  ///\brief pushes include path to incpaths and compiler flags 
+  ///
+  void GetIncludePaths(llvm::SmallVectorImpl<std::string>& incpaths,
+                       bool withSystem, bool withFlags) const {
+    utils::CopyIncludePaths(getCI()->getHeaderSearchOpts(),
+                              incpaths, withSystem, withFlags);
   }
 
   CompilationResult loadLibrary(const std::string& filename, bool lookup) {
