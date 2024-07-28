@@ -507,7 +507,9 @@ namespace Cpp {
   /// GetResourceDir() function.
   CPPINTEROP_API void AddIncludePath(const char* dir);
 
-  ///\returns include paths as string with ':' as delimiter
+  // Gets the currently used include paths
+  ///\param[out] IncludePaths - the list of include paths
+  ///
   CPPINTEROP_API void GetIncludePaths(std::vector<std::string>& IncludePaths);
 
   /// Only Declares a code snippet in \c code and does not execute it.
