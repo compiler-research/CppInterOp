@@ -761,7 +761,7 @@ namespace Cpp {
   ///\param[in] autoload - true = libraries autoload is on.
   CPPINTEROP_API void SetLibrariesAutoload(bool autoload = true);
 
-  /// Get libraries autoload.
+  /// Get libraries autoload status.
   ///\returns LibraryAutoLoad state (true = libraries autoload is on).
   CPPINTEROP_API bool GetLibrariesAutoload();
 

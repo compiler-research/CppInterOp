@@ -43,6 +43,15 @@ target_link_libraries(DynamicLibraryManagerTests
   clangCppInterOp
 )
 
+set_source_files_properties(DynamicLibraryManagerTest.cpp PROPERTIES COMPILE_DEFINITIONS
+  "LLVM_BINARY_DIR=\"${LLVM_BINARY_DIR}\""
+  )
+set_source_files_properties(DynamicLibraryManagerTest.cpp PROPERTIES COMPILE_DEFINITIONS
+  "CPPINTEROP_VERSION=\"${CPPINTEROP_VERSION}\""
+  )
+
+set_output_directory(DynamicLibraryManagerTests BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/TestSharedLib/unittests/bin/$<CONFIG>/)
+
 set_output_directory(DynamicLibraryManagerTests
   BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/TestSharedLib/unittests/bin/$<CONFIG>/
   LIBRARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/TestSharedLib/unittests/bin/$<CONFIG>/
@@ -50,7 +59,12 @@ set_output_directory(DynamicLibraryManagerTests
 add_dependencies(DynamicLibraryManagerTests TestSharedLib)
 #export_executable_symbols_for_plugins(TestSharedLib)
 add_subdirectory(TestSharedLib)
-# TODO: Remove when libraryunload work correctly
 add_dependencies(DynamicLibraryManagerTests TestSharedLib1)
 #export_executable_symbols_for_plugins(TestSharedLib1)
 add_subdirectory(TestSharedLib1)
+add_dependencies(DynamicLibraryManagerTests TestSharedLib2)
+#export_executable_symbols_for_plugins(TestSharedLib2)
+add_subdirectory(TestSharedLib2)
+add_dependencies(DynamicLibraryManagerTests TestSharedLib3)
+#export_executable_symbols_for_plugins(TestSharedLib3)
+add_subdirectory(TestSharedLib3)
