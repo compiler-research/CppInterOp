@@ -58,6 +58,10 @@ namespace Cpp {
   using namespace std;
 
   static std::unique_ptr<compat::Interpreter> sInterpreter;
+  // Last assigned Autoload SearchGenerator
+  // TODO: Test for thread safe.
+  class AutoLoadLibrarySearchGenerator;
+  static AutoLoadLibrarySearchGenerator *sAutoSG = nullptr;
   // Valgrind complains about __cxa_pure_virtual called when deleting
   // llvm::SectionMemoryManager::~SectionMemoryManager as part of the dtor chain
   // of the Interpreter.
@@ -1073,9 +1077,9 @@ namespace Cpp {
     auto FDAorErr = compat::getSymbolAddress(I, mangled_name);
     if (llvm::Error Err = FDAorErr.takeError())
       llvm::consumeError(std::move(Err)); // nullptr if missing
-    else
+    else {
       return llvm::jitTargetAddressToPointer<void*>(*FDAorErr);
-
+    }
     return nullptr;
   }
 
@@ -2534,7 +2538,7 @@ namespace Cpp {
     std::string BinaryPath = GetExecutablePath(/*Argv0=*/nullptr, MainAddr);
 
     // build/tools/clang/unittests/Interpreter/Executable -> build/
-    StringRef Dir = sys::path::parent_path(BinaryPath);
+    Dir = sys::path::parent_path(BinaryPath);
 
     Dir = sys::path::parent_path(Dir);
     Dir = sys::path::parent_path(Dir);
@@ -2609,6 +2613,7 @@ namespace Cpp {
     // calls to CreateInterpreter.
     //assert(!sInterpreter && "Interpreter already set.");
     sInterpreter.reset(I);
+    sAutoSG = nullptr;
     return I;
   }
 
@@ -3286,12 +3291,6 @@ namespace Cpp {
     return nameForDlsym;
   }
 
-  class AutoLoadLibrarySearchGenerator;
-
-  // Last assigned Autoload SearchGenerator
-  // TODO: Test for thread safe.
-  static AutoLoadLibrarySearchGenerator *AutoSG = nullptr;
-
   class AutoLoadLibrarySearchGenerator : public llvm::orc::DefinitionGenerator {
     bool Enabled = false;
   public:
@@ -3308,15 +3307,15 @@ namespace Cpp {
       std::string lib;
       llvm::orc::SymbolNameVector syms;
     public:
-      AutoloadLibraryMU(const std::string& Library, const llvm::orc::SymbolNameVector &Symbols)
-        : MaterializationUnit({getSymbolFlagsMap(Symbols), nullptr}), lib(Library), syms(Symbols) {}
+      AutoloadLibraryMU(std::string Library, const llvm::orc::SymbolNameVector &Symbols)
+        : MaterializationUnit({getSymbolFlagsMap(Symbols), nullptr}), lib(std::move(Library)), syms(Symbols) {}
 
-      [[nodiscard]] StringRef getName() const override {
+      StringRef getName() const override {
         return "<Symbols from Autoloaded Library>";
       }
 
       void materialize(std::unique_ptr<llvm::orc::MaterializationResponsibility> R) override {
-        if (!AutoSG || !AutoSG->isEnabled()) {
+        if (!sAutoSG || !sAutoSG->isEnabled()) {
           R->failMaterialization();
           return;
         }
@@ -3390,37 +3389,37 @@ namespace Cpp {
 
     llvm::Error tryToGenerate(llvm::orc::LookupState &LS, llvm::orc::LookupKind K, llvm::orc::JITDylib &JD,
                               llvm::orc::JITDylibLookupFlags JDLookupFlags, const llvm::orc::SymbolLookupSet &Symbols) override {
-      if (isEnabled()) {
-        LLVM_DEBUG(dbgs() << "tryToGenerate");
+      if (!isEnabled())
+	return llvm::Error::success();
+      LLVM_DEBUG(dbgs() << "tryToGenerate");
 
-        auto& I = getInterp();
-        auto *DLM = I.getDynamicLibraryManager();
+      auto& I = getInterp();
+      auto *DLM = I.getDynamicLibraryManager();
 
-        std::unordered_map<std::string, llvm::orc::SymbolNameVector> found;
-        llvm::orc::SymbolMap NewSymbols;
-        for (const auto &KV : Symbols) {
-          const auto &Name = KV.first;
-          if ((*Name).empty())
-            continue;
+      std::unordered_map<std::string, llvm::orc::SymbolNameVector> found;
+      llvm::orc::SymbolMap NewSymbols;
+      for (const auto &KV : Symbols) {
+	const auto &Name = KV.first;
+	if ((*Name).empty())
+	  continue;
 
-          auto lib = DLM->searchLibrariesForSymbol(*Name, /*searchSystem=*/true); // false?
-          if (lib.empty())
-            continue;
+	auto lib = DLM->searchLibrariesForSymbol(*Name, /*searchSystem=*/true); // false?
+	if (lib.empty())
+	  continue;
 
-          found[lib].push_back(Name);
+	found[lib].push_back(Name);
 
-          // Workaround: This getAddressOfGlobal call make first symbol search
-          // to work, immediatelly after library auto load. This approach do not
-          // use MU
-          //DLM->loadLibrary(lib, true);
-          //I.getAddressOfGlobal(*Name);
-        }
+	// Workaround: This getAddressOfGlobal call make first symbol search
+	// to work, immediatelly after library auto load. This approach do not
+	// use MU
+	//DLM->loadLibrary(lib, true);
+	//I.getAddressOfGlobal(*Name);
+      }
 
-        for (auto &&KV : found) {
-          auto MU = std::make_unique<AutoloadLibraryMU>(KV.first, std::move(KV.second));
-          if (auto Err = JD.define(MU))
-            return Err;
-        }
+      for (auto &&KV : found) {
+	auto MU = std::make_unique<AutoloadLibraryMU>(KV.first, std::move(KV.second));
+	if (auto Err = JD.define(MU))
+	  return Err;
       }
 
       return llvm::Error::success();
@@ -3437,16 +3436,17 @@ namespace Cpp {
     llvm::orc::JITDylib& DyLib = *EE.getProcessSymbolsJITDylib().get();
 #endif // CLANG_VERSION_MAJOR
 
-    if (!AutoSG)
-      AutoSG = &DyLib.addGenerator(std::make_unique<AutoLoadLibrarySearchGenerator>());
-    AutoSG->setEnabled(autoload);
+    if (!sAutoSG) {
+      sAutoSG = &DyLib.addGenerator(std::make_unique<AutoLoadLibrarySearchGenerator>());
+    }
+    sAutoSG->setEnabled(autoload);
 
-    LLVM_DEBUG(dbgs() << "Autoload=" << (AutoSG->isEnabled() ? "ON" : "OFF"));
+    LLVM_DEBUG(dbgs() << "Autoload=" << (sAutoSG->isEnabled() ? "ON" : "OFF"));
   }
 
   bool GetLibrariesAutoload() {
-    LLVM_DEBUG(dbgs() << "Autoload is " << (AutoSG && AutoSG->isEnabled() ? "ON" : "OFF"));
-    return AutoSG && AutoSG->isEnabled();
+    LLVM_DEBUG(dbgs() << "Autoload is " << (sAutoSG && sAutoSG->isEnabled() ? "ON" : "OFF"));
+    return sAutoSG && sAutoSG->isEnabled();
   }
 
 #undef DEBUG_TYPE
