@@ -395,8 +395,8 @@ public:
   ///
   void GetIncludePaths(llvm::SmallVectorImpl<std::string>& incpaths,
                        bool withSystem, bool withFlags) const {
-    utils::CopyIncludePaths(getCI()->getHeaderSearchOpts(),
-                              incpaths, withSystem, withFlags);
+    utils::CopyIncludePaths(getCI()->getHeaderSearchOpts(), incpaths,
+                            withSystem, withFlags);
   }
 
   CompilationResult loadLibrary(const std::string& filename, bool lookup) {

@@ -2704,8 +2704,9 @@ namespace Cpp {
 
   void GetIncludePaths(std::vector<std::string>& IncludePaths) {
     llvm::SmallVector<std::string> paths(1);
-    getInterp().GetIncludePaths(paths, /*withSystem=*/false, /*withFlags=*/false);
-    for (auto &i: paths)
+    getInterp().GetIncludePaths(paths, /*withSystem=*/false,
+                                /*withFlags=*/false);
+    for (auto& i : paths)
       IncludePaths.push_back(i);
   }
 
