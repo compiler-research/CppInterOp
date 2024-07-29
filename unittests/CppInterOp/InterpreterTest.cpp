@@ -113,6 +113,12 @@ TEST(InterpreterTest, DetectSystemCompilerIncludePaths) {
   EXPECT_FALSE(includes.empty());
 }
 
+TEST(InterpreterTest, GetIncludePaths) {
+  std::vector<std::string> includes;
+  Cpp::GetIncludePaths(includes);
+  EXPECT_FALSE(includes.empty());
+}
+
 TEST(InterpreterTest, CodeCompletion) {
 #if CLANG_VERSION_MAJOR >= 18 || defined(USE_CLING)
   Cpp::CreateInterpreter();
