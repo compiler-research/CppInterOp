@@ -119,6 +119,27 @@ TEST(InterpreterTest, GetIncludePaths) {
   EXPECT_FALSE(includes.empty());
 }
 
+TEST(InterpreterTest, GetIncludePaths2) {
+  Cpp::Interpreter* I =
+      static_cast<Cpp::Interpreter*>(Cpp::CreateInterpreter());
+
+  llvm::SmallVector<std::string> includes(1);
+
+  I->GetIncludePaths(includes, /*withSystem=*/false, /*withFlags=*/false);
+  EXPECT_FALSE(includes.empty());
+  size_t len = includes.size();
+  includes.clear();
+
+  I->GetIncludePaths(includes, /*withSystem=*/true, /*withFlags=*/false);
+  EXPECT_FALSE(includes.empty());
+  EXPECT_TRUE(includes.size() >= len);
+  len = includes.size();
+
+  I->GetIncludePaths(includes, /*withSystem=*/true, /*withFlags=*/true);
+  EXPECT_FALSE(includes.empty());
+  EXPECT_TRUE(includes.size() >= len);
+}
+
 TEST(InterpreterTest, CodeCompletion) {
 #if CLANG_VERSION_MAJOR >= 18 || defined(USE_CLING)
   Cpp::CreateInterpreter();
