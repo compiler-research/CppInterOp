@@ -10,6 +10,35 @@
 #include "clang/Basic/Version.h"
 #include "clang/Config/config.h"
 
+#if CLANG_VERSION_MAJOR < 19
+#define Template_Deduction_Result Sema::TemplateDeductionResult
+#else
+#define Template_Deduction_Result TemplateDeductionResult
+#endif
+
+#if CLANG_VERSION_MAJOR < 19
+#define For_Visible_Redeclaration Sema::ForVisibleRedeclaration
+#define Clang_For_Visible_Redeclaration clang::Sema::ForVisibleRedeclaration
+#else
+#define For_Visible_Redeclaration RedeclarationKind::ForVisibleRedeclaration
+#define Clang_For_Visible_Redeclaration                                        \
+  RedeclarationKind::ForVisibleRedeclaration
+#endif
+
+#if CLANG_VERSION_MAJOR < 19
+#define CXXSpecialMemberKindDefaultConstructor                                 \
+  clang::Sema::CXXDefaultConstructor
+#define CXXSpecialMemberKindCopyConstructor clang::Sema::CXXCopyConstructor
+#define CXXSpecialMemberKindMoveConstructor clang::Sema::CXXMoveConstructor
+#else
+#define CXXSpecialMemberKindDefaultConstructor                                 \
+  CXXSpecialMemberKind::DefaultConstructor
+#define CXXSpecialMemberKindCopyConstructor                                    \
+  CXXSpecialMemberKind::CopyConstructor
+#define CXXSpecialMemberKindMoveConstructor                                    \
+  CXXSpecialMemberKind::MoveConstructor
+#endif
+
 #if LLVM_VERSION_MAJOR < 18
 #define starts_with startswith
 #define ends_with endswith
