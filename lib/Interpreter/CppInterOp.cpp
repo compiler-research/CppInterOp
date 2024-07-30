@@ -1137,9 +1137,8 @@ namespace Cpp {
     auto FDAorErr = compat::getSymbolAddress(I, mangled_name);
     if (llvm::Error Err = FDAorErr.takeError())
       llvm::consumeError(std::move(Err)); // nullptr if missing
-    else {
+    else
       return llvm::jitTargetAddressToPointer<void*>(*FDAorErr);
-    }
     return nullptr;
   }
 
