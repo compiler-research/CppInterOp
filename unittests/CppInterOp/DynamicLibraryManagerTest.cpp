@@ -52,7 +52,7 @@ TEST(DynamicLibraryManagerTest, Sanity) {
   // adds an additional underscore (_) prefix to the lowered names. Figure out
   // how to harmonize that API.
   std::string PathToTestSharedLib =
-      Cpp::SearchLibrariesForSymbol(MangleNameForDlsym("ret_zero").c_str(), /*system_search=*/false);
+      Cpp::SearchLibrariesForSymbol(MangleNameForDlsym("ret_zero").c_str(), /*search_system=*/false);
   EXPECT_STRNE("", PathToTestSharedLib.c_str())
       << "Cannot find: '" << PathToTestSharedLib << "' in '" << Dir.str() << "'";
   EXPECT_TRUE(Cpp::LoadLibrary(PathToTestSharedLib.c_str()));
@@ -88,7 +88,7 @@ TEST(DynamicLibraryManagerTest, LibrariesAutoload) {
   // how to harmonize that API. For now we use out minimal implementation of
   // helper function.
   std::string PathToTestSharedLib1 =
-      Cpp::SearchLibrariesForSymbol(MangleNameForDlsym("ret_one").c_str(), /*system_search=*/false);
+      Cpp::SearchLibrariesForSymbol(MangleNameForDlsym("ret_one").c_str(), /*search_system=*/false);
   // If result is "" then we cannot find this library.
   EXPECT_STRNE("", PathToTestSharedLib1.c_str())
       << "Cannot find: '" << PathToTestSharedLib1 << "' in '" << Dir.str() << "'";
@@ -133,7 +133,7 @@ TEST(DynamicLibraryManagerTest, LibrariesAutoload) {
 
   // Find library with "ret_1" symbol defined and exported
   std::string PathToTestSharedLib2 =
-      Cpp::SearchLibrariesForSymbol(MangleNameForDlsym("ret_1").c_str(), /*system_search=*/false);
+      Cpp::SearchLibrariesForSymbol(MangleNameForDlsym("ret_1").c_str(), /*search_system=*/false);
   // If result is "" then we cannot find this library.
   EXPECT_STRNE("", PathToTestSharedLib2.c_str())
       << "Cannot find: '" << PathToTestSharedLib2 << "' in '" << Dir.str() << "'";
@@ -175,7 +175,7 @@ TEST(DynamicLibraryManagerTest, LibrariesAutoloadExtraCoverage) {
   // } else {
   // Find library with "ret_value" symbol defined and exported
   std::string PathToTestSharedLib3 =
-      Cpp::SearchLibrariesForSymbol(MangleNameForDlsym("ret_val").c_str(), /*system_search=*/false);
+      Cpp::SearchLibrariesForSymbol(MangleNameForDlsym("ret_val").c_str(), /*search_system=*/false);
   // If result is "" then we cannot find this library.
   EXPECT_STRNE("", PathToTestSharedLib3.c_str())
       << "Cannot find: '" << PathToTestSharedLib3 << "' in '" << Dir.str() << "'";
