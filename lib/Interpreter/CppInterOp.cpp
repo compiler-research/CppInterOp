@@ -3552,15 +3552,23 @@ namespace Cpp {
   static inline std::string DemangleNameForDlsym(const std::string& name) {
     std::string nameForDlsym = name;
 
-#if defined(R__MACOSX) || defined(R__WIN32)
+    static bool is_demangle_active = false;
+    static bool demangle = false;
+    if (!is_demangle_active) {
+      auto& I = getInterp();
+      llvm::orc::LLJIT& EE = *compat::getExecutionEngine(I);
+      auto t = EE.getTargetMachine().getTargetTriple();
+      demangle = t.isOSDarwin() || t.isWindows();
+      is_demangle_active = true;
+    }
+
     // The JIT gives us a mangled name which has an additional leading underscore
     // on macOS and Windows, for instance __ZN8TRandom34RndmEv. However, dlsym
     // requires us to remove it.
     // FIXME: get this information from the DataLayout via getGlobalPrefix()!
-    if (nameForDlsym[0] == '_')
+    if (demangle && nameForDlsym[0] == '_')
       nameForDlsym.erase(0, 1);
-#endif //R__MACOSX
-
+    }
     return nameForDlsym;
   }
 
