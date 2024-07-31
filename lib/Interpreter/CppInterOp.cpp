@@ -3557,8 +3557,8 @@ namespace Cpp {
     if (!is_demangle_active) {
       auto& I = getInterp();
       llvm::orc::LLJIT& EE = *compat::getExecutionEngine(I);
-      auto t = EE.getTargetMachine().getTargetTriple();
-      demangle = t.isOSDarwin() || t.isWindows();
+      auto t = EE.getTargetTriple();
+      demangle = t.isOSDarwin() || t.isOSWindows();
       is_demangle_active = true;
     }
 
@@ -3568,7 +3568,6 @@ namespace Cpp {
     // FIXME: get this information from the DataLayout via getGlobalPrefix()!
     if (demangle && nameForDlsym[0] == '_')
       nameForDlsym.erase(0, 1);
-    }
     return nameForDlsym;
   }
 
