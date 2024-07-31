@@ -1260,7 +1260,7 @@ namespace Cpp {
 
   void DynamicLibraryManager::initializeDyld(
                  std::function<bool(llvm::StringRef)> shouldPermanentlyIgnore) {
-     //assert(!m_Dyld && "Already initialized!");
+    assert(!m_Dyld && "Already initialized!");
     if (m_Dyld)
       delete m_Dyld;
 
