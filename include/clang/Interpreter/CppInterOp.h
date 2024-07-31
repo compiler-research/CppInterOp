@@ -758,7 +758,7 @@ namespace Cpp {
                                    unsigned complete_column = 1U);
 
   /// Set libraries autoload.
-  ///\param[in] autoload - true = libraries autoload is on.
+  ///\param[in] autoload - true to enable library autoload.
   CPPINTEROP_API void SetLibrariesAutoload(bool autoload = true);
 
   /// Get libraries autoload status.
