@@ -1,4 +1,3 @@
-# TODO: Remove when library unload work correctly
 add_llvm_library(TestSharedLib1
   SHARED
   DISABLE_LLVM_LINK_LLVM_DYLIB
