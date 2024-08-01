@@ -312,7 +312,7 @@ bool LookForFile(const std::vector<const char*>& Args, std::string& Path,
       return true;
     }
     // Don't write same same log entry twice when FilePath == Path
-    if (FileType && !FilePath.str().equals(Path))
+    if (FileType && FilePath.str() != Path)
       LogFileStatus("Ignoring", FileType, FilePath);
   }
   else if (llvm::sys::path::is_absolute(Path))
@@ -354,7 +354,7 @@ bool SplitPaths(llvm::StringRef PathStr,
 
 #if defined(_WIN32)
   // Support using a ':' delimiter on Windows.
-  const bool WindowsColon = Delim.equals(":");
+  const bool WindowsColon = (Delim == ":");
 #endif
 
   bool AllExisted = true;

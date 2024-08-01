@@ -24,6 +24,9 @@
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Sema/Lookup.h"
 #include "clang/Sema/Sema.h"
+#if CLANG_VERSION_MAJOR >= 19
+#include "clang/Sema/Redeclaration.h"
+#endif
 #include "clang/Sema/TemplateDeduction.h"
 
 #include "llvm/ADT/StringRef.h"
@@ -48,6 +51,8 @@
 #include <dlfcn.h>
 #include <unistd.h>
 #endif // WIN32
+
+#include <stack>
 
 namespace Cpp {
 
@@ -805,11 +810,8 @@ namespace Cpp {
     llvm::StringRef Name(name);
     auto &S = getSema();
     DeclarationName DName = &getASTContext().Idents.get(name);
-    clang::LookupResult R(S,
-                          DName,
-                          SourceLocation(),
-                          Sema::LookupOrdinaryName,
-                          Sema::ForVisibleRedeclaration);
+    clang::LookupResult R(S, DName, SourceLocation(), Sema::LookupOrdinaryName,
+                          For_Visible_Redeclaration);
 
     Cpp_utils::Lookup::Named(&S, R, Decl::castToDeclContext(D));
 
@@ -962,7 +964,7 @@ namespace Cpp {
     auto& S = getSema();
     DeclarationName DName = &getASTContext().Idents.get(name);
     clang::LookupResult R(S, DName, SourceLocation(), Sema::LookupOrdinaryName,
-                          Sema::ForVisibleRedeclaration);
+                          For_Visible_Redeclaration);
 
     Cpp_utils::Lookup::Named(&S, R, Decl::castToDeclContext(D));
 
@@ -1348,36 +1350,43 @@ namespace Cpp {
         isunsigned = true;
         typeName = StringRef(typeName.data()+9, typeName.size()-9);
       }
-      if (typeName.equals("char")) {
+      if (typeName == "char") {
         if (isunsigned) return Context.UnsignedCharTy;
         return Context.SignedCharTy;
       }
-      if (typeName.equals("short")) {
+      if (typeName == "short") {
         if (isunsigned) return Context.UnsignedShortTy;
         return Context.ShortTy;
       }
-      if (typeName.equals("int")) {
+      if (typeName == "int") {
         if (isunsigned) return Context.UnsignedIntTy;
         return Context.IntTy;
       }
-      if (typeName.equals("long")) {
+      if (typeName == "long") {
         if (isunsigned) return Context.UnsignedLongTy;
         return Context.LongTy;
       }
-      if (typeName.equals("long long")) {
+      if (typeName == "long long") {
         if (isunsigned)
         return Context.UnsignedLongLongTy;
         return Context.LongLongTy;
       }
       if (!issigned && !isunsigned) {
-        if (typeName.equals("bool")) return Context.BoolTy;
-        if (typeName.equals("float")) return Context.FloatTy;
-        if (typeName.equals("double")) return Context.DoubleTy;
-        if (typeName.equals("long double")) return Context.LongDoubleTy;
+        if (typeName == "bool")
+          return Context.BoolTy;
+        if (typeName == "float")
+          return Context.FloatTy;
+        if (typeName == "double")
+          return Context.DoubleTy;
+        if (typeName == "long double")
+          return Context.LongDoubleTy;
 
-        if (typeName.equals("wchar_t")) return Context.WCharTy;
-        if (typeName.equals("char16_t")) return Context.Char16Ty;
-        if (typeName.equals("char32_t")) return Context.Char32Ty;
+        if (typeName == "wchar_t")
+          return Context.WCharTy;
+        if (typeName == "char16_t")
+          return Context.Char16Ty;
+        if (typeName == "char32_t")
+          return Context.Char32Ty;
       }
       /* Missing
      CanQualType WideCharTy; // Same as WCharTy in C++, integer type in C99.
@@ -1747,9 +1756,11 @@ namespace Cpp {
       if (const CXXConstructorDecl* CD = dyn_cast<CXXConstructorDecl>(FD)) {
         if (N <= 1 && llvm::isa<UsingShadowDecl>(FD)) {
           auto SpecMemKind = I.getCI()->getSema().getSpecialMember(CD);
-          if ((N == 0 && SpecMemKind == clang::Sema::CXXDefaultConstructor) ||
-              (N == 1 && (SpecMemKind == clang::Sema::CXXCopyConstructor ||
-                          SpecMemKind == clang::Sema::CXXMoveConstructor))) {
+          if ((N == 0 &&
+               SpecMemKind == CXXSpecialMemberKindDefaultConstructor) ||
+              (N == 1 &&
+               (SpecMemKind == CXXSpecialMemberKindCopyConstructor ||
+                SpecMemKind == CXXSpecialMemberKindMoveConstructor))) {
             // Using declarations cannot inject special members; do not call
             // them as such. This might happen by using `Base(Base&, int = 12)`,
             // which is fine to be called as `Derived d(someBase, 42)` but not
@@ -2866,9 +2877,10 @@ namespace Cpp {
     if (auto* FunctionTemplate = dyn_cast<FunctionTemplateDecl>(TemplateD)) {
       FunctionDecl* Specialization = nullptr;
       clang::sema::TemplateDeductionInfo Info(fakeLoc);
-      if (Sema::TemplateDeductionResult Result = S.DeduceTemplateArguments(
-              FunctionTemplate, &TLI, Specialization, Info,
-              /*IsAddressOfFunction*/ true)) {
+      Template_Deduction_Result Result = S.DeduceTemplateArguments(
+          FunctionTemplate, &TLI, Specialization, Info,
+          /*IsAddressOfFunction*/ true);
+      if (Result != Template_Deduction_Result_Success) {
         // FIXME: Diagnose what happened.
         (void)Result;
       }
