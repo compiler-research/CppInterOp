@@ -2880,7 +2880,7 @@ namespace Cpp {
       Template_Deduction_Result Result = S.DeduceTemplateArguments(
           FunctionTemplate, &TLI, Specialization, Info,
           /*IsAddressOfFunction*/ true);
-      if (static_cast<int>(Result)) {
+      if (Result != Template_Deduction_Result_Success) {
         // FIXME: Diagnose what happened.
         (void)Result;
       }

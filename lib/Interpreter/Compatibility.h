@@ -12,8 +12,11 @@
 
 #if CLANG_VERSION_MAJOR < 19
 #define Template_Deduction_Result Sema::TemplateDeductionResult
+#define Template_Deduction_Result_Success                                      \
+  Sema::TemplateDeductionResult::TDK_Success
 #else
 #define Template_Deduction_Result TemplateDeductionResult
+#define Template_Deduction_Result_Success TemplateDeductionResult::Success
 #endif
 
 #if CLANG_VERSION_MAJOR < 19
