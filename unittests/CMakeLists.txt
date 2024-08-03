@@ -25,6 +25,8 @@ function(add_cppinterop_unittest name)
   set_property(TARGET ${name} PROPERTY RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
 
 if(WIN32)
+set_property(TARGET ${name} PROPERTY
+  MSVC_RUNTIME_LIBRARY "MultiThreadedDLL")
   target_link_libraries(${name} PUBLIC ${ARG_LIBRARIES} ${gtest_libs})
   set_property(TARGET ${name} APPEND_STRING PROPERTY LINK_FLAGS "${MSVC_EXPORTS}")
 else()
