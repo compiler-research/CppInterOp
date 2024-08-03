@@ -241,7 +241,9 @@ if( CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR )
   include_directories(SYSTEM ${LLVM_INCLUDE_DIRS})
   separate_arguments(LLVM_DEFINITIONS_LIST NATIVE_COMMAND ${LLVM_DEFINITIONS})
   add_definitions(${LLVM_DEFINITIONS_LIST})
-
+  IF(WIN32 AND NOT MSVC)
+    remove_definitions(-DNDEBUG -D_DEBUG)
+  endif()
   if (USE_CLING)
     message(STATUS "CLING_INCLUDE_DIRS: ${CLING_INCLUDE_DIRS}")
   endif(USE_CLING)
@@ -303,8 +305,13 @@ if (LLVM_COMPILER_IS_GCC_COMPATIBLE)
 endif ()
 
 # Fixes "C++ exception handler used, but unwind semantics are not enabled" warning Windows
-if (WIN32)
+if (MSVC)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /EHsc")
+endif ()
+
+# Attempt to fix emulated tls missing symbols
+if (WIN32 AND NOT MSVC)
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -femulated-tls -fno-threadsafe-statics")
 endif ()
 
 if (APPLE)
@@ -421,8 +428,8 @@ if(MSVC)
    ??$?6U?$char_traits@D@std@@@std@@YAAEAV?$basic_ostream@DU?$char_traits@D@std@@@0@AEAV10@D@Z
    ??$?6U?$char_traits@D@std@@@std@@YAAEAV?$basic_ostream@DU?$char_traits@D@std@@@0@AEAV10@PEBD@Z
    ?_Facet_Register@std@@YAXPEAV_Facet_base@1@@Z
-  )
-
+  ) 
+  
   if(MSVC_VERSION LESS 1914)
     set(MSVC_EXPORTLIST ${MSVC_EXPORTLIST} ??3@YAXPAX0@Z ??_V@YAXPAX0@Z)
   endif()
