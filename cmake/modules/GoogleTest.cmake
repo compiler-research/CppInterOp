@@ -1,5 +1,6 @@
 set(_gtest_byproduct_binary_dir
-  ${CMAKE_BINARY_DIR}/downloads/googletest-prefix/src/googletest-build)
+  ${CMAKE_BINARY_DIR}/googletest-prefix/src/googletest-stamp)
+
 set(_gtest_byproducts
   ${_gtest_byproduct_binary_dir}/lib/libgtest.a
   ${_gtest_byproduct_binary_dir}/lib/libgtest_main.a
@@ -20,6 +21,14 @@ elseif(APPLE)
 endif()
 
 include(ExternalProject)
+IF(WIN32 AND NOT MSVC)
+  IF(NOT MSVC)
+    string(REPLACE "-Wsuggest-override" "" CMAKE_CXX_FLAGS_GTEST ${CMAKE_CXX_FLAGS})
+    set(CMAKE_CXX_FLAGS_GTEST "${CMAKE_CXX_FLAGS_GTEST} -Wno-language-extension-token")
+  else()
+    set(CMAKE_CXX_FLAGS_GTEST "${CMAKE_CXX_FLAGS}")
+  endif()
+endif()
 ExternalProject_Add(
   googletest
   GIT_REPOSITORY https://github.com/google/googletest.git
@@ -36,7 +45,7 @@ ExternalProject_Add(
                 -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}
                 -DCMAKE_C_FLAGS=${CMAKE_C_FLAGS}
                 -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}
-                -DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS}
+                -DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS_GTEST}
                 -DCMAKE_AR=${CMAKE_AR}
                 -DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX}
                 ${EXTRA_GTEST_OPTS}

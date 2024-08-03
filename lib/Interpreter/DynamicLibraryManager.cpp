@@ -52,7 +52,13 @@ namespace Cpp {
     // Behaviour is to not add paths that don't exist...In an interpreted env
     // does this make sense? Path could pop into existance at any time.
     for (const char* Var : kSysLibraryEnv) {
+#if defined(_WIN32)
+      char* Env = nullptr;
+      size_t sz = 0;
+      if (_dupenv_s(&Env, &sz, Var)) {
+#else
       if (const char* Env = ::getenv(Var)) {
+#endif
         SmallVector<StringRef, 10> CurPaths;
         SplitPaths(Env, CurPaths, utils::kPruneNonExistant, Cpp::utils::platform::kEnvDelim);
         for (const auto& Path : CurPaths)
