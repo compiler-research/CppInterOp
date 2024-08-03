@@ -8,6 +8,7 @@
 //------------------------------------------------------------------------------
 
 #include "DynamicLibraryManager.h"
+#include "Compatibility.h"
 #include "Paths.h"
 
 #include "llvm/ADT/StringSet.h"
@@ -52,7 +53,7 @@ namespace Cpp {
     // Behaviour is to not add paths that don't exist...In an interpreted env
     // does this make sense? Path could pop into existance at any time.
     for (const char* Var : kSysLibraryEnv) {
-      if (const char* Env = ::getenv(Var)) {
+      if (const char* Env = GetEnv(Var)) {
         SmallVector<StringRef, 10> CurPaths;
         SplitPaths(Env, CurPaths, utils::kPruneNonExistant, Cpp::utils::platform::kEnvDelim);
         for (const auto& Path : CurPaths)
