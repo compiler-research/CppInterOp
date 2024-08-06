@@ -1089,7 +1089,10 @@ jobs:
         else
             echo "Running valgrind on passing tests"
             CLANG_VERSION="${{ matrix.clang-runtime }}"
-            SUPPRESSION_FILE="../etc/clang${CLANG_VERSION}-valgrind.supp"
+            if test -f "../etc/clang${CLANG_VERSION}-valgrind.supp"; then
+              SUPPRESSION_FILE="../etc/clang${CLANG_VERSION}-valgrind.supp"
+            fi
+            SUPPRESSION_FILE=""
             valgrind --show-error-list=yes --error-exitcode=1 --track-origins=yes --suppressions="${SUPPRESSION_FILE}" --suppressions=../etc/valgrind-cppyy-cling.supp python -m pytest -m "not xfail" -v
         fi
         export RETCODE=+$?
