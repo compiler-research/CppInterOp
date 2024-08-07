@@ -421,8 +421,8 @@ if(MSVC)
    ??$?6U?$char_traits@D@std@@@std@@YAAEAV?$basic_ostream@DU?$char_traits@D@std@@@0@AEAV10@D@Z
    ??$?6U?$char_traits@D@std@@@std@@YAAEAV?$basic_ostream@DU?$char_traits@D@std@@@0@AEAV10@PEBD@Z
    ?_Facet_Register@std@@YAXPEAV_Facet_base@1@@Z
-  )
-
+  ) 
+  
   if(MSVC_VERSION LESS 1914)
     set(MSVC_EXPORTLIST ${MSVC_EXPORTLIST} ??3@YAXPAX0@Z ??_V@YAXPAX0@Z)
   endif()

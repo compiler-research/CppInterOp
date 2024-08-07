@@ -9,11 +9,7 @@ get_filename_component(CPPINTEROP_INSTALL_PREFIX "${CPPINTEROP_INSTALL_PREFIX}" 
 # Determine CMAKE_SHARED_LIBRARY_SUFFIX based on operating system
 include(CMakeSystemSpecificInformation)
 
-if(MSVC)
-  set(shared_lib_dir bin)
-else()
-  set(shared_lib_dir lib)
-endif()
+set(shared_lib_dir lib)
 
 ### build/install workaround
 if (@BUILD_SHARED_LIBS@)
