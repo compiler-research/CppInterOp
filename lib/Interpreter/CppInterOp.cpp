@@ -2702,10 +2702,10 @@ namespace Cpp {
     getInterp().AddIncludePath(dir);
   }
 
-  void GetIncludePaths(std::vector<std::string>& IncludePaths) {
+  void GetIncludePaths(std::vector<std::string>& IncludePaths, bool withSystem,
+                       bool withFlags) {
     llvm::SmallVector<std::string> paths(1);
-    getInterp().GetIncludePaths(paths, /*withSystem=*/false,
-                                /*withFlags=*/false);
+    getInterp().GetIncludePaths(paths, withSystem, withFlags);
     for (auto& i : paths)
       IncludePaths.push_back(i);
   }

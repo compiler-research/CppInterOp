@@ -510,7 +510,9 @@ namespace Cpp {
   // Gets the currently used include paths
   ///\param[out] IncludePaths - the list of include paths
   ///
-  CPPINTEROP_API void GetIncludePaths(std::vector<std::string>& IncludePaths);
+  CPPINTEROP_API void GetIncludePaths(std::vector<std::string>& IncludePaths,
+                                      bool withSystem = false,
+                                      bool withFlags = false);
 
   /// Only Declares a code snippet in \c code and does not execute it.
   ///\returns 0 on success
