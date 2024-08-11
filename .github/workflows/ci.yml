@@ -1078,6 +1078,7 @@ jobs:
         python -m pytest --runxfail -sv  | tee test_xfailed.log 2>&1 || true
         git checkout .
         echo ::endgroup::
+        
         echo ::group::Passing Test Logs
 
         # Run the rest of the non-crashing tests.
