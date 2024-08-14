@@ -424,10 +424,10 @@ jobs:
         if ( "${{ matrix.cling }}" -imatch "On" )
         {
           cd build
-          cmake -DLLVM_ENABLE_PROJECTS="clang;lld"                  `
+          cmake -DLLVM_ENABLE_PROJECTS="clang"                  `
                 -DLLVM_EXTERNAL_PROJECTS=cling                `
                 -DLLVM_EXTERNAL_CLING_SOURCE_DIR="$env:CLING_DIR"   `
-                -DLLVM_TARGETS_TO_BUILD="WebAssembly;host;NVPTX"          `
+                -DLLVM_TARGETS_TO_BUILD="host;NVPTX"          `
                 -DCMAKE_BUILD_TYPE=Release                         `
                 -DLLVM_ENABLE_ASSERTIONS=ON                        `
                 -DCLANG_ENABLE_STATIC_ANALYZER=OFF                 `
@@ -438,7 +438,6 @@ jobs:
                 -DLLVM_ENABLE_TERMINFO=OFF                         `
                 -DLLVM_ENABLE_LIBXML2=OFF                          `
                 ..\llvm
-          cmake --build . --config Release --target lld --parallel ${{ env.ncpus }}
           cmake --build . --config Release --target clang --parallel ${{ env.ncpus }}
           cmake --build . --config Release --target cling --parallel ${{ env.ncpus }}
           # Now build gtest.a and gtest_main for CppInterOp to run its tests.
@@ -460,8 +459,8 @@ jobs:
           }
           cd build
           echo "Apply clang${{ matrix.clang-runtime }}-*.patch patches:"
-          cmake -DLLVM_ENABLE_PROJECTS="clang;lld"                  `
-                -DLLVM_TARGETS_TO_BUILD="WebAssembly;host;NVPTX"          `
+          cmake -DLLVM_ENABLE_PROJECTS="clang"                  `
+                -DLLVM_TARGETS_TO_BUILD="host;NVPTX"          `
                 -DCMAKE_BUILD_TYPE=Release                          `
                 -DLLVM_ENABLE_ASSERTIONS=ON                         `
                 -DCLANG_ENABLE_STATIC_ANALYZER=OFF                  `
@@ -472,7 +471,7 @@ jobs:
                 -DLLVM_ENABLE_TERMINFO=OFF                          `
                 -DLLVM_ENABLE_LIBXML2=OFF                           `
                 ..\llvm
-          cmake --build . --config Release --target clang clang-repl lld --parallel ${{ env.ncpus }}
+          cmake --build . --config Release --target clang clang-repl --parallel ${{ env.ncpus }}
         }
         cd ..\
         rm -r -force $(find.exe . -maxdepth 1 ! -name "build" ! -name "llvm" ! -name "clang" ! -name ".")
