@@ -110,8 +110,14 @@ getSymbolAddress(const cling::Interpreter& I, llvm::StringRef IRName) {
 
   llvm::orc::LLJIT& Jit = *compat::getExecutionEngine(I);
   llvm::orc::SymbolNameVector Names;
-  Names.push_back(Jit.getExecutionSession().intern(IRName));
+  llvm::orc::ExecutionSession& ES = Jit.getExecutionSession();
+  Names.push_back(ES.intern(IRName));
+#if CLANG_VERSION_MAJOR < 16
   return llvm::make_error<llvm::orc::SymbolsNotFound>(Names);
+#else
+  return llvm::make_error<llvm::orc::SymbolsNotFound>(ES.getSymbolStringPool(),
+                                                      std::move(Names));
+#endif // CLANG_VERSION_MAJOR
 }
 
 inline void codeComplete(std::vector<std::string>& Results,
@@ -399,29 +405,15 @@ inline std::string MakeResourceDir(llvm::StringRef Dir) {
 }
 
 // Clang >= 16 (=16 with Value patch) change castAs to converTo
-#if CLANG_VERSION_MAJOR >= 16
-template <typename T>
-inline T convertTo(
 #ifdef USE_CLING
-    cling::Value V
-#else
-    clang::Value V
-#endif
-) {
-  return V.convertTo<T>();
-}
-#else
-template <typename T>
-inline T convertTo(
-#ifdef USE_CLING
-    cling::Value V
-#else
-    clang::Value V
-#endif
-) {
+template <typename T> inline T convertTo(cling::Value V) {
   return V.castAs<T>();
 }
-#endif
+#else  // CLANG_REPL
+template <typename T> inline T convertTo(clang::Value V) {
+  return V.convertTo<T>();
+}
+#endif // USE_CLING
 
 } // namespace compat
 
