@@ -312,8 +312,7 @@ jobs:
       if: ${{ runner.os == 'windows' && steps.cache.outputs.cache-hit != 'true' }}
       run: |
         choco install findutils
-        choco install ninja
-        $env:PATH="C:\Program Files (x86)\GnuWin32\bin;C:\Program Files (x86)\Ninja\bin;$env:PATH"
+        $env:PATH="C:\Program Files (x86)\GnuWin32\bin;$env:PATH"
 
     - name: Install deps on Linux
       if: ${{ runner.os == 'Linux' && steps.cache.outputs.cache-hit != 'true' }}
@@ -463,7 +462,6 @@ jobs:
           cmake -DLLVM_ENABLE_PROJECTS="clang"                  `
                 -DLLVM_ENABLE_RUNTIMES="all"                        `
                 -DLLVM_TARGETS_TO_BUILD="host;NVPTX"          `
-                -DLLVM_HOST_TRIPLE="x86_64-pc-windows-msvc" `
                 -DCMAKE_BUILD_TYPE=Release                          `
                 -DLLVM_ENABLE_ASSERTIONS=ON                         `
                 -DCLANG_ENABLE_STATIC_ANALYZER=OFF                  `
@@ -824,12 +822,7 @@ jobs:
         brew install eigen
         brew install boost
         pip install distro pytest
-
-    - name: Install deps on Windows
-      if: ${{ runner.os == 'windows' && steps.cache.outputs.cache-hit != 'true' }}
-      run: |
-        choco install ninja
-        $env:PATH="C:\Program Files (x86)\Ninja\bin;$env:PATH"
+        
 
     - name: Restore Cache LLVM/Clang runtime build directory
       uses: actions/cache/restore@v4
@@ -920,10 +913,6 @@ jobs:
         $env:LLVM_BUILD_DIR="$env:PWD_DIR\llvm-project\build"
         echo "LLVM_BUILD_DIR=$env:LLVM_BUILD_DIR"
         echo "LLVM_BUILD_DIR=$env:LLVM_BUILD_DIR" >> $env:GITHUB_ENV
-        
-        $env:PATH="$env:LLVM_BUILD_DIR\bin\;$env:PATH"
-        $env:CC="clang"
-        $env:CXX="clang++"
 
         if ( "${{ matrix.cling }}" -imatch "On" )
         {
@@ -965,7 +954,6 @@ jobs:
           cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    `
                 -DUSE_CLING=ON                                  `
                 -DUSE_REPL=OFF                                  `
-                -DBUILD_SHARED_LIBS=ON `
                 -DCling_DIR="$env:LLVM_BUILD_DIR\tools\cling"   `
                 -DLLVM_DIR="$env:LLVM_BUILD_DIR" `
                 -DLLVM_ENABLE_WERROR=On -DClang_DIR="$env:LLVM_BUILD_DIR"  -DCODE_COVERAGE=${{ env.CODE_COVERAGE }} -DCMAKE_INSTALL_PREFIX="$env:CPPINTEROP_DIR"  ..\
