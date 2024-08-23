@@ -1,10 +1,5 @@
-if(MSVC)
-set(_gtest_byproduct_binary_dir
- ${CMAKE_BINARY_DIR}/downloads/googletest-prefix/src/googletest-build)
-else()
 set(_gtest_byproduct_binary_dir
   ${CMAKE_CURRENT_BINARY_DIR}/googletest-prefix/src/googletest-stamp)
-endif()
 
 set(_gtest_byproducts
   ${_gtest_byproduct_binary_dir}/lib/libgtest.a
