@@ -1447,9 +1447,6 @@ jobs:
         set LLVM_BUILD_DIR="D:\a\CppInterOp\CppInterOp\llvm-project\build\"
         set CD="D:\a\CppInterOp\CppInterOp\"
         set CPLUS_INCLUDE_PATH="%LLVM_DIR%/llvm/include;%LLVM_DIR%/clang/include;%LLVM_BUILD_DIR%/include;%LLVM_BUILD_DIR%/tools/clang/include;%CD%/include"
-        set PATH="%LLVM_BUILD_DIR%\bin\;%PATH%"
-        set CC="clang"
-        set CXX="clang++"
         mkdir build
         cd build
         cmake .. -DUSE_CLING=OFF -DUSE_REPL=ON ^
