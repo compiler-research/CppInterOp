@@ -981,6 +981,8 @@ jobs:
         }
         cmake --build . --config ${{ env.BUILD_TYPE }} --target check-cppinterop --parallel ${{ env.ncpus }}
         Get-ChildItem -Path "." -Recurse -File
+        Get-Content -Path D:\a\CppInterOp\CppInterOp\build\unittests\googletest-prefix\src\googletest-stamp\googletest-configure-out.log
+        Get-Content -Path D:\a\CppInterOp\CppInterOp\build\unittests\googletest-prefix\src\googletest-stamp\googletest-configure-err.log
         cd ..
 
     - name: Prepare code coverage report
