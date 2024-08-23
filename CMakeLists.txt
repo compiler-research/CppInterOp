@@ -309,7 +309,7 @@ endif ()
 
 # Attempt to fix emulated tls missing symbols
 if (WIN32)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -femulated-tls")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -femulated-tls -fno-threadsafe-statics")
 endif ()
 
 if (APPLE)
