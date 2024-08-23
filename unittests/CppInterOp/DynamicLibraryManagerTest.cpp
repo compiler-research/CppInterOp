@@ -5,9 +5,6 @@
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Path.h"
 
-//Determine why llvm::sys::fs::getMainExecutable not defined Windows Clang compilation
-#ifndef _WIN32
-
 // This function isn't referenced outside its translation unit, but it
 // can't use the "static" keyword because its address is used for
 // GetMainExecutable (since some platforms don't support taking the
@@ -57,4 +54,3 @@ TEST(DynamicLibraryManagerTest, Sanity) {
   // invalidated...
   // EXPECT_FALSE(Cpp::GetFunctionAddress("ret_zero"));
 }
-#endif
