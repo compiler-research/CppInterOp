@@ -1389,12 +1389,6 @@ jobs:
         brew install eigen
         brew install boost
         pip install distro pytest
-
-    - name: Install deps on Windows
-      if: ${{ runner.os == 'windows' && steps.cache.outputs.cache-hit != 'true' }}
-      run: |
-        choco install ninja
-        $env:PATH="C:\Program Files (x86)\Ninja\bin;$env:PATH"
         
     - name: Restore Cache LLVM/Clang runtime build directory
       uses: actions/cache/restore@v4
@@ -1458,7 +1452,7 @@ jobs:
         set CXX="clang++"
         mkdir build
         cd build
-        cmake .. -G "Ninja" -DUSE_CLING=OFF -DUSE_REPL=ON ^
+        cmake .. -DUSE_CLING=OFF -DUSE_REPL=ON ^
         -DClang_DIR="D:\a\CppInterOp\CppInterOp\llvm-project\build\lib\cmake\clang" ^
         -DLLVM_DIR="D:\a\CppInterOp\CppInterOp\llvm-project\build\lib\cmake\llvm" ^
         -DBUILD_SHARED_LIBS=ON ^
