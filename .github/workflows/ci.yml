@@ -962,7 +962,7 @@ jobs:
         echo "CPPINTEROP_BUILD_DIR=$env:CPPINTEROP_BUILD_DIR" >> $env:GITHUB_ENV  
         if ( "${{ matrix.cling }}" -imatch "On" )
         {
-          cmake -G "Ninja" -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    `
+          cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    `
                 -DUSE_CLING=ON                                  `
                 -DUSE_REPL=OFF                                  `
                 -DBUILD_SHARED_LIBS=ON `
@@ -972,14 +972,14 @@ jobs:
         }
         else
         {
-          cmake -G "Ninja" -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    `
+          cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    `
                 -DUSE_CLING=OFF                             `
                 -DUSE_REPL=ON                               `
                 -DLLVM_DIR="$env:LLVM_BUILD_DIR\lib\cmake\llvm"  `
                 -DLLVM_ENABLE_WERROR=On -DClang_DIR="$env:LLVM_BUILD_DIR\lib\cmake\clang"  -DCODE_COVERAGE=${{ env.CODE_COVERAGE }}  -DCMAKE_INSTALL_PREFIX="$env:CPPINTEROP_DIR"  ..\
-                cmake --build . --config Release --target googletest --parallel ${{ env.ncpus }}
+                cmake --build . --config ${{ env.BUILD_TYPE }} --target googletest --parallel ${{ env.ncpus }}
         }
-        cmake --build . --config Release --target check-cppinterop --parallel ${{ env.ncpus }}
+        cmake --build . --config ${{ env.BUILD_TYPE }} --target check-cppinterop --parallel ${{ env.ncpus }}
         cd ..
 
     - name: Prepare code coverage report
@@ -1454,6 +1454,7 @@ jobs:
         -DLLVM_DIR="D:\a\CppInterOp\CppInterOp\llvm-project\build\lib\cmake\llvm" ^
         -DBUILD_SHARED_LIBS=ON ^
         -DCMAKE_INSTALL_PREFIX="C:\Users\runneradmin\micromamba\envs\xeus-cpp\"  
+        cmake --build . --config Release --target googletest --parallel ${{ env.ncpus }}
         cmake --build . --config ${{ env.BUILD_TYPE }} --target install --parallel ${{ env.ncpus }}
         cd ..
 
