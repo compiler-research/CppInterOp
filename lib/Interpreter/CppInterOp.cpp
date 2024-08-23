@@ -2632,8 +2632,6 @@ namespace Cpp {
     // FIXME : Workaround for emulated tls symbols not found
     ClingArgv.push_back("-femulated-tls");
     ClingArgv.push_back("-fno-threadsafe-statics");
-    // FIXME: Possible workaround to where JIT cannot find ??_7type_info@@6B@.
-    ClingArgv.push_back("-fno-rtti");
 #endif
     ClingArgv.insert(ClingArgv.end(), Args.begin(), Args.end());
     // To keep the Interpreter creation interface between cling and clang-repl
