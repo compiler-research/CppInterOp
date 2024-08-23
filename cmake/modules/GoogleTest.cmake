@@ -21,7 +21,7 @@ elseif(APPLE)
 endif()
 
 include(ExternalProject)
-IF(WIN32)
+IF(WIN32 AND NOT MSVC)
   string(REPLACE "-Wsuggest-override" "" CMAKE_CXX_FLAGS_GTEST ${CMAKE_CXX_FLAGS})
   set(CMAKE_CXX_FLAGS_GTEST "${CMAKE_CXX_FLAGS_GTEST} -Wno-language-extension-token")
 endif()
