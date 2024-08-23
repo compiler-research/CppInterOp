@@ -980,6 +980,7 @@ jobs:
                 cmake --build . --config ${{ env.BUILD_TYPE }} --target googletest --parallel ${{ env.ncpus }}
         }
         cmake --build . --config ${{ env.BUILD_TYPE }} --target check-cppinterop --parallel ${{ env.ncpus }}
+        Get-ChildItem -Path "." -Recurse -File
         cd ..
 
     - name: Prepare code coverage report
