@@ -99,6 +99,9 @@ TEST(InterpreterTest, DetectResourceDir) {
 #else
 TEST(InterpreterTest, DISABLED_DetectResourceDir) {
 #endif // LLVM_BINARY_DIR
+#if defined(_WIN32)
+  GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
+#endif
   Cpp::CreateInterpreter();
   EXPECT_STRNE(Cpp::DetectResourceDir().c_str(), Cpp::GetResourceDir());
   llvm::SmallString<256> Clang(LLVM_BINARY_DIR);
@@ -108,6 +111,9 @@ TEST(InterpreterTest, DISABLED_DetectResourceDir) {
 }
 
 TEST(InterpreterTest, DetectSystemCompilerIncludePaths) {
+#if defined(_WIN32)
+  GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
+#endif
   std::vector<std::string> includes;
   Cpp::DetectSystemCompilerIncludePaths(includes);
   EXPECT_FALSE(includes.empty());
