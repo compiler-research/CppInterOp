@@ -944,7 +944,6 @@ jobs:
         echo "CPPINTEROP_DIR=$env:CPPINTEROP_DIR" >> $env:GITHUB_ENV  
 
         # Build CppInterOp next to cling and llvm-project.
-        Get-ChildItem -Path "." -Recurse -File
         mkdir build 
         cd build
         $env:CPPINTEROP_BUILD_DIR="$env:PWD_DIR"
@@ -969,8 +968,7 @@ jobs:
                 cmake --build . --config ${{ env.BUILD_TYPE }} --target googletest --parallel ${{ env.ncpus }}
         }
         cmake --build . --config ${{ env.BUILD_TYPE }} --target check-cppinterop --parallel ${{ env.ncpus }}
-        #Get-Content -Path D:\a\CppInterOp\CppInterOp\build\unittests\googletest-prefix\src\googletest-stamp\googletest-configure-out.log
-        #Get-Content -Path D:\a\CppInterOp\CppInterOp\build\unittests\googletest-prefix\src\googletest-stamp\googletest-configure-err.log
+        Get-Content -Path D:/a/CppInterOp/CppInterOp/build/unittests/Testing/Temporary/LastTest.log
         cd ..
 
     - name: Prepare code coverage report
