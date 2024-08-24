@@ -241,7 +241,9 @@ if( CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR )
   include_directories(SYSTEM ${LLVM_INCLUDE_DIRS})
   separate_arguments(LLVM_DEFINITIONS_LIST NATIVE_COMMAND ${LLVM_DEFINITIONS})
   add_definitions(${LLVM_DEFINITIONS_LIST})
-  remove_definitions(-DNDEBUG -D_DEBUG)
+  IF(WIN32 AND NOT MSVC)
+    remove_definitions(-DNDEBUG -D_DEBUG)
+  endif()
   if (USE_CLING)
     message(STATUS "CLING_INCLUDE_DIRS: ${CLING_INCLUDE_DIRS}")
   endif(USE_CLING)
@@ -308,7 +310,7 @@ if (MSVC)
 endif ()
 
 # Attempt to fix emulated tls missing symbols
-if (WIN32)
+if (WIN32 AND NOT MSVC)
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -femulated-tls -fno-threadsafe-statics")
 endif ()
 
@@ -375,7 +377,7 @@ install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/include/
   )
 
 add_definitions( -D_GNU_SOURCE )
-add_definitions( -D_ALLOW_ITERATOR_DEBUG_LEVEL_MISMATCH )
+
 # Add deps if we build together with clang.
 if (TARGET intrinsics_gen)
   list(APPEND LLVM_COMMON_DEPENDS intrinsics_gen)

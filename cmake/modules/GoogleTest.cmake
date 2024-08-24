@@ -1,5 +1,5 @@
 set(_gtest_byproduct_binary_dir
-  ${CMAKE_CURRENT_BINARY_DIR}/googletest-prefix/src/googletest-stamp)
+  ${CMAKE_BINARY_DIR}/googletest-prefix/src/googletest-stamp)
 
 set(_gtest_byproducts
   ${_gtest_byproduct_binary_dir}/lib/libgtest.a
@@ -22,8 +22,12 @@ endif()
 
 include(ExternalProject)
 IF(WIN32 AND NOT MSVC)
-  string(REPLACE "-Wsuggest-override" "" CMAKE_CXX_FLAGS_GTEST ${CMAKE_CXX_FLAGS})
-  set(CMAKE_CXX_FLAGS_GTEST "${CMAKE_CXX_FLAGS_GTEST} -Wno-language-extension-token")
+  IF(NOT MSVC)
+    string(REPLACE "-Wsuggest-override" "" CMAKE_CXX_FLAGS_GTEST ${CMAKE_CXX_FLAGS})
+    set(CMAKE_CXX_FLAGS_GTEST "${CMAKE_CXX_FLAGS_GTEST} -Wno-language-extension-token")
+  else()
+    set(CMAKE_CXX_FLAGS_GTEST "${CMAKE_CXX_FLAGS}")
+  endif()
 endif()
 ExternalProject_Add(
   googletest
@@ -31,7 +35,7 @@ ExternalProject_Add(
   GIT_SHALLOW 1
   GIT_TAG release-1.12.1
   UPDATE_COMMAND ""
-  # #  Force separate output paths for debug and release builds to allow easy
+  # # Force separate output paths for debug and release builds to allow easy
   # # identification of correct lib in subsequent TARGET_LINK_LIBRARIES commands
   # CMAKE_ARGS -DCMAKE_ARCHIVE_OUTPUT_DIRECTORY_DEBUG:PATH=DebugLibs
   #            -DCMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELEASE:PATH=ReleaseLibs

@@ -475,7 +475,7 @@ jobs:
           cmake --build . --config Release --target clang clang-repl --parallel ${{ env.ncpus }}
         }
         cd ..\
-        rm -r -force $(find.exe . -maxdepth 1 ! -name "build" ! -name "llvm" ! -name "clang" ! -name "." ! -name compiler-rt ! -name libc ! -name libcxx ! -name libcxxabi ! -name libunwind ! -name openmp)
+        rm -r -force $(find.exe . -maxdepth 1 ! -name "build" ! -name "llvm" ! -name "clang" ! -name "." ! -name "compiler-rt" ! -name "libc" ! -name "libcxx" ! -name "libcxxabi" ! -name "libunwind" ! -name "openmp")
         cd ..\        
 
     - name: Save Cache LLVM/Clang runtime build directory
@@ -956,7 +956,8 @@ jobs:
                 -DUSE_REPL=OFF                                  `
                 -DCling_DIR="$env:LLVM_BUILD_DIR\tools\cling"   `
                 -DLLVM_DIR="$env:LLVM_BUILD_DIR" `
-                -DLLVM_ENABLE_WERROR=On -DClang_DIR="$env:LLVM_BUILD_DIR"  -DCODE_COVERAGE=${{ env.CODE_COVERAGE }} -DCMAKE_INSTALL_PREFIX="$env:CPPINTEROP_DIR"  ..\
+                -DLLVM_ENABLE_WERROR=On                          `
+                -DClang_DIR="$env:LLVM_BUILD_DIR"  -DCODE_COVERAGE=${{ env.CODE_COVERAGE }} -DCMAKE_INSTALL_PREFIX="$env:CPPINTEROP_DIR"  ..\
         }
         else
         {
@@ -964,11 +965,11 @@ jobs:
                 -DUSE_CLING=OFF                             `
                 -DUSE_REPL=ON                               `
                 -DLLVM_DIR="$env:LLVM_BUILD_DIR\lib\cmake\llvm"  `
-                -DLLVM_ENABLE_WERROR=On -DClang_DIR="$env:LLVM_BUILD_DIR\lib\cmake\clang"  -DCODE_COVERAGE=${{ env.CODE_COVERAGE }}  -DCMAKE_INSTALL_PREFIX="$env:CPPINTEROP_DIR"  ..\
+                -DLLVM_ENABLE_WERROR=On                          `
+                -DClang_DIR="$env:LLVM_BUILD_DIR\lib\cmake\clang"  -DCODE_COVERAGE=${{ env.CODE_COVERAGE }}  -DCMAKE_INSTALL_PREFIX="$env:CPPINTEROP_DIR"  ..\
                 cmake --build . --config ${{ env.BUILD_TYPE }} --target googletest --parallel ${{ env.ncpus }}
         }
         cmake --build . --config ${{ env.BUILD_TYPE }} --target check-cppinterop --parallel ${{ env.ncpus }}
-        Get-Content -Path D:/a/CppInterOp/CppInterOp/build/unittests/Testing/Temporary/LastTest.log
         cd ..
 
     - name: Prepare code coverage report
