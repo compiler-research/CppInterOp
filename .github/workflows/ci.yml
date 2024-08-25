@@ -425,10 +425,10 @@ jobs:
         {
           cd build
           cmake -DLLVM_ENABLE_PROJECTS="clang;lld"                  `
-                -DLLVM_ENABLE_RUNTIMES="all"                        `
+                -DLLVM_ENABLE_RUNTIMES="compiler-rt;libc;libcxx;libcxxabi;openmp"                        `
                 -DLLVM_EXTERNAL_PROJECTS=cling                `
                 -DLLVM_EXTERNAL_CLING_SOURCE_DIR="$env:CLING_DIR"   `
-                -DLLVM_TARGETS_TO_BUILD="host;NVPTX"          `
+                -DLLVM_TARGETS_TO_BUILD="WebAssembly;host;NVPTX"          `
                 -DCMAKE_BUILD_TYPE=Release                         `
                 -DLLVM_ENABLE_ASSERTIONS=ON                        `
                 -DCLANG_ENABLE_STATIC_ANALYZER=OFF                 `
@@ -463,7 +463,7 @@ jobs:
           cd build
           echo "Apply clang${{ matrix.clang-runtime }}-*.patch patches:"
           cmake -DLLVM_ENABLE_PROJECTS="clang;lld"                  `
-                -DLLVM_ENABLE_RUNTIMES="all"                        `
+                -DLLVM_ENABLE_RUNTIMES="compiler-rt;libc;libcxx;libcxxabi;openmp"                        `
                 -DLLVM_TARGETS_TO_BUILD="host;NVPTX"          `
                 -DCMAKE_BUILD_TYPE=Release                          `
                 -DLLVM_ENABLE_ASSERTIONS=ON                         `
@@ -478,7 +478,7 @@ jobs:
           cmake --build . --config Release --target lld clang clang-repl runtimes --parallel ${{ env.ncpus }}
         }
         cd ..\
-        rm -r -force $(find.exe . -maxdepth 1 ! -name "build" ! -name "llvm" ! -name "clang" ! -name "." ! -name "compiler-rt" ! -name "libc" ! -name "libcxx" ! -name "libcxxabi" ! -name "libunwind" ! -name "openmp")
+        rm -r -force $(find.exe . -maxdepth 1 ! -name "build" ! -name "llvm" ! -name "clang"  ! -name "compiler-rt" ! -name "libc" ! -name "libcxx" ! -name "libcxxabi" ! -name "openmp" ! -name ".")
         cd ..\        
 
     - name: Save Cache LLVM/Clang runtime build directory
