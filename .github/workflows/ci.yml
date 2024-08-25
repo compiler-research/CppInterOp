@@ -462,7 +462,6 @@ jobs:
           echo "Apply clang${{ matrix.clang-runtime }}-*.patch patches:"
           cmake -DLLVM_ENABLE_PROJECTS="clang;compiler-rt"                  `                `
                 -DLLVM_TARGETS_TO_BUILD="host;NVPTX"          `
-                -DLLVM_DEFAULT_TARGET_TRIPLE="x86_64-pc-windows-msvc" `
                 -DCMAKE_BUILD_TYPE=Release                          `
                 -DLLVM_ENABLE_ASSERTIONS=ON                         `
                 -DCLANG_ENABLE_STATIC_ANALYZER=OFF                  `
