@@ -318,7 +318,6 @@ jobs:
       if: ${{ runner.os == 'Linux' && steps.cache.outputs.cache-hit != 'true' }}
       run: |
         # Install deps
-        sudo apt remove needrestart
         sudo apt-get update
         sudo apt-get install valgrind
         sudo apt-get autoremove
