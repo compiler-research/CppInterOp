@@ -2629,8 +2629,7 @@ namespace Cpp {
 #ifdef _WIN32
     // FIXME : Workaround Sema::PushDeclContext assert on windows
     ClingArgv.push_back("-fno-delayed-template-parsing");
-    ClingArgv.push_back("-Xclang");
-    ClingArgv.push_back("--dependent-lib='D:/a/CppInterOp/CppInterOp/llvm-project/build/Release/lib/clang/19/lib/windows/clang_rt.builtins-x86_64.lib'");
+    ClingArgv.push_back("-femulated-tls");
 #endif
     ClingArgv.insert(ClingArgv.end(), Args.begin(), Args.end());
     // To keep the Interpreter creation interface between cling and clang-repl
