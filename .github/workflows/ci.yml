@@ -437,6 +437,7 @@ jobs:
                 -DLLVM_ENABLE_ZSTD=OFF                             `
                 -DLLVM_ENABLE_TERMINFO=OFF                         `
                 -DLLVM_ENABLE_LIBXML2=OFF                          `
+                -DCOMPILER_RT_BUILD_BUILTINS=ON `
                 ..\llvm
           cmake --build . --config Release --target clang --parallel ${{ env.ncpus }}
           cmake --build . --config Release --target compiler-rt --parallel ${{ env.ncpus }}
@@ -471,6 +472,7 @@ jobs:
                 -DLLVM_ENABLE_ZSTD=OFF                              `
                 -DLLVM_ENABLE_TERMINFO=OFF                          `
                 -DLLVM_ENABLE_LIBXML2=OFF                           `
+                -DCOMPILER_RT_BUILD_BUILTINS=ON `
                 ..\llvm
           cmake --build . --config Release --target clang clang-repl compiler-rt --parallel ${{ env.ncpus }}
         }

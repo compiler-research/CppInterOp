@@ -2629,8 +2629,6 @@ namespace Cpp {
 #ifdef _WIN32
     // FIXME : Workaround Sema::PushDeclContext assert on windows
     ClingArgv.push_back("-fno-delayed-template-parsing");
-    // FIXME : Workaround for emulated tls symbols not found
-    ClingArgv.push_back("-fno-threadsafe-statics");
 #endif
     ClingArgv.insert(ClingArgv.end(), Args.begin(), Args.end());
     // To keep the Interpreter creation interface between cling and clang-repl
