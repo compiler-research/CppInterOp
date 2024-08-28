@@ -1348,12 +1348,12 @@ CXObject clang_construct(CXScope scope, void* arena) {
   auto* I = getInterpreter(scope);
   if (const Cpp::JitCall JC = Cpp::MakeFunctionCallableImpl(I, getDecl(Ctor))) {
     if (arena) {
-      JC.Invoke(arena, {}, (void*)~0); // Tell Invoke to use placement new.
+      JC.Invoke(&arena, {}, (void*)~0); // Tell Invoke to use placement new.
       return arena;
     }
 
     void* obj = nullptr;
-    JC.Invoke(obj);
+    JC.Invoke(&obj);
     return obj;
   }
 
