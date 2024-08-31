@@ -3161,6 +3161,69 @@ namespace Cpp {
     return PI->getNameAsString();
   }
 
+  TCppFunction_t GetBinaryOperator(TCppScope_t scope, const std::string& op,
+                                   const std::string& lc,
+                                   const std::string& rc) {
+    Decl* D = static_cast<Decl*>(scope);
+    if (!D)
+      return nullptr;
+
+    DeclContext* DC = D->getDeclContext();
+    if (!DC)
+      return nullptr;
+
+    Scope* S = getSema().getScopeForContext(DC);
+    if (!S)
+      return nullptr;
+
+    clang::UnresolvedSet<8> lookup;
+
+    if (op == "+")
+      getSema().LookupOverloadedOperatorName(clang::OO_Plus, S, lookup);
+    else if (op == "-")
+      getSema().LookupOverloadedOperatorName(clang::OO_Minus, S, lookup);
+    else if (op == "*")
+      getSema().LookupOverloadedOperatorName(clang::OO_Star, S, lookup);
+    else if (op == "/")
+      getSema().LookupOverloadedOperatorName(clang::OO_Slash, S, lookup);
+    else if (op == "==")
+      getSema().LookupOverloadedOperatorName(clang::OO_EqualEqual, S, lookup);
+    else if (op == "!=")
+      getSema().LookupOverloadedOperatorName(clang::OO_ExclaimEqual, S, lookup);
+    else if (op == ">")
+      getSema().LookupOverloadedOperatorName(clang::OO_Greater, S, lookup);
+    else if (op == ">=")
+      getSema().LookupOverloadedOperatorName(clang::OO_GreaterEqual, S, lookup);
+    else if (op == "<")
+      getSema().LookupOverloadedOperatorName(clang::OO_Less, S, lookup);
+    else if (op == "<=")
+      getSema().LookupOverloadedOperatorName(clang::OO_LessEqual, S, lookup);
+    else if (op == "&")
+      getSema().LookupOverloadedOperatorName(clang::OO_Amp, S, lookup);
+    else if (op == "|")
+      getSema().LookupOverloadedOperatorName(clang::OO_Pipe, S, lookup);
+    else if (op == "^")
+      getSema().LookupOverloadedOperatorName(clang::OO_Caret, S, lookup);
+
+    for (NamedDecl* x : lookup) {
+      if (auto F = llvm::dyn_cast<Decl>(x)) {
+        auto argc = GetFunctionNumArgs(F);
+        if (argc != 2)
+          continue;
+
+        std::string arg_type = GetTypeAsString(GetFunctionArgType(F, 0));
+        if (arg_type != lc)
+          continue;
+        arg_type = GetTypeAsString(GetFunctionArgType(F, 1));
+        if (arg_type != rc)
+          continue;
+
+        return F;
+      }
+    }
+    return nullptr;
+  }
+
   TCppObject_t Allocate(TCppScope_t scope) {
     return (TCppObject_t)::operator new(Cpp::SizeOf(scope));
   }

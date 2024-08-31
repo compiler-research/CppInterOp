@@ -464,6 +464,11 @@ namespace Cpp {
   CPPINTEROP_API std::string GetFunctionArgName(TCppFunction_t func,
                                                 TCppIndex_t param_index);
 
+  ///\returns function that performs operation op on lc and rc
+  TCppFunction_t GetBinaryOperator(TCppScope_t scope, const std::string& op,
+                                   const std::string& lc,
+                                   const std::string& rc);
+
   /// Creates an instance of the interpreter we need for the various interop
   /// services.
   ///\param[in] Args - the list of arguments for interpreter constructor.
