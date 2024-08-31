@@ -817,7 +817,7 @@ typedef void* CXObject;
 /**
  * Allocates memory for the given type.
  */
-CXObject clang_allocate(CXScope S);
+CXObject clang_allocate(unsigned int n);
 
 /**
  * Deallocates memory for a given class.
