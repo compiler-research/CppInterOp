@@ -1327,8 +1327,8 @@ bool clang_scope_isConstVariable(CXScope var) {
   return false;
 }
 
-CXObject clang_allocate(CXScope S) {
-  return ::operator new(clang_scope_sizeOf(S));
+CXObject clang_allocate(unsigned int n) {
+  return ::operator new(n);
 }
 
 void clang_deallocate(CXObject address) { ::operator delete(address); }
