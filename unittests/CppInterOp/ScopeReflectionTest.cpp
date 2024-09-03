@@ -952,3 +952,29 @@ TEST(ScopeReflectionTest, IncludeVector) {
   )";
   Interp->process(code);
 }
+
+TEST(ScopeReflectionTest, GetBinaryOperator) {
+  Cpp::CreateInterpreter();
+
+  std::string code = R"(
+    class MyClass {
+    public:
+        int x;
+        MyClass(int x) : x(x) {}
+    };
+
+    MyClass operator-(MyClass lhs, MyClass rhs) {
+        return MyClass(lhs.x - rhs.x);
+    }
+
+    MyClass operator+(MyClass lhs, MyClass rhs) {
+        return MyClass(lhs.x + rhs.x);
+    }
+  )";
+
+  Cpp::Declare(code.c_str());
+  EXPECT_TRUE(Cpp::GetBinaryOperator(
+      Cpp::GetScope("std"), Cpp::BinaryOperator::Plus, "MyClass", "MyClass"));
+  EXPECT_TRUE(Cpp::GetBinaryOperator(
+      Cpp::GetScope("std"), Cpp::BinaryOperator::Minus, "MyClass", "MyClass"));
+}
