@@ -954,8 +954,6 @@ TEST(ScopeReflectionTest, IncludeVector) {
 }
 
 TEST(ScopeReflectionTest, GetBinaryOperator) {
-  Cpp::CreateInterpreter();
-
   std::string code = R"(
     class MyClass {
     public:

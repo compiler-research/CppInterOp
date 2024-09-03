@@ -3180,46 +3180,60 @@ namespace Cpp {
 
     switch (op) {
     case Plus:
-      getSema().LookupOverloadedOperatorName(clang::OO_Plus, S, lookup);
+      getSema().LookupBinOp(S, SourceLocation(),
+                            clang::BinaryOperatorKind::BO_Add, lookup);
       break;
     case Minus:
-      getSema().LookupOverloadedOperatorName(clang::OO_Minus, S, lookup);
+      getSema().LookupBinOp(S, SourceLocation(),
+                            clang::BinaryOperatorKind::BO_Sub, lookup);
       break;
     case Star:
-      getSema().LookupOverloadedOperatorName(clang::OO_Star, S, lookup);
+      getSema().LookupBinOp(S, SourceLocation(),
+                            clang::BinaryOperatorKind::BO_Mul, lookup);
       break;
     case Slash:
-      getSema().LookupOverloadedOperatorName(clang::OO_Slash, S, lookup);
+      getSema().LookupBinOp(S, SourceLocation(),
+                            clang::BinaryOperatorKind::BO_Div, lookup);
       break;
     case Percent:
-      getSema().LookupOverloadedOperatorName(clang::OO_Percent, S, lookup);
+      getSema().LookupBinOp(S, SourceLocation(),
+                            clang::BinaryOperatorKind::BO_Rem, lookup);
       break;
     case Equals:
-      getSema().LookupOverloadedOperatorName(clang::OO_EqualEqual, S, lookup);
+      getSema().LookupBinOp(S, SourceLocation(),
+                            clang::BinaryOperatorKind::BO_EQ, lookup);
       break;
     case NotEquals:
-      getSema().LookupOverloadedOperatorName(clang::OO_ExclaimEqual, S, lookup);
+      getSema().LookupBinOp(S, SourceLocation(),
+                            clang::BinaryOperatorKind::BO_NE, lookup);
       break;
     case Greater:
-      getSema().LookupOverloadedOperatorName(clang::OO_Greater, S, lookup);
+      getSema().LookupBinOp(S, SourceLocation(),
+                            clang::BinaryOperatorKind::BO_GT, lookup);
       break;
     case GreaterEqual:
-      getSema().LookupOverloadedOperatorName(clang::OO_GreaterEqual, S, lookup);
+      getSema().LookupBinOp(S, SourceLocation(),
+                            clang::BinaryOperatorKind::BO_GE, lookup);
       break;
     case Less:
-      getSema().LookupOverloadedOperatorName(clang::OO_Less, S, lookup);
+      getSema().LookupBinOp(S, SourceLocation(),
+                            clang::BinaryOperatorKind::BO_LT, lookup);
       break;
     case LessEqual:
-      getSema().LookupOverloadedOperatorName(clang::OO_LessEqual, S, lookup);
+      getSema().LookupBinOp(S, SourceLocation(),
+                            clang::BinaryOperatorKind::BO_LE, lookup);
       break;
     case Amp:
-      getSema().LookupOverloadedOperatorName(clang::OO_Amp, S, lookup);
+      getSema().LookupBinOp(S, SourceLocation(),
+                            clang::BinaryOperatorKind::BO_And, lookup);
       break;
     case Pipe:
-      getSema().LookupOverloadedOperatorName(clang::OO_Pipe, S, lookup);
+      getSema().LookupBinOp(S, SourceLocation(),
+                            clang::BinaryOperatorKind::BO_Or, lookup);
       break;
     case Caret:
-      getSema().LookupOverloadedOperatorName(clang::OO_Caret, S, lookup);
+      getSema().LookupBinOp(S, SourceLocation(),
+                            clang::BinaryOperatorKind::BO_Xor, lookup);
       break;
     }
 
