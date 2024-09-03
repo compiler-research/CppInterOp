@@ -35,6 +35,24 @@ namespace Cpp {
   using TCppFuncAddr_t = void*;
   using TInterp_t = void*;
   using TCppObject_t = void*;
+
+  enum BinaryOperator {
+    Plus,
+    Minus,
+    Star,
+    Slash,
+    Percent,
+    Amp,
+    Pipe,
+    Caret,
+    Equals,
+    NotEquals,
+    Greater,
+    GreaterEqual,
+    Less,
+    LessEqual,
+  };
+
   /// A class modeling function calls for functions produced by the interpreter
   /// in compiled code. It provides an information if we are calling a standard
   /// function, constructor or destructor.
@@ -465,7 +483,7 @@ namespace Cpp {
                                                 TCppIndex_t param_index);
 
   ///\returns function that performs operation op on lc and rc
-  TCppFunction_t GetBinaryOperator(TCppScope_t scope, const std::string& op,
+  TCppFunction_t GetBinaryOperator(TCppScope_t scope, enum BinaryOperator op,
                                    const std::string& lc,
                                    const std::string& rc);
 

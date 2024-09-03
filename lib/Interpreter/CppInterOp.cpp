@@ -3161,7 +3161,7 @@ namespace Cpp {
     return PI->getNameAsString();
   }
 
-  TCppFunction_t GetBinaryOperator(TCppScope_t scope, const std::string& op,
+  TCppFunction_t GetBinaryOperator(TCppScope_t scope, enum BinaryOperator op,
                                    const std::string& lc,
                                    const std::string& rc) {
     Decl* D = static_cast<Decl*>(scope);
@@ -3178,35 +3178,53 @@ namespace Cpp {
 
     clang::UnresolvedSet<8> lookup;
 
-    if (op == "+")
+    switch (op) {
+    case Plus:
       getSema().LookupOverloadedOperatorName(clang::OO_Plus, S, lookup);
-    else if (op == "-")
+      break;
+    case Minus:
       getSema().LookupOverloadedOperatorName(clang::OO_Minus, S, lookup);
-    else if (op == "*")
+      break;
+    case Star:
       getSema().LookupOverloadedOperatorName(clang::OO_Star, S, lookup);
-    else if (op == "/")
+      break;
+    case Slash:
       getSema().LookupOverloadedOperatorName(clang::OO_Slash, S, lookup);
-    else if (op == "==")
+      break;
+    case Percent:
+      getSema().LookupOverloadedOperatorName(clang::OO_Percent, S, lookup);
+      break;
+    case Equals:
       getSema().LookupOverloadedOperatorName(clang::OO_EqualEqual, S, lookup);
-    else if (op == "!=")
+      break;
+    case NotEquals:
       getSema().LookupOverloadedOperatorName(clang::OO_ExclaimEqual, S, lookup);
-    else if (op == ">")
+      break;
+    case Greater:
       getSema().LookupOverloadedOperatorName(clang::OO_Greater, S, lookup);
-    else if (op == ">=")
+      break;
+    case GreaterEqual:
       getSema().LookupOverloadedOperatorName(clang::OO_GreaterEqual, S, lookup);
-    else if (op == "<")
+      break;
+    case Less:
       getSema().LookupOverloadedOperatorName(clang::OO_Less, S, lookup);
-    else if (op == "<=")
+      break;
+    case LessEqual:
       getSema().LookupOverloadedOperatorName(clang::OO_LessEqual, S, lookup);
-    else if (op == "&")
+      break;
+    case Amp:
       getSema().LookupOverloadedOperatorName(clang::OO_Amp, S, lookup);
-    else if (op == "|")
+      break;
+    case Pipe:
       getSema().LookupOverloadedOperatorName(clang::OO_Pipe, S, lookup);
-    else if (op == "^")
+      break;
+    case Caret:
       getSema().LookupOverloadedOperatorName(clang::OO_Caret, S, lookup);
+      break;
+    }
 
     for (NamedDecl* x : lookup) {
-      if (auto F = llvm::dyn_cast<Decl>(x)) {
+      if (auto* F = llvm::dyn_cast<Decl>(x)) {
         auto argc = GetFunctionNumArgs(F);
         if (argc != 2)
           continue;
