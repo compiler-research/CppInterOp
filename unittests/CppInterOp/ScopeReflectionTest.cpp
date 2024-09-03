@@ -954,6 +954,8 @@ TEST(ScopeReflectionTest, IncludeVector) {
 }
 
 TEST(ScopeReflectionTest, GetBinaryOperator) {
+  if (llvm::sys::RunningOnValgrind())
+    GTEST_SKIP() << "XFAIL due to Valgrind report";
   std::string code = R"(
     class MyClass {
     public:
