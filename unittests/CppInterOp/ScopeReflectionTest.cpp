@@ -972,7 +972,7 @@ TEST(ScopeReflectionTest, GetBinaryOperator) {
 
   Cpp::Declare(code.c_str());
   EXPECT_TRUE(Cpp::GetBinaryOperator(
-      Cpp::GetScope("std"), Cpp::BinaryOperator::Plus, "MyClass", "MyClass"));
+      Cpp::GetScope("std"), Cpp::BinaryOperator::Add, "MyClass", "MyClass"));
   EXPECT_TRUE(Cpp::GetBinaryOperator(
-      Cpp::GetScope("std"), Cpp::BinaryOperator::Minus, "MyClass", "MyClass"));
+      Cpp::GetScope("std"), Cpp::BinaryOperator::Sub, "MyClass", "MyClass"));
 }

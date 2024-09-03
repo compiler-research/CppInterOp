@@ -3178,64 +3178,8 @@ namespace Cpp {
 
     clang::UnresolvedSet<8> lookup;
 
-    switch (op) {
-    case Plus:
-      getSema().LookupBinOp(S, SourceLocation(),
-                            clang::BinaryOperatorKind::BO_Add, lookup);
-      break;
-    case Minus:
-      getSema().LookupBinOp(S, SourceLocation(),
-                            clang::BinaryOperatorKind::BO_Sub, lookup);
-      break;
-    case Star:
-      getSema().LookupBinOp(S, SourceLocation(),
-                            clang::BinaryOperatorKind::BO_Mul, lookup);
-      break;
-    case Slash:
-      getSema().LookupBinOp(S, SourceLocation(),
-                            clang::BinaryOperatorKind::BO_Div, lookup);
-      break;
-    case Percent:
-      getSema().LookupBinOp(S, SourceLocation(),
-                            clang::BinaryOperatorKind::BO_Rem, lookup);
-      break;
-    case Equals:
-      getSema().LookupBinOp(S, SourceLocation(),
-                            clang::BinaryOperatorKind::BO_EQ, lookup);
-      break;
-    case NotEquals:
-      getSema().LookupBinOp(S, SourceLocation(),
-                            clang::BinaryOperatorKind::BO_NE, lookup);
-      break;
-    case Greater:
-      getSema().LookupBinOp(S, SourceLocation(),
-                            clang::BinaryOperatorKind::BO_GT, lookup);
-      break;
-    case GreaterEqual:
-      getSema().LookupBinOp(S, SourceLocation(),
-                            clang::BinaryOperatorKind::BO_GE, lookup);
-      break;
-    case Less:
-      getSema().LookupBinOp(S, SourceLocation(),
-                            clang::BinaryOperatorKind::BO_LT, lookup);
-      break;
-    case LessEqual:
-      getSema().LookupBinOp(S, SourceLocation(),
-                            clang::BinaryOperatorKind::BO_LE, lookup);
-      break;
-    case Amp:
-      getSema().LookupBinOp(S, SourceLocation(),
-                            clang::BinaryOperatorKind::BO_And, lookup);
-      break;
-    case Pipe:
-      getSema().LookupBinOp(S, SourceLocation(),
-                            clang::BinaryOperatorKind::BO_Or, lookup);
-      break;
-    case Caret:
-      getSema().LookupBinOp(S, SourceLocation(),
-                            clang::BinaryOperatorKind::BO_Xor, lookup);
-      break;
-    }
+    getSema().LookupBinOp(S, SourceLocation(), (clang::BinaryOperatorKind)op,
+                          lookup);
 
     for (NamedDecl* x : lookup) {
       if (auto* F = llvm::dyn_cast<Decl>(x)) {
