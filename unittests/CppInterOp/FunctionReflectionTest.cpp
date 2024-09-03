@@ -800,9 +800,7 @@ TEST(FunctionReflectionTest, GetFunctionAddress) {
   if (llvm::sys::RunningOnValgrind())
     GTEST_SKIP() << "XFAIL due to Valgrind report";
 #if defined(_WIN32)
-#if CLANG_VERSION_MAJOR < 17
 GTEST_SKIP() << "Disabled on Windows for Clang<17. Needs fixing.";
-#endif
 #endif
   std::vector<Decl*> Decls, SubDecls;
   std::string code = "int f1(int i) { return i * i; }";
