@@ -3183,9 +3183,8 @@ namespace Cpp {
 
     for (NamedDecl* x : lookup) {
       if (auto* F = llvm::dyn_cast<Decl>(x)) {
-        auto argc = GetFunctionNumArgs(F);
-        if (argc != 2)
-          continue;
+        assert(GetFunctionNumArgs(F) == 2 &&
+               "LookupBinOp returned function without 2 arguments");
 
         std::string arg_type = GetTypeAsString(GetFunctionArgType(F, 0));
         if (arg_type != lc)
