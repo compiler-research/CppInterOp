@@ -3161,6 +3161,49 @@ namespace Cpp {
     return PI->getNameAsString();
   }
 
+  TCppFunction_t GetBinaryOperator(TCppScope_t scope, enum BinaryOperator op,
+                                   const std::string& lc,
+                                   const std::string& rc) {
+    Decl* D = static_cast<Decl*>(scope);
+    if (!D)
+      return nullptr;
+
+    DeclContext* DC = nullptr;
+    if (llvm::isa_and_nonnull<TranslationUnitDecl>(D))
+      DC = llvm::dyn_cast<DeclContext>(D);
+    else
+      DC = D->getDeclContext();
+
+    if (!DC)
+      return nullptr;
+
+    Scope* S = getSema().getScopeForContext(DC);
+    if (!S)
+      return nullptr;
+
+    clang::UnresolvedSet<8> lookup;
+
+    getSema().LookupBinOp(S, SourceLocation(), (clang::BinaryOperatorKind)op,
+                          lookup);
+
+    for (NamedDecl* D : lookup) {
+      if (auto* FD = llvm::dyn_cast<Decl>(D)) {
+        assert(GetFunctionNumArgs(FD) == 2 &&
+               "LookupBinOp returned function without 2 arguments");
+
+        std::string arg_type = GetTypeAsString(GetFunctionArgType(FD, 0));
+        if (arg_type != lc)
+          continue;
+        arg_type = GetTypeAsString(GetFunctionArgType(FD, 1));
+        if (arg_type != rc)
+          continue;
+
+        return FD;
+      }
+    }
+    return nullptr;
+  }
+
   TCppObject_t Allocate(TCppScope_t scope) {
     return (TCppObject_t)::operator new(Cpp::SizeOf(scope));
   }

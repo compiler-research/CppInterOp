@@ -952,3 +952,50 @@ TEST(ScopeReflectionTest, IncludeVector) {
   )";
   Interp->process(code);
 }
+
+TEST(ScopeReflectionTest, GetBinaryOperator) {
+  if (llvm::sys::RunningOnValgrind())
+    GTEST_SKIP() << "XFAIL due to Valgrind report";
+
+  Cpp::CreateInterpreter();
+
+  std::string code = R"(
+    class MyClass {
+    public:
+        int x;
+        MyClass(int x) : x(x) {}
+    };
+
+    MyClass operator-(MyClass lhs, MyClass rhs) {
+        return MyClass(lhs.x - rhs.x);
+    }
+
+    MyClass operator+(MyClass lhs, MyClass rhs) {
+        return MyClass(lhs.x + rhs.x);
+    }
+
+    MyClass operator+(MyClass lhs, int rhs) {
+        return MyClass(lhs.x + rhs);
+    }
+
+    MyClass operator+(int lhs, MyClass rhs) {
+        return MyClass(lhs + rhs.x);
+    }
+  )";
+
+  Cpp::Declare(code.c_str());
+
+  EXPECT_TRUE(Cpp::GetBinaryOperator(
+      Cpp::GetGlobalScope(), Cpp::BinaryOperator::Add, "MyClass", "MyClass"));
+  EXPECT_TRUE(Cpp::GetBinaryOperator(
+      Cpp::GetGlobalScope(), Cpp::BinaryOperator::Sub, "MyClass", "MyClass"));
+  EXPECT_TRUE(Cpp::GetBinaryOperator(
+      Cpp::GetGlobalScope(), Cpp::BinaryOperator::Add, "MyClass", "int"));
+  EXPECT_TRUE(Cpp::GetBinaryOperator(
+      Cpp::GetGlobalScope(), Cpp::BinaryOperator::Add, "int", "MyClass"));
+
+  EXPECT_FALSE(Cpp::GetBinaryOperator(
+      Cpp::GetGlobalScope(), Cpp::BinaryOperator::Add, "float", "MyClass"));
+  EXPECT_FALSE(Cpp::GetBinaryOperator(
+      Cpp::GetGlobalScope(), Cpp::BinaryOperator::Add, "MyClass", "float"));
+}
