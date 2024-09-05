@@ -973,11 +973,11 @@ TEST(ScopeReflectionTest, GetBinaryOperator) {
     MyClass operator+(MyClass lhs, MyClass rhs) {
         return MyClass(lhs.x + rhs.x);
     }
-    
+
     MyClass operator+(MyClass lhs, int rhs) {
         return MyClass(lhs.x + rhs);
     }
-    
+
     MyClass operator+(int lhs, MyClass rhs) {
         return MyClass(lhs + rhs.x);
     }
@@ -986,16 +986,16 @@ TEST(ScopeReflectionTest, GetBinaryOperator) {
   Cpp::Declare(code.c_str());
 
   EXPECT_TRUE(Cpp::GetBinaryOperator(
-      Cpp::GetScope("std"), Cpp::BinaryOperator::Add, "MyClass", "MyClass"));
+      Cpp::GetGlobalScope(), Cpp::BinaryOperator::Add, "MyClass", "MyClass"));
   EXPECT_TRUE(Cpp::GetBinaryOperator(
-      Cpp::GetScope("std"), Cpp::BinaryOperator::Sub, "MyClass", "MyClass"));
+      Cpp::GetGlobalScope(), Cpp::BinaryOperator::Sub, "MyClass", "MyClass"));
   EXPECT_TRUE(Cpp::GetBinaryOperator(
-      Cpp::GetScope("std"), Cpp::BinaryOperator::Add, "MyClass", "int"));
+      Cpp::GetGlobalScope(), Cpp::BinaryOperator::Add, "MyClass", "int"));
   EXPECT_TRUE(Cpp::GetBinaryOperator(
-      Cpp::GetScope("std"), Cpp::BinaryOperator::Add, "int", "MyClass"));
+      Cpp::GetGlobalScope(), Cpp::BinaryOperator::Add, "int", "MyClass"));
 
   EXPECT_FALSE(Cpp::GetBinaryOperator(
-      Cpp::GetScope("std"), Cpp::BinaryOperator::Add, "float", "MyClass"));
+      Cpp::GetGlobalScope(), Cpp::BinaryOperator::Add, "float", "MyClass"));
   EXPECT_FALSE(Cpp::GetBinaryOperator(
-      Cpp::GetScope("std"), Cpp::BinaryOperator::Add, "MyClass", "float"));
+      Cpp::GetGlobalScope(), Cpp::BinaryOperator::Add, "MyClass", "float"));
 }

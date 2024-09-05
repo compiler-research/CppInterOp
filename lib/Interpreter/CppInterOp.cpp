@@ -3168,7 +3168,12 @@ namespace Cpp {
     if (!D)
       return nullptr;
 
-    DeclContext* DC = D->getDeclContext();
+    DeclContext* DC = nullptr;
+    if (llvm::isa_and_nonnull<TranslationUnitDecl>(D))
+      DC = llvm::dyn_cast<DeclContext>(D);
+    else
+      DC = D->getDeclContext();
+
     if (!DC)
       return nullptr;
 
@@ -3181,19 +3186,19 @@ namespace Cpp {
     getSema().LookupBinOp(S, SourceLocation(), (clang::BinaryOperatorKind)op,
                           lookup);
 
-    for (NamedDecl* x : lookup) {
-      if (auto* F = llvm::dyn_cast<Decl>(x)) {
-        assert(GetFunctionNumArgs(F) == 2 &&
+    for (NamedDecl* D : lookup) {
+      if (auto* FD = llvm::dyn_cast<Decl>(D)) {
+        assert(GetFunctionNumArgs(FD) == 2 &&
                "LookupBinOp returned function without 2 arguments");
 
-        std::string arg_type = GetTypeAsString(GetFunctionArgType(F, 0));
+        std::string arg_type = GetTypeAsString(GetFunctionArgType(FD, 0));
         if (arg_type != lc)
           continue;
-        arg_type = GetTypeAsString(GetFunctionArgType(F, 1));
+        arg_type = GetTypeAsString(GetFunctionArgType(FD, 1));
         if (arg_type != rc)
           continue;
 
-        return F;
+        return FD;
       }
     }
     return nullptr;
