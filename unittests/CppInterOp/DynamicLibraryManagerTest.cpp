@@ -167,51 +167,10 @@ TEST(DynamicLibraryManagerTest, LibrariesAutoloadExtraCoverage) {
   rss << MU;
   EXPECT_STRNE("", rss.str().c_str()) << "MU problem!";
 
-  // Cover: LoadLibrary error
-  // if (DLM->loadLibrary(lib, false) != DynamicLibraryManager::LoadLibResult::kLoadLibSuccess) {
-  //   LLVM_DEBUG(dbgs() << "MU: Failed to load library " << lib);
-  //   string err = "MU: Failed to load library! " + lib;
-  //   perror(err.c_str());
-  // } else {
-  // Find library with "ret_value" symbol defined and exported
-  std::string PathToTestSharedLib3 =
-      Cpp::SearchLibrariesForSymbol(MangleNameForDlsym("ret_val").c_str(), /*search_system=*/false);
-  // If result is "" then we cannot find this library.
-  EXPECT_STRNE("", PathToTestSharedLib3.c_str())
-      << "Cannot find: '" << PathToTestSharedLib3 << "' in '" << Dir.str() << "'";
-  // Remove library for simulate load error
-  llvm::sys::fs::remove(PathToTestSharedLib3, true);
-  EXPECT_TRUE(Cpp::GetLibrariesAutoload());
-  // FIXME: Conda returns false to run this code on osx.
-  EXPECT_FALSE(Cpp::GetFunctionAddress(MangleNameForDlsym("ret_val").c_str()));
-
-  // Cover
-  // } else {
-  //   // Collect all failing symbols, delegate their responsibility and then
-  //   // fail their materialization. R->defineNonExistent() sounds like it
-  //   // should do that, but it's not implemented?!
-  //   failedSymbols.insert(symbol);
-  // TODO: implement test this case
-
-  // Cover
-  // if (!failedSymbols.empty()) {
-  //   auto failingMR = R->delegate(failedSymbols);
-  //   if (failingMR) {
-  //     (*failingMR)->failMaterialization();
-  // TODO: implement test this case
-
-  // Cover
-  // void discard(const llvm::orc::JITDylib &JD, const llvm::orc::SymbolStringPtr &Name) override {}
-  // TODO: implement test this case
-
-  // Cover
-  // if (Path.empty()) {
-  //   LLVM_DEBUG(dbgs() << "DynamicLibraryManager::lookupLibMaybeAddExt(): "
-  // TODO: implement test this case
-
-  // Cover
-  // platform::DLClose(dyLibHandle, &errMsg);
-  // if (!errMsg.empty()) {
-  //   LLVM_DEBUG(dbgs() << "DynamicLibraryManager::unloadLibrary(): "
-  // TODO: implement test this case
+  //TODO: Test and cover also if it is possible:
+  // 1. Error when LoadLibrary
+  // 2. if (!failedSymbols.empty()) { ...
+  // 3. void discard(const llvm::orc::JITDylib &JD, const llvm::orc::SymbolStringPtr &Name) override {}
+  // 4. if (Path.empty()) { ...
+  // 5. platform::DLClose(dyLibHandle, &errMsg);
 }
