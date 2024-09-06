@@ -48,12 +48,11 @@ set_output_directory(DynamicLibraryManagerTests BINARY_DIR ${CMAKE_BINARY_DIR}/u
 add_dependencies(DynamicLibraryManagerTests TestSharedLib)
 #export_executable_symbols_for_plugins(TestSharedLib)
 add_subdirectory(TestSharedLib)
+
 add_dependencies(DynamicLibraryManagerTests TestSharedLib1)
 #export_executable_symbols_for_plugins(TestSharedLib1)
 add_subdirectory(TestSharedLib1)
+
 add_dependencies(DynamicLibraryManagerTests TestSharedLib2)
 #export_executable_symbols_for_plugins(TestSharedLib2)
 add_subdirectory(TestSharedLib2)
-add_dependencies(DynamicLibraryManagerTests TestSharedLib3)
-#export_executable_symbols_for_plugins(TestSharedLib3)
-add_subdirectory(TestSharedLib3)
