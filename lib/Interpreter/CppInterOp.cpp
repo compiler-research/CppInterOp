@@ -3164,7 +3164,7 @@ namespace Cpp {
   void GetBinaryOperator(TCppScope_t scope, enum BinaryOperator op,
                          std::vector<TCppFunction_t>& operators) {
     Decl* D = static_cast<Decl*>(scope);
-    DeclContext* DC = llvm::dyn_cast<DeclContext>(D);
+    auto* DC = llvm::dyn_cast<DeclContext>(D);
     Scope* S = getSema().getScopeForContext(DC);
     if (!S)
       return;
