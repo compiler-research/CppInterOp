@@ -985,17 +985,16 @@ TEST(ScopeReflectionTest, GetBinaryOperator) {
 
   Cpp::Declare(code.c_str());
 
-  EXPECT_TRUE(Cpp::GetBinaryOperator(
-      Cpp::GetGlobalScope(), Cpp::BinaryOperator::Add, "MyClass", "MyClass"));
-  EXPECT_TRUE(Cpp::GetBinaryOperator(
-      Cpp::GetGlobalScope(), Cpp::BinaryOperator::Sub, "MyClass", "MyClass"));
-  EXPECT_TRUE(Cpp::GetBinaryOperator(
-      Cpp::GetGlobalScope(), Cpp::BinaryOperator::Add, "MyClass", "int"));
-  EXPECT_TRUE(Cpp::GetBinaryOperator(
-      Cpp::GetGlobalScope(), Cpp::BinaryOperator::Add, "int", "MyClass"));
+  std::vector<Cpp::TCppFunction_t> ops;
 
-  EXPECT_FALSE(Cpp::GetBinaryOperator(
-      Cpp::GetGlobalScope(), Cpp::BinaryOperator::Add, "float", "MyClass"));
-  EXPECT_FALSE(Cpp::GetBinaryOperator(
-      Cpp::GetGlobalScope(), Cpp::BinaryOperator::Add, "MyClass", "float"));
+  Cpp::GetBinaryOperator(Cpp::GetGlobalScope(), Cpp::BinaryOperator::Add, ops);
+  EXPECT_EQ(ops.size(), 3);
+  ops.clear();
+
+  Cpp::GetBinaryOperator(Cpp::GetGlobalScope(), Cpp::BinaryOperator::Sub, ops);
+  EXPECT_EQ(ops.size(), 1);
+  ops.clear();
+
+  Cpp::GetBinaryOperator(Cpp::GetGlobalScope(), Cpp::BinaryOperator::Mul, ops);
+  EXPECT_EQ(ops.size(), 0);
 }

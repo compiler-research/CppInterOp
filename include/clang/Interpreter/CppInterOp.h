@@ -502,9 +502,8 @@ namespace Cpp {
                                                 TCppIndex_t param_index);
 
   ///\returns function that performs operation op on lc and rc
-  TCppFunction_t GetBinaryOperator(TCppScope_t scope, enum BinaryOperator op,
-                                   const std::string& lc,
-                                   const std::string& rc);
+  void GetBinaryOperator(TCppScope_t scope, enum BinaryOperator op,
+                         std::vector<TCppFunction_t>& operators);
 
   /// Creates an instance of the interpreter we need for the various interop
   /// services.
