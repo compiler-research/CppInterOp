@@ -1004,8 +1004,9 @@ namespace Cpp {
         continue;
 #endif
 
-      // FIXME : first score based on the type similarity before forcing
+      // TODO(aaronj0) : first score based on the type similarity before forcing
       // instantiation.
+
       TCppFunction_t instantiated =
           InstantiateTemplate(candidate, arg_types.data(), arg_types.size());
       if (instantiated)
@@ -1016,6 +1017,19 @@ namespace Cpp {
       // TemplateProxy?
       instantiated = InstantiateTemplate(candidate, explicit_types.data(),
                                           explicit_types.size());
+      if (instantiated)
+        return instantiated;
+
+      // join explicit and arg_types
+      std::vector<TemplateArgInfo> total_arg_set;
+      total_arg_set.reserve(explicit_types.size() + arg_types.size());
+      total_arg_set.insert(total_arg_set.end(), explicit_types.begin(),
+                           explicit_types.end());
+      total_arg_set.insert(total_arg_set.end(), arg_types.begin(),
+                           arg_types.end());
+
+      instantiated = InstantiateTemplate(candidate, total_arg_set.data(),
+                                         total_arg_set.size());
       if (instantiated)
         return instantiated;
     }
