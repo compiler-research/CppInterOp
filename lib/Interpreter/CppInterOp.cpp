@@ -1004,8 +1004,19 @@ namespace Cpp {
 
       // FIXME : first score based on the type similarity before forcing
       // instantiation.
-      TCppFunction_t instantiated =
-          InstantiateTemplate(candidate, arg_types.data(), arg_types.size());
+
+      // join explicit and arg_types
+      std::vector<TemplateArgInfo> total_arg_set;
+
+      for(auto k : explicit_types) {
+        total_arg_set.push_back(k);
+      }
+
+      for(auto k : arg_types) {
+        total_arg_set.push_back(k);
+      }
+
+      TCppFunction_t instantiated = InstantiateTemplate(candidate, arg_types.data(), arg_types.size());
       if (instantiated)
         return instantiated;
 
@@ -1016,6 +1027,13 @@ namespace Cpp {
                                           explicit_types.size());
       if (instantiated)
         return instantiated;
+      
+      instantiated = InstantiateTemplate(candidate, total_arg_set.data(),
+                                          total_arg_set.size());
+      if (instantiated)
+        return instantiated;
+
+
     }
     return nullptr;
   }
