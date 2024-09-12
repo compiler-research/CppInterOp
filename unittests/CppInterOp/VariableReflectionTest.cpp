@@ -39,6 +39,77 @@ TEST(VariableReflectionTest, GetDatamembers) {
   EXPECT_EQ(datamembers1.size(), 0);
 }
 
+#define CODE                                                                   \
+  struct Klass1 {                                                              \
+    Klass1(int i) : num(1), b(i) {}                                            \
+    int num;                                                                   \
+    union {                                                                    \
+      double a;                                                                \
+      int b;                                                                   \
+    };                                                                         \
+  } k1(5);                                                                     \
+  struct Klass2 {                                                              \
+    Klass2(double d) : num(2), a(d) {}                                         \
+    int num;                                                                   \
+    struct {                                                                   \
+      double a;                                                                \
+      int b;                                                                   \
+    };                                                                         \
+  } k2(2.5);                                                                   \
+  struct Klass3 {                                                              \
+    Klass3(int i) : num(i) {}                                                  \
+    int num;                                                                   \
+    struct {                                                                   \
+      double a;                                                                \
+      union {                                                                  \
+        float b;                                                               \
+        int c;                                                                 \
+      };                                                                       \
+    };                                                                         \
+    int num2;                                                                  \
+  } k3(5);
+
+CODE
+
+TEST(VariableReflectionTest, DatamembersWithAnonymousStructOrUnion) {
+  std::vector<Decl*> Decls;
+#define Stringify(s) Stringifyx(s)
+#define Stringifyx(...) #__VA_ARGS__
+  GetAllTopLevelDecls(Stringify(CODE), Decls);
+#undef Stringifyx
+#undef Stringify
+#undef CODE
+
+  auto datamembers_klass1 = Cpp::GetDatamembers(Decls[0]);
+  auto datamembers_klass2 = Cpp::GetDatamembers(Decls[2]);
+  auto datamembers_klass3 = Cpp::GetDatamembers(Decls[4]);
+
+  EXPECT_EQ(datamembers_klass1.size(), 3);
+  EXPECT_EQ(datamembers_klass2.size(), 3);
+
+  EXPECT_EQ(Cpp::GetVariableOffset(datamembers_klass1[0]), 0);
+  EXPECT_EQ(Cpp::GetVariableOffset(datamembers_klass1[1]),
+            ((intptr_t) & (k1.a)) - ((intptr_t) & (k1.num)));
+  EXPECT_EQ(Cpp::GetVariableOffset(datamembers_klass1[2]),
+            ((intptr_t) & (k1.b)) - ((intptr_t) & (k1.num)));
+
+  EXPECT_EQ(Cpp::GetVariableOffset(datamembers_klass2[0]), 0);
+  EXPECT_EQ(Cpp::GetVariableOffset(datamembers_klass2[1]),
+            ((intptr_t) & (k2.a)) - ((intptr_t) & (k2.num)));
+  EXPECT_EQ(Cpp::GetVariableOffset(datamembers_klass2[2]),
+            ((intptr_t) & (k2.b)) - ((intptr_t) & (k2.num)));
+
+  EXPECT_EQ(Cpp::GetVariableOffset(datamembers_klass3[0]), 0);
+  EXPECT_EQ(Cpp::GetVariableOffset(datamembers_klass3[1]),
+            ((intptr_t) & (k3.a)) - ((intptr_t) & (k3.num)));
+  EXPECT_EQ(Cpp::GetVariableOffset(datamembers_klass3[2]),
+            ((intptr_t) & (k3.b)) - ((intptr_t) & (k3.num)));
+  EXPECT_EQ(Cpp::GetVariableOffset(datamembers_klass3[3]),
+            ((intptr_t) & (k3.c)) - ((intptr_t) & (k3.num)));
+  EXPECT_EQ(Cpp::GetVariableOffset(datamembers_klass3[4]),
+            ((intptr_t) & (k3.num2)) - ((intptr_t) & (k3.num)));
+}
+
 TEST(VariableReflectionTest, LookupDatamember) {
   std::vector<Decl*> Decls;
   std::string code = R"(

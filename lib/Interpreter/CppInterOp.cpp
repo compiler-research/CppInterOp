@@ -1128,9 +1128,33 @@ namespace Cpp {
 
     if (auto *CXXRD = llvm::dyn_cast_or_null<CXXRecordDecl>(D)) {
       std::vector<TCppScope_t> datamembers;
-      for (auto it = CXXRD->field_begin(), end = CXXRD->field_end(); it != end;
-           it++) {
-        datamembers.push_back((TCppScope_t)*it);
+      llvm::SmallVector<RecordDecl::field_iterator, 2> stack_begin;
+      llvm::SmallVector<RecordDecl::field_iterator, 2> stack_end;
+      stack_begin.push_back(CXXRD->field_begin());
+      stack_end.push_back(CXXRD->field_end());
+      while (stack_begin.size()) {
+        if (stack_begin.back() == stack_end.back()) {
+          stack_begin.pop_back();
+          stack_end.pop_back();
+          continue;
+        }
+        Decl* D = *(stack_begin.back());
+        if (D->getKind() == clang::Decl::Field &&
+            dyn_cast<FieldDecl>(D)->isAnonymousStructOrUnion()) {
+          if (auto* CXXRD = llvm::dyn_cast_or_null<CXXRecordDecl>(
+                  dyn_cast<FieldDecl>(D)
+                      ->getType()
+                      ->getAs<RecordType>()
+                      ->getDecl())) {
+            stack_begin.back()++;
+            stack_begin.push_back(CXXRD->field_begin());
+            stack_end.push_back(CXXRD->field_end());
+            continue;
+          }
+          assert(false); // should be unreachable else internal error
+        }
+        datamembers.push_back((TCppScope_t)D);
+        stack_begin.back()++;
       }
 
       return datamembers;
@@ -1175,9 +1199,30 @@ namespace Cpp {
     auto *D = (Decl *) var;
     auto &C = getASTContext();
 
-    if (auto *FD = llvm::dyn_cast<FieldDecl>(D))
-      return (intptr_t) C.toCharUnitsFromBits(C.getASTRecordLayout(FD->getParent())
-                                              .getFieldOffset(FD->getFieldIndex())).getQuantity();
+    if (auto* FD = llvm::dyn_cast<FieldDecl>(D)) {
+      const clang::RecordDecl* RD = FD->getParent();
+      intptr_t offset =
+          C.toCharUnitsFromBits(
+               C.getASTRecordLayout(RD).getFieldOffset(FD->getFieldIndex()))
+              .getQuantity();
+      while (RD->isAnonymousStructOrUnion()) {
+        const clang::RecordDecl* anon = RD;
+        RD = llvm::dyn_cast<RecordDecl>(anon->getParent());
+        for (auto f = RD->field_begin(); f != RD->field_end(); ++f) {
+          auto* rt = f->getType()->getAs<RecordType>();
+          if (!rt)
+            continue;
+          if (anon == rt->getDecl()) {
+            FD = *f;
+            break;
+          }
+        }
+        offset += C.toCharUnitsFromBits(C.getASTRecordLayout(RD).getFieldOffset(
+                                            FD->getFieldIndex()))
+                      .getQuantity();
+      }
+      return offset;
+    }
 
     if (auto *VD = llvm::dyn_cast<VarDecl>(D)) {
       auto GD = GlobalDecl(VD);
