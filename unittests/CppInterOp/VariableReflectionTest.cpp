@@ -47,7 +47,7 @@ TEST(VariableReflectionTest, GetDatamembers) {
       double a;                                                                \
       int b;                                                                   \
     };                                                                         \
-  } k1(5);                                                                     \
+  } const k1(5);                                                               \
   struct Klass2 {                                                              \
     Klass2(double d) : num(2), a(d) {}                                         \
     int num;                                                                   \
@@ -55,7 +55,7 @@ TEST(VariableReflectionTest, GetDatamembers) {
       double a;                                                                \
       int b;                                                                   \
     };                                                                         \
-  } k2(2.5);                                                                   \
+  } const k2(2.5);                                                             \
   struct Klass3 {                                                              \
     Klass3(int i) : num(i) {}                                                  \
     int num;                                                                   \
@@ -67,7 +67,7 @@ TEST(VariableReflectionTest, GetDatamembers) {
       };                                                                       \
     };                                                                         \
     int num2;                                                                  \
-  } k3(5);
+  } const k3(5);
 
 CODE
 

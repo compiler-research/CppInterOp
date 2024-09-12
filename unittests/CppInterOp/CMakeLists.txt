@@ -18,6 +18,10 @@ target_link_libraries(CppInterOpTests
   clangCppInterOp
   )
 
+set_source_files_properties(VariableReflectionTest.cpp PROPERTIES COMPILE_FLAGS
+  "-Wno-pedantic"
+)
+
 set_source_files_properties(InterpreterTest.cpp PROPERTIES COMPILE_DEFINITIONS
   "LLVM_BINARY_DIR=\"${LLVM_BINARY_DIR}\""
   )
