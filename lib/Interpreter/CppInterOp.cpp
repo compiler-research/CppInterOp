@@ -1132,7 +1132,7 @@ namespace Cpp {
       llvm::SmallVector<RecordDecl::field_iterator, 2> stack_end;
       stack_begin.push_back(CXXRD->field_begin());
       stack_end.push_back(CXXRD->field_end());
-      while (stack_begin.size()) {
+      while (!stack_begin.empty()) {
         if (stack_begin.back() == stack_end.back()) {
           stack_begin.pop_back();
           stack_end.pop_back();
@@ -1209,7 +1209,7 @@ namespace Cpp {
         const clang::RecordDecl* anon = RD;
         RD = llvm::dyn_cast<RecordDecl>(anon->getParent());
         for (auto f = RD->field_begin(); f != RD->field_end(); ++f) {
-          auto* rt = f->getType()->getAs<RecordType>();
+          const auto* rt = f->getType()->getAs<RecordType>();
           if (!rt)
             continue;
           if (anon == rt->getDecl()) {
