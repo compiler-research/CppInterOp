@@ -1142,8 +1142,7 @@ namespace Cpp {
         if (auto* FD = llvm::dyn_cast<FieldDecl>(D)) {
           if (FD->isAnonymousStructOrUnion()) {
             if (const auto* RT = FD->getType()->getAs<RecordType>()) {
-              if (auto* CXXRD =
-                      llvm::dyn_cast<CXXRecordDecl>(RT->getDecl())) {
+              if (auto* CXXRD = llvm::dyn_cast<CXXRecordDecl>(RT->getDecl())) {
                 stack_begin.back()++;
                 stack_begin.push_back(CXXRD->field_begin());
                 stack_end.push_back(CXXRD->field_end());
