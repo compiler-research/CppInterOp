@@ -1139,16 +1139,14 @@ namespace Cpp {
           continue;
         }
         Decl* D = *(stack_begin.back());
-        if (D->getKind() == clang::Decl::Field) {
-          if (auto* FD = llvm::dyn_cast<FieldDecl>(D)) {
-            if (FD->isAnonymousStructOrUnion()) {
-              if (auto* CXXRD = llvm::dyn_cast_or_null<CXXRecordDecl>(
-                      FD->getType()->getAs<RecordType>()->getDecl())) {
-                stack_begin.back()++;
-                stack_begin.push_back(CXXRD->field_begin());
-                stack_end.push_back(CXXRD->field_end());
-                continue;
-              }
+        if (auto* FD = llvm::dyn_cast<FieldDecl>(D)) {
+          if (FD->isAnonymousStructOrUnion()) {
+            if (auto* CXXRD = llvm::dyn_cast_or_null<CXXRecordDecl>(
+                    FD->getType()->getAs<RecordType>()->getDecl())) {
+              stack_begin.back()++;
+              stack_begin.push_back(CXXRD->field_begin());
+              stack_end.push_back(CXXRD->field_end());
+              continue;
             }
           }
         }
