@@ -72,6 +72,9 @@ TEST(VariableReflectionTest, GetDatamembers) {
 CODE
 
 TEST(VariableReflectionTest, DatamembersWithAnonymousStructOrUnion) {
+  if (llvm::sys::RunningOnValgrind())
+    GTEST_SKIP() << "XFAIL due to Valgrind report";
+
   std::vector<Decl*> Decls;
 #define Stringify(s) Stringifyx(s)
 #define Stringifyx(...) #__VA_ARGS__

@@ -1139,14 +1139,16 @@ namespace Cpp {
           continue;
         }
         Decl* D = *(stack_begin.back());
-        if (auto* FD = llvm::dyn_cast<FieldDecl>(D)) {
+        if (auto* FD = llvm::dyn_cast_or_null<FieldDecl>(D)) {
           if (FD->isAnonymousStructOrUnion()) {
-            if (auto* CXXRD = llvm::dyn_cast_or_null<CXXRecordDecl>(
-                    FD->getType()->getAs<RecordType>()->getDecl())) {
-              stack_begin.back()++;
-              stack_begin.push_back(CXXRD->field_begin());
-              stack_end.push_back(CXXRD->field_end());
-              continue;
+            if (auto* RT = FD->getType()->getAs<RecordType>()) {
+              if (auto* CXXRD =
+                      llvm::dyn_cast_or_null<CXXRecordDecl>(RT->getDecl())) {
+                stack_begin.back()++;
+                stack_begin.push_back(CXXRD->field_begin());
+                stack_end.push_back(CXXRD->field_end());
+                continue;
+              }
             }
           }
         }
@@ -1199,24 +1201,20 @@ namespace Cpp {
     if (auto* FD = llvm::dyn_cast<FieldDecl>(D)) {
       const clang::RecordDecl* RD = FD->getParent();
       intptr_t offset =
-          C.toCharUnitsFromBits(
-               C.getASTRecordLayout(RD).getFieldOffset(FD->getFieldIndex()))
-              .getQuantity();
+          C.toCharUnitsFromBits(C.getFieldOffset(FD)).getQuantity();
       while (RD->isAnonymousStructOrUnion()) {
         const clang::RecordDecl* anon = RD;
         RD = llvm::dyn_cast<RecordDecl>(anon->getParent());
-        for (auto f = RD->field_begin(); f != RD->field_end(); ++f) {
-          const auto* rt = f->getType()->getAs<RecordType>();
-          if (!rt)
+        for (auto F = RD->field_begin(); F != RD->field_end(); ++F) {
+          const auto* RT = F->getType()->getAs<RecordType>();
+          if (!RT)
             continue;
-          if (anon == rt->getDecl()) {
-            FD = *f;
+          if (anon == RT->getDecl()) {
+            FD = *F;
             break;
           }
         }
-        offset += C.toCharUnitsFromBits(C.getASTRecordLayout(RD).getFieldOffset(
-                                            FD->getFieldIndex()))
-                      .getQuantity();
+        offset += C.toCharUnitsFromBits(C.getFieldOffset(FD)).getQuantity();
       }
       return offset;
     }
