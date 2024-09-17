@@ -32,10 +32,15 @@ TEST(VariableReflectionTest, GetDatamembers) {
   auto datamembers = Cpp::GetDatamembers(Decls[0]);
   auto datamembers1 = Cpp::GetDatamembers(Decls[1]);
 
+  // non static field first
   EXPECT_EQ(Cpp::GetQualifiedName(datamembers[0]), "C::a");
   EXPECT_EQ(Cpp::GetQualifiedName(datamembers[1]), "C::c");
   EXPECT_EQ(Cpp::GetQualifiedName(datamembers[2]), "C::e");
-  EXPECT_EQ(datamembers.size(), 3);
+  // static fields
+  EXPECT_EQ(Cpp::GetQualifiedName(datamembers[3]), "C::b");
+  EXPECT_EQ(Cpp::GetQualifiedName(datamembers[4]), "C::d");
+  EXPECT_EQ(Cpp::GetQualifiedName(datamembers[5]), "C::f");
+  EXPECT_EQ(datamembers.size(), 6);
   EXPECT_EQ(datamembers1.size(), 0);
 }
 
