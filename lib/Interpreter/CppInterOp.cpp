@@ -1155,6 +1155,9 @@ namespace Cpp {
         stack_begin.back()++;
       }
 
+      // static field member
+      GetClassDecls<VarDecl>(scope, datamembers);
+
       return datamembers;
     }
 
