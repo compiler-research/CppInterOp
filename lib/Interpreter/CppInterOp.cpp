@@ -1161,10 +1161,9 @@ namespace Cpp {
     return {};
   }
 
-  std::vector<TCppScope_t> GetStaticDatamembers(TCppScope_t scope) {
-    std::vector<TCppScope_t> datamembers;
+  void GetStaticDatamembers(TCppScope_t scope,
+                            std::vector<TCppScope_t>& datamembers) {
     GetClassDecls<VarDecl>(scope, datamembers);
-    return datamembers;
   }
 
   TCppScope_t LookupDatamember(const std::string& name, TCppScope_t parent) {

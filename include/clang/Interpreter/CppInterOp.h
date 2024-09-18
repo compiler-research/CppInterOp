@@ -428,8 +428,11 @@ namespace Cpp {
   CPPINTEROP_API std::vector<TCppScope_t> GetDatamembers(TCppScope_t scope);
 
   /// Gets all the Static Fields/Data Members of a Class
-  CPPINTEROP_API std::vector<TCppScope_t>
-  GetStaticDatamembers(TCppScope_t scope);
+  ///\param[in] scope - class
+  ///\param[out] funcs - vector of static data members
+  CPPINTEROP_API void
+  GetStaticDatamembers(TCppScope_t scope,
+                       std::vector<TCppScope_t>& datamembers);
 
   /// This is a Lookup function to be used specifically for data members.
   CPPINTEROP_API TCppScope_t LookupDatamember(const std::string& name,
