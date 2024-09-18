@@ -424,10 +424,12 @@ namespace Cpp {
   /// Checks if the provided parameter is a 'Virtual' method.
   CPPINTEROP_API bool IsVirtualMethod(TCppFunction_t method);
 
-  /// Gets all the Fields/Data Members of a Class. For now, it
-  /// only gets non-static data members but in a future update,
-  /// it may support getting static data members as well.
+  /// Gets all the Fields/Data Members of a Class
   CPPINTEROP_API std::vector<TCppScope_t> GetDatamembers(TCppScope_t scope);
+
+  /// Gets all the Static Fields/Data Members of a Class
+  CPPINTEROP_API std::vector<TCppScope_t>
+  GetStaticDatamembers(TCppScope_t scope);
 
   /// This is a Lookup function to be used specifically for data members.
   CPPINTEROP_API TCppScope_t LookupDatamember(const std::string& name,
