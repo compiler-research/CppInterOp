@@ -31,10 +31,8 @@ TEST(VariableReflectionTest, GetDatamembers) {
   GetAllTopLevelDecls(code, Decls);
   auto datamembers = Cpp::GetDatamembers(Decls[0]);
   auto datamembers1 = Cpp::GetDatamembers(Decls[1]);
-  auto static_datamembers = Cpp::GetStaticDatamembers(Decls[0]);
-  auto static_datamembers1 = Cpp::GetStaticDatamembers(Decls[1]);
 
-  // non static field first
+  // non static field
   EXPECT_EQ(Cpp::GetQualifiedName(datamembers[0]), "C::a");
   EXPECT_EQ(Cpp::GetQualifiedName(datamembers[1]), "C::c");
   EXPECT_EQ(Cpp::GetQualifiedName(datamembers[2]), "C::e");
@@ -42,11 +40,17 @@ TEST(VariableReflectionTest, GetDatamembers) {
   EXPECT_EQ(datamembers1.size(), 0);
 
   // static fields
-  EXPECT_EQ(Cpp::GetQualifiedName(static_datamembers[0]), "C::b");
-  EXPECT_EQ(Cpp::GetQualifiedName(static_datamembers[1]), "C::d");
-  EXPECT_EQ(Cpp::GetQualifiedName(static_datamembers[2]), "C::f");
-  EXPECT_EQ(static_datamembers.size(), 3);
-  EXPECT_EQ(static_datamembers1.size(), 0);
+  datamembers.clear();
+  datamembers1.clear();
+
+  Cpp::GetStaticDatamembers(Decls[0], datamembers);
+  Cpp::GetStaticDatamembers(Decls[1], datamembers1);
+
+  EXPECT_EQ(Cpp::GetQualifiedName(datamembers[0]), "C::b");
+  EXPECT_EQ(Cpp::GetQualifiedName(datamembers[1]), "C::d");
+  EXPECT_EQ(Cpp::GetQualifiedName(datamembers[2]), "C::f");
+  EXPECT_EQ(datamembers.size(), 3);
+  EXPECT_EQ(datamembers1.size(), 0);
 }
 
 #define CODE                                                                   \
