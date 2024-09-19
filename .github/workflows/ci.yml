@@ -21,6 +21,13 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - name: ubu22-x86-gcc12-clang-repl-19
+            os: ubuntu-22.04
+            compiler: gcc-12
+            clang-runtime: '19'
+            cling: Off
+            cppyy: On
+            coverage: true
           - name: ubu22-x86-gcc12-clang-repl-18
             os: ubuntu-22.04
             compiler: gcc-12
@@ -50,6 +57,12 @@ jobs:
             cling-version: '1.0'
             cppyy: On
             coverage: true
+          - name: win2022-msvc-clang-repl-19
+            os: windows-2022
+            compiler: msvc
+            clang-runtime: '19'
+            cling: Off
+            cppyy: Off
           - name: win2022-msvc-clang-repl-18
             os: windows-2022
             compiler: msvc
@@ -75,6 +88,12 @@ jobs:
             cling: On
             cling-version: '1.0'
             cppyy: Off
+          - name: osx14-arm-clang-clang-repl-19
+            os: macos-14
+            compiler: clang
+            clang-runtime: '19'
+            cling: Off
+            cppyy: On
           - name: osx14-arm-clang-clang-repl-18
             os: macos-14
             compiler: clang
@@ -99,6 +118,12 @@ jobs:
             clang-runtime: '13'
             cling: On
             cling-version: '1.0'
+            cppyy: On
+          - name: osx13-x86-clang-clang-repl-19
+            os: macos-13
+            compiler: clang
+            clang-runtime: '19'
+            cling: Off
             cppyy: On
           - name: osx13-x86-clang-clang-repl-18
             os: macos-13
@@ -350,7 +375,7 @@ jobs:
         else
           # Apply patches
           llvm_vers=$(echo "${{ matrix.clang-runtime }}" | tr '[:lower:]' '[:upper:]')
-          if [[ "${llvm_vers}" != "18" ]]; then
+          if [[ "${llvm_vers}" == "16" ]]||[[ "${llvm_vers}" == "17" ]]; then
             git apply -v ../patches/llvm/clang${{ matrix.clang-runtime }}-*.patch
             echo "Apply clang${{ matrix.clang-runtime }}-*.patch patches:"
           fi
@@ -399,10 +424,10 @@ jobs:
         if ( "${{ matrix.cling }}" -imatch "On" )
         {
           cd build
-          cmake -DLLVM_ENABLE_PROJECTS="clang;lld"                  `
+          cmake -DLLVM_ENABLE_PROJECTS="clang"                  `
                 -DLLVM_EXTERNAL_PROJECTS=cling                `
                 -DLLVM_EXTERNAL_CLING_SOURCE_DIR="$env:CLING_DIR"   `
-                -DLLVM_TARGETS_TO_BUILD="WebAssembly;host;NVPTX"          `
+                -DLLVM_TARGETS_TO_BUILD="host;NVPTX"          `
                 -DCMAKE_BUILD_TYPE=Release                         `
                 -DLLVM_ENABLE_ASSERTIONS=ON                        `
                 -DCLANG_ENABLE_STATIC_ANALYZER=OFF                 `
@@ -413,7 +438,6 @@ jobs:
                 -DLLVM_ENABLE_TERMINFO=OFF                         `
                 -DLLVM_ENABLE_LIBXML2=OFF                          `
                 ..\llvm
-          cmake --build . --config Release --target lld --parallel ${{ env.ncpus }}
           cmake --build . --config Release --target clang --parallel ${{ env.ncpus }}
           cmake --build . --config Release --target cling --parallel ${{ env.ncpus }}
           # Now build gtest.a and gtest_main for CppInterOp to run its tests.
@@ -435,8 +459,8 @@ jobs:
           }
           cd build
           echo "Apply clang${{ matrix.clang-runtime }}-*.patch patches:"
-          cmake -DLLVM_ENABLE_PROJECTS="clang;lld"                  `
-                -DLLVM_TARGETS_TO_BUILD="WebAssembly;host;NVPTX"          `
+          cmake -DLLVM_ENABLE_PROJECTS="clang"                  `
+                -DLLVM_TARGETS_TO_BUILD="host;NVPTX"          `
                 -DCMAKE_BUILD_TYPE=Release                          `
                 -DLLVM_ENABLE_ASSERTIONS=ON                         `
                 -DCLANG_ENABLE_STATIC_ANALYZER=OFF                  `
@@ -447,7 +471,7 @@ jobs:
                 -DLLVM_ENABLE_TERMINFO=OFF                          `
                 -DLLVM_ENABLE_LIBXML2=OFF                           `
                 ..\llvm
-          cmake --build . --config Release --target clang clang-repl lld --parallel ${{ env.ncpus }}
+          cmake --build . --config Release --target clang clang-repl --parallel ${{ env.ncpus }}
         }
         cd ..\
         rm -r -force $(find.exe . -maxdepth 1 ! -name "build" ! -name "llvm" ! -name "clang" ! -name ".")
@@ -470,6 +494,13 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - name: ubu22-x86-gcc12-clang-repl-19-cppyy
+            os: ubuntu-22.04
+            compiler: gcc-12
+            clang-runtime: '19'
+            cling: Off
+            cppyy: On
+            coverage: true
           - name: ubu22-x86-gcc12-clang-repl-18-cppyy
             os: ubuntu-22.04
             compiler: gcc-12
@@ -498,6 +529,12 @@ jobs:
             cppyy: On
           #FIXME: Windows CppInterOp tests expected to fail
           #until https://github.com/compiler-research/CppInterOp/issues/188 is solved
+          - name: win2022-msvc-clang-repl-19
+            os: windows-2022
+            compiler: msvc
+            clang-runtime: '19'
+            cling: Off
+            cppyy: Off
           - name: win2022-msvc-clang-repl-18
             os: windows-2022
             compiler: msvc
@@ -542,6 +579,12 @@ jobs:
           #  cling: On
           #  cling-version: '1.0'
           #  cppyy: On
+          - name: osx14-arm-clang-clang-repl-19-cppyy
+            os: macos-14
+            compiler: clang
+            clang-runtime: '19'
+            cling: Off
+            cppyy: On
           - name: osx14-arm-clang-clang-repl-18-cppyy
             os: macos-14
             compiler: clang
@@ -566,6 +609,12 @@ jobs:
             clang-runtime: '13'
             cling: On
             cling-version: '1.0'
+            cppyy: On
+          - name: osx13-x86-clang-clang-repl-19-cppyy
+            os: macos-13
+            compiler: clang
+            clang-runtime: '19'
+            cling: Off
             cppyy: On
           - name: osx13-x86-clang-clang-repl-18-cppyy
             os: macos-13
@@ -1076,6 +1125,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - name: ubu22-x86-gcc12-clang-repl-19-emscripten_wasm
+            os: ubuntu-22.04
+            compiler: gcc-12
+            clang-runtime: '19'
+            cling: Off
+            micromamba_shell_init: bash
           - name: ubu22-x86-gcc12-clang-repl-18-emscripten_wasm
             os: ubuntu-22.04
             compiler: gcc-12
@@ -1101,6 +1156,12 @@ jobs:
             cling: On
             cling-version: '1.0'
             micromamba_shell_init: bash
+          - name: osx14-arm-clang-clang-repl-19-emscripten_wasm
+            os: macos-14
+            compiler: clang
+            clang-runtime: '19'
+            cling: Off
+            micromamba_shell_init: bash
           - name: osx14-arm-clang-clang-repl-18-emscripten_wasm
             os: macos-14
             compiler: clang
@@ -1125,6 +1186,12 @@ jobs:
             clang-runtime: '13'
             cling: On
             cling-version: '1.0'
+            micromamba_shell_init: bash
+          - name: osx13-x86-clang-clang-repl-19-emscripten_wasm
+            os: macos-13
+            compiler: clang
+            clang-runtime: '19'
+            cling: Off
             micromamba_shell_init: bash
           - name: osx13-x86-clang-clang-repl-18-emscripten_wasm
             os: macos-13

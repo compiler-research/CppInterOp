@@ -10,6 +10,38 @@
 #include "clang/Basic/Version.h"
 #include "clang/Config/config.h"
 
+#if CLANG_VERSION_MAJOR < 19
+#define Template_Deduction_Result Sema::TemplateDeductionResult
+#define Template_Deduction_Result_Success                                      \
+  Sema::TemplateDeductionResult::TDK_Success
+#else
+#define Template_Deduction_Result TemplateDeductionResult
+#define Template_Deduction_Result_Success TemplateDeductionResult::Success
+#endif
+
+#if CLANG_VERSION_MAJOR < 19
+#define For_Visible_Redeclaration Sema::ForVisibleRedeclaration
+#define Clang_For_Visible_Redeclaration clang::Sema::ForVisibleRedeclaration
+#else
+#define For_Visible_Redeclaration RedeclarationKind::ForVisibleRedeclaration
+#define Clang_For_Visible_Redeclaration                                        \
+  RedeclarationKind::ForVisibleRedeclaration
+#endif
+
+#if CLANG_VERSION_MAJOR < 19
+#define CXXSpecialMemberKindDefaultConstructor                                 \
+  clang::Sema::CXXDefaultConstructor
+#define CXXSpecialMemberKindCopyConstructor clang::Sema::CXXCopyConstructor
+#define CXXSpecialMemberKindMoveConstructor clang::Sema::CXXMoveConstructor
+#else
+#define CXXSpecialMemberKindDefaultConstructor                                 \
+  CXXSpecialMemberKind::DefaultConstructor
+#define CXXSpecialMemberKindCopyConstructor                                    \
+  CXXSpecialMemberKind::CopyConstructor
+#define CXXSpecialMemberKindMoveConstructor                                    \
+  CXXSpecialMemberKind::MoveConstructor
+#endif
+
 #if LLVM_VERSION_MAJOR < 18
 #define starts_with startswith
 #define ends_with endswith
@@ -78,8 +110,14 @@ getSymbolAddress(const cling::Interpreter& I, llvm::StringRef IRName) {
 
   llvm::orc::LLJIT& Jit = *compat::getExecutionEngine(I);
   llvm::orc::SymbolNameVector Names;
-  Names.push_back(Jit.getExecutionSession().intern(IRName));
+  llvm::orc::ExecutionSession& ES = Jit.getExecutionSession();
+  Names.push_back(ES.intern(IRName));
+#if CLANG_VERSION_MAJOR < 16
   return llvm::make_error<llvm::orc::SymbolsNotFound>(Names);
+#else
+  return llvm::make_error<llvm::orc::SymbolsNotFound>(ES.getSymbolStringPool(),
+                                                      std::move(Names));
+#endif // CLANG_VERSION_MAJOR
 }
 
 inline void codeComplete(std::vector<std::string>& Results,
@@ -367,29 +405,15 @@ inline std::string MakeResourceDir(llvm::StringRef Dir) {
 }
 
 // Clang >= 16 (=16 with Value patch) change castAs to converTo
-#if CLANG_VERSION_MAJOR >= 16
-template <typename T>
-inline T convertTo(
 #ifdef USE_CLING
-    cling::Value V
-#else
-    clang::Value V
-#endif
-) {
-  return V.convertTo<T>();
-}
-#else
-template <typename T>
-inline T convertTo(
-#ifdef USE_CLING
-    cling::Value V
-#else
-    clang::Value V
-#endif
-) {
+template <typename T> inline T convertTo(cling::Value V) {
   return V.castAs<T>();
 }
-#endif
+#else  // CLANG_REPL
+template <typename T> inline T convertTo(clang::Value V) {
+  return V.convertTo<T>();
+}
+#endif // USE_CLING
 
 } // namespace compat
 

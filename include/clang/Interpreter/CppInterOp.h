@@ -35,6 +35,43 @@ namespace Cpp {
   using TCppFuncAddr_t = void*;
   using TInterp_t = void*;
   using TCppObject_t = void*;
+
+  enum BinaryOperator {
+    PtrMemD = 0,
+    PtrMemI,
+    Mul,
+    Div,
+    Rem,
+    Add,
+    Sub,
+    Shl,
+    Shr,
+    Cmp,
+    LT,
+    GT,
+    LE,
+    GE,
+    EQ,
+    NE,
+    And,
+    Xor,
+    Or,
+    LAnd,
+    LOr,
+    Assign,
+    MulAssign,
+    DivAssign,
+    RemAssign,
+    AddAssign,
+    SubAssign,
+    ShlAssign,
+    ShrAssign,
+    AndAssign,
+    XorAssign,
+    OrAssign,
+    Comma,
+  };
+
   /// A class modeling function calls for functions produced by the interpreter
   /// in compiled code. It provides an information if we are calling a standard
   /// function, constructor or destructor.
@@ -387,10 +424,15 @@ namespace Cpp {
   /// Checks if the provided parameter is a 'Virtual' method.
   CPPINTEROP_API bool IsVirtualMethod(TCppFunction_t method);
 
-  /// Gets all the Fields/Data Members of a Class. For now, it
-  /// only gets non-static data members but in a future update,
-  /// it may support getting static data members as well.
+  /// Gets all the Fields/Data Members of a Class
   CPPINTEROP_API std::vector<TCppScope_t> GetDatamembers(TCppScope_t scope);
+
+  /// Gets all the Static Fields/Data Members of a Class
+  ///\param[in] scope - class
+  ///\param[out] funcs - vector of static data members
+  CPPINTEROP_API void
+  GetStaticDatamembers(TCppScope_t scope,
+                       std::vector<TCppScope_t>& datamembers);
 
   /// This is a Lookup function to be used specifically for data members.
   CPPINTEROP_API TCppScope_t LookupDatamember(const std::string& name,
@@ -464,6 +506,10 @@ namespace Cpp {
   CPPINTEROP_API std::string GetFunctionArgName(TCppFunction_t func,
                                                 TCppIndex_t param_index);
 
+  ///\returns function that performs operation op on lc and rc
+  void GetBinaryOperator(TCppScope_t scope, enum BinaryOperator op,
+                         std::vector<TCppFunction_t>& operators);
+
   /// Creates an instance of the interpreter we need for the various interop
   /// services.
   ///\param[in] Args - the list of arguments for interpreter constructor.
@@ -506,6 +552,13 @@ namespace Cpp {
   /// Secondary search path for headers, if not found using the
   /// GetResourceDir() function.
   CPPINTEROP_API void AddIncludePath(const char* dir);
+
+  // Gets the currently used include paths
+  ///\param[out] IncludePaths - the list of include paths
+  ///
+  CPPINTEROP_API void GetIncludePaths(std::vector<std::string>& IncludePaths,
+                                      bool withSystem = false,
+                                      bool withFlags = false);
 
   /// Only Declares a code snippet in \c code and does not execute it.
   ///\returns 0 on success

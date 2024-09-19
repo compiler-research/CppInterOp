@@ -32,11 +32,99 @@ TEST(VariableReflectionTest, GetDatamembers) {
   auto datamembers = Cpp::GetDatamembers(Decls[0]);
   auto datamembers1 = Cpp::GetDatamembers(Decls[1]);
 
+  // non static field
   EXPECT_EQ(Cpp::GetQualifiedName(datamembers[0]), "C::a");
   EXPECT_EQ(Cpp::GetQualifiedName(datamembers[1]), "C::c");
   EXPECT_EQ(Cpp::GetQualifiedName(datamembers[2]), "C::e");
   EXPECT_EQ(datamembers.size(), 3);
   EXPECT_EQ(datamembers1.size(), 0);
+
+  // static fields
+  datamembers.clear();
+  datamembers1.clear();
+
+  Cpp::GetStaticDatamembers(Decls[0], datamembers);
+  Cpp::GetStaticDatamembers(Decls[1], datamembers1);
+
+  EXPECT_EQ(Cpp::GetQualifiedName(datamembers[0]), "C::b");
+  EXPECT_EQ(Cpp::GetQualifiedName(datamembers[1]), "C::d");
+  EXPECT_EQ(Cpp::GetQualifiedName(datamembers[2]), "C::f");
+  EXPECT_EQ(datamembers.size(), 3);
+  EXPECT_EQ(datamembers1.size(), 0);
+}
+
+#define CODE                                                                   \
+  struct Klass1 {                                                              \
+    Klass1(int i) : num(1), b(i) {}                                            \
+    int num;                                                                   \
+    union {                                                                    \
+      double a;                                                                \
+      int b;                                                                   \
+    };                                                                         \
+  } const k1(5);                                                               \
+  struct Klass2 {                                                              \
+    Klass2(double d) : num(2), a(d) {}                                         \
+    int num;                                                                   \
+    struct {                                                                   \
+      double a;                                                                \
+      int b;                                                                   \
+    };                                                                         \
+  } const k2(2.5);                                                             \
+  struct Klass3 {                                                              \
+    Klass3(int i) : num(i) {}                                                  \
+    int num;                                                                   \
+    struct {                                                                   \
+      double a;                                                                \
+      union {                                                                  \
+        float b;                                                               \
+        int c;                                                                 \
+      };                                                                       \
+    };                                                                         \
+    int num2;                                                                  \
+  } const k3(5);
+
+CODE
+
+TEST(VariableReflectionTest, DatamembersWithAnonymousStructOrUnion) {
+  if (llvm::sys::RunningOnValgrind())
+    GTEST_SKIP() << "XFAIL due to Valgrind report";
+
+  std::vector<Decl*> Decls;
+#define Stringify(s) Stringifyx(s)
+#define Stringifyx(...) #__VA_ARGS__
+  GetAllTopLevelDecls(Stringify(CODE), Decls);
+#undef Stringifyx
+#undef Stringify
+#undef CODE
+
+  auto datamembers_klass1 = Cpp::GetDatamembers(Decls[0]);
+  auto datamembers_klass2 = Cpp::GetDatamembers(Decls[2]);
+  auto datamembers_klass3 = Cpp::GetDatamembers(Decls[4]);
+
+  EXPECT_EQ(datamembers_klass1.size(), 3);
+  EXPECT_EQ(datamembers_klass2.size(), 3);
+
+  EXPECT_EQ(Cpp::GetVariableOffset(datamembers_klass1[0]), 0);
+  EXPECT_EQ(Cpp::GetVariableOffset(datamembers_klass1[1]),
+            ((intptr_t) & (k1.a)) - ((intptr_t) & (k1.num)));
+  EXPECT_EQ(Cpp::GetVariableOffset(datamembers_klass1[2]),
+            ((intptr_t) & (k1.b)) - ((intptr_t) & (k1.num)));
+
+  EXPECT_EQ(Cpp::GetVariableOffset(datamembers_klass2[0]), 0);
+  EXPECT_EQ(Cpp::GetVariableOffset(datamembers_klass2[1]),
+            ((intptr_t) & (k2.a)) - ((intptr_t) & (k2.num)));
+  EXPECT_EQ(Cpp::GetVariableOffset(datamembers_klass2[2]),
+            ((intptr_t) & (k2.b)) - ((intptr_t) & (k2.num)));
+
+  EXPECT_EQ(Cpp::GetVariableOffset(datamembers_klass3[0]), 0);
+  EXPECT_EQ(Cpp::GetVariableOffset(datamembers_klass3[1]),
+            ((intptr_t) & (k3.a)) - ((intptr_t) & (k3.num)));
+  EXPECT_EQ(Cpp::GetVariableOffset(datamembers_klass3[2]),
+            ((intptr_t) & (k3.b)) - ((intptr_t) & (k3.num)));
+  EXPECT_EQ(Cpp::GetVariableOffset(datamembers_klass3[3]),
+            ((intptr_t) & (k3.c)) - ((intptr_t) & (k3.num)));
+  EXPECT_EQ(Cpp::GetVariableOffset(datamembers_klass3[4]),
+            ((intptr_t) & (k3.num2)) - ((intptr_t) & (k3.num)));
 }
 
 TEST(VariableReflectionTest, LookupDatamember) {

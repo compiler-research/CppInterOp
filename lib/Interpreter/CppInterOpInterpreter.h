@@ -22,6 +22,9 @@
 #include "clang/Lex/Preprocessor.h"
 #include "clang/Sema/Lookup.h"
 #include "clang/Sema/Sema.h"
+#if CLANG_VERSION_MAJOR >= 19
+#include "clang/Sema/Redeclaration.h"
+#endif
 
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallSet.h"
@@ -105,7 +108,7 @@ inline clang::NamedDecl* Named(clang::Sema* S,
                                const clang::DeclContext* Within = nullptr) {
   clang::LookupResult R(*S, Name, clang::SourceLocation(),
                         clang::Sema::LookupOrdinaryName,
-                        clang::Sema::ForVisibleRedeclaration);
+                        Clang_For_Visible_Redeclaration);
   Named(S, R, Within);
   return LookupResult2Decl<clang::NamedDecl>(R);
 }
@@ -376,6 +379,24 @@ public:
   ///
   void AddIncludePath(llvm::StringRef PathsStr) {
     return AddIncludePaths(PathsStr, nullptr);
+  }
+
+  ///\brief Get the current include paths that are used.
+  ///
+  ///\param[out] incpaths - Pass in a llvm::SmallVector<std::string, N> with
+  ///       sufficiently sized N, to hold the result of the call.
+  ///\param[in] withSystem - if true, incpaths will also contain system
+  ///       include paths (framework, STL etc).
+  ///\param[in] withFlags - if true, each element in incpaths will be prefixed
+  ///       with a "-I" or similar, and some entries of incpaths will signal
+  ///       a new include path region (e.g. "-cxx-isystem"). Also, flags
+  ///       defining header search behavior will be included in incpaths, e.g.
+  ///       "-nostdinc".
+  ///
+  void GetIncludePaths(llvm::SmallVectorImpl<std::string>& incpaths,
+                       bool withSystem, bool withFlags) const {
+    utils::CopyIncludePaths(getCI()->getHeaderSearchOpts(), incpaths,
+                            withSystem, withFlags);
   }
 
   CompilationResult loadLibrary(const std::string& filename, bool lookup) {
