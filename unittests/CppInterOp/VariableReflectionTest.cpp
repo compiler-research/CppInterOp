@@ -28,9 +28,11 @@ TEST(VariableReflectionTest, GetDatamembers) {
     void sum(int,int);
     )";
 
+  std::vector<Cpp::TCppScope_t> datamembers;
+  std::vector<Cpp::TCppScope_t> datamembers1;
   GetAllTopLevelDecls(code, Decls);
-  auto datamembers = Cpp::GetDatamembers(Decls[0]);
-  auto datamembers1 = Cpp::GetDatamembers(Decls[1]);
+  Cpp::GetDatamembers(Decls[0], datamembers);
+  Cpp::GetDatamembers(Decls[1], datamembers1);
 
   // non static field
   EXPECT_EQ(Cpp::GetQualifiedName(datamembers[0]), "C::a");
@@ -97,9 +99,13 @@ TEST(VariableReflectionTest, DatamembersWithAnonymousStructOrUnion) {
 #undef Stringify
 #undef CODE
 
-  auto datamembers_klass1 = Cpp::GetDatamembers(Decls[0]);
-  auto datamembers_klass2 = Cpp::GetDatamembers(Decls[2]);
-  auto datamembers_klass3 = Cpp::GetDatamembers(Decls[4]);
+  std::vector<Cpp::TCppScope_t> datamembers_klass1;
+  std::vector<Cpp::TCppScope_t> datamembers_klass2;
+  std::vector<Cpp::TCppScope_t> datamembers_klass3;
+
+  Cpp::GetDatamembers(Decls[0], datamembers_klass1);
+  Cpp::GetDatamembers(Decls[2], datamembers_klass2);
+  Cpp::GetDatamembers(Decls[4], datamembers_klass3);
 
   EXPECT_EQ(datamembers_klass1.size(), 3);
   EXPECT_EQ(datamembers_klass2.size(), 3);
@@ -203,7 +209,8 @@ TEST(VariableReflectionTest, GetVariableOffset) {
 #undef Stringify
 #undef CODE
 
-  auto datamembers = Cpp::GetDatamembers(Decls[2]);
+  std::vector<Cpp::TCppScope_t> datamembers;
+  Cpp::GetDatamembers(Decls[2], datamembers);
 
   EXPECT_TRUE((bool) Cpp::GetVariableOffset(Decls[0])); // a
   EXPECT_TRUE((bool) Cpp::GetVariableOffset(Decls[1])); // N

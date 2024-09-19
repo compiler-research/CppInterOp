@@ -1122,12 +1122,11 @@ namespace Cpp {
     return false;
   }
 
-  std::vector<TCppScope_t> GetDatamembers(TCppScope_t scope)
-  {
+  void GetDatamembers(TCppScope_t scope,
+                      std::vector<TCppScope_t>& datamembers) {
     auto *D = (Decl *) scope;
 
-    if (auto *CXXRD = llvm::dyn_cast_or_null<CXXRecordDecl>(D)) {
-      std::vector<TCppScope_t> datamembers;
+    if (auto* CXXRD = llvm::dyn_cast_or_null<CXXRecordDecl>(D)) {
       llvm::SmallVector<RecordDecl::field_iterator, 2> stack_begin;
       llvm::SmallVector<RecordDecl::field_iterator, 2> stack_end;
       stack_begin.push_back(CXXRD->field_begin());
@@ -1154,11 +1153,7 @@ namespace Cpp {
         datamembers.push_back((TCppScope_t)D);
         stack_begin.back()++;
       }
-
-      return datamembers;
     }
-
-    return {};
   }
 
   void GetStaticDatamembers(TCppScope_t scope,

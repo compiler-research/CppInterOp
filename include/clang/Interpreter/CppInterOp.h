@@ -425,7 +425,8 @@ namespace Cpp {
   CPPINTEROP_API bool IsVirtualMethod(TCppFunction_t method);
 
   /// Gets all the Fields/Data Members of a Class
-  CPPINTEROP_API std::vector<TCppScope_t> GetDatamembers(TCppScope_t scope);
+  CPPINTEROP_API void GetDatamembers(TCppScope_t scope,
+                                     std::vector<TCppScope_t>& datamembers);
 
   /// Gets all the Static Fields/Data Members of a Class
   ///\param[in] scope - class
