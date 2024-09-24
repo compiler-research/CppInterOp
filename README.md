@@ -217,7 +217,6 @@ Regardless of whether you are building CppInterOP with Cling or Clang-REPL you w
 export CB_PYTHON_DIR="$PWD/cppyy-backend/python"
 export CPPINTEROP_DIR="$CB_PYTHON_DIR/cppyy_backend"
 export CPLUS_INCLUDE_PATH="${CPLUS_INCLUDE_PATH}:${LLVM_DIR}/llvm/include:${LLVM_DIR}/clang/include:${LLVM_DIR}/build/include:${LLVM_DIR}/build/tools/clang/include"
-export PYTHONPATH=$PYTHONPATH:$CPYCPPYY_DIR:$CB_PYTHON_DIR
 ```
 If on MacOS you will also need the following environment variable defined
 ```
@@ -228,7 +227,6 @@ On Windows you define as follows (assumes you have defined $env:PWD_DIR= $PWD.Pa
 $env:CB_PYTHON_DIR="$env:PWD_DIR\cppyy-backend\python"
 $env:CPPINTEROP_DIR="$env:CB_PYTHON_DIR\cppyy_backend"
 $env:CPLUS_INCLUDE_PATH="$env:CPLUS_INCLUDE_PATH;$env:LLVM_DIR\llvm\include;$env:LLVM_DIR\clang\include;$env:LLVM_DIR\build\include;$env:LLVM_DIR\build\tools\clang\include"
-$env:PYTHONPATH="$env:PYTHONPATH;$env:CPYCPPYY_DIR;$env:CB_PYTHON_DIR"
 ```
 
 #### Build CppInterOp
@@ -329,13 +327,22 @@ Note down the path to the `build` directory as `CPYCPPYY_DIR`:
 export CPYCPPYY_DIR=$PWD
 cd ../..
 ```
+Export the `libcppyy` path to python:
+
+```
+export PYTHONPATH=$PYTHONPATH:$CPYCPPYY_DIR:$CB_PYTHON_DIR
+```
+and on Windows:
+```
+$env:PYTHONPATH="$env:PYTHONPATH;$env:CPYCPPYY_DIR;$env:CB_PYTHON_DIR"
+```
 
 #### Install cppyy
 
 ```
 git clone --depth=1 https://github.com/compiler-research/cppyy.git
 cd cppyy
-python -m pip install --upgrade . --no-deps
+python -m pip install --upgrade . --no-deps --no-build-isolation
 cd ..
 ```
 
