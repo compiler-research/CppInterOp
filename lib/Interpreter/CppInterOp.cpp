@@ -498,7 +498,7 @@ namespace Cpp {
 
   TCppScope_t GetGlobalScope()
   {
-    return getSema().getASTContext().getTranslationUnitDecl();
+    return getSema().getASTContext().getTranslationUnitDecl()->getFirstDecl();
   }
 
   static Decl *GetScopeFromType(QualType QT) {
@@ -604,8 +604,12 @@ namespace Cpp {
     if (!ParentDC)
       return 0;
 
-    return (TCppScope_t) clang::Decl::castFromDeclContext(
-            ParentDC)->getCanonicalDecl();
+    auto* P = clang::Decl::castFromDeclContext(ParentDC)->getCanonicalDecl();
+
+    if (auto* TU = llvm::dyn_cast_or_null<TranslationUnitDecl>(P))
+      return (TCppScope_t)TU->getFirstDecl();
+
+    return (TCppScope_t)P;
   }
 
   TCppIndex_t GetNumBases(TCppScope_t klass)
@@ -3074,27 +3078,22 @@ namespace Cpp {
   }
 
   void GetEnums(TCppScope_t scope, std::vector<std::string>& Result) {
-    auto *D = (clang::Decl *)scope;
-    clang::DeclContext *DC;
-    clang::DeclContext::decl_iterator decl;
+    auto* D = static_cast<clang::Decl*>(scope);
 
-    if (auto *TD = dyn_cast_or_null<TagDecl>(D)) {
-      DC = clang::TagDecl::castToDeclContext(TD);
-      decl = DC->decls_begin();
-      decl++;
-    } else if (auto *ND = dyn_cast_or_null<NamespaceDecl>(D)) {
-      DC = clang::NamespaceDecl::castToDeclContext(ND);
-      decl = DC->decls_begin();
-    } else if (auto *TUD = dyn_cast_or_null<TranslationUnitDecl>(D)) {
-      DC = clang::TranslationUnitDecl::castToDeclContext(TUD);
-      decl = DC->decls_begin();
-    } else {
+    if (!llvm::isa_and_nonnull<clang::DeclContext>(D))
       return;
-    }
 
-    for (/* decl set above */; decl != DC->decls_end(); decl++) {
-      if (auto *ND = llvm::dyn_cast_or_null<EnumDecl>(*decl)) {
-        Result.push_back(ND->getNameAsString());
+    auto* DC = llvm::dyn_cast<clang::DeclContext>(D);
+
+    llvm::SmallVector<clang::DeclContext*, 4> DCs;
+    DC->collectAllContexts(DCs);
+
+    // FIXME: We should use a lookup based approach instead of brute force
+    for (auto* DC : DCs) {
+      for (auto decl = DC->decls_begin(); decl != DC->decls_end(); decl++) {
+        if (auto* ND = llvm::dyn_cast_or_null<EnumDecl>(*decl)) {
+          Result.push_back(ND->getNameAsString());
+        }
       }
     }
   }
