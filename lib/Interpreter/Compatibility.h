@@ -85,17 +85,36 @@ inline void maybeMangleDeclName(const clang::GlobalDecl& GD,
   cling::utils::Analyze::maybeMangleDeclName(GD, mangledName);
 }
 
-inline llvm::orc::LLJIT* getExecutionEngine(const cling::Interpreter& I) {
-  // FIXME: This is a horrible hack finding the llvm::orc::LLJIT by computing
-  // the object offsets in Cling. We should add getExecutionEngine interface
-  // to directly.
+/// For Cling <= LLVM 16, this is a horrible hack obtaining the private
+/// llvm::orc::LLJIT by computing the object offsets in the cling::Interpreter
+/// instance(IncrementalExecutor): sizeof (m_Opts) + sizeof(m_LLVMContext). The
+/// IncrementalJIT and JIT itself have an offset of 0 as the first datamember.
+///
+/// The getExecutionEngine() interface has been added for Cling based on LLVM
+/// >=18 and should be used in future releases.
+inline llvm::orc::LLJIT* getExecutionEngine(cling::Interpreter& I) {
+#if CLANG_VERSION_MAJOR >= 18
+  return I.getExecutionEngine();
+#endif
 
-  // sizeof (m_Opts) + sizeof(m_LLVMContext)
+#if CLANG_VERSION_MAJOR == 13
 #ifdef __APPLE__
   const unsigned m_ExecutorOffset = 62;
 #else
   const unsigned m_ExecutorOffset = 72;
 #endif // __APPLE__
+#endif
+
+// Note: The offsets changed in Cling based on LLVM 16 with the introduction of
+// a thread safe context - llvm::orc::ThreadSafeContext
+#if CLANG_VERSION_MAJOR == 16
+#ifdef __APPLE__
+  const unsigned m_ExecutorOffset = 68;
+#else
+  const unsigned m_ExecutorOffset = 78;
+#endif // __APPLE__
+#endif
+
   int* IncrementalExecutor =
       ((int*)(const_cast<cling::Interpreter*>(&I))) + m_ExecutorOffset;
   int* IncrementalJit = *(int**)IncrementalExecutor + 0;
@@ -104,7 +123,7 @@ inline llvm::orc::LLJIT* getExecutionEngine(const cling::Interpreter& I) {
 }
 
 inline llvm::Expected<llvm::JITTargetAddress>
-getSymbolAddress(const cling::Interpreter& I, llvm::StringRef IRName) {
+getSymbolAddress(cling::Interpreter& I, llvm::StringRef IRName) {
   if (void* Addr = I.getAddressOfGlobal(IRName))
     return (llvm::JITTargetAddress)Addr;
 
