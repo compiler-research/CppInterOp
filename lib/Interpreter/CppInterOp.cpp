@@ -2984,10 +2984,17 @@ namespace Cpp {
                                    Sema& S) {
     // Create a list of template arguments.
     TemplateArgumentListInfo TLI{};
-    for (auto TA : TemplateArgs)
-      TLI.addArgument(S.getTrivialTemplateArgumentLoc(TA,QualType(),
-                                                      SourceLocation()));
-
+    for (auto TA : TemplateArgs) {
+      if (TA.getKind() == TemplateArgument::ArgKind::Pack) {
+        for (auto PTA : TA.getPackAsArray()) {
+          TLI.addArgument(S.getTrivialTemplateArgumentLoc(PTA, QualType(),
+                                                          SourceLocation()));
+        }
+      } else {
+        TLI.addArgument(
+            S.getTrivialTemplateArgumentLoc(TA, QualType(), SourceLocation()));
+      }
+    }
     return InstantiateTemplate(TemplateD, TLI, S);
   }
 
