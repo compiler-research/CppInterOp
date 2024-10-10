@@ -24,6 +24,9 @@
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Sema/Lookup.h"
 #include "clang/Sema/Sema.h"
+#if CLANG_VERSION_MAJOR >= 19
+#include "clang/Sema/Redeclaration.h"
+#endif
 #include "clang/Sema/TemplateDeduction.h"
 
 #include "llvm/ADT/StringRef.h"
@@ -48,6 +51,8 @@
 #include <dlfcn.h>
 #include <unistd.h>
 #endif // WIN32
+
+#include <stack>
 
 namespace Cpp {
 
@@ -493,7 +498,7 @@ namespace Cpp {
 
   TCppScope_t GetGlobalScope()
   {
-    return getSema().getASTContext().getTranslationUnitDecl();
+    return getSema().getASTContext().getTranslationUnitDecl()->getFirstDecl();
   }
 
   static Decl *GetScopeFromType(QualType QT) {
@@ -599,8 +604,12 @@ namespace Cpp {
     if (!ParentDC)
       return 0;
 
-    return (TCppScope_t) clang::Decl::castFromDeclContext(
-            ParentDC)->getCanonicalDecl();
+    auto* P = clang::Decl::castFromDeclContext(ParentDC)->getCanonicalDecl();
+
+    if (auto* TU = llvm::dyn_cast_or_null<TranslationUnitDecl>(P))
+      return (TCppScope_t)TU->getFirstDecl();
+
+    return (TCppScope_t)P;
   }
 
   TCppIndex_t GetNumBases(TCppScope_t klass)
@@ -805,11 +814,8 @@ namespace Cpp {
     llvm::StringRef Name(name);
     auto &S = getSema();
     DeclarationName DName = &getASTContext().Idents.get(name);
-    clang::LookupResult R(S,
-                          DName,
-                          SourceLocation(),
-                          Sema::LookupOrdinaryName,
-                          Sema::ForVisibleRedeclaration);
+    clang::LookupResult R(S, DName, SourceLocation(), Sema::LookupOrdinaryName,
+                          For_Visible_Redeclaration);
 
     Cpp_utils::Lookup::Named(&S, R, Decl::castToDeclContext(D));
 
@@ -962,7 +968,7 @@ namespace Cpp {
     auto& S = getSema();
     DeclarationName DName = &getASTContext().Idents.get(name);
     clang::LookupResult R(S, DName, SourceLocation(), Sema::LookupOrdinaryName,
-                          Sema::ForVisibleRedeclaration);
+                          For_Visible_Redeclaration);
 
     Cpp_utils::Lookup::Named(&S, R, Decl::castToDeclContext(D));
 
@@ -993,11 +999,18 @@ namespace Cpp {
       // actual types. We make this match solely based on count
 
       const FunctionDecl* func = TFD->getTemplatedDecl();
-      if (func->getNumParams() != arg_types.size())
-        continue;
 
-      // FIXME : first score based on the type similarity before forcing
-      // instantiation try instantiating
+#ifdef USE_CLING
+      if (func->getNumParams() > arg_types.size())
+        continue;
+#else // CLANG_REPL
+      if (func->getMinRequiredArguments() > arg_types.size())
+        continue;
+#endif
+
+      // TODO(aaronj0) : first score based on the type similarity before forcing
+      // instantiation.
+
       TCppFunction_t instantiated =
           InstantiateTemplate(candidate, arg_types.data(), arg_types.size());
       if (instantiated)
@@ -1008,6 +1021,19 @@ namespace Cpp {
       // TemplateProxy?
       instantiated = InstantiateTemplate(candidate, explicit_types.data(),
                                           explicit_types.size());
+      if (instantiated)
+        return instantiated;
+
+      // join explicit and arg_types
+      std::vector<TemplateArgInfo> total_arg_set;
+      total_arg_set.reserve(explicit_types.size() + arg_types.size());
+      total_arg_set.insert(total_arg_set.end(), explicit_types.begin(),
+                           explicit_types.end());
+      total_arg_set.insert(total_arg_set.end(), arg_types.begin(),
+                           arg_types.end());
+
+      instantiated = InstantiateTemplate(candidate, total_arg_set.data(),
+                                         total_arg_set.size());
       if (instantiated)
         return instantiated;
     }
@@ -1114,21 +1140,43 @@ namespace Cpp {
     return false;
   }
 
-  std::vector<TCppScope_t> GetDatamembers(TCppScope_t scope)
-  {
+  void GetDatamembers(TCppScope_t scope,
+                      std::vector<TCppScope_t>& datamembers) {
     auto *D = (Decl *) scope;
 
-    if (auto *CXXRD = llvm::dyn_cast_or_null<CXXRecordDecl>(D)) {
-      std::vector<TCppScope_t> datamembers;
-      for (auto it = CXXRD->field_begin(), end = CXXRD->field_end(); it != end;
-           it++) {
-        datamembers.push_back((TCppScope_t)*it);
+    if (auto* CXXRD = llvm::dyn_cast_or_null<CXXRecordDecl>(D)) {
+      llvm::SmallVector<RecordDecl::field_iterator, 2> stack_begin;
+      llvm::SmallVector<RecordDecl::field_iterator, 2> stack_end;
+      stack_begin.push_back(CXXRD->field_begin());
+      stack_end.push_back(CXXRD->field_end());
+      while (!stack_begin.empty()) {
+        if (stack_begin.back() == stack_end.back()) {
+          stack_begin.pop_back();
+          stack_end.pop_back();
+          continue;
+        }
+        Decl* D = *(stack_begin.back());
+        if (auto* FD = llvm::dyn_cast<FieldDecl>(D)) {
+          if (FD->isAnonymousStructOrUnion()) {
+            if (const auto* RT = FD->getType()->getAs<RecordType>()) {
+              if (auto* CXXRD = llvm::dyn_cast<CXXRecordDecl>(RT->getDecl())) {
+                stack_begin.back()++;
+                stack_begin.push_back(CXXRD->field_begin());
+                stack_end.push_back(CXXRD->field_end());
+                continue;
+              }
+            }
+          }
+        }
+        datamembers.push_back((TCppScope_t)D);
+        stack_begin.back()++;
       }
-
-      return datamembers;
     }
+  }
 
-    return {};
+  void GetStaticDatamembers(TCppScope_t scope,
+                            std::vector<TCppScope_t>& datamembers) {
+    GetClassDecls<VarDecl>(scope, datamembers);
   }
 
   TCppScope_t LookupDatamember(const std::string& name, TCppScope_t parent) {
@@ -1167,9 +1215,26 @@ namespace Cpp {
     auto *D = (Decl *) var;
     auto &C = getASTContext();
 
-    if (auto *FD = llvm::dyn_cast<FieldDecl>(D))
-      return (intptr_t) C.toCharUnitsFromBits(C.getASTRecordLayout(FD->getParent())
-                                              .getFieldOffset(FD->getFieldIndex())).getQuantity();
+    if (auto* FD = llvm::dyn_cast<FieldDecl>(D)) {
+      const clang::RecordDecl* RD = FD->getParent();
+      intptr_t offset =
+          C.toCharUnitsFromBits(C.getFieldOffset(FD)).getQuantity();
+      while (RD->isAnonymousStructOrUnion()) {
+        const clang::RecordDecl* anon = RD;
+        RD = llvm::dyn_cast<RecordDecl>(anon->getParent());
+        for (auto F = RD->field_begin(); F != RD->field_end(); ++F) {
+          const auto* RT = F->getType()->getAs<RecordType>();
+          if (!RT)
+            continue;
+          if (anon == RT->getDecl()) {
+            FD = *F;
+            break;
+          }
+        }
+        offset += C.toCharUnitsFromBits(C.getFieldOffset(FD)).getQuantity();
+      }
+      return offset;
+    }
 
     if (auto *VD = llvm::dyn_cast<VarDecl>(D)) {
       auto GD = GlobalDecl(VD);
@@ -1342,36 +1407,43 @@ namespace Cpp {
         isunsigned = true;
         typeName = StringRef(typeName.data()+9, typeName.size()-9);
       }
-      if (typeName.equals("char")) {
+      if (typeName == "char") {
         if (isunsigned) return Context.UnsignedCharTy;
         return Context.SignedCharTy;
       }
-      if (typeName.equals("short")) {
+      if (typeName == "short") {
         if (isunsigned) return Context.UnsignedShortTy;
         return Context.ShortTy;
       }
-      if (typeName.equals("int")) {
+      if (typeName == "int") {
         if (isunsigned) return Context.UnsignedIntTy;
         return Context.IntTy;
       }
-      if (typeName.equals("long")) {
+      if (typeName == "long") {
         if (isunsigned) return Context.UnsignedLongTy;
         return Context.LongTy;
       }
-      if (typeName.equals("long long")) {
+      if (typeName == "long long") {
         if (isunsigned)
         return Context.UnsignedLongLongTy;
         return Context.LongLongTy;
       }
       if (!issigned && !isunsigned) {
-        if (typeName.equals("bool")) return Context.BoolTy;
-        if (typeName.equals("float")) return Context.FloatTy;
-        if (typeName.equals("double")) return Context.DoubleTy;
-        if (typeName.equals("long double")) return Context.LongDoubleTy;
+        if (typeName == "bool")
+          return Context.BoolTy;
+        if (typeName == "float")
+          return Context.FloatTy;
+        if (typeName == "double")
+          return Context.DoubleTy;
+        if (typeName == "long double")
+          return Context.LongDoubleTy;
 
-        if (typeName.equals("wchar_t")) return Context.WCharTy;
-        if (typeName.equals("char16_t")) return Context.Char16Ty;
-        if (typeName.equals("char32_t")) return Context.Char32Ty;
+        if (typeName == "wchar_t")
+          return Context.WCharTy;
+        if (typeName == "char16_t")
+          return Context.Char16Ty;
+        if (typeName == "char32_t")
+          return Context.Char32Ty;
       }
       /* Missing
      CanQualType WideCharTy; // Same as WCharTy in C++, integer type in C99.
@@ -1741,9 +1813,11 @@ namespace Cpp {
       if (const CXXConstructorDecl* CD = dyn_cast<CXXConstructorDecl>(FD)) {
         if (N <= 1 && llvm::isa<UsingShadowDecl>(FD)) {
           auto SpecMemKind = I.getCI()->getSema().getSpecialMember(CD);
-          if ((N == 0 && SpecMemKind == clang::Sema::CXXDefaultConstructor) ||
-              (N == 1 && (SpecMemKind == clang::Sema::CXXCopyConstructor ||
-                          SpecMemKind == clang::Sema::CXXMoveConstructor))) {
+          if ((N == 0 &&
+               SpecMemKind == CXXSpecialMemberKindDefaultConstructor) ||
+              (N == 1 &&
+               (SpecMemKind == CXXSpecialMemberKindCopyConstructor ||
+                SpecMemKind == CXXSpecialMemberKindMoveConstructor))) {
             // Using declarations cannot inject special members; do not call
             // them as such. This might happen by using `Base(Base&, int = 12)`,
             // which is fine to be called as `Derived d(someBase, 42)` but not
@@ -2685,6 +2759,14 @@ namespace Cpp {
     getInterp().AddIncludePath(dir);
   }
 
+  void GetIncludePaths(std::vector<std::string>& IncludePaths, bool withSystem,
+                       bool withFlags) {
+    llvm::SmallVector<std::string> paths(1);
+    getInterp().GetIncludePaths(paths, withSystem, withFlags);
+    for (auto& i : paths)
+      IncludePaths.push_back(i);
+  }
+
   namespace {
 
   class clangSilent {
@@ -2860,9 +2942,10 @@ namespace Cpp {
     if (auto* FunctionTemplate = dyn_cast<FunctionTemplateDecl>(TemplateD)) {
       FunctionDecl* Specialization = nullptr;
       clang::sema::TemplateDeductionInfo Info(fakeLoc);
-      if (Sema::TemplateDeductionResult Result = S.DeduceTemplateArguments(
-              FunctionTemplate, &TLI, Specialization, Info,
-              /*IsAddressOfFunction*/ true)) {
+      Template_Deduction_Result Result = S.DeduceTemplateArguments(
+          FunctionTemplate, &TLI, Specialization, Info,
+          /*IsAddressOfFunction*/ true);
+      if (Result != Template_Deduction_Result_Success) {
         // FIXME: Diagnose what happened.
         (void)Result;
       }
@@ -3009,27 +3092,22 @@ namespace Cpp {
   }
 
   void GetEnums(TCppScope_t scope, std::vector<std::string>& Result) {
-    auto *D = (clang::Decl *)scope;
-    clang::DeclContext *DC;
-    clang::DeclContext::decl_iterator decl;
+    auto* D = static_cast<clang::Decl*>(scope);
 
-    if (auto *TD = dyn_cast_or_null<TagDecl>(D)) {
-      DC = clang::TagDecl::castToDeclContext(TD);
-      decl = DC->decls_begin();
-      decl++;
-    } else if (auto *ND = dyn_cast_or_null<NamespaceDecl>(D)) {
-      DC = clang::NamespaceDecl::castToDeclContext(ND);
-      decl = DC->decls_begin();
-    } else if (auto *TUD = dyn_cast_or_null<TranslationUnitDecl>(D)) {
-      DC = clang::TranslationUnitDecl::castToDeclContext(TUD);
-      decl = DC->decls_begin();
-    } else {
+    if (!llvm::isa_and_nonnull<clang::DeclContext>(D))
       return;
-    }
 
-    for (/* decl set above */; decl != DC->decls_end(); decl++) {
-      if (auto *ND = llvm::dyn_cast_or_null<EnumDecl>(*decl)) {
-        Result.push_back(ND->getNameAsString());
+    auto* DC = llvm::dyn_cast<clang::DeclContext>(D);
+
+    llvm::SmallVector<clang::DeclContext*, 4> DCs;
+    DC->collectAllContexts(DCs);
+
+    // FIXME: We should use a lookup based approach instead of brute force
+    for (auto* DC : DCs) {
+      for (auto decl = DC->decls_begin(); decl != DC->decls_end(); decl++) {
+        if (auto* ND = llvm::dyn_cast_or_null<EnumDecl>(*decl)) {
+          Result.push_back(ND->getNameAsString());
+        }
       }
     }
   }
@@ -3133,6 +3211,25 @@ namespace Cpp {
       PI = (FD->getTemplatedDecl())->getParamDecl(param_index);
 
     return PI->getNameAsString();
+  }
+
+  void GetBinaryOperator(TCppScope_t scope, enum BinaryOperator op,
+                         std::vector<TCppFunction_t>& operators) {
+    Decl* D = static_cast<Decl*>(scope);
+    auto* DC = llvm::dyn_cast<DeclContext>(D);
+    Scope* S = getSema().getScopeForContext(DC);
+    if (!S)
+      return;
+
+    clang::UnresolvedSet<8> lookup;
+
+    getSema().LookupBinOp(S, SourceLocation(), (clang::BinaryOperatorKind)op,
+                          lookup);
+
+    for (NamedDecl* D : lookup) {
+      if (auto* FD = llvm::dyn_cast<Decl>(D))
+        operators.push_back(FD);
+    }
   }
 
   TCppObject_t Allocate(TCppScope_t scope) {

@@ -113,6 +113,24 @@ TEST(InterpreterTest, DetectSystemCompilerIncludePaths) {
   EXPECT_FALSE(includes.empty());
 }
 
+TEST(InterpreterTest, GetIncludePaths) {
+  std::vector<std::string> includes;
+  Cpp::GetIncludePaths(includes);
+  EXPECT_FALSE(includes.empty());
+
+  size_t len = includes.size();
+  includes.clear();
+  Cpp::GetIncludePaths(includes, true, false);
+  EXPECT_FALSE(includes.empty());
+  EXPECT_TRUE(includes.size() >= len);
+
+  len = includes.size();
+  includes.clear();
+  Cpp::GetIncludePaths(includes, true, true);
+  EXPECT_FALSE(includes.empty());
+  EXPECT_TRUE(includes.size() >= len);
+}
+
 TEST(InterpreterTest, CodeCompletion) {
 #if CLANG_VERSION_MAJOR >= 18 || defined(USE_CLING)
   Cpp::CreateInterpreter();

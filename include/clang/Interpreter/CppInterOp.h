@@ -16,10 +16,14 @@
 #include <vector>
 
 // The cross-platform CPPINTEROP_API macro definition
-#ifdef _WIN32
+#if defined _WIN32 || defined __CYGWIN__
 #define CPPINTEROP_API __declspec(dllexport)
 #else
-#define CPPINTEROP_API __attribute__((visibility("default")))
+#ifdef __GNUC__
+#define CPPINTEROP_API __attribute__((__visibility__("default")))
+#else
+#define CPPINTEROP_API
+#endif
 #endif
 
 namespace Cpp {
@@ -31,6 +35,43 @@ namespace Cpp {
   using TCppFuncAddr_t = void*;
   using TInterp_t = void*;
   using TCppObject_t = void*;
+
+  enum BinaryOperator {
+    PtrMemD = 0,
+    PtrMemI,
+    Mul,
+    Div,
+    Rem,
+    Add,
+    Sub,
+    Shl,
+    Shr,
+    Cmp,
+    LT,
+    GT,
+    LE,
+    GE,
+    EQ,
+    NE,
+    And,
+    Xor,
+    Or,
+    LAnd,
+    LOr,
+    Assign,
+    MulAssign,
+    DivAssign,
+    RemAssign,
+    AddAssign,
+    SubAssign,
+    ShlAssign,
+    ShrAssign,
+    AndAssign,
+    XorAssign,
+    OrAssign,
+    Comma,
+  };
+
   /// A class modeling function calls for functions produced by the interpreter
   /// in compiled code. It provides an information if we are calling a standard
   /// function, constructor or destructor.
@@ -272,8 +313,7 @@ namespace Cpp {
   /// is used to get the number of Base Classes, and then that number
   /// can be used to iterate through the index value to get each specific
   /// base class.
-  CPPINTEROP_API CPPINTEROP_API TCppScope_t GetBaseClass(TCppType_t klass,
-                                                         TCppIndex_t ibase);
+  CPPINTEROP_API TCppScope_t GetBaseClass(TCppType_t klass, TCppIndex_t ibase);
 
   /// Checks if the supplied Derived Class is a sub-class of the
   /// provided Base Class.
@@ -384,10 +424,16 @@ namespace Cpp {
   /// Checks if the provided parameter is a 'Virtual' method.
   CPPINTEROP_API bool IsVirtualMethod(TCppFunction_t method);
 
-  /// Gets all the Fields/Data Members of a Class. For now, it
-  /// only gets non-static data members but in a future update,
-  /// it may support getting static data members as well.
-  CPPINTEROP_API std::vector<TCppScope_t> GetDatamembers(TCppScope_t scope);
+  /// Gets all the Fields/Data Members of a Class
+  CPPINTEROP_API void GetDatamembers(TCppScope_t scope,
+                                     std::vector<TCppScope_t>& datamembers);
+
+  /// Gets all the Static Fields/Data Members of a Class
+  ///\param[in] scope - class
+  ///\param[out] funcs - vector of static data members
+  CPPINTEROP_API void
+  GetStaticDatamembers(TCppScope_t scope,
+                       std::vector<TCppScope_t>& datamembers);
 
   /// This is a Lookup function to be used specifically for data members.
   CPPINTEROP_API TCppScope_t LookupDatamember(const std::string& name,
@@ -461,6 +507,10 @@ namespace Cpp {
   CPPINTEROP_API std::string GetFunctionArgName(TCppFunction_t func,
                                                 TCppIndex_t param_index);
 
+  ///\returns function that performs operation op on lc and rc
+  void GetBinaryOperator(TCppScope_t scope, enum BinaryOperator op,
+                         std::vector<TCppFunction_t>& operators);
+
   /// Creates an instance of the interpreter we need for the various interop
   /// services.
   ///\param[in] Args - the list of arguments for interpreter constructor.
@@ -504,6 +554,13 @@ namespace Cpp {
   /// GetResourceDir() function.
   CPPINTEROP_API void AddIncludePath(const char* dir);
 
+  // Gets the currently used include paths
+  ///\param[out] IncludePaths - the list of include paths
+  ///
+  CPPINTEROP_API void GetIncludePaths(std::vector<std::string>& IncludePaths,
+                                      bool withSystem = false,
+                                      bool withFlags = false);
+
   /// Only Declares a code snippet in \c code and does not execute it.
   ///\returns 0 on success
   CPPINTEROP_API int Declare(const char* code, bool silent = false);
@@ -518,7 +575,7 @@ namespace Cpp {
 
   /// Looks up the library if access is enabled.
   ///\returns the path to the library.
-  std::string LookupLibrary(const char* lib_name);
+  CPPINTEROP_API std::string LookupLibrary(const char* lib_name);
 
   /// Finds \c lib_stem considering the list of search paths and loads it by
   /// calling dlopen.

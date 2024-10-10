@@ -77,19 +77,20 @@ git clone --depth=1 https://github.com/compiler-research/cppyy-backend.git
 ```
 
 #### Setup Clang-REPL 
-Clone the 17.x release of the LLVM project repository.
+Clone the 18.x release of the LLVM project repository.
 ```
-git clone --depth=1 --branch release/17.x https://github.com/llvm/llvm-project.git
+git clone --depth=1 --branch release/18.x https://github.com/llvm/llvm-project.git
 cd llvm-project
 ```
-Get the following patches required for development work. To apply these patches on Linux and MacOS execute the following command
+
+For Clang 16 & 17, the following patches required for development work. To apply these patches on Linux and MacOS execute the following command(substitute `{version}` with your clang version):
 ```
-git apply -v ../CppInterOp/patches/llvm/clang17-*.patch
+git apply -v ../CppInterOp/patches/llvm/clang{version}-*.patch
 ```
 and
 ```
 cp -r ..\CppInterOp\patches\llvm\clang17* .
-git apply -v clang17-1-NewOperator.patch
+git apply -v clang{version}-*.patch
 ```
 on Windows.
 
@@ -211,14 +212,13 @@ cd ..\
 ```
 
 #### Environment variables 
-Regardless of whether you are building CppInterOP with Cling or Clang-REPL you will need to define the following Envirnoment variables (as they clear for a new session, it is recommended that you also add these to your .bashrc in linux, .bash_profile if on MacOS, or profile.ps1 on Windows). On Linux and MacOS you define as follows
+Regardless of whether you are building CppInterOP with Cling or Clang-REPL you will need to define the following environment variables (as they clear for a new session, it is recommended that you also add these to your .bashrc in linux, .bash_profile if on MacOS, or profile.ps1 on Windows). On Linux and MacOS you define as follows
 ```
 export CB_PYTHON_DIR="$PWD/cppyy-backend/python"
 export CPPINTEROP_DIR="$CB_PYTHON_DIR/cppyy_backend"
 export CPLUS_INCLUDE_PATH="${CPLUS_INCLUDE_PATH}:${LLVM_DIR}/llvm/include:${LLVM_DIR}/clang/include:${LLVM_DIR}/build/include:${LLVM_DIR}/build/tools/clang/include"
-export PYTHONPATH=$PYTHONPATH:$CPYCPPYY_DIR:$CB_PYTHON_DIR
 ```
-If on MacOS you will also need the following envirnoment variable defined
+If on MacOS you will also need the following environment variable defined
 ```
 export SDKROOT=`xcrun --show-sdk-path`
 ```
@@ -227,7 +227,6 @@ On Windows you define as follows (assumes you have defined $env:PWD_DIR= $PWD.Pa
 $env:CB_PYTHON_DIR="$env:PWD_DIR\cppyy-backend\python"
 $env:CPPINTEROP_DIR="$env:CB_PYTHON_DIR\cppyy_backend"
 $env:CPLUS_INCLUDE_PATH="$env:CPLUS_INCLUDE_PATH;$env:LLVM_DIR\llvm\include;$env:LLVM_DIR\clang\include;$env:LLVM_DIR\build\include;$env:LLVM_DIR\build\tools\clang\include"
-$env:PYTHONPATH="$env:PYTHONPATH;$env:CPYCPPYY_DIR;$env:CB_PYTHON_DIR"
 ```
 
 #### Build CppInterOp
@@ -328,13 +327,22 @@ Note down the path to the `build` directory as `CPYCPPYY_DIR`:
 export CPYCPPYY_DIR=$PWD
 cd ../..
 ```
+Export the `libcppyy` path to python:
+
+```
+export PYTHONPATH=$PYTHONPATH:$CPYCPPYY_DIR:$CB_PYTHON_DIR
+```
+and on Windows:
+```
+$env:PYTHONPATH="$env:PYTHONPATH;$env:CPYCPPYY_DIR;$env:CB_PYTHON_DIR"
+```
 
 #### Install cppyy
 
 ```
 git clone --depth=1 https://github.com/compiler-research/cppyy.git
 cd cppyy
-python -m pip install --upgrade . --no-deps
+python -m pip install --upgrade . --no-deps --no-build-isolation
 cd ..
 ```
 

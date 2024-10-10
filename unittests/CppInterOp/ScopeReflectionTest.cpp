@@ -772,7 +772,11 @@ template<class T> constexpr T pi = T(3.1415926535897932385L);
   VarTemplateDecl* VDTD1 = VD->getSpecializedTemplate();
   EXPECT_TRUE(VDTD1->isThisDeclarationADefinition());
 #if CLANG_VERSION_MAJOR > 13
+#if CLANG_VERSION_MAJOR <= 18
   TemplateArgument TA1 = (*VD->getTemplateArgsInfo())[0].getArgument();
+#else
+  TemplateArgument TA1 = (*VD->getTemplateArgsAsWritten())[0].getArgument();
+#endif // CLANG_VERSION_MAJOR
 #else
   TemplateArgument TA1 = VD->getTemplateArgsInfo()[0].getArgument();
 #endif // CLANG_VERSION_MAJOR
@@ -947,4 +951,50 @@ TEST(ScopeReflectionTest, IncludeVector) {
     #include <iostream>
   )";
   Interp->process(code);
+}
+
+TEST(ScopeReflectionTest, GetBinaryOperator) {
+  if (llvm::sys::RunningOnValgrind())
+    GTEST_SKIP() << "XFAIL due to Valgrind report";
+
+  Cpp::CreateInterpreter();
+
+  std::string code = R"(
+    class MyClass {
+    public:
+        int x;
+        MyClass(int x) : x(x) {}
+    };
+
+    MyClass operator-(MyClass lhs, MyClass rhs) {
+        return MyClass(lhs.x - rhs.x);
+    }
+
+    MyClass operator+(MyClass lhs, MyClass rhs) {
+        return MyClass(lhs.x + rhs.x);
+    }
+
+    MyClass operator+(MyClass lhs, int rhs) {
+        return MyClass(lhs.x + rhs);
+    }
+
+    MyClass operator+(int lhs, MyClass rhs) {
+        return MyClass(lhs + rhs.x);
+    }
+  )";
+
+  Cpp::Declare(code.c_str());
+
+  std::vector<Cpp::TCppFunction_t> ops;
+
+  Cpp::GetBinaryOperator(Cpp::GetGlobalScope(), Cpp::BinaryOperator::Add, ops);
+  EXPECT_EQ(ops.size(), 3);
+  ops.clear();
+
+  Cpp::GetBinaryOperator(Cpp::GetGlobalScope(), Cpp::BinaryOperator::Sub, ops);
+  EXPECT_EQ(ops.size(), 1);
+  ops.clear();
+
+  Cpp::GetBinaryOperator(Cpp::GetGlobalScope(), Cpp::BinaryOperator::Mul, ops);
+  EXPECT_EQ(ops.size(), 0);
 }

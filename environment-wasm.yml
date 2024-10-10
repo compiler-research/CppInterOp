@@ -4,8 +4,7 @@ channels:
 dependencies:
   - zlib
   - nlohmann_json
-  - xeus-lite <2.0
-  - xeus >=3.0.5,<4.0
-  - xtl >=0.7,<0.8
+  - xeus-lite
+  - xeus
   - cpp-argparse
   - pugixml
