@@ -11,7 +11,7 @@
 [![Anaconda-Server Badge](https://anaconda.org/conda-forge/cppinterop/badges/downloads.svg)](https://github.com/conda-forge/cppinterop-feedstock)
 
 
-CppInterOp exposes API from [Clang](http://clang.llvm.org/) and [LLVM](https://llvm.org) in a backward compatibe way. The API support downstream tools that utilize interactive C++ by using the compiler as a service. That is, embed Clang and LLVM as a libraries in their codebases. The API are designed to be minimalistic and aid non-trivial tasks such as language interoperability on the fly. In such scenarios CppInterOp can be used to provide the necessary introspection information to the other side helping the language cross talk.
+CppInterOp exposes API from [Clang](http://clang.llvm.org/) and [LLVM](https://llvm.org) in a backward compatible way. The API support downstream tools that utilize interactive C++ by using the compiler as a service. That is, embed Clang and LLVM as a libraries in their codebases. The API are designed to be minimalistic and aid non-trivial tasks such as language interoperability on the fly. In such scenarios CppInterOp can be used to provide the necessary introspection information to the other side helping the language cross talk.
 
 
 #### [Installation](#build-instructions-for-linux) | [Documentation](https://cppinterop.readthedocs.io/en/latest/index.html) | [CppInterOp API Documentation](https://cppinterop.readthedocs.io/en/latest/build/html/index.html)
@@ -77,9 +77,9 @@ git clone --depth=1 https://github.com/compiler-research/cppyy-backend.git
 ```
 
 #### Setup Clang-REPL 
-Clone the 18.x release of the LLVM project repository.
+Clone the 19.x release of the LLVM project repository.
 ```
-git clone --depth=1 --branch release/18.x https://github.com/llvm/llvm-project.git
+git clone --depth=1 --branch release/19.x https://github.com/llvm/llvm-project.git
 cd llvm-project
 ```
 
@@ -101,17 +101,19 @@ command
 ```
 mkdir build 
 cd build 
-cmake -DLLVM_ENABLE_PROJECTS=clang                  \
-                -DLLVM_TARGETS_TO_BUILD="host;NVPTX"          \
-                -DCMAKE_BUILD_TYPE=Release                    \
-                -DLLVM_ENABLE_ASSERTIONS=ON                   \
-                -DLLVM_USE_LINKER=lld                         \
-                -DCLANG_ENABLE_STATIC_ANALYZER=OFF            \
-                -DCLANG_ENABLE_ARCMT=OFF                      \
-                -DCLANG_ENABLE_FORMAT=OFF                     \
-                -DCLANG_ENABLE_BOOTSTRAP=OFF                  \
+cmake -DLLVM_ENABLE_PROJECTS="clang;lld"                  \
+                -DLLVM_TARGETS_TO_BUILD="WebAssembly;host;NVPTX"          \
+                -DCMAKE_BUILD_TYPE=Release                          \
+                -DLLVM_ENABLE_ASSERTIONS=ON                         \
+                -DCLANG_ENABLE_STATIC_ANALYZER=OFF                  \
+                -DCLANG_ENABLE_ARCMT=OFF                            \
+                -DCLANG_ENABLE_FORMAT=OFF                           \
+                -DCLANG_ENABLE_BOOTSTRAP=OFF                        \
+                -DLLVM_ENABLE_ZSTD=OFF                              \
+                -DLLVM_ENABLE_TERMINFO=OFF                          \
+                -DLLVM_ENABLE_LIBXML2=OFF                           \
                 ../llvm
-cmake --build . --target clang clang-repl --parallel $(nproc --all)
+cmake --build . --target clang clang-repl lld --parallel $(nproc --all)
 ```
 On Windows you would do this by executing the following
 ```
@@ -155,18 +157,21 @@ cd ..
 git clone --depth=1 -b cling-llvm13 https://github.com/root-project/llvm-project.git
 mkdir llvm-project/build
 cd llvm-project/build
-cmake -DLLVM_ENABLE_PROJECTS=clang                \
-    -DLLVM_EXTERNAL_PROJECTS=cling                \
-    -DLLVM_EXTERNAL_CLING_SOURCE_DIR=../../cling  \
-    -DLLVM_TARGETS_TO_BUILD="host;NVPTX"          \
-    -DCMAKE_BUILD_TYPE=Release                    \
-    -DLLVM_ENABLE_ASSERTIONS=ON                   \
-    -DLLVM_USE_LINKER=lld                         \
-    -DCLANG_ENABLE_STATIC_ANALYZER=OFF            \
-    -DCLANG_ENABLE_ARCMT=OFF                      \
-    -DCLANG_ENABLE_FORMAT=OFF                     \
-    -DCLANG_ENABLE_BOOTSTRAP=OFF                  \
-    ../llvm
+cmake -DLLVM_ENABLE_PROJECTS="clang;lld"               \
+                -DLLVM_EXTERNAL_PROJECTS=cling                     \
+                -DLLVM_EXTERNAL_CLING_SOURCE_DIR=../../cling       \
+                -DLLVM_TARGETS_TO_BUILD="WebAssembly;host;NVPTX"   \
+                -DCMAKE_BUILD_TYPE=Release                         \
+                -DLLVM_ENABLE_ASSERTIONS=ON                        \
+                -DCLANG_ENABLE_STATIC_ANALYZER=OFF                 \
+                -DCLANG_ENABLE_ARCMT=OFF                           \
+                -DCLANG_ENABLE_FORMAT=OFF                          \
+                -DCLANG_ENABLE_BOOTSTRAP=OFF                       \
+                -DLLVM_ENABLE_ZSTD=OFF                             \
+                -DLLVM_ENABLE_TERMINFO=OFF                         \
+                -DLLVM_ENABLE_LIBXML2=OFF                          \
+                ../llvm
+cmake --build . --target lld --parallel $(nproc --all)
 cmake --build . --target clang --parallel $(nproc --all)
 cmake --build . --target cling --parallel $(nproc --all)
 cmake --build . --target gtest_main --parallel $(nproc --all)
