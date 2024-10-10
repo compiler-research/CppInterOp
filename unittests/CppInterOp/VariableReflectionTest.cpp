@@ -59,7 +59,7 @@ TEST(VariableReflectionTest, GetDatamembers) {
   struct Klass1 {                                                              \
     Klass1(int i) : num(1), b(i) {}                                            \
     int num;                                                                   \
-    union {                                                                    \
+    union foo {                                                                \
       double a;                                                                \
       int b;                                                                   \
     };                                                                         \
@@ -67,7 +67,7 @@ TEST(VariableReflectionTest, GetDatamembers) {
   struct Klass2 {                                                              \
     Klass2(double d) : num(2), a(d) {}                                         \
     int num;                                                                   \
-    struct {                                                                   \
+    struct foo {                                                               \
       double a;                                                                \
       int b;                                                                   \
     };                                                                         \
@@ -75,9 +75,9 @@ TEST(VariableReflectionTest, GetDatamembers) {
   struct Klass3 {                                                              \
     Klass3(int i) : num(i) {}                                                  \
     int num;                                                                   \
-    struct {                                                                   \
+    struct foo {                                                               \
       double a;                                                                \
-      union {                                                                  \
+      union bar {                                                              \
         float b;                                                               \
         int c;                                                                 \
       };                                                                       \
