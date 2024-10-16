@@ -54,20 +54,20 @@ TEST(VariableReflectionTest, GetDatamembers) {
   EXPECT_EQ(datamembers.size(), 3);
   EXPECT_EQ(datamembers1.size(), 0);
 }
-
+#pragma warning(disable : 4201)
 #define CODE                                                                   \
   struct Klass1 {                                                              \
-    Klass1(int i) : num(1), foo(i) {}                                          \
+    Klass1(int i) : num(1), b(i) {}                                            \
     int num;                                                                   \
-    union foo {                                                                \
+    union {                                                                    \
       double a;                                                                \
       int b;                                                                   \
     };                                                                         \
   } const k1(5);                                                               \
   struct Klass2 {                                                              \
-    Klass2(double d) : num(2), foo.a(d) {}                                     \
+    Klass2(double d) : num(2), a(d) {}                                         \
     int num;                                                                   \
-    struct foo {                                                               \
+    struct {                                                                   \
       double a;                                                                \
       int b;                                                                   \
     };                                                                         \
@@ -75,9 +75,9 @@ TEST(VariableReflectionTest, GetDatamembers) {
   struct Klass3 {                                                              \
     Klass3(int i) : num(i) {}                                                  \
     int num;                                                                   \
-    struct foo {                                                               \
+    struct {                                                                   \
       double a;                                                                \
-      union bar {                                                              \
+      union {                                                                  \
         float b;                                                               \
         int c;                                                                 \
       };                                                                       \
@@ -112,25 +112,26 @@ TEST(VariableReflectionTest, DatamembersWithAnonymousStructOrUnion) {
 
   EXPECT_EQ(Cpp::GetVariableOffset(datamembers_klass1[0]), 0);
   EXPECT_EQ(Cpp::GetVariableOffset(datamembers_klass1[1]),
-            ((intptr_t) & (k1.foo.a)) - ((intptr_t) & (k1.num)));
+            ((intptr_t) & (k1.a)) - ((intptr_t) & (k1.num)));
   EXPECT_EQ(Cpp::GetVariableOffset(datamembers_klass1[2]),
-            ((intptr_t) & (k1.foo.b)) - ((intptr_t) & (k1.num)));
+            ((intptr_t) & (k1.b)) - ((intptr_t) & (k1.num)));
 
   EXPECT_EQ(Cpp::GetVariableOffset(datamembers_klass2[0]), 0);
   EXPECT_EQ(Cpp::GetVariableOffset(datamembers_klass2[1]),
-            ((intptr_t) & (k2.foo.a)) - ((intptr_t) & (k2.num)));
+            ((intptr_t) & (k2.a)) - ((intptr_t) & (k2.num)));
   EXPECT_EQ(Cpp::GetVariableOffset(datamembers_klass2[2]),
-            ((intptr_t) & (k2.foo.b)) - ((intptr_t) & (k2.num)));
+            ((intptr_t) & (k2.b)) - ((intptr_t) & (k2.num)));
 
   EXPECT_EQ(Cpp::GetVariableOffset(datamembers_klass3[0]), 0);
   EXPECT_EQ(Cpp::GetVariableOffset(datamembers_klass3[1]),
-            ((intptr_t) & (k3.foo.a)) - ((intptr_t) & (k3.num)));
+            ((intptr_t) & (k3.a)) - ((intptr_t) & (k3.num)));
   EXPECT_EQ(Cpp::GetVariableOffset(datamembers_klass3[2]),
-            ((intptr_t) & (k3.foo.bar.b)) - ((intptr_t) & (k3.num)));
+            ((intptr_t) & (k3.b)) - ((intptr_t) & (k3.num)));
   EXPECT_EQ(Cpp::GetVariableOffset(datamembers_klass3[3]),
-            ((intptr_t) & (k3.foo.bar.b)) - ((intptr_t) & (k3.num)));
+            ((intptr_t) & (k3.c)) - ((intptr_t) & (k3.num)));
   EXPECT_EQ(Cpp::GetVariableOffset(datamembers_klass3[4]),
             ((intptr_t) & (k3.num2)) - ((intptr_t) & (k3.num)));
+#pragma warning(default : 4201)
 }
 
 TEST(VariableReflectionTest, LookupDatamember) {
