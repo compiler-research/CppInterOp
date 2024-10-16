@@ -81,13 +81,6 @@ jobs:
             clang-runtime: '16'
             cling: Off
             cppyy: Off
-          - name: win2022-msvc-cling
-            os: windows-2022
-            compiler: msvc
-            clang-runtime: '13'
-            cling: On
-            cling-version: '1.0'
-            cppyy: Off
           - name: osx14-arm-clang-clang-repl-19
             os: macos-14
             compiler: clang
@@ -567,20 +560,6 @@ jobs:
           #  compiler: msvc
           #  clang-runtime: '16'
           #  cling: Off
-          #  cppyy: On
-          - name: win2022-msvc-cling
-            os: windows-2022
-            compiler: msvc
-            clang-runtime: '13'
-            cling: On
-            cling-version: '1.0'
-            cppyy: Off
-          #- name: win2022-msvc-cling-cppyy
-          #  os: windows-2022
-          #  compiler: msvc
-          #  clang-runtime: '13'
-          #  cling: On
-          #  cling-version: '1.0'
           #  cppyy: On
           - name: osx14-arm-clang-clang-repl-19-cppyy
             os: macos-14
