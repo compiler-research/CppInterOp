@@ -2629,6 +2629,7 @@ namespace Cpp {
 #ifdef _WIN32
     // FIXME : Workaround Sema::PushDeclContext assert on windows
     ClingArgv.push_back("-fno-delayed-template-parsing");
+    ClingArgv.push_back("-femulated-tls");
 #endif
     ClingArgv.insert(ClingArgv.end(), Args.begin(), Args.end());
     // To keep the Interpreter creation interface between cling and clang-repl
@@ -3277,7 +3278,25 @@ namespace Cpp {
     int m_DupFD = -1;
 
   public:
+#if defined(_WIN32)
+    StreamCaptureInfo(int FD) : m_TempFile([]() {FILE *stream = nullptr;errno_t err; err = tmpfile_s(&stream); if( err ) printf("Cannot create temporary file!\n"); return stream;}(), std::fclose), m_FD(FD) {
+      if (!m_TempFile) {
+        perror("StreamCaptureInfo: Unable to create temp file");
+        return;
+      }
+
+      m_DupFD = _dup(FD);
+
+      // Flush now or can drop the buffer when dup2 is called with Fd later.
+      // This seems only neccessary when piping stdout or stderr, but do it
+      // for ttys to avoid over complicated code for minimal benefit.
+      ::fflush(FD == STDOUT_FILENO ? stdout : stderr);
+      if (_dup2(_fileno(m_TempFile.get()), FD) < 0)
+        perror("StreamCaptureInfo:");
+    }
+#else
     StreamCaptureInfo(int FD) : m_TempFile(tmpfile(), std::fclose), m_FD(FD) {
+      
       if (!m_TempFile) {
         perror("StreamCaptureInfo: Unable to create temp file");
         return;
@@ -3289,10 +3308,11 @@ namespace Cpp {
       // This seems only neccessary when piping stdout or stderr, but do it
       // for ttys to avoid over complicated code for minimal benefit.
       ::fflush(FD == STDOUT_FILENO ? stdout : stderr);
-
       if (dup2(fileno(m_TempFile.get()), FD) < 0)
         perror("StreamCaptureInfo:");
     }
+#endif
+
     StreamCaptureInfo(const StreamCaptureInfo&) = delete;
     StreamCaptureInfo& operator=(const StreamCaptureInfo&) = delete;
     StreamCaptureInfo(StreamCaptureInfo&&) = delete;
@@ -3306,8 +3326,11 @@ namespace Cpp {
       assert(m_DupFD != -1 && "Multiple calls to GetCapturedString");
 
       fflush(nullptr);
-
+#if defined(_WIN32)
+      if (_dup2(m_DupFD, m_FD) < 0)
+#else
       if (dup2(m_DupFD, m_FD) < 0)
+#endif
         perror("StreamCaptureInfo:");
       // Go to the end of the file.
       if (fseek(m_TempFile.get(), 0L, SEEK_END) != 0)
@@ -3334,7 +3357,11 @@ namespace Cpp {
         content[newLen++] = '\0'; // Just to be safe.
 
       std::string result = content.get();
+#if defined(_WIN32)
+      _close(m_DupFD);
+#else
       close(m_DupFD);
+#endif
       m_DupFD = -1;
       return result;
     }

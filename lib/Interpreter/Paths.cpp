@@ -168,7 +168,13 @@ bool ExpandEnvVars(std::string& Str, bool Path) {
 
     std::string EnvVar = Str.substr(DPos + 1, Length -1); //"HOME"
     std::string FullPath;
-    if (const char* Tok = ::getenv(EnvVar.c_str()))
+#if defined(_WIN32)
+      char* Tok = nullptr;
+      size_t sz = 0;
+      if (_dupenv_s(&Tok, &sz, EnvVar.c_str()))
+#else
+      if (const char* Tok = getenv(EnvVar.c_str()))
+#endif
       FullPath = Tok;
 
     Str.replace(DPos, Length, FullPath);
