@@ -54,7 +54,9 @@ TEST(VariableReflectionTest, GetDatamembers) {
   EXPECT_EQ(datamembers.size(), 3);
   EXPECT_EQ(datamembers1.size(), 0);
 }
+#if defined(_WIN32)
 #pragma warning(disable : 4201)
+#endif
 #define CODE                                                                   \
   struct Klass1 {                                                              \
     Klass1(int i) : num(1), b(i) {}                                            \
@@ -131,7 +133,9 @@ TEST(VariableReflectionTest, DatamembersWithAnonymousStructOrUnion) {
             ((intptr_t) & (k3.c)) - ((intptr_t) & (k3.num)));
   EXPECT_EQ(Cpp::GetVariableOffset(datamembers_klass3[4]),
             ((intptr_t) & (k3.num2)) - ((intptr_t) & (k3.num)));
+#if defined(_WIN32)
 #pragma warning(default : 4201)
+#endif
 }
 
 TEST(VariableReflectionTest, LookupDatamember) {
