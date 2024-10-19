@@ -29,45 +29,31 @@ External Dependencies
 ---------------------
 
 * CppInterOp now works with:
-  * cling (based on patched clang16)
-  * clang-repl
-    * based on patched clang16
-    * clang17
-    * clang18
+  * llvm19
 
 
 Introspection
 -------------
 
-* 
-
-
-Just-in-Time Compilation
-------------------------
-
-* 
+* Add GetBinaryOperator interface
+* Add GetIncludePaths interface
+* Improve template instantiation logic
 
 
 Incremental C++
 ---------------
 
-* 
+* Improve the wasm infrastructure
 
 
-Misc
-----
-
-* 
 
 
 Fixed Bugs
 ----------
 
-[XXX](https://github.com/compiler-research/CppInterOp/issues/XXX)
-
- <!---Get release bugs
- git log v1.3.0..main | grep 'Fixes|Closes'
- --->
+[69](https://github.com/compiler-research/CppInterOp/issues/69)
+[284](https://github.com/compiler-research/CppInterOp/issues/284)
+[294](https://github.com/compiler-research/CppInterOp/issues/294)
 
 Special Kudos
 =============
@@ -79,7 +65,9 @@ FirstName LastName (#commits)
 
 A B (N)
 
-<!---Find contributor list for this release
- git log --pretty=format:"%an"  v1.3.0...main | sort | uniq -c | sort -rn |\
-   sed -E 's,^ *([0-9]+) (.*)$,\2 \(\1\),'
---->
+mcbarton (16)
+Vipul Cariappa (8)
+Aaron Jomy (8)
+maximusron (4)
+Vassil Vassilev (2)
+Gnimuc (2)
