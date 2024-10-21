@@ -77,7 +77,8 @@ namespace Cpp {
   /// function, constructor or destructor.
   class JitCall {
   public:
-    friend CPPINTEROP_API JitCall MakeFunctionCallable(TCppConstFunction_t);
+    friend CPPINTEROP_API JitCall
+    MakeFunctionCallable(TInterp_t I, TCppConstFunction_t func);
     enum Kind : char {
       kUnknown = 0,
       kGenericCall,
@@ -262,16 +263,16 @@ namespace Cpp {
 
   /// This is similar to GetName() function, but besides
   /// the name, it also gets the template arguments.
-  CPPINTEROP_API std::string GetCompleteName(TCppType_t klass);
+  CPPINTEROP_API std::string GetCompleteName(TCppScope_t klass);
 
   /// Gets the "qualified" name (including the namespace) of any
   /// named decl (a class, namespace, variable, or a function).
-  CPPINTEROP_API std::string GetQualifiedName(TCppType_t klass);
+  CPPINTEROP_API std::string GetQualifiedName(TCppScope_t klass);
 
   /// This is similar to GetQualifiedName() function, but besides
   /// the "qualified" name (including the namespace), it also
   /// gets the template arguments.
-  CPPINTEROP_API std::string GetQualifiedCompleteName(TCppType_t klass);
+  CPPINTEROP_API std::string GetQualifiedCompleteName(TCppScope_t klass);
 
   /// Gets the list of namespaces utilized in the supplied scope.
   CPPINTEROP_API std::vector<TCppScope_t> GetUsingNamespaces(TCppScope_t scope);
@@ -307,13 +308,13 @@ namespace Cpp {
 
   /// Gets the number of Base Classes for the Derived Class that
   /// is passed as a parameter.
-  CPPINTEROP_API TCppIndex_t GetNumBases(TCppType_t klass);
+  CPPINTEROP_API TCppIndex_t GetNumBases(TCppScope_t klass);
 
   /// Gets a specific Base Class using its index. Typically GetNumBases()
   /// is used to get the number of Base Classes, and then that number
   /// can be used to iterate through the index value to get each specific
   /// base class.
-  CPPINTEROP_API TCppScope_t GetBaseClass(TCppType_t klass, TCppIndex_t ibase);
+  CPPINTEROP_API TCppScope_t GetBaseClass(TCppScope_t klass, TCppIndex_t ibase);
 
   /// Checks if the supplied Derived Class is a sub-class of the
   /// provided Base Class.
@@ -495,6 +496,9 @@ namespace Cpp {
   /// Creates a trampoline function by using the interpreter and returns a
   /// uniform interface to call it from compiled code.
   CPPINTEROP_API JitCall MakeFunctionCallable(TCppConstFunction_t func);
+
+  CPPINTEROP_API JitCall MakeFunctionCallable(TInterp_t I,
+                                              TCppConstFunction_t func);
 
   /// Checks if a function declared is of const type or not.
   CPPINTEROP_API bool IsConstMethod(TCppFunction_t method);

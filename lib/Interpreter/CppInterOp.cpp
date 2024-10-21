@@ -857,7 +857,7 @@ namespace Cpp {
 
   TCppIndex_t GetFunctionRequiredArgs(TCppConstFunction_t func)
   {
-    auto *D = (const clang::Decl *) func;
+    const auto* D = static_cast<const clang::Decl*>(func);
     if (auto* FD = llvm::dyn_cast_or_null<FunctionDecl>(D))
       return FD->getMinRequiredArguments();
 
@@ -923,7 +923,8 @@ namespace Cpp {
   }
 
   bool IsFunctionDeleted(TCppConstFunction_t function) {
-    auto *FD = cast<const FunctionDecl>((const clang::Decl*)function);
+    const auto* FD =
+        cast<const FunctionDecl>(static_cast<const clang::Decl*>(function));
     return FD->isDeleted();
   }
 
@@ -1054,7 +1055,8 @@ namespace Cpp {
 
   bool IsMethod(TCppConstFunction_t method)
   {
-    return dyn_cast_or_null<CXXMethodDecl>((const clang::Decl*)method);
+    return dyn_cast_or_null<CXXMethodDecl>(
+        static_cast<const clang::Decl*>(method));
   }
 
   bool IsPublicMethod(TCppFunction_t method)
@@ -1073,18 +1075,18 @@ namespace Cpp {
 
   bool IsConstructor(TCppConstFunction_t method)
   {
-    auto *D = (const Decl *) method;
+    const auto* D = static_cast<const Decl*>(method);
     return llvm::isa_and_nonnull<CXXConstructorDecl>(D);
   }
 
   bool IsDestructor(TCppConstFunction_t method)
   {
-    auto *D = (const Decl *) method;
+    const auto* D = static_cast<const Decl*>(method);
     return llvm::isa_and_nonnull<CXXDestructorDecl>(D);
   }
 
   bool IsStaticMethod(TCppConstFunction_t method) {
-    const auto* D = (const Decl*)method;
+    const auto* D = static_cast<const Decl*>(method);
     if (auto *CXXMD = llvm::dyn_cast_or_null<CXXMethodDecl>(D)) {
       return CXXMD->isStatic();
     }
@@ -1207,13 +1209,11 @@ namespace Cpp {
     return 0;
   }
 
-  intptr_t GetVariableOffset(TCppScope_t var)
-  {
-    if (!var)
+  intptr_t GetVariableOffset(compat::Interpreter& I, Decl* D) {
+    if (!D)
       return 0;
 
-    auto *D = (Decl *) var;
-    auto &C = getASTContext();
+    auto& C = I.getSema().getASTContext();
 
     if (auto* FD = llvm::dyn_cast<FieldDecl>(D)) {
       const clang::RecordDecl* RD = FD->getParent();
@@ -1242,7 +1242,7 @@ namespace Cpp {
       compat::maybeMangleDeclName(GD, mangledName);
       void* address = llvm::sys::DynamicLibrary::SearchForAddressOfSymbol(
           mangledName.c_str());
-      auto &I = getInterp();
+
       if (!address)
         address = I.getAddressOfGlobal(GD);
       if (!address) {
@@ -1290,6 +1290,11 @@ namespace Cpp {
     }
 
     return 0;
+  }
+
+  intptr_t GetVariableOffset(TCppScope_t var) {
+    auto* D = static_cast<Decl*>(var);
+    return GetVariableOffset(getInterp(), D);
   }
 
   // Check if the Access Specifier of the variable matches the provided value.
@@ -2574,26 +2579,32 @@ namespace Cpp {
     } // namespace
       // End of JitCall Helper Functions
 
-  CPPINTEROP_API JitCall MakeFunctionCallable(TCppConstFunction_t func) {
-    auto* D = (const clang::Decl*)func;
-    if (!D)
-      return {};
+    CPPINTEROP_API JitCall MakeFunctionCallable(TInterp_t I,
+                                                TCppConstFunction_t func) {
+      const auto* D = static_cast<const clang::Decl*>(func);
+      if (!D)
+        return {};
 
-    auto& I = getInterp();
-    // FIXME: Unify with make_wrapper.
-    if (auto *Dtor = dyn_cast<CXXDestructorDecl>(D)) {
-      if (auto Wrapper = make_dtor_wrapper(I, Dtor->getParent()))
-        return {JitCall::kDestructorCall, Wrapper, Dtor};
+      auto* interp = static_cast<compat::Interpreter*>(I);
+
+      // FIXME: Unify with make_wrapper.
+      if (const auto* Dtor = dyn_cast<CXXDestructorDecl>(D)) {
+        if (auto Wrapper = make_dtor_wrapper(*interp, Dtor->getParent()))
+          return {JitCall::kDestructorCall, Wrapper, Dtor};
+        // FIXME: else error we failed to compile the wrapper.
+        return {};
+      }
+
+      if (auto Wrapper = make_wrapper(*interp, cast<FunctionDecl>(D))) {
+        return {JitCall::kGenericCall, Wrapper, cast<FunctionDecl>(D)};
+      }
       // FIXME: else error we failed to compile the wrapper.
       return {};
     }
 
-    if (auto Wrapper = make_wrapper(I, cast<FunctionDecl>(D))) {
-      return {JitCall::kGenericCall, Wrapper, cast<FunctionDecl>(D)};
+    CPPINTEROP_API JitCall MakeFunctionCallable(TCppConstFunction_t func) {
+      return MakeFunctionCallable(&getInterp(), func);
     }
-    // FIXME: else error we failed to compile the wrapper.
-    return {};
-  }
 
   namespace {
   static std::string MakeResourcesPath() {
@@ -2842,7 +2853,8 @@ namespace Cpp {
     return DLM->searchLibrariesForSymbol(mangled_name, search_system);
   }
 
-  bool InsertOrReplaceJitSymbol(const char* linker_mangled_name,
+  bool InsertOrReplaceJitSymbol(compat::Interpreter& I,
+                                const char* linker_mangled_name,
                                 uint64_t address) {
     // FIXME: This approach is problematic since we could replace a symbol
     // whose address was already taken by clients.
@@ -2869,7 +2881,6 @@ namespace Cpp {
     using namespace llvm;
     using namespace llvm::orc;
 
-    auto& I = getInterp();
     auto Symbol = compat::getSymbolAddress(I, linker_mangled_name);
     llvm::orc::LLJIT& Jit = *compat::getExecutionEngine(I);
     llvm::orc::ExecutionSession& ES = Jit.getExecutionSession();
@@ -2930,6 +2941,11 @@ namespace Cpp {
     return false;
   }
 
+  bool InsertOrReplaceJitSymbol(const char* linker_mangled_name,
+                                uint64_t address) {
+    return InsertOrReplaceJitSymbol(getInterp(), linker_mangled_name, address);
+  }
+
   std::string ObjToString(const char *type, void *obj) {
     return getInterp().toString(type, obj);
   }
@@ -2979,9 +2995,8 @@ namespace Cpp {
     // return C.getElaboratedType(ETK_None, NS, TT);
   }
 
-  static Decl* InstantiateTemplate(TemplateDecl* TemplateD,
-                                   ArrayRef<TemplateArgument> TemplateArgs,
-                                   Sema& S) {
+  Decl* InstantiateTemplate(TemplateDecl* TemplateD,
+                            ArrayRef<TemplateArgument> TemplateArgs, Sema& S) {
     // Create a list of template arguments.
     TemplateArgumentListInfo TLI{};
     for (auto TA : TemplateArgs)
@@ -2991,10 +3006,11 @@ namespace Cpp {
     return InstantiateTemplate(TemplateD, TLI, S);
   }
 
-  TCppScope_t InstantiateTemplate(TCppScope_t tmpl,
+  TCppScope_t InstantiateTemplate(compat::Interpreter& I, TCppScope_t tmpl,
                                   const TemplateArgInfo* template_args,
                                   size_t template_args_size) {
-    ASTContext &C = getASTContext();
+    auto& S = I.getSema();
+    auto& C = S.getASTContext();
 
     llvm::SmallVector<TemplateArgument> TemplateArgs;
     TemplateArgs.reserve(template_args_size);
@@ -3015,9 +3031,16 @@ namespace Cpp {
 
     // We will create a new decl, push a transaction.
 #ifdef USE_CLING
-    cling::Interpreter::PushTransactionRAII RAII(&getInterp());
+    cling::Interpreter::PushTransactionRAII RAII(&I);
 #endif
-    return InstantiateTemplate(TmplD, TemplateArgs, getSema());
+    return InstantiateTemplate(TmplD, TemplateArgs, S);
+  }
+
+  TCppScope_t InstantiateTemplate(TCppScope_t tmpl,
+                                  const TemplateArgInfo* template_args,
+                                  size_t template_args_size) {
+    return InstantiateTemplate(getInterp(), tmpl, template_args,
+                               template_args_size);
   }
 
   void GetClassTemplateInstantiationArgs(TCppScope_t templ_instance,
@@ -3241,15 +3264,15 @@ namespace Cpp {
   }
 
   // FIXME: Add optional arguments to the operator new.
-  TCppObject_t Construct(TCppScope_t scope,
-                         void* arena/*=nullptr*/) {
+  TCppObject_t Construct(compat::Interpreter& interp, TCppScope_t scope,
+                         void* arena /*=nullptr*/) {
     auto* Class = (Decl*) scope;
     // FIXME: Diagnose.
     if (!HasDefaultConstructor(Class))
       return nullptr;
 
     auto* const Ctor = GetDefaultConstructor(Class);
-    if (JitCall JC = MakeFunctionCallable(Ctor)) {
+    if (JitCall JC = MakeFunctionCallable(&interp, Ctor)) {
       if (arena) {
         JC.Invoke(&arena, {}, (void*)~0); // Tell Invoke to use placement new.
         return arena;
@@ -3262,13 +3285,22 @@ namespace Cpp {
     return nullptr;
   }
 
-  void Destruct(TCppObject_t This, TCppScope_t scope, bool withFree /*=true*/) {
-    Decl* Class = (Decl*)scope;
-    if (auto wrapper = make_dtor_wrapper(getInterp(), Class)) {
+  TCppObject_t Construct(TCppScope_t scope, void* arena /*=nullptr*/) {
+    return Construct(getInterp(), scope, arena);
+  }
+
+  void Destruct(compat::Interpreter& interp, TCppObject_t This, Decl* Class,
+                bool withFree) {
+    if (auto wrapper = make_dtor_wrapper(interp, Class)) {
       (*wrapper)(This, /*nary=*/0, withFree);
       return;
     }
     // FIXME: Diagnose.
+  }
+
+  void Destruct(TCppObject_t This, TCppScope_t scope, bool withFree /*=true*/) {
+    auto* Class = static_cast<Decl*>(scope);
+    Destruct(getInterp(), This, Class, withFree);
   }
 
   class StreamCaptureInfo {
