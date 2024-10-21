@@ -95,7 +95,7 @@ inline void maybeMangleDeclName(const clang::GlobalDecl& GD,
 inline llvm::orc::LLJIT* getExecutionEngine(cling::Interpreter& I) {
 #if CLANG_VERSION_MAJOR >= 18
   return I.getExecutionEngine();
-#endif
+#else
 
 #if CLANG_VERSION_MAJOR == 13
 #ifdef __APPLE__
@@ -120,6 +120,7 @@ inline llvm::orc::LLJIT* getExecutionEngine(cling::Interpreter& I) {
   int* IncrementalJit = *(int**)IncrementalExecutor + 0;
   int* LLJIT = *(int**)IncrementalJit + 0;
   return *(llvm::orc::LLJIT**)LLJIT;
+#endif
 }
 
 inline llvm::Expected<llvm::JITTargetAddress>

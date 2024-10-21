@@ -42,19 +42,20 @@ jobs:
             cling: Off
             cppyy: On
             coverage: true
-          - name: ubu22-x86-gcc12-clang-repl-16
+          - name: ubu22-x86-gcc9-clang18-cling
+            os: ubuntu-22.04
+            compiler: gcc-12
+            clang-runtime: '18'
+            cling: On
+            cling-version: 'refs/heads/master'
+            cppyy: On
+            coverage: true
+          - name: ubu22-x86-gcc9-clang16-cling
             os: ubuntu-22.04
             compiler: gcc-12
             clang-runtime: '16'
-            cling: Off
-            cppyy: On
-            coverage: true
-          - name: ubu22-x86-gcc9-clang13-cling
-            os: ubuntu-22.04
-            compiler: gcc-9
-            clang-runtime: '13'
             cling: On
-            cling-version: '1.0'
+            cling-version: 'v1.1'
             cppyy: On
             coverage: true
           - name: win2022-msvc-clang-repl-19
@@ -75,80 +76,82 @@ jobs:
             clang-runtime: '17'
             cling: Off
             cppyy: Off
-          - name: win2022-msvc-clang-repl-16
+          - name: win2022-msvc-cling-18
+            os: windows-2022
+            compiler: msvc
+            clang-runtime: '18'
+            cling: On
+            cling-version: 'refs/heads/master'
+          - name: win2022-msvc-cling-16
             os: windows-2022
             compiler: msvc
             clang-runtime: '16'
-            cling: Off
-            cppyy: Off
-          - name: win2022-msvc-cling
-            os: windows-2022
-            compiler: msvc
-            clang-runtime: '13'
             cling: On
-            cling-version: '1.0'
+            cling-version: 'v1.1'
             cppyy: Off
-          - name: osx14-arm-clang-clang-repl-19
+          - name: osx14-arm-clang-repl-19
             os: macos-14
             compiler: clang
             clang-runtime: '19'
             cling: Off
             cppyy: On
-          - name: osx14-arm-clang-clang-repl-18
+          - name: osx14-arm-clang-repl-18
             os: macos-14
             compiler: clang
             clang-runtime: '18'
             cling: Off
             cppyy: On
-          - name: osx14-arm-clang-clang-repl-17
+          - name: osx14-arm-clang-repl-17
             os: macos-14
             compiler: clang
             clang-runtime: '17'
             cling: Off
             cppyy: On
-          - name: osx14-arm-clang-clang-repl-16
+          - name: osx14-arm-clang18-cling
+            os: macos-14
+            compiler: clang
+            clang-runtime: '18'
+            cling: On
+            cling-version: 'refs/heads/master'
+            cppyy: On
+          - name: osx14-arm-clang16-cling
             os: macos-14
             compiler: clang
             clang-runtime: '16'
-            cling: Off
-            cppyy: On
-          - name: osx14-arm-clang-clang13-cling
-            os: macos-14
-            compiler: clang
-            clang-runtime: '13'
             cling: On
-            cling-version: '1.0'
+            cling-version: 'v1.1'
             cppyy: On
-          - name: osx13-x86-clang-clang-repl-19
+          - name: osx13-x86-clang-repl-19
             os: macos-13
             compiler: clang
             clang-runtime: '19'
             cling: Off
             cppyy: On
-          - name: osx13-x86-clang-clang-repl-18
+          - name: osx13-x86-clang-repl-18
             os: macos-13
             compiler: clang
             clang-runtime: '18'
             cling: Off
             cppyy: On
-          - name: osx13-x86-clang-clang-repl-17
+          - name: osx13-x86-clang-repl-17
             os: macos-13
             compiler: clang
             clang-runtime: '17'
             cling: Off
             cppyy: On
-          - name: osx13-x86-clang-clang-repl-16
+          - name: osx13-x86-clang18-cling
+            os: macos-13
+            compiler: clang
+            clang-runtime: '18'
+            cling: On
+            cling-version: 'refs/heads/master'
+            cppyy: On
+          - name: osx13-x86-clang16-cling
             os: macos-13
             compiler: clang
             clang-runtime: '16'
-            cling: Off
-            cppyy: On
-          - name: osx13-x86-clang-clang13-cling
-            os: macos-13
-            compiler: clang
-            clang-runtime: '13'
             cling: On
-            cling-version: '1.0'
+            cling-version: 'v1.1'
             cppyy: On
             
     steps:
@@ -170,7 +173,7 @@ jobs:
 
         cling_on=$(echo "${{ matrix.cling }}" | tr '[:lower:]' '[:upper:]')
         if [[ "$cling_on" == "ON" ]]; then
-          export CLING_HASH=$(git ls-remote https://github.com/root-project/cling.git refs/tags/v${{ matrix.cling-version }} | tr '\t' '-')
+          export CLING_HASH=$(git ls-remote https://github.com/root-project/cling.git ${{ matrix.cling-version }} | tr '\t' '-')
           export LLVM_HASH=$(git ls-remote https://github.com/root-project/llvm-project.git cling-llvm${{ matrix.clang-runtime}} | tr '\t' '-')
         else
           export CLING_HASH="Repl"
@@ -192,7 +195,7 @@ jobs:
 
         if ( "${{ matrix.cling }}" -imatch "On" )
         { 
-          $env:CLING_HASH_TEMP = ( git ls-remote https://github.com/root-project/cling.git refs/tags/v${{ matrix.cling-version }} ) 
+          $env:CLING_HASH_TEMP = ( git ls-remote https://github.com/root-project/cling.git ${{ matrix.cling-version }} ) 
           $env:CLING_HASH = $env:CLING_HASH_TEMP -replace "\t","-"
         }
         else
@@ -342,7 +345,7 @@ jobs:
         if [[ "${cling_on}" == "ON" ]]; then
           git clone https://github.com/root-project/cling.git
           cd ./cling 
-          git checkout tags/v${{ matrix.cling-version }}
+          git checkout ${{ matrix.cling-version }}
           cd ..
           git clone --depth=1 -b cling-llvm${{ matrix.clang-runtime }} https://github.com/root-project/llvm-project.git
         else # repl
@@ -370,8 +373,6 @@ jobs:
           cmake --build . --target lld --parallel ${{ env.ncpus }}
           cmake --build . --target clang --parallel ${{ env.ncpus }}
           cmake --build . --target cling --parallel ${{ env.ncpus }}
-          # Now build gtest.a and gtest_main for CppInterOp to run its tests.
-          cmake --build . --target gtest_main --parallel ${{ env.ncpus }}
         else
           # Apply patches
           llvm_vers=$(echo "${{ matrix.clang-runtime }}" | tr '[:lower:]' '[:upper:]')
@@ -406,7 +407,7 @@ jobs:
         {
           git clone https://github.com/root-project/cling.git
           cd ./cling 
-          git checkout tags/v${{ matrix.cling-version }}
+          git checkout ${{ matrix.cling-version }}
           cd ..
           git clone --depth=1 -b cling-llvm${{ matrix.clang-runtime }} https://github.com/root-project/llvm-project.git
           $env:PWD_DIR= $PWD.Path
@@ -514,19 +515,22 @@ jobs:
             clang-runtime: '17'
             cling: Off
             cppyy: On
-          - name: ubu22-x86-gcc12-clang-repl-16-cppyy
+          - name: ubu22-x86-gcc9-clang18-cling-cppyy
+            os: ubuntu-22.04
+            compiler: gcc-12
+            clang-runtime: '18'
+            cling: On
+            cling-version: 'refs/heads/master'
+            cppyy: On
+
+          - name: ubu22-x86-gcc9-clang16-cling-cppyy
             os: ubuntu-22.04
             compiler: gcc-12
             clang-runtime: '16'
-            cling: Off
-            cppyy: On
-          - name: ubu22-x86-gcc9-clang13-cling-cppyy
-            os: ubuntu-22.04
-            compiler: gcc-9
-            clang-runtime: '13'
             cling: On
-            cling-version: '1.0'
+            cling-version: 'v1.1'
             cppyy: On
+
           #FIXME: Windows CppInterOp tests expected to fail
           #until https://github.com/compiler-research/CppInterOp/issues/188 is solved
           - name: win2022-msvc-clang-repl-19
@@ -553,93 +557,81 @@ jobs:
           #  clang-runtime: '17'
           #  cling: Off
           #  cppyy: On
-          - name: win2022-msvc-clang-repl-16
+          - name: win2022-msvc-cling-18
+            os: windows-2022
+            compiler: msvc
+            clang-runtime: '18'
+            cling: On
+            cling-version: 'refs/heads/master'
+            cppyy: Off
+          - name: win2022-msvc-cling-16
             os: windows-2022
             compiler: msvc
             clang-runtime: '16'
-            cling: Off
-            cppyy: Off
-          #- name: win2022-msvc-clang-repl-16-cppyy
-          #  os: windows-2022
-          #  compiler: msvc
-          #  clang-runtime: '16'
-          #  cling: Off
-          #  cppyy: On
-          - name: win2022-msvc-cling
-            os: windows-2022
-            compiler: msvc
-            clang-runtime: '13'
             cling: On
-            cling-version: '1.0'
+            cling-version: 'v1.1'
             cppyy: Off
-          #- name: win2022-msvc-cling-cppyy
-          #  os: windows-2022
-          #  compiler: msvc
-          #  clang-runtime: '13'
-          #  cling: On
-          #  cling-version: '1.0'
-          #  cppyy: On
-          - name: osx14-arm-clang-clang-repl-19-cppyy
+          - name: osx14-arm-clang-repl-19-cppyy
             os: macos-14
             compiler: clang
             clang-runtime: '19'
             cling: Off
             cppyy: On
-          - name: osx14-arm-clang-clang-repl-18-cppyy
+          - name: osx14-arm-clang-repl-18-cppyy
             os: macos-14
             compiler: clang
             clang-runtime: '18'
             cling: Off
             cppyy: On
-          - name: osx14-arm-clang-clang-repl-17-cppyy
+          - name: osx14-arm-clang-repl-17-cppyy
             os: macos-14
             compiler: clang
             clang-runtime: '17'
             cling: Off
             cppyy: On
-          - name: osx14-arm-clang-clang-repl-16-cppyy
+          - name: osx14-arm-clang18-cling-cppyy
+            os: macos-14
+            compiler: clang
+            clang-runtime: '18'
+            cling: On
+            cling-version: 'refs/heads/master'
+          - name: osx14-arm-clang16-cling-cppyy
             os: macos-14
             compiler: clang
             clang-runtime: '16'
-            cling: Off
-            cppyy: On
-          - name: osx14-arm-clang-clang13-cling-cppyy
-            os: macos-14
-            compiler: clang
-            clang-runtime: '13'
             cling: On
-            cling-version: '1.0'
-            cppyy: On
-          - name: osx13-x86-clang-clang-repl-19-cppyy
+            cling-version: 'v1.1'
+          - name: osx13-x86-clang-repl-19-cppyy
             os: macos-13
             compiler: clang
             clang-runtime: '19'
             cling: Off
             cppyy: On
-          - name: osx13-x86-clang-clang-repl-18-cppyy
+          - name: osx13-x86-clang-repl-18-cppyy
             os: macos-13
             compiler: clang
             clang-runtime: '18'
             cling: Off
             cppyy: On
-          - name: osx13-x86-clang-clang-repl-17-cppyy
+          - name: osx13-x86-clang-repl-17-cppyy
             os: macos-13
             compiler: clang
             clang-runtime: '17'
             cling: Off
             cppyy: On
-          - name: osx13-x86-clang-clang-repl-16-cppyy
+          - name: osx13-x86-clang18-cling-cppyy
+            os: macos-13
+            compiler: clang
+            clang-runtime: '18'
+            cling: On
+            cling-version: 'refs/heads/master'
+            cppyy: On
+          - name: osx13-x86-clang16-cling-cppyy
             os: macos-13
             compiler: clang
             clang-runtime: '16'
-            cling: Off
-            cppyy: On
-          - name: osx13-x86-clang-clang13-cling-cppyy
-            os: macos-13
-            compiler: clang
-            clang-runtime: '13'
             cling: On
-            cling-version: '1.0'
+            cling-version: 'v1.1'
             cppyy: On
 
     steps:
@@ -661,7 +653,7 @@ jobs:
 
         cling_on=$(echo "${{ matrix.cling }}" | tr '[:lower:]' '[:upper:]')
         if [[ "$cling_on" == "ON" ]]; then
-          export CLING_HASH=$(git ls-remote https://github.com/root-project/cling.git refs/tags/v${{ matrix.cling-version }} | tr '\t' '-')
+          export CLING_HASH=$(git ls-remote https://github.com/root-project/cling.git ${{ matrix.cling-version }} | tr '\t' '-')
           export LLVM_HASH=$(git ls-remote https://github.com/root-project/llvm-project.git cling-llvm${{ matrix.clang-runtime}} | tr '\t' '-')
         else
           export CLING_HASH="Repl"
@@ -683,7 +675,7 @@ jobs:
 
         if ( "${{ matrix.cling }}" -imatch "On" )
         { 
-          $env:CLING_HASH_TEMP = ( git ls-remote https://github.com/root-project/cling.git refs/tags/v${{ matrix.cling-version }} ) 
+          $env:CLING_HASH_TEMP = ( git ls-remote https://github.com/root-project/cling.git ${{ matrix.cling-version }} ) 
           $env:CLING_HASH = $env:CLING_HASH_TEMP -replace "\t","-"
         }
         else
@@ -1142,81 +1134,80 @@ jobs:
             compiler: gcc-12
             clang-runtime: '17'
             cling: Off
-            micromamba_shell_init: bash
-          - name: ubu22-x86-gcc12-clang-repl-16-emscripten_wasm
+            micromamba_shell_init: bash 
+          - name: ubu22-x86-gcc9-clang18-cling-emscripten_wasm
+            os: ubuntu-22.04
+            compiler: gcc-12
+            clang-runtime: '18'
+            cling: On
+            cling-version: 'refs/heads/master'
+          - name: ubu22-x86-gcc9-clang16-cling-emscripten_wasm
             os: ubuntu-22.04
             compiler: gcc-12
             clang-runtime: '16'
-            cling: Off
-            micromamba_shell_init: bash
-          - name: ubu22-x86-gcc9-clang13-cling-emscripten_wasm
-            os: ubuntu-22.04
-            compiler: gcc-9
-            clang-runtime: '13'
             cling: On
-            cling-version: '1.0'
-            micromamba_shell_init: bash
-          - name: osx14-arm-clang-clang-repl-19-emscripten_wasm
+            cling-version: 'v1.1'
+          - name: osx14-arm-clang-repl-19-emscripten_wasm
             os: macos-14
             compiler: clang
             clang-runtime: '19'
             cling: Off
             micromamba_shell_init: bash
-          - name: osx14-arm-clang-clang-repl-18-emscripten_wasm
+          - name: osx14-arm-clang-repl-18-emscripten_wasm
             os: macos-14
             compiler: clang
             clang-runtime: '18'
             cling: Off
             micromamba_shell_init: bash
-          - name: osx14-arm-clang-clang-repl-17-emscripten_wasm
+          - name: osx14-arm-clang-repl-17-emscripten_wasm
             os: macos-14
             compiler: clang
             clang-runtime: '17'
             cling: Off
             micromamba_shell_init: bash
-          - name: osx14-arm-clang-clang-repl-16-emscripten_wasm
+          - name: osx14-arm-clang18-cling-emscripten_wasm
+            os: macos-14
+            compiler: clang
+            clang-runtime: '18'
+            cling: On
+            cling-version: 'refs/heads/master'
+          - name: osx14-arm-clang16-cling-emscripten_wasm
             os: macos-14
             compiler: clang
             clang-runtime: '16'
-            cling: Off
-            micromamba_shell_init: bash  
-          - name: osx14-arm-clang-clang13-cling-emscripten_wasm
-            os: macos-14
-            compiler: clang
-            clang-runtime: '13'
             cling: On
-            cling-version: '1.0'
-            micromamba_shell_init: bash
-          - name: osx13-x86-clang-clang-repl-19-emscripten_wasm
+            cling-version: 'v1.1'
+          - name: osx13-x86-clang-repl-19-emscripten_wasm
             os: macos-13
             compiler: clang
             clang-runtime: '19'
             cling: Off
             micromamba_shell_init: bash
-          - name: osx13-x86-clang-clang-repl-18-emscripten_wasm
+          - name: osx13-x86-clang-repl-18-emscripten_wasm
             os: macos-13
             compiler: clang
             clang-runtime: '18'
             cling: Off
             micromamba_shell_init: bash
-          - name: osx13-x86-clang-clang-repl-17-emscripten_wasm
+          - name: osx13-x86-clang-repl-17-emscripten_wasm
             os: macos-13
             compiler: clang
             clang-runtime: '17'
             cling: Off
             micromamba_shell_init: bash
-          - name: osx13-x86-clang-clang-repl-16-emscripten_wasm
+          - name: osx13-x86-clang18-cling-emscripten_wasm
+            os: macos-13
+            compiler: clang
+            clang-runtime: '18'
+            cling: On
+            cling-version: 'refs/heads/master'
+            micromamba_shell_init: bash
+          - name: osx13-x86-clang16-cling-emscripten_wasm
             os: macos-13
             compiler: clang
             clang-runtime: '16'
-            cling: Off
-            micromamba_shell_init: bash
-          - name: osx13-x86-clang-clang13-cling-emscripten_wasm
-            os: macos-13
-            compiler: clang
-            clang-runtime: '13'
             cling: On
-            cling-version: '1.0'
+            cling-version: 'v1.1'
             micromamba_shell_init: bash
 
     steps:
@@ -1238,7 +1229,7 @@ jobs:
 
         cling_on=$(echo "${{ matrix.cling }}" | tr '[:lower:]' '[:upper:]')
         if [[ "$cling_on" == "ON" ]]; then
-          export CLING_HASH=$(git ls-remote https://github.com/root-project/cling.git refs/tags/v${{ matrix.cling-version }} | tr '\t' '-')
+          export CLING_HASH=$(git ls-remote https://github.com/root-project/cling.git ${{ matrix.cling-version }} | tr '\t' '-')
           export LLVM_HASH=$(git ls-remote https://github.com/root-project/llvm-project.git cling-llvm${{ matrix.clang-runtime}} | tr '\t' '-')
         else
           export CLING_HASH="Repl"
