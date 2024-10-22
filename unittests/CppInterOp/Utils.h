@@ -3,9 +3,10 @@
 
 #include "../../lib/Interpreter/Compatibility.h"
 
+#include "llvm/Support/Valgrind.h"
 #include <memory>
 #include <vector>
-#include "llvm/Support/Valgrind.h"
+#include "clang-c/CXString.h"
 
 using namespace clang;
 using namespace llvm;
@@ -20,5 +21,9 @@ namespace TestUtils {
   void GetAllSubDecls(clang::Decl *D, std::vector<clang::Decl*>& SubDecls,
                       bool filter_implicitGenerated = false);
 } // end namespace TestUtils
+
+// libclang's string manipulation APIs
+const char* clang_getCString(CXString string);
+void clang_disposeString(CXString string);
 
 #endif // CPPINTEROP_UNITTESTS_LIBCPPINTEROP_UTILS_H
