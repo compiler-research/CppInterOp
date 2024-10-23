@@ -1344,7 +1344,7 @@ jobs:
                 ../
         fi
         
-        EMCC_CFLAGS='-sERROR_ON_UNDEFINED_SYMBOLS=0' emmake make -j ${{ env.ncpus }}
+        emmake make -j ${{ env.ncpus }}
 
         cd ..
         
