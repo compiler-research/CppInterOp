@@ -10,9 +10,9 @@ set(LLVM_LINK_COMPONENTS
 if ("LLVMFrontendDriver" IN_LIST LLVM_AVAILABLE_LIBS)
   list(APPEND LLVM_LINK_COMPONENTS  FrontendDriver)
 endif()
-if ("LLVMOrcDebugging" IN_LIST LLVM_AVAILABLE_LIBS)
-  list(APPEND LLVM_LINK_COMPONENTS OrcDebugging)
-endif()
+# if ("LLVMOrcDebugging" IN_LIST LLVM_AVAILABLE_LIBS)
+#   list(APPEND LLVM_LINK_COMPONENTS OrcDebugging)
+# endif()
 
 set(DLM
   DynamicLibraryManager.cpp
