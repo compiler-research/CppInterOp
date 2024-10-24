@@ -81,13 +81,6 @@ jobs:
             clang-runtime: '16'
             cling: Off
             cppyy: Off
-          - name: win2022-msvc-cling
-            os: windows-2022
-            compiler: msvc
-            clang-runtime: '13'
-            cling: On
-            cling-version: '1.0'
-            cppyy: Off
           - name: osx14-arm-clang-clang-repl-19
             os: macos-14
             compiler: clang
@@ -424,7 +417,7 @@ jobs:
         if ( "${{ matrix.cling }}" -imatch "On" )
         {
           cd build
-          cmake -DLLVM_ENABLE_PROJECTS="clang"                  `
+          cmake -DLLVM_ENABLE_PROJECTS="clang;compiler-rt"                  `
                 -DLLVM_EXTERNAL_PROJECTS=cling                `
                 -DLLVM_EXTERNAL_CLING_SOURCE_DIR="$env:CLING_DIR"   `
                 -DLLVM_TARGETS_TO_BUILD="host;NVPTX"          `
@@ -437,8 +430,10 @@ jobs:
                 -DLLVM_ENABLE_ZSTD=OFF                             `
                 -DLLVM_ENABLE_TERMINFO=OFF                         `
                 -DLLVM_ENABLE_LIBXML2=OFF                          `
+                -DCOMPILER_RT_BUILD_BUILTINS=ON `
                 ..\llvm
           cmake --build . --config Release --target clang --parallel ${{ env.ncpus }}
+          cmake --build . --config Release --target compiler-rt --parallel ${{ env.ncpus }}
           cmake --build . --config Release --target cling --parallel ${{ env.ncpus }}
           # Now build gtest.a and gtest_main for CppInterOp to run its tests.
           cmake --build . --config Release --target gtest_main --parallel ${{ env.ncpus }}
@@ -459,7 +454,7 @@ jobs:
           }
           cd build
           echo "Apply clang${{ matrix.clang-runtime }}-*.patch patches:"
-          cmake -DLLVM_ENABLE_PROJECTS="clang"                  `
+          cmake -DLLVM_ENABLE_PROJECTS="clang;compiler-rt"                  `                `
                 -DLLVM_TARGETS_TO_BUILD="host;NVPTX"          `
                 -DCMAKE_BUILD_TYPE=Release                          `
                 -DLLVM_ENABLE_ASSERTIONS=ON                         `
@@ -470,11 +465,12 @@ jobs:
                 -DLLVM_ENABLE_ZSTD=OFF                              `
                 -DLLVM_ENABLE_TERMINFO=OFF                          `
                 -DLLVM_ENABLE_LIBXML2=OFF                           `
+                -DCOMPILER_RT_BUILD_BUILTINS=ON `
                 ..\llvm
-          cmake --build . --config Release --target clang clang-repl --parallel ${{ env.ncpus }}
+          cmake --build . --config Release --target clang clang-repl compiler-rt --parallel ${{ env.ncpus }}
         }
         cd ..\
-        rm -r -force $(find.exe . -maxdepth 1 ! -name "build" ! -name "llvm" ! -name "clang" ! -name ".")
+        rm -r -force $(find.exe . -maxdepth 1 ! -name "build" ! -name "llvm" ! -name "clang"  ! -name "compiler-rt" ! -name "libc" ! -name "libcxx" ! -name "libcxxabi" ! -name "openmp" ! -name ".")
         cd ..\        
 
     - name: Save Cache LLVM/Clang runtime build directory
@@ -564,20 +560,6 @@ jobs:
           #  compiler: msvc
           #  clang-runtime: '16'
           #  cling: Off
-          #  cppyy: On
-          - name: win2022-msvc-cling
-            os: windows-2022
-            compiler: msvc
-            clang-runtime: '13'
-            cling: On
-            cling-version: '1.0'
-            cppyy: Off
-          #- name: win2022-msvc-cling-cppyy
-          #  os: windows-2022
-          #  compiler: msvc
-          #  clang-runtime: '13'
-          #  cling: On
-          #  cling-version: '1.0'
           #  cppyy: On
           - name: osx14-arm-clang-clang-repl-19-cppyy
             os: macos-14
@@ -821,6 +803,7 @@ jobs:
         brew install eigen
         brew install boost
         pip install distro pytest
+        
 
     - name: Restore Cache LLVM/Clang runtime build directory
       uses: actions/cache/restore@v4
@@ -898,7 +881,6 @@ jobs:
         echo "CPLUS_INCLUDE_PATH=$CPLUS_INCLUDE_PATH" >> $GITHUB_ENV
          
     - name: Build and Test/Install CppInterOp on Windows systems
-      continue-on-error: true
       if: ${{ runner.os == 'windows' }}
       run: |
         #FIXME: Windows CppInterOp tests expected to fail
@@ -912,7 +894,7 @@ jobs:
         $env:LLVM_BUILD_DIR="$env:PWD_DIR\llvm-project\build"
         echo "LLVM_BUILD_DIR=$env:LLVM_BUILD_DIR"
         echo "LLVM_BUILD_DIR=$env:LLVM_BUILD_DIR" >> $env:GITHUB_ENV
-        
+
         if ( "${{ matrix.cling }}" -imatch "On" )
         {
           $env:CLING_DIR="$env:PWD_DIR\cling"
@@ -966,6 +948,7 @@ jobs:
                 -DLLVM_DIR="$env:LLVM_BUILD_DIR\lib\cmake\llvm"  `
                 -DLLVM_ENABLE_WERROR=On                          `
                 -DClang_DIR="$env:LLVM_BUILD_DIR\lib\cmake\clang"  -DCODE_COVERAGE=${{ env.CODE_COVERAGE }}  -DCMAKE_INSTALL_PREFIX="$env:CPPINTEROP_DIR"  ..\
+                cmake --build . --config ${{ env.BUILD_TYPE }} --target googletest --parallel ${{ env.ncpus }}
         }
         cmake --build . --config ${{ env.BUILD_TYPE }} --target check-cppinterop --parallel ${{ env.ncpus }}
         cd ..
@@ -1117,7 +1100,7 @@ jobs:
       # When debugging increase to a suitable value!
       timeout-minutes: 30
 
-  emscripten_wasm:
+  emscripten_wasm_CppInterOp_and_xeus_cpp:
     needs: [build_cache]
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
