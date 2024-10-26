@@ -8,6 +8,7 @@
 //------------------------------------------------------------------------------
 
 #include "Paths.h"
+#include "Compatibility.h"
 
 #include "clang/Basic/FileManager.h"
 #include "clang/Lex/HeaderSearchOptions.h"
@@ -168,11 +169,11 @@ bool ExpandEnvVars(std::string& Str, bool Path) {
 
     std::string EnvVar = Str.substr(DPos + 1, Length -1); //"HOME"
     std::string FullPath;
-    if (const char* Tok = ::getenv(EnvVar.c_str()))
+    if (const char* Tok = GetEnv(EnvVar.c_str()))
       FullPath = Tok;
 
     Str.replace(DPos, Length, FullPath);
-    DPos = Str.find("$", DPos + 1); //search for next env variable
+    DPos = Str.find("$", DPos + 1); // search for next env variable
   }
   if (!Path)
     return true;

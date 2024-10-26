@@ -3277,7 +3277,22 @@ namespace Cpp {
     int m_DupFD = -1;
 
   public:
+#ifdef _WIN32
+    StreamCaptureInfo(int FD)
+        : m_TempFile(
+              []() {
+                FILE* stream = nullptr;
+                errno_t err;
+                err = tmpfile_s(&stream);
+                if (err)
+                  printf("Cannot create temporary file!\n");
+                return stream;
+              }(),
+              std::fclose),
+          m_FD(FD) {
+#else
     StreamCaptureInfo(int FD) : m_TempFile(tmpfile(), std::fclose), m_FD(FD) {
+#endif
       if (!m_TempFile) {
         perror("StreamCaptureInfo: Unable to create temp file");
         return;
@@ -3289,7 +3304,6 @@ namespace Cpp {
       // This seems only neccessary when piping stdout or stderr, but do it
       // for ttys to avoid over complicated code for minimal benefit.
       ::fflush(FD == STDOUT_FILENO ? stdout : stderr);
-
       if (dup2(fileno(m_TempFile.get()), FD) < 0)
         perror("StreamCaptureInfo:");
     }
@@ -3306,7 +3320,6 @@ namespace Cpp {
       assert(m_DupFD != -1 && "Multiple calls to GetCapturedString");
 
       fflush(nullptr);
-
       if (dup2(m_DupFD, m_FD) < 0)
         perror("StreamCaptureInfo:");
       // Go to the end of the file.
