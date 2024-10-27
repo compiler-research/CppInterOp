@@ -13,6 +13,8 @@
 
 #include "clang/Basic/Version.h"
 
+#include "clang-c/CXCppInterOp.h"
+
 #include "llvm/ADT/SmallString.h"
 #include "llvm/Support/Path.h"
 
@@ -108,6 +110,19 @@ TEST(InterpreterTest, CreateInterpreter) {
                    "#endif");
   EXPECT_TRUE(Cpp::GetNamed("cpp17"));
   EXPECT_FALSE(Cpp::GetNamed("cppUnknown"));
+
+  // C API
+  const char* args[] = {"-std=c++14"};
+  auto CXI = clang_createInterpreter(args, 1);
+  EXPECT_TRUE(CXI);
+  clang_Interpreter_dispose(CXI);
+
+  CXI = clang_createInterpreterFromRawPtr(I);
+  auto CLI = clang_Interpreter_getClangInterpreter(CXI);
+  EXPECT_TRUE(CLI);
+  auto I2 = clang_Interpreter_takeInterpreterAsPtr(CXI);
+  EXPECT_EQ(I, I2);
+  clang_Interpreter_dispose(CXI);
 }
 
 #ifdef LLVM_BINARY_DIR
