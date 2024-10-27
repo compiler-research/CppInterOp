@@ -349,6 +349,26 @@ TEST(TypeReflectionTest, GetComplexType) {
   EXPECT_EQ(get_complex_type_as_string("int"), "_Complex int");
   EXPECT_EQ(get_complex_type_as_string("float"), "_Complex float");
   EXPECT_EQ(get_complex_type_as_string("double"), "_Complex double");
+
+  // C API
+  auto I = clang_createInterpreterFromRawPtr(Cpp::GetInterpreter());
+  auto C_API_SHIM = [&](const std::string& element_type) {
+    auto ElementQT = Cpp::GetType(element_type);
+    CXQualType EQT = {CXType_Unexposed, {ElementQT, I}};
+    CXQualType ComplexQT = clang_getComplexType(EQT);
+    auto Str = clang_getTypeAsString(ComplexQT);
+    auto Res = std::string(get_c_string(Str));
+    dispose_string(Str);
+    return Res;
+  };
+
+  EXPECT_EQ(C_API_SHIM("int"), "_Complex int");
+  EXPECT_EQ(C_API_SHIM("float"), "_Complex float");
+  EXPECT_EQ(C_API_SHIM("double"), "_Complex double");
+
+  // Clean up resources
+  clang_Interpreter_takeInterpreterAsPtr(I);
+  clang_Interpreter_dispose(I);
 }
 
 TEST(TypeReflectionTest, GetTypeFromScope) {
