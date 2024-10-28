@@ -1,7 +1,7 @@
 BasedOnStyle: LLVM
 
 Language: Cpp
-Standard: Cpp11
+Standard: Cpp14
 PointerAlignment: Left
 
 IncludeCategories:
