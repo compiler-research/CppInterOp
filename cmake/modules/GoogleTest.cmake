@@ -16,7 +16,12 @@ if(WIN32)
     -Dgtest_force_shared_crt=ON
     BUILD_COMMAND ${CMAKE_COMMAND} --build <BINARY_DIR> --config $<CONFIG>)
 elseif(APPLE)
+  #FIXME: Temporarily remove -pedantic from CMAKE_CXX_FLAGS to avoid issues with building
+  #       latest version of gtest on MacOS (use of -Wc++17-attribute-extensions causes 
+  #       issues due to [[maybe_unused]] in gtest)
   set(EXTRA_GTEST_OPTS -DCMAKE_OSX_SYSROOT=${CMAKE_OSX_SYSROOT})
+  set(CMAKE_CXX_FLAGS_TEMP_COPY ${CMAKE_CXX_FLAGS})
+  string(REPLACE "-pedantic" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 endif()
 
 include(ExternalProject)
@@ -24,7 +29,7 @@ ExternalProject_Add(
   googletest
   GIT_REPOSITORY https://github.com/google/googletest.git
   GIT_SHALLOW 1
-  GIT_TAG release-1.12.1
+  GIT_TAG v1.15.2
   UPDATE_COMMAND ""
   # # Force separate output paths for debug and release builds to allow easy
   # # identification of correct lib in subsequent TARGET_LINK_LIBRARIES commands
@@ -49,6 +54,11 @@ ExternalProject_Add(
   LOG_BUILD ON
   TIMEOUT 600
   )
+
+#FIXME: Related to fixme above which temporarily remodifies CMAKE_CXX_FLAGS
+if(APPLE)
+  set(CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS_TEMP_COPY})
+endif()
 
 # Specify include dirs for gtest and gmock
 ExternalProject_Get_Property(googletest source_dir)
