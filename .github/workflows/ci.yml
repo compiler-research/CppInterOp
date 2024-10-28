@@ -313,14 +313,14 @@ jobs:
     - name: Install deps on MacOS
       if: ${{ runner.os == 'macOS' && steps.cache.outputs.cache-hit != 'true' }}
       run: |
-        brew update
+        brew update --force 
         brew remove ruby@3.0
         # workaround for https://github.com/actions/setup-python/issues/577
         for pkg in $(brew list | grep '^python@'); do
           brew unlink "$pkg"
           brew link --overwrite "$pkg"
         done
-        brew upgrade
+        brew upgrade --force 
 
     - name: Build LLVM/Cling on Unix systems if the cache is invalid
       if: ${{ runner.os != 'windows' && steps.cache.outputs.cache-hit != 'true' }}
@@ -767,7 +767,7 @@ jobs:
     - name: Install deps on MacOS
       if: runner.os == 'macOS'
       run: |
-        brew update
+        brew update --force 
         brew remove ruby@3.0
         export ARCHITECHURE=$(uname -m)
         if [[ "$ARCHITECHURE" == "x86_64" ]]; then
@@ -778,7 +778,7 @@ jobs:
           brew unlink "$pkg"
           brew link --overwrite "$pkg"
         done
-        brew upgrade
+        brew upgrade --force 
         brew install eigen
         brew install boost
         pip install distro pytest
