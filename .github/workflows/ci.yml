@@ -995,7 +995,7 @@ jobs:
         # Install cppyy
         git clone --depth=1 https://github.com/compiler-research/cppyy.git
         cd cppyy
-        python -m pip install --upgrade . --no-deps
+        python -m pip install --upgrade . --no-deps --no-build-isolation
         cd ..
     - name: Run cppyy on Unix Systems
       if: ${{ (runner.os != 'windows') && (matrix.cppyy == 'On') }}
