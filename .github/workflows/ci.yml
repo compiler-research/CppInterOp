@@ -934,7 +934,7 @@ jobs:
         # Create lcov report
         # capture coverage info
         vers="${CC#*-}"
-        lcov --directory build/ --capture --output-file coverage.info --gcov-tool /usr/bin/gcov-${vers}
+        lcov --directory build/ --capture --output-file coverage.info --gcov-tool /usr/bin/gcov-${vers} --rc geninfo_unexecuted_blocks=1 --ignore-errors mismatch,mismatch
         lcov --remove coverage.info '/usr/*' "${HOME}"'/.cache/*' ${{ github.workspace }}'/llvm-project/*' ${{ github.workspace }}'/unittests/*' --output-file coverage.info
         # output coverage data for debugging (optional)
         lcov --list coverage.info
