@@ -553,12 +553,12 @@ jobs:
             clang-runtime: '17'
             cling: Off
             cppyy: On
-          - name: osx14-arm-clang-clang-repl-16-cppyy
+          - name: osx14-arm-clang-clang-repl-16
             os: macos-14
             compiler: clang
             clang-runtime: '16'
             cling: Off
-            cppyy: On
+            cppyy: Off
           - name: osx14-arm-clang-clang13-cling-cppyy
             os: macos-14
             compiler: clang
@@ -584,12 +584,12 @@ jobs:
             clang-runtime: '17'
             cling: Off
             cppyy: On
-          - name: osx13-x86-clang-clang-repl-16-cppyy
+          - name: osx13-x86-clang-clang-repl-16
             os: macos-13
             compiler: clang
             clang-runtime: '16'
             cling: Off
-            cppyy: On
+            cppyy: Off
           - name: osx13-x86-clang-clang13-cling-cppyy
             os: macos-13
             compiler: clang
@@ -1018,13 +1018,13 @@ jobs:
         echo ::endgroup::
         echo ::group::Run complete test suite
         set -o pipefail
-        python -m pytest -sv | tee complete_testrun.log 2>&1
+        python -m pytest -sv -ra | tee complete_testrun.log 2>&1
         set +o pipefail
         echo ::group::Crashing Test Logs
         # See if we don't have a crash that went away
         # Comment out all xfails but the ones that have a run=False condition.
         find . -name "*.py" -exec sed -i '/run=False/!s/^ *@mark.xfail\(.*\)/#&/' {} \;
-        python -m pytest -n 1 -m "xfail" --runxfail -sv --max-worker-restart 512 | tee test_crashed.log 2>&1 || true
+        python -m pytest -n 1 -m "xfail" --runxfail -sv -ra --max-worker-restart 512 | tee test_crashed.log 2>&1 || true
         git checkout .
         echo ::endgroup::
         echo ::group::XFAIL Test Logs
@@ -1032,7 +1032,7 @@ jobs:
         # avoid conditionally crashing xfails
         find . -name "*.py" -exec sed -i -E 's/(^ *)@mark.xfail\(run=(.*)/\1@mark.skipif(condition=not \2/g' {} \;
         # See if we don't have an xfail that went away
-        python -m pytest --runxfail -sv  | tee test_xfailed.log 2>&1 || true
+        python -m pytest --runxfail -sv -ra  | tee test_xfailed.log 2>&1 || true
         git checkout .
         echo ::endgroup::
         echo ::group::Passing Test Logs
@@ -1047,7 +1047,7 @@ jobs:
             echo "Running valgrind on passing tests"
             CLANG_VERSION="${{ matrix.clang-runtime }}"
             SUPPRESSION_FILE="../etc/clang${CLANG_VERSION}-valgrind.supp"
-            valgrind --show-error-list=yes --error-exitcode=1 --track-origins=yes --suppressions="${SUPPRESSION_FILE}" --suppressions=../etc/valgrind-cppyy-cling.supp python -m pytest -m "not xfail" -v
+            valgrind --show-error-list=yes --error-exitcode=1 --track-origins=yes --suppressions="${SUPPRESSION_FILE}" --suppressions=../etc/valgrind-cppyy-cling.supp python -m pytest -m "not xfail" -sv -ra
         fi
         export RETCODE=+$?
         echo ::endgroup::
