@@ -191,18 +191,20 @@ TEST(VariableReflectionTest, GetVariableType) {
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetVariableType(Decls[8])), "int[4]");
 }
 
-#define CODE                                                    \
-  int a;                                                        \
-  const int N = 5;                                              \
-  class C {                                                     \
-  public:                                                       \
-    int a;                                                      \
-    double b;                                                   \
-    int *c;                                                     \
-    int d;                                                      \
-    static int s_a;                                             \
-  } c;                                                            \
-  int C::s_a = 7 + N;
+#define CODE                                                                   \
+  int a;                                                                       \
+  const int N = 5;                                                             \
+  static int S = N + 1;                                                        \
+  static const int SN = S + 1;                                                 \
+  class C {                                                                    \
+  public:                                                                      \
+    int a;                                                                     \
+    double b;                                                                  \
+    int* c;                                                                    \
+    int d;                                                                     \
+    static int s_a;                                                            \
+  } c;                                                                         \
+  int C::s_a = 7 + SN;
 
 CODE
 
@@ -215,11 +217,15 @@ TEST(VariableReflectionTest, GetVariableOffset) {
 #undef Stringify
 #undef CODE
 
+  EXPECT_EQ(7, Decls.size());
+
   std::vector<Cpp::TCppScope_t> datamembers;
-  Cpp::GetDatamembers(Decls[2], datamembers);
+  Cpp::GetDatamembers(Decls[4], datamembers);
 
   EXPECT_TRUE((bool) Cpp::GetVariableOffset(Decls[0])); // a
   EXPECT_TRUE((bool) Cpp::GetVariableOffset(Decls[1])); // N
+  EXPECT_TRUE((bool)Cpp::GetVariableOffset(Decls[2]));  // S
+  EXPECT_TRUE((bool)Cpp::GetVariableOffset(Decls[3]));  // SN
 
   EXPECT_EQ(Cpp::GetVariableOffset(datamembers[0]), 0);
 
@@ -230,7 +236,7 @@ TEST(VariableReflectionTest, GetVariableOffset) {
   EXPECT_EQ(Cpp::GetVariableOffset(datamembers[3]),
           ((intptr_t) &(c.d)) - ((intptr_t) &(c.a)));
 
-  auto *VD_C_s_a = Cpp::GetNamed("s_a", Decls[2]); // C::s_a
+  auto* VD_C_s_a = Cpp::GetNamed("s_a", Decls[4]); // C::s_a
   EXPECT_TRUE((bool) Cpp::GetVariableOffset(VD_C_s_a));
 }
 
@@ -354,4 +360,83 @@ TEST(VariableReflectionTest, DISABLED_GetArrayDimensions) {
   // EXPECT_TRUE(is_vec_eq(Cpp::GetArrayDimensions(Decls[0]), {}));
   // EXPECT_TRUE(is_vec_eq(Cpp::GetArrayDimensions(Decls[1]), {1}));
   // EXPECT_TRUE(is_vec_eq(Cpp::GetArrayDimensions(Decls[2]), {1,2}));
+}
+
+TEST(VariableReflectionTest, StaticConstExprDatamember) {
+  if (llvm::sys::RunningOnValgrind())
+    GTEST_SKIP() << "XFAIL due to Valgrind report";
+
+#ifdef _WIN32
+  GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
+#endif
+
+  Cpp::CreateInterpreter();
+
+  Cpp::Declare(R"(
+  class MyClass {
+  public:
+    static constexpr int x = 3;
+  };
+
+  template<int i>
+  class MyTemplatedClass {
+  public:
+    static constexpr int x = i;
+  };
+
+  template<typename _Tp, _Tp __v>
+  struct integral_constant
+  {
+      static constexpr _Tp value = __v;
+  };
+
+  template<typename... Eles>
+  struct Elements
+  : public integral_constant<int, sizeof...(Eles)> {};
+  )");
+
+  Cpp::TCppScope_t MyClass = Cpp::GetNamed("MyClass");
+  EXPECT_TRUE(MyClass);
+
+  std::vector<Cpp::TCppScope_t> datamembers;
+  Cpp::GetStaticDatamembers(MyClass, datamembers);
+  EXPECT_EQ(datamembers.size(), 1);
+
+  intptr_t offset = Cpp::GetVariableOffset(datamembers[0]);
+  EXPECT_EQ(3, *(int*)offset);
+
+  ASTContext& C = Interp->getCI()->getASTContext();
+  std::vector<Cpp::TemplateArgInfo> template_args = {
+      {C.IntTy.getAsOpaquePtr(), "5"}};
+
+  Cpp::TCppFunction_t MyTemplatedClass =
+      Cpp::InstantiateTemplate(Cpp::GetNamed("MyTemplatedClass"),
+                               template_args.data(), template_args.size());
+  EXPECT_TRUE(MyTemplatedClass);
+
+  datamembers.clear();
+  Cpp::GetStaticDatamembers(MyTemplatedClass, datamembers);
+  EXPECT_EQ(datamembers.size(), 1);
+
+  offset = Cpp::GetVariableOffset(datamembers[0]);
+  EXPECT_EQ(5, *(int*)offset);
+
+  std::vector<Cpp::TemplateArgInfo> ele_template_args = {
+      {C.IntTy.getAsOpaquePtr()}, {C.FloatTy.getAsOpaquePtr()}};
+
+  Cpp::TCppFunction_t Elements = Cpp::InstantiateTemplate(
+      Cpp::GetNamed("Elements"), ele_template_args.data(),
+      ele_template_args.size());
+  EXPECT_TRUE(Elements);
+
+  EXPECT_EQ(1, Cpp::GetNumBases(Elements));
+
+  Cpp::TCppScope_t IC = Cpp::GetBaseClass(Elements, 0);
+
+  datamembers.clear();
+  Cpp::GetStaticDatamembers(IC, datamembers);
+  EXPECT_EQ(datamembers.size(), 1);
+
+  offset = Cpp::GetVariableOffset(datamembers[0]);
+  EXPECT_EQ(2, *(int*)offset);
 }
