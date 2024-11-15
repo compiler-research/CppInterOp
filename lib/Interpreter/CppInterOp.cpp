@@ -1249,8 +1249,12 @@ namespace Cpp {
       if (!address)
         address = I.getAddressOfGlobal(GD);
       if (!address) {
-        if (!VD->hasInit())
+        if (!VD->hasInit()) {
+#ifdef USE_CLING
+          cling::Interpreter::PushTransactionRAII RAII(&getInterp());
+#endif // USE_CLING
           getSema().InstantiateVariableDefinition(SourceLocation(), VD);
+        }
         if (VD->hasInit() &&
             (VD->isConstexpr() || VD->getType().isConstQualified())) {
           if (const APValue* val = VD->evaluateValue()) {
