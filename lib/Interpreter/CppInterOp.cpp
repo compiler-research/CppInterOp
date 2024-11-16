@@ -1249,6 +1249,22 @@ namespace Cpp {
       if (!address)
         address = I.getAddressOfGlobal(GD);
       if (!address) {
+        if (!VD->hasInit()) {
+#ifdef USE_CLING
+          cling::Interpreter::PushTransactionRAII RAII(&getInterp());
+#endif // USE_CLING
+          getSema().InstantiateVariableDefinition(SourceLocation(), VD);
+        }
+        if (VD->hasInit() &&
+            (VD->isConstexpr() || VD->getType().isConstQualified())) {
+          if (const APValue* val = VD->evaluateValue()) {
+            if (VD->getType()->isIntegralType(C)) {
+              return (intptr_t)val->getInt().getRawData();
+            }
+          }
+        }
+      }
+      if (!address) {
         auto Linkage = C.GetGVALinkageForVariable(VD);
         // The decl was deferred by CodeGen. Force its emission.
         // FIXME: In ASTContext::DeclMustBeEmitted we should check if the
@@ -1289,7 +1305,7 @@ namespace Cpp {
                                     "Failed to GetVariableOffset:");
         return 0;
       }
-      return (intptr_t) jitTargetAddressToPointer<void*>(VDAorErr.get());
+      return (intptr_t)jitTargetAddressToPointer<void*>(VDAorErr.get());
     }
 
     return 0;
