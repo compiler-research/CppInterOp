@@ -1028,6 +1028,77 @@ namespace Cpp {
       if (instantiated)
         return instantiated;
 
+      if (func->getMinRequiredArguments() == 1 && arg_types.size() == 1) {
+        /*
+          reconstruct TemplateArgs for cases such as
+            template<class T1, class T2>
+            void fn(MyClass<T1, T2> arg);
+          by decomposing the argument's template
+
+          transforms
+            template_args = {MyClass<T1, T2>}
+          to
+            template_args = {T1, T2}
+          then performs the instantiation
+        */
+        QualType fn_arg_type = func->getParamDecl(0)->getType();
+        QualType arg_type = QualType::getFromOpaquePtr(arg_types[0].m_Type);
+
+        // dereference
+        if (fn_arg_type->isReferenceType())
+          fn_arg_type = fn_arg_type.getNonReferenceType();
+        if (arg_type->isReferenceType())
+          arg_type = arg_type.getNonReferenceType();
+
+        // matching parameter and argument types
+        // resolving parameter
+        if (const auto* ET = fn_arg_type->getAs<clang::ElaboratedType>()) {
+          if (const auto* TST =
+                  ET->getNamedType()
+                      ->getAs<clang::TemplateSpecializationType>()) {
+            if (const auto* TD = TST->getTemplateName().getAsTemplateDecl()) {
+              // resolving argument
+              if (const auto* RT = arg_type->getAs<clang::RecordType>()) {
+                if (auto* CTSD =
+                        llvm::dyn_cast<clang::ClassTemplateSpecializationDecl>(
+                            RT->getDecl())) {
+                  if (CTSD->getSpecializedTemplate()->getCanonicalDecl() ==
+                      TD->getCanonicalDecl()) {
+                    // parameter type matches argument type
+                    std::vector<TemplateArgInfo> total_arg_set;
+
+                    const TemplateArgumentList& TAL = CTSD->getTemplateArgs();
+
+                    total_arg_set.insert(total_arg_set.end(),
+                                         explicit_types.begin(),
+                                         explicit_types.end());
+
+                    for (size_t i = 0; i < TAL.size(); i++) {
+                      // FIXME: handle the case where TemplateArgument is
+                      // Integral value
+                      if (TAL[i].getKind() == clang::TemplateArgument::Pack) {
+                        for (auto i : TAL[i].pack_elements()) {
+                          total_arg_set.emplace_back(
+                              i.getAsType().getAsOpaquePtr());
+                        }
+                      } else if (TAL[i].getKind() ==
+                                 clang::TemplateArgument::Type) {
+                        QualType TA = TAL[i].getAsType();
+                        total_arg_set.emplace_back(TA.getAsOpaquePtr());
+                      }
+                    }
+                    instantiated = InstantiateTemplate(
+                        candidate, total_arg_set.data(), total_arg_set.size());
+                    if (instantiated)
+                      return instantiated;
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+
       // join explicit and arg_types
       std::vector<TemplateArgInfo> total_arg_set;
       total_arg_set.reserve(explicit_types.size() + arg_types.size());
