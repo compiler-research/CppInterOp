@@ -96,7 +96,7 @@ on Windows.
 
 ##### Build Clang-REPL
 Clang-REPL is an interpreter that CppInterOp works alongside. Build Clang (and 
-Clang-REPL along with it). On Linux and MaxOS you do this by executing the following
+Clang-REPL along with it). On Linux and MacOS you do this by executing the following
 command
 ```
 mkdir build 
