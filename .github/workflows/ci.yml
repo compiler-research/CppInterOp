@@ -861,9 +861,9 @@ jobs:
           cmake --build . --target doxygen-cppinterop --parallel ${{ env.ncpus }}
         else
           cmake --build . --target check-cppinterop --parallel ${{ env.ncpus }}
-        fi
-        if [[ ("${os}" == "ubuntu"*) ]]; then
-          valgrind --show-error-list=yes --track-origins=yes --error-exitcode=1 unittests/CppInterOp/CppInterOpTests
+          if [[ ("${os}" == "ubuntu"*) ]]; then
+            valgrind --show-error-list=yes --track-origins=yes --error-exitcode=1 unittests/CppInterOp/CppInterOpTests
+          fi
         fi
         cd ..
         # We need CB_PYTHON_DIR later
