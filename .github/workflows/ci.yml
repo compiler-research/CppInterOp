@@ -856,7 +856,8 @@ jobs:
                 ../
         fi
         os="${{ matrix.os }}"
-        if [[ "${matrix.documentation}" == "On" ]]; then
+        docs_on=$(echo "${{ matrix.documentation }}" | tr '[:lower:]' '[:upper:]')
+        if [[ "${docs_on}" == "ON" ]]; then
           cmake --build . --target doxygen-cppinterop --parallel ${{ env.ncpus }}
         else
           cmake --build . --target check-cppinterop --parallel ${{ env.ncpus }}
