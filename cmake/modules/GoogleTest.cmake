@@ -50,7 +50,6 @@ ExternalProject_Add(
   TIMEOUT 600
   )
 
-
 # Specify include dirs for gtest and gmock
 ExternalProject_Get_Property(googletest source_dir)
 set(GTEST_INCLUDE_DIR ${source_dir}/googletest/include)
