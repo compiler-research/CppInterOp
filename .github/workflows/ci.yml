@@ -495,28 +495,24 @@ jobs:
             cling: Off
             cppyy: On
             coverage: true
-            documentation: Off
           - name: ubu22-x86-gcc12-clang-repl-18-cppyy
             os: ubuntu-22.04
             compiler: gcc-12
             clang-runtime: '18'
             cling: Off
             cppyy: On
-            documentation: Off
           - name: ubu22-x86-gcc12-clang-repl-17-cppyy
             os: ubuntu-22.04
             compiler: gcc-12
             clang-runtime: '17'
             cling: Off
             cppyy: On
-            documentation: Off
           - name: ubu22-x86-gcc12-clang-repl-16
             os: ubuntu-22.04
             compiler: gcc-12
             clang-runtime: '16'
             cling: Off
             cppyy: Off
-            documentation: Off
           - name: ubu22-x86-gcc9-clang13-cling-cppyy
             os: ubuntu-22.04
             compiler: gcc-9
@@ -524,7 +520,6 @@ jobs:
             cling: On
             cling-version: '1.0'
             cppyy: On
-            documentation: Off
           #FIXME: Windows CppInterOp tests expected to fail
           #until https://github.com/compiler-research/CppInterOp/issues/188 is solved
           - name: win2022-msvc-clang-repl-19
@@ -533,21 +528,18 @@ jobs:
             clang-runtime: '19'
             cling: Off
             cppyy: Off
-            documentation: Off
           - name: win2022-msvc-clang-repl-18
             os: windows-2022
             compiler: msvc
             clang-runtime: '18'
             cling: Off
             cppyy: Off
-            documentation: Off
           - name: win2022-msvc-clang-repl-17
             os: windows-2022
             compiler: msvc
             clang-runtime: '17'
             cling: Off
             cppyy: Off
-            documentation: Off
           #- name: win2022-msvc-clang-repl-17-cppyy
           #  os: windows-2022
           #  compiler: msvc
@@ -560,28 +552,24 @@ jobs:
             clang-runtime: '19'
             cling: Off
             cppyy: On
-            documentation: Off
           - name: osx14-arm-clang-clang-repl-18-cppyy
             os: macos-14
             compiler: clang
             clang-runtime: '18'
             cling: Off
             cppyy: On
-            documentation: Off
           - name: osx14-arm-clang-clang-repl-17-cppyy
             os: macos-14
             compiler: clang
             clang-runtime: '17'
             cling: Off
             cppyy: On
-            documentation: Off
           - name: osx14-arm-clang-clang-repl-16
             os: macos-14
             compiler: clang
             clang-runtime: '16'
             cling: Off
             cppyy: Off
-            documentation: Off
           - name: osx14-arm-clang-clang13-cling-cppyy
             os: macos-14
             compiler: clang
@@ -589,35 +577,30 @@ jobs:
             cling: On
             cling-version: '1.0'
             cppyy: On
-            documentation: Off
           - name: osx13-x86-clang-clang-repl-19-cppyy
             os: macos-13
             compiler: clang
             clang-runtime: '19'
             cling: Off
             cppyy: On
-            documentation: Off
           - name: osx13-x86-clang-clang-repl-18-cppyy
             os: macos-13
             compiler: clang
             clang-runtime: '18'
             cling: Off
             cppyy: On
-            documentation: Off
           - name: osx13-x86-clang-clang-repl-17-cppyy
             os: macos-13
             compiler: clang
             clang-runtime: '17'
             cling: Off
             cppyy: On
-            documentation: Off
           - name: osx13-x86-clang-clang-repl-16
             os: macos-13
             compiler: clang
             clang-runtime: '16'
             cling: Off
             cppyy: Off
-            documentation: Off
           - name: osx13-x86-clang-clang13-cling-cppyy
             os: macos-13
             compiler: clang
@@ -625,7 +608,6 @@ jobs:
             cling: On
             cling-version: '1.0'
             cppyy: On
-            documentation: Off
 
     steps:
     - uses: actions/checkout@v4
@@ -779,7 +761,7 @@ jobs:
       run: |
         # Install deps
         sudo apt-get update
-        sudo apt-get install git g++ debhelper devscripts gnupg python3
+        sudo apt-get install git g++ debhelper devscripts gnupg python3 doxygen
         sudo apt-get install -y libc6-dbg
         sudo snap install valgrind --classic
         sudo apt autoremove
