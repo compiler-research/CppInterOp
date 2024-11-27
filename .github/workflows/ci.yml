@@ -488,7 +488,7 @@ jobs:
             clang-runtime: '19'
             cling: Off
             cppyy: Off
-            docs: On
+            documentation: On
           - name: ubu22-x86-gcc12-clang-repl-19-cppyy
             os: ubuntu-22.04
             compiler: gcc-12
@@ -496,7 +496,7 @@ jobs:
             cling: Off
             cppyy: On
             coverage: true
-            docs: Off
+            documentation: Off
           - name: ubu22-x86-gcc12-clang-repl-18-cppyy
             os: ubuntu-22.04
             compiler: gcc-12
@@ -504,21 +504,21 @@ jobs:
             cling: Off
             cppyy: On
             coverage: true
-            docs: Off
+            documentation: Off
           - name: ubu22-x86-gcc12-clang-repl-17-cppyy
             os: ubuntu-22.04
             compiler: gcc-12
             clang-runtime: '17'
             cling: Off
             cppyy: On
-            docs: Off
+            documentation: Off
           - name: ubu22-x86-gcc12-clang-repl-16-cppyy
             os: ubuntu-22.04
             compiler: gcc-12
             clang-runtime: '16'
             cling: Off
             cppyy: On
-            docs: Off
+            documentation: Off
           - name: ubu22-x86-gcc9-clang13-cling-cppyy
             os: ubuntu-22.04
             compiler: gcc-9
@@ -526,7 +526,7 @@ jobs:
             cling: On
             cling-version: '1.0'
             cppyy: On
-            docs: Off
+            documentation: Off
           #FIXME: Windows CppInterOp tests expected to fail
           #until https://github.com/compiler-research/CppInterOp/issues/188 is solved
           - name: win2022-msvc-clang-repl-19
@@ -535,21 +535,21 @@ jobs:
             clang-runtime: '19'
             cling: Off
             cppyy: Off
-            docs: Off
+            documentation: Off
           - name: win2022-msvc-clang-repl-18
             os: windows-2022
             compiler: msvc
             clang-runtime: '18'
             cling: Off
             cppyy: Off
-            docs: Off
+            documentation: Off
           - name: win2022-msvc-clang-repl-17
             os: windows-2022
             compiler: msvc
             clang-runtime: '17'
             cling: Off
             cppyy: Off
-            docs: Off
+            documentation: Off
           #- name: win2022-msvc-clang-repl-17-cppyy
           #  os: windows-2022
           #  compiler: msvc
@@ -562,28 +562,28 @@ jobs:
             clang-runtime: '19'
             cling: Off
             cppyy: On
-            docs: Off
+            documentation: Off
           - name: osx14-arm-clang-clang-repl-18-cppyy
             os: macos-14
             compiler: clang
             clang-runtime: '18'
             cling: Off
             cppyy: On
-            docs: Off
+            documentation: Off
           - name: osx14-arm-clang-clang-repl-17-cppyy
             os: macos-14
             compiler: clang
             clang-runtime: '17'
             cling: Off
             cppyy: On
-            docs: Off
+            documentation: Off
           - name: osx14-arm-clang-clang-repl-16-cppyy
             os: macos-14
             compiler: clang
             clang-runtime: '16'
             cling: Off
             cppyy: On
-            docs: Off
+            documentation: Off
           - name: osx14-arm-clang-clang13-cling-cppyy
             os: macos-14
             compiler: clang
@@ -591,35 +591,35 @@ jobs:
             cling: On
             cling-version: '1.0'
             cppyy: On
-            docs: Off
+            documentation: Off
           - name: osx13-x86-clang-clang-repl-19-cppyy
             os: macos-13
             compiler: clang
             clang-runtime: '19'
             cling: Off
             cppyy: On
-            docs: Off
+            documentation: Off
           - name: osx13-x86-clang-clang-repl-18-cppyy
             os: macos-13
             compiler: clang
             clang-runtime: '18'
             cling: Off
             cppyy: On
-            docs: Off
+            documentation: Off
           - name: osx13-x86-clang-clang-repl-17-cppyy
             os: macos-13
             compiler: clang
             clang-runtime: '17'
             cling: Off
             cppyy: On
-            docs: Off
+            documentation: Off
           - name: osx13-x86-clang-clang-repl-16-cppyy
             os: macos-13
             compiler: clang
             clang-runtime: '16'
             cling: Off
             cppyy: On
-            docs: Off
+            documentation: Off
           - name: osx13-x86-clang-clang13-cling-cppyy
             os: macos-13
             compiler: clang
@@ -627,7 +627,7 @@ jobs:
             cling: On
             cling-version: '1.0'
             cppyy: On
-            docs: Off
+            documentation: Off
 
     steps:
     - uses: actions/checkout@v4
@@ -864,7 +864,7 @@ jobs:
                 -DUSE_CLING=OFF                              \
                 -DUSE_REPL=ON                                \
                 -DLLVM_DIR=$LLVM_BUILD_DIR/lib/cmake/llvm    \
-                -DCPPINTEROP_INCLUDE_DOCS=${{ matrix.docs }} \
+                -DCPPINTEROP_INCLUDE_DOCS=${{ matrix.documentation }} \
                 -DClang_DIR=$LLVM_BUILD_DIR/lib/cmake/clang  \
                 -DBUILD_SHARED_LIBS=ON                       \
                 -DCODE_COVERAGE=${{ env.CODE_COVERAGE }}     \
