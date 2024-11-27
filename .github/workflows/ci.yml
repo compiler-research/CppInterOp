@@ -137,8 +137,7 @@ jobs:
             cling: On
             cling-version: '1.0'
             cppyy: On
-
-
+            
     steps:
     - uses: actions/checkout@v4
       with:
@@ -864,7 +863,6 @@ jobs:
                 -DUSE_CLING=OFF                              \
                 -DUSE_REPL=ON                                \
                 -DLLVM_DIR=$LLVM_BUILD_DIR/lib/cmake/llvm    \
-                -DCPPINTEROP_INCLUDE_DOCS=${{ matrix.documentation }} \
                 -DClang_DIR=$LLVM_BUILD_DIR/lib/cmake/clang  \
                 -DBUILD_SHARED_LIBS=ON                       \
                 -DCODE_COVERAGE=${{ env.CODE_COVERAGE }}     \
