@@ -313,14 +313,15 @@ jobs:
     - name: Install deps on MacOS
       if: ${{ runner.os == 'macOS' && steps.cache.outputs.cache-hit != 'true' }}
       run: |
-        brew update --force 
+        brew update
         brew remove ruby@3.0
         # workaround for https://github.com/actions/setup-python/issues/577
         for pkg in $(brew list | grep '^python@'); do
           brew unlink "$pkg"
           brew link --overwrite "$pkg"
         done
-        brew upgrade --force 
+        brew upgrade openssl >/dev/null 2>&1 
+        brew upgrade
 
     - name: Build LLVM/Cling on Unix systems if the cache is invalid
       if: ${{ runner.os != 'windows' && steps.cache.outputs.cache-hit != 'true' }}
