@@ -761,7 +761,7 @@ jobs:
       run: |
         # Install deps
         sudo apt-get update
-        sudo apt-get install git g++ debhelper devscripts gnupg python3 doxygen
+        sudo apt-get install git g++ debhelper devscripts gnupg python3 doxygen graphviz python3-sphinx
         sudo apt-get install -y libc6-dbg
         sudo snap install valgrind --classic
         sudo apt autoremove
