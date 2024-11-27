@@ -856,7 +856,11 @@ jobs:
                 ../
         fi
         os="${{ matrix.os }}"
-        cmake --build . --target check-cppinterop --parallel ${{ env.ncpus }}
+        if [[ "${matrix.documentation}" == "On" ]]; then
+          cmake --build . --target doxygen-cppinterop --parallel ${{ env.ncpus }}
+        else
+          cmake --build . --target check-cppinterop --parallel ${{ env.ncpus }}
+        fi
         if [[ ("${os}" == "ubuntu"*) ]]; then
           valgrind --show-error-list=yes --track-origins=yes --error-exitcode=1 unittests/CppInterOp/CppInterOpTests
         fi
