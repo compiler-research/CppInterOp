@@ -319,6 +319,7 @@ jobs:
           brew unlink "$pkg"
           brew link --overwrite "$pkg"
         done
+        brew upgrade openssl >/dev/null 2>&1 
         brew upgrade
 
     - name: Build LLVM/Cling on Unix systems if the cache is invalid
@@ -765,7 +766,7 @@ jobs:
     - name: Install deps on MacOS
       if: runner.os == 'macOS'
       run: |
-        brew update
+        brew update --force 
         brew remove ruby@3.0
         export ARCHITECHURE=$(uname -m)
         if [[ "$ARCHITECHURE" == "x86_64" ]]; then
@@ -778,7 +779,7 @@ jobs:
           brew unlink "$pkg"
           brew link --overwrite "$pkg"
         done
-        brew upgrade
+        brew upgrade --force 
         brew install eigen
         brew install boost
         pip install distro pytest
