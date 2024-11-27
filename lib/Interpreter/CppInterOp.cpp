@@ -60,19 +60,22 @@ namespace Cpp {
   using namespace llvm;
   using namespace std;
 
-  static std::unique_ptr<compat::Interpreter> sInterpreter;
+  // Flag to indicate ownership when an external interpreter instance is used.
+  static bool OwningSInterpreter = true;
+  static compat::Interpreter* sInterpreter = nullptr;
   // Valgrind complains about __cxa_pure_virtual called when deleting
   // llvm::SectionMemoryManager::~SectionMemoryManager as part of the dtor chain
   // of the Interpreter.
   // This might fix the issue https://reviews.llvm.org/D107087
   // FIXME: For now we just leak the Interpreter.
   struct InterpDeleter {
-    ~InterpDeleter() { sInterpreter.release(); }
+    ~InterpDeleter() = default;
   } Deleter;
 
   static compat::Interpreter& getInterp() {
-    assert(sInterpreter.get() && "Must be set before calling this!");
-    return *sInterpreter.get();
+    assert(sInterpreter &&
+           "Interpreter instance must be set before calling this!");
+    return *sInterpreter;
   }
   static clang::Sema& getSema() { return getInterp().getCI()->getSema(); }
   static clang::ASTContext& getASTContext() { return getSema().getASTContext(); }
@@ -1246,6 +1249,22 @@ namespace Cpp {
       if (!address)
         address = I.getAddressOfGlobal(GD);
       if (!address) {
+        if (!VD->hasInit()) {
+#ifdef USE_CLING
+          cling::Interpreter::PushTransactionRAII RAII(&getInterp());
+#endif // USE_CLING
+          getSema().InstantiateVariableDefinition(SourceLocation(), VD);
+        }
+        if (VD->hasInit() &&
+            (VD->isConstexpr() || VD->getType().isConstQualified())) {
+          if (const APValue* val = VD->evaluateValue()) {
+            if (VD->getType()->isIntegralType(C)) {
+              return (intptr_t)val->getInt().getRawData();
+            }
+          }
+        }
+      }
+      if (!address) {
         auto Linkage = C.GetGVALinkageForVariable(VD);
         // The decl was deferred by CodeGen. Force its emission.
         // FIXME: In ASTContext::DeclMustBeEmitted we should check if the
@@ -1286,7 +1305,7 @@ namespace Cpp {
                                     "Failed to GetVariableOffset:");
         return 0;
       }
-      return (intptr_t) jitTargetAddressToPointer<void*>(VDAorErr.get());
+      return (intptr_t)jitTargetAddressToPointer<void*>(VDAorErr.get());
     }
 
     return 0;
@@ -2691,12 +2710,16 @@ namespace Cpp {
     // FIXME: Enable this assert once we figure out how to fix the multiple
     // calls to CreateInterpreter.
     //assert(!sInterpreter && "Interpreter already set.");
-    sInterpreter.reset(I);
+    sInterpreter = I;
     return I;
   }
 
-  TInterp_t GetInterpreter() {
-    return sInterpreter.get();
+  TInterp_t GetInterpreter() { return sInterpreter; }
+
+  void UseExternalInterpreter(TInterp_t I) {
+    assert(sInterpreter && "sInterpreter already in use!");
+    sInterpreter = static_cast<compat::Interpreter*>(I);
+    OwningSInterpreter = false;
   }
 
   void AddSearchPath(const char *dir, bool isUser,

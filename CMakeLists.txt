@@ -45,13 +45,6 @@ if( CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR )
   option(USE_CLING "Use Cling as backend" OFF)
   option(USE_REPL "Use clang-repl as backend" OFF)
 
-  if (USE_CLING)
-    add_definitions(-DUSE_CLING)
-  endif()
-  if (USE_REPL)
-    add_definitions(-DUSE_REPL)
-  endif()
-
   if (USE_CLING AND USE_REPL)
     message(FATAL_ERROR "We can only use Cling (USE_CLING=On) or Repl (USE_REPL=On), but not both of them.")
   endif()
@@ -226,52 +219,59 @@ if( CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR )
   # Fix bug in some AddLLVM.cmake implementation (-rpath "" problem)
   set(LLVM_LIBRARY_OUTPUT_INTDIR ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}/lib${LLVM_LIBDIR_SUFFIX})
 
-  include(AddLLVM)
-  include(HandleLLVMOptions)
-
-  set(CMAKE_INCLUDE_CURRENT_DIR ON)
-
-  # In rare cases we might want to have clang installed in a different place
-  # than llvm and the header files should be found first (even though the
-  # LLVM_INCLUDE_DIRS) contain clang headers, too.
-  if (USE_CLING)
-    include_directories(SYSTEM ${CLING_INCLUDE_DIRS})
-  endif(USE_CLING)
-  include_directories(SYSTEM ${CLANG_INCLUDE_DIRS})
-  include_directories(SYSTEM ${LLVM_INCLUDE_DIRS})
-  separate_arguments(LLVM_DEFINITIONS_LIST NATIVE_COMMAND ${LLVM_DEFINITIONS})
-  add_definitions(${LLVM_DEFINITIONS_LIST})
-
-  if (USE_CLING)
-    message(STATUS "CLING_INCLUDE_DIRS: ${CLING_INCLUDE_DIRS}")
-  endif(USE_CLING)
-  message(STATUS "CLANG_INCLUDE_DIRS: ${CLANG_INCLUDE_DIRS}")
-  message(STATUS "LLVM_INCLUDE_DIRS: ${LLVM_INCLUDE_DIRS}")
-  message(STATUS "LLVM_DEFINITIONS_LIST: ${LLVM_DEFINITIONS_LIST}")
-
-  # If the llvm sources are present add them with higher priority.
-  if (LLVM_BUILD_MAIN_SRC_DIR)
-    # LLVM_INCLUDE_DIRS contains the include paths to both LLVM's source and
-    # build directories. Since we cannot just include ClangConfig.cmake (see
-    # fixme above) we have to do a little more work to get the right include
-    # paths for clang.
-    #
-    # FIXME: We only support in-tree builds of clang, that is clang being built
-    # in llvm_src/tools/clang.
-    include_directories(SYSTEM ${LLVM_BUILD_MAIN_SRC_DIR}/tools/clang/include/)
-
-    if (NOT LLVM_BUILD_BINARY_DIR)
-      message(FATAL "LLVM_BUILD_* values should be available for the build tree")
-    endif()
-
-    include_directories(SYSTEM ${LLVM_BUILD_BINARY_DIR}/tools/clang/include/)
-  endif()
-
-  set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib/)
-  set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin/)
-
   set( CPPINTEROP_BUILT_STANDALONE 1 )
 endif()
+
+include(AddLLVM)
+include(HandleLLVMOptions)
+
+set(CMAKE_INCLUDE_CURRENT_DIR ON)
+
+# In rare cases we might want to have clang installed in a different place
+# than llvm and the header files should be found first (even though the
+# LLVM_INCLUDE_DIRS) contain clang headers, too.
+if (USE_CLING)
+  add_definitions(-DUSE_CLING)
+  include_directories(SYSTEM ${CLING_INCLUDE_DIRS})
+  else()
+  if (NOT USE_REPL)
+  message(FATAL_ERROR "We need either USE_CLING or USE_REPL")
+  endif()
+  add_definitions(-DUSE_REPL)
+
+endif(USE_CLING)
+include_directories(SYSTEM ${CLANG_INCLUDE_DIRS})
+include_directories(SYSTEM ${LLVM_INCLUDE_DIRS})
+separate_arguments(LLVM_DEFINITIONS_LIST NATIVE_COMMAND ${LLVM_DEFINITIONS})
+add_definitions(${LLVM_DEFINITIONS_LIST})
+
+if (USE_CLING)
+  message(STATUS "CLING_INCLUDE_DIRS: ${CLING_INCLUDE_DIRS}")
+endif(USE_CLING)
+message(STATUS "CLANG_INCLUDE_DIRS: ${CLANG_INCLUDE_DIRS}")
+message(STATUS "LLVM_INCLUDE_DIRS: ${LLVM_INCLUDE_DIRS}")
+message(STATUS "LLVM_DEFINITIONS_LIST: ${LLVM_DEFINITIONS_LIST}")
+
+# If the llvm sources are present add them with higher priority.
+if (LLVM_BUILD_MAIN_SRC_DIR)
+  # LLVM_INCLUDE_DIRS contains the include paths to both LLVM's source and
+  # build directories. Since we cannot just include ClangConfig.cmake (see
+  # fixme above) we have to do a little more work to get the right include
+  # paths for clang.
+  #
+  # FIXME: We only support in-tree builds of clang, that is clang being built
+  # in llvm_src/tools/clang.
+  include_directories(SYSTEM ${LLVM_BUILD_MAIN_SRC_DIR}/tools/clang/include/)
+
+  if (NOT LLVM_BUILD_BINARY_DIR)
+    message(FATAL "LLVM_BUILD_* values should be available for the build tree")
+  endif()
+
+  include_directories(SYSTEM ${LLVM_BUILD_BINARY_DIR}/tools/clang/include/)
+endif()
+
+set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib/)
+set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin/)
 
 ## Code Coverage Configuration
 add_library(coverage_config INTERFACE)
@@ -299,7 +299,11 @@ endif()
 
 # Add appropriate flags for GCC
 if (LLVM_COMPILER_IS_GCC_COMPATIBLE)
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-common -Woverloaded-virtual -Wcast-qual -fno-strict-aliasing -pedantic -Wno-long-long -Wall -W -Wno-unused-parameter -Wwrite-strings")
+  if (APPLE)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-common -Woverloaded-virtual -Wcast-qual -fno-strict-aliasing -Wno-long-long -Wall -W -Wno-unused-parameter -Wwrite-strings")
+  else()
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-common -Woverloaded-virtual -Wcast-qual -fno-strict-aliasing -pedantic -Wno-long-long -Wall -W -Wno-unused-parameter -Wwrite-strings")
+  endif ()
 endif ()
 
 # Fixes "C++ exception handler used, but unwind semantics are not enabled" warning Windows
