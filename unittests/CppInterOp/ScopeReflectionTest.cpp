@@ -716,14 +716,16 @@ TEST(ScopeReflectionTest, GetAllCppNames) {
 
   GetAllTopLevelDecls(code, Decls);
 
-  auto test_get_all_cpp_names = [](Decl *D, const std::vector<std::string> &truth_names) {
-    auto names = Cpp::GetAllCppNames(D);
-    EXPECT_EQ(names.size(), truth_names.size());
+  auto test_get_all_cpp_names =
+      [](Decl* D, const std::vector<std::string>& truth_names) {
+        std::set<std::string> names;
+        Cpp::GetAllCppNames(D, names);
+        EXPECT_EQ(names.size(), truth_names.size());
 
-    for (unsigned i = 0; i < truth_names.size() && i < names.size(); i++) {
-      EXPECT_EQ(names[i], truth_names[i]);
-    }
-  };
+        for (unsigned i = 0; i < truth_names.size() && i < names.size(); i++) {
+          EXPECT_TRUE(names.find(truth_names[i]) != names.end());
+        }
+      };
 
   test_get_all_cpp_names(Decls[0], {"a"});
   test_get_all_cpp_names(Decls[1], {"b"});
