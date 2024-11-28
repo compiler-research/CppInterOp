@@ -34,6 +34,7 @@
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_os_ostream.h"
 
+#include <set>
 #include <sstream>
 #include <string>
 
@@ -3108,7 +3109,7 @@ namespace Cpp {
     return nullptr;
   }
 
-  std::vector<std::string> GetAllCppNames(TCppScope_t scope) {
+  void GetAllCppNames(TCppScope_t scope, std::set<std::string>& names) {
     auto *D = (clang::Decl *)scope;
     clang::DeclContext *DC;
     clang::DeclContext::decl_iterator decl;
@@ -3124,17 +3125,14 @@ namespace Cpp {
       DC = clang::TranslationUnitDecl::castToDeclContext(TUD);
       decl = DC->decls_begin();
     } else {
-      return {};
+      return;
     }
 
-    std::vector<std::string> names;
     for (/* decl set above */; decl != DC->decls_end(); decl++) {
       if (auto *ND = llvm::dyn_cast_or_null<NamedDecl>(*decl)) {
-        names.push_back(ND->getNameAsString());
+        names.insert(ND->getNameAsString());
       }
     }
-
-    return names;
   }
 
   void GetEnums(TCppScope_t scope, std::vector<std::string>& Result) {
