@@ -481,6 +481,13 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - name: ubu22-x86-gcc12-clang-repl-19-docs
+            os: ubuntu-22.04
+            compiler: gcc-12
+            clang-runtime: '19'
+            cling: Off
+            cppyy: Off
+            documentation: On
           - name: ubu22-x86-gcc12-clang-repl-19-cppyy
             os: ubuntu-22.04
             compiler: gcc-12
@@ -754,7 +761,7 @@ jobs:
       run: |
         # Install deps
         sudo apt-get update
-        sudo apt-get install git g++ debhelper devscripts gnupg python3
+        sudo apt-get install git g++ debhelper devscripts gnupg python3 doxygen graphviz python3-sphinx
         sudo apt-get install -y libc6-dbg
         sudo snap install valgrind --classic
         sudo apt autoremove
@@ -826,6 +833,7 @@ jobs:
           cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}        \
                 -DUSE_CLING=ON                                  \
                 -DUSE_REPL=OFF                                  \
+                -DCPPINTEROP_INCLUDE_DOCS=${{ matrix.documentation }} \
                 -DCling_DIR=$LLVM_BUILD_DIR/tools/cling         \
                 -DLLVM_DIR=$LLVM_BUILD_DIR/lib/cmake/llvm       \
                 -DClang_DIR=$LLVM_BUILD_DIR/lib/cmake/clang     \
@@ -835,21 +843,27 @@ jobs:
                 -DLLVM_ENABLE_WERROR=On                         \
                 ../
         else
-          cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    \
-                -DUSE_CLING=OFF                             \
-                -DUSE_REPL=ON                               \
-                -DLLVM_DIR=$LLVM_BUILD_DIR/lib/cmake/llvm   \
-                -DClang_DIR=$LLVM_BUILD_DIR/lib/cmake/clang \
-                -DBUILD_SHARED_LIBS=ON                      \
-                -DCODE_COVERAGE=${{ env.CODE_COVERAGE }}    \
-                -DCMAKE_INSTALL_PREFIX=$CPPINTEROP_DIR      \
-                -DLLVM_ENABLE_WERROR=On                     \
+          cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}     \
+                -DUSE_CLING=OFF                              \
+                -DUSE_REPL=ON                                \
+                -DCPPINTEROP_INCLUDE_DOCS=${{ matrix.documentation }} \
+                -DLLVM_DIR=$LLVM_BUILD_DIR/lib/cmake/llvm    \
+                -DClang_DIR=$LLVM_BUILD_DIR/lib/cmake/clang  \
+                -DBUILD_SHARED_LIBS=ON                       \
+                -DCODE_COVERAGE=${{ env.CODE_COVERAGE }}     \
+                -DCMAKE_INSTALL_PREFIX=$CPPINTEROP_DIR       \
+                -DLLVM_ENABLE_WERROR=On                      \
                 ../
         fi
         os="${{ matrix.os }}"
-        cmake --build . --target check-cppinterop --parallel ${{ env.ncpus }}
-        if [[ ("${os}" == "ubuntu"*) ]]; then
-          valgrind --show-error-list=yes --track-origins=yes --error-exitcode=1 unittests/CppInterOp/CppInterOpTests
+        docs_on=$(echo "${{ matrix.documentation }}" | tr '[:lower:]' '[:upper:]')
+        if [[ "${docs_on}" == "ON" ]]; then
+          cmake --build . --target doxygen-cppinterop --parallel ${{ env.ncpus }}
+        else
+          cmake --build . --target check-cppinterop --parallel ${{ env.ncpus }}
+          if [[ ("${os}" == "ubuntu"*) ]]; then
+            valgrind --show-error-list=yes --track-origins=yes --error-exitcode=1 unittests/CppInterOp/CppInterOpTests
+          fi
         fi
         cd ..
         # We need CB_PYTHON_DIR later
