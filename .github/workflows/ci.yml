@@ -884,7 +884,6 @@ jobs:
         else
           cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}     \
                 -DUSE_CLING=OFF                              \
-                -DUSE_REPL=ON                                \
                 -DCPPINTEROP_INCLUDE_DOCS=${{ matrix.documentation }} \
                 -DLLVM_DIR=$LLVM_BUILD_DIR/lib/cmake/llvm    \
                 -DClang_DIR=$LLVM_BUILD_DIR/lib/cmake/clang  \
@@ -977,7 +976,6 @@ jobs:
         {
           cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    `
                 -DUSE_CLING=OFF                             `
-                -DUSE_REPL=ON                               `
                 -DLLVM_DIR="$env:LLVM_BUILD_DIR\lib\cmake\llvm"  `
                 -DLLVM_ENABLE_WERROR=On                          `
                 -DClang_DIR="$env:LLVM_BUILD_DIR\lib\cmake\clang"  -DCODE_COVERAGE=${{ env.CODE_COVERAGE }}  -DCMAKE_INSTALL_PREFIX="$env:CPPINTEROP_DIR"  ..\
@@ -1272,7 +1270,6 @@ jobs:
         else
           emcmake cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    \
                 -DUSE_CLING=OFF                             \
-                -DUSE_REPL=ON                               \
                 -DCMAKE_PREFIX_PATH=$PREFIX                      \
                 -DLLVM_DIR=$LLVM_BUILD_DIR/lib/cmake/llvm       \
                 -DClang_DIR=$LLVM_BUILD_DIR/lib/cmake/clang     \
