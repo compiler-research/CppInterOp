@@ -411,8 +411,10 @@ jobs:
                 ../llvm
           cmake --build . --target clang --parallel ${{ env.ncpus }}
           cmake --build . --target cling --parallel ${{ env.ncpus }}
-          # Now build gtest.a and gtest_main for CppInterOp to run its tests.
-          cmake --build . --target gtest_main --parallel ${{ env.ncpus }}
+          if [[ "${{ matrix.clang-runtime}}" == "13" ]]; then
+            # Now build gtest.a and gtest_main for CppInterOp to run its tests.
+            cmake --build . --target gtest_main --parallel ${{ env.ncpus }}
+          fi
         else
           # Apply patches
           llvm_vers=$(echo "${{ matrix.clang-runtime }}" | tr '[:lower:]' '[:upper:]')
@@ -494,8 +496,12 @@ jobs:
                 ..\llvm
           cmake --build . --config Release --target clang --parallel ${{ env.ncpus }}
           cmake --build . --config Release --target cling --parallel ${{ env.ncpus }}
-          # Now build gtest.a and gtest_main for CppInterOp to run its tests.
-          cmake --build . --config Release --target gtest_main --parallel ${{ env.ncpus }}
+          if ( "${{ matrix.clang-runtime }}" -imatch "13" )
+          {
+            # cling version 1.0 with llvm 13 doesn't work on Windows, but this is here in
+            # case someone finds a way to fix this
+            cmake --build . --config Release --target gtest_main --parallel ${{ env.ncpus }}
+          }
         }
         else
         {
