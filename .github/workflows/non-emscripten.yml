@@ -53,12 +53,12 @@ jobs:
             cppyy: On
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
-          - name: ubu22-x86-gcc9-clang13-cling
+          - name: ubu22-x86-gcc9-clang16-cling
             os: ubuntu-22.04
-            compiler: gcc-9
-            clang-runtime: '13'
+            compiler: gcc-12
+            clang-runtime: '16'
             cling: On
-            cling-version: '1.0'
+            cling-version: '1.1'
             cppyy: On
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
@@ -118,12 +118,12 @@ jobs:
             cppyy: On
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
-          - name: osx15-arm-clang-clang13-cling
+          - name: osx15-arm-clang-clang16-cling
             os: macos-15
             compiler: clang
-            clang-runtime: '13'
+            clang-runtime: '16'
             cling: On
-            cling-version: '1.0'
+            cling-version: '1.1'
             cppyy: On
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
@@ -159,12 +159,12 @@ jobs:
             cppyy: On
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
-          - name: osx13-x86-clang-clang13-cling
+          - name: osx13-x86-clang-clang16-cling
             os: macos-13
             compiler: clang
-            clang-runtime: '13'
+            clang-runtime: '16'
             cling: On
-            cling-version: '1.0'
+            cling-version: '1.1'
             cppyy: On
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
@@ -595,12 +595,12 @@ jobs:
             clang-runtime: '16'
             cling: Off
             cppyy: Off
-          - name: ubu22-x86-gcc9-clang13-cling-cppyy
+          - name: ubu22-x86-gcc9-clang16-cling-cppyy
             os: ubuntu-22.04
-            compiler: gcc-9
-            clang-runtime: '13'
+            compiler: gcc-12
+            clang-runtime: '16'
             cling: On
-            cling-version: '1.0'
+            cling-version: '1.1'
             cppyy: On
           #FIXME: Windows CppInterOp tests expected to fail
           #until https://github.com/compiler-research/CppInterOp/issues/188 is solved
@@ -652,12 +652,12 @@ jobs:
             clang-runtime: '16'
             cling: Off
             cppyy: Off
-          - name: osx15-arm-clang-clang13-cling-cppyy
+          - name: osx15-arm-clang-clang16-cling-cppyy
             os: macos-15
             compiler: clang
-            clang-runtime: '13'
+            clang-runtime: '16'
             cling: On
-            cling-version: '1.0'
+            cling-version: '1.1'
             cppyy: On
           - name: osx13-x86-clang-clang-repl-19-cppyy
             os: macos-13
@@ -683,12 +683,12 @@ jobs:
             clang-runtime: '16'
             cling: Off
             cppyy: Off
-          - name: osx13-x86-clang-clang13-cling-cppyy
+          - name: osx13-x86-clang-clang16-cling-cppyy
             os: macos-13
             compiler: clang
-            clang-runtime: '13'
+            clang-runtime: '16'
             cling: On
-            cling-version: '1.0'
+            cling-version: '1.1'
             cppyy: On
 
     steps:
