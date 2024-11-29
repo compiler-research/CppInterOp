@@ -9,7 +9,10 @@ using namespace TestUtils;
 
 static bool HasCudaSDK() {
   auto supportsCudaSDK = []() {
-#if CLANG_VERSION_MAJOR < 16
+#ifdef USE_CLING
+// FIXME: Enable this for cling.
+    return false;
+#elif CLANG_VERSION_MAJOR < 16
     // FIXME: Enable this for cling.
     return false;
 #endif // CLANG_VERSION_MAJOR < 16
@@ -23,7 +26,10 @@ static bool HasCudaSDK() {
 
 static bool HasCudaRuntime() {
   auto supportsCuda = []() {
-#if CLANG_VERSION_MAJOR < 16
+#ifdef USE_CLING
+// FIXME: Enable this for cling.
+    return false;
+#elif CLANG_VERSION_MAJOR < 16
     // FIXME: Enable this for cling.
     return false;
 #endif //CLANG_VERSION_MAJOR < 16
@@ -42,6 +48,8 @@ static bool HasCudaRuntime() {
 }
 
 #if CLANG_VERSION_MAJOR < 16
+TEST(DISABLED_CUDATest, Sanity) {
+#elif USE_CLING
 TEST(DISABLED_CUDATest, Sanity) {
 #else
 TEST(CUDATest, Sanity) {
