@@ -43,7 +43,7 @@ if( CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR )
   endif()
 
   option(USE_CLING "Use Cling as backend" OFF)
-  option(USE_REPL "Use clang-repl as backend" OFF)
+  option(USE_REPL "Use clang-repl as backend" ON)
 
   if (USE_CLING AND USE_REPL)
     message(FATAL_ERROR "We can only use Cling (USE_CLING=On) or Repl (USE_REPL=On), but not both of them.")
