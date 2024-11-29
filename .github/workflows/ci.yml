@@ -53,12 +53,21 @@ jobs:
             cppyy: On
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
-          - name: ubu22-x86-gcc9-clang13-cling
+          - name: ubu22-x86-gcc9-clang18-cling
             os: ubuntu-22.04
-            compiler: gcc-9
-            clang-runtime: '13'
+            compiler: gcc-12
+            clang-runtime: '18'
             cling: On
-            cling-version: '1.0'
+            cling-version: 'refs/heads/master'
+            cppyy: On
+            llvm_enable_projects: "clang"
+            llvm_targets_to_build: "host;NVPTX"
+          - name: ubu22-x86-gcc9-clang16-cling
+            os: ubuntu-22.04
+            compiler: gcc-12
+            clang-runtime: '16'
+            cling: On
+            cling-version: 'v1.1'
             cppyy: On
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
@@ -188,7 +197,7 @@ jobs:
 
         cling_on=$(echo "${{ matrix.cling }}" | tr '[:lower:]' '[:upper:]')
         if [[ "$cling_on" == "ON" ]]; then
-          export CLING_HASH=$(git ls-remote https://github.com/root-project/cling.git refs/tags/v${{ matrix.cling-version }} | tr '\t' '-')
+          export CLING_HASH=$(git ls-remote https://github.com/root-project/cling.git ${{ matrix.cling-version }} | tr '\t' '-')
           export LLVM_HASH=$(git ls-remote https://github.com/root-project/llvm-project.git cling-llvm${{ matrix.clang-runtime}} | tr '\t' '-')
         else
           export CLING_HASH="Repl"
@@ -210,7 +219,7 @@ jobs:
 
         if ( "${{ matrix.cling }}" -imatch "On" )
         { 
-          $env:CLING_HASH_TEMP = ( git ls-remote https://github.com/root-project/cling.git refs/tags/v${{ matrix.cling-version }} ) 
+          $env:CLING_HASH_TEMP = ( git ls-remote https://github.com/root-project/cling.git ${{ matrix.cling-version }} ) 
           $env:CLING_HASH = $env:CLING_HASH_TEMP -replace "\t","-"
         }
         else
@@ -365,7 +374,7 @@ jobs:
         if [[ "${cling_on}" == "ON" ]]; then
           git clone https://github.com/root-project/cling.git
           cd ./cling 
-          git checkout tags/v${{ matrix.cling-version }}
+          git checkout ${{ matrix.cling-version }}
           cd ..
           git clone --depth=1 -b cling-llvm${{ matrix.clang-runtime }} https://github.com/root-project/llvm-project.git
         else # repl
@@ -392,8 +401,7 @@ jobs:
                 ../llvm
           cmake --build . --target clang --parallel ${{ env.ncpus }}
           cmake --build . --target cling --parallel ${{ env.ncpus }}
-          # Now build gtest.a and gtest_main for CppInterOp to run its tests.
-          cmake --build . --target gtest_main --parallel ${{ env.ncpus }}
+
         else
           # Apply patches
           llvm_vers=$(echo "${{ matrix.clang-runtime }}" | tr '[:lower:]' '[:upper:]')
@@ -432,7 +440,7 @@ jobs:
         {
           git clone https://github.com/root-project/cling.git
           cd ./cling 
-          git checkout tags/v${{ matrix.cling-version }}
+          git checkout {{ matrix.cling-version }}
           cd ..
           git clone --depth=1 -b cling-llvm${{ matrix.clang-runtime }} https://github.com/root-project/llvm-project.git
           $env:PWD_DIR= $PWD.Path
@@ -552,12 +560,19 @@ jobs:
             clang-runtime: '16'
             cling: Off
             cppyy: Off
-          - name: ubu22-x86-gcc9-clang13-cling-cppyy
+          - name: ubu22-x86-gcc9-clang18-cling
             os: ubuntu-22.04
-            compiler: gcc-9
-            clang-runtime: '13'
+            compiler: gcc-12
+            clang-runtime: '18'
             cling: On
-            cling-version: '1.0'
+            cling-version: 'refs/heads/master'
+            cppyy: On
+          - name: ubu22-x86-gcc9-clang16-cling
+            os: ubuntu-22.04
+            compiler: gcc-12
+            clang-runtime: '16'
+            cling: On
+            cling-version: 'v1.1'
             cppyy: On
           #FIXME: Windows CppInterOp tests expected to fail
           #until https://github.com/compiler-research/CppInterOp/issues/188 is solved
@@ -1179,7 +1194,7 @@ jobs:
 
         cling_on=$(echo "${{ matrix.cling }}" | tr '[:lower:]' '[:upper:]')
         if [[ "$cling_on" == "ON" ]]; then
-          export CLING_HASH=$(git ls-remote https://github.com/root-project/cling.git refs/tags/v${{ matrix.cling-version }} | tr '\t' '-')
+          export CLING_HASH=$(git ls-remote https://github.com/root-project/cling.git ${{ matrix.cling-version }} | tr '\t' '-')
           export LLVM_HASH=$(git ls-remote https://github.com/root-project/llvm-project.git cling-llvm${{ matrix.clang-runtime}} | tr '\t' '-')
         else
           export CLING_HASH="Repl"
