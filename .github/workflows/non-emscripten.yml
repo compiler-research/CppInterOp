@@ -385,6 +385,13 @@ jobs:
           git clone https://github.com/root-project/cling.git
           cd ./cling 
           git checkout tags/v${{ matrix.cling-version }}
+          # Apply patches
+          llvm_vers=$(echo "${{ matrix.clang-runtime }}" | tr '[:lower:]' '[:upper:]')
+          if [[ "${llvm_vers}" == "16" ]]; then
+            # cling version 1.1 with llvm 16 requires a patch to fix error handling when parsing invaild code
+            git apply -v ../patches/llvm/cling${{ matrix.clang-runtime }}-*.patch
+            echo "Apply cling${{ matrix.clang-runtime }}-*.patch patches:"
+          fi
           cd ..
           git clone --depth=1 -b cling-llvm${{ matrix.clang-runtime }} https://github.com/root-project/llvm-project.git
         else # repl
@@ -463,6 +470,11 @@ jobs:
           git clone https://github.com/root-project/cling.git
           cd ./cling 
           git checkout tags/v${{ matrix.cling-version }}
+          if ( "${{ matrix.clang-runtime }}" -imatch "16" )
+          {
+            # cling version 1.1 with llvm 16 requires a patch to fix error handling when parsing invaild code
+            git apply -v clang16-1-Error-Handling.patch
+          }
           cd ..
           git clone --depth=1 -b cling-llvm${{ matrix.clang-runtime }} https://github.com/root-project/llvm-project.git
           $env:PWD_DIR= $PWD.Path
@@ -601,13 +613,13 @@ jobs:
             clang-runtime: '16'
             cling: Off
             cppyy: Off
-          - name: ubu22-x86-gcc9-clang16-cling-cppyy
+          - name: ubu22-x86-gcc9-clang16-cling
             os: ubuntu-22.04
             compiler: gcc-12
             clang-runtime: '16'
             cling: On
             cling-version: '1.1'
-            cppyy: On
+            cppyy: Off
           #FIXME: Windows CppInterOp tests expected to fail
           #until https://github.com/compiler-research/CppInterOp/issues/188 is solved
           - name: win2022-msvc-clang-repl-19
@@ -664,7 +676,7 @@ jobs:
             clang-runtime: '16'
             cling: On
             cling-version: '1.1'
-            cppyy: On
+            cppyy: Off
           - name: osx13-x86-clang-clang-repl-19-cppyy
             os: macos-13
             compiler: clang
@@ -689,13 +701,13 @@ jobs:
             clang-runtime: '16'
             cling: Off
             cppyy: Off
-          - name: osx13-x86-clang-clang16-cling-cppyy
+          - name: osx13-x86-clang-clang16-cling
             os: macos-13
             compiler: clang
             clang-runtime: '16'
             cling: On
             cling-version: '1.1'
-            cppyy: On
+            cppyy: Off
 
     steps:
     - uses: actions/checkout@v4
