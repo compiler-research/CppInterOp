@@ -53,7 +53,7 @@ jobs:
             cppyy: On
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
-          - name: ubu22-x86-gcc9-clang16-cling
+          - name: ubu22-x86-gcc12-clang16-cling
             os: ubuntu-22.04
             compiler: gcc-12
             clang-runtime: '16'
@@ -613,7 +613,7 @@ jobs:
             clang-runtime: '16'
             cling: Off
             cppyy: Off
-          - name: ubu22-x86-gcc9-clang16-cling
+          - name: ubu22-x86-gcc12-clang16-cling
             os: ubuntu-22.04
             compiler: gcc-12
             clang-runtime: '16'
