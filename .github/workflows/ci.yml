@@ -241,7 +241,7 @@ jobs:
     - name: Setup default Build Type on *nux
       if: ${{ runner.os != 'windows' && steps.cache.outputs.cache-hit != 'true' }}
       run: |
-        echo "BUILD_TYPE=Release" >> $GITHUB_ENV
+        echo "BUILD_TYPE=Debug" >> $GITHUB_ENV
         echo "CODE_COVERAGE=0" >> $GITHUB_ENV
         os="${{ matrix.os }}"
         if [[ "${os}" == "macos"* ]]; then
@@ -387,7 +387,7 @@ jobs:
                 -DLLVM_EXTERNAL_PROJECTS=cling                     \
                 -DLLVM_EXTERNAL_CLING_SOURCE_DIR=../../cling       \
                 -DLLVM_TARGETS_TO_BUILD="${{ matrix.llvm_targets_to_build }}" \
-                -DCMAKE_BUILD_TYPE=Release                         \
+                -DCMAKE_BUILD_TYPE=Debug                         \
                 -DLLVM_ENABLE_ASSERTIONS=ON                        \
                 -DCLANG_ENABLE_STATIC_ANALYZER=OFF                 \
                 -DCLANG_ENABLE_ARCMT=OFF                           \
@@ -728,7 +728,7 @@ jobs:
     - name: Setup default Build Type on *nux
       if: runner.os != 'windows'
       run: |
-        echo "BUILD_TYPE=Release" >> $GITHUB_ENV
+        echo "BUILD_TYPE=Debug" >> $GITHUB_ENV
         echo "CODE_COVERAGE=0" >> $GITHUB_ENV
         os="${{ matrix.os }}"
         if [[ "${os}" == "macos"* ]]; then
@@ -1212,7 +1212,7 @@ jobs:
     - name: Setup default Build Type on *nux
       if: runner.os != 'windows'
       run: |
-        echo "BUILD_TYPE=Release" >> $GITHUB_ENV
+        echo "BUILD_TYPE=Debug" >> $GITHUB_ENV
         echo "CODE_COVERAGE=0" >> $GITHUB_ENV
         os="${{ matrix.os }}"
         if [[ "${os}" == "macos"* ]]; then
