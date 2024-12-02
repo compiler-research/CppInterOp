@@ -86,40 +86,40 @@ jobs:
             cppyy: Off
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
-          - name: osx14-arm-clang-clang-repl-19
-            os: macos-14
+          - name: osx15-arm-clang-clang-repl-19
+            os: macos-15
             compiler: clang
             clang-runtime: '19'
             cling: Off
             cppyy: On
             llvm_enable_projects: "clang;lld"
             llvm_targets_to_build: "WebAssembly;host;NVPTX"
-          - name: osx14-arm-clang-clang-repl-18
-            os: macos-14
+          - name: osx15-arm-clang-clang-repl-18
+            os: macos-15
             compiler: clang
             clang-runtime: '18'
             cling: Off
             cppyy: On
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
-          - name: osx14-arm-clang-clang-repl-17
-            os: macos-14
+          - name: osx15-arm-clang-clang-repl-17
+            os: macos-15
             compiler: clang
             clang-runtime: '17'
             cling: Off
             cppyy: On
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
-          - name: osx14-arm-clang-clang-repl-16
-            os: macos-14
+          - name: osx15-arm-clang-clang-repl-16
+            os: macos-15
             compiler: clang
             clang-runtime: '16'
             cling: Off
             cppyy: On
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
-          - name: osx14-arm-clang-clang13-cling
-            os: macos-14
+          - name: osx15-arm-clang-clang13-cling
+            os: macos-15
             compiler: clang
             clang-runtime: '13'
             cling: On
@@ -292,11 +292,13 @@ jobs:
           echo "CXX=g++-${vers}" >> $GITHUB_ENV
         else
           echo "SDKROOT=$(xcrun --sdk macosx --show-sdk-path)" >> $GITHUB_ENV
-          #Use clang-15 and clang++-15 compiler that is installed on runner, instead of one
-          #provided by MacOS (could brew install clang-16/17 to use consistent version
-          #of clang)
-          echo "CC=$(brew --prefix llvm@15)/bin/clang" >> $GITHUB_ENV
-          echo "CXX=$(brew --prefix llvm@15)/bin/clang++" >> $GITHUB_ENV
+          if [[ "$ARCHITECHURE" == "arm64" ]]; then
+            echo "CC=$(brew --prefix llvm@18)/bin/clang" >> $GITHUB_ENV
+            echo "CXX=$(brew --prefix llvm@18)/bin/clang++" >> $GITHUB_ENV
+          else
+            echo "CC=$(brew --prefix llvm@15)/bin/clang" >> $GITHUB_ENV
+            echo "CXX=$(brew --prefix llvm@15)/bin/clang++" >> $GITHUB_ENV
+          fi
         fi
       env:
         compiler: ${{ matrix.compiler }}
@@ -345,10 +347,11 @@ jobs:
       if: ${{ runner.os == 'macOS' && steps.cache.outputs.cache-hit != 'true' }}
       run: |
         brew update
-        brew remove ruby@3.0
         export ARCHITECHURE=$(uname -m)
         if [[ "$ARCHITECHURE" != "x86_64" ]]; then
           brew remove unxip
+        else
+          brew remove ruby@3.0
         fi
         # workaround for https://github.com/actions/setup-python/issues/577
         for pkg in $(brew list | grep '^python@'); do
@@ -585,32 +588,32 @@ jobs:
           #  clang-runtime: '17'
           #  cling: Off
           #  cppyy: On
-          - name: osx14-arm-clang-clang-repl-19-cppyy
-            os: macos-14
+          - name: osx15-arm-clang-clang-repl-19-cppyy
+            os: macos-15
             compiler: clang
             clang-runtime: '19'
             cling: Off
             cppyy: On
-          - name: osx14-arm-clang-clang-repl-18-cppyy
-            os: macos-14
+          - name: osx15-arm-clang-clang-repl-18-cppyy
+            os: macos-15
             compiler: clang
             clang-runtime: '18'
             cling: Off
             cppyy: On
-          - name: osx14-arm-clang-clang-repl-17-cppyy
-            os: macos-14
+          - name: osx15-arm-clang-clang-repl-17-cppyy
+            os: macos-15
             compiler: clang
             clang-runtime: '17'
             cling: Off
             cppyy: On
-          - name: osx14-arm-clang-clang-repl-16
-            os: macos-14
+          - name: osx15-arm-clang-clang-repl-16
+            os: macos-15
             compiler: clang
             clang-runtime: '16'
             cling: Off
             cppyy: Off
-          - name: osx14-arm-clang-clang13-cling-cppyy
-            os: macos-14
+          - name: osx15-arm-clang-clang13-cling-cppyy
+            os: macos-15
             compiler: clang
             clang-runtime: '13'
             cling: On
@@ -761,11 +764,13 @@ jobs:
           echo "CXX=g++-${vers}" >> $GITHUB_ENV
         else
           echo "SDKROOT=$(xcrun --sdk macosx --show-sdk-path)" >> $GITHUB_ENV
-          #Use clang-15 and clang++-15 compiler that is installed on runner, instead of one
-          #provided by MacOS (could brew install clang-16/17 to use consistent version
-          #of clang)
-          echo "CC=$(brew --prefix llvm@15)/bin/clang" >> $GITHUB_ENV
-          echo "CXX=$(brew --prefix llvm@15)/bin/clang++" >> $GITHUB_ENV
+          if [[ "$ARCHITECHURE" == "arm64" ]]; then
+            echo "CC=$(brew --prefix llvm@18)/bin/clang" >> $GITHUB_ENV
+            echo "CXX=$(brew --prefix llvm@18)/bin/clang++" >> $GITHUB_ENV
+          else
+            echo "CC=$(brew --prefix llvm@15)/bin/clang" >> $GITHUB_ENV
+            echo "CXX=$(brew --prefix llvm@15)/bin/clang++" >> $GITHUB_ENV
+          fi
         fi
       env:
         compiler: ${{ matrix.compiler }}
@@ -813,9 +818,9 @@ jobs:
       if: runner.os == 'macOS'
       run: |
         brew update --force 
-        brew remove ruby@3.0
         export ARCHITECHURE=$(uname -m)
         if [[ "$ARCHITECHURE" == "x86_64" ]]; then
+          brew remove ruby@3.0
           brew remove swiftlint
         else
           brew remove unxip
@@ -1147,8 +1152,8 @@ jobs:
             clang-runtime: '19'
             cling: Off
             micromamba_shell_init: bash
-          - name: osx14-arm-clang-clang-repl-19-emscripten_wasm
-            os: macos-14
+          - name: osx15-arm-clang-clang-repl-19-emscripten_wasm
+            os: macos-15
             compiler: clang
             clang-runtime: '19'
             cling: Off
