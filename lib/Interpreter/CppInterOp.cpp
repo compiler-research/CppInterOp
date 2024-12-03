@@ -2718,7 +2718,7 @@ namespace Cpp {
   TInterp_t GetInterpreter() { return sInterpreter; }
 
   void UseExternalInterpreter(TInterp_t I) {
-    assert(sInterpreter && "sInterpreter already in use!");
+    assert(!sInterpreter && "sInterpreter already in use!");
     sInterpreter = static_cast<compat::Interpreter*>(I);
     OwningSInterpreter = false;
   }

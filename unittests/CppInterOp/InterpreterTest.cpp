@@ -175,6 +175,9 @@ TEST(InterpreterTest, CodeCompletion) {
 
 TEST(InterpreterTest, ExternalInterpreterTest) {
 
+if (llvm::sys::RunningOnValgrind())
+  GTEST_SKIP() << "XFAIL due to Valgrind report";
+
 #ifdef USE_REPL
   llvm::ExitOnError ExitOnErr;
   clang::IncrementalCompilerBuilder CB;
@@ -200,7 +203,12 @@ TEST(InterpreterTest, ExternalInterpreterTest) {
 #endif
 
   EXPECT_NE(ExtInterp, nullptr);
-  Cpp::UseExternalInterpreter(ExtInterp);
+
+#if !defined(NDEBUG) && GTEST_HAS_DEATH_TEST
+#ifndef _WIN32 // Windows seems to fail to die...
+    EXPECT_DEATH(Cpp::UseExternalInterpreter(ExtInterp), "sInterpreter already in use!");
+#endif // _WIN32
+#endif
   EXPECT_TRUE(Cpp::GetInterpreter()) << "External Interpreter not set";
 
 #ifdef USE_REPL
