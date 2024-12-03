@@ -1,9 +1,8 @@
-Introduction
-============
+# Introduction
 
 This document contains the release notes for the language interoperability
 library CppInterOp, release 1.5.0. CppInterOp is built on top of
-[Clang](http://clang.llvm.org) and [LLVM](http://llvm.org>) compiler
+[Clang](http://clang.llvm.org) and [LLVM](http://llvm.org%3E) compiler
 infrastructure. Here we describe the status of CppInterOp in some detail,
 including major improvements from the previous release and new feature work.
 Note that if you are reading this file from a git checkout, this document
@@ -17,56 +16,42 @@ interoperability on the fly. In such scenarios CppInterOp can be used to provide
 the necessary introspection information to the other side helping the language
 cross talk.
 
-
-What's New in CppInterOp 1.5.0?
-=============================
+## What's New in CppInterOp 1.5.0?
 
 Some of the major new features and improvements to CppInterOp are listed here.
 Generic improvements to CppInterOp as a whole or to its underlying
 infrastructure are described first.
 
-External Dependencies
----------------------
+## External Dependencies
 
-* CppInterOp now works with:
-  * llvm18
+- CppInterOp now works with:
+  - llvm18
 
+## Introspection
 
-Introspection
--------------
+-
 
-* 
+## Just-in-Time Compilation
 
+-
 
-Just-in-Time Compilation
-------------------------
+## Incremental C++
 
-* 
+-
 
+## Misc
 
-Incremental C++
----------------
+-
 
-* 
-
-
-Misc
-----
-
-* 
-
-
-Fixed Bugs
-----------
+## Fixed Bugs
 
 [XXX](https://github.com/compiler-research/CppInterOp/issues/XXX)
 
- <!---Get release bugs
+<!---Get release bugs
  git log v1.4.0..main | grep 'Fixes|Closes'
  --->
 
-Special Kudos
-=============
+## Special Kudos
 
 This release wouldn't have happened without the efforts of our contributors,
 listed in the form of Firstname Lastname (#contributions):
