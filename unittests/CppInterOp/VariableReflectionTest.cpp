@@ -139,6 +139,39 @@ TEST(VariableReflectionTest, DatamembersWithAnonymousStructOrUnion) {
 #endif
 }
 
+TEST(VariableReflectionTest, GetTypeAsString) {
+  if (llvm::sys::RunningOnValgrind())
+    GTEST_SKIP() << "XFAIL due to Valgrind report";
+
+  std::string code = R"(
+  namespace my_namespace {
+  
+  struct Container {
+    int value;
+  };
+  
+  struct Wrapper {
+    Container item;
+  };
+
+  }
+  )";
+
+  Cpp::CreateInterpreter();
+  EXPECT_EQ(Cpp::Declare(code.c_str()), 0);
+
+  Cpp::TCppScope_t wrapper =
+      Cpp::GetScopeFromCompleteName("my_namespace::Wrapper");
+  EXPECT_TRUE(wrapper);
+
+  std::vector<Cpp::TCppScope_t> datamembers;
+  Cpp::GetDatamembers(wrapper, datamembers);
+  EXPECT_EQ(datamembers.size(), 1);
+
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetVariableType(datamembers[0])),
+            "my_namespace::Container");
+}
+
 TEST(VariableReflectionTest, LookupDatamember) {
   std::vector<Decl*> Decls;
   std::string code = R"(
