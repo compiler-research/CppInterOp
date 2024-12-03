@@ -1152,18 +1152,21 @@ jobs:
             clang-runtime: '19'
             cling: Off
             micromamba_shell_init: bash
+            emsdk_ver: "3.1.45"
           - name: osx15-arm-clang-clang-repl-19-emscripten_wasm
             os: macos-15
             compiler: clang
             clang-runtime: '19'
             cling: Off
             micromamba_shell_init: bash
+            emsdk_ver: "3.1.45"
           - name: osx13-x86-clang-clang-repl-19-emscripten_wasm
             os: macos-13
             compiler: clang
             clang-runtime: '19'
             cling: Off
             micromamba_shell_init: bash
+            emsdk_ver: "3.1.45"
 
     steps:
     - uses: actions/checkout@v4
@@ -1219,7 +1222,9 @@ jobs:
     - name: Setup emsdk
       shell: bash -l {0}
       run: |
-        emsdk install 3.1.45     
+          git clone https://github.com/emscripten-core/emsdk.git
+          cd emsdk
+          ./emsdk install  ${{ matrix.emsdk_ver }}
 
     - name: Restore Cache LLVM/Clang runtime build directory
       uses: actions/cache/restore@v4
@@ -1234,11 +1239,10 @@ jobs:
       if: ${{ runner.os != 'windows' }}
       shell: bash -l {0}
       run: |
-        emsdk activate 3.1.45
-        source $CONDA_EMSDK_DIR/emsdk_env.sh
+        ./emsdk/emsdk activate ${{matrix.emsdk_ver}}
+         source ./emsdk/emsdk_env.sh
         micromamba create -f environment-wasm.yml --platform=emscripten-wasm32
 
-        export EMPACK_PREFIX=$MAMBA_ROOT_PREFIX/envs/CppInterOp-wasm-build
         export PREFIX=$MAMBA_ROOT_PREFIX/envs/CppInterOp-wasm
         export CMAKE_PREFIX_PATH=$PREFIX
         export CMAKE_SYSTEM_PREFIX_PATH=$PREFIX
@@ -1304,14 +1308,13 @@ jobs:
     - name: Build xeus-cpp
       shell: bash -l {0}
       run: |
-        emsdk activate 3.1.45
-        source $CONDA_EMSDK_DIR/emsdk_env.sh
+        ./emsdk/emsdk activate ${{matrix.emsdk_ver}}
+         source ./emsdk/emsdk_env.sh
         micromamba activate CppInterOp-wasm  
         git clone https://github.com/compiler-research/xeus-cpp.git
         cd ./xeus-cpp
         mkdir build
         pushd build
-        export EMPACK_PREFIX=$MAMBA_ROOT_PREFIX/envs/CppInterOp-wasm-build
         export CMAKE_PREFIX_PATH=${{ env.PREFIX }} 
         export CMAKE_SYSTEM_PREFIX_PATH=${{ env.PREFIX }} 
         emcmake cmake \
