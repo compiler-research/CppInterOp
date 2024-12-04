@@ -898,6 +898,7 @@ jobs:
         docs_on=$(echo "${{ matrix.documentation }}" | tr '[:lower:]' '[:upper:]')
         if [[ "${docs_on}" == "ON" ]]; then
           cmake --build . --target doxygen-cppinterop --parallel ${{ env.ncpus }}
+          cmake --build . --target sphinx-cppinterop --parallel ${{ env.ncpus }}
         else
           cmake --build . --target check-cppinterop --parallel ${{ env.ncpus }}
           if [[ ("${os}" == "ubuntu"*) ]]; then
