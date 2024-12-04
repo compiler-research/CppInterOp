@@ -7,14 +7,15 @@ C++ Language Interoperability Layer
 Loading Dynamic shared library
 ==============================
 
-The CppInterop comes with using it is a dynamic shared library, 
-**libclangCppInterOp.so** which resides in the CppInterOp/build/lib/.
+The CppInterop comes with using it is a dynamic shared library, which resides 
+in the build/lib/ after building CppInterOp following the instructions in 
+:doc:`Installation and usage <InstallationAndUsage>` .
 
 .. code-block:: bash
 
     libInterop = ctypes.CDLL("./libclangCppInterOp.so")
     
-The above method of usage is for Python; for C, we can include the headers of 
+The above method of usage is for Python on Linux; for C, we can include the headers of 
 the library. Including this library in our program enables the user to use 
 the abilities of CppInterOp. CppInterOp helps programmers with multiple 
 verifications such as isClass, isBoolean, isStruct, and many more in different 
@@ -33,21 +34,6 @@ and LLVM.
 We can consider clang-repl as a state manager, where CppInterOp allows you to
 query the state from the state manager. Thereafter, cppyy uses this to create
 Python objects for C++.
-
-.. code-block:: bash
-
-   # Apply the patches for development
-   compgen -G "../patches/llvm/clang16-*.patch" > /dev/null
-   && find ../patches/llvm/clang16-*.patch -printf "%f\n"
-   && git apply ../patches/llvm/clang16-*.patch
-
-.. code-block:: bash
-
-    # Use the versions of llvm with above patches applied
-    -DClang_DIR=/usr/lib/llvm-16/build/lib/cmake/clang\
-    -DLLVM_DIR=/usr/lib/llvm-16/build/lib/cmake/llvm
-
-
 This section briefly describes all the key **features** offered by 
 CppInterop. If you are just getting started with CppInterop, then this is the 
 best place to start.
