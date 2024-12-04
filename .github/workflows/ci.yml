@@ -53,12 +53,12 @@ jobs:
             cppyy: On
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
-          - name: ubu22-x86-gcc9-clang13-cling
+          - name: ubu22-x86-gcc12-clang16-cling
             os: ubuntu-22.04
-            compiler: gcc-9
-            clang-runtime: '13'
+            compiler: gcc-12
+            clang-runtime: '16'
             cling: On
-            cling-version: '1.0'
+            cling-version: '1.1'
             cppyy: On
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
@@ -118,12 +118,12 @@ jobs:
             cppyy: On
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
-          - name: osx14-arm-clang-clang13-cling
+          - name: osx14-arm-clang-clang16-cling
             os: macos-14
             compiler: clang
-            clang-runtime: '13'
+            clang-runtime: '16'
             cling: On
-            cling-version: '1.0'
+            cling-version: '1.1'
             cppyy: On
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
@@ -159,12 +159,12 @@ jobs:
             cppyy: On
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
-          - name: osx13-x86-clang-clang13-cling
+          - name: osx13-x86-clang-clang16-cling
             os: macos-13
             compiler: clang
-            clang-runtime: '13'
+            clang-runtime: '16'
             cling: On
-            cling-version: '1.0'
+            cling-version: '1.1'
             cppyy: On
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
@@ -241,7 +241,7 @@ jobs:
     - name: Setup default Build Type on *nux
       if: ${{ runner.os != 'windows' && steps.cache.outputs.cache-hit != 'true' }}
       run: |
-        echo "BUILD_TYPE=Release" >> $GITHUB_ENV
+        echo "BUILD_TYPE=Debug" >> $GITHUB_ENV
         echo "CODE_COVERAGE=0" >> $GITHUB_ENV
         os="${{ matrix.os }}"
         if [[ "${os}" == "macos"* ]]; then
@@ -366,6 +366,13 @@ jobs:
           git clone https://github.com/root-project/cling.git
           cd ./cling 
           git checkout tags/v${{ matrix.cling-version }}
+          # Apply patches
+          llvm_vers=$(echo "${{ matrix.clang-runtime }}" | tr '[:lower:]' '[:upper:]')
+          if [[ "${llvm_vers}" == "16" ]]; then
+            # cling version 1.1 with llvm 16 requires a patch to fix error handling when parsing invaild code
+            git apply -v ../patches/llvm/cling${{ matrix.clang-runtime }}-*.patch
+            echo "Apply cling${{ matrix.clang-runtime }}-*.patch patches:"
+          fi
           cd ..
           git clone --depth=1 -b cling-llvm${{ matrix.clang-runtime }} https://github.com/root-project/llvm-project.git
         else # repl
@@ -380,7 +387,7 @@ jobs:
                 -DLLVM_EXTERNAL_PROJECTS=cling                     \
                 -DLLVM_EXTERNAL_CLING_SOURCE_DIR=../../cling       \
                 -DLLVM_TARGETS_TO_BUILD="${{ matrix.llvm_targets_to_build }}" \
-                -DCMAKE_BUILD_TYPE=Release                         \
+                -DCMAKE_BUILD_TYPE=Debug                         \
                 -DLLVM_ENABLE_ASSERTIONS=ON                        \
                 -DCLANG_ENABLE_STATIC_ANALYZER=OFF                 \
                 -DCLANG_ENABLE_ARCMT=OFF                           \
@@ -392,8 +399,10 @@ jobs:
                 ../llvm
           cmake --build . --target clang --parallel ${{ env.ncpus }}
           cmake --build . --target cling --parallel ${{ env.ncpus }}
-          # Now build gtest.a and gtest_main for CppInterOp to run its tests.
-          cmake --build . --target gtest_main --parallel ${{ env.ncpus }}
+          if [[ "${{ matrix.clang-runtime}}" == "13" ]]; then
+            # Now build gtest.a and gtest_main for CppInterOp to run its tests.
+            cmake --build . --target gtest_main --parallel ${{ env.ncpus }}
+          fi
         else
           # Apply patches
           llvm_vers=$(echo "${{ matrix.clang-runtime }}" | tr '[:lower:]' '[:upper:]')
@@ -433,6 +442,11 @@ jobs:
           git clone https://github.com/root-project/cling.git
           cd ./cling 
           git checkout tags/v${{ matrix.cling-version }}
+          if ( "${{ matrix.clang-runtime }}" -imatch "16" )
+          {
+            # cling version 1.1 with llvm 16 requires a patch to fix error handling when parsing invaild code
+            git apply -v clang16-1-Error-Handling.patch
+          }
           cd ..
           git clone --depth=1 -b cling-llvm${{ matrix.clang-runtime }} https://github.com/root-project/llvm-project.git
           $env:PWD_DIR= $PWD.Path
@@ -466,8 +480,12 @@ jobs:
                 ..\llvm
           cmake --build . --config Release --target clang --parallel ${{ env.ncpus }}
           cmake --build . --config Release --target cling --parallel ${{ env.ncpus }}
-          # Now build gtest.a and gtest_main for CppInterOp to run its tests.
-          cmake --build . --config Release --target gtest_main --parallel ${{ env.ncpus }}
+          if ( "${{ matrix.clang-runtime }}" -imatch "13" )
+          {
+            # cling version 1.0 with llvm 13 doesn't work on Windows, but this is here in
+            # case someone finds a way to fix this
+            cmake --build . --config Release --target gtest_main --parallel ${{ env.ncpus }}
+          }
         }
         else
         {
@@ -552,13 +570,13 @@ jobs:
             clang-runtime: '16'
             cling: Off
             cppyy: Off
-          - name: ubu22-x86-gcc9-clang13-cling-cppyy
+          - name: ubu22-x86-gcc12-clang16-cling
             os: ubuntu-22.04
-            compiler: gcc-9
-            clang-runtime: '13'
+            compiler: gcc-12
+            clang-runtime: '16'
             cling: On
-            cling-version: '1.0'
-            cppyy: On
+            cling-version: '1.1'
+            cppyy: Off
           #FIXME: Windows CppInterOp tests expected to fail
           #until https://github.com/compiler-research/CppInterOp/issues/188 is solved
           - name: win2022-msvc-clang-repl-19
@@ -609,13 +627,13 @@ jobs:
             clang-runtime: '16'
             cling: Off
             cppyy: Off
-          - name: osx14-arm-clang-clang13-cling-cppyy
+          - name: osx14-arm-clang-clang16-cling
             os: macos-14
             compiler: clang
-            clang-runtime: '13'
+            clang-runtime: '16'
             cling: On
-            cling-version: '1.0'
-            cppyy: On
+            cling-version: '1.1'
+            cppyy: Off
           - name: osx13-x86-clang-clang-repl-19-cppyy
             os: macos-13
             compiler: clang
@@ -640,13 +658,13 @@ jobs:
             clang-runtime: '16'
             cling: Off
             cppyy: Off
-          - name: osx13-x86-clang-clang13-cling-cppyy
+          - name: osx13-x86-clang-clang16-cling
             os: macos-13
             compiler: clang
-            clang-runtime: '13'
+            clang-runtime: '16'
             cling: On
-            cling-version: '1.0'
-            cppyy: On
+            cling-version: '1.1'
+            cppyy: Off
 
     steps:
     - uses: actions/checkout@v4
@@ -710,7 +728,7 @@ jobs:
     - name: Setup default Build Type on *nux
       if: runner.os != 'windows'
       run: |
-        echo "BUILD_TYPE=Release" >> $GITHUB_ENV
+        echo "BUILD_TYPE=Debug" >> $GITHUB_ENV
         echo "CODE_COVERAGE=0" >> $GITHUB_ENV
         os="${{ matrix.os }}"
         if [[ "${os}" == "macos"* ]]; then
@@ -1131,7 +1149,7 @@ jobs:
       if: ${{ failure() && runner.debug }}
       uses: mxschmitt/action-tmate@v3
       # When debugging increase to a suitable value!
-      timeout-minutes: 30
+      timeout-minutes: 120
 
   emscripten_wasm_CppInterOp_and_xeus_cpp:
     needs: [build_cache]
@@ -1197,7 +1215,7 @@ jobs:
     - name: Setup default Build Type on *nux
       if: runner.os != 'windows'
       run: |
-        echo "BUILD_TYPE=Release" >> $GITHUB_ENV
+        echo "BUILD_TYPE=Debug" >> $GITHUB_ENV
         echo "CODE_COVERAGE=0" >> $GITHUB_ENV
         os="${{ matrix.os }}"
         if [[ "${os}" == "macos"* ]]; then
