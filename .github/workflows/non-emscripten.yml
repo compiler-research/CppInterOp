@@ -647,7 +647,7 @@ jobs:
             cling: On
             cling-version: '1.1'
             cppyy: Off
-          - name: ubu22-x86-gcc9-clang13-cling
+          - name: ubu22-x86-gcc9-clang13-cling-cppyy
             os: ubuntu-22.04
             compiler: gcc-9
             clang-runtime: '13'
@@ -749,7 +749,7 @@ jobs:
             cling: On
             cling-version: '1.1'
             cppyy: Off
-          - name: osx13-x86-clang-clang13-cling
+          - name: osx13-x86-clang-clang13-cling-cppyy
             os: macos-13
             compiler: clang
             clang-runtime: '13'
