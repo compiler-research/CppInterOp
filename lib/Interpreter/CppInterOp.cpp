@@ -2705,6 +2705,8 @@ namespace Cpp {
 #ifdef _WIN32
     // FIXME : Workaround Sema::PushDeclContext assert on windows
     ClingArgv.push_back("-fno-delayed-template-parsing");
+#elif __APPLE__
+    ClingArgv.push_back("-fforce-dwarf-frame");
 #endif
     ClingArgv.insert(ClingArgv.end(), Args.begin(), Args.end());
     // To keep the Interpreter creation interface between cling and clang-repl
