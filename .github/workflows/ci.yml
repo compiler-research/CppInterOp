@@ -86,40 +86,40 @@ jobs:
             cppyy: Off
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
-          - name: osx14-arm-clang-clang-repl-19
-            os: macos-14
+          - name: osx15-arm-clang-clang-repl-19
+            os: macos-15
             compiler: clang
             clang-runtime: '19'
             cling: Off
             cppyy: On
             llvm_enable_projects: "clang;lld"
             llvm_targets_to_build: "WebAssembly;host;NVPTX"
-          - name: osx14-arm-clang-clang-repl-18
-            os: macos-14
+          - name: osx15-arm-clang-clang-repl-18
+            os: macos-15
             compiler: clang
             clang-runtime: '18'
             cling: Off
             cppyy: On
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
-          - name: osx14-arm-clang-clang-repl-17
-            os: macos-14
+          - name: osx15-arm-clang-clang-repl-17
+            os: macos-15
             compiler: clang
             clang-runtime: '17'
             cling: Off
             cppyy: On
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
-          - name: osx14-arm-clang-clang-repl-16
-            os: macos-14
+          - name: osx15-arm-clang-clang-repl-16
+            os: macos-15
             compiler: clang
             clang-runtime: '16'
             cling: Off
             cppyy: On
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
-          - name: osx14-arm-clang-clang16-cling
-            os: macos-14
+          - name: osx15-arm-clang-clang13-cling
+            os: macos-15
             compiler: clang
             clang-runtime: '16'
             cling: On
@@ -291,13 +291,31 @@ jobs:
           echo "CC=gcc-${vers}" >> $GITHUB_ENV
           echo "CXX=g++-${vers}" >> $GITHUB_ENV
         else
-          echo "SDKROOT=$(xcrun --sdk macosx --show-sdk-path)" >> $GITHUB_ENV
-          #Use clang-15 and clang++-15 compiler that is installed on runner, instead of one
-          #provided by MacOS (could brew install clang-16/17 to use consistent version
-          #of clang)
-          echo "CC=$(brew --prefix llvm@15)/bin/clang" >> $GITHUB_ENV
-          echo "CXX=$(brew --prefix llvm@15)/bin/clang++" >> $GITHUB_ENV
+          export ARCHITECHURE=$(uname -m)
+          if [[ "$ARCHITECHURE" == "arm64" ]]; then
+            cling_on=$(echo "${{ matrix.cling }}" | tr '[:lower:]' '[:upper:]')
+            if [[ "${cling_on}" == "ON" ]]; then  
+                brew install llvm@15
+                brew remove llvm@18
+                brew cleanup
+                #FIXME: Do not believe setting all these environment variables are necessary
+                #       They were set to avoid using Xcodes libc++ and to stop CppInterOp using llvm@18 in tests
+                echo 'LDFLAGS="-L/opt/homebrew/opt/llvm@15/lib/ -L/opt/homebrew/opt/llvm@15/c++/"' >> $GITHUB_ENV
+                echo 'CPPFLAGS="-I/opt/homebrew/opt/llvm@15/include"' >> $GITHUB_ENV
+                echo 'CPATH="/opt/homebrew/include/"' >> $GITHUB_ENV
+                echo 'LIBRARY_PATH="/opt/homebrew/lib/"' >> $GITHUB_ENV
+                echo "CC=$(brew --prefix llvm@15)/bin/clang" >> $GITHUB_ENV
+                echo "CXX=$(brew --prefix llvm@15)/bin/clang++" >> $GITHUB_ENV
+            else
+              echo "CC=$(brew --prefix llvm@18)/bin/clang" >> $GITHUB_ENV
+              echo "CXX=$(brew --prefix llvm@18)/bin/clang++" >> $GITHUB_ENV
+            fi
+          else
+            echo "CC=$(brew --prefix llvm@15)/bin/clang" >> $GITHUB_ENV
+            echo "CXX=$(brew --prefix llvm@15)/bin/clang++" >> $GITHUB_ENV
+          fi
         fi
+        echo "SDKROOT=$(xcrun --sdk macosx --show-sdk-path)" >> $GITHUB_ENV
       env:
         compiler: ${{ matrix.compiler }}
         
@@ -345,10 +363,11 @@ jobs:
       if: ${{ runner.os == 'macOS' && steps.cache.outputs.cache-hit != 'true' }}
       run: |
         brew update
-        brew remove ruby@3.0
         export ARCHITECHURE=$(uname -m)
         if [[ "$ARCHITECHURE" != "x86_64" ]]; then
           brew remove unxip
+        else
+          brew remove ruby@3.0
         fi
         # workaround for https://github.com/actions/setup-python/issues/577
         for pkg in $(brew list | grep '^python@'); do
@@ -603,32 +622,32 @@ jobs:
           #  clang-runtime: '17'
           #  cling: Off
           #  cppyy: On
-          - name: osx14-arm-clang-clang-repl-19-cppyy
-            os: macos-14
+          - name: osx15-arm-clang-clang-repl-19-cppyy
+            os: macos-15
             compiler: clang
             clang-runtime: '19'
             cling: Off
             cppyy: On
-          - name: osx14-arm-clang-clang-repl-18-cppyy
-            os: macos-14
+          - name: osx15-arm-clang-clang-repl-18-cppyy
+            os: macos-15
             compiler: clang
             clang-runtime: '18'
             cling: Off
             cppyy: On
-          - name: osx14-arm-clang-clang-repl-17-cppyy
-            os: macos-14
+          - name: osx15-arm-clang-clang-repl-17-cppyy
+            os: macos-15
             compiler: clang
             clang-runtime: '17'
             cling: Off
             cppyy: On
-          - name: osx14-arm-clang-clang-repl-16
-            os: macos-14
+          - name: osx15-arm-clang-clang-repl-16
+            os: macos-15
             compiler: clang
             clang-runtime: '16'
             cling: Off
             cppyy: Off
-          - name: osx14-arm-clang-clang16-cling
-            os: macos-14
+          - name: osx15-arm-clang-clang13-cling-cppyy
+            os: macos-15
             compiler: clang
             clang-runtime: '16'
             cling: On
@@ -779,11 +798,29 @@ jobs:
           echo "CXX=g++-${vers}" >> $GITHUB_ENV
         else
           echo "SDKROOT=$(xcrun --sdk macosx --show-sdk-path)" >> $GITHUB_ENV
-          #Use clang-15 and clang++-15 compiler that is installed on runner, instead of one
-          #provided by MacOS (could brew install clang-16/17 to use consistent version
-          #of clang)
-          echo "CC=$(brew --prefix llvm@15)/bin/clang" >> $GITHUB_ENV
-          echo "CXX=$(brew --prefix llvm@15)/bin/clang++" >> $GITHUB_ENV
+          export ARCHITECHURE=$(uname -m)
+          if [[ "$ARCHITECHURE" == "arm64" ]]; then
+            cling_on=$(echo "${{ matrix.cling }}" | tr '[:lower:]' '[:upper:]')
+            if [[ "${cling_on}" == "ON" ]]; then  
+                brew install llvm@15
+                brew remove llvm@18
+                brew cleanup
+                #FIXME: Do not believe setting all these environment variables are necessary
+                #       They were set to avoid using Xcodes libc++ and to stop CppInterOp using llvm@18 in tests
+                echo 'LDFLAGS="-L/opt/homebrew/opt/llvm@15/lib/ -L/opt/homebrew/opt/llvm@15/c++/"' >> $GITHUB_ENV
+                echo 'CPPFLAGS="-I/opt/homebrew/opt/llvm@15/include"' >> $GITHUB_ENV
+                echo 'CPATH="/opt/homebrew/include/"' >> $GITHUB_ENV
+                echo 'LIBRARY_PATH="/opt/homebrew/lib/"' >> $GITHUB_ENV
+                echo "CC=$(brew --prefix llvm@15)/bin/clang" >> $GITHUB_ENV
+                echo "CXX=$(brew --prefix llvm@15)/bin/clang++" >> $GITHUB_ENV
+            else
+              echo "CC=$(brew --prefix llvm@18)/bin/clang" >> $GITHUB_ENV
+              echo "CXX=$(brew --prefix llvm@18)/bin/clang++" >> $GITHUB_ENV
+            fi
+          else
+            echo "CC=$(brew --prefix llvm@15)/bin/clang" >> $GITHUB_ENV
+            echo "CXX=$(brew --prefix llvm@15)/bin/clang++" >> $GITHUB_ENV
+          fi
         fi
       env:
         compiler: ${{ matrix.compiler }}
@@ -831,9 +868,9 @@ jobs:
       if: runner.os == 'macOS'
       run: |
         brew update --force 
-        brew remove ruby@3.0
         export ARCHITECHURE=$(uname -m)
         if [[ "$ARCHITECHURE" == "x86_64" ]]; then
+          brew remove ruby@3.0
           brew remove swiftlint
         else
           brew remove unxip
@@ -916,6 +953,7 @@ jobs:
         docs_on=$(echo "${{ matrix.documentation }}" | tr '[:lower:]' '[:upper:]')
         if [[ "${docs_on}" == "ON" ]]; then
           cmake --build . --target doxygen-cppinterop --parallel ${{ env.ncpus }}
+          cmake --build . --target sphinx-cppinterop --parallel ${{ env.ncpus }}
         else
           cmake --build . --target check-cppinterop --parallel ${{ env.ncpus }}
           if [[ ("${os}" == "ubuntu"*) ]]; then
@@ -1165,18 +1203,21 @@ jobs:
             clang-runtime: '19'
             cling: Off
             micromamba_shell_init: bash
-          - name: osx14-arm-clang-clang-repl-19-emscripten_wasm
-            os: macos-14
+            emsdk_ver: "3.1.45"
+          - name: osx15-arm-clang-clang-repl-19-emscripten_wasm
+            os: macos-15
             compiler: clang
             clang-runtime: '19'
             cling: Off
             micromamba_shell_init: bash
+            emsdk_ver: "3.1.45"
           - name: osx13-x86-clang-clang-repl-19-emscripten_wasm
             os: macos-13
             compiler: clang
             clang-runtime: '19'
             cling: Off
             micromamba_shell_init: bash
+            emsdk_ver: "3.1.45"
 
     steps:
     - uses: actions/checkout@v4
@@ -1232,7 +1273,9 @@ jobs:
     - name: Setup emsdk
       shell: bash -l {0}
       run: |
-        emsdk install 3.1.45     
+          git clone https://github.com/emscripten-core/emsdk.git
+          cd emsdk
+          ./emsdk install  ${{ matrix.emsdk_ver }}
 
     - name: Restore Cache LLVM/Clang runtime build directory
       uses: actions/cache/restore@v4
@@ -1247,11 +1290,10 @@ jobs:
       if: ${{ runner.os != 'windows' }}
       shell: bash -l {0}
       run: |
-        emsdk activate 3.1.45
-        source $CONDA_EMSDK_DIR/emsdk_env.sh
+        ./emsdk/emsdk activate ${{matrix.emsdk_ver}}
+         source ./emsdk/emsdk_env.sh
         micromamba create -f environment-wasm.yml --platform=emscripten-wasm32
 
-        export EMPACK_PREFIX=$MAMBA_ROOT_PREFIX/envs/CppInterOp-wasm-build
         export PREFIX=$MAMBA_ROOT_PREFIX/envs/CppInterOp-wasm
         export CMAKE_PREFIX_PATH=$PREFIX
         export CMAKE_SYSTEM_PREFIX_PATH=$PREFIX
@@ -1317,14 +1359,13 @@ jobs:
     - name: Build xeus-cpp
       shell: bash -l {0}
       run: |
-        emsdk activate 3.1.45
-        source $CONDA_EMSDK_DIR/emsdk_env.sh
+        ./emsdk/emsdk activate ${{matrix.emsdk_ver}}
+         source ./emsdk/emsdk_env.sh
         micromamba activate CppInterOp-wasm  
         git clone https://github.com/compiler-research/xeus-cpp.git
         cd ./xeus-cpp
         mkdir build
         pushd build
-        export EMPACK_PREFIX=$MAMBA_ROOT_PREFIX/envs/CppInterOp-wasm-build
         export CMAKE_PREFIX_PATH=${{ env.PREFIX }} 
         export CMAKE_SYSTEM_PREFIX_PATH=${{ env.PREFIX }} 
         emcmake cmake \
