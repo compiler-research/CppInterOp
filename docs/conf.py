@@ -47,15 +47,6 @@ suppress_warnings = ["autosectionlabel.*"]
 
 # files
 templates_path = ["_templates"]
-# rely on the order of these to patch json, labextensions correctly
-html_static_path = [
-    # docs stuff
-    "_static",
-    # as-built assets for testing "hot" downstreams against a PR without rebuilding
-    "../dist",
-    # as-built application, extensions, contents, and patched jupyter-lite.json
-    "../build/docs-app",
-]
 exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
 
 html_css_files = [
@@ -108,7 +99,6 @@ def before_rtd_build(app: Sphinx, error):
 
 def after_build(app: Sphinx, error):
     """sphinx-jsonschema makes duplicate ids. clean them"""
-    os.environ.update(JLITE_DOCS_OUT=app.builder.outdir)  #
     do_tasks("post", RTD_POST_TASKS)
 
 
