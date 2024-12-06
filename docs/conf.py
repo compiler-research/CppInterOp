@@ -1,38 +1,3 @@
-# Configuration file for the Sphinx documentation builder.
-#
-# For the full list of built-in configuration values, see the documentation:
-# https://www.sphinx-doc.org/en/master/usage/configuration.html
-
-# -- Project information -----------------------------------------------------
-# https://www.sphinx-doc.org/en/master/usage/configuration.html#project-information
-
-project = 'CppInterOp'
-copyright = '2023, Vassil Vassilev'
-author = 'Vassil Vassilev'
-release = 'Dev'
-
-# -- General configuration ---------------------------------------------------
-# https://www.sphinx-doc.org/en/master/usage/configuration.html#general-configuration
-
-extensions = []
-
-templates_path = ['_templates']
-exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
-
-
-
-# -- Options for HTML output -------------------------------------------------
-# https://www.sphinx-doc.org/en/master/usage/configuration.html#options-for-html-output
-
-html_theme = 'alabaster'
-
-html_theme_options = {
-    "github_user": "compiler-research",
-    "github_repo": "CppInterOp",
-    "github_banner": True,
-    "fixed_sidebar": True,
-}
-
 highlight_language = "C++"
 
 todo_include_todos = True
@@ -45,13 +10,109 @@ mathjax3_config = {
     "tex": {"packages": {"[+]": ["physics"]}},
 }
 
+"""documentation for CppInterOp"""
+import datetime
+import json
 import os
-CPPINTEROP_ROOT = os.path.abspath('..')
-html_extra_path = [CPPINTEROP_ROOT + '/build/docs/']
-
 import subprocess
-command = 'mkdir {0}/build; cd {0}/build; cmake ../ -DClang_DIR=/usr/lib/llvm-13/build/lib/cmake/clang\
-         -DLLVM_DIR=/usr/lib/llvm-13/build/lib/cmake/llvm -DCPPINTEROP_ENABLE_DOXYGEN=ON\
-         -DCPPINTEROP_INCLUDE_DOCS=ON'.format(CPPINTEROP_ROOT)
-subprocess.call(command, shell=True)
-subprocess.call('doxygen {0}/build/docs/doxygen.cfg'.format(CPPINTEROP_ROOT), shell=True)
+import sys
+from pathlib import Path
+
+from sphinx.application import Sphinx
+
+os.environ.update(IN_SPHINX="1")
+
+CONF_PY = Path(__file__)
+HERE = CONF_PY.parent
+ROOT = HERE.parent
+RTD = json.loads(os.environ.get("READTHEDOCS", "False").lower())
+
+# tasks that won't have been run prior to building the docs on RTD
+RTD_PRE_TASKS = ["build", "docs:typedoc:mystify", "docs:app:pack"]
+
+RTD_POST_TASKS = ["docs:post:schema", "docs:post:images"]
+
+# metadata
+author = 'Vassil Vassilev'
+project = 'CppInterOp'
+copyright = '2023, Vassil Vassilev'
+release = 'Dev'
+
+# sphinx config
+extensions = []
+
+autosectionlabel_prefix_document = True
+myst_heading_anchors = 3
+suppress_warnings = ["autosectionlabel.*"]
+
+# files
+templates_path = ["_templates"]
+# rely on the order of these to patch json, labextensions correctly
+html_static_path = [
+    # docs stuff
+    "_static",
+    # as-built assets for testing "hot" downstreams against a PR without rebuilding
+    "../dist",
+    # as-built application, extensions, contents, and patched jupyter-lite.json
+    "../build/docs-app",
+]
+exclude_patterns = ['_build', 'Thumbs.db', '.DS_Store']
+
+html_css_files = [
+    "doxygen.css",
+]
+
+# theme
+html_theme = 'alabaster'
+html_theme_options = {
+    "github_user": "compiler-research",
+    "github_repo": "CppInterOp",
+    "github_banner": True,
+    "fixed_sidebar": True,
+}
+
+html_context = {
+    "github_user": "compiler-research",
+    "github_repo": "CppInterOp",
+    "github_version": "main",
+    "doc_path": "docs",
+}
+
+
+def do_tasks(label, tasks):
+    """Run some doit tasks before/after the build"""
+    task_rcs = []
+
+    for task in tasks:
+        print(f"[CppInterOp-docs] running {label} {task}", flush=True)
+        rc = subprocess.call(["doit", "-n4", task], cwd=str(ROOT))
+
+        if rc != 0:
+            rc = subprocess.call(["doit", task], cwd=str(ROOT))
+
+        print(f"[CppInterOp-docs] ... ran {label} {task}: returned {rc}", flush=True)
+        task_rcs += [rc]
+
+    if max(task_rcs) > 0:
+        raise Exception("[CppInterOp-docs] ... FAIL, see log above")
+
+    print(f"[CppInterOp-docs] ... {label.upper()} OK", flush=True)
+
+
+def before_rtd_build(app: Sphinx, error):
+    """ensure doit docs:sphinx precursors have been met on RTD"""
+    print("[CppInterOp-docs] Staging files changed by RTD...", flush=True)
+    subprocess.call(["git", "add", "."], cwd=str(ROOT))
+    do_tasks("post", RTD_PRE_TASKS)
+
+
+def after_build(app: Sphinx, error):
+    """sphinx-jsonschema makes duplicate ids. clean them"""
+    os.environ.update(JLITE_DOCS_OUT=app.builder.outdir)  #
+    do_tasks("post", RTD_POST_TASKS)
+
+
+def setup(app):
+    app.connect("build-finished", after_build)
+    if RTD:
+        app.connect("config-inited", before_rtd_build)
