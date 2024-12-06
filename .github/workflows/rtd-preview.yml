@@ -2,6 +2,14 @@ name: RTD Preview
 on:
   pull_request:
     branches: [main]
+
+permissions:
+  checks: write
+  pull-requests: write
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
     
 jobs:
   rtd-preview:
