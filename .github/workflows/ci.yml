@@ -567,7 +567,7 @@ jobs:
             cling: Off
             cppyy: On
           - name: ubu24-x86-gcc13-clang-repl-16
-            os: ubuntu-22.04
+            os: ubuntu-24.04
             compiler: gcc-13
             clang-runtime: '16'
             cling: Off
