@@ -20,5 +20,5 @@ jobs:
               issue_number: context.issue.number,
               owner: context.repo.owner,
               repo: context.repo.repo,
-              body: `https://jupyterlite--${PR_NUMBER}.org.readthedocs.build/en/${PR_NUMBER}/_static/lab/index.html :point_left: Try it on ReadTheDocs`
+              body: `https://CppInterOp--${PR_NUMBER}.org.readthedocs.build/en/${PR_NUMBER}/_static/lab/index.html :point_left: Try it on ReadTheDocs`
             })
