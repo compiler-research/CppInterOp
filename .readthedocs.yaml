@@ -8,6 +8,17 @@ build:
   os: "ubuntu-22.04"
   tools:
     python: "3.11"
+  jobs:
+    pre_build:
+      - doit -n4 setup
+      - doit -n4 build
+      - doit -n4 docs:typedoc:mystify
+      - doit -n4 docs:app:pack
+      - doit -n4 dist
+  sphinx:
+    builder: html
+    configuration: docs/conf.py
+    fail_on_warning: true
   apt_packages:
     - clang-13
     - cmake
