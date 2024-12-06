@@ -12,6 +12,7 @@
 
 #include <cassert>
 #include <cstdint>
+#include <set>
 #include <string>
 #include <vector>
 
@@ -530,6 +531,13 @@ namespace Cpp {
   ///\returns the current interpreter instance, if any.
   CPPINTEROP_API TInterp_t GetInterpreter();
 
+  /// Sets the Interpreter instance with an external interpreter, meant to
+  /// be called by an external library that manages it's own interpreter.
+  /// Sets a flag signifying CppInterOp does not have ownership of the
+  /// sInterpreter.
+  ///\param[in] Args - the pointer to an external interpreter
+  CPPINTEROP_API void UseExternalInterpreter(TInterp_t I);
+
   /// Adds a Search Path for the Interpreter to get the libraries.
   CPPINTEROP_API void AddSearchPath(const char* dir, bool isUser = true,
                                     bool prepend = false);
@@ -661,7 +669,8 @@ namespace Cpp {
                             const std::vector<TemplateArgInfo>& explicit_types,
                             const std::vector<TemplateArgInfo>& arg_types);
 
-  CPPINTEROP_API std::vector<std::string> GetAllCppNames(TCppScope_t scope);
+  CPPINTEROP_API void GetAllCppNames(TCppScope_t scope,
+                                     std::set<std::string>& names);
 
   CPPINTEROP_API void DumpScope(TCppScope_t scope);
 

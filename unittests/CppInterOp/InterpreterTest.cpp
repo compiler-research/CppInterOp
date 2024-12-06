@@ -1,6 +1,16 @@
+
 #include "Utils.h"
 
 #include "clang/Interpreter/CppInterOp.h"
+
+#ifdef USE_CLING
+#include "cling/Interpreter/Interpreter.h"
+#endif // USE_CLING
+
+#ifdef USE_REPL
+#include "clang/Interpreter/Interpreter.h"
+#endif // USE_REPL
+
 #include "clang/Basic/Version.h"
 
 #include "llvm/ADT/SmallString.h"
@@ -160,5 +170,51 @@ TEST(InterpreterTest, CodeCompletion) {
   EXPECT_EQ(2U, cnt); // float and foo
 #else
   GTEST_SKIP();
+#endif
+}
+
+TEST(InterpreterTest, ExternalInterpreterTest) {
+
+if (llvm::sys::RunningOnValgrind())
+  GTEST_SKIP() << "XFAIL due to Valgrind report";
+
+#ifdef USE_REPL
+  llvm::ExitOnError ExitOnErr;
+  clang::IncrementalCompilerBuilder CB;
+  CB.SetCompilerArgs({"-std=c++20"});
+
+  // Create the incremental compiler instance.
+  std::unique_ptr<clang::CompilerInstance> CI;
+  CI = ExitOnErr(CB.CreateCpp());
+
+  // Create the interpreter instance.
+  std::unique_ptr<clang::Interpreter> I =
+      ExitOnErr(clang::Interpreter::create(std::move(CI)));
+  auto ExtInterp = I.get();
+#endif
+
+#ifdef USE_CLING
+    std::string MainExecutableName = sys::fs::getMainExecutable(nullptr, nullptr);
+    std::string ResourceDir = compat::MakeResourceDir(LLVM_BINARY_DIR);
+    std::vector<const char *> ClingArgv = {"-resource-dir", ResourceDir.c_str(),
+                                           "-std=c++14"};
+    ClingArgv.insert(ClingArgv.begin(), MainExecutableName.c_str());
+    auto *ExtInterp = new compat::Interpreter(ClingArgv.size(), &ClingArgv[0]);
+#endif
+
+  EXPECT_NE(ExtInterp, nullptr);
+
+#if !defined(NDEBUG) && GTEST_HAS_DEATH_TEST
+#ifndef _WIN32 // Windows seems to fail to die...
+    EXPECT_DEATH(Cpp::UseExternalInterpreter(ExtInterp), "sInterpreter already in use!");
+#endif // _WIN32
+#endif
+  EXPECT_TRUE(Cpp::GetInterpreter()) << "External Interpreter not set";
+
+#ifdef USE_REPL
+  I.release();
+#endif
+#ifdef USE_CLING
+  delete ExtInterp;
 #endif
 }

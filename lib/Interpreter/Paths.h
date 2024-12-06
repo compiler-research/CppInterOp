@@ -49,8 +49,6 @@ std::string NormalizePath(const std::string& Path);
 ///
 void* DLOpen(const std::string& Path, std::string* Err = nullptr);
 
-void* DLSym(const std::string& Name, std::string* Err = nullptr);
-
 ///\brief Close a handle to a shared library.
 ///
 /// \param [in] Lib - Handle to library from previous call to DLOpen
@@ -60,17 +58,6 @@ void* DLSym(const std::string& Name, std::string* Err = nullptr);
 ///
 void DLClose(void* Lib, std::string* Err = nullptr);
 } // namespace platform
-
-///\brief Replace all $TOKENS in a string with environent variable values.
-///
-/// \param [in,out] Str - String with tokens to replace (in place)
-/// \param [in] Path - Check if the result is a valid filesystem path.
-///
-/// \returns When Path is true, return whether Str was expanded to an
-/// existing file-system object.
-/// Return value has no meaning when Path is false.
-///
-bool ExpandEnvVars(std::string& Str, bool Path = false);
 
 enum SplitMode {
   kPruneNonExistant, ///< Don't add non-existant paths into output
@@ -95,22 +82,6 @@ bool SplitPaths(llvm::StringRef PathStr,
                 SplitMode Mode = kPruneNonExistant,
                 llvm::StringRef Delim = Cpp::utils::platform::kEnvDelim,
                 bool Verbose = false);
-
-///\brief Look for given file that can be reachable from current working
-/// directory or any user supplied include paths in Args. This is useful
-/// to look for a file (precompiled header) before a Preprocessor instance
-/// has been created.
-///
-/// \param [in] Args - The argv vector to look for '-I' & '/I' flags
-/// \param [in,out] File - File to look for, may mutate to an absolute path
-/// \param [in] FM - File manger to resolve current dir with (can be null)
-/// \param [in] FileType - File type for logging or nullptr for no logging
-///
-/// \return true if File is reachable and is a regular file
-///
-bool LookForFile(const std::vector<const char*>& Args, std::string& File,
-                 const clang::FileManager* FM = nullptr,
-                 const char* FileType = nullptr);
 
 ///\brief Adds multiple include paths separated by a delimter into the
 /// given HeaderSearchOptions.  This adds the paths but does no further
@@ -145,19 +116,6 @@ void CopyIncludePaths(const clang::HeaderSearchOptions& Opts,
                       llvm::SmallVectorImpl<std::string>& Paths,
                       bool WithSystem, bool WithFlags);
 
-///\brief Prints the current include paths into the HeaderSearchOptions.
-///
-///\param[in] Opts - HeaderSearchOptions to read from
-///\param[in] Out - Stream to dump to
-///\param[in] WithSystem - dump contain system paths (framework, STL etc).
-///\param[in] WithFlags - if true, each line will be prefixed
-///       with a "-I" or similar, and some entries of incpaths will signal
-///       a new include path region (e.g. "-cxx-isystem"). Also, flags
-///       defining header search behavior will be included in incpaths, e.g.
-///       "-nostdinc".
-///
-void DumpIncludePaths(const clang::HeaderSearchOptions& Opts,
-                      llvm::raw_ostream& Out, bool WithSystem, bool WithFlags);
 } // namespace utils
 } // namespace Cpp
 
