@@ -1,0 +1,15 @@
+name: Documentation Improvement Form
+description: Form for requesting a new feature in CppInterOp.
+title: "[Documentation Improvement]: "
+labels: ["documentation"]
+body:
+  - type: markdown
+    attributes:
+      value: "Thanks for taking the time to fill out this documenation improvement form!"
+  - type: textarea
+    attributes:
+      label: "Description of issue with documention/Way documentation can be improved"
+      description: Tell use what the issue with the documentation is, or how it could be improved.
+      value: "Replace text with description of issue with documentation, or improvement that can be made."
+    validations:
+      required: true
