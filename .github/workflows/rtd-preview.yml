@@ -1,7 +1,7 @@
 name: RTD Preview
 on:
-  pull_request_target:
-    types: [opened]
+  pull_request:
+    branches: [main]
 
 permissions:
   pull-requests: write
