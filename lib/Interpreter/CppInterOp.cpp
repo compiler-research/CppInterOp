@@ -2737,12 +2737,7 @@ namespace Cpp {
 #define DEBUG_TYPE "exec"
 
     std::array<char, 256> buffer;
-    struct pclose_deleter {
-      void operator()(FILE* d) const {
-        pclose(d);
-      }
-    };
-    std::unique_ptr<FILE, pclose_deleter > pipe(popen(cmd, "r"), pclose);
+    std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd, "r"), pclose);
     LLVM_DEBUG(dbgs() << "Executing command '" << cmd << "'\n");
 
     if (!pipe) {
