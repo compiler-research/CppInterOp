@@ -2738,7 +2738,7 @@ namespace Cpp {
 
     std::array<char, 256> buffer;
     struct pclose_deleter {
-      void operator()(struct DIR* d) const {
+      void operator()(FILE* d) const {
         pclose(d);
       }
     };
