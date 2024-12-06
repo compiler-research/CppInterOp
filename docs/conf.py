@@ -30,8 +30,6 @@ RTD = json.loads(os.environ.get("READTHEDOCS", "False").lower())
 # tasks that won't have been run prior to building the docs on RTD
 RTD_PRE_TASKS = ["build", "docs:typedoc:mystify", "docs:app:pack"]
 
-RTD_POST_TASKS = ["docs:post:schema", "docs:post:images"]
-
 # metadata
 author = 'Vassil Vassilev'
 project = 'CppInterOp'
@@ -99,7 +97,7 @@ def before_rtd_build(app: Sphinx, error):
 
 def after_build(app: Sphinx, error):
     """sphinx-jsonschema makes duplicate ids. clean them"""
-    do_tasks("post", RTD_POST_TASKS)
+    os.environ.update(JLITE_DOCS_OUT=app.builder.outdir) 
 
 
 def setup(app):
