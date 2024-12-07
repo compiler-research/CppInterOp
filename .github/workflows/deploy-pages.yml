@@ -181,19 +181,19 @@ jobs:
           ..
         EMCC_CFLAGS='-sERROR_ON_UNDEFINED_SYMBOLS=0' emmake make -j ${{ env.ncpus }}
 
-     - name: Jupyter Lite integration 
-        shell: bash -l {0}
-        run: |
+    - name: Jupyter Lite integration 
+      shell: bash -l {0}
+      run: |
           cd ./xeus-cpp/
           micromamba create -n xeus-lite-host jupyterlite-core
           micromamba activate xeus-lite-host
           python -m pip install jupyterlite-xeus
           jupyter lite build --XeusAddon.prefix=${{ env.PREFIX }} --output-dir dist
 
-      - name: Upload artifact
-        uses: actions/upload-pages-artifact@v3
-        with:
-          path: ./xeus-cpp/dist/
+    - name: Upload artifact
+      uses: actions/upload-pages-artifact@v3
+      with:
+        path: ./xeus-cpp/dist/
 
   deploy:
     needs: build
