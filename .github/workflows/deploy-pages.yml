@@ -1,0 +1,210 @@
+name: Build and Deploy
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+    - main
+    
+permissions:
+  contents: read
+  pages: write
+  id-token: write
+    
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: ubu22-x86-gcc12-clang-repl-19-emscripten_wasm
+            os: ubuntu-22.04
+            compiler: gcc-12
+            clang-runtime: '19'
+            cling: Off
+            micromamba_shell_init: bash
+            emsdk_ver: "3.1.45"
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Set up Python 
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Save PR Info on Unix systems
+      if: ${{ runner.os != 'windows' }}
+      run: |
+        mkdir -p ./pr
+        echo ${{ github.event.number }} > ./pr/NR
+        echo ${{ github.repository }} > ./pr/REPO
+
+        cling_on=$(echo "${{ matrix.cling }}" | tr '[:lower:]' '[:upper:]')
+        if [[ "$cling_on" == "ON" ]]; then
+          export CLING_HASH=$(git ls-remote https://github.com/root-project/cling.git refs/tags/v${{ matrix.cling-version }} | tr '\t' '-')
+          export LLVM_HASH=$(git ls-remote https://github.com/root-project/llvm-project.git cling-llvm${{ matrix.clang-runtime}} | tr '\t' '-')
+        else
+          export CLING_HASH="Repl"
+          # May need to revert back to both having same llvm_hash, as below cause llvm to be rebuilt everytime commit is made to llvm/llvm-project for release a.x
+          # which could be quite often for new releases
+          export LLVM_HASH=$(git ls-remote https://github.com/llvm/llvm-project.git refs/heads/release/${{ matrix.clang-runtime}}.x | tr '\t' '-')
+        fi
+
+        echo "CLING_HASH=$CLING_HASH" >> $GITHUB_ENV
+        echo "LLVM_HASH=$LLVM_HASH" >> $GITHUB_ENV
+
+    - name: Setup default Build Type on *nux
+      if: runner.os != 'windows'
+      run: |
+        echo "BUILD_TYPE=Release" >> $GITHUB_ENV
+        echo "CODE_COVERAGE=0" >> $GITHUB_ENV
+        echo "ncpus=$(nproc --all)" >> $GITHUB_ENV
+
+    - name: install mamba
+      uses: mamba-org/setup-micromamba@main
+      with:
+        environment-file: environment-wasm-build.yml
+        init-shell: >-
+          ${{ matrix.micromamba_shell_init }}
+        environment-name: CppInterOp-wasm-build
+
+    - name: Setup emsdk
+      shell: bash -l {0}
+      run: |
+          git clone https://github.com/emscripten-core/emsdk.git
+          cd emsdk
+          ./emsdk install  ${{ matrix.emsdk_ver }}
+
+    - name: Restore Cache LLVM/Clang runtime build directory
+      uses: actions/cache/restore@v4
+      id: cache
+      with:
+        path: |
+          llvm-project
+          ${{ matrix.cling=='On' && 'cling' || '' }}
+        key: ${{ env.CLING_HASH }}-${{ runner.os }}-${{ matrix.os }}-${{ matrix.compiler }}-clang-${{ matrix.clang-runtime }}.x-patch-${{ hashFiles(format('patches/llvm/clang{0}-*.patch', matrix.clang-runtime)) || 'none' }}
+        
+    - name: Emscripten build of CppInterOp on Unix systems
+      if: ${{ runner.os != 'windows' }}
+      shell: bash -l {0}
+      run: |
+        ./emsdk/emsdk activate ${{matrix.emsdk_ver}}
+         source ./emsdk/emsdk_env.sh
+        micromamba create -f environment-wasm.yml --platform=emscripten-wasm32
+
+        export PREFIX=$MAMBA_ROOT_PREFIX/envs/CppInterOp-wasm
+        export CMAKE_PREFIX_PATH=$PREFIX
+        export CMAKE_SYSTEM_PREFIX_PATH=$PREFIX
+        
+        LLVM_DIR="$(pwd)/llvm-project"
+        LLVM_BUILD_DIR="$(pwd)/llvm-project/build"
+        cling_on=$(echo "${{ matrix.cling }}" | tr '[:lower:]' '[:upper:]')
+        if [[ "${cling_on}" == "ON" ]]; then
+          CLING_DIR="$(pwd)/cling"
+          CLING_BUILD_DIR="$(pwd)/cling/build"
+          CPLUS_INCLUDE_PATH="${CLING_DIR}/tools/cling/include:${CLING_BUILD_DIR}/include:${LLVM_DIR}/llvm/include:${LLVM_DIR}/clang/include:${LLVM_BUILD_DIR}/include:${LLVM_BUILD_DIR}/tools/clang/include:$PWD/include"
+        else
+          CPLUS_INCLUDE_PATH="${LLVM_DIR}/llvm/include:${LLVM_DIR}/clang/include:${LLVM_BUILD_DIR}/include:${LLVM_BUILD_DIR}/tools/clang/include:$PWD/include"
+        fi
+
+        # Build CppInterOp next to cling and llvm-project.
+        mkdir build
+        cd build
+        export CPPINTEROP_BUILD_DIR=$PWD
+
+        if [[ "${cling_on}" == "ON" ]]; then
+          emcmake  cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}        \
+                -DUSE_CLING=ON                                  \
+                -DUSE_REPL=OFF                                  \
+                -DCMAKE_PREFIX_PATH=$PREFIX                     \
+                -DCling_DIR=$LLVM_BUILD_DIR/tools/cling         \
+                -DLLVM_DIR=$LLVM_BUILD_DIR/lib/cmake/llvm       \
+                -DClang_DIR=$LLVM_BUILD_DIR/lib/cmake/clang     \
+                -DBUILD_SHARED_LIBS=OFF                          \
+                -DCODE_COVERAGE=${{ env.CODE_COVERAGE }}        \
+                -DCMAKE_INSTALL_PREFIX=$PREFIX         \
+                -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            \
+                -DZLIB_INCLUDE_DIR=$PREFIX/include \
+                -DZLIB_LIBRARY=$PREFIX/lib/ \
+                ../
+        else
+          emcmake cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    \
+                -DUSE_CLING=OFF                             \
+                -DUSE_REPL=ON                               \
+                -DCMAKE_PREFIX_PATH=$PREFIX                      \
+                -DLLVM_DIR=$LLVM_BUILD_DIR/lib/cmake/llvm       \
+                -DClang_DIR=$LLVM_BUILD_DIR/lib/cmake/clang     \
+                -DBUILD_SHARED_LIBS=OFF                      \
+                -DCODE_COVERAGE=${{ env.CODE_COVERAGE }}    \
+                -DCMAKE_INSTALL_PREFIX=$PREFIX      \
+                -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            \
+                -DZLIB_INCLUDE_DIR=$PREFIX/include \
+                -DZLIB_LIBRARY=$PREFIX/lib/ \
+                ../
+        fi
+        
+        emmake make -j ${{ env.ncpus }}
+
+        cd ..
+        
+        echo "CB_PYTHON_DIR=$CB_PYTHON_DIR" >> $GITHUB_ENV
+        echo "CPPINTEROP_BUILD_DIR=$CPPINTEROP_BUILD_DIR" >> $GITHUB_ENV
+        echo "CPPINTEROP_DIR=$CPPINTEROP_DIR" >> $GITHUB_ENV
+        echo "LLVM_BUILD_DIR=$LLVM_BUILD_DIR" >> $GITHUB_ENV
+        echo "CPLUS_INCLUDE_PATH=$CPLUS_INCLUDE_PATH" >> $GITHUB_ENV
+        echo "PREFIX=$PREFIX" >> $GITHUB_ENV
+
+    - name: Build xeus-cpp
+      shell: bash -l {0}
+      run: |
+        ./emsdk/emsdk activate ${{matrix.emsdk_ver}}
+        source ./emsdk/emsdk_env.sh
+        micromamba activate CppInterOp-wasm  
+        git clone https://github.com/compiler-research/xeus-cpp.git
+        cd ./xeus-cpp
+        mkdir build
+        pushd build
+        export CMAKE_PREFIX_PATH=${{ env.PREFIX }} 
+        export CMAKE_SYSTEM_PREFIX_PATH=${{ env.PREFIX }} 
+        emcmake cmake \
+          -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}          \
+          -DCMAKE_PREFIX_PATH=${{ env.PREFIX }}             \
+          -DCMAKE_INSTALL_PREFIX=${{ env.PREFIX }}          \
+          -DXEUS_CPP_EMSCRIPTEN_WASM_BUILD=ON               \
+          -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            \
+          -DCppInterOp_DIR="${{ env.CPPINTEROP_BUILD_DIR }}/lib/cmake/CppInterOp"  \
+          ..
+        EMCC_CFLAGS='-sERROR_ON_UNDEFINED_SYMBOLS=0' emmake make -j ${{ env.ncpus }}
+
+     - name: Jupyter Lite integration 
+        shell: bash -l {0}
+        run: |
+          cd ./xeus-cpp/
+          micromamba create -n xeus-lite-host jupyterlite-core
+          micromamba activate xeus-lite-host
+          python -m pip install jupyterlite-xeus
+          jupyter lite build --XeusAddon.prefix=${{ env.PREFIX }} --output-dir dist
+
+      - name: Upload artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: ./xeus-cpp/dist/
+
+  deploy:
+    needs: build
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
