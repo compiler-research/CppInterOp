@@ -179,7 +179,7 @@ jobs:
           -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            \
           -DCppInterOp_DIR="${{ env.CPPINTEROP_BUILD_DIR }}/lib/cmake/CppInterOp"  \
           ..
-        EMCC_CFLAGS='-sERROR_ON_UNDEFINED_SYMBOLS=0' emmake make -j ${{ env.ncpus }}
+        EMCC_CFLAGS='-sERROR_ON_UNDEFINED_SYMBOLS=0' emmake make -j ${{ env.ncpus }} install
 
     - name: Jupyter Lite integration 
       shell: bash -l {0}
