@@ -1,0 +1,48 @@
+name: Bug Report
+description: File a bug report.
+title: "[Bug]: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: "Thanks for taking the time to fill out this bug report!"
+  - type: textarea
+    attributes:
+      label: "Description of bug"
+      description: "Tell us what the bug is, and what you result you had expected"
+      value: "Replace with description of bug."
+    validations:
+      required: true
+  - type: dropdown
+    attributes:
+      label: "What operating system was you using when the bug occured?"
+      multiple: true
+      options:
+        - Ubuntu
+        - MacOS
+        - Windows
+        - Other
+    validations:
+      required: false
+  - type: dropdown
+    attributes:
+      label: "What is the architechture of the cpu on your system?"
+      multiple: true
+      options:
+        - X86
+        - ARM
+        - Other
+    validations:
+      required: false
+  - type: dropdown
+    attributes:
+      label: "What did you build CppInterOp against?"
+      multiple: true
+      options:
+        - Clang-repl (LLVM19)
+        - Clang-repl (LLVM18)
+        - Clang-repl (LLVM17)
+        - Clang-repl (LLVM16)
+        - Cling 1.0  
+    validations:
+      required: false
