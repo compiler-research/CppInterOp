@@ -112,7 +112,7 @@ TEST(InterpreterTest, CreateInterpreter) {
   EXPECT_FALSE(Cpp::GetNamed("cppUnknown"));
 
   // C API
-  CXI = clang_createInterpreterFromRawPtr(I);
+  auto CXI = clang_createInterpreterFromRawPtr(I);
   auto CLI = clang_Interpreter_getClangInterpreter(CXI);
   EXPECT_TRUE(CLI);
   auto I2 = clang_Interpreter_takeInterpreterAsPtr(CXI);
