@@ -644,7 +644,7 @@ jobs:
           llvm_vers=$(echo "${{ matrix.clang-runtime }}" | tr '[:lower:]' '[:upper:]')
           if [[ "${llvm_vers}" == "19" ]]; then
             git apply -v ../patches/llvm/emscripten-clang${{ matrix.clang-runtime }}-*.patch
-            echo "Apply clang${{ matrix.clang-runtime }}-*.patch patches:"
+            echo "Apply emscripten-clang${{ matrix.clang-runtime }}-*.patch patches:"
           fi
           cd build
           #FIXME: This line shouldn't be this line, but emcmake wouldn't recognise new line \
