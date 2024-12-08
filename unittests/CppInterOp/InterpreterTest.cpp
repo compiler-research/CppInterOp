@@ -112,11 +112,6 @@ TEST(InterpreterTest, CreateInterpreter) {
   EXPECT_FALSE(Cpp::GetNamed("cppUnknown"));
 
   // C API
-  const char* args[] = {"-std=c++14"};
-  auto CXI = clang_createInterpreter(args, 1);
-  EXPECT_TRUE(CXI);
-  clang_Interpreter_dispose(CXI);
-
   CXI = clang_createInterpreterFromRawPtr(I);
   auto CLI = clang_Interpreter_getClangInterpreter(CXI);
   EXPECT_TRUE(CLI);

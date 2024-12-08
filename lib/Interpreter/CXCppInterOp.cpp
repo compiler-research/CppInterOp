@@ -590,7 +590,7 @@ void clang_deallocate(CXObject address) { ::operator delete(address); }
 
 namespace Cpp {
 void* Construct(compat::Interpreter& interp, TCppScope_t scope,
-               void* arena /*=nullptr*/);
+                void* arena /*=nullptr*/);
 } // namespace Cpp
 
 CXObject clang_construct(CXScope scope, void* arena) {
