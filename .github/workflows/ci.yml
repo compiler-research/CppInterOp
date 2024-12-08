@@ -643,7 +643,7 @@ jobs:
           # Apply patches
           llvm_vers=$(echo "${{ matrix.clang-runtime }}" | tr '[:lower:]' '[:upper:]')
           if [[ "${llvm_vers}" == "19" ]]; then
-            git apply -v ../patches/llvm/clang${{ matrix.clang-runtime }}-*.patch
+            git apply -v ../patches/llvm/emscripten-clang${{ matrix.clang-runtime }}-*.patch
             echo "Apply clang${{ matrix.clang-runtime }}-*.patch patches:"
           fi
           cd build
