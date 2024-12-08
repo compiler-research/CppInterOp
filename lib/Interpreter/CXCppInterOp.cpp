@@ -588,27 +588,14 @@ CXObject clang_allocate(unsigned int n) { return ::operator new(n); }
 
 void clang_deallocate(CXObject address) { ::operator delete(address); }
 
+namespace Cpp {
+void* Construct(compat::Interpreter& interp, TCppScope_t scope,
+               void* arena /*=nullptr*/);
+} // namespace Cpp
+
 CXObject clang_construct(CXScope scope, void* arena) {
-  if (!clang_hasDefaultConstructor(scope))
-    return nullptr;
-
-  const auto Ctor = clang_getDefaultConstructor(scope);
-  if (kind(Ctor) == CXCursor_FirstInvalid)
-    return nullptr;
-
-  auto* I = getInterpreter(scope);
-  if (const Cpp::JitCall JC = Cpp::MakeFunctionCallable(I, getDecl(Ctor))) {
-    if (arena) {
-      JC.Invoke(&arena, {}, (void*)~0); // Tell Invoke to use placement new.
-      return arena;
-    }
-
-    void* obj = nullptr;
-    JC.Invoke(&obj);
-    return obj;
-  }
-
-  return nullptr;
+  return Cpp::Construct(*getInterpreter(scope),
+                        static_cast<void*>(getDecl(scope)), arena);
 }
 
 void clang_invoke(CXScope func, void* result, void** args, size_t n,
