@@ -293,14 +293,6 @@ jobs:
         key: ${{ env.CLING_HASH }}-${{ runner.os }}-${{ matrix.os }}-${{ matrix.compiler }}-clang-${{ matrix.clang-runtime }}.x-patch-${{ hashFiles(format('patches/llvm/clang{0}-*.patch', matrix.clang-runtime)) || 'none' }}-emscripten
         lookup-only: true
 
-    - name: Setup emsdk
-      if: ${{ runner.os != 'windows' && steps.cacheemscripten.outputs.cache-hit != 'true' && matrix.emscripten == 'On' }}
-      shell: bash -l {0}
-      run: |
-          git clone https://github.com/emscripten-core/emsdk.git
-          cd emsdk
-          ./emsdk install  ${{ matrix.emsdk_ver }}
-
     - name: Setup default Build Type on *nux
       if: ${{ runner.os != 'windows' && steps.cachenotemscripten.outputs.cache-hit != 'true' && matrix.emscripten != 'On' }}
       run: |
@@ -609,8 +601,6 @@ jobs:
     - name: Build LLVM/Cling on Unix systems if the cache is invalid (emscripten)
       if: ${{ runner.os != 'windows' && steps.cacheemscripten.outputs.cache-hit != 'true' && matrix.emscripten == 'On' }}
       run: |
-        ./emsdk/emsdk activate ${{matrix.emsdk_ver}}
-        source ./emsdk/emsdk_env.sh
         cling_on=$(echo "${{ matrix.cling }}" | tr '[:lower:]' '[:upper:]')
         if [[ "${cling_on}" == "ON" ]]; then
           git clone https://github.com/root-project/cling.git
@@ -650,6 +640,8 @@ jobs:
           # Now build gtest.a and gtest_main for CppInterOp to run its tests.
           cmake --build . --target gtest_main --parallel ${{ env.ncpus }}
         else
+          # Apply patches
+          llvm_vers=$(echo "${{ matrix.clang-runtime }}" | tr '[:lower:]' '[:upper:]')
           if [[ "${llvm_vers}" == "19" ]]; then
             git apply -v ../patches/llvm/clang${{ matrix.clang-runtime }}-*.patch
             echo "Apply clang${{ matrix.clang-runtime }}-*.patch patches:"
