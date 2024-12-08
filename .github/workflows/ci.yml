@@ -627,14 +627,16 @@ jobs:
         if [[ "${cling_on}" == "ON" ]]; then
           cd build
           #FIXME: This line shouldn't be this line, but emcmake wouldn't recognise new line \
-          emcmake cmake ../llvm -DLLVM_EXTERNAL_PROJECTS=cling -DLLVM_EXTERNAL_CLING_SOURCE_DIR=../../cling -DCMAKE_BUILD_TYPE=Release  -DLLVM_HOST_TRIPLE=wasm32-unknown-emscripten -DLLVM_TARGETS_TO_BUILD="${{ matrix.llvm_targets_to_build }}" -DLLVM_INCLUDE_BENCHMARKS=OFF -DLLVM_INCLUDE_EXAMPLES=OFF -DLLVM_INCLUDE_TESTS=OFF -DLLVM_ENABLE_LIBEDIT=OFF -DLLVM_ENABLE_PROJECTS="${{ matrix.llvm_enable_projects }}" -DCMAKE_VERBOSE_MAKEFILE=ON  -DLLVM_ENABLE_THREADS=OFF -DLLVM_ENABLE_ZSTD=OFF -DLLVM_ENABLE_LIBXML2=OFF -DCLANG_ENABLE_STATIC_ANALYZER=OFF -DCLANG_ENABLE_ARCMT=OFF -DCLANG_ENABLE_BOOTSTRAP=OFF -DCMAKE_CXX_FLAGS="-Dwait4=__syscall_wait4"     
-          emmake make -j ${{ env.ncpus }}
-          
+          cmake ../llvm -DLLVM_EXTERNAL_PROJECTS=cling -DLLVM_EXTERNAL_CLING_SOURCE_DIR=../../cling -DCMAKE_BUILD_TYPE=Release  -DLLVM_HOST_TRIPLE=wasm32-unknown-emscripten -DLLVM_TARGETS_TO_BUILD="${{ matrix.llvm_targets_to_build }}" -DLLVM_INCLUDE_BENCHMARKS=OFF -DLLVM_INCLUDE_EXAMPLES=OFF -DLLVM_INCLUDE_TESTS=OFF -DLLVM_ENABLE_LIBEDIT=OFF -DLLVM_ENABLE_PROJECTS="${{ matrix.llvm_enable_projects }}" -DCMAKE_VERBOSE_MAKEFILE=ON  -DLLVM_ENABLE_THREADS=OFF -DLLVM_ENABLE_ZSTD=OFF -DLLVM_ENABLE_LIBXML2=OFF -DCLANG_ENABLE_STATIC_ANALYZER=OFF -DCLANG_ENABLE_ARCMT=OFF -DCLANG_ENABLE_BOOTSTRAP=OFF -DCMAKE_CXX_FLAGS="-Dwait4=__syscall_wait4"     
+          cmake --build . --target clang --parallel ${{ env.ncpus }}
+          cmake --build . --target cling --parallel ${{ env.ncpus }}
+          # Now build gtest.a and gtest_main for CppInterOp to run its tests.
+          cmake --build . --target gtest_main --parallel ${{ env.ncpus }}
         else
           cd build
           #FIXME: This line shouldn't be this line, but emcmake wouldn't recognise new line \
-          emcmake cmake ../llvm -DCMAKE_BUILD_TYPE=Release -DLLVM_HOST_TRIPLE=wasm32-unknown-emscripten -DLLVM_TARGETS_TO_BUILD="${{ matrix.llvm_targets_to_build }}" -DLLVM_INCLUDE_BENCHMARKS=OFF  -DLLVM_INCLUDE_EXAMPLES=OFF -DLLVM_INCLUDE_TESTS=OFF -DLLVM_ENABLE_LIBEDIT=OFF -DLLVM_ENABLE_PROJECTS="${{ matrix.llvm_enable_projects }}" -DCMAKE_VERBOSE_MAKEFILE=ON -DLLVM_ENABLE_THREADS=OFF -DLLVM_ENABLE_ZSTD=OFF -DLLVM_ENABLE_LIBXML2=OFF -DCLANG_ENABLE_STATIC_ANALYZER=OFF -DCLANG_ENABLE_ARCMT=OFF -DCLANG_ENABLE_BOOTSTRAP=OFF -DCMAKE_CXX_FLAGS="-Dwait4=__syscall_wait4"    
-          emmake make -j ${{ env.ncpus }}
+          cmake ../llvm -DCMAKE_BUILD_TYPE=Release -DLLVM_HOST_TRIPLE=wasm32-unknown-emscripten -DLLVM_TARGETS_TO_BUILD="${{ matrix.llvm_targets_to_build }}" -DLLVM_INCLUDE_BENCHMARKS=OFF  -DLLVM_INCLUDE_EXAMPLES=OFF -DLLVM_INCLUDE_TESTS=OFF -DLLVM_ENABLE_LIBEDIT=OFF -DLLVM_ENABLE_PROJECTS="${{ matrix.llvm_enable_projects }}" -DCMAKE_VERBOSE_MAKEFILE=ON -DLLVM_ENABLE_THREADS=OFF -DLLVM_ENABLE_ZSTD=OFF -DLLVM_ENABLE_LIBXML2=OFF -DCLANG_ENABLE_STATIC_ANALYZER=OFF -DCLANG_ENABLE_ARCMT=OFF -DCLANG_ENABLE_BOOTSTRAP=OFF -DCMAKE_CXX_FLAGS="-Dwait4=__syscall_wait4"    
+          cmake --build . --target clang clang-repl lld --parallel ${{ env.ncpus }}
           fi
         fi
         cd ../
