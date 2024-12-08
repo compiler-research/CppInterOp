@@ -13,3 +13,4 @@ index 6af47b51d4c6..c635e7f5be9e 100644
          ${CROSS_TOOLCHAIN_FLAGS_${target_name}} ${CMAKE_CURRENT_SOURCE_DIR}
          ${CROSS_TOOLCHAIN_FLAGS_${project_name}_${target_name}}
          -DLLVM_TARGET_IS_CROSSCOMPILE_HOST=TRUE
+         
