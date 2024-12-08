@@ -633,8 +633,7 @@ jobs:
           -DLLVM_ENABLE_LIBXML2=OFF \
           -DCLANG_ENABLE_STATIC_ANALYZER=OFF \
           -DCLANG_ENABLE_ARCMT=OFF \
-          -DCLANG_ENABLE_BOOTSTRAP=OFF \
-          -DCMAKE_CXX_FLAGS="-Dwait4=__syscall_wait4"     
+          -DCLANG_ENABLE_BOOTSTRAP=OFF 
           cmake --build . --target clang --parallel ${{ env.ncpus }}
           cmake --build . --target cling --parallel ${{ env.ncpus }}
           # Now build gtest.a and gtest_main for CppInterOp to run its tests.
@@ -662,8 +661,7 @@ jobs:
                 -DLLVM_ENABLE_LIBXML2=OFF \
                 -DCLANG_ENABLE_STATIC_ANALYZER=OFF \
                 -DCLANG_ENABLE_ARCMT=OFF \
-                -DCLANG_ENABLE_BOOTSTRAP=OFF \
-                -DCMAKE_CXX_FLAGS="-Dwait4=__syscall_wait4"    
+                -DCLANG_ENABLE_BOOTSTRAP=OFF 
           cmake --build . --target clang clang-repl lld --parallel ${{ env.ncpus }}
           fi
         fi
