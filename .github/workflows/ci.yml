@@ -637,7 +637,7 @@ jobs:
           cmake --build . --target clang --parallel ${{ env.ncpus }}
           cmake --build . --target cling --parallel ${{ env.ncpus }}
           # Now build gtest.a and gtest_main for CppInterOp to run its tests.
-          cmake --build . --target gtest_main --parallel ${{ env.ncpus }}
+          cmake --build . --target gtest_main --parallel 2
         else
           # Apply patches
           llvm_vers=$(echo "${{ matrix.clang-runtime }}" | tr '[:lower:]' '[:upper:]')
@@ -662,7 +662,7 @@ jobs:
                 -DCLANG_ENABLE_STATIC_ANALYZER=OFF \
                 -DCLANG_ENABLE_ARCMT=OFF \
                 -DCLANG_ENABLE_BOOTSTRAP=OFF 
-          cmake --build . --target clang clang-repl lld --parallel ${{ env.ncpus }}
+          cmake --build . --target clang clang-repl lld --parallel 2
           fi
         fi
         cd ../
