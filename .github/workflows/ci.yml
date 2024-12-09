@@ -290,7 +290,7 @@ jobs:
         path: |
           llvm-project
           ${{ matrix.cling=='On' && 'cling' || '' }}
-        key: ${{ env.CLING_HASH }}-${{ runner.os }}-${{ matrix.os }}-${{ matrix.compiler }}-clang-${{ matrix.clang-runtime }}.x-patch-${{ hashFiles(format('patches/llvm/clang{0}-*.patch', matrix.clang-runtime)) || 'none' }}-emscripten
+        key: ${{ env.CLING_HASH }}-${{ runner.os }}-${{ matrix.os }}-${{ matrix.compiler }}-clang-${{ matrix.clang-runtime }}.x-emscripten
         lookup-only: true
 
     - name: Setup default Build Type on *nux
@@ -628,7 +628,6 @@ jobs:
           -DLLVM_ENABLE_LIBEDIT=OFF \
           -DLLVM_ENABLE_PROJECTS="${{ matrix.llvm_enable_projects }}" \
           -DCMAKE_VERBOSE_MAKEFILE=ON  \
-          -DLLVM_ENABLE_THREADS=OFF \
           -DLLVM_ENABLE_ZSTD=OFF \
           -DLLVM_ENABLE_LIBXML2=OFF \
           -DCLANG_ENABLE_STATIC_ANALYZER=OFF \
@@ -656,7 +655,6 @@ jobs:
                 -DLLVM_ENABLE_LIBEDIT=OFF \
                 -DLLVM_ENABLE_PROJECTS="${{ matrix.llvm_enable_projects }}" \
                 -DCMAKE_VERBOSE_MAKEFILE=ON \
-                -DLLVM_ENABLE_THREADS=OFF \
                 -DLLVM_ENABLE_ZSTD=OFF \
                 -DLLVM_ENABLE_LIBXML2=OFF \
                 -DCLANG_ENABLE_STATIC_ANALYZER=OFF \
@@ -1509,7 +1507,7 @@ jobs:
         path: |
           llvm-project
           ${{ matrix.cling=='On' && 'cling' || '' }}
-        key: ${{ env.CLING_HASH }}-${{ runner.os }}-${{ matrix.os }}-${{ matrix.compiler }}-clang-${{ matrix.clang-runtime }}.x-patch-${{ hashFiles(format('patches/llvm/clang{0}-*.patch', matrix.clang-runtime)) || 'none' }}-emscripten
+        key: ${{ env.CLING_HASH }}-${{ runner.os }}-${{ matrix.os }}-${{ matrix.compiler }}-clang-${{ matrix.clang-runtime }}.x-emscripten
         
     - name: Emscripten build of CppInterOp on Unix systems
       if: ${{ runner.os != 'windows' }}
