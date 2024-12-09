@@ -7,9 +7,7 @@
 #include "cling/Interpreter/Interpreter.h"
 #endif // USE_CLING
 
-#ifdef USE_REPL
 #include "clang/Interpreter/Interpreter.h"
-#endif // USE_REPL
 
 #include "clang/Basic/Version.h"
 
@@ -178,7 +176,6 @@ TEST(InterpreterTest, ExternalInterpreterTest) {
 if (llvm::sys::RunningOnValgrind())
   GTEST_SKIP() << "XFAIL due to Valgrind report";
 
-#ifdef USE_REPL
   llvm::ExitOnError ExitOnErr;
   clang::IncrementalCompilerBuilder CB;
   CB.SetCompilerArgs({"-std=c++20"});
@@ -191,7 +188,6 @@ if (llvm::sys::RunningOnValgrind())
   std::unique_ptr<clang::Interpreter> I =
       ExitOnErr(clang::Interpreter::create(std::move(CI)));
   auto ExtInterp = I.get();
-#endif
 
 #ifdef USE_CLING
     std::string MainExecutableName = sys::fs::getMainExecutable(nullptr, nullptr);
@@ -211,9 +207,8 @@ if (llvm::sys::RunningOnValgrind())
 #endif
   EXPECT_TRUE(Cpp::GetInterpreter()) << "External Interpreter not set";
 
-#ifdef USE_REPL
   I.release();
-#endif
+
 #ifdef USE_CLING
   delete ExtInterp;
 #endif
