@@ -87,7 +87,7 @@ jobs:
         path: |
           llvm-project
           ${{ matrix.cling=='On' && 'cling' || '' }}
-        key: ${{ env.CLING_HASH }}-${{ runner.os }}-${{ matrix.os }}-${{ matrix.compiler }}-clang-${{ matrix.clang-runtime }}.x-patch-${{ hashFiles(format('patches/llvm/clang{0}-*.patch', matrix.clang-runtime)) || 'none' }}
+        key: ${{ env.CLING_HASH }}-${{ runner.os }}-${{ matrix.os }}-${{ matrix.compiler }}-clang-${{ matrix.clang-runtime }}.x-emscripten
         
     - name: Emscripten build of CppInterOp on Unix systems
       if: ${{ runner.os != 'windows' }}
@@ -125,7 +125,7 @@ jobs:
                 -DCling_DIR=$LLVM_BUILD_DIR/tools/cling         \
                 -DLLVM_DIR=$LLVM_BUILD_DIR/lib/cmake/llvm       \
                 -DClang_DIR=$LLVM_BUILD_DIR/lib/cmake/clang     \
-                -DBUILD_SHARED_LIBS=OFF                          \
+                -DBUILD_SHARED_LIBS=ON                          \
                 -DCODE_COVERAGE=${{ env.CODE_COVERAGE }}        \
                 -DCMAKE_INSTALL_PREFIX=$PREFIX         \
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            \
@@ -139,7 +139,7 @@ jobs:
                 -DCMAKE_PREFIX_PATH=$PREFIX                      \
                 -DLLVM_DIR=$LLVM_BUILD_DIR/lib/cmake/llvm       \
                 -DClang_DIR=$LLVM_BUILD_DIR/lib/cmake/clang     \
-                -DBUILD_SHARED_LIBS=OFF                      \
+                -DBUILD_SHARED_LIBS=ON                      \
                 -DCODE_COVERAGE=${{ env.CODE_COVERAGE }}    \
                 -DCMAKE_INSTALL_PREFIX=$PREFIX      \
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            \
