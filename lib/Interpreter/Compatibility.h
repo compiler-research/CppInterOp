@@ -183,6 +183,7 @@ inline void codeComplete(std::vector<std::string>& Results,
 
 #endif // USE_CLING
 
+#ifndef USE_CLING
 
 #include "DynamicLibraryManager.h"
 #include "clang/AST/Mangle.h"
@@ -402,6 +403,8 @@ namespace compat {
 using Interpreter = Cpp::Interpreter;
 }
 
+
+#endif // USE_CLING
 
 namespace compat {
 
