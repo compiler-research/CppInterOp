@@ -293,6 +293,13 @@ jobs:
         key: ${{ env.CLING_HASH }}-${{ runner.os }}-${{ matrix.os }}-${{ matrix.compiler }}-clang-${{ matrix.clang-runtime }}.x-emscripten
         lookup-only: true
 
+    - name: Setup emsdk
+      if: ${{ runner.os != 'windows' && steps.cachenotemscripten.outputs.cache-hit != 'true' && matrix.emscripten != 'On' }}
+      run: |
+          git clone https://github.com/emscripten-core/emsdk.git
+          cd emsdk
+          ./emsdk install  ${{ matrix.emsdk_ver }}
+
     - name: Setup default Build Type on *nux
       if: ${{ runner.os != 'windows' && steps.cachenotemscripten.outputs.cache-hit != 'true' && matrix.emscripten != 'On' }}
       run: |
@@ -601,6 +608,8 @@ jobs:
     - name: Build LLVM/Cling on Unix systems if the cache is invalid (emscripten)
       if: ${{ runner.os != 'windows' && steps.cacheemscripten.outputs.cache-hit != 'true' && matrix.emscripten == 'On' }}
       run: |
+        ./emsdk/emsdk activate ${{matrix.emsdk_ver}}
+        source ./emsdk/emsdk_env.sh
         cling_on=$(echo "${{ matrix.cling }}" | tr '[:lower:]' '[:upper:]')
         if [[ "${cling_on}" == "ON" ]]; then
           git clone https://github.com/root-project/cling.git
@@ -616,23 +625,12 @@ jobs:
         mkdir build
         if [[ "${cling_on}" == "ON" ]]; then
           cd build
-          #FIXME: This line shouldn't be this line, but emcmake wouldn't recognise new line \
-          cmake ../llvm -DLLVM_EXTERNAL_PROJECTS=cling \
-          -DLLVM_EXTERNAL_CLING_SOURCE_DIR=../../cling \
-          -DCMAKE_BUILD_TYPE=Release  \
-          -DLLVM_HOST_TRIPLE=wasm32-unknown-emscripten \
-          -DLLVM_TARGETS_TO_BUILD="${{ matrix.llvm_targets_to_build }}" \
-          -DLLVM_ENABLE_LIBEDIT=OFF \
-          -DLLVM_ENABLE_PROJECTS="${{ matrix.llvm_enable_projects }}" \
-          -DLLVM_ENABLE_ZSTD=OFF \
-          -DLLVM_ENABLE_LIBXML2=OFF \
-          -DCLANG_ENABLE_STATIC_ANALYZER=OFF \
-          -DCLANG_ENABLE_ARCMT=OFF \
-          -DCLANG_ENABLE_BOOTSTRAP=OFF 
-          cmake --build . --target clang --parallel ${{ env.ncpus }}
-          cmake --build . --target cling --parallel ${{ env.ncpus }}
+          #FIXME: This line shouldn't be this line, but emcmake wouldn't recognise command continution \
+          emcmake cmake ../llvm -DLLVM_EXTERNAL_PROJECTS=cling -DLLVM_EXTERNAL_CLING_SOURCE_DIR=../../cling -DCMAKE_BUILD_TYPE=Release -DLLVM_HOST_TRIPLE=wasm32-unknown-emscripten -DLLVM_TARGETS_TO_BUILD="${{ matrix.llvm_targets_to_build }}" -DLLVM_ENABLE_LIBEDIT=OFF -DLLVM_ENABLE_PROJECTS="${{ matrix.llvm_enable_projects }}" -DLLVM_ENABLE_ZSTD=OFF -DLLVM_ENABLE_LIBXML2=OFF -DCLANG_ENABLE_STATIC_ANALYZER=OFF -DCLANG_ENABLE_ARCMT=OFF -DCLANG_ENABLE_BOOTSTRAP=OFF 
+          emmake make clang -j 2
+          emmake make  cling -j 2
           # Now build gtest.a and gtest_main for CppInterOp to run its tests.
-          cmake --build . --target gtest_main --parallel 2
+          emmake make gtest_main -j 2
         else
           # Apply patches
           llvm_vers=$(echo "${{ matrix.clang-runtime }}" | tr '[:lower:]' '[:upper:]')
@@ -641,18 +639,11 @@ jobs:
             echo "Apply emscripten-clang${{ matrix.clang-runtime }}-*.patch patches:"
           fi
           cd build
-          #FIXME: This line shouldn't be this line, but emcmake wouldn't recognise new line \
-          cmake ../llvm -DCMAKE_BUILD_TYPE=Release \
-                -DLLVM_HOST_TRIPLE=wasm32-unknown-emscripten \
-                -DLLVM_TARGETS_TO_BUILD="${{ matrix.llvm_targets_to_build }}" \
-                -DLLVM_ENABLE_LIBEDIT=OFF \
-                -DLLVM_ENABLE_PROJECTS="${{ matrix.llvm_enable_projects }}" \
-                -DLLVM_ENABLE_ZSTD=OFF \
-                -DLLVM_ENABLE_LIBXML2=OFF \
-                -DCLANG_ENABLE_STATIC_ANALYZER=OFF \
-                -DCLANG_ENABLE_ARCMT=OFF \
-                -DCLANG_ENABLE_BOOTSTRAP=OFF 
-          cmake --build . --target clang clang-repl lld --parallel 2
+          #FIXME: This line shouldn't be this line, but emcmake wouldn't recognise command continution \
+          cmake ../llvm -DCMAKE_BUILD_TYPE=Release -DLLVM_HOST_TRIPLE=wasm32-unknown-emscripten -DLLVM_TARGETS_TO_BUILD="${{ matrix.llvm_targets_to_build }}" -DLLVM_ENABLE_LIBEDIT=OFF -DLLVM_ENABLE_PROJECTS="${{ matrix.llvm_enable_projects }}" -DLLVM_ENABLE_ZSTD=OFF -DLLVM_ENABLE_LIBXML2=OFF -DCLANG_ENABLE_STATIC_ANALYZER=OFF -DCLANG_ENABLE_ARCMT=OFF -DCLANG_ENABLE_BOOTSTRAP=OFF 
+          emmake make clang -j 2 
+          emmake make clang-repl -j 2
+          emmake make lld -j 2
         fi
         cd ../
         rm -rf $(find . -maxdepth 1 ! -name "build" ! -name "llvm" ! -name "clang" ! -name ".")
