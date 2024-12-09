@@ -525,9 +525,9 @@ jobs:
         cd ..\
         rm -r -force $(find.exe . -maxdepth 1 ! -name "build" ! -name "llvm" ! -name "clang" ! -name ".")
         cd .\llvm\
-        rm -r -force $(find.exe . -maxdepth 1 ! -name "include" ! -name "lib" ! -name ".")
+        rm -r -force $(find.exe . -maxdepth 1 ! -name "include" ! -name "lib" ! -name "cmake" ! -name ".")
         cd ..\clang\
-        rm -r -force $(find.exe . -maxdepth 1 ! -name "include" ! -name "lib" ! -name ".")
+        rm -r -force $(find.exe . -maxdepth 1 ! -name "include" ! -name "lib" ! -name "cmake"  ! -name ".")
         cd ..\..     
 
     - name: Save Cache LLVM/Clang runtime build directory
