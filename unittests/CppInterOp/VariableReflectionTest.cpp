@@ -26,13 +26,21 @@ TEST(VariableReflectionTest, GetDatamembers) {
       static int f;
     };
     void sum(int,int);
+
+    class D : public C {
+    public:
+      int x;
+      using C::e;
+    };
     )";
 
   std::vector<Cpp::TCppScope_t> datamembers;
   std::vector<Cpp::TCppScope_t> datamembers1;
+  std::vector<Cpp::TCppScope_t> datamembers2;
   GetAllTopLevelDecls(code, Decls);
   Cpp::GetDatamembers(Decls[0], datamembers);
   Cpp::GetDatamembers(Decls[1], datamembers1);
+  Cpp::GetDatamembers(Decls[2], datamembers2);
 
   // non static field
   EXPECT_EQ(Cpp::GetQualifiedName(datamembers[0]), "C::a");
@@ -53,6 +61,16 @@ TEST(VariableReflectionTest, GetDatamembers) {
   EXPECT_EQ(Cpp::GetQualifiedName(datamembers[2]), "C::f");
   EXPECT_EQ(datamembers.size(), 3);
   EXPECT_EQ(datamembers1.size(), 0);
+
+  // derived class
+  EXPECT_EQ(datamembers2.size(), 2);
+  EXPECT_EQ(Cpp::GetQualifiedName(datamembers2[0]), "D::x");
+  EXPECT_EQ(Cpp::GetQualifiedName(Cpp::GetUnderlyingScope(datamembers2[1])),
+            "C::e");
+  EXPECT_TRUE(Cpp::IsPublicVariable(datamembers2[0]));
+  EXPECT_TRUE(Cpp::IsPublicVariable(datamembers2[1]));
+  EXPECT_TRUE(
+      Cpp::IsProtectedVariable(Cpp::GetUnderlyingScope(datamembers2[1])));
 }
 // If on Windows disable  warning due to unnamed structs/unions in defined CODE.
 #ifdef _WIN32
