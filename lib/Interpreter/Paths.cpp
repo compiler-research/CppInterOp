@@ -121,21 +121,6 @@ namespace platform {
     return Lib;
   }
 
-  void* DLSym(const std::string& Name, std::string* Err /* = nullptr*/) {
-    if (void* Self = ::dlopen(nullptr, RTLD_GLOBAL)) {
-      // get dlopen error if there is one
-      DLErr(Err);
-      void* Sym = ::dlsym(Self, Name.c_str());
-      // overwrite error if dlsym caused one
-      DLErr(Err);
-      // only get dlclose error if dlopen & dlsym haven't emited one
-      DLClose(Self, Err && Err->empty() ? Err : nullptr);
-      return Sym;
-    }
-    DLErr(Err);
-    return nullptr;
-  }
-
   void DLClose(void* Lib, std::string* Err /* = nullptr*/) {
     ::dlclose(Lib);
     DLErr(Err);
@@ -157,28 +142,6 @@ namespace platform {
 #endif
 
 } // namespace platform
-
-bool ExpandEnvVars(std::string& Str, bool Path) {
-  std::size_t DPos = Str.find("$");
-  while (DPos != std::string::npos) {
-    std::size_t SPos = Str.find("/", DPos + 1);
-    std::size_t Length = Str.length();
-
-    if (SPos != std::string::npos) // if we found a "/"
-      Length = SPos - DPos;
-
-    std::string EnvVar = Str.substr(DPos + 1, Length -1); //"HOME"
-    std::string FullPath;
-    if (const char* Tok = GetEnv(EnvVar.c_str()))
-      FullPath = Tok;
-
-    Str.replace(DPos, Length, FullPath);
-    DPos = Str.find("$", DPos + 1); // search for next env variable
-  }
-  if (!Path)
-    return true;
-  return llvm::sys::fs::exists(Str.c_str());
-}
 
 using namespace llvm;
 using namespace clang;
@@ -268,82 +231,10 @@ void CopyIncludePaths(const clang::HeaderSearchOptions& Opts,
     incpaths.push_back("-v");
 }
 
-void DumpIncludePaths(const clang::HeaderSearchOptions& Opts,
-                      llvm::raw_ostream& Out,
-                      bool WithSystem, bool WithFlags) {
-  llvm::SmallVector<std::string, 100> IncPaths;
-  CopyIncludePaths(Opts, IncPaths, WithSystem, WithFlags);
-  // print'em all
-  for (unsigned i = 0; i < IncPaths.size(); ++i) {
-    Out << IncPaths[i] <<"\n";
-  }
-}
-
 void LogNonExistantDirectory(llvm::StringRef Path) {
 #define DEBUG_TYPE "LogNonExistantDirectory"
   LLVM_DEBUG(dbgs() << "  ignoring nonexistent directory \"" << Path << "\"\n");
 #undef  DEBUG_TYPE
-}
-
-static void LogFileStatus(const char* Prefix, const char* FileType,
-                          llvm::StringRef Path) {
-#define DEBUG_TYPE "LogFileStatus"
-  LLVM_DEBUG(dbgs() << Prefix << " " << FileType << " '" << Path << "'\n";);
-#undef  DEBUG_TYPE
-}
-
-bool LookForFile(const std::vector<const char*>& Args, std::string& Path,
-                 const clang::FileManager* FM, const char* FileType) {
-  if (llvm::sys::fs::is_regular_file(Path)) {
-    if (FileType)
-      LogFileStatus("Using", FileType, Path);
-    return true;
-  }
-  if (FileType)
-    LogFileStatus("Ignoring", FileType, Path);
-
-  SmallString<1024> FilePath;
-  if (FM) {
-    FilePath.assign(Path);
-    if (FM->FixupRelativePath(FilePath) &&
-        llvm::sys::fs::is_regular_file(FilePath)) {
-      if (FileType)
-        LogFileStatus("Using", FileType, FilePath.str());
-      Path = FilePath.str().str();
-      return true;
-    }
-    // Don't write same same log entry twice when FilePath == Path
-    if (FileType && FilePath.str() != Path)
-      LogFileStatus("Ignoring", FileType, FilePath);
-  }
-  else if (llvm::sys::path::is_absolute(Path))
-    return false;
-
-  for (std::vector<const char*>::const_iterator It = Args.begin(),
-       End = Args.end(); It < End; ++It) {
-    const char* Arg = *It;
-    // TODO: Suppport '-iquote' and MSVC equivalent
-    if (!::strncmp("-I", Arg, 2) || !::strncmp("/I", Arg, 2)) {
-      if (!Arg[2]) {
-        if (++It >= End)
-          break;
-        FilePath.assign(*It);
-      }
-      else
-        FilePath.assign(Arg + 2);
-
-      llvm::sys::path::append(FilePath, Path.c_str());
-      if (llvm::sys::fs::is_regular_file(FilePath)) {
-        if (FileType)
-          LogFileStatus("Using", FileType, FilePath.str());
-        Path = FilePath.str().str();
-        return true;
-      }
-      if (FileType)
-        LogFileStatus("Ignoring", FileType, FilePath);
-    }
-  }
-  return false;
 }
 
 bool SplitPaths(llvm::StringRef PathStr,
