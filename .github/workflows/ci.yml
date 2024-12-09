@@ -294,7 +294,7 @@ jobs:
         lookup-only: true
 
     - name: Setup emsdk
-      if: ${{ runner.os != 'windows' && steps.cachenotemscripten.outputs.cache-hit != 'true' && matrix.emscripten != 'On' }}
+      if: ${{ runner.os != 'windows' && steps.cachenotemscripten.outputs.cache-hit != 'true' && matrix.emscripten == 'On' }}
       run: |
           git clone https://github.com/emscripten-core/emsdk.git
           cd emsdk
