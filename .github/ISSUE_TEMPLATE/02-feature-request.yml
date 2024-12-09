@@ -1,0 +1,15 @@
+name: Feature Request Form
+description: Form for requesting a new feature in CppInterOp.
+title: "[Feature Request]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: "Thanks for taking the time to fill out this feature request form!"
+  - type: textarea
+    attributes:
+      label: "Description of new feature"
+      description: Tell us what the feature is that you would like.
+      value: "Replace with description of the feature you would like."
+    validations:
+      required: true
