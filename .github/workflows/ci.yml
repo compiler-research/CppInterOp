@@ -622,12 +622,8 @@ jobs:
           -DCMAKE_BUILD_TYPE=Release  \
           -DLLVM_HOST_TRIPLE=wasm32-unknown-emscripten \
           -DLLVM_TARGETS_TO_BUILD="${{ matrix.llvm_targets_to_build }}" \
-          -DLLVM_INCLUDE_BENCHMARKS=OFF \
-          -DLLVM_INCLUDE_EXAMPLES=OFF \
-          -DLLVM_INCLUDE_TESTS=OFF \
           -DLLVM_ENABLE_LIBEDIT=OFF \
           -DLLVM_ENABLE_PROJECTS="${{ matrix.llvm_enable_projects }}" \
-          -DCMAKE_VERBOSE_MAKEFILE=ON  \
           -DLLVM_ENABLE_ZSTD=OFF \
           -DLLVM_ENABLE_LIBXML2=OFF \
           -DCLANG_ENABLE_STATIC_ANALYZER=OFF \
@@ -649,12 +645,8 @@ jobs:
           cmake ../llvm -DCMAKE_BUILD_TYPE=Release \
                 -DLLVM_HOST_TRIPLE=wasm32-unknown-emscripten \
                 -DLLVM_TARGETS_TO_BUILD="${{ matrix.llvm_targets_to_build }}" \
-                -DLLVM_INCLUDE_BENCHMARKS=OFF  \
-                -DLLVM_INCLUDE_EXAMPLES=OFF \
-                -DLLVM_INCLUDE_TESTS=OFF \
                 -DLLVM_ENABLE_LIBEDIT=OFF \
                 -DLLVM_ENABLE_PROJECTS="${{ matrix.llvm_enable_projects }}" \
-                -DCMAKE_VERBOSE_MAKEFILE=ON \
                 -DLLVM_ENABLE_ZSTD=OFF \
                 -DLLVM_ENABLE_LIBXML2=OFF \
                 -DCLANG_ENABLE_STATIC_ANALYZER=OFF \
