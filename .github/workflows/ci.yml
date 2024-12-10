@@ -441,11 +441,19 @@ jobs:
         fi
         cd ../
         rm -rf $(find . -maxdepth 1 ! -name "build" ! -name "llvm" ! -name "clang" ! -name ".")
-        cd ./llvm/
-        rm -rf $(find . -maxdepth 1 ! -name "include" ! -name "lib" ! -name "cmake"  ! -name ".")
-        cd ../clang/
-        rm -rf $(find . -maxdepth 1 ! -name "include" ! -name "lib" ! -name "cmake"  ! -name ".")
-        cd ../..
+        if [[ "${cling_on}" == "ON" ]]; then
+          cd ./llvm/
+          rm -rf $(find . -maxdepth 1 ! -name "include" ! -name "lib" ! -name "cmake" ! -name "utils" ! -name ".")
+          cd ../clang/
+          rm -rf $(find . -maxdepth 1 ! -name "include" ! -name "lib" ! -name "cmake" ! -name "utils" ! -name ".")
+          cd ../..
+        else # repl
+          cd ./llvm/
+          rm -rf $(find . -maxdepth 1 ! -name "include" ! -name "lib" ! -name "cmake" ! -name ".")
+          cd ../clang/
+          rm -rf $(find . -maxdepth 1 ! -name "include" ! -name "lib" ! -name "cmake" ! -name ".")
+          cd ../..
+        fi
 
     - name: Build LLVM/Cling on Windows systems if the cache is invalid
       if: ${{ runner.os == 'windows' && steps.cache.outputs.cache-hit != 'true' }}
@@ -524,11 +532,22 @@ jobs:
         }
         cd ..\
         rm -r -force $(find.exe . -maxdepth 1 ! -name "build" ! -name "llvm" ! -name "clang" ! -name ".")
-        cd .\llvm\
-        rm -r -force $(find.exe . -maxdepth 1 ! -name "include" ! -name "lib" ! -name "cmake" ! -name ".")
-        cd ..\clang\
-        rm -r -force $(find.exe . -maxdepth 1 ! -name "include" ! -name "lib" ! -name "cmake"  ! -name ".")
-        cd ..\..     
+        if ( "${{ matrix.cling }}" -imatch "On" )
+        {
+          cd .\llvm\
+          rm -r -force $(find.exe . -maxdepth 1 ! -name "include" ! -name "lib" ! -name "cmake" ! -name "utils" ! -name ".")
+          cd ..\clang\
+          rm -r -force $(find.exe . -maxdepth 1 ! -name "include" ! -name "lib" ! -name "cmake" ! -name "utils" ! -name ".")
+          cd ..\..    
+        }
+        else
+        {
+          cd .\llvm\
+          rm -r -force $(find.exe . -maxdepth 1 ! -name "include" ! -name "lib" ! -name "cmake" ! -name ".")
+          cd ..\clang\
+          rm -r -force $(find.exe . -maxdepth 1 ! -name "include" ! -name "lib" ! -name "cmake"  ! -name ".")
+          cd ..\..    
+        } 
 
     - name: Save Cache LLVM/Clang runtime build directory
       uses: actions/cache/save@v4
