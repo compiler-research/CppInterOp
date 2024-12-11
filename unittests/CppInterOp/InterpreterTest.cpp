@@ -230,3 +230,10 @@ if (llvm::sys::RunningOnValgrind())
   delete ExtInterp;
 #endif
 }
+
+TEST(InterpreterTest, Declare) {
+  EXPECT_EQ(Cpp::Declare("int i;", true), 0);
+  EXPECT_EQ(Cpp::Declare("int i;", true), 1);
+  EXPECT_EQ(Cpp::Declare("integer i;", true), 1);
+  EXPECT_EQ(Cpp::Declare("int i1;", true), 0);
+}
