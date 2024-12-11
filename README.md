@@ -111,7 +111,7 @@ git apply -v ../CppInterOp/patches/llvm/clang{version}-*.patch
 and
 
 ```powershell
-cp -r ..\CppInterOp\patches\llvm\clang17* .
+cp -r ..\CppInterOp\patches\llvm\clang{version}* .
 git apply -v clang{version}-*.patch
 ```
 
