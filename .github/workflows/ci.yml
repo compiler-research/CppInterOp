@@ -650,7 +650,6 @@ jobs:
                         -DCLANG_ENABLE_STATIC_ANALYZER=OFF \
                         -DCLANG_ENABLE_ARCMT=OFF \
                         -DCLANG_ENABLE_BOOTSTRAP=OFF \
-                        -DLLVM_ENABLE_THREADS=OFF \
                         -DCMAKE_CXX_FLAGS="-Dwait4=__syscall_wait4" \
                          ../llvm
           emmake make clang -j ${{ env.ncpus }}
@@ -676,7 +675,6 @@ jobs:
                         -DCLANG_ENABLE_STATIC_ANALYZER=OFF \
                         -DCLANG_ENABLE_ARCMT=OFF \
                         -DCLANG_ENABLE_BOOTSTRAP=OFF \
-                        -DLLVM_ENABLE_THREADS=OFF \
                         -DCMAKE_CXX_FLAGS="-Dwait4=__syscall_wait4" \
                         ../llvm
           emmake make clang -j ${{ env.ncpus }}
