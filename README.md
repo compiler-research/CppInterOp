@@ -127,7 +127,7 @@ command
 mkdir build 
 cd build 
 cmake -DLLVM_ENABLE_PROJECTS="clang;lld"                  \
-                -DLLVM_TARGETS_TO_BUILD="WebAssembly;host;NVPTX"          \
+                -DLLVM_TARGETS_TO_BUILD="host;NVPTX"          \
                 -DCMAKE_BUILD_TYPE=Release                          \
                 -DLLVM_ENABLE_ASSERTIONS=ON                         \
                 -DCLANG_ENABLE_STATIC_ANALYZER=OFF                  \
@@ -193,7 +193,7 @@ cd llvm-project/build
 cmake -DLLVM_ENABLE_PROJECTS="clang;lld"               \
                 -DLLVM_EXTERNAL_PROJECTS=cling                     \
                 -DLLVM_EXTERNAL_CLING_SOURCE_DIR=../../cling       \
-                -DLLVM_TARGETS_TO_BUILD="WebAssembly;host;NVPTX"   \
+                -DLLVM_TARGETS_TO_BUILD="host;NVPTX"   \
                 -DCMAKE_BUILD_TYPE=Release                         \
                 -DLLVM_ENABLE_ASSERTIONS=ON                        \
                 -DCLANG_ENABLE_STATIC_ANALYZER=OFF                 \

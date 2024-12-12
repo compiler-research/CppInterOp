@@ -1,0 +1,328 @@
+diff --git a/CMakeLists.txt b/CMakeLists.txt
+index bcd16a9..1b0a528 100644
+--- a/CMakeLists.txt
++++ b/CMakeLists.txt
+@@ -24,11 +24,28 @@ if( CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR )
+     if (NOT DEFINED Cling_DIR)
+       set(Cling_DIR ${LLVM_DIR})
+     endif()
++    if (NOT DEFINED LLD_DIR)
++      set(LLD_DIR ${LLVM_DIR})
++    endif()
++  endif()
++  if (DEFINED LLD_DIR)
++    if (NOT DEFINED LLVM_DIR)
++      set(LLVM_DIR ${LLD_DIR})
++    endif()
++    if (NOT DEFINED Clang_DIR)
++      set(Clang_DIR ${LLD_DIR})
++    endif()
++    if (NOT DEFINED Cling_DIR)
++      set(Cling_DIR ${LLD_DIR})
++    endif()
+   endif()
+   if (DEFINED Clang_DIR)
+     if (NOT DEFINED LLVM_DIR)
+       set(LLVM_DIR ${Clang_DIR})
+     endif()
++    if (NOT DEFINED LLD_DIR)
++      set(LLD_DIR ${Clang_DIR})
++    endif()
+     if (NOT DEFINED Cling_DIR)
+       set(Cling_DIR ${Clang_DIR})
+     endif()
+@@ -61,6 +78,9 @@ if( CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR )
+   set(CLANG_MIN_SUPPORTED 13.0)
+   set(CLANG_MAX_SUPPORTED "19.1.x")
+   set(CLANG_VERSION_UPPER_BOUND 20.0.0)
++  set(LLD_MIN_SUPPORTED 13.0)
++  set(LLD_MAX_SUPPORTED "19.1.x")
++  set(LLD_VERSION_UPPER_BOUND 20.0.0)
+   set(LLVM_MIN_SUPPORTED 13.0)
+   set(LLVM_MAX_SUPPORTED "19.1.x")
+   set(LLVM_VERSION_UPPER_BOUND 20.0.0)
+@@ -75,6 +95,11 @@ if( CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR )
+   if (DEFINED LLVM_DIR)
+     set(llvm_search_hints PATHS ${LLVM_DIR} HINTS "${LLVM_DIR}/lib/cmake/llvm" "${LLVM_DIR}/cmake" "${LLVM_CONFIG_EXTRA_PATH_HINTS}")
+     set(clang_search_hints PATHS ${LLVM_DIR} HINTS "${LLVM_DIR}/lib/cmake/clang" "${LLVM_DIR}/cmake")
++    set(lld_search_hints PATHS ${LLVM_DIR} HINTS "${LLVM_DIR}/lib/cmake/lld" "${LLVM_DIR}/cmake")
++  endif()
++  if (DEFINED LLD_DIR)
++    set(llvm_search_hints PATHS ${LLD_DIR} HINTS "${LLD_DIR}/lib/cmake/llvm" "${LLD_DIR}/cmake")
++    set(lld_search_hints PATHS ${LLD_DIR} HINTS "${lld_search_hints}" "${LLD_DIR}/lib/cmake/lld" "${LLD_DIR}/cmake")
+   endif()
+   if (DEFINED Clang_DIR)
+     set(llvm_search_hints PATHS ${Clang_DIR} HINTS "${Clang_DIR}/lib/cmake/llvm" "${Clang_DIR}/cmake")
+@@ -137,6 +162,43 @@ if( CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR )
+   message(STATUS "Found supported version: LLVM ${LLVM_PACKAGE_VERSION}")
+   message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
+ 
++## Find supported LLD
++
++if (DEFINED LLD_VERSION)
++  if (LLD_VERSION VERSION_GREATER_EQUAL LLD_VERSION_UPPER_BOUND)
++    set(LLD_VERSION ${LLD_VERSION_UPPER_BOUND})
++  endif()
++  if (LLD_VERSION VERSION_LESS LLD_MIN_SUPPORTED)
++    set(LLD_VERSION ${LLD_MIN_SUPPORTED})
++  endif()
++
++  find_package(LLD ${LLD_VERSION} REQUIRED CONFIG ${lld_search_hints} NO_DEFAULT_PATH)
++endif()
++
++if (NOT LLD_FOUND AND DEFINED LLD_DIR)
++  find_package(LLD REQUIRED CONFIG ${lld_search_hints} NO_DEFAULT_PATH)
++endif()
++
++if (NOT LLD_FOUND)
++  find_package(LLD REQUIRED CONFIG)
++endif()
++
++if (NOT LLD_FOUND)
++  message(FATAL_ERROR "Please set LLD_DIR pointing to the LLD build or installation folder")
++endif()
++
++set(LLD_VERSION_MAJOR ${LLVM_VERSION_MAJOR})
++set(LLD_VERSION_MINOR ${LLVM_VERSION_MINOR})
++set(LLD_VERSION_PATCH ${LLVM_VERSION_PATCH})
++set(LLD_PACKAGE_VERSION ${LLVM_PACKAGE_VERSION})
++
++if (LLD_PACKAGE_VERSION VERSION_LESS LLD_MIN_SUPPORTED OR LLD_PACKAGE_VERSION VERSION_GREATER_EQUAL LLD_VERSION_UPPER_BOUND)
++  message(FATAL_ERROR "Found unsupported version: LLD ${LLD_PACKAGE_VERSION};\nPlease set LLD_DIR pointing to the LLD version ${LLD_MIN_SUPPORTED} to ${LLD_MAX_SUPPORTED} build or installation folder")
++endif()
++
++message(STATUS "Found supported version: LLD ${LLD_PACKAGE_VERSION}")
++message(STATUS "Using LLDConfig.cmake in: ${LLD_DIR}")
++
+   ## Find supported Clang
+ 
+   if (DEFINED CLANG_VERSION)
+diff --git a/lib/Interpreter/CMakeLists.txt b/lib/Interpreter/CMakeLists.txt
+index 7f4ca53..7df92e7 100644
+--- a/lib/Interpreter/CMakeLists.txt
++++ b/lib/Interpreter/CMakeLists.txt
+@@ -1,107 +1,128 @@
+-set(LLVM_LINK_COMPONENTS
+-  ${LLVM_TARGETS_TO_BUILD}
+-  BinaryFormat
+-  Core
+-  Object
+-  OrcJit
+-  Support
+-)
+-# FIXME: Investigate why this needs to be conditionally included.
+-if ("LLVMFrontendDriver" IN_LIST LLVM_AVAILABLE_LIBS)
+-  list(APPEND LLVM_LINK_COMPONENTS  FrontendDriver)
+-endif()
+-if ("LLVMOrcDebugging" IN_LIST LLVM_AVAILABLE_LIBS)
+-  list(APPEND LLVM_LINK_COMPONENTS OrcDebugging)
+-endif()
++if(EMSCRIPTEN)
++  set_property(GLOBAL PROPERTY TARGET_SUPPORTS_SHARED_LIBS TRUE)
++  set(CMAKE_SHARED_LIBRARY_CREATE_C_FLAGS "-s SIDE_MODULE=1")
++  set(CMAKE_SHARED_LIBRARY_CREATE_CXX_FLAGS "-s SIDE_MODULE=1")
++  set(CMAKE_STRIP FALSE)
+ 
+-set(DLM
+-  DynamicLibraryManager.cpp
+-  DynamicLibraryManagerSymbol.cpp
+-  Paths.cpp
+-)
+-if (USE_CLING)
+-  set(LLVM_OPTIONAL_SOURCES ${LLVM_OPTIONAL_SOURCES} ${DLM})
+-  set(DLM)
+-endif(USE_CLING)
+-if (USE_REPL)
+-  #Use DML optional sources
+-endif(USE_REPL)
++  add_llvm_library(clangCppInterOp
++    SHARED
+ 
+-if (USE_CLING)
+-  set(cling_clang_interp clingInterpreter)
+-endif()
+-if (USE_REPL)
+-  set(cling_clang_interp clangInterpreter)
+-endif()
++    CppInterOp.cpp
++    CXCppInterOp.cpp
++    DynamicLibraryManager.cpp
++    DynamicLibraryManagerSymbol.cpp
++    Paths.cpp
+ 
+-set(link_libs
+-  ${cling_clang_interp}
+-  clangAST
+-  clangBasic
+-  clangFrontend
+-  clangLex
+-  clangSema
++    # Additional libraries from Clang and LLD
++    LINK_LIBS
++    clangInterpreter
++  )
++else()
++  set(LLVM_LINK_COMPONENTS
++    ${LLVM_TARGETS_TO_BUILD}
++    BinaryFormat
++    Core
++    Object
++    OrcJit
++    Support
+   )
++  # FIXME: Investigate why this needs to be conditionally included.
++  if ("LLVMFrontendDriver" IN_LIST LLVM_AVAILABLE_LIBS)
++    list(APPEND LLVM_LINK_COMPONENTS  FrontendDriver)
++  endif()
++  if ("LLVMOrcDebugging" IN_LIST LLVM_AVAILABLE_LIBS)
++    list(APPEND LLVM_LINK_COMPONENTS OrcDebugging)
++  endif()
+ 
+- if(NOT WIN32)
+-  list(APPEND link_libs dl)
+- endif()
++  set(DLM
++    DynamicLibraryManager.cpp
++    DynamicLibraryManagerSymbol.cpp
++    Paths.cpp
++  )
++  if (USE_CLING)
++    set(LLVM_OPTIONAL_SOURCES ${LLVM_OPTIONAL_SOURCES} ${DLM})
++    set(DLM)
++  endif(USE_CLING)
++  if (USE_REPL)
++    #Use DML optional sources
++  endif(USE_REPL)
+ 
+-# Get rid of libLLVM-X.so which is appended to the list of static libraries.
+-if (LLVM_LINK_LLVM_DYLIB)
+-  set(new_libs ${link_libs})
+-  set(libs ${new_libs})
+-  while(NOT "${new_libs}" STREQUAL "")
+-    foreach(lib ${new_libs})
+-      if(TARGET ${lib})
+-        get_target_property(transitive_libs ${lib} INTERFACE_LINK_LIBRARIES)
+-        if (NOT transitive_libs)
+-          continue()
+-        endif()
+-        foreach(transitive_lib ${transitive_libs})
+-          get_target_property(lib_type ${transitive_lib} TYPE)
+-          if("${lib_type}" STREQUAL "STATIC_LIBRARY")
+-            list(APPEND static_transitive_libs ${transitive_lib})
+-          else()
+-            # Filter our libLLVM.so and friends.
++  if (USE_CLING)
++    set(cling_clang_interp clingInterpreter)
++  endif()
++  if (USE_REPL)
++    set(cling_clang_interp clangInterpreter)
++  endif()
++
++  set(link_libs
++    ${cling_clang_interp}
++    clangAST
++    clangBasic
++    clangFrontend
++    clangLex
++    clangSema
++    )
++
++  if(NOT WIN32)
++    list(APPEND link_libs dl)
++  endif()
++
++  # Get rid of libLLVM-X.so which is appended to the list of static libraries.
++  if (LLVM_LINK_LLVM_DYLIB)
++    set(new_libs ${link_libs})
++    set(libs ${new_libs})
++    while(NOT "${new_libs}" STREQUAL "")
++      foreach(lib ${new_libs})
++        if(TARGET ${lib})
++          get_target_property(transitive_libs ${lib} INTERFACE_LINK_LIBRARIES)
++          if (NOT transitive_libs)
+             continue()
+           endif()
+-          if(NOT ${transitive_lib} IN_LIST libs)
+-            list(APPEND newer_libs ${transitive_lib})
+-            list(APPEND libs ${transitive_lib})
+-          endif()
+-        endforeach(transitive_lib)
+-        # Update the target properties with the list of only static libraries.
+-        set_target_properties(${lib} PROPERTIES INTERFACE_LINK_LIBRARIES "${static_transitive_libs}")
+-        set(static_transitive_libs "")
+-      endif()
+-    endforeach(lib)
+-    set(new_libs ${newer_libs})
+-    set(newer_libs "")
+-  endwhile()
+-  # We just got rid of the libLLVM.so and other components shipped as shared
+-  # libraries, we need to make up for the missing dependency.
+-  list(APPEND LLVM_LINK_COMPONENTS
+-    Coverage
+-    FrontendHLSL
+-    LTO
+-    )
+-  # We will need to append the missing dependencies to pull in the right
+-  # LLVM library dependencies. 
+-  list(APPEND link_libs
+-    clangCodeGen
+-    clangStaticAnalyzerCore
+-    )
+-endif(LLVM_LINK_LLVM_DYLIB)
++          foreach(transitive_lib ${transitive_libs})
++            get_target_property(lib_type ${transitive_lib} TYPE)
++            if("${lib_type}" STREQUAL "STATIC_LIBRARY")
++              list(APPEND static_transitive_libs ${transitive_lib})
++            else()
++              # Filter our libLLVM.so and friends.
++              continue()
++            endif()
++            if(NOT ${transitive_lib} IN_LIST libs)
++              list(APPEND newer_libs ${transitive_lib})
++              list(APPEND libs ${transitive_lib})
++            endif()
++          endforeach(transitive_lib)
++          # Update the target properties with the list of only static libraries.
++          set_target_properties(${lib} PROPERTIES INTERFACE_LINK_LIBRARIES "${static_transitive_libs}")
++          set(static_transitive_libs "")
++        endif()
++      endforeach(lib)
++      set(new_libs ${newer_libs})
++      set(newer_libs "")
++    endwhile()
++    # We just got rid of the libLLVM.so and other components shipped as shared
++    # libraries, we need to make up for the missing dependency.
++    list(APPEND LLVM_LINK_COMPONENTS
++      Coverage
++      FrontendHLSL
++      LTO
++      )
++    # We will need to append the missing dependencies to pull in the right
++    # LLVM library dependencies.
++    list(APPEND link_libs
++      clangCodeGen
++      clangStaticAnalyzerCore
++      )
++  endif(LLVM_LINK_LLVM_DYLIB)
+ 
+-add_llvm_library(clangCppInterOp
+-  DISABLE_LLVM_LINK_LLVM_DYLIB
+-  CppInterOp.cpp
+-  CXCppInterOp.cpp
+-  ${DLM}
+-  LINK_LIBS
+-  ${link_libs}
+- )
++  add_llvm_library(clangCppInterOp
++    DISABLE_LLVM_LINK_LLVM_DYLIB
++    CppInterOp.cpp
++    CXCppInterOp.cpp
++    ${DLM}
++    LINK_LIBS
++    ${link_libs}
++  )
++endif()
+ 
+ string(REPLACE ";" "\;" _VER CPPINTEROP_VERSION)
+ set_source_files_properties(CppInterOp.cpp PROPERTIES COMPILE_DEFINITIONS
+ 
