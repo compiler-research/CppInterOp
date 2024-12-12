@@ -1383,4 +1383,4 @@ jobs:
           -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            \
           -DCppInterOp_DIR="${{ env.CPPINTEROP_BUILD_DIR }}/lib/cmake/CppInterOp"  \
           ..
-        EMCC_CFLAGS='-sERROR_ON_UNDEFINED_SYMBOLS=0' emmake make -j ${{ env.ncpus }}
+        emmake make -j ${{ env.ncpus }}

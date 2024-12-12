@@ -89,9 +89,11 @@ if( CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR )
     set(llvm_search_hints PATHS ${LLVM_DIR} HINTS "${LLVM_DIR}/lib/cmake/llvm" "${LLVM_DIR}/cmake" "${LLVM_CONFIG_EXTRA_PATH_HINTS}")
     set(clang_search_hints PATHS ${LLVM_DIR} HINTS "${LLVM_DIR}/lib/cmake/clang" "${LLVM_DIR}/cmake")
     set(lld_search_hints PATHS ${LLVM_DIR} HINTS "${LLVM_DIR}/lib/cmake/lld" "${LLVM_DIR}/cmake")
+  endif()
   if (DEFINED LLD_DIR)
     set(llvm_search_hints PATHS ${LLD_DIR} HINTS "${LLD_DIR}/lib/cmake/llvm" "${LLD_DIR}/cmake")
     set(lld_search_hints PATHS ${LLD_DIR} HINTS "${lld_search_hints}" "${LLD_DIR}/lib/cmake/lld" "${LLD_DIR}/cmake")
+  endif()
   if (DEFINED Clang_DIR)
     set(llvm_search_hints PATHS ${Clang_DIR} HINTS "${Clang_DIR}/lib/cmake/llvm" "${Clang_DIR}/cmake")
     set(clang_search_hints PATHS ${Clang_DIR} HINTS "${clang_search_hints}" "${Clang_DIR}/lib/cmake/clang" "${Clang_DIR}/cmake" "${CLANG_CONFIG_EXTRA_PATH_HINTS}")
@@ -153,8 +155,9 @@ if( CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR )
   message(STATUS "Found supported version: LLVM ${LLVM_PACKAGE_VERSION}")
   message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
 
-  ## Find supported LLD
+  ## Find supported LLD only while building for webassembly against emscripten
 
+if(EMSCRIPTEN)
   if (DEFINED LLD_VERSION)
     if (LLD_VERSION VERSION_GREATER_EQUAL LLD_VERSION_UPPER_BOUND)
       set(LLD_VERSION ${LLD_VERSION_UPPER_BOUND})
@@ -189,6 +192,7 @@ if( CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR )
 
   message(STATUS "Found supported version: LLD ${LLD_PACKAGE_VERSION}")
   message(STATUS "Using LLDConfig.cmake in: ${LLD_DIR}")
+endif()
 
   ## Find supported Clang
 
