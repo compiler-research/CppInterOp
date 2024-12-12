@@ -20,6 +20,10 @@ In such scenarios CppInterOp can be used to provide the necessary introspection 
 
 [CppInterOp API Documentation](https://cppinterop.readthedocs.io/en/latest/build/html/index.html)  
 
+Try Jupyter Lite CppInterOp demo by clicking below
+
+[![lite-badge](https://jupyterlite.rtfd.io/en/latest/_static/badge.svg)](https://compiler-research.github.io/CppInterOp/lab/index.html)
+
 ## CppInterOp Introduction
 
 The CppInterOp library provides a minimalist approach for other languages to
@@ -107,7 +111,7 @@ git apply -v ../CppInterOp/patches/llvm/clang{version}-*.patch
 and
 
 ```powershell
-cp -r ..\CppInterOp\patches\llvm\clang17* .
+cp -r ..\CppInterOp\patches\llvm\clang{version}* .
 git apply -v clang{version}-*.patch
 ```
 

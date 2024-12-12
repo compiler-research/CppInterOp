@@ -29,6 +29,7 @@
 #endif
 #include "clang/Sema/TemplateDeduction.h"
 
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/Debug.h"
@@ -526,8 +527,10 @@ namespace Cpp {
 
   static clang::Decl* GetUnderlyingScope(clang::Decl * D) {
     if (auto *TND = dyn_cast_or_null<TypedefNameDecl>(D)) {
-      auto Scope = GetScopeFromType(TND->getUnderlyingType());
-      if (Scope)
+      if (auto* Scope = GetScopeFromType(TND->getUnderlyingType()))
+        D = Scope;
+    } else if (auto* USS = dyn_cast_or_null<UsingShadowDecl>(D)) {
+      if (auto* Scope = USS->getTargetDecl())
         D = Scope;
     }
 
@@ -1151,10 +1154,12 @@ namespace Cpp {
     auto *D = (Decl *) scope;
 
     if (auto* CXXRD = llvm::dyn_cast_or_null<CXXRecordDecl>(D)) {
-      llvm::SmallVector<RecordDecl::field_iterator, 2> stack_begin;
-      llvm::SmallVector<RecordDecl::field_iterator, 2> stack_end;
-      stack_begin.push_back(CXXRD->field_begin());
-      stack_end.push_back(CXXRD->field_end());
+      getSema().ForceDeclarationOfImplicitMembers(CXXRD);
+
+      llvm::SmallVector<RecordDecl::decl_iterator, 2> stack_begin;
+      llvm::SmallVector<RecordDecl::decl_iterator, 2> stack_end;
+      stack_begin.push_back(CXXRD->decls_begin());
+      stack_end.push_back(CXXRD->decls_end());
       while (!stack_begin.empty()) {
         if (stack_begin.back() == stack_end.back()) {
           stack_begin.pop_back();
@@ -1167,14 +1172,18 @@ namespace Cpp {
             if (const auto* RT = FD->getType()->getAs<RecordType>()) {
               if (auto* CXXRD = llvm::dyn_cast<CXXRecordDecl>(RT->getDecl())) {
                 stack_begin.back()++;
-                stack_begin.push_back(CXXRD->field_begin());
-                stack_end.push_back(CXXRD->field_end());
+                stack_begin.push_back(CXXRD->decls_begin());
+                stack_end.push_back(CXXRD->decls_end());
                 continue;
               }
             }
           }
+          datamembers.push_back((TCppScope_t)D);
+
+        } else if (auto* USD = llvm::dyn_cast<UsingShadowDecl>(D)) {
+          if (llvm::isa<FieldDecl>(USD->getTargetDecl()))
+            datamembers.push_back(USD);
         }
-        datamembers.push_back((TCppScope_t)D);
         stack_begin.back()++;
       }
     }
@@ -1321,11 +1330,7 @@ namespace Cpp {
   bool CheckVariableAccess(TCppScope_t var, AccessSpecifier AS)
   {
     auto *D = (Decl *) var;
-    if (auto *CXXMD = llvm::dyn_cast_or_null<DeclaratorDecl>(D)) {
-      return CXXMD->getAccess() == AS;
-    }
-
-    return false;
+    return D->getAccess() == AS;
   }
 
   bool IsPublicVariable(TCppScope_t var)
@@ -2718,7 +2723,7 @@ namespace Cpp {
   TInterp_t GetInterpreter() { return sInterpreter; }
 
   void UseExternalInterpreter(TInterp_t I) {
-    assert(sInterpreter && "sInterpreter already in use!");
+    assert(!sInterpreter && "sInterpreter already in use!");
     sInterpreter = static_cast<compat::Interpreter*>(I);
     OwningSInterpreter = false;
   }

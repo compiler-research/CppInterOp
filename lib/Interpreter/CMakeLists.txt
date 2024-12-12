@@ -113,14 +113,14 @@ else()
       )
   endif(LLVM_LINK_LLVM_DYLIB)
 
-  add_llvm_library(clangCppInterOp
-    DISABLE_LLVM_LINK_LLVM_DYLIB
-    CppInterOp.cpp
-    ${DLM}
-    LINK_LIBS
-    ${link_libs}
-  )
-endif()
+add_llvm_library(clangCppInterOp
+  DISABLE_LLVM_LINK_LLVM_DYLIB
+  CppInterOp.cpp
+  CXCppInterOp.cpp
+  ${DLM}
+  LINK_LIBS
+  ${link_libs}
+ )
 
 string(REPLACE ";" "\;" _VER CPPINTEROP_VERSION)
 set_source_files_properties(CppInterOp.cpp PROPERTIES COMPILE_DEFINITIONS

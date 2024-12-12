@@ -13,6 +13,8 @@
 
 #include "clang/Basic/Version.h"
 
+#include "clang-c/CXCppInterOp.h"
+
 #include "llvm/ADT/SmallString.h"
 #include "llvm/Support/Path.h"
 
@@ -108,6 +110,16 @@ TEST(InterpreterTest, CreateInterpreter) {
                    "#endif");
   EXPECT_TRUE(Cpp::GetNamed("cpp17"));
   EXPECT_FALSE(Cpp::GetNamed("cppUnknown"));
+
+#ifdef USE_REPL
+  // C API
+  auto CXI = clang_createInterpreterFromRawPtr(I);
+  auto CLI = clang_Interpreter_getClangInterpreter(CXI);
+  EXPECT_TRUE(CLI);
+  auto I2 = clang_Interpreter_takeInterpreterAsPtr(CXI);
+  EXPECT_EQ(I, I2);
+  clang_Interpreter_dispose(CXI);
+#endif
 }
 
 #ifdef LLVM_BINARY_DIR
@@ -175,6 +187,9 @@ TEST(InterpreterTest, CodeCompletion) {
 
 TEST(InterpreterTest, ExternalInterpreterTest) {
 
+if (llvm::sys::RunningOnValgrind())
+  GTEST_SKIP() << "XFAIL due to Valgrind report";
+
 #ifdef USE_REPL
   llvm::ExitOnError ExitOnErr;
   clang::IncrementalCompilerBuilder CB;
@@ -200,7 +215,12 @@ TEST(InterpreterTest, ExternalInterpreterTest) {
 #endif
 
   EXPECT_NE(ExtInterp, nullptr);
-  Cpp::UseExternalInterpreter(ExtInterp);
+
+#if !defined(NDEBUG) && GTEST_HAS_DEATH_TEST
+#ifndef _WIN32 // Windows seems to fail to die...
+    EXPECT_DEATH(Cpp::UseExternalInterpreter(ExtInterp), "sInterpreter already in use!");
+#endif // _WIN32
+#endif
   EXPECT_TRUE(Cpp::GetInterpreter()) << "External Interpreter not set";
 
 #ifdef USE_REPL
