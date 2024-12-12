@@ -124,8 +124,9 @@ jobs:
                 -DCMAKE_PREFIX_PATH=$PREFIX                     \
                 -DCling_DIR=$LLVM_BUILD_DIR/tools/cling         \
                 -DLLVM_DIR=$LLVM_BUILD_DIR/lib/cmake/llvm       \
+                -DLLD_DIR=$LLVM_BUILD_DIR/lib/cmake/lld         \
                 -DClang_DIR=$LLVM_BUILD_DIR/lib/cmake/clang     \
-                -DBUILD_SHARED_LIBS=OFF                          \
+                -DBUILD_SHARED_LIBS=ON                          \
                 -DCODE_COVERAGE=${{ env.CODE_COVERAGE }}        \
                 -DCMAKE_INSTALL_PREFIX=$PREFIX         \
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            \
@@ -136,8 +137,9 @@ jobs:
                 -DUSE_REPL=ON                               \
                 -DCMAKE_PREFIX_PATH=$PREFIX                      \
                 -DLLVM_DIR=$LLVM_BUILD_DIR/lib/cmake/llvm       \
+                -DLLD_DIR=$LLVM_BUILD_DIR/lib/cmake/lld         \
                 -DClang_DIR=$LLVM_BUILD_DIR/lib/cmake/clang     \
-                -DBUILD_SHARED_LIBS=OFF                      \
+                -DBUILD_SHARED_LIBS=ON                      \
                 -DCODE_COVERAGE=${{ env.CODE_COVERAGE }}    \
                 -DCMAKE_INSTALL_PREFIX=$PREFIX      \
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            \
@@ -175,7 +177,7 @@ jobs:
           -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            \
           -DCppInterOp_DIR="${{ env.CPPINTEROP_BUILD_DIR }}/lib/cmake/CppInterOp"  \
           ..
-        EMCC_CFLAGS='-sERROR_ON_UNDEFINED_SYMBOLS=0' emmake make -j ${{ env.ncpus }} install
+        emmake make -j ${{ env.ncpus }} install
 
     - name: Jupyter Lite integration 
       shell: bash -l {0}
