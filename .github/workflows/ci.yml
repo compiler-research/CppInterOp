@@ -650,6 +650,7 @@ jobs:
                         -DCLANG_ENABLE_STATIC_ANALYZER=OFF \
                         -DCLANG_ENABLE_ARCMT=OFF \
                         -DCLANG_ENABLE_BOOTSTRAP=OFF \
+                        -DLLVM_ENABLE_THREADS=OFF \
                         -DCMAKE_CXX_FLAGS="-Dwait4=__syscall_wait4" \
                          ../llvm
           emmake make clang -j ${{ env.ncpus }}
@@ -675,6 +676,7 @@ jobs:
                         -DCLANG_ENABLE_STATIC_ANALYZER=OFF \
                         -DCLANG_ENABLE_ARCMT=OFF \
                         -DCLANG_ENABLE_BOOTSTRAP=OFF \
+                        -DLLVM_ENABLE_THREADS=OFF \
                         -DCMAKE_CXX_FLAGS="-Dwait4=__syscall_wait4" \
                         ../llvm
           emmake make clang -j ${{ env.ncpus }}
@@ -1572,7 +1574,7 @@ jobs:
           emcmake  cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}        \
                 -DUSE_CLING=ON                                  \
                 -DUSE_REPL=OFF                                  \
-                -DCMAKE_PREFIX_PATH="$PREFIX"                     \
+                -DCMAKE_PREFIX_PATH=$PREFIX                     \
                 -DCling_DIR=$LLVM_BUILD_DIR/tools/cling         \
                 -DLLVM_DIR=$LLVM_BUILD_DIR/lib/cmake/llvm       \
                 -DLLD_DIR=$LLVM_BUILD_DIR     \
@@ -1586,7 +1588,7 @@ jobs:
           emcmake cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    \
                 -DUSE_CLING=OFF                             \
                 -DUSE_REPL=ON                               \
-                -DCMAKE_PREFIX_PATH="$PREFIX"                     \
+                -DCMAKE_PREFIX_PATH=$PREFIX                     \
                 -DLLVM_DIR=$LLVM_BUILD_DIR/lib/cmake/llvm      \
                 -DLLD_DIR=$LLVM_BUILD_DIR     \
                 -DClang_DIR=$LLVM_BUILD_DIR/lib/cmake/clang     \
