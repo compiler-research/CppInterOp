@@ -5,7 +5,7 @@
 #ifdef _WIN32
 extern "C" __declspec(dllexport) int ret_zero();
 #else
-extern "C" int ret_zero();
+extern "C" int __attribute__((visibility("default"))) ret_zero();
 #endif
 
 #endif // UNITTESTS_CPPINTEROP_TESTSHAREDLIB_TESTSHAREDLIB_H
