@@ -27,7 +27,7 @@ jobs:
             clang-runtime: '19'
             cling: Off
             cppyy: On
-            llvm_enable_projects: "clang;lld"
+            llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
           - name: ubu22-x86-gcc12-clang-repl-19-emscripten
             os: ubuntu-22.04
@@ -102,7 +102,7 @@ jobs:
             clang-runtime: '19'
             cling: Off
             cppyy: On
-            llvm_enable_projects: "clang;lld"
+            llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
           - name: osx15-arm-clang-clang-repl-19-emscripten
             os: macos-15
@@ -153,7 +153,7 @@ jobs:
             clang-runtime: '19'
             cling: Off
             cppyy: On
-            llvm_enable_projects: "clang;lld"
+            llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
           - name: osx13-x86-clang-clang-repl-19-emscripten
             os: macos-13
@@ -595,11 +595,8 @@ jobs:
                 -DLLVM_ENABLE_TERMINFO=OFF                          \
                 -DLLVM_ENABLE_LIBXML2=OFF                           \
                 ../llvm
-          if [[ "${llvm_vers}" == "16" ]]||[[ "${llvm_vers}" == "17" ]]||[[ "${llvm_vers}" == "18" ]]; then
-            cmake --build . --target clang clang-repl --parallel ${{ env.ncpus }}
-          else
-            cmake --build . --target clang clang-repl lld --parallel ${{ env.ncpus }}
-          fi
+          cmake --build . --target clang clang-repl --parallel ${{ env.ncpus }}
+          
         fi
         cd ../
         rm -rf $(find . -maxdepth 1 ! -name "build" ! -name "llvm" ! -name "clang" ! -name ".")
