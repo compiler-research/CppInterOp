@@ -8,6 +8,7 @@ if(EMSCRIPTEN)
     SHARED
 
     CppInterOp.cpp
+    CXCppInterOp.cpp
     DynamicLibraryManager.cpp
     DynamicLibraryManagerSymbol.cpp
     Paths.cpp
@@ -113,14 +114,15 @@ else()
       )
   endif(LLVM_LINK_LLVM_DYLIB)
 
-add_llvm_library(clangCppInterOp
-  DISABLE_LLVM_LINK_LLVM_DYLIB
-  CppInterOp.cpp
-  CXCppInterOp.cpp
-  ${DLM}
-  LINK_LIBS
-  ${link_libs}
- )
+  add_llvm_library(clangCppInterOp
+    DISABLE_LLVM_LINK_LLVM_DYLIB
+    CppInterOp.cpp
+    CXCppInterOp.cpp
+    ${DLM}
+    LINK_LIBS
+    ${link_libs}
+  )
+endif()
 
 string(REPLACE ";" "\;" _VER CPPINTEROP_VERSION)
 set_source_files_properties(CppInterOp.cpp PROPERTIES COMPILE_DEFINITIONS

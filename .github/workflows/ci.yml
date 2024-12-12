@@ -1330,6 +1330,7 @@ jobs:
                 -DCMAKE_PREFIX_PATH=$PREFIX                     \
                 -DCling_DIR=$LLVM_BUILD_DIR/tools/cling         \
                 -DLLVM_DIR=$LLVM_BUILD_DIR/lib/cmake/llvm       \
+                -DLLD_DIR=$LLVM_BUILD_DIR/lib/cmake/lld         \
                 -DClang_DIR=$LLVM_BUILD_DIR/lib/cmake/clang     \
                 -DBUILD_SHARED_LIBS=OFF                          \
                 -DCODE_COVERAGE=${{ env.CODE_COVERAGE }}        \
@@ -1342,6 +1343,7 @@ jobs:
                 -DUSE_REPL=ON                               \
                 -DCMAKE_PREFIX_PATH=$PREFIX                      \
                 -DLLVM_DIR=$LLVM_BUILD_DIR/lib/cmake/llvm       \
+                -DLLD_DIR=$LLVM_BUILD_DIR/lib/cmake/lld         \
                 -DClang_DIR=$LLVM_BUILD_DIR/lib/cmake/clang     \
                 -DBUILD_SHARED_LIBS=ON                      \
                 -DCODE_COVERAGE=${{ env.CODE_COVERAGE }}    \
