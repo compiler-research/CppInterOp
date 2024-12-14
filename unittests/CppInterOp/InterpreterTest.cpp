@@ -13,6 +13,8 @@
 
 #include "clang/Basic/Version.h"
 
+#include "clang-c/CXCppInterOp.h"
+
 #include "llvm/ADT/SmallString.h"
 #include "llvm/Support/Path.h"
 
@@ -108,6 +110,7 @@ TEST(InterpreterTest, CreateInterpreter) {
                    "#endif");
   EXPECT_TRUE(Cpp::GetNamed("cpp17"));
   EXPECT_FALSE(Cpp::GetNamed("cppUnknown"));
+
 
 #ifndef USE_CLING
   // C API

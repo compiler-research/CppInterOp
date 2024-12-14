@@ -56,3 +56,16 @@ void TestUtils::GetAllSubDecls(Decl *D, std::vector<Decl*>& SubDecls,
     SubDecls.push_back(Di);
   }
 }
+
+const char* get_c_string(CXString string) {
+  return static_cast<const char*>(string.data);
+}
+
+void dispose_string(CXString string) {
+  if (string.private_flags == 1 && string.data)
+    free(const_cast<void*>(string.data));
+}
+
+CXScope make_scope(const clang::Decl* D, const CXInterpreter I) {
+  return {CXCursor_UnexposedDecl, 0, {D, nullptr, I}};
+}

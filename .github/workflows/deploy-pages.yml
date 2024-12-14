@@ -68,10 +68,8 @@ jobs:
     - name: install mamba
       uses: mamba-org/setup-micromamba@main
       with:
-        environment-file: environment-wasm-build.yml
         init-shell: >-
           ${{ matrix.micromamba_shell_init }}
-        environment-name: CppInterOp-wasm-build
 
     - name: Setup emsdk
       shell: bash -l {0}
@@ -87,7 +85,7 @@ jobs:
         path: |
           llvm-project
           ${{ matrix.cling=='On' && 'cling' || '' }}
-        key: ${{ env.CLING_HASH }}-${{ runner.os }}-${{ matrix.os }}-${{ matrix.compiler }}-clang-${{ matrix.clang-runtime }}.x-patch-${{ hashFiles(format('patches/llvm/clang{0}-*.patch', matrix.clang-runtime)) || 'none' }}
+        key: ${{ env.CLING_HASH }}-${{ runner.os }}-${{ matrix.os }}-${{ matrix.compiler }}-clang-${{ matrix.clang-runtime }}.x-emscripten
         
     - name: Emscripten build of CppInterOp on Unix systems
       if: ${{ runner.os != 'windows' }}
@@ -124,13 +122,12 @@ jobs:
                 -DCMAKE_PREFIX_PATH=$PREFIX                     \
                 -DCling_DIR=$LLVM_BUILD_DIR/tools/cling         \
                 -DLLVM_DIR=$LLVM_BUILD_DIR/lib/cmake/llvm       \
+                -DLLD_DIR=$LLVM_BUILD_DIR/lib/cmake/lld         \
                 -DClang_DIR=$LLVM_BUILD_DIR/lib/cmake/clang     \
-                -DBUILD_SHARED_LIBS=OFF                          \
+                -DBUILD_SHARED_LIBS=ON                          \
                 -DCODE_COVERAGE=${{ env.CODE_COVERAGE }}        \
                 -DCMAKE_INSTALL_PREFIX=$PREFIX         \
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            \
-                -DZLIB_INCLUDE_DIR=$PREFIX/include \
-                -DZLIB_LIBRARY=$PREFIX/lib/ \
                 ../
         else
           emcmake cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    \
@@ -138,13 +135,12 @@ jobs:
                 -DUSE_REPL=ON                               \
                 -DCMAKE_PREFIX_PATH=$PREFIX                      \
                 -DLLVM_DIR=$LLVM_BUILD_DIR/lib/cmake/llvm       \
+                -DLLD_DIR=$LLVM_BUILD_DIR/lib/cmake/lld         \
                 -DClang_DIR=$LLVM_BUILD_DIR/lib/cmake/clang     \
-                -DBUILD_SHARED_LIBS=OFF                      \
+                -DBUILD_SHARED_LIBS=ON                      \
                 -DCODE_COVERAGE=${{ env.CODE_COVERAGE }}    \
                 -DCMAKE_INSTALL_PREFIX=$PREFIX      \
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            \
-                -DZLIB_INCLUDE_DIR=$PREFIX/include \
-                -DZLIB_LIBRARY=$PREFIX/lib/ \
                 ../
         fi
         
@@ -179,7 +175,7 @@ jobs:
           -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            \
           -DCppInterOp_DIR="${{ env.CPPINTEROP_BUILD_DIR }}/lib/cmake/CppInterOp"  \
           ..
-        EMCC_CFLAGS='-sERROR_ON_UNDEFINED_SYMBOLS=0' emmake make -j ${{ env.ncpus }} install
+        emmake make -j ${{ env.ncpus }} install
 
     - name: Jupyter Lite integration 
       shell: bash -l {0}

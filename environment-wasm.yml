@@ -2,7 +2,6 @@ name: CppInterOp-wasm
 channels:
   - https://repo.mamba.pm/emscripten-forge
 dependencies:
-  - zlib
   - nlohmann_json
   - xeus-lite
   - xeus
