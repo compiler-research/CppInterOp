@@ -7,6 +7,7 @@
 #include "cling/Interpreter/Interpreter.h"
 #endif // USE_CLING
 
+#ifndef USE_CLING
 #include "clang/Interpreter/Interpreter.h"
 
 #include "clang/Basic/Version.h"
@@ -106,6 +107,16 @@ TEST(InterpreterTest, CreateInterpreter) {
                    "#endif");
   EXPECT_TRUE(Cpp::GetNamed("cpp17"));
   EXPECT_FALSE(Cpp::GetNamed("cppUnknown"));
+
+#ifndef USE_CLING
+  // C API
+  auto CXI = clang_createInterpreterFromRawPtr(I);
+  auto CLI = clang_Interpreter_getClangInterpreter(CXI);
+  EXPECT_TRUE(CLI);
+  auto I2 = clang_Interpreter_takeInterpreterAsPtr(CXI);
+  EXPECT_EQ(I, I2);
+  clang_Interpreter_dispose(CXI);
+#endif // USE_REPL
 }
 
 #ifdef LLVM_BINARY_DIR
@@ -176,6 +187,7 @@ TEST(InterpreterTest, ExternalInterpreterTest) {
 if (llvm::sys::RunningOnValgrind())
   GTEST_SKIP() << "XFAIL due to Valgrind report";
 
+#ifndef USE_CLING
   llvm::ExitOnError ExitOnErr;
   clang::IncrementalCompilerBuilder CB;
   CB.SetCompilerArgs({"-std=c++20"});
@@ -188,6 +200,7 @@ if (llvm::sys::RunningOnValgrind())
   std::unique_ptr<clang::Interpreter> I =
       ExitOnErr(clang::Interpreter::create(std::move(CI)));
   auto ExtInterp = I.get();
+#endif // USE_REPL
 
 #ifdef USE_CLING
     std::string MainExecutableName = sys::fs::getMainExecutable(nullptr, nullptr);
@@ -207,6 +220,7 @@ if (llvm::sys::RunningOnValgrind())
 #endif
   EXPECT_TRUE(Cpp::GetInterpreter()) << "External Interpreter not set";
 
+#ifndef USE_CLING
   I.release();
 
 #ifdef USE_CLING
