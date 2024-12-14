@@ -9,6 +9,7 @@
 
 #ifndef USE_CLING
 #include "clang/Interpreter/Interpreter.h"
+#endif // USE_REPL
 
 #include "clang/Basic/Version.h"
 
@@ -116,7 +117,7 @@ TEST(InterpreterTest, CreateInterpreter) {
   auto I2 = clang_Interpreter_takeInterpreterAsPtr(CXI);
   EXPECT_EQ(I, I2);
   clang_Interpreter_dispose(CXI);
-#endif // USE_REPL
+#endif
 }
 
 #ifdef LLVM_BINARY_DIR
@@ -222,6 +223,7 @@ if (llvm::sys::RunningOnValgrind())
 
 #ifndef USE_CLING
   I.release();
+#endif
 
 #ifdef USE_CLING
   delete ExtInterp;
