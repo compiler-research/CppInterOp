@@ -403,7 +403,7 @@ namespace compat {
 using Interpreter = Cpp::Interpreter;
 }
 
-#endif // USE_CLING
+#endif // USE_REPL
 
 namespace compat {
 
