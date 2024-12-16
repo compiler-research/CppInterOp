@@ -967,7 +967,7 @@ TEST(ScopeReflectionTest, IncludeVector) {
   Interp->process(code);
 }
 
-TEST(ScopeReflectionTest, GetBinaryOperator) {
+TEST(ScopeReflectionTest, GetOperator) {
   if (llvm::sys::RunningOnValgrind())
     GTEST_SKIP() << "XFAIL due to Valgrind report";
 
@@ -988,6 +988,8 @@ TEST(ScopeReflectionTest, GetBinaryOperator) {
         return MyClass(lhs.x + rhs.x);
     }
 
+    namespace extra_ops {
+
     MyClass operator+(MyClass lhs, int rhs) {
         return MyClass(lhs.x + rhs);
     }
@@ -995,20 +997,46 @@ TEST(ScopeReflectionTest, GetBinaryOperator) {
     MyClass operator+(int lhs, MyClass rhs) {
         return MyClass(lhs + rhs.x);
     }
+
+    MyClass operator~(MyClass self) {
+        return MyClass(-self.x);
+    }
+
+    }
   )";
 
   Cpp::Declare(code.c_str());
 
   std::vector<Cpp::TCppFunction_t> ops;
 
-  Cpp::GetBinaryOperator(Cpp::GetGlobalScope(), Cpp::BinaryOperator::Add, ops);
-  EXPECT_EQ(ops.size(), 3);
-  ops.clear();
-
-  Cpp::GetBinaryOperator(Cpp::GetGlobalScope(), Cpp::BinaryOperator::Sub, ops);
+  Cpp::GetOperator(Cpp::GetGlobalScope(), Cpp::Operator::OP_Plus, ops);
   EXPECT_EQ(ops.size(), 1);
   ops.clear();
 
-  Cpp::GetBinaryOperator(Cpp::GetGlobalScope(), Cpp::BinaryOperator::Mul, ops);
+  Cpp::GetOperator(Cpp::GetGlobalScope(), Cpp::Operator::OP_Minus, ops);
+  EXPECT_EQ(ops.size(), 1);
+  ops.clear();
+
+  Cpp::GetOperator(Cpp::GetGlobalScope(), Cpp::Operator::OP_Star, ops);
+  EXPECT_EQ(ops.size(), 0);
+  ops.clear();
+
+  // operators defined within a namespace
+  Cpp::GetOperator(Cpp::GetScope("extra_ops"), Cpp::Operator::OP_Plus, ops);
+  EXPECT_EQ(ops.size(), 2);
+  ops.clear();
+
+  // unary operator
+  Cpp::GetOperator(Cpp::GetScope("extra_ops"), Cpp::Operator::OP_Tilde, ops);
+  EXPECT_EQ(ops.size(), 1);
+  ops.clear();
+
+  Cpp::GetOperator(Cpp::GetScope("extra_ops"), Cpp::Operator::OP_Tilde, ops,
+                   Cpp::OperatorArity::kUnary);
+  EXPECT_EQ(ops.size(), 1);
+  ops.clear();
+
+  Cpp::GetOperator(Cpp::GetScope("extra_ops"), Cpp::Operator::OP_Tilde, ops,
+                   Cpp::OperatorArity::kBinary);
   EXPECT_EQ(ops.size(), 0);
 }
