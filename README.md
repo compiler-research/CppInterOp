@@ -126,8 +126,8 @@ command
 ```bash
 mkdir build 
 cd build 
-cmake -DLLVM_ENABLE_PROJECTS="clang;lld"                  \
-                -DLLVM_TARGETS_TO_BUILD="WebAssembly;host;NVPTX"          \
+cmake -DLLVM_ENABLE_PROJECTS=clang                                  \
+                -DLLVM_TARGETS_TO_BUILD="host;NVPTX"                \
                 -DCMAKE_BUILD_TYPE=Release                          \
                 -DLLVM_ENABLE_ASSERTIONS=ON                         \
                 -DCLANG_ENABLE_STATIC_ANALYZER=OFF                  \
@@ -138,7 +138,7 @@ cmake -DLLVM_ENABLE_PROJECTS="clang;lld"                  \
                 -DLLVM_ENABLE_TERMINFO=OFF                          \
                 -DLLVM_ENABLE_LIBXML2=OFF                           \
                 ../llvm
-cmake --build . --target clang clang-repl lld --parallel $(nproc --all)
+cmake --build . --target clang clang-repl --parallel $(nproc --all)
 ```
 
 On Windows you would do this by executing the following
@@ -190,10 +190,10 @@ cd ..
 git clone --depth=1 -b cling-llvm13 https://github.com/root-project/llvm-project.git
 mkdir llvm-project/build
 cd llvm-project/build
-cmake -DLLVM_ENABLE_PROJECTS="clang;lld"               \
+cmake -DLLVM_ENABLE_PROJECTS=clang                                 \
                 -DLLVM_EXTERNAL_PROJECTS=cling                     \
                 -DLLVM_EXTERNAL_CLING_SOURCE_DIR=../../cling       \
-                -DLLVM_TARGETS_TO_BUILD="WebAssembly;host;NVPTX"   \
+                -DLLVM_TARGETS_TO_BUILD="host;NVPTX"   \
                 -DCMAKE_BUILD_TYPE=Release                         \
                 -DLLVM_ENABLE_ASSERTIONS=ON                        \
                 -DCLANG_ENABLE_STATIC_ANALYZER=OFF                 \
@@ -204,7 +204,6 @@ cmake -DLLVM_ENABLE_PROJECTS="clang;lld"               \
                 -DLLVM_ENABLE_TERMINFO=OFF                         \
                 -DLLVM_ENABLE_LIBXML2=OFF                          \
                 ../llvm
-cmake --build . --target lld --parallel $(nproc --all)
 cmake --build . --target clang --parallel $(nproc --all)
 cmake --build . --target cling --parallel $(nproc --all)
 cmake --build . --target gtest_main --parallel $(nproc --all)
