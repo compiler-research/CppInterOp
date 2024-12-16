@@ -37,41 +37,56 @@ namespace Cpp {
   using TInterp_t = void*;
   using TCppObject_t = void*;
 
-  enum BinaryOperator {
-    PtrMemD = 0,
-    PtrMemI,
-    Mul,
-    Div,
-    Rem,
-    Add,
-    Sub,
-    Shl,
-    Shr,
-    Cmp,
-    LT,
-    GT,
-    LE,
-    GE,
-    EQ,
-    NE,
-    And,
-    Xor,
-    Or,
-    LAnd,
-    LOr,
-    Assign,
-    MulAssign,
-    DivAssign,
-    RemAssign,
-    AddAssign,
-    SubAssign,
-    ShlAssign,
-    ShrAssign,
-    AndAssign,
-    XorAssign,
-    OrAssign,
-    Comma,
+  enum Operator {
+    OP_None,
+    OP_New,
+    OP_Delete,
+    OP_Array_New,
+    OP_Array_Delete,
+    OP_Plus,
+    OP_Minus,
+    OP_Star,
+    OP_Slash,
+    OP_Percent,
+    OP_Caret,
+    OP_Amp,
+    OP_Pipe,
+    OP_Tilde,
+    OP_Exclaim,
+    OP_Equal,
+    OP_Less,
+    OP_Greater,
+    OP_PlusEqual,
+    OP_MinusEqual,
+    OP_StarEqual,
+    OP_SlashEqual,
+    OP_PercentEqual,
+    OP_CaretEqual,
+    OP_AmpEqual,
+    OP_PipeEqual,
+    OP_LessLess,
+    OP_GreaterGreater,
+    OP_LessLessEqual,
+    OP_GreaterGreaterEqual,
+    OP_EqualEqual,
+    OP_ExclaimEqual,
+    OP_LessEqual,
+    OP_GreaterEqual,
+    OP_Spaceship,
+    OP_AmpAmp,
+    OP_PipePipe,
+    OP_PlusPlus,
+    OP_MinusMinus,
+    OP_Comma,
+    OP_ArrowStar,
+    OP_Arrow,
+    OP_Call,
+    OP_Subscript,
+    OP_Conditional,
+    OP_Coawait,
   };
+
+  enum OperatorArity { kUnary = 1, kBinary, kBoth };
 
   /// A class modeling function calls for functions produced by the interpreter
   /// in compiled code. It provides an information if we are calling a standard
@@ -513,9 +528,13 @@ namespace Cpp {
   CPPINTEROP_API std::string GetFunctionArgName(TCppFunction_t func,
                                                 TCppIndex_t param_index);
 
-  ///\returns function that performs operation op on lc and rc
-  void GetBinaryOperator(TCppScope_t scope, enum BinaryOperator op,
-                         std::vector<TCppFunction_t>& operators);
+  ///\returns arity of the operator or kNone
+  OperatorArity GetOperatorArity(TCppFunction_t op);
+
+  ///\returns list of operator overloads
+  void GetOperator(TCppScope_t scope, Operator op,
+                   std::vector<TCppFunction_t>& operators,
+                   OperatorArity kind = kBoth);
 
   /// Creates an instance of the interpreter we need for the various interop
   /// services.

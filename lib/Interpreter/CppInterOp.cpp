@@ -3315,22 +3315,43 @@ namespace Cpp {
     return PI->getNameAsString();
   }
 
-  void GetBinaryOperator(TCppScope_t scope, enum BinaryOperator op,
-                         std::vector<TCppFunction_t>& operators) {
+  OperatorArity GetOperatorArity(TCppFunction_t op) {
+    Decl* D = static_cast<Decl*>(op);
+    if (auto* FD = llvm::dyn_cast<FunctionDecl>(D)) {
+      if (FD->isOverloadedOperator()) {
+        switch (FD->getOverloadedOperator()) {
+#define OVERLOADED_OPERATOR(Name, Spelling, Token, Unary, Binary,            \
+                              MemberOnly)                                      \
+    case OO_##Name:                                                            \
+      if ((Unary) && (Binary))                                                 \
+        return kBoth;                                                          \
+      if (Unary)                                                               \
+        return kUnary;                                                         \
+      if (Binary)                                                              \
+        return kBinary;                                                        \
+      break;
+#include "clang/Basic/OperatorKinds.def"
+        default:
+          break;
+        }
+      }
+    }
+    return (OperatorArity)~0U;
+  }
+
+  void GetOperator(TCppScope_t scope, Operator op,
+                   std::vector<TCppFunction_t>& operators, OperatorArity kind) {
     Decl* D = static_cast<Decl*>(scope);
-    auto* DC = llvm::dyn_cast<DeclContext>(D);
-    Scope* S = getSema().getScopeForContext(DC);
-    if (!S)
-      return;
+    if (auto* DC = llvm::dyn_cast_or_null<DeclContext>(D)) {
+      ASTContext& C = getSema().getASTContext();
+      DeclContextLookupResult Result =
+          DC->lookup(C.DeclarationNames.getCXXOperatorName(
+              (clang::OverloadedOperatorKind)op));
 
-    clang::UnresolvedSet<8> lookup;
-
-    getSema().LookupBinOp(S, SourceLocation(), (clang::BinaryOperatorKind)op,
-                          lookup);
-
-    for (NamedDecl* D : lookup) {
-      if (auto* FD = llvm::dyn_cast<Decl>(D))
-        operators.push_back(FD);
+      for (auto* i : Result) {
+        if (kind & GetOperatorArity(i))
+          operators.push_back(i);
+      }
     }
   }
 
