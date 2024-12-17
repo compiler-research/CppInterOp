@@ -183,7 +183,7 @@ inline void codeComplete(std::vector<std::string>& Results,
 
 #endif // USE_CLING
 
-#ifdef USE_REPL
+#ifndef USE_CLING
 
 #include "DynamicLibraryManager.h"
 #include "clang/AST/Mangle.h"

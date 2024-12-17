@@ -7,7 +7,7 @@
 #include "cling/Interpreter/Interpreter.h"
 #endif // USE_CLING
 
-#ifdef USE_REPL
+#ifndef USE_CLING
 #include "clang/Interpreter/Interpreter.h"
 #endif // USE_REPL
 
@@ -111,7 +111,8 @@ TEST(InterpreterTest, CreateInterpreter) {
   EXPECT_TRUE(Cpp::GetNamed("cpp17"));
   EXPECT_FALSE(Cpp::GetNamed("cppUnknown"));
 
-#ifdef USE_REPL
+
+#ifndef USE_CLING
   // C API
   auto CXI = clang_createInterpreterFromRawPtr(I);
   auto CLI = clang_Interpreter_getClangInterpreter(CXI);
@@ -190,7 +191,7 @@ TEST(InterpreterTest, ExternalInterpreterTest) {
 if (llvm::sys::RunningOnValgrind())
   GTEST_SKIP() << "XFAIL due to Valgrind report";
 
-#ifdef USE_REPL
+#ifndef USE_CLING
   llvm::ExitOnError ExitOnErr;
   clang::IncrementalCompilerBuilder CB;
   CB.SetCompilerArgs({"-std=c++20"});
@@ -203,7 +204,7 @@ if (llvm::sys::RunningOnValgrind())
   std::unique_ptr<clang::Interpreter> I =
       ExitOnErr(clang::Interpreter::create(std::move(CI)));
   auto ExtInterp = I.get();
-#endif
+#endif // USE_REPL
 
 #ifdef USE_CLING
     std::string MainExecutableName = sys::fs::getMainExecutable(nullptr, nullptr);
@@ -223,9 +224,10 @@ if (llvm::sys::RunningOnValgrind())
 #endif
   EXPECT_TRUE(Cpp::GetInterpreter()) << "External Interpreter not set";
 
-#ifdef USE_REPL
+#ifndef USE_CLING
   I.release();
 #endif
+
 #ifdef USE_CLING
   delete ExtInterp;
 #endif
