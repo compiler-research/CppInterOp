@@ -35,6 +35,7 @@
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_os_ostream.h"
 
+#include <map>
 #include <set>
 #include <sstream>
 #include <string>
@@ -1222,20 +1223,22 @@ namespace Cpp {
     return 0;
   }
 
-  intptr_t GetVariableOffset(compat::Interpreter& I, Decl* D) {
+  intptr_t GetVariableOffset(compat::Interpreter& I, Decl* D,
+                             CXXRecordDecl* BaseCXXRD) {
     if (!D)
       return 0;
 
     auto& C = I.getSema().getASTContext();
 
     if (auto* FD = llvm::dyn_cast<FieldDecl>(D)) {
-      const clang::RecordDecl* RD = FD->getParent();
+      clang::RecordDecl* FieldParentRecordDecl = FD->getParent();
       intptr_t offset =
           C.toCharUnitsFromBits(C.getFieldOffset(FD)).getQuantity();
-      while (RD->isAnonymousStructOrUnion()) {
-        const clang::RecordDecl* anon = RD;
-        RD = llvm::dyn_cast<RecordDecl>(anon->getParent());
-        for (auto F = RD->field_begin(); F != RD->field_end(); ++F) {
+      while (FieldParentRecordDecl->isAnonymousStructOrUnion()) {
+        clang::RecordDecl* anon = FieldParentRecordDecl;
+        FieldParentRecordDecl = llvm::dyn_cast<RecordDecl>(anon->getParent());
+        for (auto F = FieldParentRecordDecl->field_begin();
+             F != FieldParentRecordDecl->field_end(); ++F) {
           const auto* RT = F->getType()->getAs<RecordType>();
           if (!RT)
             continue;
@@ -1245,6 +1248,46 @@ namespace Cpp {
           }
         }
         offset += C.toCharUnitsFromBits(C.getFieldOffset(FD)).getQuantity();
+      }
+      if (BaseCXXRD && BaseCXXRD != FieldParentRecordDecl) {
+        // FieldDecl FD belongs to some class C, but the base class BaseCXXRD is
+        // not C. That means BaseCXXRD derives from C. Offset needs to be
+        // calculated for Derived class
+
+        // Depth first Search is performed to the class that declears FD from
+        // the base class
+        std::vector<CXXRecordDecl*> stack;
+        std::map<CXXRecordDecl*, CXXRecordDecl*> direction;
+        stack.push_back(BaseCXXRD);
+        while (!stack.empty()) {
+          CXXRecordDecl* RD = stack.back();
+          stack.pop_back();
+          size_t num_bases = GetNumBases(RD);
+          bool flag = false;
+          for (size_t i = 0; i < num_bases; i++) {
+            auto* CRD = static_cast<CXXRecordDecl*>(GetBaseClass(RD, i));
+            direction[CRD] = RD;
+            if (CRD == FieldParentRecordDecl) {
+              flag = true;
+              break;
+            }
+            stack.push_back(CRD);
+          }
+          if (flag)
+            break;
+        }
+        if (auto* RD = llvm::dyn_cast<CXXRecordDecl>(FieldParentRecordDecl)) {
+          // add in the offsets for the (multi level) base classes
+          while (BaseCXXRD != RD) {
+            CXXRecordDecl* Parent = direction.at(RD);
+            offset += C.getASTRecordLayout(Parent)
+                          .getBaseClassOffset(RD)
+                          .getQuantity();
+            RD = Parent;
+          }
+        } else {
+          assert(false && "Unreachable");
+        }
       }
       return offset;
     }
@@ -1321,9 +1364,11 @@ namespace Cpp {
     return 0;
   }
 
-  intptr_t GetVariableOffset(TCppScope_t var) {
+  intptr_t GetVariableOffset(TCppScope_t var, TCppScope_t parent) {
     auto* D = static_cast<Decl*>(var);
-    return GetVariableOffset(getInterp(), D);
+    auto* RD =
+        llvm::dyn_cast_or_null<CXXRecordDecl>(static_cast<Decl*>(parent));
+    return GetVariableOffset(getInterp(), D, RD);
   }
 
   // Check if the Access Specifier of the variable matches the provided value.
