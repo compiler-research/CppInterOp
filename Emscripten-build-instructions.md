@@ -73,7 +73,6 @@ emcmake cmake -DCMAKE_BUILD_TYPE=Release \
                         -DCMAKE_CXX_FLAGS="-Dwait4=__syscall_wait4" \
                         ../llvm
 emmake make clang -j $(nproc --all)
-emmake make clang-repl -j $(nproc --all)
 emmake make lld -j $(nproc --all)
 ```
 
@@ -83,8 +82,7 @@ Once this finishes building we need to take note of where we built our llvm buil
 export LLVM_BUILD_DIR=$PWD
 ```
 
-We can move onto building the wasm  
-version of CppInterOp. To do this execute the following  
+We can move onto building the wasm version of CppInterOp. To do this execute the following  
 
 ```bash
 cd ../../CppInterOp/
@@ -103,7 +101,7 @@ emcmake cmake -DCMAKE_BUILD_TYPE=Release    \
 emmake make -j $(nproc --all)
 ```bash
 
-Once this finishes building we need to take note of where we built our llvm build. This can be done by executing the following
+Once this finishes building we need to take note of where we built CppInterOp. This can be done by executing the following
 
 ```bash
 export CPPINTEROP_BUILD_DIR=$PWD
