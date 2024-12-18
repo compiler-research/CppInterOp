@@ -43,7 +43,6 @@ jobs:
             -DCMAKE_C_COMPILER="$GITHUB_WORKSPACE/llvm/bin/clang"
             -DCMAKE_CXX_COMPILER="$GITHUB_WORKSPACE/llvm/bin/clang++"
             -DUSE_CLING=OFF
-            -DUSE_REPL=ON
             -DLLVM_DIR="$GITHUB_WORKSPACE/llvm"
             -DBUILD_SHARED_LIBS=ON
             -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
