@@ -99,7 +99,7 @@ emcmake cmake -DCMAKE_BUILD_TYPE=Release    \
                 -DCMAKE_INSTALL_PREFIX=$PREFIX         \
                 ../
 emmake make -j $(nproc --all)
-```bash
+```
 
 Once this finishes building we need to take note of where we built CppInterOp. This can be done by executing the following
 
