@@ -69,7 +69,7 @@ namespace Cpp {
   // Last assigned Autoload SearchGenerator
   // TODO: Test fot thread safe.
   class AutoLoadLibrarySearchGenerator;
-  static AutoLoadLibrarySearchGenerator *sAutoSG = null;
+  static AutoLoadLibrarySearchGenerator *sAutoSG = nullptr;
   // Flag to indicate ownership when an external interpreter instance is used.
   static bool OwningSInterpreter = true;
   static compat::Interpreter* sInterpreter = nullptr;
