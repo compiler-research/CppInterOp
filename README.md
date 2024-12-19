@@ -1,11 +1,19 @@
 # CppInterOp
 
+[![Build Status](https://github.com/compiler-research/CppInterOp/actions/workflows/non-emscripten.yml/badge.svg)](https://github.com/compiler-research/CppInterOp/actions/workflows/non-emscripten.yml)
+
+[![Build Status](https://github.com/compiler-research/CppInterOp/actions/workflows/emscripten.yml/badge.svg)](https://github.com/compiler-research/CppInterOp/actions/workflows/emscripten.yml)
+
 [![Build Status](https://github.com/compiler-research/CppInterOp/actions/workflows/ci.yml/badge.svg)](https://github.com/compiler-research/CppInterOp/actions/workflows/ci.yml)
+
 [![codecov](https://codecov.io/gh/compiler-research/CppInterOp/branch/main/graph/badge.svg)](https://codecov.io/gh/compiler-research/CppInterOp)
 
 [![Conda-Forge](https://img.shields.io/conda/vn/conda-forge/cppinterop)](https://github.com/conda-forge/cppinterop-feedstock)
+
 [![Anaconda-Server Badge](https://anaconda.org/conda-forge/cppinterop/badges/license.svg)](https://github.com/conda-forge/cppinterop-feedstock)
+
 [![Conda Platforms](https://img.shields.io/conda/pn/conda-forge/cppinterop.svg)](https://anaconda.org/conda-forge/cppinterop)
+
 [![Anaconda-Server Badge](https://anaconda.org/conda-forge/cppinterop/badges/downloads.svg)](https://github.com/conda-forge/cppinterop-feedstock)
 
 CppInterOp exposes API from [Clang](http://clang.llvm.org/) and [LLVM](https://llvm.org) in a backward compatible way.
