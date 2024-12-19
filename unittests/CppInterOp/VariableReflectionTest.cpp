@@ -6,6 +6,7 @@
 #include "clang/Sema/Sema.h"
 
 #include "gtest/gtest.h"
+#include <string>
 
 #include <cstddef>
 

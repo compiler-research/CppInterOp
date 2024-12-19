@@ -1214,13 +1214,22 @@ namespace Cpp {
 
   TCppType_t GetVariableType(TCppScope_t var)
   {
-    auto D = (Decl *) var;
+      auto D = (Decl *) var;
 
-    if (auto DD = llvm::dyn_cast_or_null<DeclaratorDecl>(D)) {
-      return DD->getType().getAsOpaquePtr();
-    }
+      if (auto DD = llvm::dyn_cast_or_null<DeclaratorDecl>(D)) {
+          QualType QT = DD->getType();
 
-    return 0;
+          // Check if the type is a typedef type
+          if (QT->isTypedefNameType()) {
+              return QT.getAsOpaquePtr();
+          }
+
+          // Else, return the canonical type
+          QT = QT.getCanonicalType();
+          return QT.getAsOpaquePtr();
+      }
+
+      return 0;
   }
 
   intptr_t GetVariableOffset(compat::Interpreter& I, Decl* D,
