@@ -89,8 +89,6 @@ cd ../../CppInterOp/
 mkdir build
 cd ./build/
 emcmake cmake -DCMAKE_BUILD_TYPE=Release    \
-                -DUSE_CLING=OFF                             \
-                -DUSE_REPL=ON                               \
                 -DLLVM_DIR=$LLVM_BUILD_DIR/lib/cmake/llvm      \
                 -DLLD_DIR=$LLVM_BUILD_DIR/lib/cmake/lld     \
                 -DClang_DIR=$LLVM_BUILD_DIR/lib/cmake/clang     \
