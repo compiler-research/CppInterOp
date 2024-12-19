@@ -131,8 +131,6 @@ jobs:
                 ../
         else
           emcmake cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    \
-                -DUSE_CLING=OFF                             \
-                -DUSE_REPL=ON                               \
                 -DCMAKE_PREFIX_PATH=$PREFIX                      \
                 -DLLVM_DIR=$LLVM_BUILD_DIR/lib/cmake/llvm       \
                 -DLLD_DIR=$LLVM_BUILD_DIR/lib/cmake/lld         \
