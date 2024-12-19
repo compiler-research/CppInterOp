@@ -446,7 +446,8 @@ namespace Cpp {
 
   /// Gets the address of the variable, you can use it to get the
   /// value stored in the variable.
-  CPPINTEROP_API intptr_t GetVariableOffset(TCppScope_t var);
+  CPPINTEROP_API intptr_t GetVariableOffset(TCppScope_t var,
+                                            TCppScope_t parent = nullptr);
 
   /// Checks if the provided variable is a 'Public' variable.
   CPPINTEROP_API bool IsPublicVariable(TCppScope_t var);

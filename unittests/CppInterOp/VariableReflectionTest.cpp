@@ -7,6 +7,8 @@
 
 #include "gtest/gtest.h"
 
+#include <cstddef>
+
 using namespace TestUtils;
 using namespace llvm;
 using namespace clang;
@@ -256,6 +258,88 @@ TEST(VariableReflectionTest, GetVariableOffset) {
 
   auto* VD_C_s_a = Cpp::GetNamed("s_a", Decls[4]); // C::s_a
   EXPECT_TRUE((bool) Cpp::GetVariableOffset(VD_C_s_a));
+}
+
+#define CODE                                                                   \
+  class BaseA {                                                                \
+  public:                                                                      \
+    virtual ~BaseA() {}                                                        \
+    int a;                                                                     \
+    BaseA(int a) : a(a) {}                                                     \
+  };                                                                           \
+                                                                               \
+  class BaseB : public BaseA {                                                 \
+  public:                                                                      \
+    virtual ~BaseB() {}                                                        \
+    std::string b;                                                             \
+    BaseB(int x, std::string b) : BaseA(x), b(b) {}                            \
+  };                                                                           \
+                                                                               \
+  class Base1 {                                                                \
+  public:                                                                      \
+    virtual ~Base1() {}                                                        \
+    int i;                                                                     \
+    std::string s;                                                             \
+    Base1(int i, std::string s) : i(i), s(s) {}                                \
+  };                                                                           \
+                                                                               \
+  class MyKlass : public BaseB, public Base1 {                                 \
+  public:                                                                      \
+    virtual ~MyKlass() {}                                                      \
+    int k;                                                                     \
+    MyKlass(int k, int i, int x, std::string b, std::string s)                 \
+        : BaseB(x, b), Base1(i, s), k(k) {}                                    \
+  } my_k(5, 4, 3, "Cpp", "Python");
+
+CODE
+
+TEST(VariableReflectionTest, VariableOffsetsWithInheritance) {
+  if (llvm::sys::RunningOnValgrind())
+    GTEST_SKIP() << "XFAIL due to Valgrind report";
+
+  Cpp::Declare("#include<string>");
+
+#define Stringify(s) Stringifyx(s)
+#define Stringifyx(...) #__VA_ARGS__
+  Cpp::Declare(Stringify(CODE));
+#undef Stringifyx
+#undef Stringify
+#undef CODE
+
+  Cpp::TCppScope_t myklass = Cpp::GetNamed("MyKlass");
+  EXPECT_TRUE(myklass);
+
+  size_t num_bases = Cpp::GetNumBases(myklass);
+  EXPECT_EQ(num_bases, 2);
+
+  std::vector<Cpp::TCppScope_t> datamembers;
+  Cpp::GetDatamembers(myklass, datamembers);
+  for (size_t i = 0; i < num_bases; i++) {
+    Cpp::TCppScope_t base = Cpp::GetBaseClass(myklass, i);
+    EXPECT_TRUE(base);
+    for (size_t i = 0; i < Cpp::GetNumBases(base); i++) {
+      Cpp::TCppScope_t bbase = Cpp::GetBaseClass(base, i);
+      EXPECT_TRUE(base);
+      Cpp::GetDatamembers(bbase, datamembers);
+    }
+    Cpp::GetDatamembers(base, datamembers);
+  }
+  EXPECT_EQ(datamembers.size(), 5);
+
+  EXPECT_EQ(Cpp::GetVariableOffset(datamembers[0], myklass),
+            ((intptr_t)&(my_k.k)) - ((intptr_t)&(my_k)));
+
+  EXPECT_EQ(Cpp::GetVariableOffset(datamembers[1], myklass),
+            ((intptr_t)&(my_k.a)) - ((intptr_t)&(my_k)));
+
+  EXPECT_EQ(Cpp::GetVariableOffset(datamembers[2], myklass),
+            ((intptr_t)&(my_k.b)) - ((intptr_t)&(my_k)));
+
+  EXPECT_EQ(Cpp::GetVariableOffset(datamembers[3], myklass),
+            ((intptr_t)&(my_k.i)) - ((intptr_t)&(my_k)));
+
+  EXPECT_EQ(Cpp::GetVariableOffset(datamembers[4], myklass),
+            ((intptr_t)&(my_k.s)) - ((intptr_t)&(my_k)));
 }
 
 TEST(VariableReflectionTest, IsPublicVariable) {
