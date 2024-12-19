@@ -1213,7 +1213,7 @@ namespace Cpp {
   }
 
   TCppType_t GetVariableType(TCppScope_t var) {
-    auto *D = static_cast<Decl*>(var);
+    auto* D = static_cast<Decl*>(var);
 
     if (auto DD = llvm::dyn_cast_or_null<DeclaratorDecl>(D)) {
       QualType QT = DD->getType();
