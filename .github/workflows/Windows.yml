@@ -1,0 +1,410 @@
+name: Windows Non Emscripten CppInterOp Builds
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  release:
+    types: [published]
+  schedule:
+    - cron: '30 20 * * *' # Warning: Timezone dep - 20:00 is 1:00
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  build_cache:
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: win2022-msvc-clang-repl-19
+            os: windows-2022
+            compiler: msvc
+            clang-runtime: '19'
+            cling: Off
+            cppyy: Off
+            llvm_enable_projects: "clang"
+            llvm_targets_to_build: "host;NVPTX"
+          - name: win2022-msvc-clang-repl-18
+            os: windows-2022
+            compiler: msvc
+            clang-runtime: '18'
+            cling: Off
+            cppyy: Off
+            llvm_enable_projects: "clang"
+            llvm_targets_to_build: "host;NVPTX"
+          - name: win2022-msvc-clang-repl-17
+            os: windows-2022
+            compiler: msvc
+            clang-runtime: '17'
+            cling: Off
+            cppyy: Off
+            llvm_enable_projects: "clang"
+            llvm_targets_to_build: "host;NVPTX"
+            
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Set up Python 
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'  
+
+    - name: Save PR Info on Windows systems
+      run: |
+        #can be found
+        mkdir  ./pr
+        echo "${{ github.event.number }}" > ./pr/NR
+        echo ${{ github.repository }} > ./pr/REPO
+
+        if ( "${{ matrix.cling }}" -imatch "On" )
+        { 
+          $env:CLING_HASH_TEMP = ( git ls-remote https://github.com/root-project/cling.git refs/tags/v${{ matrix.cling-version }} ) 
+          $env:CLING_HASH = $env:CLING_HASH_TEMP -replace "\t","-"
+        }
+        else
+        {
+          $env:CLING_HASH="Repl"
+          # May need to revert back to both having same llvm_hash, as below cause llvm to be rebuilt everytime commit is made to llvm/llvm-project for release a.x
+          # which could be quite often for new releases
+          $env:LLVM_HASH_TEMP = (git ls-remote https://github.com/llvm/llvm-project.git refs/heads/release/${{ matrix.clang-runtime}}.x )
+          $env:LLVM_HASH = $env:LLVM_HASH_TEMP -replace "\t","-"
+        }
+
+        echo "CLING_HASH=$env:CLING_HASH"
+        echo "LLVM_HASH=$env:LLVM_HASH"
+        
+        echo "CLING_HASH=$env:CLING_HASH" >> $GITHUB_ENV
+        echo "LLVM_HASH=$env:LLVM_HASH" >> $GITHUB_ENV
+
+    - name: Restore Cache LLVM/Clang runtime build directory
+      uses: actions/cache/restore@v4
+      id: cache
+      with:
+        path: |
+          llvm-project
+          ${{ matrix.cling=='On' && 'cling' || '' }}
+        key: ${{ env.CLING_HASH }}-${{ runner.os }}-${{ matrix.os }}-${{ matrix.compiler }}-clang-${{ matrix.clang-runtime }}.x-patch-${{ hashFiles(format('patches/llvm/clang{0}-*.patch', matrix.clang-runtime)) || 'none' }}
+        lookup-only: true
+
+    - name: Setup default Build Type on Windows
+      if: ${{ steps.cache.outputs.cache-hit != 'true' }}
+      run: |
+        echo "BUILD_TYPE=Release" >> $env:GITHUB_ENV
+        echo "CODE_COVERAGE=0" >>  $env:GITHUB_ENV
+        $env:ncpus=$([Environment]::ProcessorCount) 
+        echo "ncpus=$env:ncpus" >> $env:GITHUB_ENV
+        
+    - name: Setup compiler on Windows
+      if: ${{ steps.cache.outputs.cache-hit != 'true' }}
+      run: |
+        if ( "${{ matrix.compiler }}" -imatch "clang" )
+        {
+          $ver="${{ matrix.compiler }}".split("-")[1]
+          choco install llvm --version=$ver --no-progress -my
+          clang --version
+          #
+          $env:CC="clang"
+          $env:CXX="clang++"
+          echo "CC=clang" >> $env:GITHUB_ENV
+          echo "CXX=clang++" >> $env:GITHUB_ENV
+        }
+        elseif ( "${{ matrix.compiler }}" -imatch "msvc" )
+        {
+          # MSVC is builtin in container image
+        }
+        else
+        {
+          echo "Unsupported compiler - fix YAML file"
+        }
+
+    - name: Install deps on Windows
+      if: ${{ steps.cache.outputs.cache-hit != 'true' }}
+      run: |
+        choco install findutils
+        $env:PATH="C:\Program Files (x86)\GnuWin32\bin;$env:PATH"
+
+    - name: Build LLVM/Cling on Windows systems if the cache is invalid
+      if: ${{ steps.cache.outputs.cache-hit != 'true' }}
+      run: |
+      
+        if ( "${{ matrix.cling }}" -imatch "On" )
+        {
+          git clone https://github.com/root-project/cling.git
+          cd ./cling 
+          git checkout tags/v${{ matrix.cling-version }}
+          cd ..
+          git clone --depth=1 -b cling-llvm${{ matrix.clang-runtime }} https://github.com/root-project/llvm-project.git
+          $env:PWD_DIR= $PWD.Path
+          $env:CLING_DIR="$env:PWD_DIR\cling"
+          echo "CLING_DIR=$env:CLING_DIR"
+        }
+        else
+        {
+          git clone --depth=1 -b release/${{ matrix.clang-runtime }}.x https://github.com/llvm/llvm-project.git
+        }
+
+        cd llvm-project
+        # Build
+        mkdir build
+        if ( "${{ matrix.cling }}" -imatch "On" )
+        {
+          cd build
+          cmake -DLLVM_ENABLE_PROJECTS="${{ matrix.llvm_enable_projects}}" `
+                -DLLVM_EXTERNAL_PROJECTS=cling                `
+                -DLLVM_EXTERNAL_CLING_SOURCE_DIR="$env:CLING_DIR"   `
+                -DLLVM_TARGETS_TO_BUILD="${{ matrix.llvm_targets_to_build }}" `
+                -DCMAKE_BUILD_TYPE=Release                         `
+                -DLLVM_ENABLE_ASSERTIONS=ON                        `
+                -DCLANG_ENABLE_STATIC_ANALYZER=OFF                 `
+                -DCLANG_ENABLE_ARCMT=OFF                           `
+                -DCLANG_ENABLE_FORMAT=OFF                          `
+                -DCLANG_ENABLE_BOOTSTRAP=OFF                       `
+                -DLLVM_ENABLE_ZSTD=OFF                             `
+                -DLLVM_ENABLE_TERMINFO=OFF                         `
+                -DLLVM_ENABLE_LIBXML2=OFF                          `
+                ..\llvm
+          cmake --build . --config Release --target clang --parallel ${{ env.ncpus }}
+          cmake --build . --config Release --target cling --parallel ${{ env.ncpus }}
+          # Now build gtest.a and gtest_main for CppInterOp to run its tests.
+          cmake --build . --config Release --target gtest_main --parallel ${{ env.ncpus }}
+        }
+        else
+        {
+          cp -r ..\patches\llvm\clang${{ matrix.clang-runtime }}*
+          #FIXME: Apply patches without hardcoding
+          if ( "${{ matrix.clang-runtime }}" -imatch "16" )
+          {
+            git apply -v clang16-1-Value.patch
+            git apply -v clang16-2-CUDA.patch
+            git apply -v clang16-3-WeakRef.patch
+          }
+          elseif ( "${{ matrix.clang-runtime }}" -imatch "17" )
+          {
+            git apply -v clang17-1-NewOperator.patch
+          }
+          cd build
+          echo "Apply clang${{ matrix.clang-runtime }}-*.patch patches:"
+          cmake -DLLVM_ENABLE_PROJECTS="${{ matrix.llvm_enable_projects}}"                   `
+                -DLLVM_TARGETS_TO_BUILD="${{ matrix.llvm_targets_to_build }}"          `
+                -DCMAKE_BUILD_TYPE=Release                          `
+                -DLLVM_ENABLE_ASSERTIONS=ON                         `
+                -DCLANG_ENABLE_STATIC_ANALYZER=OFF                  `
+                -DCLANG_ENABLE_ARCMT=OFF                            `
+                -DCLANG_ENABLE_FORMAT=OFF                           `
+                -DCLANG_ENABLE_BOOTSTRAP=OFF                        `
+                -DLLVM_ENABLE_ZSTD=OFF                              `
+                -DLLVM_ENABLE_TERMINFO=OFF                          `
+                -DLLVM_ENABLE_LIBXML2=OFF                           `
+                ..\llvm
+          cmake --build . --config Release --target clang clang-repl --parallel ${{ env.ncpus }}
+        }
+        cd ..\
+        rm -r -force $(find.exe . -maxdepth 1 ! -name "build" ! -name "llvm" ! -name "clang" ! -name ".")
+        if ( "${{ matrix.cling }}" -imatch "On" )
+        {
+          cd .\llvm\
+          rm -r -force $(find.exe . -maxdepth 1 ! -name "include" ! -name "lib" ! -name "cmake" ! -name "utils" ! -name ".")
+          cd ..\clang\
+          rm -r -force $(find.exe . -maxdepth 1 ! -name "include" ! -name "lib" ! -name "cmake" ! -name "utils" ! -name ".")
+          cd ..\..    
+        }
+        else
+        {
+          cd .\llvm\
+          rm -r -force $(find.exe . -maxdepth 1 ! -name "include" ! -name "lib" ! -name "cmake" ! -name ".")
+          cd ..\clang\
+          rm -r -force $(find.exe . -maxdepth 1 ! -name "include" ! -name "lib" ! -name "cmake"  ! -name ".")
+          cd ..\..    
+        } 
+
+    - name: Save Cache LLVM/Clang runtime build directory 
+      uses: actions/cache/save@v4
+      if: ${{ steps.cache.outputs.cache-hit != 'true' }}
+      with:
+        path: |
+          llvm-project
+          ${{ matrix.cling=='On' && 'cling' || '' }}
+        key: ${{ steps.cache.outputs.cache-primary-key }}
+
+  cppinterop_and_cppyy_build:
+    needs: [build_cache]
+    name: ${{ matrix.name }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: win2022-msvc-clang-repl-19
+            os: windows-2022
+            compiler: msvc
+            clang-runtime: '19'
+            cling: Off
+            cppyy: Off
+          - name: win2022-msvc-clang-repl-18
+            os: windows-2022
+            compiler: msvc
+            clang-runtime: '18'
+            cling: Off
+            cppyy: Off
+          - name: win2022-msvc-clang-repl-17
+            os: windows-2022
+            compiler: msvc
+            clang-runtime: '17'
+            cling: Off
+            cppyy: Off
+
+    steps:
+    - uses: actions/checkout@v4
+      with:
+        fetch-depth: 0
+
+    - name: Set up Python 
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.11'
+
+    - name: Save PR Info on Windows systems
+      run: |
+        #can be found
+        mkdir  ./pr
+        echo "${{ github.event.number }}" > ./pr/NR
+        echo ${{ github.repository }} > ./pr/REPO
+
+        if ( "${{ matrix.cling }}" -imatch "On" )
+        { 
+          $env:CLING_HASH_TEMP = ( git ls-remote https://github.com/root-project/cling.git refs/tags/v${{ matrix.cling-version }} ) 
+          $env:CLING_HASH = $env:CLING_HASH_TEMP -replace "\t","-"
+        }
+        else
+        {
+          $env:CLING_HASH="Repl"
+          # May need to revert back to both having same llvm_hash, as below cause llvm to be rebuilt everytime commit is made to llvm/llvm-project for release a.x
+          # which could be quite often for new releases
+          $env:LLVM_HASH_TEMP = (git ls-remote https://github.com/llvm/llvm-project.git refs/heads/release/${{ matrix.clang-runtime}}.x )
+          $env:LLVM_HASH = $env:LLVM_HASH_TEMP -replace "\t","-"
+        }
+
+        echo "CLING_HASH=$env:CLING_HASH"
+        echo "LLVM_HASH=$env:LLVM_HASH"
+        
+        echo "CLING_HASH=$env:CLING_HASH" >> $GITHUB_ENV
+        echo "LLVM_HASH=$env:LLVM_HASH" >> $GITHUB_ENV
+
+    - name: Setup default Build Type on Windows
+      run: |
+        echo "BUILD_TYPE=Release" >> $env:GITHUB_ENV
+        echo "CODE_COVERAGE=0" >>  $env:GITHUB_ENV
+        $env:ncpus=$([Environment]::ProcessorCount) 
+        echo "ncpus=$env:ncpus" >> $env:GITHUB_ENV
+        
+    - name: Setup compiler on Windows
+      run: |
+        if ( "${{ matrix.compiler }}" -imatch "clang" )
+        {
+          $ver="${{ matrix.compiler }}".split("-")[1]
+          choco install llvm --version=$ver --no-progress -my
+          clang --version
+          #
+          $env:CC="clang"
+          $env:CXX="clang++"
+          echo "CC=clang" >> $env:GITHUB_ENV
+          echo "CXX=clang++" >> $env:GITHUB_ENV
+        }
+        elseif ( "${{ matrix.compiler }}" -imatch "msvc" )
+        {
+          # MSVC is builtin in container image
+        }
+        else
+        {
+          echo "Unsupported compiler - fix YAML file"
+        }        
+
+    - name: Restore Cache LLVM/Clang runtime build directory
+      uses: actions/cache/restore@v4
+      id: cache
+      with:
+        path: |
+          llvm-project
+          ${{ matrix.cling=='On' && 'cling' || '' }}
+        key: ${{ env.CLING_HASH }}-${{ runner.os }}-${{ matrix.os }}-${{ matrix.compiler }}-clang-${{ matrix.clang-runtime }}.x-patch-${{ hashFiles(format('patches/llvm/clang{0}-*.patch', matrix.clang-runtime)) || 'none' }}
+         
+    - name: Build and Test/Install CppInterOp on Windows systems
+      run: |
+        #until https://github.com/compiler-research/CppInterOp/issues/188 is solved
+        $env:PWD_DIR= $PWD.Path
+        
+        $env:LLVM_DIR="$env:PWD_DIR\llvm-project"
+        echo "LLVM_DIR=$env:LLVM_DIR"
+        echo "LLVM_DIR=$env:LLVM_DIR" >> $env:GITHUB_ENV
+
+        $env:LLVM_BUILD_DIR="$env:PWD_DIR\llvm-project\build"
+        echo "LLVM_BUILD_DIR=$env:LLVM_BUILD_DIR"
+        echo "LLVM_BUILD_DIR=$env:LLVM_BUILD_DIR" >> $env:GITHUB_ENV
+
+        if ( "${{ matrix.cling }}" -imatch "On" )
+        {
+          $env:CLING_DIR="$env:PWD_DIR\cling"
+          echo "CLING_DIR=$env:CLING_DIR"
+          echo "CLING_DIR=$env:CLING_DIR" >> $env:GITHUB_ENV   
+          
+          $env:CLING_BUILD_DIR="$env:PWD_DIR\cling\build"
+          echo "CLING_BUILD_DIR=$env:CLING_BUILD_DIR"
+          echo "CLING_BUILD_DIR=$env:CLING_BUILD_DIR" >> $env:GITHUB_ENV   
+      
+          $env:CPLUS_INCLUDE_PATH="$env:CLING_DIR\tools\cling\include;$env:CLING_BUILD_DIR\include;$env:LLVM_DIR\llvm\include;$env:LLVM_DIR\clang\include;$env:LLVM_BUILD_DIR\include;$env:LLVM_BUILD_DIR\tools\clang\include;$env:PWD_DIR\include;"
+          echo "CPLUS_INCLUDE_PATH=$env:CPLUS_INCLUDE_PATH"
+          echo "CPLUS_INCLUDE_PATH=$env:CPLUS_INCLUDE_PATH" >> $env:GITHUB_ENV   
+        }
+        else
+        {
+          $env:CPLUS_INCLUDE_PATH="$env:LLVM_DIR\llvm\include;$env:LLVM_DIR\clang\include;$env:LLVM_BUILD_DIR\include;$env:LLVM_BUILD_DIR\tools\clang\include;$env:PWD_DIR\include;"
+          echo "CPLUS_INCLUDE_PATH=$env:CPLUS_INCLUDE_PATH"
+          echo "CPLUS_INCLUDE_PATH=$env:CPLUS_INCLUDE_PATH" >> $env:GITHUB_ENV   
+        }
+        
+        $env:CB_PYTHON_DIR="$env:PWD_DIR\cppyy-backend\python"
+        echo "CB_PYTHON_DIR=$env:CB_PYTHON_DIR"
+        echo "CB_PYTHON_DIR=$env:CB_PYTHON_DIR" >> $env:GITHUB_ENV  
+
+        $env:CPPINTEROP_DIR="$env:CB_PYTHON_DIR\cppyy-backend"
+        echo "CPPINTEROP_DIR=$env:CPPINTEROP_DIR"
+        echo "CPPINTEROP_DIR=$env:CPPINTEROP_DIR" >> $env:GITHUB_ENV  
+
+        # Build CppInterOp next to cling and llvm-project.
+        mkdir build 
+        cd build
+        $env:CPPINTEROP_BUILD_DIR="$env:PWD_DIR"
+        echo "CPPINTEROP_BUILD_DIR=$env:CPPINTEROP_BUILD_DIR"
+        echo "CPPINTEROP_BUILD_DIR=$env:CPPINTEROP_BUILD_DIR" >> $env:GITHUB_ENV  
+        if ( "${{ matrix.cling }}" -imatch "On" )
+        {
+          cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    `
+                -DUSE_CLING=ON                                  `
+                -DUSE_REPL=OFF                                  `
+                -DCling_DIR="$env:LLVM_BUILD_DIR\tools\cling"   `
+                -DLLVM_DIR="$env:LLVM_BUILD_DIR" `
+                -DLLVM_ENABLE_WERROR=On                          `
+                -DClang_DIR="$env:LLVM_BUILD_DIR"  -DCODE_COVERAGE=${{ env.CODE_COVERAGE }} -DCMAKE_INSTALL_PREFIX="$env:CPPINTEROP_DIR"  ..\
+        }
+        else
+        {
+          cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    `
+                -DLLVM_DIR="$env:LLVM_BUILD_DIR\lib\cmake\llvm"  `
+                -DLLVM_ENABLE_WERROR=On                          `
+                -DClang_DIR="$env:LLVM_BUILD_DIR\lib\cmake\clang"  -DCODE_COVERAGE=${{ env.CODE_COVERAGE }}  -DCMAKE_INSTALL_PREFIX="$env:CPPINTEROP_DIR"  ..\
+                cmake --build . --config ${{ env.BUILD_TYPE }} --target googletest --parallel ${{ env.ncpus }}
+        }
+        cmake --build . --config ${{ env.BUILD_TYPE }} --target check-cppinterop --parallel ${{ env.ncpus }}
+
+    - name: Setup tmate session
+      if: ${{ failure() && runner.debug }}
+      uses: mxschmitt/action-tmate@v3
+      # When debugging increase to a suitable value!
+      timeout-minutes: 30

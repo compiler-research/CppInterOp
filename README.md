@@ -2,6 +2,8 @@
 
 [![Build Status](https://github.com/compiler-research/CppInterOp/actions/workflows/non-emscripten.yml/badge.svg)](https://github.com/compiler-research/CppInterOp/actions/workflows/non-emscripten.yml)
 
+[![Build Status](https://github.com/compiler-research/CppInterOp/actions/workflows/Windows.yml/badge.svg)](https://github.com/compiler-research/CppInterOp/actions/workflows/Windows.yml)
+
 [![Build Status](https://github.com/compiler-research/CppInterOp/actions/workflows/emscripten.yml/badge.svg)](https://github.com/compiler-research/CppInterOp/actions/workflows/emscripten.yml)
 
 [![codecov](https://codecov.io/gh/compiler-research/CppInterOp/branch/main/graph/badge.svg)](https://codecov.io/gh/compiler-research/CppInterOp)
