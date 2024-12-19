@@ -255,14 +255,14 @@ commands on Linux and MacOS
 
 .. code:: bash
 
-   cmake -DBUILD_SHARED_LIBS=ON -DUSE_CLING=Off -DLLVM_DIR=$LLVM_DIR/build/lib/cmake/llvm -DClang_DIR=$LLVM_DIR/build/lib/cmake/clang -DCMAKE_INSTALL_PREFIX=$CPPINTEROP_DIR ..
+   cmake -DBUILD_SHARED_LIBS=ON -DLLVM_DIR=$LLVM_DIR/build/lib/cmake/llvm -DClang_DIR=$LLVM_DIR/build/lib/cmake/clang -DCMAKE_INSTALL_PREFIX=$CPPINTEROP_DIR ..
    cmake --build . --target install --parallel $(nproc --all)
 
 and
 
 .. code:: powershell
 
-   cmake -DUSE_CLING=Off -DLLVM_DIR=$env:LLVM_DIR\build\lib\cmake\llvm -DClang_DIR=$env:LLVM_DIR\build\lib\cmake\clang -DCMAKE_INSTALL_PREFIX=$env:CPPINTEROP_DIR ..
+   cmake -DLLVM_DIR=$env:LLVM_DIR\build\lib\cmake\llvm -DClang_DIR=$env:LLVM_DIR\build\lib\cmake\clang -DCMAKE_INSTALL_PREFIX=$env:CPPINTEROP_DIR ..
    cmake --build . --target install --parallel $env:ncpus
 
 on Windows. If alternatively you would like to install CppInterOp with Cling
