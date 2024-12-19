@@ -4,8 +4,6 @@
 
 [![Build Status](https://github.com/compiler-research/CppInterOp/actions/workflows/emscripten.yml/badge.svg)](https://github.com/compiler-research/CppInterOp/actions/workflows/emscripten.yml)
 
-[![Build Status](https://github.com/compiler-research/CppInterOp/actions/workflows/ci.yml/badge.svg)](https://github.com/compiler-research/CppInterOp/actions/workflows/ci.yml)
-
 [![codecov](https://codecov.io/gh/compiler-research/CppInterOp/branch/main/graph/badge.svg)](https://codecov.io/gh/compiler-research/CppInterOp)
 
 [![Conda-Forge](https://img.shields.io/conda/vn/conda-forge/cppinterop)](https://github.com/conda-forge/cppinterop-feedstock)
