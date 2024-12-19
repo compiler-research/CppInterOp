@@ -1212,12 +1212,20 @@ namespace Cpp {
     return 0;
   }
 
-  TCppType_t GetVariableType(TCppScope_t var)
-  {
-    auto D = (Decl *) var;
+  TCppType_t GetVariableType(TCppScope_t var) {
+    auto* D = static_cast<Decl*>(var);
 
     if (auto DD = llvm::dyn_cast_or_null<DeclaratorDecl>(D)) {
-      return DD->getType().getAsOpaquePtr();
+      QualType QT = DD->getType();
+
+      // Check if the type is a typedef type
+      if (QT->isTypedefNameType()) {
+        return QT.getAsOpaquePtr();
+      }
+
+      // Else, return the canonical type
+      QT = QT.getCanonicalType();
+      return QT.getAsOpaquePtr();
     }
 
     return 0;
