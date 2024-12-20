@@ -1,8 +1,9 @@
 #include "Utils.h"
 
 #include "clang/AST/ASTContext.h"
-#include "clang/Interpreter/CppInterOp.h"
+#include "clang/Basic/Version.h"
 #include "clang/Frontend/CompilerInstance.h"
+#include "clang/Interpreter/CppInterOp.h"
 #include "clang/Sema/Sema.h"
 
 #include "gtest/gtest.h"
@@ -974,6 +975,56 @@ TEST(FunctionReflectionTest, GetFunctionCallWrapper) {
 
   FCI_Add.Invoke(&result, {args, /*args_size=*/2});
   EXPECT_EQ(result, a + b);
+
+  // call with pointers
+  Interp->process(R"(
+  void set_5(int *out) {
+    *out = 5;
+  }
+  )");
+
+  Cpp::TCppScope_t set_5 = Cpp::GetNamed("set_5");
+  EXPECT_TRUE(set_5);
+
+  Cpp::JitCall set_5_f = Cpp::MakeFunctionCallable(set_5);
+  EXPECT_EQ(set_5_f.getKind(), Cpp::JitCall::kGenericCall);
+
+  int* bp = &b;
+  void* set_5_args[1] = {(void*)&bp};
+  set_5_f.Invoke(nullptr, {set_5_args, 1});
+  EXPECT_EQ(b, 5);
+
+#if CLANG_VERSION_MAJOR > 16
+  // typedef resolution testing
+  // supported for clang version >16 only
+  Interp->process(R"(
+  class TypedefToPrivateClass {
+  private:
+    class PC {
+    public:
+      int m_val = 4;
+    };
+
+  public:
+    typedef PC PP;
+    static PP f() { return PC(); }
+  };
+  )");
+
+  Cpp::TCppScope_t TypedefToPrivateClass =
+      Cpp::GetNamed("TypedefToPrivateClass");
+  EXPECT_TRUE(TypedefToPrivateClass);
+
+  Cpp::TCppScope_t f = Cpp::GetNamed("f", TypedefToPrivateClass);
+  EXPECT_TRUE(f);
+
+  Cpp::JitCall FCI_f = Cpp::MakeFunctionCallable(f);
+  EXPECT_EQ(FCI_f.getKind(), Cpp::JitCall::kGenericCall);
+
+  void* res = nullptr;
+  FCI_f.Invoke(&res, {nullptr, 0});
+  EXPECT_TRUE(res);
+#endif
 }
 
 TEST(FunctionReflectionTest, IsConstMethod) {
