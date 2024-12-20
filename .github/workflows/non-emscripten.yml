@@ -263,6 +263,7 @@ jobs:
       if: ${{ runner.os == 'Linux' && steps.cache.outputs.cache-hit != 'true' }}
       run: |
         # Install deps
+        sudo apt remove needrestart
         sudo apt-get update
         sudo apt-get install valgrind
         sudo apt-get autoremove
@@ -587,6 +588,7 @@ jobs:
       run: |
         # Install deps
         sudo apt-get update
+        sudo apt remove needrestart
         sudo apt-get install git g++ debhelper devscripts gnupg python3 doxygen graphviz python3-sphinx
         sudo apt-get install -y libc6-dbg
         sudo snap install valgrind --classic
@@ -704,7 +706,7 @@ jobs:
         # Create lcov report
         # capture coverage info
         vers="${CC#*-}"
-        lcov --directory build/ --capture --output-file coverage.info --gcov-tool /usr/bin/gcov-${vers}
+        lcov --directory build/ --capture --output-file coverage.info --gcov-tool /usr/bin/gcov-${vers} --rc geninfo_unexecuted_blocks=1 --ignore-errors mismatch,mismatch
         lcov --remove coverage.info '/usr/*' "${HOME}"'/.cache/*' ${{ github.workspace }}'/llvm-project/*' ${{ github.workspace }}'/unittests/*' --output-file coverage.info
         # output coverage data for debugging (optional)
         lcov --list coverage.info
@@ -743,6 +745,9 @@ jobs:
       run: |
         python3 -m venv .venv
         source .venv/bin/activate
+        python -m pip install --upgrade pip
+        pip install setuptools
+        pip install wheel
         # Install CPyCppyy
         git clone --depth=1 https://github.com/compiler-research/CPyCppyy.git
         mkdir CPyCppyy/build
@@ -762,7 +767,7 @@ jobs:
         # Install cppyy
         git clone --depth=1 https://github.com/compiler-research/cppyy.git
         cd cppyy
-        python -m pip install --upgrade . --no-deps
+        python -m pip install --upgrade . --no-deps --no-build-isolation
         cd ..
     - name: Run cppyy on Unix Systems
       if: ${{ matrix.cppyy == 'On' }}
@@ -781,7 +786,6 @@ jobs:
         cd cppyy/test
         echo ::group::Prepare For Testing
         make all
-        python -m pip install --upgrade pip
         python -m pip install pytest
         python -m pip install pytest-xdist
         python -m pip install numba
