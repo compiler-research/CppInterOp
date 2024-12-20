@@ -21,40 +21,40 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: ubu24-x86-gcc13-clang-repl-19
-            os: ubuntu-24.04
-            compiler: gcc-13
+          - name: ubu22-x86-gcc12-clang-repl-19
+            os: ubuntu-22.04
+            compiler: gcc-12
             clang-runtime: '19'
             cling: Off
             cppyy: On
             llvm_enable_projects: "clang;lld"
             llvm_targets_to_build: "WebAssembly;host;NVPTX"
-          - name: ubu24-x86-gcc13-clang-repl-18
-            os: ubuntu-24.04
-            compiler: gcc-13
+          - name: ubu22-x86-gcc12-clang-repl-18
+            os: ubuntu-22.04
+            compiler: gcc-12
             clang-runtime: '18'
             cling: Off
             cppyy: On
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
-          - name: ubu24-x86-gcc13-clang-repl-17
-            os: ubuntu-24.04
-            compiler: gcc-13
+          - name: ubu22-x86-gcc12-clang-repl-17
+            os: ubuntu-22.04
+            compiler: gcc-12
             clang-runtime: '17'
             cling: Off
             cppyy: On
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
-          - name: ubu24-x86-gcc13-clang-repl-16
-            os: ubuntu-24.04
-            compiler: gcc-13
+          - name: ubu22-x86-gcc12-clang-repl-16
+            os: ubuntu-22.04
+            compiler: gcc-12
             clang-runtime: '16'
             cling: Off
             cppyy: On
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
-          - name: ubu24-x86-gcc9-clang13-cling
-            os: ubuntu-24.04
+          - name: ubu22-x86-gcc9-clang13-cling
+            os: ubuntu-22.04
             compiler: gcc-9
             clang-runtime: '13'
             cling: On
@@ -354,7 +354,6 @@ jobs:
       if: ${{ runner.os == 'Linux' && steps.cache.outputs.cache-hit != 'true' }}
       run: |
         # Install deps
-        sudo apt remove needrestart
         sudo apt-get update
         sudo apt-get install valgrind
         sudo apt-get autoremove
@@ -540,40 +539,40 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: ubu24-x86-gcc13-clang-repl-19-docs
-            os: ubuntu-24.04
-            compiler: gcc-13
+          - name: ubu22-x86-gcc12-clang-repl-19-docs
+            os: ubuntu-22.04
+            compiler: gcc-12
             clang-runtime: '19'
             cling: Off
             cppyy: Off
             documentation: On
-          - name: ubu24-x86-gcc13-clang-repl-19-cppyy
-            os: ubuntu-24.04
-            compiler: gcc-13
+          - name: ubu22-x86-gcc12-clang-repl-19-cppyy
+            os: ubuntu-22.04
+            compiler: gcc-12
             clang-runtime: '19'
             cling: Off
             cppyy: On
             coverage: true
-          - name: ubu24-x86-gcc13-clang-repl-18-cppyy
-            os: ubuntu-24.04
-            compiler: gcc-13
+          - name: ubu22-x86-gcc12-clang-repl-18-cppyy
+            os: ubuntu-22.04
+            compiler: gcc-12
             clang-runtime: '18'
             cling: Off
             cppyy: On
-          - name: ubu24-x86-gcc13-clang-repl-17-cppyy
-            os: ubuntu-24.04
-            compiler: gcc-13
+          - name: ubu22-x86-gcc12-clang-repl-17-cppyy
+            os: ubuntu-22.04
+            compiler: gcc-12
             clang-runtime: '17'
             cling: Off
             cppyy: On
-          - name: ubu24-x86-gcc13-clang-repl-16
-            os: ubuntu-24.04
-            compiler: gcc-13
+          - name: ubu22-x86-gcc12-clang-repl-16
+            os: ubuntu-22.04
+            compiler: gcc-12
             clang-runtime: '16'
             cling: Off
             cppyy: Off
-          - name: ubu24-x86-gcc9-clang13-cling-cppyy
-            os: ubuntu-24.04
+          - name: ubu22-x86-gcc9-clang13-cling-cppyy
+            os: ubuntu-22.04
             compiler: gcc-9
             clang-runtime: '13'
             cling: On
@@ -837,7 +836,6 @@ jobs:
       if: runner.os == 'Linux'
       run: |
         # Install deps
-        sudo apt remove needrestart
         sudo apt-get update
         sudo apt-get install git g++ debhelper devscripts gnupg python3 doxygen graphviz python3-sphinx
         sudo apt-get install -y libc6-dbg
@@ -1032,7 +1030,7 @@ jobs:
         # Create lcov report
         # capture coverage info
         vers="${CC#*-}"
-        lcov --directory build/ --capture --output-file coverage.info --gcov-tool /usr/bin/gcov-${vers} --rc geninfo_unexecuted_blocks=1 --ignore-errors mismatch,mismatch
+        lcov --directory build/ --capture --output-file coverage.info --gcov-tool /usr/bin/gcov-${vers} --rc geninfo_unexecuted_blocks=1
         lcov --remove coverage.info '/usr/*' "${HOME}"'/.cache/*' ${{ github.workspace }}'/llvm-project/*' ${{ github.workspace }}'/unittests/*' --output-file coverage.info
         # output coverage data for debugging (optional)
         lcov --list coverage.info
@@ -1071,9 +1069,6 @@ jobs:
       run: |
         python3 -m venv .venv
         source .venv/bin/activate
-        python -m pip install --upgrade pip
-        pip install setuptools
-        pip install wheel
         # Install CPyCppyy
         git clone --depth=1 https://github.com/compiler-research/CPyCppyy.git
         mkdir CPyCppyy/build
@@ -1093,7 +1088,7 @@ jobs:
         # Install cppyy
         git clone --depth=1 https://github.com/compiler-research/cppyy.git
         cd cppyy
-        python -m pip install --upgrade . --no-deps --no-build-isolation
+        python -m pip install --upgrade . --no-deps
         cd ..
     - name: Run cppyy on Unix Systems
       if: ${{ (runner.os != 'windows') && (matrix.cppyy == 'On') }}
@@ -1112,6 +1107,7 @@ jobs:
         cd cppyy/test
         echo ::group::Prepare For Testing
         make all
+        python -m pip install --upgrade pip
         python -m pip install pytest
         python -m pip install pytest-xdist
         python -m pip install numba
@@ -1183,9 +1179,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: ubu24-x86-gcc13-clang-repl-19-emscripten_wasm
-            os: ubuntu-24.04
-            compiler: gcc-13
+          - name: ubu22-x86-gcc12-clang-repl-19-emscripten_wasm
+            os: ubuntu-22.04
+            compiler: gcc-12
             clang-runtime: '19'
             cling: Off
             micromamba_shell_init: bash
