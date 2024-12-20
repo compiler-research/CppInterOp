@@ -1,4 +1,4 @@
-name: Non Emscripten CppInterOp Builds
+name: Builds
 on:
   pull_request:
     branches: [main]

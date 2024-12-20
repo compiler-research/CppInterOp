@@ -1,4 +1,4 @@
-name: Emscripten CppInterOp Builds
+name: Emscripten Builds
 on:
   pull_request:
     branches: [main]
