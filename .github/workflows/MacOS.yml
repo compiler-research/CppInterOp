@@ -1,4 +1,4 @@
-name: Unix
+name: OSX
 
 on:
   pull_request:
@@ -22,47 +22,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: ubu22-x86-gcc12-clang-repl-19
-            os: ubuntu-22.04
-            compiler: gcc-12
-            clang-runtime: '19'
-            cling: Off
-            cppyy: On
-            llvm_enable_projects: "clang"
-            llvm_targets_to_build: "host;NVPTX"
-          - name: ubu22-x86-gcc12-clang-repl-18
-            os: ubuntu-22.04
-            compiler: gcc-12
-            clang-runtime: '18'
-            cling: Off
-            cppyy: On
-            llvm_enable_projects: "clang"
-            llvm_targets_to_build: "host;NVPTX"
-          - name: ubu22-x86-gcc12-clang-repl-17
-            os: ubuntu-22.04
-            compiler: gcc-12
-            clang-runtime: '17'
-            cling: Off
-            cppyy: On
-            llvm_enable_projects: "clang"
-            llvm_targets_to_build: "host;NVPTX"
-          - name: ubu22-x86-gcc12-clang-repl-16
-            os: ubuntu-22.04
-            compiler: gcc-12
-            clang-runtime: '16'
-            cling: Off
-            cppyy: On
-            llvm_enable_projects: "clang"
-            llvm_targets_to_build: "host;NVPTX"
-          - name: ubu22-x86-gcc9-clang13-cling
-            os: ubuntu-22.04
-            compiler: gcc-9
-            clang-runtime: '13'
-            cling: On
-            cling-version: '1.0'
-            cppyy: On
-            llvm_enable_projects: "clang"
-            llvm_targets_to_build: "host;NVPTX"
           - name: osx15-arm-clang-clang-repl-19
             os: macos-15
             compiler: clang
@@ -156,7 +115,7 @@ jobs:
       with:
         python-version: '3.11'
 
-    - name: Save PR Info on Unix systems
+    - name: Save PR Info
       run: |
         mkdir -p ./pr
         echo ${{ github.event.number }} > ./pr/NR
@@ -186,44 +145,15 @@ jobs:
         key: ${{ env.CLING_HASH }}-${{ runner.os }}-${{ matrix.os }}-${{ matrix.compiler }}-clang-${{ matrix.clang-runtime }}.x-patch-${{ hashFiles(format('patches/llvm/clang{0}-*.patch', matrix.clang-runtime)) || 'none' }}
         lookup-only: true
 
-    - name: Setup default Build Type on *nux
+    - name: Setup default Build Type
       if: ${{ steps.cache.outputs.cache-hit != 'true' }}
       run: |
         echo "BUILD_TYPE=Release" >> $GITHUB_ENV
         echo "CODE_COVERAGE=0" >> $GITHUB_ENV
-        os="${{ matrix.os }}"
-        if [[ "${os}" == "macos"* ]]; then
-          echo "ncpus=$(sysctl -n hw.ncpu)" >> $GITHUB_ENV
-        else
-          echo "ncpus=$(nproc --all)" >> $GITHUB_ENV
-        fi
+        echo "ncpus=$(sysctl -n hw.ncpu)" >> $GITHUB_ENV
 
-    - name: Setup compiler on Linux
-      if: ${{ runner.os == 'Linux' && steps.cache.outputs.cache-hit != 'true' }}
-      run: |
-        # https://www.gnu.org/software/bash/manual/html_node/Shell-Parameter-Expansion.html
-        vers="${compiler#*-}"
-        os_codename="`cat /etc/os-release | grep UBUNTU_CODENAME | cut -d = -f 2`"
-        ##sudo apt update
-        if [[ "${{ matrix.compiler }}" == *"gcc"* ]]; then
-          sudo apt install -y gcc-${vers} g++-${vers} lld
-          echo "CC=gcc-${vers}" >> $GITHUB_ENV
-          echo "CXX=g++-${vers}" >> $GITHUB_ENV
-        else
-          if ! sudo apt install -y clang-${vers}; then
-            curl https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
-            echo "deb https://apt.llvm.org/${os_codename}/ llvm-toolchain-${os_codename}-${vers} main" | sudo tee -a /etc/apt/sources.list
-            sudo apt-get update
-            sudo apt-get install -y clang-${vers}
-          fi
-          echo "CC=clang-${vers}" >> $GITHUB_ENV
-          echo "CXX=clang++-${vers}" >> $GITHUB_ENV
-        fi
-      env:
-        compiler: ${{ matrix.compiler }}
-
-    - name: Setup compiler on macOS
-      if: ${{ runner.os == 'macOS' && steps.cache.outputs.cache-hit != 'true' }}
+    - name: Setup compiler
+      if: ${{ steps.cache.outputs.cache-hit != 'true' }}
       run: |
         vers="${compiler#*-}"
         if [[ "${{ matrix.compiler }}" == *"gcc"* ]]; then
@@ -259,17 +189,8 @@ jobs:
       env:
         compiler: ${{ matrix.compiler }}
 
-    - name: Install deps on Linux
-      if: ${{ runner.os == 'Linux' && steps.cache.outputs.cache-hit != 'true' }}
-      run: |
-        # Install deps
-        sudo apt-get update
-        sudo apt-get install valgrind
-        sudo apt-get autoremove
-        sudo apt-get clean
-
-    - name: Install deps on MacOS
-      if: ${{ runner.os == 'macOS' && steps.cache.outputs.cache-hit != 'true' }}
+    - name: Install deps
+      if: ${{ steps.cache.outputs.cache-hit != 'true' }}
       run: |
         brew update
         export ARCHITECHURE=$(uname -m)
@@ -286,7 +207,7 @@ jobs:
         brew upgrade openssl >/dev/null 2>&1 
         brew upgrade
 
-    - name: Build LLVM/Cling on Unix systems if the cache is invalid
+    - name: Build LLVM/Cling if the cache is invalid
       if: ${{ steps.cache.outputs.cache-hit != 'true' }}
       run: |
         cling_on=$(echo "${{ matrix.cling }}" | tr '[:lower:]' '[:upper:]')
@@ -378,45 +299,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: ubu22-x86-gcc12-clang-repl-19-docs
-            os: ubuntu-22.04
-            compiler: gcc-12
-            clang-runtime: '19'
-            cling: Off
-            cppyy: Off
-            documentation: On
-          - name: ubu22-x86-gcc12-clang-repl-19-cppyy
-            os: ubuntu-22.04
-            compiler: gcc-12
-            clang-runtime: '19'
-            cling: Off
-            cppyy: On
-            coverage: true
-          - name: ubu22-x86-gcc12-clang-repl-18-cppyy
-            os: ubuntu-22.04
-            compiler: gcc-12
-            clang-runtime: '18'
-            cling: Off
-            cppyy: On
-          - name: ubu22-x86-gcc12-clang-repl-17-cppyy
-            os: ubuntu-22.04
-            compiler: gcc-12
-            clang-runtime: '17'
-            cling: Off
-            cppyy: On
-          - name: ubu22-x86-gcc12-clang-repl-16
-            os: ubuntu-22.04
-            compiler: gcc-12
-            clang-runtime: '16'
-            cling: Off
-            cppyy: Off
-          - name: ubu22-x86-gcc9-clang13-cling-cppyy
-            os: ubuntu-22.04
-            compiler: gcc-9
-            clang-runtime: '13'
-            cling: On
-            cling-version: '1.0'
-            cppyy: On
           - name: osx15-arm-clang-clang-repl-19-cppyy
             os: macos-15
             compiler: clang
@@ -490,7 +372,7 @@ jobs:
       with:
         python-version: '3.11'
 
-    - name: Save PR Info on Unix systems
+    - name: Save PR Info
       run: |
         mkdir -p ./pr
         echo ${{ github.event.number }} > ./pr/NR
@@ -510,43 +392,13 @@ jobs:
         echo "CLING_HASH=$CLING_HASH" >> $GITHUB_ENV
         echo "LLVM_HASH=$LLVM_HASH" >> $GITHUB_ENV
 
-    - name: Setup default Build Type on *nux
+    - name: Setup default Build Type
       run: |
         echo "BUILD_TYPE=Release" >> $GITHUB_ENV
         echo "CODE_COVERAGE=0" >> $GITHUB_ENV
-        os="${{ matrix.os }}"
-        if [[ "${os}" == "macos"* ]]; then
-          echo "ncpus=$(sysctl -n hw.ncpu)" >> $GITHUB_ENV
-        else
-          echo "ncpus=$(nproc --all)" >> $GITHUB_ENV
-        fi
+        echo "ncpus=$(sysctl -n hw.ncpu)" >> $GITHUB_ENV
 
-    - name: Setup compiler on Linux
-      if: runner.os == 'Linux'
-      run: |
-        # https://www.gnu.org/software/bash/manual/html_node/Shell-Parameter-Expansion.html
-        vers="${compiler#*-}"
-        os_codename="`cat /etc/os-release | grep UBUNTU_CODENAME | cut -d = -f 2`"
-        ##sudo apt update
-        if [[ "${{ matrix.compiler }}" == *"gcc"* ]]; then
-          sudo apt install -y gcc-${vers} g++-${vers} lld
-          echo "CC=gcc-${vers}" >> $GITHUB_ENV
-          echo "CXX=g++-${vers}" >> $GITHUB_ENV
-        else
-          if ! sudo apt install -y clang-${vers}; then
-            curl https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
-            echo "deb https://apt.llvm.org/${os_codename}/ llvm-toolchain-${os_codename}-${vers} main" | sudo tee -a /etc/apt/sources.list
-            sudo apt-get update
-            sudo apt install -y clang-${vers}
-          fi
-          echo "CC=clang-${vers}" >> $GITHUB_ENV
-          echo "CXX=clang++-${vers}" >> $GITHUB_ENV
-        fi
-      env:
-        compiler: ${{ matrix.compiler }}
-
-    - name: Setup compiler on macOS
-      if: runner.os == 'macOS'
+    - name: Setup compiler
       run: |
         vers="${compiler#*-}"
         if [[ "${{ matrix.compiler }}" == *"gcc"* ]]; then
@@ -582,22 +434,7 @@ jobs:
       env:
         compiler: ${{ matrix.compiler }}
 
-    - name: Install deps on Linux
-      if: runner.os == 'Linux'
-      run: |
-        # Install deps
-        sudo apt-get update
-        sudo apt-get install git g++ debhelper devscripts gnupg python3 doxygen graphviz python3-sphinx
-        sudo apt-get install -y libc6-dbg
-        sudo snap install valgrind --classic
-        sudo apt autoremove
-        sudo apt clean
-        # Install libraries used by the cppyy test suite
-        sudo apt install libeigen3-dev
-        sudo apt install libboost-all-dev
-
-    - name: Install deps on MacOS
-      if: runner.os == 'macOS'
+    - name: Install deps
       run: |
         brew update --force 
         export ARCHITECHURE=$(uname -m)
@@ -627,14 +464,7 @@ jobs:
           ${{ matrix.cling=='On' && 'cling' || '' }}
         key: ${{ env.CLING_HASH }}-${{ runner.os }}-${{ matrix.os }}-${{ matrix.compiler }}-clang-${{ matrix.clang-runtime }}.x-patch-${{ hashFiles(format('patches/llvm/clang{0}-*.patch', matrix.clang-runtime)) || 'none' }}
 
-    - name: Setup code coverage
-      if: ${{ success() && (matrix.coverage == true) }}
-      run: |
-        sudo apt install lcov
-        echo "CODE_COVERAGE=1" >> $GITHUB_ENV
-        echo "BUILD_TYPE=Debug" >> $GITHUB_ENV
-
-    - name: Build and Test/Install CppInterOp on Unix systems
+    - name: Build and Test/Install CppInterOp
       run: |
         LLVM_DIR="$(pwd)/llvm-project"
         LLVM_BUILD_DIR="$(pwd)/llvm-project/build"
@@ -678,17 +508,7 @@ jobs:
                 -DLLVM_ENABLE_WERROR=On                      \
                 ../
         fi
-        os="${{ matrix.os }}"
-        docs_on=$(echo "${{ matrix.documentation }}" | tr '[:lower:]' '[:upper:]')
-        if [[ "${docs_on}" == "ON" ]]; then
-          cmake --build . --target doxygen-cppinterop --parallel ${{ env.ncpus }}
-          cmake --build . --target sphinx-cppinterop --parallel ${{ env.ncpus }}
-        else
-          cmake --build . --target check-cppinterop --parallel ${{ env.ncpus }}
-          if [[ ("${os}" == "ubuntu"*) ]]; then
-            valgrind --show-error-list=yes --track-origins=yes --error-exitcode=1 unittests/CppInterOp/CppInterOpTests
-          fi
-        fi
+        cmake --build . --target check-cppinterop --parallel ${{ env.ncpus }}
         cd ..
         # We need CB_PYTHON_DIR later
         echo "CB_PYTHON_DIR=$CB_PYTHON_DIR" >> $GITHUB_ENV
@@ -698,27 +518,7 @@ jobs:
         echo "LLVM_BUILD_DIR=$LLVM_BUILD_DIR" >> $GITHUB_ENV
         echo "CPLUS_INCLUDE_PATH=$CPLUS_INCLUDE_PATH" >> $GITHUB_ENV
 
-    - name: Prepare code coverage report
-      if: ${{ success() && (matrix.coverage == true) }}
-      run: |
-        # Create lcov report
-        # capture coverage info
-        vers="${CC#*-}"
-        lcov --directory build/ --capture --output-file coverage.info --gcov-tool /usr/bin/gcov-${vers}
-        lcov --remove coverage.info '/usr/*' "${HOME}"'/.cache/*' ${{ github.workspace }}'/llvm-project/*' ${{ github.workspace }}'/unittests/*' --output-file coverage.info
-        # output coverage data for debugging (optional)
-        lcov --list coverage.info
-
-    - name: Upload to codecov.io
-      if: ${{ success() && (matrix.coverage == true) }}
-      uses: codecov/codecov-action@v4
-      with:
-        file: ./coverage.info
-        fail_ci_if_error: true
-        verbose: true
-        token: ${{ secrets.CODECOV_TOKEN }}
-
-    - name: Build and Install cppyy-backend on Unix Systems
+    - name: Build and Install cppyy-backend
       if: ${{ matrix.cppyy == 'On' }}
       run: |
         # Download cppyy-backend
@@ -730,15 +530,10 @@ jobs:
         # Build and Install cppyy-backend
         cmake -DCppInterOp_DIR=$CPPINTEROP_DIR ..
         cmake --build . --parallel ${{ env.ncpus }}
-        OS=$(uname -s)
-        if [[ "$OS" == "Darwin" ]]; then
-          cp libcppyy-backend.dylib $CPPINTEROP_DIR/lib/
-        else
-          cp libcppyy-backend.so $CPPINTEROP_DIR/lib/
-        fi
+        cp libcppyy-backend.dylib $CPPINTEROP_DIR/lib/
         cd ..
         
-    - name: Install CPyCppyy on Unix Systems
+    - name: Install CPyCppyy
       if: ${{ matrix.cppyy == 'On' }}
       run: |
         python3 -m venv .venv
@@ -754,7 +549,7 @@ jobs:
         cd ../..
         # We need CPYCPPYY_DIR later
         echo "CPYCPPYY_DIR=$CPYCPPYY_DIR" >> $GITHUB_ENV
-    - name: Install cppyy on Unix Systems
+    - name: Install cppyy
       if: ${{ matrix.cppyy == 'On' }}
       run: |
         # source virtual environment
@@ -764,7 +559,7 @@ jobs:
         cd cppyy
         python -m pip install --upgrade . --no-deps
         cd ..
-    - name: Run cppyy on Unix Systems
+    - name: Run cppyy
       if: ${{ matrix.cppyy == 'On' }}
       run: |
         # Run cppyy
@@ -773,7 +568,7 @@ jobs:
         python -c "import cppyy"
         # We need PYTHONPATH later
         echo "PYTHONPATH=$PYTHONPATH" >> $GITHUB_ENV
-    - name: Run the tests on Unix Systems
+    - name: Run the tests
       if: ${{ matrix.cppyy == 'On' }}
       run: |
         # Run the tests
@@ -811,14 +606,6 @@ jobs:
         declare -i RETCODE=0
 
         set -o pipefail
-        if [[ "${{ matrix.os }}" == macos-* ]]; then
-            echo "Skipping Valgrind checks on OS X"
-        else
-            echo "Running valgrind on passing tests"
-            CLANG_VERSION="${{ matrix.clang-runtime }}"
-            SUPPRESSION_FILE="../etc/clang${CLANG_VERSION}-valgrind.supp"
-            valgrind --show-error-list=yes --error-exitcode=1 --track-origins=yes --suppressions="${SUPPRESSION_FILE}" --suppressions=../etc/valgrind-cppyy-cling.supp python -m pytest -m "not xfail" -sv -ra
-        fi
         export RETCODE=+$?
         echo ::endgroup::
 
