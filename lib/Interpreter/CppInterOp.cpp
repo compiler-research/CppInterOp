@@ -29,11 +29,13 @@
 #endif
 #include "clang/Sema/TemplateDeduction.h"
 
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_os_ostream.h"
 
+#include <map>
 #include <set>
 #include <sstream>
 #include <string>
@@ -526,8 +528,10 @@ namespace Cpp {
 
   static clang::Decl* GetUnderlyingScope(clang::Decl * D) {
     if (auto *TND = dyn_cast_or_null<TypedefNameDecl>(D)) {
-      auto Scope = GetScopeFromType(TND->getUnderlyingType());
-      if (Scope)
+      if (auto* Scope = GetScopeFromType(TND->getUnderlyingType()))
+        D = Scope;
+    } else if (auto* USS = dyn_cast_or_null<UsingShadowDecl>(D)) {
+      if (auto* Scope = USS->getTargetDecl())
         D = Scope;
     }
 
@@ -1151,10 +1155,12 @@ namespace Cpp {
     auto *D = (Decl *) scope;
 
     if (auto* CXXRD = llvm::dyn_cast_or_null<CXXRecordDecl>(D)) {
-      llvm::SmallVector<RecordDecl::field_iterator, 2> stack_begin;
-      llvm::SmallVector<RecordDecl::field_iterator, 2> stack_end;
-      stack_begin.push_back(CXXRD->field_begin());
-      stack_end.push_back(CXXRD->field_end());
+      getSema().ForceDeclarationOfImplicitMembers(CXXRD);
+
+      llvm::SmallVector<RecordDecl::decl_iterator, 2> stack_begin;
+      llvm::SmallVector<RecordDecl::decl_iterator, 2> stack_end;
+      stack_begin.push_back(CXXRD->decls_begin());
+      stack_end.push_back(CXXRD->decls_end());
       while (!stack_begin.empty()) {
         if (stack_begin.back() == stack_end.back()) {
           stack_begin.pop_back();
@@ -1167,14 +1173,18 @@ namespace Cpp {
             if (const auto* RT = FD->getType()->getAs<RecordType>()) {
               if (auto* CXXRD = llvm::dyn_cast<CXXRecordDecl>(RT->getDecl())) {
                 stack_begin.back()++;
-                stack_begin.push_back(CXXRD->field_begin());
-                stack_end.push_back(CXXRD->field_end());
+                stack_begin.push_back(CXXRD->decls_begin());
+                stack_end.push_back(CXXRD->decls_end());
                 continue;
               }
             }
           }
+          datamembers.push_back((TCppScope_t)D);
+
+        } else if (auto* USD = llvm::dyn_cast<UsingShadowDecl>(D)) {
+          if (llvm::isa<FieldDecl>(USD->getTargetDecl()))
+            datamembers.push_back(USD);
         }
-        datamembers.push_back((TCppScope_t)D);
         stack_begin.back()++;
       }
     }
@@ -1202,31 +1212,41 @@ namespace Cpp {
     return 0;
   }
 
-  TCppType_t GetVariableType(TCppScope_t var)
-  {
-    auto D = (Decl *) var;
+  TCppType_t GetVariableType(TCppScope_t var) {
+    auto* D = static_cast<Decl*>(var);
 
     if (auto DD = llvm::dyn_cast_or_null<DeclaratorDecl>(D)) {
-      return DD->getType().getAsOpaquePtr();
+      QualType QT = DD->getType();
+
+      // Check if the type is a typedef type
+      if (QT->isTypedefNameType()) {
+        return QT.getAsOpaquePtr();
+      }
+
+      // Else, return the canonical type
+      QT = QT.getCanonicalType();
+      return QT.getAsOpaquePtr();
     }
 
     return 0;
   }
 
-  intptr_t GetVariableOffset(compat::Interpreter& I, Decl* D) {
+  intptr_t GetVariableOffset(compat::Interpreter& I, Decl* D,
+                             CXXRecordDecl* BaseCXXRD) {
     if (!D)
       return 0;
 
     auto& C = I.getSema().getASTContext();
 
     if (auto* FD = llvm::dyn_cast<FieldDecl>(D)) {
-      const clang::RecordDecl* RD = FD->getParent();
+      clang::RecordDecl* FieldParentRecordDecl = FD->getParent();
       intptr_t offset =
           C.toCharUnitsFromBits(C.getFieldOffset(FD)).getQuantity();
-      while (RD->isAnonymousStructOrUnion()) {
-        const clang::RecordDecl* anon = RD;
-        RD = llvm::dyn_cast<RecordDecl>(anon->getParent());
-        for (auto F = RD->field_begin(); F != RD->field_end(); ++F) {
+      while (FieldParentRecordDecl->isAnonymousStructOrUnion()) {
+        clang::RecordDecl* anon = FieldParentRecordDecl;
+        FieldParentRecordDecl = llvm::dyn_cast<RecordDecl>(anon->getParent());
+        for (auto F = FieldParentRecordDecl->field_begin();
+             F != FieldParentRecordDecl->field_end(); ++F) {
           const auto* RT = F->getType()->getAs<RecordType>();
           if (!RT)
             continue;
@@ -1236,6 +1256,46 @@ namespace Cpp {
           }
         }
         offset += C.toCharUnitsFromBits(C.getFieldOffset(FD)).getQuantity();
+      }
+      if (BaseCXXRD && BaseCXXRD != FieldParentRecordDecl) {
+        // FieldDecl FD belongs to some class C, but the base class BaseCXXRD is
+        // not C. That means BaseCXXRD derives from C. Offset needs to be
+        // calculated for Derived class
+
+        // Depth first Search is performed to the class that declears FD from
+        // the base class
+        std::vector<CXXRecordDecl*> stack;
+        std::map<CXXRecordDecl*, CXXRecordDecl*> direction;
+        stack.push_back(BaseCXXRD);
+        while (!stack.empty()) {
+          CXXRecordDecl* RD = stack.back();
+          stack.pop_back();
+          size_t num_bases = GetNumBases(RD);
+          bool flag = false;
+          for (size_t i = 0; i < num_bases; i++) {
+            auto* CRD = static_cast<CXXRecordDecl*>(GetBaseClass(RD, i));
+            direction[CRD] = RD;
+            if (CRD == FieldParentRecordDecl) {
+              flag = true;
+              break;
+            }
+            stack.push_back(CRD);
+          }
+          if (flag)
+            break;
+        }
+        if (auto* RD = llvm::dyn_cast<CXXRecordDecl>(FieldParentRecordDecl)) {
+          // add in the offsets for the (multi level) base classes
+          while (BaseCXXRD != RD) {
+            CXXRecordDecl* Parent = direction.at(RD);
+            offset += C.getASTRecordLayout(Parent)
+                          .getBaseClassOffset(RD)
+                          .getQuantity();
+            RD = Parent;
+          }
+        } else {
+          assert(false && "Unreachable");
+        }
       }
       return offset;
     }
@@ -1312,20 +1372,18 @@ namespace Cpp {
     return 0;
   }
 
-  intptr_t GetVariableOffset(TCppScope_t var) {
+  intptr_t GetVariableOffset(TCppScope_t var, TCppScope_t parent) {
     auto* D = static_cast<Decl*>(var);
-    return GetVariableOffset(getInterp(), D);
+    auto* RD =
+        llvm::dyn_cast_or_null<CXXRecordDecl>(static_cast<Decl*>(parent));
+    return GetVariableOffset(getInterp(), D, RD);
   }
 
   // Check if the Access Specifier of the variable matches the provided value.
   bool CheckVariableAccess(TCppScope_t var, AccessSpecifier AS)
   {
     auto *D = (Decl *) var;
-    if (auto *CXXMD = llvm::dyn_cast_or_null<DeclaratorDecl>(D)) {
-      return CXXMD->getAccess() == AS;
-    }
-
-    return false;
+    return D->getAccess() == AS;
   }
 
   bool IsPublicVariable(TCppScope_t var)

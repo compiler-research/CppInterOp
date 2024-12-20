@@ -1,11 +1,19 @@
 # CppInterOp
 
-[![Build Status](https://github.com/compiler-research/CppInterOp/actions/workflows/ci.yml/badge.svg)](https://github.com/compiler-research/CppInterOp/actions/workflows/ci.yml)
+[![Build Status](https://github.com/compiler-research/CppInterOp/actions/workflows/non-emscripten.yml/badge.svg)](https://github.com/compiler-research/CppInterOp/actions/workflows/non-emscripten.yml)
+
+[![Build Status](https://github.com/compiler-research/CppInterOp/actions/workflows/Windows.yml/badge.svg)](https://github.com/compiler-research/CppInterOp/actions/workflows/Windows.yml)
+
+[![Build Status](https://github.com/compiler-research/CppInterOp/actions/workflows/emscripten.yml/badge.svg)](https://github.com/compiler-research/CppInterOp/actions/workflows/emscripten.yml)
+
 [![codecov](https://codecov.io/gh/compiler-research/CppInterOp/branch/main/graph/badge.svg)](https://codecov.io/gh/compiler-research/CppInterOp)
 
 [![Conda-Forge](https://img.shields.io/conda/vn/conda-forge/cppinterop)](https://github.com/conda-forge/cppinterop-feedstock)
+
 [![Anaconda-Server Badge](https://anaconda.org/conda-forge/cppinterop/badges/license.svg)](https://github.com/conda-forge/cppinterop-feedstock)
+
 [![Conda Platforms](https://img.shields.io/conda/pn/conda-forge/cppinterop.svg)](https://anaconda.org/conda-forge/cppinterop)
+
 [![Anaconda-Server Badge](https://anaconda.org/conda-forge/cppinterop/badges/downloads.svg)](https://github.com/conda-forge/cppinterop-feedstock)
 
 CppInterOp exposes API from [Clang](http://clang.llvm.org/) and [LLVM](https://llvm.org) in a backward compatible way.
@@ -19,6 +27,10 @@ In such scenarios CppInterOp can be used to provide the necessary introspection 
 [Documentation](https://cppinterop.readthedocs.io/en/latest/index.html)  
 
 [CppInterOp API Documentation](https://cppinterop.readthedocs.io/en/latest/build/html/index.html)  
+
+Try Jupyter Lite CppInterOp demo by clicking below
+
+[![lite-badge](https://jupyterlite.rtfd.io/en/latest/_static/badge.svg)](https://compiler-research.github.io/CppInterOp/lab/index.html)
 
 ## CppInterOp Introduction
 
@@ -107,7 +119,7 @@ git apply -v ../CppInterOp/patches/llvm/clang{version}-*.patch
 and
 
 ```powershell
-cp -r ..\CppInterOp\patches\llvm\clang17* .
+cp -r ..\CppInterOp\patches\llvm\clang{version}* .
 git apply -v clang{version}-*.patch
 ```
 
@@ -122,8 +134,8 @@ command
 ```bash
 mkdir build 
 cd build 
-cmake -DLLVM_ENABLE_PROJECTS="clang;lld"                  \
-                -DLLVM_TARGETS_TO_BUILD="WebAssembly;host;NVPTX"          \
+cmake -DLLVM_ENABLE_PROJECTS=clang                                  \
+                -DLLVM_TARGETS_TO_BUILD="host;NVPTX"                \
                 -DCMAKE_BUILD_TYPE=Release                          \
                 -DLLVM_ENABLE_ASSERTIONS=ON                         \
                 -DCLANG_ENABLE_STATIC_ANALYZER=OFF                  \
@@ -134,7 +146,7 @@ cmake -DLLVM_ENABLE_PROJECTS="clang;lld"                  \
                 -DLLVM_ENABLE_TERMINFO=OFF                          \
                 -DLLVM_ENABLE_LIBXML2=OFF                           \
                 ../llvm
-cmake --build . --target clang clang-repl lld --parallel $(nproc --all)
+cmake --build . --target clang clang-repl --parallel $(nproc --all)
 ```
 
 On Windows you would do this by executing the following
@@ -186,10 +198,10 @@ cd ..
 git clone --depth=1 -b cling-llvm13 https://github.com/root-project/llvm-project.git
 mkdir llvm-project/build
 cd llvm-project/build
-cmake -DLLVM_ENABLE_PROJECTS="clang;lld"               \
+cmake -DLLVM_ENABLE_PROJECTS=clang                                 \
                 -DLLVM_EXTERNAL_PROJECTS=cling                     \
                 -DLLVM_EXTERNAL_CLING_SOURCE_DIR=../../cling       \
-                -DLLVM_TARGETS_TO_BUILD="WebAssembly;host;NVPTX"   \
+                -DLLVM_TARGETS_TO_BUILD="host;NVPTX"   \
                 -DCMAKE_BUILD_TYPE=Release                         \
                 -DLLVM_ENABLE_ASSERTIONS=ON                        \
                 -DCLANG_ENABLE_STATIC_ANALYZER=OFF                 \
@@ -200,7 +212,6 @@ cmake -DLLVM_ENABLE_PROJECTS="clang;lld"               \
                 -DLLVM_ENABLE_TERMINFO=OFF                         \
                 -DLLVM_ENABLE_LIBXML2=OFF                          \
                 ../llvm
-cmake --build . --target lld --parallel $(nproc --all)
 cmake --build . --target clang --parallel $(nproc --all)
 cmake --build . --target cling --parallel $(nproc --all)
 cmake --build . --target gtest_main --parallel $(nproc --all)
@@ -294,14 +305,14 @@ cd CppInterOp\build\
 Now if you want to build CppInterOp with Clang-REPL then execute the following commands on Linux and MacOS
 
 ```bash
-cmake -DBUILD_SHARED_LIBS=ON -DUSE_CLING=Off -DUSE_REPL=ON -DLLVM_DIR=$LLVM_DIR/build/lib/cmake/llvm -DClang_DIR=$LLVM_DIR/build/lib/cmake/clang -DCMAKE_INSTALL_PREFIX=$CPPINTEROP_DIR ..
+cmake -DBUILD_SHARED_LIBS=ON -DLLVM_DIR=$LLVM_DIR/build/lib/cmake/llvm -DClang_DIR=$LLVM_DIR/build/lib/cmake/clang -DCMAKE_INSTALL_PREFIX=$CPPINTEROP_DIR ..
 cmake --build . --target install --parallel $(nproc --all)
 ```
 
 and
 
 ```powershell
-cmake -DUSE_CLING=Off -DUSE_REPL=ON -DLLVM_DIR=$env:LLVM_DIR\build\lib\cmake\llvm -DClang_DIR=$env:LLVM_DIR\build\lib\cmake\clang -DCMAKE_INSTALL_PREFIX=$env:CPPINTEROP_DIR ..
+cmake -DLLVM_DIR=$env:LLVM_DIR\build\lib\cmake\llvm -DClang_DIR=$env:LLVM_DIR\build\lib\cmake\clang -DCMAKE_INSTALL_PREFIX=$env:CPPINTEROP_DIR ..
 cmake --build . --target install --parallel $env:ncpus
 ```
 
