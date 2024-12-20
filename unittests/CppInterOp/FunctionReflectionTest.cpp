@@ -974,6 +974,35 @@ TEST(FunctionReflectionTest, GetFunctionCallWrapper) {
 
   FCI_Add.Invoke(&result, {args, /*args_size=*/2});
   EXPECT_EQ(result, a + b);
+
+  // typedef resolution testing
+  Interp->process(R"(
+  class TypedefToPrivateClass {
+  private:
+    class PC {
+    public:
+      int m_val = 4;
+    };
+
+  public:
+    typedef PC PP;
+    static PP f() { return PC(); }
+  };
+  )");
+
+  Cpp::TCppScope_t TypedefToPrivateClass =
+      Cpp::GetNamed("TypedefToPrivateClass");
+  EXPECT_TRUE(TypedefToPrivateClass);
+
+  Cpp::TCppScope_t f = Cpp::GetNamed("f", TypedefToPrivateClass);
+  EXPECT_TRUE(f);
+
+  Cpp::JitCall FCI_f = Cpp::MakeFunctionCallable(f);
+  EXPECT_TRUE(FCI_f.getKind() == Cpp::JitCall::kGenericCall);
+
+  void* res = nullptr;
+  FCI_f.Invoke(&res, {nullptr, 0});
+  EXPECT_TRUE(res);
 }
 
 TEST(FunctionReflectionTest, IsConstMethod) {
