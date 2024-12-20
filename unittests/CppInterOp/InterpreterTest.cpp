@@ -7,11 +7,13 @@
 #include "cling/Interpreter/Interpreter.h"
 #endif // USE_CLING
 
-#ifdef USE_REPL
+#ifndef USE_CLING
 #include "clang/Interpreter/Interpreter.h"
 #endif // USE_REPL
 
 #include "clang/Basic/Version.h"
+
+#include "clang-c/CXCppInterOp.h"
 
 #include "llvm/ADT/SmallString.h"
 #include "llvm/Support/Path.h"
@@ -108,6 +110,17 @@ TEST(InterpreterTest, CreateInterpreter) {
                    "#endif");
   EXPECT_TRUE(Cpp::GetNamed("cpp17"));
   EXPECT_FALSE(Cpp::GetNamed("cppUnknown"));
+
+
+#ifndef USE_CLING
+  // C API
+  auto CXI = clang_createInterpreterFromRawPtr(I);
+  auto CLI = clang_Interpreter_getClangInterpreter(CXI);
+  EXPECT_TRUE(CLI);
+  auto I2 = clang_Interpreter_takeInterpreterAsPtr(CXI);
+  EXPECT_EQ(I, I2);
+  clang_Interpreter_dispose(CXI);
+#endif
 }
 
 #ifdef LLVM_BINARY_DIR
@@ -175,7 +188,10 @@ TEST(InterpreterTest, CodeCompletion) {
 
 TEST(InterpreterTest, ExternalInterpreterTest) {
 
-#ifdef USE_REPL
+if (llvm::sys::RunningOnValgrind())
+  GTEST_SKIP() << "XFAIL due to Valgrind report";
+
+#ifndef USE_CLING
   llvm::ExitOnError ExitOnErr;
   clang::IncrementalCompilerBuilder CB;
   CB.SetCompilerArgs({"-std=c++20"});
@@ -188,7 +204,7 @@ TEST(InterpreterTest, ExternalInterpreterTest) {
   std::unique_ptr<clang::Interpreter> I =
       ExitOnErr(clang::Interpreter::create(std::move(CI)));
   auto ExtInterp = I.get();
-#endif
+#endif // USE_REPL
 
 #ifdef USE_CLING
     std::string MainExecutableName = sys::fs::getMainExecutable(nullptr, nullptr);
@@ -200,12 +216,18 @@ TEST(InterpreterTest, ExternalInterpreterTest) {
 #endif
 
   EXPECT_NE(ExtInterp, nullptr);
-  Cpp::UseExternalInterpreter(ExtInterp);
+
+#if !defined(NDEBUG) && GTEST_HAS_DEATH_TEST
+#ifndef _WIN32 // Windows seems to fail to die...
+    EXPECT_DEATH(Cpp::UseExternalInterpreter(ExtInterp), "sInterpreter already in use!");
+#endif // _WIN32
+#endif
   EXPECT_TRUE(Cpp::GetInterpreter()) << "External Interpreter not set";
 
-#ifdef USE_REPL
+#ifndef USE_CLING
   I.release();
 #endif
+
 #ifdef USE_CLING
   delete ExtInterp;
 #endif

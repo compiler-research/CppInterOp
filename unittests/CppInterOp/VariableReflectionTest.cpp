@@ -6,6 +6,9 @@
 #include "clang/Sema/Sema.h"
 
 #include "gtest/gtest.h"
+#include <string>
+
+#include <cstddef>
 
 using namespace TestUtils;
 using namespace llvm;
@@ -26,13 +29,21 @@ TEST(VariableReflectionTest, GetDatamembers) {
       static int f;
     };
     void sum(int,int);
+
+    class D : public C {
+    public:
+      int x;
+      using C::e;
+    };
     )";
 
   std::vector<Cpp::TCppScope_t> datamembers;
   std::vector<Cpp::TCppScope_t> datamembers1;
+  std::vector<Cpp::TCppScope_t> datamembers2;
   GetAllTopLevelDecls(code, Decls);
   Cpp::GetDatamembers(Decls[0], datamembers);
   Cpp::GetDatamembers(Decls[1], datamembers1);
+  Cpp::GetDatamembers(Decls[2], datamembers2);
 
   // non static field
   EXPECT_EQ(Cpp::GetQualifiedName(datamembers[0]), "C::a");
@@ -53,6 +64,16 @@ TEST(VariableReflectionTest, GetDatamembers) {
   EXPECT_EQ(Cpp::GetQualifiedName(datamembers[2]), "C::f");
   EXPECT_EQ(datamembers.size(), 3);
   EXPECT_EQ(datamembers1.size(), 0);
+
+  // derived class
+  EXPECT_EQ(datamembers2.size(), 2);
+  EXPECT_EQ(Cpp::GetQualifiedName(datamembers2[0]), "D::x");
+  EXPECT_EQ(Cpp::GetQualifiedName(Cpp::GetUnderlyingScope(datamembers2[1])),
+            "C::e");
+  EXPECT_TRUE(Cpp::IsPublicVariable(datamembers2[0]));
+  EXPECT_TRUE(Cpp::IsPublicVariable(datamembers2[1]));
+  EXPECT_TRUE(
+      Cpp::IsProtectedVariable(Cpp::GetUnderlyingScope(datamembers2[1])));
 }
 // If on Windows disable  warning due to unnamed structs/unions in defined CODE.
 #ifdef _WIN32
@@ -137,6 +158,39 @@ TEST(VariableReflectionTest, DatamembersWithAnonymousStructOrUnion) {
 #ifdef _WIN32
 #pragma warning(default : 4201)
 #endif
+}
+
+TEST(VariableReflectionTest, GetTypeAsString) {
+  if (llvm::sys::RunningOnValgrind())
+    GTEST_SKIP() << "XFAIL due to Valgrind report";
+
+  std::string code = R"(
+  namespace my_namespace {
+  
+  struct Container {
+    int value;
+  };
+  
+  struct Wrapper {
+    Container item;
+  };
+
+  }
+  )";
+
+  Cpp::CreateInterpreter();
+  EXPECT_EQ(Cpp::Declare(code.c_str()), 0);
+
+  Cpp::TCppScope_t wrapper =
+      Cpp::GetScopeFromCompleteName("my_namespace::Wrapper");
+  EXPECT_TRUE(wrapper);
+
+  std::vector<Cpp::TCppScope_t> datamembers;
+  Cpp::GetDatamembers(wrapper, datamembers);
+  EXPECT_EQ(datamembers.size(), 1);
+
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetVariableType(datamembers[0])),
+            "my_namespace::Container");
 }
 
 TEST(VariableReflectionTest, LookupDatamember) {
@@ -238,6 +292,88 @@ TEST(VariableReflectionTest, GetVariableOffset) {
 
   auto* VD_C_s_a = Cpp::GetNamed("s_a", Decls[4]); // C::s_a
   EXPECT_TRUE((bool) Cpp::GetVariableOffset(VD_C_s_a));
+}
+
+#define CODE                                                                   \
+  class BaseA {                                                                \
+  public:                                                                      \
+    virtual ~BaseA() {}                                                        \
+    int a;                                                                     \
+    BaseA(int a) : a(a) {}                                                     \
+  };                                                                           \
+                                                                               \
+  class BaseB : public BaseA {                                                 \
+  public:                                                                      \
+    virtual ~BaseB() {}                                                        \
+    std::string b;                                                             \
+    BaseB(int x, std::string b) : BaseA(x), b(b) {}                            \
+  };                                                                           \
+                                                                               \
+  class Base1 {                                                                \
+  public:                                                                      \
+    virtual ~Base1() {}                                                        \
+    int i;                                                                     \
+    std::string s;                                                             \
+    Base1(int i, std::string s) : i(i), s(s) {}                                \
+  };                                                                           \
+                                                                               \
+  class MyKlass : public BaseB, public Base1 {                                 \
+  public:                                                                      \
+    virtual ~MyKlass() {}                                                      \
+    int k;                                                                     \
+    MyKlass(int k, int i, int x, std::string b, std::string s)                 \
+        : BaseB(x, b), Base1(i, s), k(k) {}                                    \
+  } my_k(5, 4, 3, "Cpp", "Python");
+
+CODE
+
+TEST(VariableReflectionTest, VariableOffsetsWithInheritance) {
+  if (llvm::sys::RunningOnValgrind())
+    GTEST_SKIP() << "XFAIL due to Valgrind report";
+
+  Cpp::Declare("#include<string>");
+
+#define Stringify(s) Stringifyx(s)
+#define Stringifyx(...) #__VA_ARGS__
+  Cpp::Declare(Stringify(CODE));
+#undef Stringifyx
+#undef Stringify
+#undef CODE
+
+  Cpp::TCppScope_t myklass = Cpp::GetNamed("MyKlass");
+  EXPECT_TRUE(myklass);
+
+  size_t num_bases = Cpp::GetNumBases(myklass);
+  EXPECT_EQ(num_bases, 2);
+
+  std::vector<Cpp::TCppScope_t> datamembers;
+  Cpp::GetDatamembers(myklass, datamembers);
+  for (size_t i = 0; i < num_bases; i++) {
+    Cpp::TCppScope_t base = Cpp::GetBaseClass(myklass, i);
+    EXPECT_TRUE(base);
+    for (size_t i = 0; i < Cpp::GetNumBases(base); i++) {
+      Cpp::TCppScope_t bbase = Cpp::GetBaseClass(base, i);
+      EXPECT_TRUE(base);
+      Cpp::GetDatamembers(bbase, datamembers);
+    }
+    Cpp::GetDatamembers(base, datamembers);
+  }
+  EXPECT_EQ(datamembers.size(), 5);
+
+  EXPECT_EQ(Cpp::GetVariableOffset(datamembers[0], myklass),
+            ((intptr_t)&(my_k.k)) - ((intptr_t)&(my_k)));
+
+  EXPECT_EQ(Cpp::GetVariableOffset(datamembers[1], myklass),
+            ((intptr_t)&(my_k.a)) - ((intptr_t)&(my_k)));
+
+  EXPECT_EQ(Cpp::GetVariableOffset(datamembers[2], myklass),
+            ((intptr_t)&(my_k.b)) - ((intptr_t)&(my_k)));
+
+  EXPECT_EQ(Cpp::GetVariableOffset(datamembers[3], myklass),
+            ((intptr_t)&(my_k.i)) - ((intptr_t)&(my_k)));
+
+  EXPECT_EQ(Cpp::GetVariableOffset(datamembers[4], myklass),
+            ((intptr_t)&(my_k.s)) - ((intptr_t)&(my_k)));
 }
 
 TEST(VariableReflectionTest, IsPublicVariable) {

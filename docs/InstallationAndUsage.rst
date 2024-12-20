@@ -70,8 +70,8 @@ following command
 
    mkdir build
    cd build
-   cmake   -DLLVM_ENABLE_PROJECTS="clang;lld"                  \
-           -DLLVM_TARGETS_TO_BUILD="WebAssembly;host;NVPTX"          \
+   cmake   -DLLVM_ENABLE_PROJECTS=clang                        \
+           -DLLVM_TARGETS_TO_BUILD="host;NVPTX"                \
            -DCMAKE_BUILD_TYPE=Release                          \
            -DLLVM_ENABLE_ASSERTIONS=ON                         \
            -DCLANG_ENABLE_STATIC_ANALYZER=OFF                  \
@@ -82,7 +82,7 @@ following command
            -DLLVM_ENABLE_TERMINFO=OFF                          \
            -DLLVM_ENABLE_LIBXML2=OFF                           \
            ../llvm
-   cmake --build . --target clang clang-repl lld --parallel $(nproc --all)
+   cmake --build . --target clang clang-repl --parallel $(nproc --all)
 
 On Windows you would do this by executing the following
 
@@ -137,10 +137,10 @@ build instructions to build on Linux and MacOS
    git clone --depth=1 -b cling-llvm13 https://github.com/root-project/llvm-project.git
    mkdir llvm-project/build
    cd llvm-project/build
-   cmake   -DLLVM_ENABLE_PROJECTS="clang;lld"               \
+   cmake   -DLLVM_ENABLE_PROJECTS=clang                       \
            -DLLVM_EXTERNAL_PROJECTS=cling                     \
            -DLLVM_EXTERNAL_CLING_SOURCE_DIR=../../cling       \
-           -DLLVM_TARGETS_TO_BUILD="WebAssembly;host;NVPTX"   \
+           -DLLVM_TARGETS_TO_BUILD="host;NVPTX"               \
            -DCMAKE_BUILD_TYPE=Release                         \
            -DLLVM_ENABLE_ASSERTIONS=ON                        \
            -DCLANG_ENABLE_STATIC_ANALYZER=OFF                 \
@@ -151,7 +151,6 @@ build instructions to build on Linux and MacOS
            -DLLVM_ENABLE_TERMINFO=OFF                         \
            -DLLVM_ENABLE_LIBXML2=OFF                          \
            ../llvm
-   cmake --build . --target lld --parallel $(nproc --all)
    cmake --build . --target clang --parallel $(nproc --all)
    cmake --build . --target cling --parallel $(nproc --all)
    cmake --build . --target gtest_main --parallel $(nproc --all)
@@ -256,14 +255,14 @@ commands on Linux and MacOS
 
 .. code:: bash
 
-   cmake -DBUILD_SHARED_LIBS=ON -DUSE_CLING=Off -DUSE_REPL=ON -DLLVM_DIR=$LLVM_DIR/build/lib/cmake/llvm -DClang_DIR=$LLVM_DIR/build/lib/cmake/clang -DCMAKE_INSTALL_PREFIX=$CPPINTEROP_DIR ..
+   cmake -DBUILD_SHARED_LIBS=ON -DLLVM_DIR=$LLVM_DIR/build/lib/cmake/llvm -DClang_DIR=$LLVM_DIR/build/lib/cmake/clang -DCMAKE_INSTALL_PREFIX=$CPPINTEROP_DIR ..
    cmake --build . --target install --parallel $(nproc --all)
 
 and
 
 .. code:: powershell
 
-   cmake -DUSE_CLING=Off -DUSE_REPL=ON -DLLVM_DIR=$env:LLVM_DIR\build\lib\cmake\llvm -DClang_DIR=$env:LLVM_DIR\build\lib\cmake\clang -DCMAKE_INSTALL_PREFIX=$env:CPPINTEROP_DIR ..
+   cmake -DLLVM_DIR=$env:LLVM_DIR\build\lib\cmake\llvm -DClang_DIR=$env:LLVM_DIR\build\lib\cmake\clang -DCMAKE_INSTALL_PREFIX=$env:CPPINTEROP_DIR ..
    cmake --build . --target install --parallel $env:ncpus
 
 on Windows. If alternatively you would like to install CppInterOp with Cling

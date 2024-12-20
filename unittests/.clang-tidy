@@ -1,0 +1,8 @@
+Checks: >
+  -misc-use-internal-linkage,
+  -modernize-pass-by-value,
+  -cppcoreguidelines-macro-usage,
+  -cppcoreguidelines-pro-type-cstyle-cast,
+  -cppcoreguidelines-avoid-non-const-global-variables,
+  -performance-unnecessary-value-param,
+  -performance-no-int-to-ptr,

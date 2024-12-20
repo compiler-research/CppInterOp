@@ -27,9 +27,11 @@ endif()
 if (IS_DIRECTORY "${CPPINTEROP_INSTALL_PREFIX}/include")
   set(_include "${CPPINTEROP_INSTALL_PREFIX}/include")
   set(_lib "${CPPINTEROP_INSTALL_PREFIX}/${shared_lib_dir}/${_lib_prefix}clangCppInterOp${_lib_suffix}")
+  set(_cmake "${CPPINTEROP_INSTALL_PREFIX}/${shared_lib_dir}/cmake/CppInterOp")
 else()
   set(_include "@CMAKE_CURRENT_SOURCE_DIR@/include")
   set(_lib "@CMAKE_CURRENT_BINARY_DIR@/${shared_lib_dir}/${_lib_prefix}clangCppInterOp${_lib_suffix}")
+  set(_cmake "@CMAKE_CURRENT_BINARY_DIR@/${shared_lib_dir}/cmake/CppInterOp")
 endif()
 
 ###
@@ -44,7 +46,8 @@ set(CPPINTEROP_LLVM_VERSION_MAJOR "@LLVM_VERSION_MAJOR@")
 set(CPPINTEROP_LLVM_VERSION_MINOR "@LLVM_VERSION_MINOR@")
 set(CPPINTEROP_LLVM_VERSION_PATCH "@LLVM_VERSION_PATCH@")
 set(CPPINTEROP_LLVM_VERSION_SUFFIX "@LLVM_VERSION_SUFFIX@")
-set(CPPINTEROP_LLVM_PACKAGE_VERSION "@PACKAGE_VERSION@")
+set(CPPINTEROP_LLVM_PACKAGE_VERSION "@CPPINTEROP_LLVM_VERSION@")
+set(CPPINTEROP_VERSION "@CPPINTEROP_VERSION@")
 
 # Provide all our library targets to users.
 if (@BUILD_SHARED_LIBS@)
