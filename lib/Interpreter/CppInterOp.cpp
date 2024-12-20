@@ -1600,7 +1600,10 @@ namespace Cpp {
                             PrintingPolicy Policy) {
       //TODO: Implement cling desugaring from utils::AST
       //      cling::utils::Transform::GetPartiallyDesugaredType()
-      QT = QT.getDesugaredType(C);
+      if (!QT->isTypedefNameType() || QT->isBuiltinType())
+        QT = QT.getDesugaredType(C);
+      Policy.SuppressElaboration = true;
+      Policy.FullyQualifiedName = true;
       QT.getAsStringInternal(type_name, Policy);
     }
 
@@ -1652,13 +1655,13 @@ namespace Cpp {
         return;
       } else if (QT->isPointerType()) {
         isPointer = true;
-        QT = cast<clang::PointerType>(QT)->getPointeeType();
+        QT = cast<clang::PointerType>(QT.getCanonicalType())->getPointeeType();
       } else if (QT->isReferenceType()) {
         if (QT->isRValueReferenceType())
           refType = kRValueReference;
         else
           refType = kLValueReference;
-        QT = cast<ReferenceType>(QT)->getPointeeType();
+        QT = cast<ReferenceType>(QT.getCanonicalType())->getPointeeType();
       }
       // Fall through for the array type to deal with reference/pointer ro array
       // type.
@@ -1911,7 +1914,7 @@ namespace Cpp {
         make_narg_ctor_with_return(FD, N, class_name, buf, indent_level);
         return;
       }
-      QualType QT = FD->getReturnType().getCanonicalType();
+      QualType QT = FD->getReturnType();
       if (QT->isVoidType()) {
         std::ostringstream typedefbuf;
         std::ostringstream callbuf;
