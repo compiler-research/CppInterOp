@@ -21,9 +21,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: ubu22-x86-gcc12-clang-repl-19-emscripten
-            os: ubuntu-22.04
-            compiler: gcc-12
+          - name: ubu24-x86-gcc13-clang-repl-19-emscripten
+            os: ubuntu-24.04
+            compiler: gcc-13
             clang-runtime: '19'
             cling: Off
             cppyy: On
