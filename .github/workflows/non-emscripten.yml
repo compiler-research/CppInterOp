@@ -1,4 +1,5 @@
-name: Unix-Like Non Emscripten CppInterOp Builds
+name: Unix
+
 on:
   pull_request:
     branches: [main]
