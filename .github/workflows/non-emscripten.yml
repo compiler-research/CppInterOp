@@ -54,6 +54,15 @@ jobs:
             cppyy: On
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
+          - name: ubu22-x86-gcc12-clang16-cling
+            os: ubuntu-22.04
+            compiler: gcc-12
+            clang-runtime: '16'
+            cling: On
+            cling-version: '1.1'
+            cppyy: On
+            llvm_enable_projects: "clang"
+            llvm_targets_to_build: "host;NVPTX"
           - name: ubu22-x86-gcc9-clang13-cling
             os: ubuntu-22.04
             compiler: gcc-9
@@ -95,6 +104,15 @@ jobs:
             cppyy: On
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
+          - name: osx15-arm-clang-clang16-cling
+            os: macos-15
+            compiler: clang
+            clang-runtime: '16'
+            cling: On
+            cling-version: '1.1'
+            cppyy: On
+            llvm_enable_projects: "clang"
+            llvm_targets_to_build: "host;NVPTX"
           - name: osx15-arm-clang-clang13-cling
             os: macos-15
             compiler: clang
@@ -133,6 +151,15 @@ jobs:
             compiler: clang
             clang-runtime: '16'
             cling: Off
+            cppyy: On
+            llvm_enable_projects: "clang"
+            llvm_targets_to_build: "host;NVPTX"
+          - name: osx13-x86-clang-clang16-cling
+            os: macos-13
+            compiler: clang
+            clang-runtime: '16'
+            cling: On
+            cling-version: '1.1'
             cppyy: On
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
@@ -294,6 +321,13 @@ jobs:
           git clone https://github.com/root-project/cling.git
           cd ./cling 
           git checkout tags/v${{ matrix.cling-version }}
+          # Apply patches
+          llvm_vers=$(echo "${{ matrix.clang-runtime }}" | tr '[:lower:]' '[:upper:]')
+          if [[ "${llvm_vers}" == "16" ]]; then
+            # cling version 1.1 with llvm 16 requires a patch to fix error handling when parsing invaild code
+            git apply -v ../patches/llvm/cling${{ matrix.clang-runtime }}-*.patch
+            echo "Apply cling${{ matrix.clang-runtime }}-*.patch patches:"
+          fi
           cd ..
           git clone --depth=1 -b cling-llvm${{ matrix.clang-runtime }} https://github.com/root-project/llvm-project.git
         else # repl
@@ -320,8 +354,10 @@ jobs:
                 ../llvm
           cmake --build . --target clang --parallel ${{ env.ncpus }}
           cmake --build . --target cling --parallel ${{ env.ncpus }}
-          # Now build gtest.a and gtest_main for CppInterOp to run its tests.
-          cmake --build . --target gtest_main --parallel ${{ env.ncpus }}
+          if [[ "${{ matrix.clang-runtime}}" == "13" ]]; then
+            # Now build gtest.a and gtest_main for CppInterOp to run its tests.
+            cmake --build . --target gtest_main --parallel ${{ env.ncpus }}
+          fi
         else
           # Apply patches
           llvm_vers=$(echo "${{ matrix.clang-runtime }}" | tr '[:lower:]' '[:upper:]')
@@ -410,6 +446,13 @@ jobs:
             clang-runtime: '16'
             cling: Off
             cppyy: Off
+          - name: ubu22-x86-gcc12-clang16-cling
+            os: ubuntu-22.04
+            compiler: gcc-12
+            clang-runtime: '16'
+            cling: On
+            cling-version: '1.1'
+            cppyy: Off
           - name: ubu22-x86-gcc9-clang13-cling-cppyy
             os: ubuntu-22.04
             compiler: gcc-9
@@ -441,6 +484,13 @@ jobs:
             clang-runtime: '16'
             cling: Off
             cppyy: Off
+          - name: osx15-arm-clang-clang16-cling
+            os: macos-15
+            compiler: clang
+            clang-runtime: '16'
+            cling: On
+            cling-version: '1.1'
+            cppyy: Off
           - name: osx15-arm-clang-clang13-cling-cppyy
             os: macos-15
             compiler: clang
@@ -471,6 +521,13 @@ jobs:
             compiler: clang
             clang-runtime: '16'
             cling: Off
+            cppyy: Off
+          - name: osx13-x86-clang-clang16-cling
+            os: macos-13
+            compiler: clang
+            clang-runtime: '16'
+            cling: On
+            cling-version: '1.1'
             cppyy: Off
           - name: osx13-x86-clang-clang13-cling-cppyy
             os: macos-13
