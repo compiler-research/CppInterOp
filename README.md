@@ -1,6 +1,8 @@
 # CppInterOp
 
-[![Build Status](https://github.com/compiler-research/CppInterOp/actions/workflows/non-emscripten.yml/badge.svg)](https://github.com/compiler-research/CppInterOp/actions/workflows/non-emscripten.yml)
+[![Build Status](https://github.com/compiler-research/CppInterOp/actions/workflows/Ubuntu.yml/badge.svg)](https://github.com/compiler-research/CppInterOp/actions/workflows/Ubuntu.yml)
+
+[![Build Status](https://github.com/compiler-research/CppInterOp/actions/workflows/MacOS.yml/badge.svg)](https://github.com/compiler-research/CppInterOp/actions/workflows/MacOS.yml)
 
 [![Build Status](https://github.com/compiler-research/CppInterOp/actions/workflows/Windows.yml/badge.svg)](https://github.com/compiler-research/CppInterOp/actions/workflows/Windows.yml)
 
