@@ -1,0 +1,17 @@
+diff --git a/lib/Interpreter/IncrementalParser.cpp b/lib/Interpreter/IncrementalParser.cpp
+index 89cd78d..2aea40d 100644
+--- a/lib/Interpreter/IncrementalParser.cpp
++++ b/lib/Interpreter/IncrementalParser.cpp
+@@ -911,8 +911,11 @@ namespace cling {
+     PP.EnterSourceFile(FID, /*DirLookup*/nullptr, NewLoc);
+     m_Consumer->getTransaction()->setBufferFID(FID);
+ 
+-    if (!ParseOrWrapTopLevelDecl())
++    llvm::Expected<bool> res = ParseOrWrapTopLevelDecl();
++    if (!res) {
++      llvm::consumeError(std::move(res.takeError()));
+       return kFailed;
++    }
+ 
+     if (PP.getLangOpts().DelayedTemplateParsing) {
+       // Microsoft-specific:
