@@ -126,7 +126,8 @@ cd ./xeus-cpp
 mkdir build
 cd build
 export CMAKE_PREFIX_PATH=$PREFIX
-export CMAKE_SYSTEM_PREFIX_PATH=$PREFIX 
+export CMAKE_SYSTEM_PREFIX_PATH=$PREFIX
+export SYSROOT_PATH=$HOME/emsdk/upstream/emscripten/cache/sysroot
 emcmake cmake \
           -DCMAKE_BUILD_TYPE=Release                                     \
           -DCMAKE_PREFIX_PATH=$PREFIX                                    \
@@ -134,6 +135,7 @@ emcmake cmake \
           -DXEUS_CPP_EMSCRIPTEN_WASM_BUILD=ON                            \
           -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON                         \
           -DCppInterOp_DIR="$CPPINTEROP_BUILD_DIR/lib/cmake/CppInterOp"  \
+          -DSYSROOT_PATH=$SYSROOT_PATH                                   \
           ..
  emmake make -j $(nproc --all) install
 ```
@@ -146,6 +148,15 @@ micromamba create -n xeus-lite-host jupyterlite-core
 micromamba activate xeus-lite-host
 python -m pip install jupyterlite-xeus
 jupyter lite build --XeusAddon.prefix=$PREFIX
+```
+
+We now need to shift necessary files like `xcpp.data` which contains the binary representation of the file(s)  
+we want to include in our application. As of now this would contain all important files like Standard Headers,  
+Libraries etc coming out of emscripten's sysroot. Assuming we are still inside build we should do the following
+
+```bash
+cp xcpp.data _output/extensions/@jupyterlite/xeus/static
+cp $PREFIX/lib/libclangCppInterOp.so _output/extensions/@jupyterlite/xeus/static
 ```
 
 Once the Jupyter Lite site has built you can test the website locally  by executing
