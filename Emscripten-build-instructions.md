@@ -126,7 +126,8 @@ cd ./xeus-cpp
 mkdir build
 cd build
 export CMAKE_PREFIX_PATH=$PREFIX
-export CMAKE_SYSTEM_PREFIX_PATH=$PREFIX 
+export CMAKE_SYSTEM_PREFIX_PATH=$PREFIX
+export SYSROOT_PATH=$HOME/emsdk/upstream/emscripten/cache/sysroot
 emcmake cmake \
           -DCMAKE_BUILD_TYPE=Release                                     \
           -DCMAKE_PREFIX_PATH=$PREFIX                                    \
@@ -134,6 +135,7 @@ emcmake cmake \
           -DXEUS_CPP_EMSCRIPTEN_WASM_BUILD=ON                            \
           -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON                         \
           -DCppInterOp_DIR="$CPPINTEROP_BUILD_DIR/lib/cmake/CppInterOp"  \
+          -DSYSROOT_PATH=$SYSROOT_PATH                                   \
           ..
  emmake make -j $(nproc --all) install
 ```
