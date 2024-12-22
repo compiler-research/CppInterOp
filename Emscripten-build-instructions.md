@@ -148,6 +148,15 @@ python -m pip install jupyterlite-xeus
 jupyter lite build --XeusAddon.prefix=$PREFIX
 ```
 
+We now need to shift necessary files like `xcpp.data` which contains the binary representation of the file(s)  
+we want to include in our application. As of now this would contain all important files like Standard Headers,  
+Libraries etc coming out of emscripten's sysroot. Assuming we are still inside build we should do the following
+
+```bash
+cp xcpp.data _output/extensions/@jupyterlite/xeus/static
+cp $PREFIX/lib/libclangCppInterOp.so _output/extensions/@jupyterlite/xeus/static
+```
+
 Once the Jupyter Lite site has built you can test the website locally  by executing
 
 ```bash
