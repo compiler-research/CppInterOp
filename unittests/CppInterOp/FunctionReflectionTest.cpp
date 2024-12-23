@@ -8,6 +8,7 @@
 #include "gtest/gtest.h"
 
 #include <string>
+#include <tuple>
 
 using namespace TestUtils;
 using namespace llvm;
@@ -1153,4 +1154,64 @@ TEST(FunctionReflectionTest, Destruct) {
   Cpp::Deallocate(scope, object);
   output = testing::internal::GetCapturedStdout();
   EXPECT_EQ(output, "Destructor Executed");
+}
+
+TEST(FunctionReflectionTest, NestedTemplate) {
+  if (llvm::sys::RunningOnValgrind())
+    GTEST_SKIP() << "XFAIL due to Valgrind report";
+
+  Cpp::CreateInterpreter();
+
+  Interp->declare(R"(
+    #include <tuple>
+    #include <string>
+  )");
+
+  ASTContext& C = Interp->getCI()->getASTContext();
+
+  std::vector<Cpp::TCppFunction_t> make_tuple_candidate_methods;
+  Cpp::GetClassTemplatedMethods("make_tuple", Cpp::GetScope("std"),
+                                make_tuple_candidate_methods);
+  EXPECT_GE(make_tuple_candidate_methods.size(), 1);
+
+  std::vector<Cpp::TemplateArgInfo> make_tuple_arg_types = {
+      {C.IntTy.getAsOpaquePtr()},
+      {C.DoubleTy.getAsOpaquePtr()},
+  };
+  std::vector<Cpp::TemplateArgInfo> make_tuple_templ_params = {};
+  Cpp::TCppFunction_t make_tuple_scope = Cpp::BestTemplateFunctionMatch(
+      make_tuple_candidate_methods, make_tuple_templ_params,
+      make_tuple_arg_types);
+  EXPECT_TRUE(make_tuple_scope);
+
+  auto make_tuple = Cpp::MakeFunctionCallable(make_tuple_scope);
+  EXPECT_TRUE(make_tuple);
+
+  int x = 2;
+  double y = 4.0;
+  void* args0[2] = {(void*)&x, (void*)&y};
+  void* tuple = new std::tuple<int, double>;
+  make_tuple.Invoke(tuple, {args0, 2});
+
+  std::vector<Cpp::TCppFunction_t> get_candidate_methods;
+  Cpp::GetClassTemplatedMethods("get", Cpp::GetScope("std"),
+                                get_candidate_methods);
+  EXPECT_GE(get_candidate_methods.size(), 1);
+
+  std::vector<Cpp::TemplateArgInfo> get_arg_types = {
+      {Cpp::GetFunctionReturnType(make_tuple_scope)},
+  };
+  std::vector<Cpp::TemplateArgInfo> get_templ_params = {
+      {C.IntTy.getAsOpaquePtr(), "0"}};
+  Cpp::TCppFunction_t get_scope = Cpp::BestTemplateFunctionMatch(
+      get_candidate_methods, get_templ_params, get_arg_types);
+  EXPECT_TRUE(get_scope);
+
+  auto get = Cpp::MakeFunctionCallable(get_scope);
+  EXPECT_TRUE(get);
+
+  // int get0_result = 0;
+  // void *args1[1] = { (void *) &tuple };
+  // get.Invoke(&get0_result, {args1, 1});
+  // EXPECT_EQ(get0_result, 2);
 }
