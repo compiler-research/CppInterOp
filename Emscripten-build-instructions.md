@@ -155,7 +155,7 @@ we want to include in our application. As of now this would contain all importan
 Libraries etc coming out of emscripten's sysroot. Assuming we are still inside build we should do the following
 
 ```bash
-cp xcpp.data _output/extensions/@jupyterlite/xeus/static
+cp $PREFIX/bin/xcpp.data _output/extensions/@jupyterlite/xeus/static
 cp $PREFIX/lib/libclangCppInterOp.so _output/extensions/@jupyterlite/xeus/static
 ```
 
