@@ -186,7 +186,7 @@ jobs:
           python -m pip install jupyterlite-xeus
           jupyter lite build --XeusAddon.prefix=${{ env.PREFIX }} --output-dir dist
           cp ${{ env.PREFIX }}/bin/xcpp.data dist/extensions/@jupyterlite/xeus/static
-          cp ${{ env.PREFIX }}/lib/libclangCppInterOp.so dist/extensions/@jupyterlite/xeus/static
+          cp ${{ env.CPPINTEROP_BUILD_DIR }}/lib/libclangCppInterOp.so dist/extensions/@jupyterlite/xeus/static
 
     - name: Upload artifact
       uses: actions/upload-pages-artifact@v3
