@@ -158,6 +158,7 @@ jobs:
       run: |
         ./emsdk/emsdk activate ${{matrix.emsdk_ver}}
         source ./emsdk/emsdk_env.sh
+        export SYSROOT_PATH=$PWD/emsdk/upstream/emscripten/cache/sysroot
         micromamba activate CppInterOp-wasm  
         git clone https://github.com/compiler-research/xeus-cpp.git
         cd ./xeus-cpp
@@ -165,7 +166,6 @@ jobs:
         pushd build
         export CMAKE_PREFIX_PATH=${{ env.PREFIX }} 
         export CMAKE_SYSTEM_PREFIX_PATH=${{ env.PREFIX }} 
-        export SYSROOT_PATH=$PWD/emsdk/upstream/emscripten/cache/sysroot
         emcmake cmake \
           -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}          \
           -DCMAKE_PREFIX_PATH=${{ env.PREFIX }}             \
