@@ -298,6 +298,10 @@ jobs:
                         -DCLANG_ENABLE_ARCMT=OFF \
                         -DCLANG_ENABLE_BOOTSTRAP=OFF \
                         -DCMAKE_CXX_FLAGS="-Dwait4=__syscall_wait4" \
+                        -DLLVM_INCLUDE_BENCHMARKS=OFF                   \
+                        -DLLVM_INCLUDE_EXAMPLES=OFF                     \
+                        -DLLVM_INCLUDE_TESTS=OFF                        \
+                        -DLLVM_ENABLE_THREADS=OFF                       \
                          ../llvm
           emmake make clang -j ${{ env.ncpus }}
           emmake make  cling -j ${{ env.ncpus }}
@@ -323,6 +327,10 @@ jobs:
                         -DCLANG_ENABLE_ARCMT=OFF \
                         -DCLANG_ENABLE_BOOTSTRAP=OFF \
                         -DCMAKE_CXX_FLAGS="-Dwait4=__syscall_wait4" \
+                        -DLLVM_INCLUDE_BENCHMARKS=OFF                   \
+                        -DLLVM_INCLUDE_EXAMPLES=OFF                     \
+                        -DLLVM_INCLUDE_TESTS=OFF                        \
+                        -DLLVM_ENABLE_THREADS=OFF                       \
                         ../llvm
           emmake make clang -j ${{ env.ncpus }}
           emmake make clang-repl -j ${{ env.ncpus }}
