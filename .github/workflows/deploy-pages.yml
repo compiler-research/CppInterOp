@@ -92,7 +92,7 @@ jobs:
       shell: bash -l {0}
       run: |
         ./emsdk/emsdk activate ${{matrix.emsdk_ver}}
-         source ./emsdk/emsdk_env.sh
+        source ./emsdk/emsdk_env.sh
         micromamba create -f environment-wasm.yml --platform=emscripten-wasm32
 
         export PREFIX=$MAMBA_ROOT_PREFIX/envs/CppInterOp-wasm
@@ -142,7 +142,7 @@ jobs:
                 ../
         fi
         
-        emmake make -j ${{ env.ncpus }}
+        emmake make -j ${{ env.ncpus }} install
 
         cd ..
         
@@ -181,12 +181,12 @@ jobs:
       shell: bash -l {0}
       run: |
           cd ./xeus-cpp/
-          micromamba create -n xeus-lite-host jupyterlite-core
+          micromamba create -n xeus-lite-host jupyterlite-core -c conda-forge
           micromamba activate xeus-lite-host
           python -m pip install jupyterlite-xeus
           jupyter lite build --XeusAddon.prefix=${{ env.PREFIX }} --output-dir dist
           cp ${{ env.PREFIX }}/bin/xcpp.data dist/extensions/@jupyterlite/xeus/static
-          cp ${{ env.CPPINTEROP_BUILD_DIR }}/lib/libclangCppInterOp.so dist/extensions/@jupyterlite/xeus/static
+          cp ${{ env.PREFIX }}/lib/libclangCppInterOp.so dist/extensions/@jupyterlite/xeus/static
 
     - name: Upload artifact
       uses: actions/upload-pages-artifact@v3

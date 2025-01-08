@@ -541,7 +541,7 @@ jobs:
       shell: bash -l {0}
       run: |
         ./emsdk/emsdk activate ${{matrix.emsdk_ver}}
-         source ./emsdk/emsdk_env.sh
+        source ./emsdk/emsdk_env.sh
         micromamba create -f environment-wasm.yml --platform=emscripten-wasm32
 
         export PREFIX=$MAMBA_ROOT_PREFIX/envs/CppInterOp-wasm
@@ -590,7 +590,7 @@ jobs:
                 ../
         fi
         
-        emmake make -j ${{ env.ncpus }}
+        emmake make -j ${{ env.ncpus }} install
 
         cd ..
         
@@ -623,4 +623,4 @@ jobs:
           -DCppInterOp_DIR="${{ env.CPPINTEROP_BUILD_DIR }}/lib/cmake/CppInterOp"  \
           -DSYSROOT_PATH=$SYSROOT_PATH                      \
           ..
-        emmake make -j ${{ env.ncpus }}
+        emmake make -j ${{ env.ncpus }} install
