@@ -4,5 +4,8 @@ Checks: >
   -cppcoreguidelines-macro-usage,
   -cppcoreguidelines-pro-type-cstyle-cast,
   -cppcoreguidelines-avoid-non-const-global-variables,
+  -cppcoreguidelines-avoid-c-arrays,
+  -cppcoreguidelines-pro-bounds-array-to-pointer-decay,
   -performance-unnecessary-value-param,
   -performance-no-int-to-ptr,
+  -bugprone-multi-level-implicit-pointer-conversion,
