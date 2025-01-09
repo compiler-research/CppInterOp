@@ -140,7 +140,7 @@ jobs:
       run: |
         # Install deps
         sudo apt-get update
-        sudo apt-get install valgrind
+        sudo apt-get install valgrind ninja-build
         sudo apt-get autoremove
         sudo apt-get clean
 
@@ -175,11 +175,12 @@ jobs:
                 -DLLVM_ENABLE_ZSTD=OFF                             \
                 -DLLVM_ENABLE_TERMINFO=OFF                         \
                 -DLLVM_ENABLE_LIBXML2=OFF                          \
+                -G Ninja                                           \
                 ../llvm
-          cmake --build . --target clang --parallel ${{ env.ncpus }}
-          cmake --build . --target cling --parallel ${{ env.ncpus }}
+          ninja clang -j ${{ env.ncpus }}
+          ninja cling -j ${{ env.ncpus }}
           # Now build gtest.a and gtest_main for CppInterOp to run its tests.
-          cmake --build . --target gtest_main --parallel ${{ env.ncpus }}
+          ninja gtest_main -j ${{ env.ncpus }}
         else
           # Apply patches
           llvm_vers=$(echo "${{ matrix.clang-runtime }}" | tr '[:lower:]' '[:upper:]')
@@ -199,9 +200,9 @@ jobs:
                 -DLLVM_ENABLE_ZSTD=OFF                              \
                 -DLLVM_ENABLE_TERMINFO=OFF                          \
                 -DLLVM_ENABLE_LIBXML2=OFF                           \
+                -G Ninja                                            \
                 ../llvm
-          cmake --build . --target clang clang-repl --parallel ${{ env.ncpus }}
-          
+          ninja clang clang-repl -j ${{ env.ncpus }}
         fi
         cd ../
         rm -rf $(find . -maxdepth 1 ! -name "build" ! -name "llvm" ! -name "clang" ! -name ".")
