@@ -43,7 +43,7 @@ efficiency of C++ to simpler, more interactive languages like Python.
 
 Join our discord for discussions and collaboration.
 
-<a target="_blank" href="https://discord.gg/Vkv3ne4zVK"><img src="discord.svg" /></a>
+<a target="_blank" href="https://discord.gg/Vkv3ne4zVK"><img src="discord.svg" alt="Discord" /></a>
 
 ### Incremental Adoption
 
