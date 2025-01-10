@@ -81,7 +81,7 @@ export LLVM_BUILD_DIR=$PWD
 ```
 
 We can move onto building the wasm version of CppInterOp. We will do this within a Conda environment. We can achieve this  
-by execut (assumes you have micromamba installed and that your shell is initialised for the micromamba install)  
+by executing (assumes you have micromamba installed and that your shell is initialised for the micromamba install)  
 
 ```bash
 cd ../../CppInterOp/
