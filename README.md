@@ -41,6 +41,10 @@ bridge C++ entities (variables, classes, etc.). This
 enables interoperability with C++ code, bringing the speed and
 efficiency of C++ to simpler, more interactive languages like Python.
 
+Join our discord for discussions and collaboration.
+
+<a target="_blank" href="https://discord.gg/Vkv3ne4zVK"><img src="images/discord.svg" /></a>
+
 ### Incremental Adoption
 
 CppInterOp can be adopted incrementally. While the rest of the framework is
