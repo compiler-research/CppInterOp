@@ -17,6 +17,9 @@ if(EMSCRIPTEN)
     LINK_LIBS
     clangInterpreter
   )
+  target_link_options(clangCppInterOp PRIVATE
+    PUBLIC "SHELL: -s WASM_BIGINT"
+  )
 else()
   set(LLVM_LINK_COMPONENTS
     ${LLVM_TARGETS_TO_BUILD}
