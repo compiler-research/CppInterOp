@@ -183,8 +183,8 @@ jobs:
           cd ./xeus-cpp/
           micromamba create -n xeus-lite-host jupyterlite-core -c conda-forge
           micromamba activate xeus-lite-host
-          python -m pip install jupyterlite-xeus
-          jupyter lite build --XeusAddon.prefix=${{ env.PREFIX }} --output-dir dist
+          python -m pip install jupyterlite-xeus jupyter_server
+          jupyter lite build --XeusAddon.prefix=${{ env.PREFIX }} --contents notebooks --output-dir dist
           cp ${{ env.PREFIX }}/bin/xcpp.data dist/extensions/@jupyterlite/xeus/static
           cp ${{ env.PREFIX }}/lib/libclangCppInterOp.so dist/extensions/@jupyterlite/xeus/static
 
