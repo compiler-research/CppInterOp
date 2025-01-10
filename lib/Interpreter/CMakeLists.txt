@@ -19,6 +19,7 @@ if(EMSCRIPTEN)
   )
   target_link_options(clangCppInterOp PRIVATE
     PUBLIC "SHELL: -s WASM_BIGINT"
+    PUBLIC "SHELL: -Wl,--export=__clang_Interpreter_SetValueNoAlloc"
   )
 else()
   set(LLVM_LINK_COMPONENTS
