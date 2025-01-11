@@ -19,9 +19,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: ubu22-x86-gcc12-clang-repl-19-emscripten_wasm
-            os: ubuntu-22.04
-            compiler: gcc-12
+          - name: osx15-arm-clang-clang-repl-19-emscripten_wasm
+            os: macos-15
+            compiler: clang
             clang-runtime: '19'
             cling: Off
             micromamba_shell_init: bash
