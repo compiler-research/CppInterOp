@@ -3414,7 +3414,7 @@ namespace Cpp {
     int m_DupFD = -1;
 
   public:
-#ifdef _WIN32
+#ifdef _MSC_VER
     StreamCaptureInfo(int FD)
         : m_TempFile(
               []() {
