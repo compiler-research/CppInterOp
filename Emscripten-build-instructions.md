@@ -149,8 +149,8 @@ To build Jupyter Lite website with this kernel locally that you can use for test
 cd ../..
 micromamba create -n xeus-lite-host jupyterlite-core -c conda-forge
 micromamba activate xeus-lite-host
-python -m pip install jupyterlite-xeus
-jupyter lite build --XeusAddon.prefix=$PREFIX
+python -m pip install jupyterlite-xeus jupyter_server
+jupyter lite build --XeusAddon.prefix=$PREFIX --contents xeus-cpp/notebooks/xeus-cpp-lite-demo.ipynb
 ```
 
 We now need to shift necessary files like `xcpp.data` which contains the binary representation of the file(s)  
