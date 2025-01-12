@@ -3660,7 +3660,9 @@ namespace Cpp {
 
         if (!loadedSymbols.empty()) {
           llvm::cantFail(R->notifyResolved(loadedSymbols));
-          llvm::cantFail(R->notifyEmitted());
+
+          llvm::orc::SymbolDependenceGroup DepGroup;
+          llvm::cantFail(R->notifyEmitted({DepGroup}));
         }
       }
 
