@@ -74,7 +74,7 @@ jobs:
     - name: Setup emsdk
       shell: bash -l {0}
       run: |
-          git clone https://github.com/emscripten-core/emsdk.git
+          git clone --depth=1 https://github.com/emscripten-core/emsdk.git
           cd emsdk
           ./emsdk install  ${{ matrix.emsdk_ver }}
 
