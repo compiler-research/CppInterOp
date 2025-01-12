@@ -260,7 +260,6 @@ jobs:
       run: |
         # Install deps
         sudo apt-get update
-        sudo apt-get install valgrind
         sudo apt-get autoremove
         sudo apt-get clean
 
