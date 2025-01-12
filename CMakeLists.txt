@@ -1,16 +1,3 @@
-cmake_minimum_required(VERSION 3.13)
-
-enable_language(CXX)
-set(CMAKE_CXX_EXTENSIONS NO)
-
-include(GNUInstallDirs)
-
-set(CMAKE_MODULE_PATH
-  ${CMAKE_MODULE_PATH}
-  "${CMAKE_CURRENT_SOURCE_DIR}/cmake"
-  "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules"
-  )
-
 # If we are not building as a part of LLVM, build CppInterOp as a standalone
 # project, using LLVM as an external library:
 if( CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR )
@@ -58,6 +45,19 @@ if( CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR )
       set(Clang_DIR ${Cling_DIR})
     endif()
   endif()
+
+cmake_minimum_required(VERSION 3.13)
+
+enable_language(CXX)
+set(CMAKE_CXX_EXTENSIONS NO)
+
+include(GNUInstallDirs)
+
+set(CMAKE_MODULE_PATH
+  ${CMAKE_MODULE_PATH}
+  "${CMAKE_CURRENT_SOURCE_DIR}/cmake"
+  "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules"
+  )
 
   option(USE_CLING "Use Cling as backend" OFF)
   option(USE_REPL "Use clang-repl as backend" ON)
