@@ -1,7 +1,5 @@
 cmake_minimum_required(VERSION 3.13)
 
-include(GNUInstallDirs)
-
 set(CMAKE_MODULE_PATH
   ${CMAKE_MODULE_PATH}
   "${CMAKE_CURRENT_SOURCE_DIR}/cmake"
@@ -58,7 +56,7 @@ if( CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR )
 
 enable_language(CXX)
 set(CMAKE_CXX_EXTENSIONS NO)
-
+include(GNUInstallDirs)
   option(USE_CLING "Use Cling as backend" OFF)
   option(USE_REPL "Use clang-repl as backend" ON)
 
