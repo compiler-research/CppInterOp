@@ -607,7 +607,7 @@ jobs:
         source ./emsdk/emsdk_env.sh
         export SYSROOT_PATH=$PWD/emsdk/upstream/emscripten/cache/sysroot
         micromamba activate CppInterOp-wasm  
-        git clone https://github.com/compiler-research/xeus-cpp.git
+        git clone --depth=1 https://github.com/compiler-research/xeus-cpp.git
         cd ./xeus-cpp
         mkdir build
         pushd build
