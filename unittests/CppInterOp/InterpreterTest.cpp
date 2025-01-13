@@ -13,6 +13,7 @@
 
 #include "clang/Basic/Version.h"
 
+#include <clang-c/CXErrorCode.h>
 #include "clang-c/CXCppInterOp.h"
 
 #include "llvm/ADT/SmallString.h"
@@ -85,16 +86,26 @@ TEST(InterpreterTest, Process) {
 #endif
   if (llvm::sys::RunningOnValgrind())
     GTEST_SKIP() << "XFAIL due to Valgrind report";
-  Cpp::CreateInterpreter();
+  auto* I = Cpp::CreateInterpreter();
   EXPECT_TRUE(Cpp::Process("") == 0);
   EXPECT_TRUE(Cpp::Process("int a = 12;") == 0);
   EXPECT_FALSE(Cpp::Process("error_here;") == 0);
   // Linker/JIT error.
   EXPECT_FALSE(Cpp::Process("int f(); int res = f();") == 0);
+
+  // C API
+  auto* CXI = clang_createInterpreterFromRawPtr(I);
+  clang_Interpreter_declare(CXI, "#include <iostream>", false);
+  clang_Interpreter_process(CXI, "int c = 42;");
+  auto* CXV = clang_createValue();
+  auto Res = clang_Interpreter_evaluate(CXI, "c", CXV);
+  EXPECT_EQ(Res, CXError_Success);
+  clang_Value_dispose(CXV);
+  clang_Interpreter_dispose(CXI);
 }
 
 TEST(InterpreterTest, CreateInterpreter) {
-  auto I = Cpp::CreateInterpreter();
+  auto* I = Cpp::CreateInterpreter();
   EXPECT_TRUE(I);
   // Check if the default standard is c++14
 
@@ -118,9 +129,10 @@ TEST(InterpreterTest, CreateInterpreter) {
 
 #ifndef CPPINTEROP_USE_CLING
   // C API
-  auto CXI = clang_createInterpreterFromRawPtr(I);
+  auto* CXI = clang_createInterpreterFromRawPtr(I);
   auto CLI = clang_Interpreter_getClangInterpreter(CXI);
   EXPECT_TRUE(CLI);
+
   auto I2 = clang_Interpreter_takeInterpreterAsPtr(CXI);
   EXPECT_EQ(I, I2);
   clang_Interpreter_dispose(CXI);
