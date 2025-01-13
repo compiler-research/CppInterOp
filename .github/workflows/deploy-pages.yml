@@ -19,9 +19,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: ubu22-x86-gcc12-clang-repl-19-emscripten_wasm
-            os: ubuntu-22.04
-            compiler: gcc-12
+          - name: osx15-arm-clang-clang-repl-19-emscripten_wasm
+            os: macos-15
+            compiler: clang
             clang-runtime: '19'
             cling: Off
             micromamba_shell_init: bash
@@ -74,7 +74,7 @@ jobs:
     - name: Setup emsdk
       shell: bash -l {0}
       run: |
-          git clone https://github.com/emscripten-core/emsdk.git
+          git clone --depth=1 https://github.com/emscripten-core/emsdk.git
           cd emsdk
           ./emsdk install  ${{ matrix.emsdk_ver }}
 
@@ -160,7 +160,7 @@ jobs:
         source ./emsdk/emsdk_env.sh
         export SYSROOT_PATH=$PWD/emsdk/upstream/emscripten/cache/sysroot
         micromamba activate CppInterOp-wasm  
-        git clone https://github.com/compiler-research/xeus-cpp.git
+        git clone --depth=1 https://github.com/compiler-research/xeus-cpp.git
         cd ./xeus-cpp
         mkdir build
         pushd build

@@ -121,7 +121,7 @@ jobs:
     - name: Setup emsdk
       if: ${{ runner.os != 'windows' && steps.cache.outputs.cache-hit != 'true' }}
       run: |
-          git clone https://github.com/emscripten-core/emsdk.git
+          git clone --depth=1 https://github.com/emscripten-core/emsdk.git
           cd emsdk
           ./emsdk install  ${{ matrix.emsdk_ver }}
 
@@ -261,7 +261,7 @@ jobs:
       run: |
         # Install deps
         sudo apt-get update
-        sudo apt-get install valgrind ninja-build
+        sudo apt-get install ninja-build
         sudo apt-get autoremove
         sudo apt-get clean
 
@@ -521,7 +521,7 @@ jobs:
     - name: Setup emsdk
       shell: bash -l {0}
       run: |
-          git clone https://github.com/emscripten-core/emsdk.git
+          git clone --depth=1 https://github.com/emscripten-core/emsdk.git
           cd emsdk
           ./emsdk install  ${{ matrix.emsdk_ver }}
 
@@ -606,7 +606,7 @@ jobs:
         source ./emsdk/emsdk_env.sh
         export SYSROOT_PATH=$PWD/emsdk/upstream/emscripten/cache/sysroot
         micromamba activate CppInterOp-wasm  
-        git clone https://github.com/compiler-research/xeus-cpp.git
+        git clone --depth=1 https://github.com/compiler-research/xeus-cpp.git
         cd ./xeus-cpp
         mkdir build
         pushd build

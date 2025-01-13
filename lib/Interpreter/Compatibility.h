@@ -10,7 +10,7 @@
 #include "clang/Basic/Version.h"
 #include "clang/Config/config.h"
 
-#ifdef _WIN32
+#ifdef _MSC_VER
 #define dup _dup
 #define dup2 _dup2
 #define close _close
@@ -18,7 +18,7 @@
 #endif
 
 static inline char* GetEnv(const char* Var_Name) {
-#ifdef _WIN32
+#ifdef _MSC_VER
   char* Env = nullptr;
   size_t sz = 0;
   getenv_s(&sz, Env, sz, Var_Name);
