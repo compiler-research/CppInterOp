@@ -29,7 +29,7 @@ jobs:
             cling: Off
             cppyy: On
             llvm_enable_projects: "clang"
-            llvm_targets_to_build: "host;NVPTX"
+            llvm_targets_to_build: "host"
           - name: osx15-arm-clang-clang-repl-18
             os: macos-15
             compiler: clang
@@ -37,7 +37,7 @@ jobs:
             cling: Off
             cppyy: On
             llvm_enable_projects: "clang"
-            llvm_targets_to_build: "host;NVPTX"
+            llvm_targets_to_build: "host"
           - name: osx15-arm-clang-clang-repl-17
             os: macos-15
             compiler: clang
@@ -45,7 +45,7 @@ jobs:
             cling: Off
             cppyy: On
             llvm_enable_projects: "clang"
-            llvm_targets_to_build: "host;NVPTX"
+            llvm_targets_to_build: "host"
           - name: osx15-arm-clang-clang-repl-16
             os: macos-15
             compiler: clang
@@ -53,7 +53,7 @@ jobs:
             cling: Off
             cppyy: On
             llvm_enable_projects: "clang"
-            llvm_targets_to_build: "host;NVPTX"
+            llvm_targets_to_build: "host"
           - name: osx15-arm-clang-clang13-cling
             os: macos-15
             compiler: clang
@@ -62,7 +62,7 @@ jobs:
             cling-version: '1.0'
             cppyy: On
             llvm_enable_projects: "clang"
-            llvm_targets_to_build: "host;NVPTX"
+            llvm_targets_to_build: "host"
           - name: osx13-x86-clang-clang-repl-19
             os: macos-13
             compiler: clang
@@ -70,7 +70,7 @@ jobs:
             cling: Off
             cppyy: On
             llvm_enable_projects: "clang"
-            llvm_targets_to_build: "host;NVPTX"
+            llvm_targets_to_build: "host"
           - name: osx13-x86-clang-clang-repl-18
             os: macos-13
             compiler: clang
@@ -78,7 +78,7 @@ jobs:
             cling: Off
             cppyy: On
             llvm_enable_projects: "clang"
-            llvm_targets_to_build: "host;NVPTX"
+            llvm_targets_to_build: "host"
           - name: osx13-x86-clang-clang-repl-17
             os: macos-13
             compiler: clang
@@ -86,7 +86,7 @@ jobs:
             cling: Off
             cppyy: On
             llvm_enable_projects: "clang"
-            llvm_targets_to_build: "host;NVPTX"
+            llvm_targets_to_build: "host"
           - name: osx13-x86-clang-clang-repl-16
             os: macos-13
             compiler: clang
@@ -94,7 +94,7 @@ jobs:
             cling: Off
             cppyy: On
             llvm_enable_projects: "clang"
-            llvm_targets_to_build: "host;NVPTX"
+            llvm_targets_to_build: "host"
           - name: osx13-x86-clang-clang13-cling
             os: macos-13
             compiler: clang
@@ -103,7 +103,7 @@ jobs:
             cling-version: '1.0'
             cppyy: On
             llvm_enable_projects: "clang"
-            llvm_targets_to_build: "host;NVPTX"
+            llvm_targets_to_build: "host"
             
     steps:
     - uses: actions/checkout@v4
