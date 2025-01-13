@@ -811,12 +811,17 @@ namespace Cpp {
     return false;
   }
 
-  TCppFunction_t GetDefaultConstructor(TCppScope_t scope) {
+  TCppFunction_t GetDefaultConstructor(compat::Interpreter& interp,
+                                       TCppScope_t scope) {
     if (!HasDefaultConstructor(scope))
       return nullptr;
 
     auto *CXXRD = (clang::CXXRecordDecl*)scope;
-    return getSema().LookupDefaultConstructor(CXXRD);
+    return interp.getCI()->getSema().LookupDefaultConstructor(CXXRD);
+  }
+
+  TCppFunction_t GetDefaultConstructor(TCppScope_t scope) {
+    return GetDefaultConstructor(getInterp(), scope);
   }
 
   TCppFunction_t GetDestructor(TCppScope_t scope) {
@@ -2910,15 +2915,17 @@ namespace Cpp {
   };
   } // namespace
 
-  int Declare(const char* code, bool silent) {
-    auto& I = getInterp();
-
+  int Declare(compat::Interpreter& I, const char* code, bool silent) {
     if (silent) {
       clangSilent diagSuppr(I.getSema().getDiagnostics());
       return I.declare(code);
     }
 
     return I.declare(code);
+  }
+
+  int Declare(const char* code, bool silent) {
+    return Declare(getInterp(), code, silent);
   }
 
   int Process(const char *code) {
@@ -3404,7 +3411,7 @@ namespace Cpp {
     if (!HasDefaultConstructor(Class))
       return nullptr;
 
-    auto* const Ctor = GetDefaultConstructor(Class);
+    auto* const Ctor = GetDefaultConstructor(interp, Class);
     if (JitCall JC = MakeFunctionCallable(&interp, Ctor)) {
       if (arena) {
         JC.Invoke(&arena, {}, (void*)~0); // Tell Invoke to use placement new.

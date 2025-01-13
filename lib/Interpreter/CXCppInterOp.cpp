@@ -326,17 +326,15 @@ void clang_Interpreter_addIncludePath(CXInterpreter I, const char* dir) {
   getInterpreter(I)->AddIncludePath(dir);
 }
 
+namespace Cpp {
+int Declare(compat::Interpreter& interp, const char* code, bool silent);
+} // namespace Cpp
+
 enum CXErrorCode clang_Interpreter_declare(CXInterpreter I, const char* code,
                                            bool silent) {
   auto* interp = getInterpreter(I);
-  auto& diag = interp->getSema().getDiagnostics();
 
-  const bool is_silent_old = diag.getSuppressAllDiagnostics();
-
-  diag.setSuppressAllDiagnostics(silent);
-  const auto result = interp->declare(code);
-  diag.setSuppressAllDiagnostics(is_silent_old);
-
+  const auto result = Cpp::Declare(*interp, code, silent);
   if (result)
     return CXError_Failure;
 
