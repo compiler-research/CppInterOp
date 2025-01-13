@@ -253,6 +253,7 @@ jobs:
           brew link --overwrite "$pkg"
         done
         brew upgrade openssl >/dev/null 2>&1 
+        brew install ninja
         brew upgrade
 
     - name: Install deps on Linux
@@ -260,6 +261,7 @@ jobs:
       run: |
         # Install deps
         sudo apt-get update
+        sudo apt-get install ninja-build
         sudo apt-get autoremove
         sudo apt-get clean
 
@@ -301,11 +303,9 @@ jobs:
                         -DLLVM_INCLUDE_EXAMPLES=OFF                     \
                         -DLLVM_INCLUDE_TESTS=OFF                        \
                         -DLLVM_ENABLE_THREADS=OFF                       \
+                        -G Ninja                                         \
                          ../llvm
-          emmake make clang -j ${{ env.ncpus }}
-          emmake make  cling -j ${{ env.ncpus }}
-          # Now build gtest.a and gtest_main for CppInterOp to run its tests.
-          emmake make gtest_main -j ${{ env.ncpus }}
+          emmake ninja clang cling lld gtest_main -j ${{ env.ncpus }}
         else
           # Apply patches
           llvm_vers=$(echo "${{ matrix.clang-runtime }}" | tr '[:lower:]' '[:upper:]')
@@ -330,10 +330,9 @@ jobs:
                         -DLLVM_INCLUDE_EXAMPLES=OFF                     \
                         -DLLVM_INCLUDE_TESTS=OFF                        \
                         -DLLVM_ENABLE_THREADS=OFF                       \
+                        -G Ninja                                         \
                         ../llvm
-          emmake make clang -j ${{ env.ncpus }}
-          emmake make clang-repl -j ${{ env.ncpus }}
-          emmake make lld -j ${{ env.ncpus }}
+          emmake ninja clang clang-repl lld -j ${{ env.ncpus }}
         fi
         cd ../..
 
