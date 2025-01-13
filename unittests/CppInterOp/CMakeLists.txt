@@ -18,6 +18,12 @@ target_link_libraries(CppInterOpTests
   clangCppInterOp
   )
 
+if(EMSCRIPTEN)
+  target_link_options(CppInterOpTests PRIVATE
+    PUBLIC "SHELL: -s LINKABLE=1 -s WASM_BIGINT"
+  )
+endif()
+
 if(NOT WIN32)
   set_source_files_properties(VariableReflectionTest.cpp PROPERTIES COMPILE_FLAGS
     "-Wno-pedantic"
@@ -36,6 +42,12 @@ target_link_libraries(DynamicLibraryManagerTests
   PRIVATE
   clangCppInterOp
   )
+
+if(EMSCRIPTEN)
+  target_link_options(DynamicLibraryManagerTests PRIVATE
+    PUBLIC "SHELL: -s LINKABLE=1 -s WASM_BIGINT"
+  )
+endif()
 
 set_output_directory(DynamicLibraryManagerTests BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/TestSharedLib/unittests/bin/$<CONFIG>/)
 

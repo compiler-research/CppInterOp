@@ -17,8 +17,11 @@ if(EMSCRIPTEN)
     LINK_LIBS
     clangInterpreter
   )
+  # Without LINKABLE=1 you need up with undefined symbols
+  # when trying to link to DynamicLibraryManagerTests.js and CppInterOpTests.js 
+  # when building tests
   target_link_options(clangCppInterOp PRIVATE
-    PUBLIC "SHELL: -s WASM_BIGINT"
+    PUBLIC "SHELL: -s EXPORT_ALL=1 -s LINKABLE=1 -s WASM_BIGINT"
   )
 else()
   set(LLVM_LINK_COMPONENTS

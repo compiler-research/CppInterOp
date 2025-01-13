@@ -20,6 +20,8 @@ elseif(APPLE)
 endif()
 
 include(ExternalProject)
+if(EMSCRIPTEN)
+
 ExternalProject_Add(
   googletest
   GIT_REPOSITORY https://github.com/google/googletest.git
@@ -31,15 +33,10 @@ ExternalProject_Add(
   # CMAKE_ARGS -DCMAKE_ARCHIVE_OUTPUT_DIRECTORY_DEBUG:PATH=DebugLibs
   #            -DCMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELEASE:PATH=ReleaseLibs
   #            -Dgtest_force_shared_crt=ON
-  CMAKE_ARGS -G ${CMAKE_GENERATOR}
-                -DCMAKE_BUILD_TYPE=$<CONFIG>
-                -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}
-                -DCMAKE_C_FLAGS=${CMAKE_C_FLAGS}
-                -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}
-                -DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS}
-                -DCMAKE_AR=${CMAKE_AR}
-                -DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX}
-                ${EXTRA_GTEST_OPTS}
+  CONFIGURE_COMMAND emcmake cmake -DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS}
+  		    -S ${CMAKE_BINARY_DIR}/unittests/googletest-prefix/src/googletest/
+		    -B ${CMAKE_BINARY_DIR}/unittests/googletest-prefix/src/googletest-build/
+  BUILD_COMMAND emmake make
   # Disable install step
   INSTALL_COMMAND ""
   BUILD_BYPRODUCTS ${_gtest_byproducts}
@@ -49,6 +46,40 @@ ExternalProject_Add(
   LOG_BUILD ON
   TIMEOUT 600
   )
+
+else()
+
+  ExternalProject_Add(
+    googletest
+    GIT_REPOSITORY https://github.com/google/googletest.git
+    GIT_SHALLOW 1
+    GIT_TAG v1.15.2
+    UPDATE_COMMAND ""
+    # # Force separate output paths for debug and release builds to allow easy
+    # # identification of correct lib in subsequent TARGET_LINK_LIBRARIES commands
+    # CMAKE_ARGS -DCMAKE_ARCHIVE_OUTPUT_DIRECTORY_DEBUG:PATH=DebugLibs
+    #            -DCMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELEASE:PATH=ReleaseLibs
+    #            -Dgtest_force_shared_crt=ON
+    CMAKE_ARGS -G ${CMAKE_GENERATOR}
+                -DCMAKE_BUILD_TYPE=$<CONFIG>
+                -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}
+                -DCMAKE_C_FLAGS=${CMAKE_C_FLAGS}
+                -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}
+                -DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS}
+                -DCMAKE_AR=${CMAKE_AR}
+                -DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX}
+                ${EXTRA_GTEST_OPTS}
+    # Disable install step
+    INSTALL_COMMAND ""
+    BUILD_BYPRODUCTS ${_gtest_byproducts}
+    # Wrap download, configure and build steps in a script to log output
+    LOG_DOWNLOAD ON
+    LOG_CONFIGURE ON
+    LOG_BUILD ON
+    TIMEOUT 600
+  )
+
+endif()
 
 # Specify include dirs for gtest and gmock
 ExternalProject_Get_Property(googletest source_dir)

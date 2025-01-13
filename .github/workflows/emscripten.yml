@@ -562,6 +562,8 @@ jobs:
         mkdir build
         cd build
         export CPPINTEROP_BUILD_DIR=$PWD
+        #FIXME: This is temporary to get around issue of undefined symbols. Will fix as part of PR.
+        export LDFLAGS="-s MODULARIZE=1  -s LINKABLE=1  -s EXPORT_ALL=1 -s WASM=1 -std=c++14 -s SIDE_MODULE=1 -sWASM_BIGINT"
         if [[ "${cling_on}" == "ON" ]]; then
           emcmake cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}        \
                 -DUSE_CLING=ON                                  \
@@ -588,11 +590,8 @@ jobs:
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            \
                 ../
         fi
-        
-        emmake make -j ${{ env.ncpus }} install
-
-        cd ..
-        
+        emmake make -j ${{ env.ncpus }}  check-cppinterop
+ 
         echo "CB_PYTHON_DIR=$CB_PYTHON_DIR" >> $GITHUB_ENV
         echo "CPPINTEROP_BUILD_DIR=$CPPINTEROP_BUILD_DIR" >> $GITHUB_ENV
         echo "CPPINTEROP_DIR=$CPPINTEROP_DIR" >> $GITHUB_ENV

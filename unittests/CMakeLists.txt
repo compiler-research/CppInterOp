@@ -7,10 +7,15 @@ if (NOT TARGET gtest)
   include(GoogleTest)
 endif()
 
-set(gtest_libs gtest gtest_main)
-# Clang prior than clang13 (I think) merges both gmock into gtest.
-if (TARGET gmock)
-  list(APPEND gtest_libs gmock gmock_main)
+if(EMSCRIPTEN)
+  # By removing gtest_main and gmock_main you avoid duplicate symbol error (probably not the best solution)
+  set(gtest_libs gtest gmock)
+else()
+  set(gtest_libs gtest gtest_main)
+  # Clang prior than clang13 (I think) merges both gmock into gtest.
+  if (TARGET gmock)
+    list(APPEND gtest_libs gmock gmock_main)
+  endif()
 endif()
 
 add_custom_target(CppInterOpUnitTests)
