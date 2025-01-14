@@ -185,6 +185,9 @@ namespace Cpp {
   ///\returns the version string information of the library.
   CPPINTEROP_API std::string GetVersion();
 
+  ///\returns the demangled representation of the given mangled_name
+  CPPINTEROP_API std::string Demangle(const std::string& mangled_name);
+
   /// Enables or disables the debugging printouts on stderr.
   /// Debugging output can be enabled also by the environment variable
   /// CPPINTEROP_EXTRA_INTERPRETER_ARGS. For example,
