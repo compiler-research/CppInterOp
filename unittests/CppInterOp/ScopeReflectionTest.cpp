@@ -95,6 +95,28 @@ TEST(ScopeReflectionTest, IsClass) {
   EXPECT_FALSE(Cpp::IsClass(Decls[2]));
 }
 
+TEST(ScopeReflectionTest, IsClassPolymorphic) {
+  std::vector<Decl*> Decls;
+  GetAllTopLevelDecls(R"(
+    namespace N {}
+    
+    class C{};
+    
+    class C2 {
+    public:
+      virtual ~C2() {}
+    };
+    
+    int I;
+  )",
+                      Decls);
+
+  EXPECT_FALSE(Cpp::IsClassPolymorphic(Decls[0]));
+  EXPECT_FALSE(Cpp::IsClassPolymorphic(Decls[1]));
+  EXPECT_TRUE(Cpp::IsClassPolymorphic(Decls[2]));
+  EXPECT_FALSE(Cpp::IsClassPolymorphic(Decls[3]));
+}
+
 TEST(ScopeReflectionTest, IsComplete) {
   std::vector<Decl*> Decls;
   std::string code = R"(

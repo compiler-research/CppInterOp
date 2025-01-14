@@ -208,6 +208,14 @@ namespace Cpp {
     return isa<CXXRecordDecl>(D);
   }
 
+  bool IsClassPolymorphic(TCppScope_t klass) {
+    Decl* D = static_cast<Decl*>(klass);
+    if (auto* CXXRD = llvm::dyn_cast<CXXRecordDecl>(D))
+      if (auto* CXXRDD = CXXRD->getDefinition())
+        return CXXRDD->isPolymorphic();
+    return false;
+  }
+
   static SourceLocation GetValidSLoc(Sema& semaRef) {
     auto& SM = semaRef.getSourceManager();
     return SM.getLocForStartOfFile(SM.getMainFileID());
