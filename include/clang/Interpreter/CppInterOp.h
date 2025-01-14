@@ -210,6 +210,10 @@ namespace Cpp {
   /// Checks if the scope is a class or not.
   CPPINTEROP_API bool IsClass(TCppScope_t scope);
 
+  /// Checks if the klass polymorphic.
+  /// which means that the class contains or inherits a virtual function
+  CPPINTEROP_API bool IsClassPolymorphic(TCppScope_t klass);
+
   // See TClingClassInfo::IsLoaded
   /// Checks if the class definition is present, or not. Performs a
   /// template instantiation if necessary.
