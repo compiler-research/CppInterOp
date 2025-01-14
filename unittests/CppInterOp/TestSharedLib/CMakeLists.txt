@@ -20,7 +20,7 @@ set_output_directory(TestSharedLib
 if(EMSCRIPTEN)
 # Without this you get an error that -gc-sections and -r cannot be used together. 
 # Not sure I have picked the correct one to keep
-target_link_options(clangCppInterOp PRIVATE
+target_link_options(TestSharedLib PRIVATE
     PUBLIC "SHELL: -Wl,--no-gc-sections -s LINKABLE=1 -s WASM_BIGINT"
   )
 endif()
