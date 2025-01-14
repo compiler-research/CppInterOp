@@ -562,8 +562,6 @@ jobs:
         mkdir build
         cd build
         export CPPINTEROP_BUILD_DIR=$PWD
-        #FIXME: This is temporary to get around issue of undefined symbols. Will fix as part of PR.
-        export LDFLAGS="-s MODULARIZE=1  -s LINKABLE=1  -s EXPORT_ALL=1 -s WASM=1 -std=c++14 -s SIDE_MODULE=1 -sWASM_BIGINT"
         if [[ "${cling_on}" == "ON" ]]; then
           emcmake cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}        \
                 -DUSE_CLING=ON                                  \
