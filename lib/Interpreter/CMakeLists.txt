@@ -1,7 +1,5 @@
 if(EMSCRIPTEN)
   set_property(GLOBAL PROPERTY TARGET_SUPPORTS_SHARED_LIBS TRUE)
-  set(CMAKE_SHARED_LIBRARY_CREATE_C_FLAGS "-s SIDE_MODULE=1")
-  set(CMAKE_SHARED_LIBRARY_CREATE_CXX_FLAGS "-s SIDE_MODULE=1")
   set(CMAKE_STRIP FALSE)
 
   add_llvm_library(clangCppInterOp
@@ -18,7 +16,7 @@ if(EMSCRIPTEN)
     clangInterpreter
   )
   target_link_options(clangCppInterOp PRIVATE
-    PUBLIC "SHELL: -s EXPORT_ALL=1 -s LINKABLE=1 -s WASM_BIGINT  -s SIDE_MODULE=1"
+    "SHELL: -s EXPORT_ALL=1 -s LINKABLE=1 -s WASM_BIGINT  -s SIDE_MODULE=1"
   )
 else()
   set(LLVM_LINK_COMPONENTS

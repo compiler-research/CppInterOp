@@ -20,9 +20,8 @@ target_link_libraries(CppInterOpTests
 
 if(EMSCRIPTEN)
   target_link_options(CppInterOpTests PRIVATE
-    PUBLIC "SHELL: -s LINKABLE=1 -s WASM_BIGINT"
+    "SHELL: -s LINKABLE=1 -s WASM_BIGINT"
   )
-  set_target_properties(CppInterOpTests PROPERTIES SUFFIX ".wasm")
 endif()
 
 if(NOT WIN32)
@@ -46,9 +45,8 @@ target_link_libraries(DynamicLibraryManagerTests
 
 if(EMSCRIPTEN)
   target_link_options(DynamicLibraryManagerTests PRIVATE
-    PUBLIC "SHELL: -s LINKABLE=1 -s WASM_BIGINT"
+    "SHELL: -s LINKABLE=1 -s WASM_BIGINT"
   )
-  set_target_properties(DynamicLibraryManagerTests PROPERTIES SUFFIX ".wasm")
 endif()
 
 set_output_directory(DynamicLibraryManagerTests BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/TestSharedLib/unittests/bin/$<CONFIG>/)

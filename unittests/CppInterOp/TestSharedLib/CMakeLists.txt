@@ -1,8 +1,6 @@
 if(EMSCRIPTEN)
 # Without this it tries compiling to static library and get a warning
 set_property(GLOBAL PROPERTY TARGET_SUPPORTS_SHARED_LIBS TRUE)
-set(CMAKE_SHARED_LIBRARY_CREATE_C_FLAGS "-s SIDE_MODULE=1")
-set(CMAKE_SHARED_LIBRARY_CREATE_CXX_FLAGS "-s SIDE_MODULE=1")
 set(CMAKE_STRIP FALSE)
 endif()
 
@@ -21,7 +19,7 @@ if(EMSCRIPTEN)
 # Without this you get an error that -gc-sections and -r cannot be used together. 
 # Not sure I have picked the correct one to keep
 target_link_options(TestSharedLib PRIVATE
-    PUBLIC "SHELL: -Wl,--no-gc-sections -s LINKABLE=1 -s WASM_BIGINT"
+    "SHELL: -Wl,--no-gc-sections -s LINKABLE=1 -s WASM_BIGINT -s SIDE_MODULE=1"
   )
 endif()
 set_target_properties(TestSharedLib PROPERTIES FOLDER "Tests")
