@@ -588,7 +588,7 @@ jobs:
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            \
                 ../
         fi
-        emmake make -j ${{ env.ncpus }}  check-cppinterop
+        EMCC_DEBUG=1 emmake make -j ${{ env.ncpus }}  check-cppinterop
  
         echo "CB_PYTHON_DIR=$CB_PYTHON_DIR" >> $GITHUB_ENV
         echo "CPPINTEROP_BUILD_DIR=$CPPINTEROP_BUILD_DIR" >> $GITHUB_ENV
