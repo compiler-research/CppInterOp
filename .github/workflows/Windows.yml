@@ -130,7 +130,7 @@ jobs:
         }
         else
         {
-          git clone --depth=1 -b release/${{ matrix.clang-runtime }}.x https://github.com/llvm/llvm-project.git
+          git clone --depth=1 -b llvm-export-api-18.0 https://github.com/fsfod/llvm-project.git
         }
 
         cd llvm-project
