@@ -154,6 +154,7 @@ jobs:
                 -DLLVM_ENABLE_TERMINFO=OFF                         `
                 -DLLVM_ENABLE_LIBXML2=OFF                          `
                 -DLLVM_BUILD_LLVM_DYLIB_VIS=On                     `
+                -DLLVM_BUILD_LLVM_DYLIB=On                         `
                 -DLLVM_LINK_LLVM_DYLIB=On                          `
                 -DCLANG_LINK_CLANG_DYLIB=On -DCMAKE_ASM_MASM_COMPILER=llvm-ml -DCMAKE_ASM_MASM_FLAGS="-m64" ..\llvm
           cmake --build . --config Release --target clang --parallel ${{ env.ncpus }}
@@ -186,6 +187,7 @@ jobs:
                 -DCLANG_ENABLE_ARCMT=OFF                            `
                 -DLLVM_ENABLE_PLUGINS=On                            `
                 -DLLVM_BUILD_LLVM_DYLIB_VIS=On                      `
+                -DLLVM_BUILD_LLVM_DYLIB=On                         `
                 -DLLVM_LINK_LLVM_DYLIB=On                           `
                 -DCLANG_LINK_CLANG_DYLIB=On -DCMAKE_ASM_MASM_COMPILER=llvm-ml -DCMAKE_ASM_MASM_FLAGS="-m64" ..\llvm
           cmake --build . --config RelWithDebInfo --target clang clang-repl --parallel ${{ env.ncpus }}
