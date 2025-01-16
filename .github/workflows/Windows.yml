@@ -361,6 +361,7 @@ jobs:
           cmake -G Ninja -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    `
                 -DUSE_CLING=ON                                  `
                 -DUSE_REPL=OFF                                  `
+                -DBUILD_SHARED_LIBS=ON                          `
                 -DCling_DIR="$env:LLVM_BUILD_DIR\tools\cling"   `
                 -DLLVM_DIR="$env:LLVM_BUILD_DIR" `
                 -DLLVM_ENABLE_WERROR=On                          `
@@ -372,6 +373,7 @@ jobs:
           cmake -G Ninja -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    `
                 -DLLVM_DIR="$env:LLVM_BUILD_DIR\lib\cmake\llvm"  `
                 -DLLVM_ENABLE_WERROR=On                          `
+                -DBUILD_SHARED_LIBS=ON                          `
                 -DLLVM_BUILD_LLVM_DYLIB_VIS=On -DLLVM_LINK_LLVM_DYLIB=On -DCLANG_LINK_CLANG_DYLIB=On `
                 -DClang_DIR="$env:LLVM_BUILD_DIR\lib\cmake\clang"  -DCODE_COVERAGE=${{ env.CODE_COVERAGE }}  -DCMAKE_INSTALL_PREFIX="$env:CPPINTEROP_DIR"  ..\
                 cmake --build . --config ${{ env.BUILD_TYPE }} --target googletest --parallel ${{ env.ncpus }}
