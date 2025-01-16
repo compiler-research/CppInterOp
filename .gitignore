@@ -33,3 +33,9 @@ install
 
 # CLion files
 .idea
+
+# VSCode files
+.vscode
+
+# Default Virtual Environments
+.venv
