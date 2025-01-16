@@ -27,7 +27,7 @@ jobs:
             clang-runtime: '18'
             cling: Off
             llvm_enable_projects: "clang"
-            llvm_targets_to_build: "host;NVPTX"
+            llvm_targets_to_build: "host"
             
     steps:
     - uses: actions/checkout@v4
@@ -179,20 +179,16 @@ jobs:
           echo "Apply clang${{ matrix.clang-runtime }}-*.patch patches:"
           cmake -G Ninja -DLLVM_ENABLE_PROJECTS="${{ matrix.llvm_enable_projects}}"                   `
                 -DLLVM_TARGETS_TO_BUILD="${{ matrix.llvm_targets_to_build }}"          `
-                -DCMAKE_BUILD_TYPE=Release                          `
-                -DLLVM_ENABLE_ASSERTIONS=ON                         `
+                -DCMAKE_BUILD_TYPE=RelWithDebInfo           `
+                -DCMAKE_CXX_COMPILER=clang-cl               `
+                -DCMAKE_C_COMPILER=clang-cl                 `
                 -DCLANG_ENABLE_STATIC_ANALYZER=OFF                  `
                 -DCLANG_ENABLE_ARCMT=OFF                            `
-                -DCLANG_ENABLE_FORMAT=OFF                           `
-                -DCLANG_ENABLE_BOOTSTRAP=OFF                        `
-                -DLLVM_ENABLE_ZSTD=OFF                              `
-                -DLLVM_ENABLE_TERMINFO=OFF                          `
-                -DLLVM_ENABLE_LIBXML2=OFF                           `
                 -DLLVM_ENABLE_PLUGINS=On                            `
                 -DLLVM_BUILD_LLVM_DYLIB_VIS=On                      `
                 -DLLVM_LINK_LLVM_DYLIB=On                           `
                 -DCLANG_LINK_CLANG_DYLIB=On -DCMAKE_ASM_MASM_COMPILER=llvm-ml -DCMAKE_ASM_MASM_FLAGS="-m64" ..\llvm
-          cmake --build . --config Release --target clang clang-repl --parallel ${{ env.ncpus }}
+          cmake --build . --config RelWithDebInfo --target clang clang-repl --parallel ${{ env.ncpus }}
         }
         cd ..\
         rm -r -force $(find.exe . -maxdepth 1 ! -name "build" ! -name "llvm" ! -name "clang" ! -name ".")
