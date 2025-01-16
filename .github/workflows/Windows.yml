@@ -146,6 +146,7 @@ jobs:
                 -DCMAKE_BUILD_TYPE=Release                         `
                 -DLLVM_ENABLE_ASSERTIONS=ON                        `
                 -DCLANG_ENABLE_STATIC_ANALYZER=OFF                 `
+                -DLLVM_ENABLE_PLUGINS=On                           `
                 -DCLANG_ENABLE_ARCMT=OFF                           `
                 -DCLANG_ENABLE_FORMAT=OFF                          `
                 -DCLANG_ENABLE_BOOTSTRAP=OFF                       `
@@ -190,11 +191,12 @@ jobs:
                 -DLLVM_ENABLE_ZSTD=OFF                              `
                 -DLLVM_ENABLE_TERMINFO=OFF                          `
                 -DLLVM_ENABLE_LIBXML2=OFF                           `
-                -DLLVM_BUILD_LLVM_DYLIB_VIS=On                     `
-                -DLLVM_LINK_LLVM_DYLIB=On                          `
-                -DCLANG_LINK_CLANG_DYLIB=On                        `
-                -DCMAKE_ASM_MASM_COMPILER=llvm-ml                  `
-                -DCMAKE_ASM_MASM_FLAGS="-m64"                      `
+                -DLLVM_ENABLE_PLUGINS=On                            `
+                -DLLVM_BUILD_LLVM_DYLIB_VIS=On                      `
+                -DLLVM_LINK_LLVM_DYLIB=On                           `
+                -DCLANG_LINK_CLANG_DYLIB=On                         ` 
+                -DCMAKE_ASM_MASM_COMPILER=llvm-ml                   `
+                -DCMAKE_ASM_MASM_FLAGS="-m64"                       `
                 ..\llvm
           cmake --build . --config Release --target clang clang-repl --parallel ${{ env.ncpus }}
         }
