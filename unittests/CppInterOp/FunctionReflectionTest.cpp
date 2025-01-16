@@ -800,9 +800,6 @@ TEST(FunctionReflectionTest, IsStaticMethod) {
 TEST(FunctionReflectionTest, GetFunctionAddress) {
   if (llvm::sys::RunningOnValgrind())
     GTEST_SKIP() << "XFAIL due to Valgrind report";
-#ifdef _WIN32
-  GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
-#endif
   std::vector<Decl*> Decls, SubDecls;
   std::string code = "int f1(int i) { return i * i; }";
 
@@ -1129,9 +1126,6 @@ TEST(FunctionReflectionTest, GetFunctionArgDefault) {
 TEST(FunctionReflectionTest, Construct) {
   if (llvm::sys::RunningOnValgrind())
     GTEST_SKIP() << "XFAIL due to Valgrind report";
-#ifdef _WIN32
-  GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
-#endif
 
   Cpp::CreateInterpreter();
 
@@ -1169,10 +1163,6 @@ TEST(FunctionReflectionTest, Construct) {
 TEST(FunctionReflectionTest, Destruct) {
   if (llvm::sys::RunningOnValgrind())
     GTEST_SKIP() << "XFAIL due to Valgrind report";
-
-#ifdef _WIN32
-  GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
-#endif
 
   Cpp::CreateInterpreter();
 

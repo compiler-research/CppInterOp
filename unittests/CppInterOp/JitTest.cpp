@@ -14,9 +14,6 @@ static int printf_jit(const char* format, ...) {
 TEST(JitTest, InsertOrReplaceJitSymbol) {
   if (llvm::sys::RunningOnValgrind())
     GTEST_SKIP() << "XFAIL due to Valgrind report";
-#ifdef _WIN32
-  GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
-#endif
   std::vector<Decl*> Decls;
   std::string code = R"(
     extern "C" int printf(const char*,...);
