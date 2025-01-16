@@ -411,7 +411,7 @@ jobs:
           cmake --build . --target sphinx-cppinterop --parallel ${{ env.ncpus }}
         else
           cmake --build . --target check-cppinterop --parallel ${{ env.ncpus }}
-          valgrind --show-error-list=yes --track-origins=yes --error-exitcode=1 unittests/CppInterOp/CppInterOpTests
+          valgrind --show-error-list=yes --track-origins=yes --error-exitcode=1 unittests/CppInterOp/CppInterOpTests/unittests/bin/${{ env.BUILD_TYPE }}/CppInterOpTests
         fi
         cd ..
         # We need CB_PYTHON_DIR later
