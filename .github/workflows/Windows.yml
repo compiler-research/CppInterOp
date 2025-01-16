@@ -155,10 +155,7 @@ jobs:
                 -DLLVM_ENABLE_LIBXML2=OFF                          `
                 -DLLVM_BUILD_LLVM_DYLIB_VIS=On                     `
                 -DLLVM_LINK_LLVM_DYLIB=On                          `
-                -DCLANG_LINK_CLANG_DYLIB=On                        `
-                -DCMAKE_ASM_MASM_COMPILER=llvm-ml                  `
-                -DCMAKE_ASM_MASM_FLAGS="-m64"                      `
-                ..\llvm
+                -DCLANG_LINK_CLANG_DYLIB=On -DCMAKE_ASM_MASM_COMPILER=llvm-ml -DCMAKE_ASM_MASM_FLAGS="-m64" ..\llvm
           cmake --build . --config Release --target clang --parallel ${{ env.ncpus }}
           cmake --build . --config Release --target cling --parallel ${{ env.ncpus }}
           # Now build gtest.a and gtest_main for CppInterOp to run its tests.
@@ -194,10 +191,7 @@ jobs:
                 -DLLVM_ENABLE_PLUGINS=On                            `
                 -DLLVM_BUILD_LLVM_DYLIB_VIS=On                      `
                 -DLLVM_LINK_LLVM_DYLIB=On                           `
-                -DCLANG_LINK_CLANG_DYLIB=On                         ` 
-                -DCMAKE_ASM_MASM_COMPILER=llvm-ml                   `
-                -DCMAKE_ASM_MASM_FLAGS="-m64"                       `
-                ..\llvm
+                -DCLANG_LINK_CLANG_DYLIB=On -DCMAKE_ASM_MASM_COMPILER=llvm-ml -DCMAKE_ASM_MASM_FLAGS="-m64" ..\llvm
           cmake --build . --config Release --target clang clang-repl --parallel ${{ env.ncpus }}
         }
         cd ..\
