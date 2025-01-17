@@ -116,6 +116,7 @@ else()
       )
   endif(LLVM_LINK_LLVM_DYLIB)
   endif()
+  message(STATUS "link_libs: LLVM ${link_libs}")
   add_llvm_library(clangCppInterOp
     DISABLE_LLVM_LINK_LLVM_DYLIB
     CppInterOp.cpp
