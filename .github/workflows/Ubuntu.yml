@@ -307,20 +307,17 @@ jobs:
             cling: On
             cling-version: '1.0'
             cppyy: On
-          - name: ubu22-arm-gcc12-clang-repl-19-cppyy
+          - name: ubu22-arm-gcc12-clang-repl-19
             os: ubuntu-22.04-arm
             compiler: gcc-12
             clang-runtime: '19'
             cling: Off
-            cppyy: On
-            coverage: true
-          - name: ubu22-arm-gcc12-clang-repl-18-cppyy
+          - name: ubu22-arm-gcc12-clang-repl-18
             os: ubuntu-22.04-arm
             compiler: gcc-12
             clang-runtime: '18'
             cling: Off
-            cppyy: On
-          - name: ubu22-arm-gcc12-clang-repl-17-cppyy
+          - name: ubu22-arm-gcc12-clang-repl-17
             os: ubuntu-22.04-arm
             compiler: gcc-12
             clang-runtime: '17'
@@ -332,13 +329,12 @@ jobs:
             clang-runtime: '16'
             cling: Off
             cppyy: Off
-          - name: ubu22-arm-gcc9-clang13-cling-cppyy
+          - name: ubu22-arm-gcc9-clang13-cling
             os: ubuntu-22.04-arm
             compiler: gcc-9
             clang-runtime: '13'
             cling: On
             cling-version: '1.0'
-            cppyy: On
 
     steps:
     - uses: actions/checkout@v4
