@@ -17,10 +17,11 @@ if(EMSCRIPTEN)
     LINK_LIBS
     clangInterpreter
   )
-  #FIXME: This is needed until https://github.com/emscripten-core/emscripten/blob/ac676d5e437525d15df5fd46bc2c208ec6d376a3/cmake/Modules/Platform/Emscripten.cmake#L36
-  # is patched out of emsdk, as --soname is not recognised by emscripten.
+  #FIXME: Setting no_soname=1 is needed until https://github.com/emscripten-core/emscripten/blob/ac676d5e437525d15df5fd46bc2c208ec6d376a3/cmake/Modules/Platform/Emscripten.cmake#L36
+  # is patched out of emsdk, as --soname is not recognised by emscripten. A PR to do this has been done here https://github.com/emscripten-core/emscripten/pull/23453 
   #FIXME: A patch is needed to llvm to remove -Wl,-z,defs since it is now recognised on emscripten. What needs to be removed is here
-  # https://github.com/llvm/llvm-project/blob/128e2e446e90c3b1827cfc7d4d19e3c0976beff3/llvm/cmake/modules/HandleLLVMOptions.cmake#L318
+  # https://github.com/llvm/llvm-project/blob/128e2e446e90c3b1827cfc7d4d19e3c0976beff3/llvm/cmake/modules/HandleLLVMOptions.cmake#L318 . The PR to do try to do this is here 
+  # https://github.com/llvm/llvm-project/pull/123396
   set_target_properties(clangCppInterOp
   PROPERTIES NO_SONAME 1
 )
