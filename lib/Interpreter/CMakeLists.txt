@@ -68,7 +68,6 @@ else()
 
   if(NOT WIN32)
     list(APPEND link_libs dl)
-  endif()
 
   # Get rid of libLLVM-X.so which is appended to the list of static libraries.
   if (LLVM_LINK_LLVM_DYLIB)
@@ -116,7 +115,7 @@ else()
       clangStaticAnalyzerCore
       )
   endif(LLVM_LINK_LLVM_DYLIB)
-
+  endif()
   add_llvm_library(clangCppInterOp
     DISABLE_LLVM_LINK_LLVM_DYLIB
     CppInterOp.cpp
