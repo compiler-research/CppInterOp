@@ -98,7 +98,7 @@ else()
             endif()
           endforeach(transitive_lib)
           # Update the target properties with the list of only static libraries.
-          set_target_properties(${lib} PROPERTIES INTERFACE_LINK_LIBRARIES "")
+          set_target_properties(${lib} PROPERTIES INTERFACE_LINK_LIBRARIES "${static_transitive_libs}")
           set(static_transitive_libs "")
         endif()
       endforeach(lib)
