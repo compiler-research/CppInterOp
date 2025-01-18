@@ -2828,7 +2828,15 @@ namespace Cpp {
 #define DEBUG_TYPE "exec"
 
     std::array<char, 256> buffer;
-    std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd, "r"), pclose);
+    struct file_deleter
+    {
+      void operator()(FILE* fp)
+      {
+        pclose(fp);
+      }
+    };
+    using file_pointer = std::unique_ptr<FILE, file_deleter>;
+    file_pointer pipe{popen(cmd, "r")};
     LLVM_DEBUG(dbgs() << "Executing command '" << cmd << "'\n");
 
     if (!pipe) {
@@ -3437,7 +3445,15 @@ namespace Cpp {
   }
 
   class StreamCaptureInfo {
-    std::unique_ptr<FILE, decltype(std::fclose)*> m_TempFile;
+    struct file_deleter
+    {
+      void operator()(FILE* fp)
+      {
+        pclose(fp);
+      }
+    };
+    using file_pointer = std::unique_ptr<FILE, file_deleter>;
+    file_pointer m_TempFile;
     int m_FD = -1;
     int m_DupFD = -1;
 
