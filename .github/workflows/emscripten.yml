@@ -341,7 +341,20 @@ jobs:
         fi
         cd ../
         rm -rf $(find . -maxdepth 1 ! -name "build" ! -name "llvm" ! -name "clang" ! -name ".")
-        cd ../
+        if [[ "${cling_on}" == "ON" ]]; then
+          cd ./llvm/
+          rm -rf $(find . -maxdepth 1 ! -name "include" ! -name "lib" ! -name "cmake" ! -name "utils" ! -name ".")
+          cd ../clang/
+          rm -rf $(find . -maxdepth 1 ! -name "include" ! -name "lib" ! -name "cmake" ! -name "utils" ! -name ".")
+          cd ../..
+        else # repl
+          cd ./llvm/
+          rm -rf $(find . -maxdepth 1 ! -name "include" ! -name "lib" ! -name "cmake" ! -name ".")
+          cd ../clang/
+          rm -rf $(find . -maxdepth 1 ! -name "include" ! -name "lib" ! -name "cmake" ! -name ".")
+          cd ../..
+        fi
+
 
     - name: Build LLVM/Cling on Windows systems if the cache is invalid
       if: ${{ runner.os == 'windows' && steps.cache.outputs.cache-hit != 'true' }}
