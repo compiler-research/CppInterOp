@@ -381,7 +381,7 @@ jobs:
                 -DClang_DIR="$env:LLVM_BUILD_DIR\lib\cmake\clang"  -DCODE_COVERAGE=${{ env.CODE_COVERAGE }}  -DCMAKE_INSTALL_PREFIX="$env:CPPINTEROP_DIR"  ..\
                 cmake --build . --config ${{ env.BUILD_TYPE }} --target googletest --parallel ${{ env.ncpus }}
         }
-        cmake --build . --config ${{ env.BUILD_TYPE }} --target check-cppinterop --parallel ${{ env.ncpus }}
+        cmake --build . --config ${{ env.BUILD_TYPE }} --target check-cppinterop 
 
     - name: Setup tmate session
       if: ${{ failure() && runner.debug }}
