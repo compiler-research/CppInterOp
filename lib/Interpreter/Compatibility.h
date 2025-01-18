@@ -117,11 +117,13 @@ inline llvm::orc::LLJIT* getExecutionEngine(cling::Interpreter& I) {
   return I.getExecutionEngine();
 #endif
 
+  unsigned m_ExecutorOffset = 0;
+
 #if CLANG_VERSION_MAJOR == 13
 #ifdef __APPLE__
-  const unsigned m_ExecutorOffset = 62;
+  m_ExecutorOffset = 62;
 #else
-  const unsigned m_ExecutorOffset = 72;
+  m_ExecutorOffset = 72;
 #endif // __APPLE__
 #endif
 
@@ -129,9 +131,9 @@ inline llvm::orc::LLJIT* getExecutionEngine(cling::Interpreter& I) {
 // a thread safe context - llvm::orc::ThreadSafeContext
 #if CLANG_VERSION_MAJOR == 16
 #ifdef __APPLE__
-  const unsigned m_ExecutorOffset = 68;
+  m_ExecutorOffset = 68;
 #else
-  const unsigned m_ExecutorOffset = 78;
+  m_ExecutorOffset = 78;
 #endif // __APPLE__
 #endif
 
