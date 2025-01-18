@@ -1022,7 +1022,7 @@ TEST(ScopeReflectionTest, IncludeVector) {
     #include <vector>
     #include <iostream>
   )";
-  Interp->process(code);
+  Interp->declare(code);
 }
 
 TEST(ScopeReflectionTest, GetOperator) {
