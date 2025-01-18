@@ -2828,7 +2828,14 @@ namespace Cpp {
 #define DEBUG_TYPE "exec"
 
     std::array<char, 256> buffer;
+#if defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wignored-attributes"
+#endif
     std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd, "r"), pclose);
+#if defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
     LLVM_DEBUG(dbgs() << "Executing command '" << cmd << "'\n");
 
     if (!pipe) {
@@ -3437,7 +3444,14 @@ namespace Cpp {
   }
 
   class StreamCaptureInfo {
+#if defined(__GNUC__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wignored-attributes"
+#endif
     std::unique_ptr<FILE, decltype(std::fclose)*> m_TempFile;
+#if defined(__GNUC__)
+#pragma GCC diagnostic pop
+#endif
     int m_FD = -1;
     int m_DupFD = -1;
 
