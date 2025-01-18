@@ -21,7 +21,6 @@ if(EMSCRIPTEN)
     PUBLIC "SHELL: -s WASM_BIGINT"
   )
 else()
-  if(NOT WIN32)
   set(LLVM_LINK_COMPONENTS
     ${LLVM_TARGETS_TO_BUILD}
     BinaryFormat
@@ -29,14 +28,6 @@ else()
     Object
     OrcJit
     Support
-  )
-  else()
-  set(LLVM_LINK_COMPONENTS
-    ${LLVM_TARGETS_TO_BUILD}
-    BinaryFormat
-    Core
-    Object
-    OrcJit
   )
   endif()
   # FIXME: Investigate why this needs to be conditionally included.
@@ -108,7 +99,7 @@ else()
             endif()
           endforeach(transitive_lib)
           # Update the target properties with the list of only static libraries.
-          set_target_properties(${lib} PROPERTIES INTERFACE_LINK_LIBRARIES "${static_transitive_libs}")
+          set_target_properties(${lib} PROPERTIES INTERFACE_LINK_LIBRARIES "")
           set(static_transitive_libs "")
         endif()
       endforeach(lib)
