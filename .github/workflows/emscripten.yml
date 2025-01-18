@@ -571,6 +571,7 @@ jobs:
                 -DCODE_COVERAGE=${{ env.CODE_COVERAGE }}        \
                 -DCMAKE_INSTALL_PREFIX=$PREFIX         \
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            \
+                -DLLVM_ENABLE_WERROR=On                      \
                 ../
         else
           emcmake cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    \
@@ -582,6 +583,7 @@ jobs:
                 -DCODE_COVERAGE=${{ env.CODE_COVERAGE }}    \
                 -DCMAKE_INSTALL_PREFIX=$PREFIX      \
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            \
+                -DLLVM_ENABLE_WERROR=On                      \
                 ../
         fi
         
