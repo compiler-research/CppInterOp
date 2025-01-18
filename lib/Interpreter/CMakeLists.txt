@@ -116,6 +116,7 @@ else()
       )
   endif(LLVM_LINK_LLVM_DYLIB)
   endif()
+  string(REPLACE "LLVM" "" link_libs "${link_libs}")
   message(STATUS "link_libs: LLVM ${link_libs}")
   message(STATUS "llvm_targets_to_build: LLVM ${LLVM_TARGETS_TO_BUILD}")
   add_llvm_library(clangCppInterOp
