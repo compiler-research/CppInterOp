@@ -68,7 +68,8 @@ else()
 
   if(NOT WIN32)
     list(APPEND link_libs dl)
-
+  endif()
+    
   # Get rid of libLLVM-X.so which is appended to the list of static libraries.
   if (LLVM_LINK_LLVM_DYLIB)
     set(new_libs ${link_libs})
@@ -81,6 +82,8 @@ else()
             continue()
           endif()
           foreach(transitive_lib ${transitive_libs})
+            message(STATUS "transitive libs ${transitive_libs}")
+            message(STATUS "transitive lib ${transitive_lib}")
             get_target_property(lib_type ${transitive_lib} TYPE)
             if("${lib_type}" STREQUAL "STATIC_LIBRARY")
               list(APPEND static_transitive_libs ${transitive_lib})
@@ -115,10 +118,7 @@ else()
       clangStaticAnalyzerCore
       )
   endif(LLVM_LINK_LLVM_DYLIB)
-  endif()
-  message(STATUS "link_libs: ${link_libs}")
-  message(STATUS "DLM ${DLM}")
-  message(STATUS "llvm_targets_to_build: LLVM ${LLVM_TARGETS_TO_BUILD}")
+
   add_llvm_library(clangCppInterOp
     DISABLE_LLVM_LINK_LLVM_DYLIB
     CppInterOp.cpp
