@@ -200,7 +200,7 @@ jobs:
                 -DLLVM_ENABLE_TERMINFO=OFF                          `
                 -DLLVM_ENABLE_LIBXML2=OFF                           `
                 ..\llvm
-          cmake --build . --config Release --target clang clang-repl --parallel ${{ env.ncpus }}
+          cmake --build . --config Release --target clang clangInterpreter clangStaticAnalyzerCore --parallel ${{ env.ncpus }}
         }
         cd ..\
         rm -r -force $(find.exe . -maxdepth 1 ! -name "build" ! -name "llvm" ! -name "clang" ! -name ".")
