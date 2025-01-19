@@ -189,7 +189,6 @@ jobs:
                 -DLLVM_BUILD_LLVM_DYLIB_VIS=On                      `
                 -DLLVM_BUILD_LLVM_DYLIB=On                         `
                 -DLLVM_LINK_LLVM_DYLIB=On                           `
-                -DDISABLE_LLVM_LINK_LLVM_DYLIB=On                           `
                 -DCLANG_LINK_CLANG_DYLIB=On -DCMAKE_ASM_MASM_COMPILER=llvm-ml -DCMAKE_ASM_MASM_FLAGS="-m64" ..\llvm
           cmake --build . --config Release --target clang clangInterpreter clangStaticAnalyzerCore --parallel ${{ env.ncpus }}
         }
@@ -368,7 +367,7 @@ jobs:
                 -DCling_DIR="$env:LLVM_BUILD_DIR\tools\cling"   `
                 -DLLVM_DIR="$env:LLVM_BUILD_DIR" `
                 -DLLVM_ENABLE_WERROR=On                          `
-                -DLLVM_BUILD_LLVM_DYLIB_VIS=On -DLLVM_LINK_LLVM_DYLIB=On -DCLANG_LINK_CLANG_DYLIB=On `
+                -DLLVM_BUILD_LLVM_DYLIB_VIS=On -DLLVM_LINK_LLVM_DYLIB=On -DCLANG_LINK_CLANG_DYLIB=On -DDISABLE_LLVM_LINK_LLVM_DYLIB=On                           `
                 -DClang_DIR="$env:LLVM_BUILD_DIR"  -DCODE_COVERAGE=${{ env.CODE_COVERAGE }} -DCMAKE_INSTALL_PREFIX="$env:CPPINTEROP_DIR"  ..\
         }
         else
@@ -377,7 +376,7 @@ jobs:
                 -DLLVM_DIR="$env:LLVM_BUILD_DIR\lib\cmake\llvm"  `
                 -DLLVM_ENABLE_WERROR=On                          `
                 -DBUILD_SHARED_LIBS=ON                          `
-                -DLLVM_BUILD_LLVM_DYLIB_VIS=On -DLLVM_LINK_LLVM_DYLIB=On -DCLANG_LINK_CLANG_DYLIB=On `
+                -DLLVM_BUILD_LLVM_DYLIB_VIS=On -DLLVM_LINK_LLVM_DYLIB=On -DCLANG_LINK_CLANG_DYLIB=On -DDISABLE_LLVM_LINK_LLVM_DYLIB=On                           `
                 -DClang_DIR="$env:LLVM_BUILD_DIR\lib\cmake\clang"  -DCODE_COVERAGE=${{ env.CODE_COVERAGE }}  -DCMAKE_INSTALL_PREFIX="$env:CPPINTEROP_DIR"  ..\
                 cmake --build . --config ${{ env.BUILD_TYPE }} --target googletest --parallel ${{ env.ncpus }}
         }
