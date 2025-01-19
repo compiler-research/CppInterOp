@@ -56,8 +56,8 @@ jobs:
             clang-runtime: '13'
             cling: On
             cling-version: '1.0'
-            llvm_enable_projects: "clang;NVPTX"
-            llvm_targets_to_build: "host"
+            llvm_enable_projects: "clang"
+            llvm_targets_to_build: "host;NVPTX"
           - name: osx13-x86-clang-clang-repl-19
             os: macos-13
             compiler: clang
@@ -92,8 +92,8 @@ jobs:
             clang-runtime: '13'
             cling: On
             cling-version: '1.0'
-            llvm_enable_projects: "clang;NVPTX"
-            llvm_targets_to_build: "host"
+            llvm_enable_projects: "clang"
+            llvm_targets_to_build: "host;NVPTX"
             
     steps:
     - uses: actions/checkout@v4
