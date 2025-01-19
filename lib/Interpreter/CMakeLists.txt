@@ -137,13 +137,9 @@ else()
   )
   else()
   llvm_add_library(clangCppInterOp
-    DISABLE_LLVM_LINK_LLVM_DYLIB
     CppInterOp.cpp
     CXCppInterOp.cpp
     ${DLM}
-    LINK_LIBS
-    clangCodeGen
-    clangStaticAnalyzerCore
   )  
   endif()
 endif()
