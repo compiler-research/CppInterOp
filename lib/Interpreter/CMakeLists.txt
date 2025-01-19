@@ -133,6 +133,9 @@ else()
     CppInterOp.cpp
     CXCppInterOp.cpp
     ${DLM}
+    LINK_LIBS
+    clangCodeGen
+    clangStaticAnalyzerCore
   )  
   endif()
 endif()
