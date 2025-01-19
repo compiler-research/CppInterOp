@@ -233,7 +233,7 @@ jobs:
                 -DLLVM_ENABLE_LIBXML2=OFF                           \
                 -G Ninja                                            \
                 ../llvm
-          ninja clang clang-repl -j ${{ env.ncpus }}
+          ninja clang clangInterpreter clangStaticAnalyzerCore -j ${{ env.ncpus }}
         fi
         cd ../
         rm -rf $(find . -maxdepth 1 ! -name "build" ! -name "llvm" ! -name "clang" ! -name ".")
