@@ -337,7 +337,7 @@ jobs:
                         -DLLVM_ENABLE_THREADS=OFF                       \
                         -G Ninja                                         \
                         ../llvm
-          emmake ninja clang clang-repl lld -j ${{ env.ncpus }}
+          emmake ninja clang clangInterpreter clangStaticAnalyzerCore lld -j ${{ env.ncpus }}
         fi
         cd ../
         rm -rf $(find . -maxdepth 1 ! -name "build" ! -name "llvm" ! -name "clang" ! -name ".")
