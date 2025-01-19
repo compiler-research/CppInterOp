@@ -91,7 +91,7 @@ TEST(InterpreterTest, Process) {
   EXPECT_FALSE(Cpp::Process("int f(); int res = f();") == 0);
 
   // C API
-  auto CXI = clang_createInterpreterFromRawPtr(I);
+  auto* CXI = clang_createInterpreterFromRawPtr(I);
   clang_Interpreter_declare(CXI, "#include <iostream>", false);
   clang_Interpreter_process(CXI, "int c = 42;");
   auto* CXV = clang_createValue();
@@ -126,7 +126,7 @@ TEST(InterpreterTest, CreateInterpreter) {
 
 #ifndef CPPINTEROP_USE_CLING
   // C API
-  auto CXI = clang_createInterpreterFromRawPtr(I);
+  auto* CXI = clang_createInterpreterFromRawPtr(I);
   auto CLI = clang_Interpreter_getClangInterpreter(CXI);
   EXPECT_TRUE(CLI);
 
