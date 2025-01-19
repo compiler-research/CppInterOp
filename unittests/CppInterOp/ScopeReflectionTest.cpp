@@ -8,14 +8,50 @@
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Sema/Sema.h"
 
-#include "clang/AST/DeclBase.h"
 #include "clang/AST/ASTDumper.h"
+#include "clang/AST/Decl.h"
+#include "clang/AST/DeclBase.h"
+#include "clang/AST/GlobalDecl.h"
+
+#include "llvm/Support/Valgrind.h"
 
 #include "gtest/gtest.h"
+
+#include <string>
 
 using namespace TestUtils;
 using namespace llvm;
 using namespace clang;
+
+TEST(ScopeReflectionTest, Demangle) {
+  if (llvm::sys::RunningOnValgrind())
+    GTEST_SKIP() << "XFAIL due to Valgrind report";
+
+  std::string code = R"(
+    int add(int x, int y) { return x + y; }
+    int add(double x, double y) { return x + y; }
+  )";
+
+  std::vector<Decl*> Decls;
+  GetAllTopLevelDecls(code, Decls);
+  EXPECT_EQ(Decls.size(), 2);
+
+  auto Add_int = clang::GlobalDecl(static_cast<clang::NamedDecl*>(Decls[0]));
+  auto Add_double = clang::GlobalDecl(static_cast<clang::NamedDecl*>(Decls[1]));
+
+  std::string mangled_add_int;
+  std::string mangled_add_double;
+  compat::maybeMangleDeclName(Add_int, mangled_add_int);
+  compat::maybeMangleDeclName(Add_double, mangled_add_double);
+
+  std::string demangled_add_int = Cpp::Demangle(mangled_add_int);
+  std::string demangled_add_double = Cpp::Demangle(mangled_add_double);
+
+  EXPECT_NE(demangled_add_int.find(Cpp::GetQualifiedCompleteName(Decls[0])),
+            std::string::npos);
+  EXPECT_NE(demangled_add_double.find(Cpp::GetQualifiedCompleteName(Decls[1])),
+            std::string::npos);
+}
 
 TEST(ScopeReflectionTest, IsAggregate) {
   std::vector<Decl *> Decls;
@@ -57,6 +93,28 @@ TEST(ScopeReflectionTest, IsClass) {
   EXPECT_FALSE(Cpp::IsClass(Decls[0]));
   EXPECT_TRUE(Cpp::IsClass(Decls[1]));
   EXPECT_FALSE(Cpp::IsClass(Decls[2]));
+}
+
+TEST(ScopeReflectionTest, IsClassPolymorphic) {
+  std::vector<Decl*> Decls;
+  GetAllTopLevelDecls(R"(
+    namespace N {}
+    
+    class C{};
+    
+    class C2 {
+    public:
+      virtual ~C2() {}
+    };
+    
+    int I;
+  )",
+                      Decls);
+
+  EXPECT_FALSE(Cpp::IsClassPolymorphic(Decls[0]));
+  EXPECT_FALSE(Cpp::IsClassPolymorphic(Decls[1]));
+  EXPECT_TRUE(Cpp::IsClassPolymorphic(Decls[2]));
+  EXPECT_FALSE(Cpp::IsClassPolymorphic(Decls[3]));
 }
 
 TEST(ScopeReflectionTest, IsComplete) {
@@ -964,7 +1022,7 @@ TEST(ScopeReflectionTest, IncludeVector) {
     #include <vector>
     #include <iostream>
   )";
-  Interp->process(code);
+  Interp->declare(code);
 }
 
 TEST(ScopeReflectionTest, GetOperator) {

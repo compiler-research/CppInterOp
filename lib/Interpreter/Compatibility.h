@@ -78,6 +78,9 @@ static inline char* GetEnv(const char* Var_Name) {
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/Path.h"
 
+// std::regex breaks pytorch's jit: pytorch/pytorch#49460
+#include "llvm/Support/Regex.h"
+
 #ifdef USE_CLING
 
 #include "cling/Interpreter/DynamicLibraryManager.h"
@@ -114,11 +117,13 @@ inline llvm::orc::LLJIT* getExecutionEngine(cling::Interpreter& I) {
   return I.getExecutionEngine();
 #endif
 
+  unsigned m_ExecutorOffset = 0;
+
 #if CLANG_VERSION_MAJOR == 13
 #ifdef __APPLE__
-  const unsigned m_ExecutorOffset = 62;
+  m_ExecutorOffset = 62;
 #else
-  const unsigned m_ExecutorOffset = 72;
+  m_ExecutorOffset = 72;
 #endif // __APPLE__
 #endif
 
@@ -126,9 +131,9 @@ inline llvm::orc::LLJIT* getExecutionEngine(cling::Interpreter& I) {
 // a thread safe context - llvm::orc::ThreadSafeContext
 #if CLANG_VERSION_MAJOR == 16
 #ifdef __APPLE__
-  const unsigned m_ExecutorOffset = 68;
+  m_ExecutorOffset = 68;
 #else
-  const unsigned m_ExecutorOffset = 78;
+  m_ExecutorOffset = 78;
 #endif // __APPLE__
 #endif
 
@@ -163,20 +168,57 @@ inline void codeComplete(std::vector<std::string>& Results,
   std::vector<std::string> results;
   size_t column = complete_column;
   I.codeComplete(code, column, results);
+  std::string error;
+  llvm::Error Err = llvm::Error::success();
+  // Regex patterns
+  llvm::Regex removeDefinition("\\[\\#.*\\#\\]");
+  llvm::Regex removeVariableName("(\\ |\\*)+(\\w+)(\\#\\>)");
+  llvm::Regex removeTrailingSpace("\\ *(\\#\\>)");
+  llvm::Regex removeTags("\\<\\#([^#>]*)\\#\\>");
 
   // append cleaned results
   for (auto& r : results) {
-    // remove the definition at the beginning (for example [#int#])
-    r = std::regex_replace(r, std::regex("\\[\\#.*\\#\\]"), "");
+    // remove the definition at the beginning (e.g., [#int#])
+    r = removeDefinition.sub("", r, &error);
+    if (!error.empty()) {
+      Err = llvm::make_error<llvm::StringError>(error,
+                                                llvm::inconvertibleErrorCode());
+      llvm::logAllUnhandledErrors(std::move(Err), llvm::errs(),
+                                  "Invalid substitution in CodeComplete");
+      return;
+    }
     // remove the variable name in <#type name#>
-    r = std::regex_replace(r, std::regex("(\\ |\\*)+(\\w+)(\\#\\>)"), "$1$3");
+    r = removeVariableName.sub("$1$3", r, &error);
+    if (!error.empty()) {
+      Err = llvm::make_error<llvm::StringError>(error,
+                                                llvm::inconvertibleErrorCode());
+      llvm::logAllUnhandledErrors(std::move(Err), llvm::errs(),
+                                  "Invalid substitution in CodeComplete");
+      return;
+    }
     // remove unnecessary space at the end of <#type   #>
-    r = std::regex_replace(r, std::regex("\\ *(\\#\\>)"), "$1");
+    r = removeTrailingSpace.sub("$1", r, &error);
+    if (!error.empty()) {
+      Err = llvm::make_error<llvm::StringError>(error,
+                                                llvm::inconvertibleErrorCode());
+      llvm::logAllUnhandledErrors(std::move(Err), llvm::errs(),
+                                  "Invalid substitution in CodeComplete");
+      return;
+    }
     // remove <# #> to keep only the type
-    r = std::regex_replace(r, std::regex("\\<\\#([^#>]*)\\#\\>"), "$1");
+    r = removeTags.sub("$1", r, &error);
+    if (!error.empty()) {
+      Err = llvm::make_error<llvm::StringError>(error,
+                                                llvm::inconvertibleErrorCode());
+      llvm::logAllUnhandledErrors(std::move(Err), llvm::errs(),
+                                  "Invalid substitution in CodeComplete");
+      return;
+    }
+
     if (r.find(code) == 0)
       Results.push_back(r);
   }
+  llvm::consumeError(std::move(Err));
 }
 
 } // namespace compat

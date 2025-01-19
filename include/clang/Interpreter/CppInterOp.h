@@ -185,6 +185,9 @@ namespace Cpp {
   ///\returns the version string information of the library.
   CPPINTEROP_API std::string GetVersion();
 
+  ///\returns the demangled representation of the given mangled_name
+  CPPINTEROP_API std::string Demangle(const std::string& mangled_name);
+
   /// Enables or disables the debugging printouts on stderr.
   /// Debugging output can be enabled also by the environment variable
   /// CPPINTEROP_EXTRA_INTERPRETER_ARGS. For example,
@@ -206,6 +209,10 @@ namespace Cpp {
 
   /// Checks if the scope is a class or not.
   CPPINTEROP_API bool IsClass(TCppScope_t scope);
+
+  /// Checks if the klass polymorphic.
+  /// which means that the class contains or inherits a virtual function
+  CPPINTEROP_API bool IsClassPolymorphic(TCppScope_t klass);
 
   // See TClingClassInfo::IsLoaded
   /// Checks if the class definition is present, or not. Performs a
