@@ -118,8 +118,7 @@ else()
       clangStaticAnalyzerCore
       )
   endif(LLVM_LINK_LLVM_DYLIB)
-SET(LDFLAGS "-Wl,--allow-multiple-definition")
-  add_llvm_library(clangCppInterOp
+  llvm_add_library(clangCppInterOp
     DISABLE_LLVM_LINK_LLVM_DYLIB
     CppInterOp.cpp
     CXCppInterOp.cpp
