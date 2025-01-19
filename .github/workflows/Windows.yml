@@ -154,6 +154,7 @@ jobs:
                 -DLLVM_ENABLE_TERMINFO=OFF                         `
                 -DLLVM_ENABLE_LIBXML2=OFF                          `
                 -DLLVM_BUILD_LLVM_DYLIB_VIS=On                     `
+                -DLLVM_DYLIB_COMPONENTS="BinaryFormat;Core;Object;OrcJit;Support;FrontendDriver;OrcDebugging;Coverage;FrontendHLSL;LTO;clangCodeGen;clangStaticAnalyzerCore"               `
                 -DLLVM_LINK_LLVM_DYLIB=On                          `
                 -DCLANG_LINK_CLANG_DYLIB=On -DCMAKE_ASM_MASM_COMPILER=llvm-ml -DCMAKE_ASM_MASM_FLAGS="-m64" ..\llvm
           cmake --build . --config Release --target clang --parallel ${{ env.ncpus }}
