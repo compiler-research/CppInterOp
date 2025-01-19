@@ -82,10 +82,7 @@ else()
             continue()
           endif()
           string(REPLACE "version;" "" transitive_libs "${transitive_libs}")
-          string(REPLACE "LLVM" "" transitive_libs "${transitive_libs}")
           foreach(transitive_lib ${transitive_libs})
-            message(STATUS "transitive libs ${transitive_libs}")
-            message(STATUS "transitive lib ${transitive_lib}")
             get_target_property(lib_type ${transitive_lib} TYPE)
             message(STATUS "lib_type ${lib_type}")
             if("${lib_type}" STREQUAL "STATIC_LIBRARY")
@@ -121,9 +118,7 @@ else()
       clangStaticAnalyzerCore
       )
   endif(LLVM_LINK_LLVM_DYLIB)
-  message(STATUS "link libs ${link_libs}")
-  string(REPLACE "LLVM" "" link_libs "${link_libs}")
-  message(STATUS "link libs ${link_libs}")
+SET(LDFLAGS "-Wl,--allow-multiple-definition")
   add_llvm_library(clangCppInterOp
     DISABLE_LLVM_LINK_LLVM_DYLIB
     CppInterOp.cpp
