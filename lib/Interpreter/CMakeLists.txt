@@ -82,6 +82,7 @@ else()
             continue()
           endif()
           string(REPLACE "version;" "" transitive_libs "${transitive_libs}")
+          string(REPLACE "LLVM" "" transitive_libs "${transitive_libs}")
           foreach(transitive_lib ${transitive_libs})
             message(STATUS "transitive libs ${transitive_libs}")
             message(STATUS "transitive lib ${transitive_lib}")
@@ -119,7 +120,9 @@ else()
       clangStaticAnalyzerCore
       )
   endif(LLVM_LINK_LLVM_DYLIB)
-
+  message(STATUS "link libs ${link_libs}")
+  string(REPLACE "LLVM" "" link_libs "${link_libs}")
+  message(STATUS "link libs ${link_libs}")
   add_llvm_library(clangCppInterOp
     DISABLE_LLVM_LINK_LLVM_DYLIB
     CppInterOp.cpp
