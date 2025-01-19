@@ -118,6 +118,7 @@ else()
       clangStaticAnalyzerCore
       )
   endif(LLVM_LINK_LLVM_DYLIB)
+  if(NOT WIN32)
   llvm_add_library(clangCppInterOp
     DISABLE_LLVM_LINK_LLVM_DYLIB
     CppInterOp.cpp
@@ -126,6 +127,14 @@ else()
     LINK_LIBS
     ${link_libs}
   )
+  else()
+  llvm_add_library(clangCppInterOp
+    DISABLE_LLVM_LINK_LLVM_DYLIB
+    CppInterOp.cpp
+    CXCppInterOp.cpp
+    ${DLM}
+  )  
+  endif()
 endif()
 
 string(REPLACE ";" "\;" _VER CPPINTEROP_VERSION)
