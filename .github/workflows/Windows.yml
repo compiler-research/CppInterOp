@@ -188,6 +188,8 @@ jobs:
                 -DCLANG_ENABLE_ARCMT=OFF                            `
                 -DLLVM_ENABLE_PLUGINS=On                            `
                 -DLLVM_BUILD_LLVM_DYLIB_VIS=On                      `
+                -DLLVM_BUILD_LLVM_DYLIB=On                         `
+                -DLLVM_LINK_LLVM_DYLIB=On                           `
                 -DCLANG_LINK_CLANG_DYLIB=On -DCMAKE_ASM_MASM_COMPILER=llvm-ml -DCMAKE_ASM_MASM_FLAGS="-m64" ..\llvm
           cmake --build . --config Release --target clang clangInterpreter clangStaticAnalyzerCore --parallel ${{ env.ncpus }}
         }
