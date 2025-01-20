@@ -255,6 +255,9 @@ jobs:
                 -DLLVM_ENABLE_TERMINFO=OFF                          \
                 -DLLVM_ENABLE_LIBXML2=OFF                           \
                 -G Ninja                                            \
+                -DLLVM_INCLUDE_BENCHMARKS=OFF                   \
+                -DLLVM_INCLUDE_EXAMPLES=OFF                     \
+                -DLLVM_INCLUDE_TESTS=OFF                        \
                 ../llvm
           ninja clang clangInterpreter clangStaticAnalyzerCore -j ${{ env.ncpus }}
         fi
