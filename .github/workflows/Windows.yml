@@ -357,6 +357,7 @@ jobs:
         mkdir build 
         cd build
         $env:CPPINTEROP_BUILD_DIR="$env:PWD_DIR"
+        $env:LDFLAGS="-Wl,--allow-multiple-definition"
         echo "CPPINTEROP_BUILD_DIR=$env:CPPINTEROP_BUILD_DIR"
         echo "CPPINTEROP_BUILD_DIR=$env:CPPINTEROP_BUILD_DIR" >> $env:GITHUB_ENV  
         if ( "${{ matrix.cling }}" -imatch "On" )
