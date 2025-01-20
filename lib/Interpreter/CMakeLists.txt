@@ -136,10 +136,16 @@ else()
     ${link_libs}
   )
   else()
+  set_target_properties(clangCppInterOp PROPERTIES
+  LINK_FLAGS "-Wl,--allow-multiple-definition"
+  )
   llvm_add_library(clangCppInterOp
+    DISABLE_LLVM_LINK_LLVM_DYLIB
     CppInterOp.cpp
     CXCppInterOp.cpp
     ${DLM}
+    LINK_LIBS
+    ${link_libs}
   )  
   endif()
 endif()
