@@ -444,6 +444,7 @@ jobs:
         brew upgrade --force 
         brew install eigen
         brew install boost
+        brew install gnu-sed
         pip install distro pytest
         
 
@@ -580,14 +581,14 @@ jobs:
         echo ::group::Crashing Test Logs
         # See if we don't have a crash that went away
         # Comment out all xfails but the ones that have a run=False condition.
-        find . -name "*.py" -exec sed -i '/run=False/!s/^ *@mark.xfail\(.*\)/#&/' {} \;
+        find . -name "*.py" -exec gsed -i '/run=False/!s/^ *@mark.xfail\(.*\)/#&/' {} \;
         python -m pytest -n 1 -m "xfail" --runxfail -sv -ra --max-worker-restart 512 | tee test_crashed.log 2>&1 || true
         git checkout .
         echo ::endgroup::
         echo ::group::XFAIL Test Logs
         # Rewrite all xfails that have a run clause to skipif. This way we will
         # avoid conditionally crashing xfails
-        find . -name "*.py" -exec sed -i -E 's/(^ *)@mark.xfail\(run=(.*)/\1@mark.skipif(condition=not \2/g' {} \;
+        find . -name "*.py" -exec gsed -i -E 's/(^ *)@mark.xfail\(run=(.*)/\1@mark.skipif(condition=not \2/g' {} \;
         # See if we don't have an xfail that went away
         python -m pytest --runxfail -sv -ra  | tee test_xfailed.log 2>&1 || true
         git checkout .
