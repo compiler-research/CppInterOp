@@ -2828,12 +2828,8 @@ namespace Cpp {
 #define DEBUG_TYPE "exec"
 
     std::array<char, 256> buffer;
-    struct file_deleter
-    {
-      void operator()(FILE* fp)
-      {
-        pclose(fp);
-      }
+    struct file_deleter {
+      void operator()(FILE* fp) { pclose(fp); }
     };
     using file_pointer = std::unique_ptr<FILE, file_deleter>;
     file_pointer pipe{popen(cmd, "r")};
