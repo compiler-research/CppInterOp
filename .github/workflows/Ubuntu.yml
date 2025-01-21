@@ -94,6 +94,42 @@ jobs:
             cling-version: '1.0'
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
+          - name: ubu24-arm-gcc12-clang-repl-19
+            os: ubuntu-24.04-arm
+            compiler: gcc-12
+            clang-runtime: '19'
+            cling: Off
+            llvm_enable_projects: "clang"
+            llvm_targets_to_build: "host;NVPTX"
+          - name: ubu24-arm-gcc12-clang-repl-18
+            os: ubuntu-24.04-arm
+            compiler: gcc-12
+            clang-runtime: '18'
+            cling: Off
+            llvm_enable_projects: "clang"
+            llvm_targets_to_build: "host;NVPTX"
+          - name: ubu24-arm-gcc12-clang-repl-17
+            os: ubuntu-24.04-arm
+            compiler: gcc-12
+            clang-runtime: '17'
+            cling: Off
+            llvm_enable_projects: "clang"
+            llvm_targets_to_build: "host;NVPTX"
+          - name: ubu24-arm-gcc12-clang-repl-16
+            os: ubuntu-24.04-arm
+            compiler: gcc-12
+            clang-runtime: '16'
+            cling: Off
+            llvm_enable_projects: "clang"
+            llvm_targets_to_build: "host;NVPTX"
+          - name: ubu24-arm-gcc9-clang13-cling
+            os: ubuntu-24.04-arm
+            compiler: gcc-9
+            clang-runtime: '13'
+            cling: On
+            cling-version: '1.0'
+            llvm_enable_projects: "clang"
+            llvm_targets_to_build: "host;NVPTX"
             
     steps:
     - uses: actions/checkout@v4
@@ -337,6 +373,33 @@ jobs:
             clang-runtime: '13'
             cling: On
             cling-version: '1.0'
+          - name: ubu24-arm-gcc12-clang-repl-19
+            os: ubuntu-24.04-arm
+            compiler: gcc-12
+            clang-runtime: '19'
+            cling: Off
+          - name: ubu24-arm-gcc12-clang-repl-18
+            os: ubuntu-24.04-arm
+            compiler: gcc-12
+            clang-runtime: '18'
+            cling: Off
+          - name: ubu24-arm-gcc12-clang-repl-17
+            os: ubuntu-24.04-arm
+            compiler: gcc-12
+            clang-runtime: '17'
+            cling: Off
+          - name: ubu24-arm-gcc12-clang-repl-16
+            os: ubuntu-24.04-arm
+            compiler: gcc-12
+            clang-runtime: '16'
+            cling: Off
+            cppyy: Off
+          - name: ubu24-arm-gcc9-clang13-cling
+            os: ubuntu-24.04-arm
+            compiler: gcc-9
+            clang-runtime: '13'
+            cling: On
+            cling-version: '1.0'
 
     steps:
     - uses: actions/checkout@v4
@@ -403,7 +466,12 @@ jobs:
         sudo apt-get update
         sudo apt-get install git g++ debhelper devscripts gnupg python3 doxygen graphviz python3-sphinx
         sudo apt-get install -y libc6-dbg
-        sudo snap install valgrind --classic
+        export ARCHITECHURE=$(uname -m)
+        if [[ "$ARCHITECHURE" != "x86_64" ]]; then
+          sudo apt-get install valgrind
+        else
+          sudo snap install valgrind --classic
+        fi
         sudo apt autoremove
         sudo apt clean
         # Install libraries used by the cppyy test suite
