@@ -466,7 +466,12 @@ jobs:
         sudo apt-get update
         sudo apt-get install git g++ debhelper devscripts gnupg python3 doxygen graphviz python3-sphinx
         sudo apt-get install -y libc6-dbg
-        sudo apt-get install valgrind
+        export ARCHITECHURE=$(uname -m)
+        if [[ "$ARCHITECHURE" != "x86_64" ]]; then
+          sudo apt-get install valgrind
+        else
+          sudo snap install valgrind --classic
+        fi
         sudo apt autoremove
         sudo apt clean
         # Install libraries used by the cppyy test suite
