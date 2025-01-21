@@ -3441,12 +3441,8 @@ namespace Cpp {
   }
 
   class StreamCaptureInfo {
-    struct file_deleter
-    {
-      void operator()(FILE* fp)
-      {
-        pclose(fp);
-      }
+    struct file_deleter {
+      void operator()(FILE* fp) { pclose(fp); }
     };
     using file_pointer = std::unique_ptr<FILE, file_deleter>;
     file_pointer m_TempFile;
@@ -3456,19 +3452,17 @@ namespace Cpp {
   public:
 #ifdef _MSC_VER
     StreamCaptureInfo(int FD)
-        : m_TempFile(
-              []() {
-                FILE* stream = nullptr;
-                errno_t err;
-                err = tmpfile_s(&stream);
-                if (err)
-                  printf("Cannot create temporary file!\n");
-                return stream;
-              }(),
-              std::fclose),
+        : m_TempFile(file_pointer{[]() {
+            FILE* stream = nullptr;
+            errno_t err;
+            err = tmpfile_s(&stream);
+            if (err)
+              printf("Cannot create temporary file!\n");
+            return stream;
+          }()}),
           m_FD(FD) {
 #else
-    StreamCaptureInfo(int FD) : m_TempFile(tmpfile(), std::fclose), m_FD(FD) {
+    StreamCaptureInfo(int FD) : m_TempFile(file_pointer{tmpfile()}), m_FD(FD) {
 #endif
       if (!m_TempFile) {
         perror("StreamCaptureInfo: Unable to create temp file");
