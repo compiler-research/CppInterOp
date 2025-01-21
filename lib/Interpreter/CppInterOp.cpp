@@ -2831,8 +2831,7 @@ namespace Cpp {
     struct file_deleter {
       void operator()(FILE* fp) { pclose(fp); }
     };
-    using file_pointer = std::unique_ptr<FILE, file_deleter>;
-    file_pointer pipe{popen(cmd, "r")};
+    std::unique_ptr<FILE, file_deleter> pipe{popen(cmd, "r")};
     LLVM_DEBUG(dbgs() << "Executing command '" << cmd << "'\n");
 
     if (!pipe) {
@@ -3444,8 +3443,7 @@ namespace Cpp {
     struct file_deleter {
       void operator()(FILE* fp) { pclose(fp); }
     };
-    using file_pointer = std::unique_ptr<FILE, file_deleter>;
-    file_pointer m_TempFile;
+    std::unique_ptr<FILE, file_deleter> m_TempFile;
     int m_FD = -1;
     int m_DupFD = -1;
 
