@@ -31,6 +31,7 @@
 
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/Demangle/Demangle.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_os_ostream.h"
@@ -155,6 +156,25 @@ namespace Cpp {
     return fullVersion + "[" + clang::getClangFullVersion() + "])\n";
   }
 
+  std::string Demangle(const std::string& mangled_name) {
+#if CLANG_VERSION_MAJOR > 16
+#ifdef _WIN32
+    std::string demangle = microsoftDemangle(mangled_name, nullptr, nullptr);
+#else
+    std::string demangle = itaniumDemangle(mangled_name);
+#endif
+#else
+#ifdef _WIN32
+    std::string demangle = microsoftDemangle(mangled_name.c_str(), nullptr,
+                                             nullptr, nullptr, nullptr);
+#else
+    std::string demangle =
+        itaniumDemangle(mangled_name.c_str(), nullptr, nullptr, nullptr);
+#endif
+#endif
+    return demangle;
+  }
+
   void EnableDebugOutput(bool value/* =true*/) {
     llvm::DebugFlag = value;
   }
@@ -186,6 +206,14 @@ namespace Cpp {
   bool IsClass(TCppScope_t scope) {
     Decl *D = static_cast<Decl*>(scope);
     return isa<CXXRecordDecl>(D);
+  }
+
+  bool IsClassPolymorphic(TCppScope_t klass) {
+    Decl* D = static_cast<Decl*>(klass);
+    if (auto* CXXRD = llvm::dyn_cast<CXXRecordDecl>(D))
+      if (auto* CXXRDD = CXXRD->getDefinition())
+        return CXXRDD->isPolymorphic();
+    return false;
   }
 
   static SourceLocation GetValidSLoc(Sema& semaRef) {
@@ -2800,7 +2828,10 @@ namespace Cpp {
 #define DEBUG_TYPE "exec"
 
     std::array<char, 256> buffer;
-    std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd, "r"), pclose);
+    struct file_deleter {
+      void operator()(FILE* fp) { pclose(fp); }
+    };
+    std::unique_ptr<FILE, file_deleter> pipe{popen(cmd, "r")};
     LLVM_DEBUG(dbgs() << "Executing command '" << cmd << "'\n");
 
     if (!pipe) {
@@ -3409,26 +3440,27 @@ namespace Cpp {
   }
 
   class StreamCaptureInfo {
-    std::unique_ptr<FILE, decltype(std::fclose)*> m_TempFile;
+    struct file_deleter {
+      void operator()(FILE* fp) { pclose(fp); }
+    };
+    std::unique_ptr<FILE, file_deleter> m_TempFile;
     int m_FD = -1;
     int m_DupFD = -1;
 
   public:
 #ifdef _MSC_VER
     StreamCaptureInfo(int FD)
-        : m_TempFile(
-              []() {
-                FILE* stream = nullptr;
-                errno_t err;
-                err = tmpfile_s(&stream);
-                if (err)
-                  printf("Cannot create temporary file!\n");
-                return stream;
-              }(),
-              std::fclose),
+        : m_TempFile{[]() {
+            FILE* stream = nullptr;
+            errno_t err;
+            err = tmpfile_s(&stream);
+            if (err)
+              printf("Cannot create temporary file!\n");
+            return stream;
+          }()},
           m_FD(FD) {
 #else
-    StreamCaptureInfo(int FD) : m_TempFile(tmpfile(), std::fclose), m_FD(FD) {
+    StreamCaptureInfo(int FD) : m_TempFile{tmpfile()}, m_FD(FD) {
 #endif
       if (!m_TempFile) {
         perror("StreamCaptureInfo: Unable to create temp file");

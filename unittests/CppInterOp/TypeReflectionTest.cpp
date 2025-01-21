@@ -7,6 +7,8 @@
 
 #include "gtest/gtest.h"
 
+#include <cstdint>
+
 using namespace TestUtils;
 using namespace llvm;
 using namespace clang;
@@ -74,7 +76,8 @@ TEST(TypeReflectionTest, GetSizeOfType) {
   EXPECT_EQ(Cpp::GetSizeOfType(Cpp::GetVariableType(Decls[3])), 8);
   EXPECT_EQ(Cpp::GetSizeOfType(Cpp::GetVariableType(Decls[4])), 16);
   EXPECT_EQ(Cpp::GetSizeOfType(Cpp::GetTypeFromScope(Decls[5])), 0);
-  EXPECT_EQ(Cpp::GetSizeOfType(Cpp::GetVariableType(Decls[6])), 8);
+  EXPECT_EQ(Cpp::GetSizeOfType(Cpp::GetVariableType(Decls[6])),
+            sizeof(intptr_t));
 }
 
 TEST(TypeReflectionTest, GetCanonicalType) {

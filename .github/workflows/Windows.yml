@@ -26,23 +26,6 @@ jobs:
             compiler: msvc
             clang-runtime: '19'
             cling: Off
-            cppyy: Off
-            llvm_enable_projects: "clang"
-            llvm_targets_to_build: "host;NVPTX"
-          - name: win2025-msvc-clang-repl-18
-            os: windows-2025
-            compiler: msvc
-            clang-runtime: '18'
-            cling: Off
-            cppyy: Off
-            llvm_enable_projects: "clang"
-            llvm_targets_to_build: "host;NVPTX"
-          - name: win2025-msvc-clang-repl-17
-            os: windows-2025
-            compiler: msvc
-            clang-runtime: '17'
-            cling: Off
-            cppyy: Off
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
             
@@ -203,7 +186,7 @@ jobs:
                 -DLLVM_ENABLE_TERMINFO=OFF                          `
                 -DLLVM_ENABLE_LIBXML2=OFF                           `
                 ..\llvm
-          cmake --build . --config Release --target clang clang-repl --parallel ${{ env.ncpus }}
+          cmake --build . --config Release --target clang clangInterpreter clangStaticAnalyzerCore --parallel ${{ env.ncpus }}
         }
         cd ..\
         rm -r -force $(find.exe . -maxdepth 1 ! -name "build" ! -name "llvm" ! -name "clang" ! -name ".")
@@ -245,18 +228,6 @@ jobs:
             os: windows-2025
             compiler: msvc
             clang-runtime: '19'
-            cling: Off
-            cppyy: Off
-          - name: win2025-msvc-clang-repl-18
-            os: windows-2025
-            compiler: msvc
-            clang-runtime: '18'
-            cling: Off
-            cppyy: Off
-          - name: win2025-msvc-clang-repl-17
-            os: windows-2025
-            compiler: msvc
-            clang-runtime: '17'
             cling: Off
             cppyy: Off
 

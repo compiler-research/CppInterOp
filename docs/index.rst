@@ -20,6 +20,7 @@ C++ to simpler, more interactive languages like Python.
 
 
   InstallationAndUsage
+  Emscripten-build-instructions
   UsingCppInterOp
   reference
   tutorials

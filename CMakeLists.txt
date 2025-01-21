@@ -455,32 +455,52 @@ option(CPPINTEROP_ENABLE_TESTING "Enables the testing infrastructure." ON)
 if(MSVC)
 
   set(MSVC_EXPORTLIST
-   ??_7type_info@@6B@
-   ?nothrow@std@@3Unothrow_t@1@B
-   _Init_thread_header
-   _Init_thread_footer
-   ??_7type_info@@6B@
-   ?_Facet_Register@std@@YAXPEAV_Facet_base@1@@Z
+    _Init_thread_header
+    _Init_thread_footer
+    ?nothrow@std@@3Unothrow_t@1@B
+    ??_7type_info@@6B@
   )
 
-  set(MSVC_EXPORTLIST ${MSVC_EXPORTLIST}
-   ??2@YAPEAX_K@Z
-   ??3@YAXPEAX@Z
-   ??3@YAXPEAX_K@Z
-   ??_U@YAPEAX_K@Z
-   ??_V@YAXPEAX@Z
-   ??_V@YAXPEAX_K@Z
-   ??2@YAPEAX_KAEBUnothrow_t@std@@@Z
-   ??_U@YAPEAX_KAEBUnothrow_t@std@@@Z
-   ??6?$basic_ostream@DU?$char_traits@D@std@@@std@@QEAAAEAV01@H@Z
-   ??6?$basic_ostream@DU?$char_traits@D@std@@@std@@QEAAAEAV01@M@Z
-   ??6?$basic_ostream@DU?$char_traits@D@std@@@std@@QEAAAEAV01@N@Z
-   ??6?$basic_ostream@DU?$char_traits@D@std@@@std@@QEAAAEAV01@PEBX@Z
-   ??6?$basic_ostream@DU?$char_traits@D@std@@@std@@QEAAAEAV01@P6AAEAV01@AEAV01@@Z@Z
-   ??$?6U?$char_traits@D@std@@@std@@YAAEAV?$basic_ostream@DU?$char_traits@D@std@@@0@AEAV10@D@Z
-   ??$?6U?$char_traits@D@std@@@std@@YAAEAV?$basic_ostream@DU?$char_traits@D@std@@@0@AEAV10@PEBD@Z
-   ?_Facet_Register@std@@YAXPEAV_Facet_base@1@@Z
-  )
+  if(CMAKE_SIZEOF_VOID_P EQUAL 8)
+    # new/delete variants needed when linking to static msvc runtime (esp. Debug)
+    set(MSVC_EXPORTLIST ${MSVC_EXPORTLIST}
+      ??2@YAPEAX_K@Z
+      ??3@YAXPEAX@Z
+      ??_U@YAPEAX_K@Z
+      ??_V@YAXPEAX@Z
+      ??3@YAXPEAX_K@Z
+      ??_V@YAXPEAX_K@Z
+      ??2@YAPEAX_KAEBUnothrow_t@std@@@Z
+      ??_U@YAPEAX_KAEBUnothrow_t@std@@@Z
+      ??6?$basic_ostream@DU?$char_traits@D@std@@@std@@QEAAAEAV01@H@Z
+      ??6?$basic_ostream@DU?$char_traits@D@std@@@std@@QEAAAEAV01@M@Z
+      ??6?$basic_ostream@DU?$char_traits@D@std@@@std@@QEAAAEAV01@N@Z
+      ??6?$basic_ostream@DU?$char_traits@D@std@@@std@@QEAAAEAV01@PEBX@Z
+      ??6?$basic_ostream@DU?$char_traits@D@std@@@std@@QEAAAEAV01@P6AAEAV01@AEAV01@@Z@Z
+      ??$?6U?$char_traits@D@std@@@std@@YAAEAV?$basic_ostream@DU?$char_traits@D@std@@@0@AEAV10@D@Z
+      ??$?6U?$char_traits@D@std@@@std@@YAAEAV?$basic_ostream@DU?$char_traits@D@std@@@0@AEAV10@PEBD@Z
+      ?_Facet_Register@std@@YAXPEAV_Facet_base@1@@Z
+    )
+  else()
+    set(MSVC_EXPORTLIST ${MSVC_EXPORTLIST}
+      ??2@YAPAXI@Z
+      ??3@YAXPAX@Z
+      ??3@YAXPAXI@Z
+      ??_U@YAPAXI@Z
+      ??_V@YAXPAX@Z
+      ??_V@YAXPAXI@Z
+      ??2@YAPAXIABUnothrow_t@std@@@Z
+      ??_U@YAPAXIABUnothrow_t@std@@@Z
+      ??6?$basic_ostream@DU?$char_traits@D@std@@@std@@QAEAAV01@H@Z
+      ??6?$basic_ostream@DU?$char_traits@D@std@@@std@@QAEAAV01@M@Z
+      ??6?$basic_ostream@DU?$char_traits@D@std@@@std@@QAEAAV01@N@Z
+      ??6?$basic_ostream@DU?$char_traits@D@std@@@std@@QAEAAV01@PBX@Z
+      ??6?$basic_ostream@DU?$char_traits@D@std@@@std@@QAEAAV01@P6AAAV01@AAV01@@Z@Z
+      ??$?6U?$char_traits@D@std@@@std@@YAAAV?$basic_ostream@DU?$char_traits@D@std@@@0@AAV10@D@Z
+      ??$?6U?$char_traits@D@std@@@std@@YAAAV?$basic_ostream@DU?$char_traits@D@std@@@0@AAV10@PBD@Z
+      ?_Facet_Register@std@@YAXPAV_Facet_base@1@@Z
+    )
+  endif()
 
   if(MSVC_VERSION LESS 1914)
     set(MSVC_EXPORTLIST ${MSVC_EXPORTLIST} ??3@YAXPAX0@Z ??_V@YAXPAX0@Z)

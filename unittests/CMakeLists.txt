@@ -38,6 +38,7 @@ endif()
   add_test(NAME cppinterop-${name} COMMAND ${name})
   set_tests_properties(cppinterop-${name} PROPERTIES
                        TIMEOUT "${TIMEOUT_VALUE}"
+                       ENVIRONMENT "CPLUS_INCLUDE_PATH=${CMAKE_BINARY_DIR}/etc"
                        LABELS
                        DEPENDS)
   # FIXME: Just call gtest_add_tests this function is available.
