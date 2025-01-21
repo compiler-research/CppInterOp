@@ -466,7 +466,7 @@ jobs:
         sudo apt-get update
         sudo apt-get install git g++ debhelper devscripts gnupg python3 doxygen graphviz python3-sphinx
         sudo apt-get install -y libc6-dbg
-        sudo snap install valgrind
+        sudo apt-get install valgrind
         sudo apt autoremove
         sudo apt clean
         # Install libraries used by the cppyy test suite
