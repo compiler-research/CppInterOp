@@ -2830,13 +2830,13 @@ namespace Cpp {
     std::array<char, 256> buffer;
     struct file_deleter
     {
-      void operator()(std::FILE* fp)
+      void operator()(FILE* fp)
       {
         pclose(fp);
       }
     };
-    using pipe = std::unique_ptr<std::FILE, file_deleter>;
-    pipe file{popen(cmd, "r")};
+    using file_pointer = std::unique_ptr<FILE, file_deleter>;
+    file_pointer pipe{popen(cmd, "r")};
     LLVM_DEBUG(dbgs() << "Executing command '" << cmd << "'\n");
 
     if (!pipe) {
