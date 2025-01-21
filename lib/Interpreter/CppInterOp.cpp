@@ -3445,14 +3445,15 @@ namespace Cpp {
   }
 
   class StreamCaptureInfo {
-#if defined(__GNUC__)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wignored-attributes"
-#endif
-    std::unique_ptr<FILE, decltype(std::fclose)*> m_TempFile;
-#if defined(__GNUC__)
-#pragma GCC diagnostic pop
-#endif
+    struct file_deleter
+    {
+      void operator()(FILE* fp)
+      {
+        pclose(fp);
+      }
+    };
+    using file_pointer = std::unique_ptr<FILE, file_deleter>;
+    file_pointer m_TempFile;
     int m_FD = -1;
     int m_DupFD = -1;
 
