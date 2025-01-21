@@ -3450,17 +3450,17 @@ namespace Cpp {
   public:
 #ifdef _MSC_VER
     StreamCaptureInfo(int FD)
-        : m_TempFile(file_pointer{[]() {
+        : m_TempFile{[]() {
             FILE* stream = nullptr;
             errno_t err;
             err = tmpfile_s(&stream);
             if (err)
               printf("Cannot create temporary file!\n");
             return stream;
-          }()}),
+          }()},
           m_FD(FD) {
 #else
-    StreamCaptureInfo(int FD) : m_TempFile(file_pointer{tmpfile()}), m_FD(FD) {
+    StreamCaptureInfo(int FD) : m_TempFile{tmpfile()}, m_FD(FD) {
 #endif
       if (!m_TempFile) {
         perror("StreamCaptureInfo: Unable to create temp file");
