@@ -2836,7 +2836,7 @@ namespace Cpp {
       }
     };
     using unique_file = std::unique_ptr<std::FILE, file_deleter>;
-    unique_file pipe(popen(cmd, "r"), pclose);
+    unique_file file{popen(cmd, "r")};
     LLVM_DEBUG(dbgs() << "Executing command '" << cmd << "'\n");
 
     if (!pipe) {
