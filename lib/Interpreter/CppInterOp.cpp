@@ -2828,14 +2828,14 @@ namespace Cpp {
 #define DEBUG_TYPE "exec"
 
     std::array<char, 256> buffer;
-#if defined(__GNUC__)
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wignored-attributes"
-#endif
-    std::unique_ptr<FILE, decltype(&pclose)> pipe(popen(cmd, "r"), pclose);
-#if defined(__GNUC__)
-#pragma GCC diagnostic pop
-#endif
+struct file_deleter
+{
+  void operator()(std::FILE* fp)
+  {
+    pclose(fp);
+  }
+};
+    std::unique_ptr<FILE, file_deleter> pipe(popen(cmd, "r"), pclose);
     LLVM_DEBUG(dbgs() << "Executing command '" << cmd << "'\n");
 
     if (!pipe) {
