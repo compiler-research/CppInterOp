@@ -58,42 +58,6 @@ jobs:
             cling-version: '1.0'
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
-          - name: osx13-x86-clang-clang-repl-19
-            os: macos-13
-            compiler: clang
-            clang-runtime: '19'
-            cling: Off
-            llvm_enable_projects: "clang"
-            llvm_targets_to_build: "host"
-          - name: osx13-x86-clang-clang-repl-18
-            os: macos-13
-            compiler: clang
-            clang-runtime: '18'
-            cling: Off
-            llvm_enable_projects: "clang"
-            llvm_targets_to_build: "host"
-          - name: osx13-x86-clang-clang-repl-17
-            os: macos-13
-            compiler: clang
-            clang-runtime: '17'
-            cling: Off
-            llvm_enable_projects: "clang"
-            llvm_targets_to_build: "host"
-          - name: osx13-x86-clang-clang-repl-16
-            os: macos-13
-            compiler: clang
-            clang-runtime: '16'
-            cling: Off
-            llvm_enable_projects: "clang"
-            llvm_targets_to_build: "host"
-          - name: osx13-x86-clang-clang13-cling
-            os: macos-13
-            compiler: clang
-            clang-runtime: '13'
-            cling: On
-            cling-version: '1.0'
-            llvm_enable_projects: "clang"
-            llvm_targets_to_build: "host;NVPTX"
             
     steps:
     - uses: actions/checkout@v4
@@ -313,37 +277,6 @@ jobs:
             cppyy: Off
           - name: osx15-arm-clang-clang13-cling-cppyy
             os: macos-15
-            compiler: clang
-            clang-runtime: '13'
-            cling: On
-            cling-version: '1.0'
-            cppyy: On
-          - name: osx13-x86-clang-clang-repl-19-cppyy
-            os: macos-13
-            compiler: clang
-            clang-runtime: '19'
-            cling: Off
-            cppyy: On
-          - name: osx13-x86-clang-clang-repl-18-cppyy
-            os: macos-13
-            compiler: clang
-            clang-runtime: '18'
-            cling: Off
-            cppyy: On
-          - name: osx13-x86-clang-clang-repl-17-cppyy
-            os: macos-13
-            compiler: clang
-            clang-runtime: '17'
-            cling: Off
-            cppyy: On
-          - name: osx13-x86-clang-clang-repl-16
-            os: macos-13
-            compiler: clang
-            clang-runtime: '16'
-            cling: Off
-            cppyy: Off
-          - name: osx13-x86-clang-clang13-cling-cppyy
-            os: macos-13
             compiler: clang
             clang-runtime: '13'
             cling: On
