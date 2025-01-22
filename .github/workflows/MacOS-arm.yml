@@ -1,4 +1,4 @@
-name: OSX-x86
+name: OSX-arm
 
 on:
   pull_request:
@@ -22,6 +22,42 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - name: osx15-arm-clang-clang-repl-19
+            os: macos-15
+            compiler: clang
+            clang-runtime: '19'
+            cling: Off
+            llvm_enable_projects: "clang"
+            llvm_targets_to_build: "host"
+          - name: osx15-arm-clang-clang-repl-18
+            os: macos-15
+            compiler: clang
+            clang-runtime: '18'
+            cling: Off
+            llvm_enable_projects: "clang"
+            llvm_targets_to_build: "host"
+          - name: osx15-arm-clang-clang-repl-17
+            os: macos-15
+            compiler: clang
+            clang-runtime: '17'
+            cling: Off
+            llvm_enable_projects: "clang"
+            llvm_targets_to_build: "host"
+          - name: osx15-arm-clang-clang-repl-16
+            os: macos-15
+            compiler: clang
+            clang-runtime: '16'
+            cling: Off
+            llvm_enable_projects: "clang"
+            llvm_targets_to_build: "host"
+          - name: osx15-arm-clang-clang13-cling
+            os: macos-15
+            compiler: clang
+            clang-runtime: '13'
+            cling: On
+            cling-version: '1.0'
+            llvm_enable_projects: "clang"
+            llvm_targets_to_build: "host;NVPTX"
           - name: osx13-x86-clang-clang-repl-19
             os: macos-13
             compiler: clang
@@ -115,8 +151,23 @@ jobs:
           echo "CC=gcc-${vers}" >> $GITHUB_ENV
           echo "CXX=g++-${vers}" >> $GITHUB_ENV
         else
-          echo "CC=$(brew --prefix llvm@15)/bin/clang" >> $GITHUB_ENV
-          echo "CXX=$(brew --prefix llvm@15)/bin/clang++" >> $GITHUB_ENV
+          cling_on=$(echo "${{ matrix.cling }}" | tr '[:lower:]' '[:upper:]')
+          if [[ "${cling_on}" == "ON" ]]; then  
+              brew install llvm@15
+              brew remove llvm@18
+              brew cleanup
+              #FIXME: Do not believe setting all these environment variables are necessary
+              #       They were set to avoid using Xcodes libc++ and to stop CppInterOp using llvm@18 in tests
+              echo 'LDFLAGS="-L/opt/homebrew/opt/llvm@15/lib/ -L/opt/homebrew/opt/llvm@15/c++/"' >> $GITHUB_ENV
+              echo 'CPPFLAGS="-I/opt/homebrew/opt/llvm@15/include"' >> $GITHUB_ENV
+              echo 'CPATH="/opt/homebrew/include/"' >> $GITHUB_ENV
+              echo 'LIBRARY_PATH="/opt/homebrew/lib/"' >> $GITHUB_ENV
+              echo "CC=$(brew --prefix llvm@15)/bin/clang" >> $GITHUB_ENV
+              echo "CXX=$(brew --prefix llvm@15)/bin/clang++" >> $GITHUB_ENV
+          else
+            echo "CC=$(brew --prefix llvm@18)/bin/clang" >> $GITHUB_ENV
+            echo "CXX=$(brew --prefix llvm@18)/bin/clang++" >> $GITHUB_ENV
+          fi
         fi
         echo "SDKROOT=$(xcrun --sdk macosx --show-sdk-path)" >> $GITHUB_ENV
       env:
@@ -126,7 +177,7 @@ jobs:
       if: ${{ steps.cache.outputs.cache-hit != 'true' }}
       run: |
         brew update
-        brew remove ruby@3.0
+        brew remove unxip
         # workaround for https://github.com/actions/setup-python/issues/577
         for pkg in $(brew list | grep '^python@'); do
           brew unlink "$pkg"
@@ -343,8 +394,23 @@ jobs:
           echo "CC=gcc-${vers}" >> $GITHUB_ENV
           echo "CXX=g++-${vers}" >> $GITHUB_ENV
         else
-          echo "CC=$(brew --prefix llvm@15)/bin/clang" >> $GITHUB_ENV
-          echo "CXX=$(brew --prefix llvm@15)/bin/clang++" >> $GITHUB_ENV
+          cling_on=$(echo "${{ matrix.cling }}" | tr '[:lower:]' '[:upper:]')
+          if [[ "${cling_on}" == "ON" ]]; then  
+            brew install llvm@15
+            brew remove llvm@18
+            brew cleanup
+            #FIXME: Do not believe setting all these environment variables are necessary
+            #       They were set to avoid using Xcodes libc++ and to stop CppInterOp using llvm@18 in tests
+            echo 'LDFLAGS="-L/opt/homebrew/opt/llvm@15/lib/ -L/opt/homebrew/opt/llvm@15/c++/"' >> $GITHUB_ENV
+            echo 'CPPFLAGS="-I/opt/homebrew/opt/llvm@15/include"' >> $GITHUB_ENV
+            echo 'CPATH="/opt/homebrew/include/"' >> $GITHUB_ENV
+            echo 'LIBRARY_PATH="/opt/homebrew/lib/"' >> $GITHUB_ENV
+            echo "CC=$(brew --prefix llvm@15)/bin/clang" >> $GITHUB_ENV
+            echo "CXX=$(brew --prefix llvm@15)/bin/clang++" >> $GITHUB_ENV
+          else
+            echo "CC=$(brew --prefix llvm@18)/bin/clang" >> $GITHUB_ENV
+            echo "CXX=$(brew --prefix llvm@18)/bin/clang++" >> $GITHUB_ENV
+          fi
         fi
         echo "SDKROOT=$(xcrun --sdk macosx --show-sdk-path)" >> $GITHUB_ENV
       env:
@@ -353,8 +419,7 @@ jobs:
     - name: Install deps
       run: |
         brew update --force 
-        brew remove ruby@3.0
-        brew remove swiftlint
+        brew remove unxip
         # workaround for https://github.com/actions/setup-python/issues/577
         for pkg in $(brew list | grep '^python@'); do
           brew unlink "$pkg"
