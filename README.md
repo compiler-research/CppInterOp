@@ -6,6 +6,8 @@
 
 [![Build Status](https://github.com/compiler-research/CppInterOp/actions/workflows/MacOS.yml/badge.svg)](https://github.com/compiler-research/CppInterOp/actions/workflows/MacOS.yml)
 
+[![Build Status](https://github.com/compiler-research/CppInterOp/actions/workflows/MacOS-arm.yml/badge.svg)](https://github.com/compiler-research/CppInterOp/actions/workflows/MacOS-arm.yml)
+
 [![Build Status](https://github.com/compiler-research/CppInterOp/actions/workflows/Windows.yml/badge.svg)](https://github.com/compiler-research/CppInterOp/actions/workflows/Windows.yml)
 
 [![Build Status](https://github.com/compiler-research/CppInterOp/actions/workflows/emscripten.yml/badge.svg)](https://github.com/compiler-research/CppInterOp/actions/workflows/emscripten.yml)
