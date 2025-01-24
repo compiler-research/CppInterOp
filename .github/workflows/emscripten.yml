@@ -624,7 +624,7 @@ jobs:
                 -DLLVM_ENABLE_WERROR=On                      \
                 ../
         fi
-        EMCC_DEBUG=1 emmake make -j ${{ env.ncpus }}  check-cppinterop
+        emmake make -j ${{ env.ncpus }}  check-cppinterop
  
         echo "CB_PYTHON_DIR=$CB_PYTHON_DIR" >> $GITHUB_ENV
         echo "CPPINTEROP_BUILD_DIR=$CPPINTEROP_BUILD_DIR" >> $GITHUB_ENV
