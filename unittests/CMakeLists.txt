@@ -9,7 +9,7 @@ endif()
 
 if(EMSCRIPTEN)
   # By removing gtest_main and gmock_main you avoid duplicate symbol error (probably not the best solution)
-  set(gtest_libs gtest gmock)
+  set(gtest_libs gtest_main gmock)
 else()
   set(gtest_libs gtest gtest_main)
   # Clang prior than clang13 (I think) merges both gmock into gtest.
