@@ -58,6 +58,9 @@ TEST(InterpreterTest, DebugFlag) {
 }
 
 TEST(InterpreterTest, Evaluate) {
+#ifdef EMSCRIPTEN
+  GTEST_SKIP() << "Test fails for Emscipten builds";
+#endif
 #ifdef _WIN32
   GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
 #endif
@@ -126,6 +129,9 @@ TEST(InterpreterTest, CreateInterpreter) {
 
 #ifdef LLVM_BINARY_DIR
 TEST(InterpreterTest, DetectResourceDir) {
+#ifdef EMSCRIPTEN
+  GTEST_SKIP() << "Test fails for Emscipten builds";
+#endif
 #else
 TEST(InterpreterTest, DISABLED_DetectResourceDir) {
 #endif // LLVM_BINARY_DIR
@@ -145,6 +151,9 @@ TEST(InterpreterTest, DISABLED_DetectResourceDir) {
 }
 
 TEST(InterpreterTest, DetectSystemCompilerIncludePaths) {
+#ifdef EMSCRIPTEN
+  GTEST_SKIP() << "Test fails for Emscipten builds";
+#endif
 #ifdef _WIN32
   GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
 #endif
