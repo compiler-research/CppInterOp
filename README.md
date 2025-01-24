@@ -2,7 +2,11 @@
 
 [![Build Status](https://github.com/compiler-research/CppInterOp/actions/workflows/Ubuntu.yml/badge.svg)](https://github.com/compiler-research/CppInterOp/actions/workflows/Ubuntu.yml)
 
+[![Build Status](https://github.com/compiler-research/CppInterOp/actions/workflows/Ubuntu-arm.yml/badge.svg)](https://github.com/compiler-research/CppInterOp/actions/workflows/Ubuntu-arm.yml)
+
 [![Build Status](https://github.com/compiler-research/CppInterOp/actions/workflows/MacOS.yml/badge.svg)](https://github.com/compiler-research/CppInterOp/actions/workflows/MacOS.yml)
+
+[![Build Status](https://github.com/compiler-research/CppInterOp/actions/workflows/MacOS-arm.yml/badge.svg)](https://github.com/compiler-research/CppInterOp/actions/workflows/MacOS-arm.yml)
 
 [![Build Status](https://github.com/compiler-research/CppInterOp/actions/workflows/Windows.yml/badge.svg)](https://github.com/compiler-research/CppInterOp/actions/workflows/Windows.yml)
 
