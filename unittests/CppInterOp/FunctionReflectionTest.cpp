@@ -532,6 +532,9 @@ TEST(FunctionReflectionTest, ExistsFunctionTemplate) {
 }
 
 TEST(FunctionReflectionTest, InstantiateTemplateFunctionFromString) {
+#ifdef EMSCRIPTEN
+  GTEST_SKIP() << "Test crashes gtest on Emscipten";
+#endif
   if (llvm::sys::RunningOnValgrind())
     GTEST_SKIP() << "XFAIL due to Valgrind report";
   Cpp::CreateInterpreter();
@@ -798,6 +801,9 @@ TEST(FunctionReflectionTest, IsStaticMethod) {
 }
 
 TEST(FunctionReflectionTest, GetFunctionAddress) {
+#ifdef EMSCRIPTEN
+  GTEST_SKIP() << "Test crashes gtest on Emscipten";
+#endif
   if (llvm::sys::RunningOnValgrind())
     GTEST_SKIP() << "XFAIL due to Valgrind report";
 #ifdef _WIN32
@@ -842,6 +848,9 @@ TEST(FunctionReflectionTest, IsVirtualMethod) {
 }
 
 TEST(FunctionReflectionTest, JitCallAdvanced) {
+#ifdef EMSCRIPTEN
+  GTEST_SKIP() << "Test crashes gtest on Emscipten";
+#endif
   if (llvm::sys::RunningOnValgrind())
     GTEST_SKIP() << "XFAIL due to Valgrind report";
   std::vector<Decl*> Decls;
@@ -866,6 +875,9 @@ TEST(FunctionReflectionTest, JitCallAdvanced) {
 
 
 TEST(FunctionReflectionTest, GetFunctionCallWrapper) {
+#ifdef EMSCRIPTEN
+  GTEST_SKIP() << "Test crashes gtest on Emscipten";
+#endif
   if (llvm::sys::RunningOnValgrind())
     GTEST_SKIP() << "XFAIL due to Valgrind report";
 #if defined(CPPINTEROP_USE_CLING) && defined(_WIN32)
@@ -1145,6 +1157,9 @@ TEST(FunctionReflectionTest, GetFunctionArgDefault) {
 }
 
 TEST(FunctionReflectionTest, Construct) {
+#ifdef EMSCRIPTEN
+  GTEST_SKIP() << "Test fails for Emscipten builds";
+#endif
   if (llvm::sys::RunningOnValgrind())
     GTEST_SKIP() << "XFAIL due to Valgrind report";
 #ifdef _WIN32
@@ -1185,6 +1200,9 @@ TEST(FunctionReflectionTest, Construct) {
 }
 
 TEST(FunctionReflectionTest, Destruct) {
+#ifdef EMSCRIPTEN
+  GTEST_SKIP() << "Test fails for Emscipten builds";
+#endif
   if (llvm::sys::RunningOnValgrind())
     GTEST_SKIP() << "XFAIL due to Valgrind report";
 
