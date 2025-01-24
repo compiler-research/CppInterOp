@@ -601,9 +601,9 @@ jobs:
                 -DLLVM_ENABLE_WERROR=On                      \
                 ../
         fi
-        
-        emmake make -j ${{ env.ncpus }} install
 
+        emmake make -j ${{ env.ncpus }}  check-cppinterop
+        
         cd ..
         
         echo "CB_PYTHON_DIR=$CB_PYTHON_DIR" >> $GITHUB_ENV

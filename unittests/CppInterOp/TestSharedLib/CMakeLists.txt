@@ -1,3 +1,9 @@
+if(EMSCRIPTEN)
+# Without this it tries compiling to static library and get a warning
+set_property(GLOBAL PROPERTY TARGET_SUPPORTS_SHARED_LIBS TRUE)
+set(CMAKE_STRIP FALSE)
+endif()
+
 add_llvm_library(TestSharedLib
   SHARED
   DISABLE_LLVM_LINK_LLVM_DYLIB
@@ -8,4 +14,17 @@ set_output_directory(TestSharedLib
   BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/unittests/bin/$<CONFIG>/
   LIBRARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/unittests/bin/$<CONFIG>/
   )
+
+set_target_properties(TestSharedLib
+  PROPERTIES NO_SONAME 1
+)
+
+if(EMSCRIPTEN)
+# Without this you get an error that -gc-sections and -r cannot be used together. 
+# Not sure I have picked the correct one to keep
+target_link_options(TestSharedLib PRIVATE
+    "SHELL: -Wl,--no-gc-sections -s LINKABLE=1 -s WASM_BIGINT -s SIDE_MODULE=1"
+  )
+endif()
+
 set_target_properties(TestSharedLib PROPERTIES FOLDER "Tests")
