@@ -370,8 +370,7 @@ endif ()
 
 # Fixes "C++ exception handler used, but unwind semantics are not enabled" warning Windows
 if (MSVC)
-  message(STATUS "CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS}")
-  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /EHs-")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /EHsc-")
 endif ()
 
 if (APPLE)
@@ -517,3 +516,4 @@ add_subdirectory(lib)
 if (CPPINTEROP_ENABLE_TESTING)
   add_subdirectory(unittests)
 endif(CPPINTEROP_ENABLE_TESTING)
+  message(STATUS "CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS}")
