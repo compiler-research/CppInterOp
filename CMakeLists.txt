@@ -370,6 +370,7 @@ endif ()
 
 # Fixes "C++ exception handler used, but unwind semantics are not enabled" warning Windows
 if (MSVC)
+  message(STATUS "CMAKE_CXX_FLAGS ${CMAKE_CXX_FLAGS}")
   set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /EHsc-")
 endif ()
 
