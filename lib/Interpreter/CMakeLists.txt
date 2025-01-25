@@ -31,13 +31,8 @@ if(EMSCRIPTEN)
 else()
   IF(WIN32)
     llvm_map_components_to_libnames(
-        llvm_libs
-       ${LLVM_TARGETS_TO_BUILD}
-       BinaryFormat
-       Core
-       Object
-       OrcJit
-       Support
+        llvm_lib_shared
+        LLVM-20git
 )
   else()
     set(LLVM_LINK_COMPONENTS
@@ -155,7 +150,7 @@ else()
     ${DLM}
     )
     target_link_libraries(clangCppInterOp
-      PRIVATE ${llvm_libs} 
+      PRIVATE ${llvm_lib_shared} 
     )
   endif()
 endif()
