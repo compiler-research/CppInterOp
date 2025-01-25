@@ -29,14 +29,17 @@ if(EMSCRIPTEN)
     PUBLIC "SHELL: -s WASM_BIGINT"
   )
 else()
-  set(LLVM_LINK_COMPONENTS
-    ${LLVM_TARGETS_TO_BUILD}
-    BinaryFormat
-    Core
-    Object
-    OrcJit
-    Support
-  )
+  IF(WIN32)
+    set(LLVM_LINK_COMPONENTS "")
+  else()
+    set(LLVM_LINK_COMPONENTS
+      ${LLVM_TARGETS_TO_BUILD}
+      BinaryFormat
+      Core
+      Object
+      OrcJit
+      Support
+    )
   # FIXME: Investigate why this needs to be conditionally included.
   if ("LLVMFrontendDriver" IN_LIST LLVM_AVAILABLE_LIBS)
     list(APPEND LLVM_LINK_COMPONENTS  FrontendDriver)
