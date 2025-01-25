@@ -30,7 +30,18 @@ if(EMSCRIPTEN)
   )
 else()
   IF(WIN32)
-    set(LLVM_LINK_COMPONENTS "")
+    llvm_map_components_to_libnames(
+        llvm_libs
+        ${LLVM_TARGETS_TO_BUILD}
+        orcjit
+        support
+        core
+        irreader
+        codegen
+        mc
+        mcparser
+        option
+)
   else()
     set(LLVM_LINK_COMPONENTS
       ${LLVM_TARGETS_TO_BUILD}
@@ -140,14 +151,15 @@ else()
     ${link_libs}
   )
   else()
-  llvm_add_library(clangCppInterOp
-    DISABLE_LLVM_LINK_LLVM_DYLIB
+    add_library(clangCppInterOp
+    SHARED
     CppInterOp.cpp
     CXCppInterOp.cpp
     ${DLM}
-    LINK_LIBS
-    ${link_libs}
-  )  
+    )
+    target_link_libraries(clangCppInterOp
+      PRIVATE ${llvm_libs} 
+    )
   endif()
 endif()
 
