@@ -29,12 +29,7 @@ if(EMSCRIPTEN)
     PUBLIC "SHELL: -s WASM_BIGINT"
   )
 else()
-  IF(WIN32)
-    llvm_map_components_to_libnames(
-        llvm_lib_shared
-        LLVM-20git
-)
-  else()
+  IF(NOT WIN32)
     set(LLVM_LINK_COMPONENTS
       ${LLVM_TARGETS_TO_BUILD}
       BinaryFormat
@@ -150,7 +145,7 @@ else()
     ${DLM}
     )
     target_link_libraries(clangCppInterOp
-      PRIVATE ${llvm_lib_shared} 
+      PRIVATE LLVM-20git
     )
   endif()
 endif()
