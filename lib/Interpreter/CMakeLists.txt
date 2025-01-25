@@ -138,15 +138,11 @@ else()
     ${link_libs}
   )
   else()
-    add_library(clangCppInterOp
-    SHARED
+  llvm_add_library(clangCppInterOp
     CppInterOp.cpp
     CXCppInterOp.cpp
     ${DLM}
-    )
-    set_target_properties(clangCppInterOp PROPERTIES
-      LINK_FLAGS "-lLLVM-20git"
-    )
+  )
   endif()
 endif()
 
