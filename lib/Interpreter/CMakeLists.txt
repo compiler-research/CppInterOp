@@ -144,8 +144,8 @@ else()
     CXCppInterOp.cpp
     ${DLM}
     )
-    target_link_libraries(clangCppInterOp
-      PRIVATE LLVM-20git
+    set_target_properties(clangCppInterOp PROPERTIES
+      LINK_FLAGS "-lLLVM-20git"
     )
   endif()
 endif()
