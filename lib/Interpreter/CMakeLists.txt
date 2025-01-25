@@ -40,6 +40,7 @@ else()
       OrcJit
       Support
     )
+  endif()
   # FIXME: Investigate why this needs to be conditionally included.
   if ("LLVMFrontendDriver" IN_LIST LLVM_AVAILABLE_LIBS)
     list(APPEND LLVM_LINK_COMPONENTS  FrontendDriver)
