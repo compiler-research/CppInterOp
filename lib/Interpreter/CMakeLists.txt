@@ -32,15 +32,12 @@ else()
   IF(WIN32)
     llvm_map_components_to_libnames(
         llvm_libs
-        ${LLVM_TARGETS_TO_BUILD}
-        orcjit
-        support
-        core
-        irreader
-        codegen
-        mc
-        mcparser
-        option
+       ${LLVM_TARGETS_TO_BUILD}
+       BinaryFormat
+       Core
+       Object
+       OrcJit
+       Support
 )
   else()
     set(LLVM_LINK_COMPONENTS
