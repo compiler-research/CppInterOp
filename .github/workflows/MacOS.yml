@@ -170,7 +170,7 @@ jobs:
                 -G Ninja                                           \
                 ../llvm
           ninja clang -j ${{ env.ncpus }}
-          ninja cling -j ${{ env.ncpus }}
+          ninja clingInterpreter -j ${{ env.ncpus }}
           # Now build gtest.a and gtest_main for CppInterOp to run its tests.
           ninja gtest_main -j ${{ env.ncpus }}
         else
