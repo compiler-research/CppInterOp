@@ -596,7 +596,7 @@ jobs:
         echo "Running valgrind on passing tests"
         CLANG_VERSION="${{ matrix.clang-runtime }}"
         SUPPRESSION_FILE="../etc/clang${CLANG_VERSION}-valgrind_arm.supp"
-        valgrind --show-error-list=yes --error-exitcode=1 --track-origins=yes --suppressions="${SUPPRESSION_FILE}" --suppressions=../etc/valgrind-cppyy-cling.supp python -m pytest -m "not xfail" -sv -ra
+        valgrind --show-error-list=yes --error-exitcode=1 --track-origins=yes --gen-suppressions=all --suppressions="${SUPPRESSION_FILE}" --suppressions=../etc/valgrind-cppyy-cling.supp python -m pytest -m "not xfail" -sv -ra
         export RETCODE=+$?
         echo ::endgroup::
 
