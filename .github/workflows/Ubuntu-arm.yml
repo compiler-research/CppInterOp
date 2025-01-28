@@ -310,7 +310,7 @@ jobs:
             os: ubuntu-24.04-arm
             compiler: gcc-12
             clang-runtime: '19'
-            cling: On
+            cling: Off
           - name: ubu24-arm-gcc12-clang-repl-18
             os: ubuntu-24.04-arm
             compiler: gcc-12
