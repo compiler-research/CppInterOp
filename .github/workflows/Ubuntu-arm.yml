@@ -302,32 +302,36 @@ jobs:
             clang-runtime: '13'
             cling: On
             cling-version: '1.0'
-          - name: ubu24-arm-gcc12-clang-repl-19
+          - name: ubu24-arm-gcc12-clang-repl-19-cppyy
             os: ubuntu-24.04-arm
             compiler: gcc-12
             clang-runtime: '19'
             cling: Off
-          - name: ubu24-arm-gcc12-clang-repl-18
+            cppyy: On
+          - name: ubu24-arm-gcc12-clang-repl-18-cppyy
             os: ubuntu-24.04-arm
             compiler: gcc-12
             clang-runtime: '18'
             cling: Off
-          - name: ubu24-arm-gcc12-clang-repl-17
+            cppyy: On
+          - name: ubu24-arm-gcc12-clang-repl-17-cppyy
             os: ubuntu-24.04-arm
             compiler: gcc-12
             clang-runtime: '17'
             cling: Off
+            cppyy: On
           - name: ubu24-arm-gcc12-clang-repl-16
             os: ubuntu-24.04-arm
             compiler: gcc-12
             clang-runtime: '16'
             cling: Off
             cppyy: Off
-          - name: ubu24-arm-gcc9-clang13-cling
+          - name: ubu24-arm-gcc9-clang13-cling-cppyy
             os: ubuntu-24.04-arm
             compiler: gcc-9
             clang-runtime: '13'
             cling: On
+            cppyy: On
             cling-version: '1.0'
 
     steps:
