@@ -314,33 +314,34 @@ jobs:
             cling: On
             cling-version: '1.0'
             cppyy: On
-          - name: ubu24-x86-gcc12-clang-repl-19
+          - name: ubu24-x86-gcc12-clang-repl-19-cppyy
             os: ubuntu-24.04
             compiler: gcc-12
             clang-runtime: '19'
-            cling: Off
-          - name: ubu24-x86-gcc12-clang-repl-18
+            cling: On
+          - name: ubu24-x86-gcc12-clang-repl-18-cppyy
             os: ubuntu-24.04
             compiler: gcc-12
             clang-runtime: '18'
-            cling: Off
-          - name: ubu24-x86-gcc12-clang-repl-17
+            cling: On
+          - name: ubu24-x86-gcc12-clang-repl-17-cppyy
             os: ubuntu-24.04
             compiler: gcc-12
             clang-runtime: '17'
-            cling: Off
-          - name: ubu24-x86-gcc12-clang-repl-16
+            cling: On
+          - name: ubu24-x86-gcc12-clang-repl-16-cppyy
             os: ubuntu-24.04
             compiler: gcc-12
             clang-runtime: '16'
             cling: Off
-            cppyy: Off
-          - name: ubu24-x86-gcc9-clang13-cling
+            cppyy: On
+          - name: ubu24-x86-gcc9-clang13-cling-cppyy
             os: ubuntu-24.04
             compiler: gcc-9
             clang-runtime: '13'
             cling: On
             cling-version: '1.0'
+            cppyy: On
 
     steps:
     - uses: actions/checkout@v4
