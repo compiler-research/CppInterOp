@@ -329,12 +329,11 @@ jobs:
             compiler: gcc-12
             clang-runtime: '17'
             cling: On
-          - name: ubu24-x86-gcc12-clang-repl-16-cppyy
+          - name: ubu24-x86-gcc12-clang-repl-16
             os: ubuntu-24.04
             compiler: gcc-12
             clang-runtime: '16'
             cling: Off
-            cppyy: On
           - name: ubu24-x86-gcc9-clang13-cling-cppyy
             os: ubuntu-24.04
             compiler: gcc-9
