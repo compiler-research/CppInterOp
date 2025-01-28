@@ -314,33 +314,37 @@ jobs:
             cling: On
             cling-version: '1.0'
             cppyy: On
-          - name: ubu24-x86-gcc12-clang-repl-19
+          - name: ubu24-x86-gcc12-clang-repl-19-cppyy
             os: ubuntu-24.04
             compiler: gcc-12
             clang-runtime: '19'
             cling: Off
-          - name: ubu24-x86-gcc12-clang-repl-18
+            cppyy: On
+          - name: ubu24-x86-gcc12-clang-repl-18-cppyy
             os: ubuntu-24.04
             compiler: gcc-12
             clang-runtime: '18'
             cling: Off
-          - name: ubu24-x86-gcc12-clang-repl-17
+            cppyy: On
+          - name: ubu24-x86-gcc12-clang-repl-17-cppyy
             os: ubuntu-24.04
             compiler: gcc-12
             clang-runtime: '17'
             cling: Off
+            cppyy: On
           - name: ubu24-x86-gcc12-clang-repl-16
             os: ubuntu-24.04
             compiler: gcc-12
             clang-runtime: '16'
             cling: Off
             cppyy: Off
-          - name: ubu24-x86-gcc9-clang13-cling
+          - name: ubu24-x86-gcc9-clang13-cling-cppyy
             os: ubuntu-24.04
             compiler: gcc-9
             clang-runtime: '13'
             cling: On
             cling-version: '1.0'
+            cppyy: On
 
     steps:
     - uses: actions/checkout@v4
@@ -604,7 +608,7 @@ jobs:
         echo "Running valgrind on passing tests"
         CLANG_VERSION="${{ matrix.clang-runtime }}"
         SUPPRESSION_FILE="../etc/clang${CLANG_VERSION}-valgrind.supp"
-        valgrind --show-error-list=yes --error-exitcode=1 --track-origins=yes --suppressions="${SUPPRESSION_FILE}" --suppressions=../etc/valgrind-cppyy-cling.supp python -m pytest -m "not xfail" -sv -ra
+        valgrind --show-error-list=yes --error-exitcode=1 --track-origins=yes --gen-suppressions=all --suppressions="${SUPPRESSION_FILE}" --suppressions=../etc/valgrind-cppyy-cling.supp python -m pytest -m "not xfail" -sv -ra
         export RETCODE=+$?
         echo ::endgroup::
 
