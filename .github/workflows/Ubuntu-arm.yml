@@ -275,33 +275,37 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: ubu22-arm-gcc12-clang-repl-19
+          - name: ubu22-arm-gcc12-clang-repl-19-cppyy
             os: ubuntu-22.04-arm
             compiler: gcc-12
             clang-runtime: '19'
             cling: Off
-          - name: ubu22-arm-gcc12-clang-repl-18
+            cppyy: On
+          - name: ubu22-arm-gcc12-clang-repl-18-cppyy
             os: ubuntu-22.04-arm
             compiler: gcc-12
             clang-runtime: '18'
             cling: Off
-          - name: ubu22-arm-gcc12-clang-repl-17
+            cppyy: On
+          - name: ubu22-arm-gcc12-clang-repl-17-cppyy
             os: ubuntu-22.04-arm
             compiler: gcc-12
             clang-runtime: '17'
             cling: Off
+            cppyy: On
           - name: ubu22-arm-gcc12-clang-repl-16
             os: ubuntu-22.04-arm
             compiler: gcc-12
             clang-runtime: '16'
             cling: Off
             cppyy: Off
-          - name: ubu22-arm-gcc9-clang13-cling
+          - name: ubu22-arm-gcc9-clang13-cling-cppyy
             os: ubuntu-22.04-arm
             compiler: gcc-9
             clang-runtime: '13'
             cling: On
             cling-version: '1.0'
+            cppyy: On
           - name: ubu24-arm-gcc12-clang-repl-19
             os: ubuntu-24.04-arm
             compiler: gcc-12
@@ -395,7 +399,7 @@ jobs:
         sudo apt-get update
         sudo apt-get install git g++ debhelper devscripts gnupg python3 doxygen graphviz python3-sphinx
         sudo apt-get install -y libc6-dbg
-        sudo apt-get install valgrind
+        sudo snap install valgrind --classic
         sudo apt autoremove
         sudo apt clean
         # Install libraries used by the cppyy test suite
@@ -591,8 +595,8 @@ jobs:
     
         echo "Running valgrind on passing tests"
         CLANG_VERSION="${{ matrix.clang-runtime }}"
-        SUPPRESSION_FILE="../etc/clang${CLANG_VERSION}-valgrind.supp"
-        valgrind --show-error-list=yes --error-exitcode=1 --track-origins=yes --suppressions="${SUPPRESSION_FILE}" --suppressions=../etc/valgrind-cppyy-cling.supp python -m pytest -m "not xfail" -sv -ra
+        SUPPRESSION_FILE="../etc/clang${CLANG_VERSION}-valgrind_arm.supp"
+        valgrind --show-error-list=yes --error-exitcode=1 --track-origins=yes --gen-suppressions=all --suppressions="${SUPPRESSION_FILE}" --suppressions=../etc/valgrind-cppyy-cling.supp python -m pytest -m "not xfail" -sv -ra
         export RETCODE=+$?
         echo ::endgroup::
 
