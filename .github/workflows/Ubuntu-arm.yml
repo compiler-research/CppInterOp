@@ -285,13 +285,13 @@ jobs:
             os: ubuntu-22.04-arm
             compiler: gcc-12
             clang-runtime: '18'
-            cling: On
+            cling: Off
             cppyy: On
           - name: ubu22-arm-gcc12-clang-repl-17-cppyy
             os: ubuntu-22.04-arm
             compiler: gcc-12
             clang-runtime: '17'
-            cling: On
+            cling: Off
             cppyy: On
           - name: ubu22-arm-gcc12-clang-repl-16
             os: ubuntu-22.04-arm
