@@ -21,13 +21,13 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: win2025-msvc-clang-repl-19
+          - name: win2025-shared-lib
             os: windows-2025
-            compiler: msvc
-            clang-runtime: '19'
+            compiler: clang
+            clang-runtime: '18'
             cling: Off
             llvm_enable_projects: "clang"
-            llvm_targets_to_build: "host;NVPTX"
+            llvm_targets_to_build: "host"
             
     steps:
     - uses: actions/checkout@v4
@@ -73,7 +73,7 @@ jobs:
         path: |
           llvm-project
           ${{ matrix.cling=='On' && 'cling' || '' }}
-        key: ${{ env.CLING_HASH }}-${{ runner.os }}-${{ matrix.os }}-${{ matrix.compiler }}-clang-${{ matrix.clang-runtime }}.x-patch-${{ hashFiles(format('patches/llvm/clang{0}-*.patch', matrix.clang-runtime)) || 'none' }}
+        key: ${{ env.CLING_HASH }}-${{ runner.os }}-${{ matrix.os }}-${{ matrix.compiler }}-clang-${{ matrix.clang-runtime }}.x-patch-${{ hashFiles(format('patches/llvm/clang{0}-*.patch', matrix.clang-runtime)) || 'none' }}-shared-lib
         lookup-only: true
 
     - name: Setup default Build Type on Windows
@@ -93,10 +93,10 @@ jobs:
           choco install llvm --version=$ver --no-progress -my
           clang --version
           #
-          $env:CC="clang"
-          $env:CXX="clang++"
-          echo "CC=clang" >> $env:GITHUB_ENV
-          echo "CXX=clang++" >> $env:GITHUB_ENV
+          $env:CC="clang-cl"
+          $env:CXX="clang-cl"
+          echo "CC=clang-cl" >> $env:GITHUB_ENV
+          echo "CXX=clang-cl" >> $env:GITHUB_ENV
         }
         elseif ( "${{ matrix.compiler }}" -imatch "msvc" )
         {
@@ -130,7 +130,7 @@ jobs:
         }
         else
         {
-          git clone --depth=1 -b release/${{ matrix.clang-runtime }}.x https://github.com/llvm/llvm-project.git
+          git clone --depth=1 -b llvm-export-api-20.0 https://github.com/fsfod/llvm-project.git
         }
 
         cd llvm-project
@@ -139,20 +139,24 @@ jobs:
         if ( "${{ matrix.cling }}" -imatch "On" )
         {
           cd build
-          cmake -DLLVM_ENABLE_PROJECTS="${{ matrix.llvm_enable_projects}}" `
+          cmake -G Ninja -DLLVM_ENABLE_PROJECTS="${{ matrix.llvm_enable_projects}}" `
                 -DLLVM_EXTERNAL_PROJECTS=cling                `
                 -DLLVM_EXTERNAL_CLING_SOURCE_DIR="$env:CLING_DIR"   `
                 -DLLVM_TARGETS_TO_BUILD="${{ matrix.llvm_targets_to_build }}" `
                 -DCMAKE_BUILD_TYPE=Release                         `
                 -DLLVM_ENABLE_ASSERTIONS=ON                        `
                 -DCLANG_ENABLE_STATIC_ANALYZER=OFF                 `
+                -DLLVM_ENABLE_PLUGINS=On                           `
                 -DCLANG_ENABLE_ARCMT=OFF                           `
                 -DCLANG_ENABLE_FORMAT=OFF                          `
                 -DCLANG_ENABLE_BOOTSTRAP=OFF                       `
                 -DLLVM_ENABLE_ZSTD=OFF                             `
                 -DLLVM_ENABLE_TERMINFO=OFF                         `
                 -DLLVM_ENABLE_LIBXML2=OFF                          `
-                ..\llvm
+                -DLLVM_BUILD_LLVM_DYLIB_VIS=On                     `
+                -DLLVM_DYLIB_COMPONENTS="BinaryFormat;Core;Object;OrcJit;Support;FrontendDriver;OrcDebugging;Coverage;FrontendHLSL;LTO;clangCodeGen;clangStaticAnalyzerCore"               `
+                -DLLVM_LINK_LLVM_DYLIB=On                          `
+                -DCLANG_LINK_CLANG_DYLIB=On -DCMAKE_ASM_MASM_COMPILER=llvm-ml -DCMAKE_ASM_MASM_FLAGS="-m64" ..\llvm
           cmake --build . --config Release --target clang --parallel ${{ env.ncpus }}
           cmake --build . --config Release --target cling --parallel ${{ env.ncpus }}
           # Now build gtest.a and gtest_main for CppInterOp to run its tests.
@@ -174,18 +178,19 @@ jobs:
           }
           cd build
           echo "Apply clang${{ matrix.clang-runtime }}-*.patch patches:"
-          cmake -DLLVM_ENABLE_PROJECTS="${{ matrix.llvm_enable_projects}}"                   `
+          cmake -G Ninja -DLLVM_ENABLE_PROJECTS="${{ matrix.llvm_enable_projects}}"                   `
                 -DLLVM_TARGETS_TO_BUILD="${{ matrix.llvm_targets_to_build }}"          `
-                -DCMAKE_BUILD_TYPE=Release                          `
-                -DLLVM_ENABLE_ASSERTIONS=ON                         `
+                -DCMAKE_BUILD_TYPE=Release           `
+                -DLLVM_ENABLE_ASSERTIONS=ON                        `
+                -DCMAKE_CXX_COMPILER=clang-cl               `
+                -DCMAKE_C_COMPILER=clang-cl                 `
                 -DCLANG_ENABLE_STATIC_ANALYZER=OFF                  `
                 -DCLANG_ENABLE_ARCMT=OFF                            `
-                -DCLANG_ENABLE_FORMAT=OFF                           `
-                -DCLANG_ENABLE_BOOTSTRAP=OFF                        `
-                -DLLVM_ENABLE_ZSTD=OFF                              `
-                -DLLVM_ENABLE_TERMINFO=OFF                          `
-                -DLLVM_ENABLE_LIBXML2=OFF                           `
-                ..\llvm
+                -DLLVM_ENABLE_PLUGINS=On                            `
+                -DLLVM_BUILD_LLVM_DYLIB_VIS=On                      `
+                -DLLVM_BUILD_LLVM_DYLIB=On                         `
+                -DLLVM_LINK_LLVM_DYLIB=On                           `
+                -DCLANG_LINK_CLANG_DYLIB=On -DCMAKE_ASM_MASM_COMPILER=llvm-ml -DCMAKE_ASM_MASM_FLAGS="-m64" ..\llvm
           cmake --build . --config Release --target clang clangInterpreter clangStaticAnalyzerCore --parallel ${{ env.ncpus }}
         }
         cd ..\
@@ -224,10 +229,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: win2025-msvc-clang-repl-19
+          - name: win2025-shared-lib
             os: windows-2025
-            compiler: msvc
-            clang-runtime: '19'
+            compiler: clang
+            clang-runtime: '18'
             cling: Off
             cppyy: Off
 
@@ -283,10 +288,10 @@ jobs:
           choco install llvm --version=$ver --no-progress -my
           clang --version
           #
-          $env:CC="clang"
-          $env:CXX="clang++"
-          echo "CC=clang" >> $env:GITHUB_ENV
-          echo "CXX=clang++" >> $env:GITHUB_ENV
+          $env:CC="clang-cl"
+          $env:CXX="clang-cl"
+          echo "CC=clang-cl" >> $env:GITHUB_ENV
+          echo "CXX=clang-cl" >> $env:GITHUB_ENV
         }
         elseif ( "${{ matrix.compiler }}" -imatch "msvc" )
         {
@@ -304,7 +309,7 @@ jobs:
         path: |
           llvm-project
           ${{ matrix.cling=='On' && 'cling' || '' }}
-        key: ${{ env.CLING_HASH }}-${{ runner.os }}-${{ matrix.os }}-${{ matrix.compiler }}-clang-${{ matrix.clang-runtime }}.x-patch-${{ hashFiles(format('patches/llvm/clang{0}-*.patch', matrix.clang-runtime)) || 'none' }}
+        key: ${{ env.CLING_HASH }}-${{ runner.os }}-${{ matrix.os }}-${{ matrix.compiler }}-clang-${{ matrix.clang-runtime }}.x-patch-${{ hashFiles(format('patches/llvm/clang{0}-*.patch', matrix.clang-runtime)) || 'none' }}-shared-lib
          
     - name: Build and Test/Install CppInterOp on Windows systems
       run: |
@@ -356,23 +361,28 @@ jobs:
         echo "CPPINTEROP_BUILD_DIR=$env:CPPINTEROP_BUILD_DIR" >> $env:GITHUB_ENV  
         if ( "${{ matrix.cling }}" -imatch "On" )
         {
-          cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    `
+          cmake -G Ninja -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    `
                 -DUSE_CLING=ON                                  `
                 -DUSE_REPL=OFF                                  `
+                -DBUILD_SHARED_LIBS=ON                          `
                 -DCling_DIR="$env:LLVM_BUILD_DIR\tools\cling"   `
                 -DLLVM_DIR="$env:LLVM_BUILD_DIR" `
                 -DLLVM_ENABLE_WERROR=On                          `
+                -DLLVM_BUILD_LLVM_DYLIB_VIS=On -DLLVM_LINK_LLVM_DYLIB=On -DCLANG_LINK_CLANG_DYLIB=On -DDISABLE_LLVM_LINK_LLVM_DYLIB=On                           `
                 -DClang_DIR="$env:LLVM_BUILD_DIR"  -DCODE_COVERAGE=${{ env.CODE_COVERAGE }} -DCMAKE_INSTALL_PREFIX="$env:CPPINTEROP_DIR"  ..\
         }
         else
         {
-          cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    `
+          cmake -G Ninja -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    `
                 -DLLVM_DIR="$env:LLVM_BUILD_DIR\lib\cmake\llvm"  `
                 -DLLVM_ENABLE_WERROR=On                          `
+                -DBUILD_SHARED_LIBS=ON                          `
+                -DLLVM_LINK_LLVM_DYLIB=On                           `
+                -DCLANG_LINK_CLANG_DYLIB=On                         `
                 -DClang_DIR="$env:LLVM_BUILD_DIR\lib\cmake\clang"  -DCODE_COVERAGE=${{ env.CODE_COVERAGE }}  -DCMAKE_INSTALL_PREFIX="$env:CPPINTEROP_DIR"  ..\
                 cmake --build . --config ${{ env.BUILD_TYPE }} --target googletest --parallel ${{ env.ncpus }}
         }
-        cmake --build . --config ${{ env.BUILD_TYPE }} --target check-cppinterop --parallel ${{ env.ncpus }}
+        cmake --build . --config ${{ env.BUILD_TYPE }} --target check-cppinterop 
 
     - name: Setup tmate session
       if: ${{ failure() && runner.debug }}

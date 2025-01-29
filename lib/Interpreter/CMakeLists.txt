@@ -29,14 +29,16 @@ if(EMSCRIPTEN)
     PUBLIC "SHELL: -s WASM_BIGINT"
   )
 else()
-  set(LLVM_LINK_COMPONENTS
-    ${LLVM_TARGETS_TO_BUILD}
-    BinaryFormat
-    Core
-    Object
-    OrcJit
-    Support
-  )
+  IF(NOT WIN32)
+    set(LLVM_LINK_COMPONENTS
+      ${LLVM_TARGETS_TO_BUILD}
+      BinaryFormat
+      Core
+      Object
+      OrcJit
+      Support
+    )
+  endif()
   # FIXME: Investigate why this needs to be conditionally included.
   if ("LLVMFrontendDriver" IN_LIST LLVM_AVAILABLE_LIBS)
     list(APPEND LLVM_LINK_COMPONENTS  FrontendDriver)
@@ -77,7 +79,7 @@ else()
   if(NOT WIN32)
     list(APPEND link_libs dl)
   endif()
-
+    
   # Get rid of libLLVM-X.so which is appended to the list of static libraries.
   if (LLVM_LINK_LLVM_DYLIB)
     set(new_libs ${link_libs})
@@ -89,8 +91,10 @@ else()
           if (NOT transitive_libs)
             continue()
           endif()
+          string(REPLACE "version;" "" transitive_libs "${transitive_libs}")
           foreach(transitive_lib ${transitive_libs})
             get_target_property(lib_type ${transitive_lib} TYPE)
+            message(STATUS "lib_type ${lib_type}")
             if("${lib_type}" STREQUAL "STATIC_LIBRARY")
               list(APPEND static_transitive_libs ${transitive_lib})
             else()
@@ -124,8 +128,8 @@ else()
       clangStaticAnalyzerCore
       )
   endif(LLVM_LINK_LLVM_DYLIB)
-
-  add_llvm_library(clangCppInterOp
+  if(NOT WIN32)
+  llvm_add_library(clangCppInterOp
     DISABLE_LLVM_LINK_LLVM_DYLIB
     CppInterOp.cpp
     CXCppInterOp.cpp
@@ -133,6 +137,14 @@ else()
     LINK_LIBS
     ${link_libs}
   )
+  else()
+  llvm_add_library(clangCppInterOp
+    DISABLE_LLVM_LINK_LLVM_DYLIB
+    CppInterOp.cpp
+    CXCppInterOp.cpp
+    ${DLM}
+  )
+  endif()
 endif()
 
 string(REPLACE ";" "\;" _VER CPPINTEROP_VERSION)
