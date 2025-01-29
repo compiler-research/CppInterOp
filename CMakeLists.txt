@@ -67,14 +67,14 @@ include(GNUInstallDirs)
   ## Define supported version of clang and llvm
 
   set(CLANG_MIN_SUPPORTED 13.0)
-  set(CLANG_MAX_SUPPORTED "19.1.x")
-  set(CLANG_VERSION_UPPER_BOUND 20.0.0)
+  set(CLANG_MAX_SUPPORTED "20.1.x")
+  set(CLANG_VERSION_UPPER_BOUND 21.0.0)
   set(LLD_MIN_SUPPORTED 13.0)
-  set(LLD_MAX_SUPPORTED "19.1.x")
-  set(LLD_VERSION_UPPER_BOUND 20.0.0)
+  set(LLD_MAX_SUPPORTED "20.1.x")
+  set(LLD_VERSION_UPPER_BOUND 21.0.0)
   set(LLVM_MIN_SUPPORTED 13.0)
-  set(LLVM_MAX_SUPPORTED "19.1.x")
-  set(LLVM_VERSION_UPPER_BOUND 20.0.0)
+  set(LLVM_MAX_SUPPORTED "20.1.x")
+  set(LLVM_VERSION_UPPER_BOUND 21.0.0)
 
   ## Set Cmake packages search order
 

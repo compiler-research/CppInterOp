@@ -21,6 +21,13 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - name: win2025-msvc-clang-repl-20
+            os: windows-2025
+            compiler: msvc
+            clang-runtime: '20'
+            cling: Off
+            llvm_enable_projects: "clang"
+            llvm_targets_to_build: "host;NVPTX"
           - name: win2025-msvc-clang-repl-19
             os: windows-2025
             compiler: msvc
@@ -224,6 +231,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - name: win2025-msvc-clang-repl-20
+            os: windows-2025
+            compiler: msvc
+            clang-runtime: '20'
+            cling: Off
+            cppyy: Off
           - name: win2025-msvc-clang-repl-19
             os: windows-2025
             compiler: msvc

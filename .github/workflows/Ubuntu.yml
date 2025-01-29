@@ -22,6 +22,13 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - name: ubu22-x86-gcc12-clang-repl-20
+            os: ubuntu-22.04
+            compiler: gcc-12
+            clang-runtime: '20'
+            cling: Off
+            llvm_enable_projects: "clang"
+            llvm_targets_to_build: "host;NVPTX"
           - name: ubu22-x86-gcc12-clang-repl-19
             os: ubuntu-22.04
             compiler: gcc-12
@@ -56,6 +63,13 @@ jobs:
             clang-runtime: '13'
             cling: On
             cling-version: '1.0'
+            llvm_enable_projects: "clang"
+            llvm_targets_to_build: "host;NVPTX"
+          - name: ubu24-x86-gcc12-clang-repl-20
+            os: ubuntu-24.04
+            compiler: gcc-12
+            clang-runtime: '20'
+            cling: Off
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
           - name: ubu24-x86-gcc12-clang-repl-19
@@ -275,6 +289,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - name: ubu22-x86-gcc12-clang-repl-20
+            os: ubuntu-22.04
+            compiler: gcc-12
+            clang-runtime: '20'
+            cling: Off
+            cppyy: Off
           - name: ubu22-x86-gcc12-clang-repl-19-docs
             os: ubuntu-22.04
             compiler: gcc-12
@@ -314,6 +334,12 @@ jobs:
             cling: On
             cling-version: '1.0'
             cppyy: On
+          - name: ubu24-x86-gcc12-clang-repl-20
+            os: ubuntu-24.04
+            compiler: gcc-12
+            clang-runtime: '20'
+            cling: Off
+            cppyy: Off
           - name: ubu24-x86-gcc12-clang-repl-19-cppyy
             os: ubuntu-24.04
             compiler: gcc-12
