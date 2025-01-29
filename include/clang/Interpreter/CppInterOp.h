@@ -548,7 +548,7 @@ namespace Cpp {
   ///\param[in] Args - the list of arguments for interpreter constructor.
   ///\param[in] CPPINTEROP_EXTRA_INTERPRETER_ARGS - an env variable, if defined,
   ///           adds additional arguments to the interpreter.
-  extern "C" CPPINTEROP_API TInterp_t
+  CPPINTEROP_API TInterp_t
   CreateInterpreter(const std::vector<const char*>& Args = {},
                     const std::vector<const char*>& GpuArgs = {});
 
