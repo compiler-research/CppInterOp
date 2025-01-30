@@ -186,9 +186,7 @@ jobs:
           micromamba create -n xeus-lite-host jupyterlite-core -c conda-forge
           micromamba activate xeus-lite-host
           python -m pip install jupyterlite-xeus jupyterlite-core jupyterlab notebook libarchive-c
-          jupyter lite build --XeusAddon.prefix=${{ env.PREFIX }} --contents notebooks/xeus-cpp-lite-demo.ipynb --output-dir dist
-          cp ${{ env.PREFIX }}/bin/xcpp.data dist/extensions/@jupyterlite/xeus/static
-          cp ${{ env.PREFIX }}/lib/libclangCppInterOp.so dist/extensions/@jupyterlite/xeus/static
+          jupyter lite build --XeusAddon.prefix=${{ env.PREFIX }} --contents notebooks/xeus-cpp-lite-demo.ipynb --contents notebooks/images/marie.png --contents notebooks/audio/audio.wav --output-dir dist
 
     - name: Upload artifact
       uses: actions/upload-pages-artifact@v3

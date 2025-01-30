@@ -21,8 +21,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: ubu22-x86-gcc12-clang-repl-19-emscripten
-            os: ubuntu-22.04
+          - name: ubu24-arm-gcc12-clang-repl-19-emscripten
+            os: ubuntu-24.04-arm
             compiler: gcc-12
             clang-runtime: '19'
             cling: Off
@@ -35,11 +35,11 @@ jobs:
             clang-runtime: '19'
             cling: Off
             llvm_enable_projects: "clang;lld"
-            llvm_targets_to_build: "WebAssembly"
+            llvm_targets_to_build: "WebAssembly"            
             emsdk_ver: "3.1.73"
-          - name: osx13-x86-clang-clang-repl-19-emscripten
-            os: macos-13
-            compiler: clang
+          - name: ubu24-x86-gcc12-clang-repl-19-emscripten
+            os: ubuntu-24.04
+            compiler: gcc-12
             clang-runtime: '19'
             cling: Off
             llvm_enable_projects: "clang;lld"
@@ -329,9 +329,24 @@ jobs:
                         -DLLVM_ENABLE_THREADS=OFF                       \
                         -G Ninja                                         \
                         ../llvm
-          emmake ninja clang clang-repl lld -j ${{ env.ncpus }}
+          emmake ninja clang clangInterpreter clangStaticAnalyzerCore lld -j ${{ env.ncpus }}
         fi
-        cd ../..
+        cd ../
+        rm -rf $(find . -maxdepth 1 ! -name "build" ! -name "llvm" ! -name "clang" ! -name ".")
+        if [[ "${cling_on}" == "ON" ]]; then
+          cd ./llvm/
+          rm -rf $(find . -maxdepth 1 ! -name "include" ! -name "lib" ! -name "cmake" ! -name "utils" ! -name ".")
+          cd ../clang/
+          rm -rf $(find . -maxdepth 1 ! -name "include" ! -name "lib" ! -name "cmake" ! -name "utils" ! -name ".")
+          cd ../..
+        else # repl
+          cd ./llvm/
+          rm -rf $(find . -maxdepth 1 ! -name "include" ! -name "lib" ! -name "cmake" ! -name ".")
+          cd ../clang/
+          rm -rf $(find . -maxdepth 1 ! -name "include" ! -name "lib" ! -name "cmake" ! -name ".")
+          cd ../..
+        fi
+
 
     - name: Build LLVM/Cling on Windows systems if the cache is invalid
       if: ${{ runner.os == 'windows' && steps.cache.outputs.cache-hit != 'true' }}
@@ -444,8 +459,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: ubu22-x86-gcc12-clang-repl-19-emscripten_wasm
-            os: ubuntu-22.04
+          - name: ubu24-x86-gcc12-clang-repl-19-emscripten_wasm
+            os: ubuntu-24.04
             compiler: gcc-12
             clang-runtime: '19'
             cling: Off
@@ -458,9 +473,9 @@ jobs:
             cling: Off
             micromamba_shell_init: bash
             emsdk_ver: "3.1.73"
-          - name: osx13-x86-clang-clang-repl-19-emscripten_wasm
-            os: macos-13
-            compiler: clang
+          - name: ubu24-arm-gcc12-clang-repl-19-emscripten_wasm
+            os: ubuntu-24.04-arm
+            compiler: gcc-12
             clang-runtime: '19'
             cling: Off
             micromamba_shell_init: bash
@@ -571,6 +586,7 @@ jobs:
                 -DCODE_COVERAGE=${{ env.CODE_COVERAGE }}        \
                 -DCMAKE_INSTALL_PREFIX=$PREFIX         \
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            \
+                -DLLVM_ENABLE_WERROR=On                      \
                 ../
         else
           emcmake cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    \
@@ -582,6 +598,7 @@ jobs:
                 -DCODE_COVERAGE=${{ env.CODE_COVERAGE }}    \
                 -DCMAKE_INSTALL_PREFIX=$PREFIX      \
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            \
+                -DLLVM_ENABLE_WERROR=On                      \
                 ../
         fi
         
