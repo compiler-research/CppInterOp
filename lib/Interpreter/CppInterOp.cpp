@@ -3590,22 +3590,23 @@ namespace Cpp {
     // Lazy materialization unit class helper
     class AutoloadLibraryMU : public llvm::orc::MaterializationUnit {
       std::string lib;
-      llvm::orc::SymbolNameVector syms;
+      std::string fLibrary;
+      llvm::orc::SymbolNameVector fSymbols;
     public:
-      AutoloadLibraryMU(std::string Library, const llvm::orc::SymbolNameVector &Symbols)
-        : MaterializationUnit({getSymbolFlagsMap(Symbols), nullptr}), lib(std::move(Library)), syms(Symbols) {}
+      AutoloadLibraryMU(const std::string &Library, const llvm::orc::SymbolNameVector &Symbols)
+        : MaterializationUnit({getSymbolFlagsMap(Symbols), nullptr}), fLibrary(Library), fSymbols(Symbols) {}
 
       StringRef getName() const override {
         return "<Symbols from Autoloaded Library>";
       }
 
       void materialize(std::unique_ptr<llvm::orc::MaterializationResponsibility> R) override {
-        if (!sAutoSG || !sAutoSG->isEnabled()) {
-          R->failMaterialization();
-          return;
-        }
+        //if (!sAutoSG || !sAutoSG->isEnabled()) {
+        //  R->failMaterialization();
+        //  return;
+        //}
 
-        LLVM_DEBUG(dbgs() << "Materialize " << lib << " syms=" << syms);
+        LLVM_DEBUG(dbgs() << "Materialize " << lib << " syms=" << fSymbols);
 
         auto& I = getInterp();
         auto *DLM = I.getDynamicLibraryManager();
@@ -3614,7 +3615,7 @@ namespace Cpp {
         llvm::orc::SymbolNameSet failedSymbols;
         bool loadedLibrary = false;
 
-        for (const auto &symbol : syms) {
+        for (const auto &symbol : fSymbols) {
           std::string symbolStr = (*symbol).str();
           std::string nameForDlsym = DemangleNameForDlsym(symbolStr);
 
@@ -3662,8 +3663,12 @@ namespace Cpp {
         if (!loadedSymbols.empty()) {
           llvm::cantFail(R->notifyResolved(loadedSymbols));
 
+#if CLANG_VERSION_MAJOR < 18
           llvm::orc::SymbolDependenceGroup DepGroup;
           llvm::cantFail(R->notifyEmitted({DepGroup}));
+#else
+	  llvm::cantFail(R->notifyEmitted());
+#endif
         }
       }
 

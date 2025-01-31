@@ -20,8 +20,8 @@ target_link_libraries(CppInterOpTests
 )
 
 set_output_directory(CppInterOpTests
-  BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/CppInterOpTests/unittests/bin/$<CONFIG>/
-  LIBRARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/CppInterOpTests/unittests/bin/$<CONFIG>/
+  BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/bin/$<CONFIG>/
+  LIBRARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/bin/$<CONFIG>/
 )
 
 if(NOT WIN32)
