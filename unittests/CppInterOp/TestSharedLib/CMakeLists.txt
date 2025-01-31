@@ -15,18 +15,13 @@ set_output_directory(TestSharedLib
   LIBRARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/unittests/bin/$<CONFIG>/
   )
 
-set_target_properties(TestSharedLib PROPERTIES
+
+if(EMSCRIPTEN)
+  set_target_properties(TestSharedLib PROPERTIES
     NO_SONAME 1
     COMPILE_FLAGS "-s SIDE_MODULE=1"
     LINK_FLAGS "-s WASM_BIGINT  -s SIDE_MODULE=1 -Wl,--export-all"
     SUFFIX ".wasm"
-)
-
-if(EMSCRIPTEN)
-# Without this you get an error that -gc-sections and -r cannot be used together. 
-# Not sure I have picked the correct one to keep
-target_link_options(TestSharedLib PRIVATE
-    "SHELL: -Wl,--no-gc-sections -s LINKABLE=1 -s WASM_BIGINT -s SIDE_MODULE=1"
   )
 endif()
 
