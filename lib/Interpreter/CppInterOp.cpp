@@ -3663,7 +3663,7 @@ namespace Cpp {
         if (!loadedSymbols.empty()) {
           llvm::cantFail(R->notifyResolved(loadedSymbols));
 
-#if CLANG_VERSION_MAJOR < 18
+#if CLANG_VERSION_MAJOR > 18
           llvm::orc::SymbolDependenceGroup DepGroup;
           llvm::cantFail(R->notifyEmitted({DepGroup}));
 #else
