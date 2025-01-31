@@ -15,8 +15,11 @@ set_output_directory(TestSharedLib
   LIBRARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/unittests/bin/$<CONFIG>/
   )
 
-set_target_properties(TestSharedLib
-  PROPERTIES NO_SONAME 1
+set_target_properties(TestSharedLib PROPERTIES
+    NO_SONAME 1
+    COMPILE_FLAGS "-s SIDE_MODULE=1"
+    LINK_FLAGS "-s WASM_BIGINT  -s SIDE_MODULE=1 -Wl,--export-all"
+    SUFFIX ".wasm"
 )
 
 if(EMSCRIPTEN)
