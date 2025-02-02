@@ -250,7 +250,6 @@ jobs:
           brew link --overwrite "$pkg"
         done
         brew upgrade openssl >/dev/null 2>&1 
-        brew install ninja
         brew upgrade
 
     - name: Install deps on Linux
@@ -258,7 +257,6 @@ jobs:
       run: |
         # Install deps
         sudo apt-get update
-        sudo apt-get install ninja-build
         sudo apt-get autoremove
         sudo apt-get clean
 
@@ -300,13 +298,12 @@ jobs:
                         -DLLVM_INCLUDE_EXAMPLES=OFF                     \
                         -DLLVM_INCLUDE_TESTS=OFF                        \
                         -DLLVM_ENABLE_THREADS=OFF                       \
-                        -G Ninja                                         \
                          ../llvm
-          emmake ninja clang cling lld gtest_main -j ${{ env.ncpus }}
+          emmake make clang cling lld gtest_main -j ${{ env.ncpus }}
         else
           # Apply patches
           llvm_vers=$(echo "${{ matrix.clang-runtime }}" | tr '[:lower:]' '[:upper:]')
-          if [[ "${llvm_vers}" == "19" ]]; then
+          if [[ "${llvm_vers}" == "19" ]]||[[ "${llvm_vers}" == "20" ]]; then
             git apply -v ../patches/llvm/emscripten-clang${{ matrix.clang-runtime }}-*.patch
             echo "Apply emscripten-clang${{ matrix.clang-runtime }}-*.patch patches:"
           fi
@@ -327,9 +324,8 @@ jobs:
                         -DLLVM_INCLUDE_EXAMPLES=OFF                     \
                         -DLLVM_INCLUDE_TESTS=OFF                        \
                         -DLLVM_ENABLE_THREADS=OFF                       \
-                        -G Ninja                                         \
                         ../llvm
-          emmake ninja clang clangInterpreter clangStaticAnalyzerCore lld -j ${{ env.ncpus }}
+          emmake make clang clangInterpreter clangStaticAnalyzerCore lld -j ${{ env.ncpus }}
         fi
         cd ../
         rm -rf $(find . -maxdepth 1 ! -name "build" ! -name "llvm" ! -name "clang" ! -name ".")
