@@ -19,16 +19,16 @@ cd ./CppInterOp-wasm
 ```
 
 To create a wasm build of CppInterOp we make use of the emsdk toolchain. This can be installed by executing (we only currently  
-support version 3.1.45)
+support version 3.1.73)
 ```bash
 git clone https://github.com/emscripten-core/emsdk.git
-./emsdk/emsdk install  3.1.45
+./emsdk/emsdk install  3.1.73
 ```
 
 and activate the emsdk environment
 
 ```bash
-./emsdk/emsdk activate 3.1.45
+./emsdk/emsdk activate 3.1.73
 source ./emsdk/emsdk_env.sh
 ```
 

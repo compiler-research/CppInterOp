@@ -27,7 +27,7 @@ jobs:
             clang-runtime: '19'
             cling: Off
             micromamba_shell_init: bash
-            emsdk_ver: "3.1.45"
+            emsdk_ver: "3.1.73"
 
     steps:
     - uses: actions/checkout@v4

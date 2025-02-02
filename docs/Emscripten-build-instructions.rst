@@ -28,18 +28,18 @@ Now move into this directory using the following command
 
 To create a wasm build of CppInterOp we make use of the emsdk toolchain.
 This can be installed by executing (we only currently support version
-3.1.45)
+3.1.73)
 
 .. code:: bash
 
    git clone https://github.com/emscripten-core/emsdk.git
-   ./emsdk/emsdk install  3.1.45
+   ./emsdk/emsdk install  3.1.73
 
 and activate the emsdk environment
 
 .. code:: bash
 
-   ./emsdk/emsdk activate 3.1.45
+   ./emsdk/emsdk activate 3.1.73
    source ./emsdk/emsdk_env.sh
 
 Now clone the 19.x release of the LLVM project repository and CppInterOp
