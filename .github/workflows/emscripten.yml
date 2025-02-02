@@ -28,7 +28,7 @@ jobs:
             cling: Off
             llvm_enable_projects: "clang;lld"
             llvm_targets_to_build: "WebAssembly"
-            emsdk_ver: "3.1.45"
+            emsdk_ver: "3.1.73"
           - name: ubu24-x86-gcc12-clang-repl-20-emscripten
             os: ubuntu-24.04
             compiler: gcc-12
@@ -36,7 +36,7 @@ jobs:
             cling: Off
             llvm_enable_projects: "clang;lld"
             llvm_targets_to_build: "WebAssembly"
-            emsdk_ver: "3.1.45"
+            emsdk_ver: "3.1.73"
           - name: osx15-arm-clang-clang-repl-20-emscripten
             os: macos-15
             compiler: clang
@@ -44,7 +44,7 @@ jobs:
             cling: Off
             llvm_enable_projects: "clang;lld"
             llvm_targets_to_build: "WebAssembly"
-            emsdk_ver: "3.1.45"
+            emsdk_ver: "3.1.73"
             
     steps:
     - uses: actions/checkout@v4
@@ -465,21 +465,21 @@ jobs:
             clang-runtime: '20'
             cling: Off
             micromamba_shell_init: bash
-            emsdk_ver: "3.1.45"
+            emsdk_ver: "3.1.73"
           - name: ubu24-arm-gcc12-clang-repl-20-emscripten_wasm
             os: ubuntu-24.04-arm
             compiler: gcc-12
             clang-runtime: '20'
             cling: Off
             micromamba_shell_init: bash
-            emsdk_ver: "3.1.45"
+            emsdk_ver: "3.1.73"
           - name: osx15-arm-clang-clang-repl-20-emscripten_wasm
             os: macos-15
             compiler: clang
             clang-runtime: '20'
             cling: Off
             micromamba_shell_init: bash
-            emsdk_ver: "3.1.45"
+            emsdk_ver: "3.1.73"
 
     steps:
     - uses: actions/checkout@v4
