@@ -1,33 +1,7 @@
 if(EMSCRIPTEN)
   set_property(GLOBAL PROPERTY TARGET_SUPPORTS_SHARED_LIBS TRUE)
-  set(CMAKE_SHARED_LIBRARY_CREATE_C_FLAGS "-s SIDE_MODULE=1")
-  set(CMAKE_SHARED_LIBRARY_CREATE_CXX_FLAGS "-s SIDE_MODULE=1")
   set(CMAKE_STRIP FALSE)
-
-  add_llvm_library(clangCppInterOp
-    SHARED
-
-    CppInterOp.cpp
-    CXCppInterOp.cpp
-    DynamicLibraryManager.cpp
-    DynamicLibraryManagerSymbol.cpp
-    Paths.cpp
-
-    # Additional libraries from Clang and LLD
-    LINK_LIBS
-    clangInterpreter
-  )
-  #FIXME: Setting no_soname=1 is needed until https://github.com/emscripten-core/emscripten/blob/ac676d5e437525d15df5fd46bc2c208ec6d376a3/cmake/Modules/Platform/Emscripten.cmake#L36
-  # is patched out of emsdk, as --soname is not recognised by emscripten. A PR to do this has been done here https://github.com/emscripten-core/emscripten/pull/23453 
-  #FIXME: A patch is needed to llvm to remove -Wl,-z,defs since it is now recognised on emscripten. What needs to be removed is here
-  # https://github.com/llvm/llvm-project/blob/128e2e446e90c3b1827cfc7d4d19e3c0976beff3/llvm/cmake/modules/HandleLLVMOptions.cmake#L318 . The PR to do try to do this is here 
-  # https://github.com/llvm/llvm-project/pull/123396
-  set_target_properties(clangCppInterOp
-  PROPERTIES NO_SONAME 1
-)
-  target_link_options(clangCppInterOp PRIVATE
-    PUBLIC "SHELL: -s WASM_BIGINT"
-  )
+  set(LLVM_LINK_COMPONENTS "")
 else()
   set(LLVM_LINK_COMPONENTS
     ${LLVM_TARGETS_TO_BUILD}
@@ -41,6 +15,7 @@ else()
   if ("LLVMFrontendDriver" IN_LIST LLVM_AVAILABLE_LIBS)
     list(APPEND LLVM_LINK_COMPONENTS  FrontendDriver)
   endif()
+endif()
   if ("LLVMOrcDebugging" IN_LIST LLVM_AVAILABLE_LIBS)
     list(APPEND LLVM_LINK_COMPONENTS OrcDebugging)
   endif()
@@ -65,6 +40,11 @@ else()
     set(cling_clang_interp clangInterpreter)
   endif()
 
+if(EMSCRIPTEN)
+  set(link_libs
+    ${cling_clang_interp}
+    )
+else()
   set(link_libs
     ${cling_clang_interp}
     clangAST
@@ -73,6 +53,7 @@ else()
     clangLex
     clangSema
     )
+endif()
 
   if(NOT WIN32)
     list(APPEND link_libs dl)
@@ -124,7 +105,6 @@ else()
       clangStaticAnalyzerCore
       )
   endif(LLVM_LINK_LLVM_DYLIB)
-
   add_llvm_library(clangCppInterOp
     DISABLE_LLVM_LINK_LLVM_DYLIB
     CppInterOp.cpp
@@ -133,6 +113,21 @@ else()
     LINK_LIBS
     ${link_libs}
   )
+
+if(EMSCRIPTEN)
+
+  #FIXME: Setting no_soname=1 is needed until https://github.com/emscripten-core/emscripten/blob/ac676d5e437525d15df5fd46bc2c208ec6d376a3/cmake/Modules/Platform/Emscripten.cmake#L36
+  # is patched out of emsdk, as --soname is not recognised by emscripten. A PR to do this has been done here https://github.com/emscripten-core/emscripten/pull/23453 
+  #FIXME: A patch is needed to llvm to remove -Wl,-z,defs since it is now recognised on emscripten. What needs to be removed is here
+  # https://github.com/llvm/llvm-project/blob/128e2e446e90c3b1827cfc7d4d19e3c0976beff3/llvm/cmake/modules/HandleLLVMOptions.cmake#L318 . The PR to do try to do this is here 
+  # https://github.com/llvm/llvm-project/pull/123396
+  set_target_properties(clangCppInterOp PROPERTIES 
+    NO_SONAME 1
+    COMPILE_FLAGS "-s SIDE_MODULE=1"
+    LINK_FLAGS "-s WASM_BIGINT  -s SIDE_MODULE=1 -Wl,--export-all"
+    SUFFIX ".wasm"
+  )
+
 endif()
 
 string(REPLACE ";" "\;" _VER CPPINTEROP_VERSION)

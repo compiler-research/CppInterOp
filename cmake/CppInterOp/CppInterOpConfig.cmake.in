@@ -17,7 +17,11 @@ endif()
 
 ### build/install workaround
 if (@BUILD_SHARED_LIBS@)
-  set(_lib_suffix ${CMAKE_SHARED_LIBRARY_SUFFIX})
+  if(EMSCRIPTEN)
+    set(_lib_suffix ".wasm")
+  else()
+    set(_lib_suffix ${CMAKE_SHARED_LIBRARY_SUFFIX})
+  endif()
   set(_lib_prefix ${CMAKE_SHARED_LIBRARY_PREFIX})
 else()
   set(_lib_suffix ${CMAKE_STATIC_LIBRARY_SUFFIX})

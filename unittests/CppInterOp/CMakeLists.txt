@@ -14,15 +14,27 @@ add_cppinterop_unittest(CppInterOpTests
   VariableReflectionTest.cpp
 )
 
-target_link_libraries(CppInterOpTests
-  PRIVATE
-  clangCppInterOp
-)
+if(EMSCRIPTEN)
+  set_target_properties(CppInterOpTests PROPERTIES
+  LINK_FLAGS "-s MAIN_MODULE=1 -s MODULARIZE=1"
+  )
+endif()
+  target_link_libraries(CppInterOpTests
+    PRIVATE
+    clangCppInterOp
+  )
 
-set_output_directory(CppInterOpTests
-  BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/CppInterOpTests/unittests/bin/$<CONFIG>/
-  LIBRARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/CppInterOpTests/unittests/bin/$<CONFIG>/
-)
+IF(EMSCRIPTEN)
+  set_output_directory(CppInterOpTests
+    BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}
+    LIBRARY_DIR ${CMAKE_CURRENT_BINARY_DIR}
+  )
+else()
+  set_output_directory(CppInterOpTests
+    BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/CppInterOpTests/unittests/bin/$<CONFIG>/
+    LIBRARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/CppInterOpTests/unittests/bin/$<CONFIG>/
+  )
+endif()
 
 if(NOT WIN32)
   set_source_files_properties(VariableReflectionTest.cpp PROPERTIES COMPILE_FLAGS
@@ -43,10 +55,25 @@ target_link_libraries(DynamicLibraryManagerTests
   clangCppInterOp
 )
 
-set_output_directory(DynamicLibraryManagerTests
-  BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/TestSharedLib/unittests/bin/$<CONFIG>/
-  LIBRARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/TestSharedLib/unittests/bin/$<CONFIG>/
-)
+if(EMSCRIPTEN)
+  target_link_options(DynamicLibraryManagerTests PRIVATE
+    "SHELL: -s MAIN_MODULE=1 -s MODULARIZE=1"
+  )
+endif()
+
+IF(EMSCRIPTEN)
+  set_output_directory(DynamicLibraryManagerTests
+    BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}
+    LIBRARY_DIR ${CMAKE_CURRENT_BINARY_DIR}
+  )
+else()
+  set_output_directory(DynamicLibraryManagerTests
+    BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/TestSharedLib/unittests/bin/$<CONFIG>/
+    LIBRARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/TestSharedLib/unittests/bin/$<CONFIG>/
+  )
+endif()
+
 add_dependencies(DynamicLibraryManagerTests TestSharedLib)
+
 #export_executable_symbols_for_plugins(TestSharedLib)
 add_subdirectory(TestSharedLib)
