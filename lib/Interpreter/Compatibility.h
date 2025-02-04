@@ -2,7 +2,6 @@
 // CppInterOp Compatibility
 // author:  Alexander Penev <alexander_penev@yahoo.com>
 //------------------------------------------------------------------------------
-
 #ifndef CPPINTEROP_COMPATIBILITY_H
 #define CPPINTEROP_COMPATIBILITY_H
 
