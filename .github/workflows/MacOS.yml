@@ -322,17 +322,10 @@ jobs:
     - name: Install deps
       run: |
         brew update --force 
-        brew remove ruby@3.0
-        brew remove swiftlint
-        # workaround for https://github.com/actions/setup-python/issues/577
-        for pkg in $(brew list | grep '^python@'); do
-          brew unlink "$pkg"
-          brew link --overwrite "$pkg"
-        done
-        brew upgrade --force 
-        brew install eigen
-        brew install boost
-        brew install gnu-sed
+        brew install gnu-sed boost@1.85 boost-python3 eigen psutils
+        CPLUS_INCLUDE_PATH="${CPLUS_INCLUDE_PATH}:/usr/local/opt/boost@1.85/include"
+        CPLUS_INCLUDE_PATH="${CPLUS_INCLUDE_PATH}:/usr/local/opt/Eigen/include"
+        echo "CPLUS_INCLUDE_PATH=$CPLUS_INCLUDE_PATH" >> $GITHUB_ENV
         pip install distro pytest
         
 
@@ -353,9 +346,9 @@ jobs:
         if [[ "${cling_on}" == "ON" ]]; then
           CLING_DIR="$(pwd)/cling"
           CLING_BUILD_DIR="$(pwd)/cling/build"
-          CPLUS_INCLUDE_PATH="${CLING_DIR}/tools/cling/include:${CLING_BUILD_DIR}/include:${LLVM_DIR}/llvm/include:${LLVM_DIR}/clang/include:${LLVM_BUILD_DIR}/include:${LLVM_BUILD_DIR}/tools/clang/include:$PWD/include"
+          CPLUS_INCLUDE_PATH="${CPLUS_INCLUDE_PATH}:${CLING_DIR}/tools/cling/include:${CLING_BUILD_DIR}/include:${LLVM_DIR}/llvm/include:${LLVM_DIR}/clang/include:${LLVM_BUILD_DIR}/include:${LLVM_BUILD_DIR}/tools/clang/include:$PWD/include"
         else
-          CPLUS_INCLUDE_PATH="${LLVM_DIR}/llvm/include:${LLVM_DIR}/clang/include:${LLVM_BUILD_DIR}/include:${LLVM_BUILD_DIR}/tools/clang/include:$PWD/include"
+          CPLUS_INCLUDE_PATH="${CPLUS_INCLUDE_PATH}:${LLVM_DIR}/llvm/include:${LLVM_DIR}/clang/include:${LLVM_BUILD_DIR}/include:${LLVM_BUILD_DIR}/tools/clang/include:$PWD/include"
         fi
 
         export CB_PYTHON_DIR="$PWD/cppyy-backend/python"
@@ -461,6 +454,7 @@ jobs:
         python -m pip install pytest
         python -m pip install pytest-xdist
         python -m pip install numba
+        python -m pip install psutil
         echo ::endgroup::
         echo ::group::Run complete test suite
         set -o pipefail
