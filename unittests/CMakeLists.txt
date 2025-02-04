@@ -38,6 +38,7 @@ endif()
                        DEPENDS)
   # FIXME: Just call gtest_add_tests this function is available.
   #gtest_add_tests(${name} "${Arguments}" AUTO)
+  llvm_update_compile_flags(${name})
 endfunction()
  
 add_subdirectory(CppInterOp)
