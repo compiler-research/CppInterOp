@@ -321,7 +321,15 @@ jobs:
 
     - name: Install deps
       run: |
-        brew update --force 
+        brew update --force
+        brew remove ruby@3.0
+        brew remove swiftlint
+        # workaround for https://github.com/actions/setup-python/issues/577
+        for pkg in $(brew list | grep '^python@'); do
+          brew unlink "$pkg"
+          brew link --overwrite "$pkg"
+        done
+        brew upgrade --force 
         brew install gnu-sed boost@1.85 boost-python3 eigen psutils
         CPLUS_INCLUDE_PATH="${CPLUS_INCLUDE_PATH}:/usr/local/opt/boost@1.85/include"
         CPLUS_INCLUDE_PATH="${CPLUS_INCLUDE_PATH}:/usr/local/opt/Eigen/include"
