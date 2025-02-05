@@ -322,6 +322,7 @@ jobs:
     - name: Setup compiler
       run: |
         vers="${compiler#*-}"
+        echo "SDKROOT=$(xcrun --sdk macosx --show-sdk-path)" >> $GITHUB_ENV
         if [[ "${{ matrix.compiler }}" == *"gcc"* ]]; then
           brew install "gcc@$vers"
           echo "CC=gcc-${vers}" >> $GITHUB_ENV
@@ -345,7 +346,6 @@ jobs:
             echo "CXX=$(brew --prefix llvm@18)/bin/clang++" >> $GITHUB_ENV
           fi
         fi
-        echo "SDKROOT=$(xcrun --sdk macosx --show-sdk-path)" >> $GITHUB_ENV
       env:
         compiler: ${{ matrix.compiler }}
 
