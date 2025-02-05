@@ -473,6 +473,7 @@ jobs:
     - name: Run cppyy
       if: ${{ matrix.cppyy == 'On' }}
       run: |
+        export SDKROOT=$(xcrun --sdk macosx --show-sdk-path)
         # Run cppyy
         source .venv/bin/activate
         export PYTHONPATH=$PYTHONPATH:$CPYCPPYY_DIR:$CB_PYTHON_DIR
