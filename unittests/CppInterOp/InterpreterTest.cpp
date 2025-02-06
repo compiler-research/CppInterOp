@@ -17,6 +17,7 @@
 
 #include "llvm/ADT/SmallString.h"
 #include "llvm/Support/Path.h"
+#include <llvm/Support/FileSystem.h>
 
 #include <gmock/gmock.h>
 #include "gtest/gtest.h"
@@ -135,6 +136,10 @@ TEST(InterpreterTest, DISABLED_DetectResourceDir) {
   EXPECT_STRNE(Cpp::DetectResourceDir().c_str(), Cpp::GetResourceDir());
   llvm::SmallString<256> Clang(LLVM_BINARY_DIR);
   llvm::sys::path::append(Clang, "bin", "clang");
+
+  if (!llvm::sys::fs::exists(llvm::Twine(Clang.str().str())))
+    GTEST_SKIP() << "Test not run (Clang binary does not exist)";
+
   std::string DetectedPath = Cpp::DetectResourceDir(Clang.str().str().c_str());
   EXPECT_STREQ(DetectedPath.c_str(), Cpp::GetResourceDir());
 }
