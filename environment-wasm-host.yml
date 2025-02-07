@@ -1,8 +1,7 @@
-name: CppInterOp-wasm
+name: CppInterOp-wasm-host
 channels:
   - https://repo.prefix.dev/emscripten-forge-dev
 dependencies:
-  - emscripten-abi==3.1.73
   - nlohmann_json
   - xeus-lite
   - xeus
