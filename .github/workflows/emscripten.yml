@@ -21,13 +21,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: ubu24-arm-gcc12-clang-repl-19-emscripten
-            os: ubuntu-24.04-arm
-            compiler: gcc-12
-            clang-runtime: '19'
-            cling: Off
-            llvm_enable_projects: "clang;lld"
-            llvm_targets_to_build: "WebAssembly"
           - name: osx15-arm-clang-clang-repl-19-emscripten
             os: macos-15
             compiler: clang
@@ -455,13 +448,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: ubu24-arm-gcc12-clang-repl-19-emscripten
-            os: ubuntu-24.04-arm
-            compiler: gcc-12
-            clang-runtime: '19'
-            cling: Off
-            llvm_enable_projects: "clang;lld"
-            llvm_targets_to_build: "WebAssembly"
           - name: ubu24-x86-gcc12-clang-repl-19-emscripten_wasm
             os: ubuntu-24.04
             compiler: gcc-12
