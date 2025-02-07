@@ -26,7 +26,7 @@ micromamba activate CppInterOp-wasm-build
 ```
 
 Now clone the 19.x release of the LLVM project repository and CppInterOp. The building of the emscripten version of llvm can be
-avoided by executing micromamba install llvm -c <https://repo.prefix.dev/emscripten-forge-dev> and setting the LLVM_BUILD_DIR appropriately.
+avoided by executing micromamba install llvm=19 -c <https://repo.prefix.dev/emscripten-forge-dev> and setting the LLVM_BUILD_DIR appropriately.
 
 ```bash
 git clone --depth=1 --branch release/19.x https://github.com/llvm/llvm-project.git

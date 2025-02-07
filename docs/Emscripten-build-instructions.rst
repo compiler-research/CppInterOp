@@ -37,7 +37,7 @@ the following
 
 Now clone the 19.x release of the LLVM project repository and CppInterOp.
 The building of the emscripten version of llvm can be avoided by executing
-micromamba install llvm -c <https://repo.prefix.dev/emscripten-forge-dev>
+micromamba install llvm=19 -c <https://repo.prefix.dev/emscripten-forge-dev>
 and setting the LLVM_BUILD_DIR appropriately.
 
 .. code:: bash
