@@ -459,6 +459,15 @@ namespace Cpp {
   GetStaticDatamembers(TCppScope_t scope,
                        std::vector<TCppScope_t>& datamembers);
 
+  /// Gets all the Enum Constants declared in a Class
+  ///\param[in] scope - class
+  ///\param[out] funcs - vector of static data members
+  ///\param[in] include_enum_class - include enum constants from enum class
+  CPPINTEROP_API
+  void GetEnumConstantDatamembers(TCppScope_t scope,
+                                  std::vector<TCppScope_t>& datamembers,
+                                  bool include_enum_class = true);
+
   /// This is a Lookup function to be used specifically for data members.
   CPPINTEROP_API TCppScope_t LookupDatamember(const std::string& name,
                                               TCppScope_t parent);
