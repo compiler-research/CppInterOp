@@ -576,3 +576,27 @@ TEST(VariableReflectionTest, StaticConstExprDatamember) {
   offset = Cpp::GetVariableOffset(datamembers[0]);
   EXPECT_EQ(2, *(int*)offset);
 }
+
+TEST(VariableReflectionTest, GetEnumConstantDatamembers) {
+  Cpp::CreateInterpreter();
+
+  Cpp::Declare(R"(
+  class MyEnumClass {
+    enum { FOUR, FIVE, SIX };
+    enum A { ONE, TWO, THREE };
+    enum class B { SEVEN, EIGHT, NINE };
+  };
+  )");
+
+  Cpp::TCppScope_t MyEnumClass = Cpp::GetNamed("MyEnumClass");
+  EXPECT_TRUE(MyEnumClass);
+
+  std::vector<Cpp::TCppScope_t> datamembers;
+  Cpp::GetEnumConstantDatamembers(MyEnumClass, datamembers);
+  EXPECT_EQ(datamembers.size(), 9);
+  EXPECT_TRUE(Cpp::IsEnumType(Cpp::GetVariableType(datamembers[0])));
+
+  std::vector<Cpp::TCppScope_t> datamembers2;
+  Cpp::GetEnumConstantDatamembers(MyEnumClass, datamembers2, false);
+  EXPECT_EQ(datamembers2.size(), 6);
+}
