@@ -58,9 +58,6 @@ TEST(InterpreterTest, DebugFlag) {
 }
 
 TEST(InterpreterTest, Evaluate) {
-#ifdef _WIN32
-  GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
-#endif
   if (llvm::sys::RunningOnValgrind())
     GTEST_SKIP() << "XFAIL due to Valgrind report";
   //  EXPECT_TRUE(Cpp::Evaluate(I, "") == 0);
@@ -77,9 +74,6 @@ TEST(InterpreterTest, Evaluate) {
 }
 
 TEST(InterpreterTest, Process) {
-#ifdef _WIN32
-  GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
-#endif
   if (llvm::sys::RunningOnValgrind())
     GTEST_SKIP() << "XFAIL due to Valgrind report";
   Cpp::CreateInterpreter();
@@ -129,9 +123,6 @@ TEST(InterpreterTest, DetectResourceDir) {
 #else
 TEST(InterpreterTest, DISABLED_DetectResourceDir) {
 #endif // LLVM_BINARY_DIR
-#ifdef _WIN32
-  GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
-#endif
   Cpp::CreateInterpreter();
   EXPECT_STRNE(Cpp::DetectResourceDir().c_str(), Cpp::GetResourceDir());
   llvm::SmallString<256> Clang(LLVM_BINARY_DIR);
@@ -145,9 +136,6 @@ TEST(InterpreterTest, DISABLED_DetectResourceDir) {
 }
 
 TEST(InterpreterTest, DetectSystemCompilerIncludePaths) {
-#ifdef _WIN32
-  GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
-#endif
   std::vector<std::string> includes;
   Cpp::DetectSystemCompilerIncludePaths(includes);
   EXPECT_FALSE(includes.empty());
