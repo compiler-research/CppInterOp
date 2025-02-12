@@ -875,9 +875,14 @@ TEST(FunctionReflectionTest, GetFunctionCallWrapper) {
 
   GetAllTopLevelDecls(code, Decls);
 
+  // Here we replace printf with cout for JitCall tests on Windows, where the stdout buffer is not flushed when we utilise JitCall::Invoke  
+  // This hints towards a larger underlying problem in the driver when going through cling: On windows, the `stdout` buffer is not flushed. With gtest, all the printf statements in functions invoked with `JitCall` like:
+  // `void f2(std::string &s) { std::cout << s.c_str(); };` appear at the end of the test suite run. Attempting to fix this issue by force flushing does not work, and printf statements in the test code itself appear on the screen. This indicates issues with linking, since the Interpreter runtime operating on a different buffer than the compile runtime. We ideally want to support the usage of printf statements when invoked through `JitCall`.
+
   Interp->process(R"(
     #include <string>
-    void f2(std::string &s) { printf("%s", s.c_str()); };
+    #include <iostream>
+    void f2(std::string &s) { std::cout << s.c_str(); };
   )");
 
   Interp->process(R"(
@@ -922,10 +927,11 @@ TEST(FunctionReflectionTest, GetFunctionCallWrapper) {
 
   // FIXME: Do we need to support private ctors?
   Interp->process(R"(
+    #include <iostream>
     class C {
     public:
-      C() { printf("Default Ctor Called\n"); }
-      ~C() { printf("Dtor Called\n"); }
+      C() { std::cout << "Default Ctor Called\n"; }
+      ~C() { std::cout << "Dtor Called\n"; }
     };
   )");
 
