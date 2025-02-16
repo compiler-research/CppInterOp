@@ -584,3 +584,19 @@ TEST(TypeReflectionTest, IsSmartPtrType) {
   EXPECT_FALSE(Cpp::IsSmartPtrType(get_type_from_varname("raw_ptr")));
   EXPECT_FALSE(Cpp::IsSmartPtrType(get_type_from_varname("object")));
 }
+
+TEST(TypeReflectionTest, IsFunctionPointerType) {
+  Cpp::CreateInterpreter();
+
+  Interp->declare(R"(
+    typedef int (*int_func)(int, int);
+    int sum(int x, int y) { return x + y; }
+    int_func f = sum;
+    int i = 2;
+  )");
+
+  EXPECT_TRUE(
+      Cpp::IsFunctionPointerType(Cpp::GetVariableType(Cpp::GetNamed("f"))));
+  EXPECT_FALSE(
+      Cpp::IsFunctionPointerType(Cpp::GetVariableType(Cpp::GetNamed("i"))));
+}

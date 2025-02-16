@@ -210,6 +210,11 @@ namespace Cpp {
     return isa<CXXRecordDecl>(D);
   }
 
+  bool IsFunctionPointerType(TCppType_t type) {
+    QualType QT = QualType::getFromOpaquePtr(type);
+    return QT->isFunctionPointerType();
+  }
+
   bool IsClassPolymorphic(TCppScope_t klass) {
     Decl* D = static_cast<Decl*>(klass);
     if (auto* CXXRD = llvm::dyn_cast<CXXRecordDecl>(D))
