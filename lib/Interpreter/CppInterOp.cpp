@@ -36,6 +36,8 @@
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_os_ostream.h"
 
+#include <algorithm>
+#include <iterator>
 #include <map>
 #include <set>
 #include <sstream>
@@ -1223,6 +1225,23 @@ namespace Cpp {
     GetClassDecls<VarDecl>(scope, datamembers);
   }
 
+  void GetEnumConstantDatamembers(TCppScope_t scope,
+                                  std::vector<TCppScope_t>& datamembers,
+                                  bool include_enum_class) {
+    std::vector<TCppScope_t> EDs;
+    GetClassDecls<EnumDecl>(scope, EDs);
+    for (TCppScope_t i : EDs) {
+      auto* ED = static_cast<EnumDecl*>(i);
+
+      bool is_class_tagged = ED->isScopedUsingClassTag();
+      if (is_class_tagged && !include_enum_class)
+        continue;
+
+      std::copy(ED->enumerator_begin(), ED->enumerator_end(),
+                std::back_inserter(datamembers));
+    }
+  }
+
   TCppScope_t LookupDatamember(const std::string& name, TCppScope_t parent) {
     clang::DeclContext *Within = 0;
     if (parent) {
@@ -1255,6 +1274,9 @@ namespace Cpp {
       QT = QT.getCanonicalType();
       return QT.getAsOpaquePtr();
     }
+
+    if (auto* ECD = llvm::dyn_cast_or_null<EnumConstantDecl>(D))
+      return ECD->getType().getAsOpaquePtr();
 
     return 0;
   }
