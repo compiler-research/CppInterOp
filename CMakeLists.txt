@@ -57,11 +57,11 @@ if( CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR )
 enable_language(CXX)
 set(CMAKE_CXX_EXTENSIONS NO)
 include(GNUInstallDirs)
-  option(USE_CLING "Use Cling as backend" OFF)
-  option(USE_REPL "Use clang-repl as backend" ON)
+  option(CPPINTEROP_USE_CLING "Use Cling as backend" OFF)
+  option(CPPINTEROP_USE_REPL "Use clang-repl as backend" ON)
 
-  if (USE_CLING AND USE_REPL)
-    message(FATAL_ERROR "We can only use Cling (USE_CLING=On) or Repl (USE_REPL=On), but not both of them.")
+  if (CPPINTEROP_USE_CLING AND CPPINTEROP_USE_REPL)
+    message(FATAL_ERROR "We can only use Cling (CPPINTEROP_USE_CLING=On) or Repl (CPPINTEROP_USE_REPL=On), but not both of them.")
   endif()
   
   ## Define supported version of clang and llvm
@@ -102,12 +102,12 @@ include(GNUInstallDirs)
 
   ## Find supported LLVM
 
-  if (USE_CLING)
-    message(STATUS "Mode USE_CLING = ON")
+  if (CPPINTEROP_USE_CLING)
+    message(STATUS "Mode CPPINTEROP_USE_CLING = ON")
     find_package(LLVM REQUIRED CONFIG ${llvm_search_hints} NO_DEFAULT_PATH)
     find_package(Clang REQUIRED CONFIG ${clang_search_hints} NO_DEFAULT_PATH)
     find_package(Cling REQUIRED CONFIG ${cling_search_hints} NO_DEFAULT_PATH)
-  endif(USE_CLING)
+  endif(CPPINTEROP_USE_CLING)
 
   if (LLVM_FOUND)
     if (LLVM_PACKAGE_VERSION VERSION_LESS LLVM_MIN_SUPPORTED OR LLVM_PACKAGE_VERSION VERSION_GREATER_EQUAL LLVM_VERSION_UPPER_BOUND)
@@ -248,7 +248,7 @@ endif()
   
   ## Find supported Cling
   
-  if (USE_CLING)
+  if (CPPINTEROP_USE_CLING)
     if (NOT Cling_FOUND AND DEFINED Cling_DIR)
       find_package(Cling REQUIRED CONFIG ${cling_extra_hints} NO_DEFAULT_PATH)
     endif()
@@ -292,24 +292,24 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 # In rare cases we might want to have clang installed in a different place
 # than llvm and the header files should be found first (even though the
 # LLVM_INCLUDE_DIRS) contain clang headers, too.
-if (USE_CLING)
-  add_definitions(-DUSE_CLING)
+if (CPPINTEROP_USE_CLING)
+  add_definitions(-DCPPINTEROP_USE_CLING)
   include_directories(SYSTEM ${CLING_INCLUDE_DIRS})
   else()
-  if (NOT USE_REPL)
-  message(FATAL_ERROR "We need either USE_CLING or USE_REPL")
+  if (NOT CPPINTEROP_USE_REPL)
+  message(FATAL_ERROR "We need either CPPINTEROP_USE_CLING or CPPINTEROP_USE_REPL")
   endif()
-  add_definitions(-DUSE_REPL)
+  add_definitions(-DCPPINTEROP_USE_REPL)
 
-endif(USE_CLING)
+endif(CPPINTEROP_USE_CLING)
 include_directories(SYSTEM ${CLANG_INCLUDE_DIRS})
 include_directories(SYSTEM ${LLVM_INCLUDE_DIRS})
 separate_arguments(LLVM_DEFINITIONS_LIST NATIVE_COMMAND ${LLVM_DEFINITIONS})
 add_definitions(${LLVM_DEFINITIONS_LIST})
 
-if (USE_CLING)
+if (CPPINTEROP_USE_CLING)
   message(STATUS "CLING_INCLUDE_DIRS: ${CLING_INCLUDE_DIRS}")
-endif(USE_CLING)
+endif(CPPINTEROP_USE_CLING)
 message(STATUS "CLANG_INCLUDE_DIRS: ${CLANG_INCLUDE_DIRS}")
 message(STATUS "LLVM_INCLUDE_DIRS: ${LLVM_INCLUDE_DIRS}")
 message(STATUS "LLVM_DEFINITIONS_LIST: ${LLVM_DEFINITIONS_LIST}")

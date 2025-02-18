@@ -21,7 +21,7 @@ using namespace llvm;
 void TestUtils::GetAllTopLevelDecls(const std::string& code, std::vector<Decl*>& Decls,
                                     bool filter_implicitGenerated /* = false */) {
   Cpp::CreateInterpreter();
-#ifdef USE_CLING
+#ifdef CPPINTEROP_USE_CLING
   cling::Transaction *T = nullptr;
   Interp->declare(code, &T);
 
