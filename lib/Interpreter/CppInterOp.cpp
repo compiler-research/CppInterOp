@@ -150,11 +150,11 @@ namespace Cpp {
     std::string fullVersion = "CppInterOp version";
     fullVersion += VERSION;
     fullVersion += "\n (based on "
-#ifdef USE_CLING
+#ifdef CPPINTEROP_USE_CLING
                    "cling ";
 #else
                    "clang-repl";
-#endif // USE_CLING
+#endif // CPPINTEROP_USE_CLING
     return fullVersion + "[" + clang::getClangFullVersion() + "])\n";
   }
 
@@ -239,9 +239,9 @@ namespace Cpp {
       QualType QT = QualType::getFromOpaquePtr(GetTypeFromScope(scope));
       clang::Sema &S = getSema();
       SourceLocation fakeLoc = GetValidSLoc(S);
-#ifdef USE_CLING
+#ifdef CPPINTEROP_USE_CLING
       cling::Interpreter::PushTransactionRAII RAII(&getInterp());
-#endif // USE_CLING
+#endif // CPPINTEROP_USE_CLING
       return S.isCompleteType(fakeLoc, QT);
     }
 
@@ -786,9 +786,9 @@ namespace Cpp {
       return;
 
     auto* CXXRD = dyn_cast<CXXRecordDecl>(D);
-#ifdef USE_CLING
+#ifdef CPPINTEROP_USE_CLING
     cling::Interpreter::PushTransactionRAII RAII(&getInterp());
-#endif // USE_CLING
+#endif // CPPINTEROP_USE_CLING
     getSema().ForceDeclarationOfImplicitMembers(CXXRD);
     for (Decl* DI : CXXRD->decls()) {
       if (auto* MD = dyn_cast<DeclType>(DI))
@@ -1044,7 +1044,7 @@ namespace Cpp {
 
       const FunctionDecl* func = TFD->getTemplatedDecl();
 
-#ifdef USE_CLING
+#ifdef CPPINTEROP_USE_CLING
       if (func->getNumParams() > arg_types.size())
         continue;
 #else // CLANG_REPL
@@ -1366,9 +1366,9 @@ namespace Cpp {
         address = I.getAddressOfGlobal(GD);
       if (!address) {
         if (!VD->hasInit()) {
-#ifdef USE_CLING
+#ifdef CPPINTEROP_USE_CLING
           cling::Interpreter::PushTransactionRAII RAII(&getInterp());
-#endif // USE_CLING
+#endif // CPPINTEROP_USE_CLING
           getSema().InstantiateVariableDefinition(SourceLocation(), VD);
         }
         if (VD->hasInit() &&
@@ -1388,7 +1388,7 @@ namespace Cpp {
         // addCompilerUsedGlobal.
         if (isDiscardableGVALinkage(Linkage))
           VD->addAttr(UsedAttr::CreateImplicit(C));
-#ifdef USE_CLING
+#ifdef CPPINTEROP_USE_CLING
         cling::Interpreter::PushTransactionRAII RAII(&I);
         I.getCI()->getASTConsumer().HandleTopLevelDecl(DeclGroupRef(VD));
 #else // CLANG_REPL
@@ -2296,7 +2296,7 @@ namespace Cpp {
         clang::FunctionDecl* FDmod = const_cast<clang::FunctionDecl*>(FD);
         clang::Sema& S = I.getCI()->getSema();
         // Could trigger deserialization of decls.
-#ifdef USE_CLING
+#ifdef CPPINTEROP_USE_CLING
         cling::Interpreter::PushTransactionRAII RAII(&I);
 #endif
         S.InstantiateFunctionDefinition(SourceLocation(), FDmod,
@@ -2957,11 +2957,11 @@ namespace Cpp {
 
   intptr_t Evaluate(const char *code,
                     bool *HadError/*=nullptr*/) {
-#ifdef USE_CLING
+#ifdef CPPINTEROP_USE_CLING
     cling::Value V;
 #else
     clang::Value V;
-#endif // USE_CLING
+#endif // CPPINTEROP_USE_CLING
 
     if (HadError)
       *HadError = false;
@@ -3175,7 +3175,7 @@ namespace Cpp {
     TemplateDecl* TmplD = static_cast<TemplateDecl*>(tmpl);
 
     // We will create a new decl, push a transaction.
-#ifdef USE_CLING
+#ifdef CPPINTEROP_USE_CLING
     cling::Interpreter::PushTransactionRAII RAII(&I);
 #endif
     return InstantiateTemplate(TmplD, TemplateArgs, S);
@@ -3312,7 +3312,7 @@ namespace Cpp {
     auto derivedType = clang::QualType::getFromOpaquePtr(derived);
     auto baseType = clang::QualType::getFromOpaquePtr(base);
 
-#ifdef USE_CLING
+#ifdef CPPINTEROP_USE_CLING
     cling::Interpreter::PushTransactionRAII RAII(&getInterp());
 #endif
     return S.IsDerivedFrom(fakeLoc,derivedType,baseType);

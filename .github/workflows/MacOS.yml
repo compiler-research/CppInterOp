@@ -367,8 +367,8 @@ jobs:
         cling_on=$(echo "${{ matrix.cling }}" | tr '[:lower:]' '[:upper:]')
         if [[ "${cling_on}" == "ON" ]]; then
           cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}        \
-                -DUSE_CLING=ON                                  \
-                -DUSE_REPL=OFF                                  \
+                -DCPPINTEROP_USE_CLING=ON                                  \
+                -DCPPINTEROP_USE_REPL=OFF                                  \
                 -DCPPINTEROP_INCLUDE_DOCS=${{ matrix.documentation }} \
                 -DCling_DIR=$LLVM_BUILD_DIR/tools/cling         \
                 -DLLVM_DIR=$LLVM_BUILD_DIR/lib/cmake/llvm       \

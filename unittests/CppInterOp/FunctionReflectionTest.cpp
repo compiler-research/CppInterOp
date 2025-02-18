@@ -868,7 +868,7 @@ TEST(FunctionReflectionTest, JitCallAdvanced) {
 TEST(FunctionReflectionTest, GetFunctionCallWrapper) {
   if (llvm::sys::RunningOnValgrind())
     GTEST_SKIP() << "XFAIL due to Valgrind report";
-#if defined(USE_CLING) && defined(_WIN32)
+#if defined(CPPINTEROP_USE_CLING) && defined(_WIN32)
   GTEST_SKIP() << "Disabled, invoking functions containing printf does not work with Cling on Windows";
 #endif
   std::vector<Decl*> Decls;

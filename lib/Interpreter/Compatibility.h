@@ -80,7 +80,7 @@ static inline char* GetEnv(const char* Var_Name) {
 // std::regex breaks pytorch's jit: pytorch/pytorch#49460
 #include "llvm/Support/Regex.h"
 
-#ifdef USE_CLING
+#ifdef CPPINTEROP_USE_CLING
 
 #include "cling/Interpreter/DynamicLibraryManager.h"
 #include "cling/Interpreter/Interpreter.h"
@@ -222,9 +222,9 @@ inline void codeComplete(std::vector<std::string>& Results,
 
 } // namespace compat
 
-#endif // USE_CLING
+#endif // CPPINTEROP_USE_CLING
 
-#ifndef USE_CLING
+#ifndef CPPINTEROP_USE_CLING
 
 #include "DynamicLibraryManager.h"
 #include "clang/AST/Mangle.h"
@@ -444,7 +444,7 @@ namespace compat {
 using Interpreter = Cpp::Interpreter;
 }
 
-#endif // USE_REPL
+#endif // CPPINTEROP_USE_REPL
 
 namespace compat {
 
@@ -482,7 +482,7 @@ inline std::string MakeResourceDir(llvm::StringRef Dir) {
 }
 
 // Clang >= 16 (=16 with Value patch) change castAs to converTo
-#ifdef USE_CLING
+#ifdef CPPINTEROP_USE_CLING
 template <typename T> inline T convertTo(cling::Value V) {
   return V.castAs<T>();
 }
@@ -490,7 +490,7 @@ template <typename T> inline T convertTo(cling::Value V) {
 template <typename T> inline T convertTo(clang::Value V) {
   return V.convertTo<T>();
 }
-#endif // USE_CLING
+#endif // CPPINTEROP_USE_CLING
 
 } // namespace compat
 

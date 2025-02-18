@@ -291,13 +291,13 @@ CXInterpreter clang_createInterpreterFromRawPtr(TInterp_t I) {
 }
 
 void* clang_Interpreter_getClangInterpreter(CXInterpreter I) {
-#ifdef USE_CLING
+#ifdef CPPINTEROP_USE_CLING
   return nullptr;
 #else
   auto* interp = getInterpreter(I);
   auto* clInterp = &static_cast<clang::Interpreter&>(*interp);
   return clInterp;
-#endif // USE_CLING
+#endif // CPPINTEROP_USE_CLING
 }
 
 TInterp_t clang_Interpreter_takeInterpreterAsPtr(CXInterpreter I) {
@@ -305,11 +305,11 @@ TInterp_t clang_Interpreter_takeInterpreterAsPtr(CXInterpreter I) {
 }
 
 enum CXErrorCode clang_Interpreter_undo(CXInterpreter I, unsigned int N) {
-#ifdef USE_CLING
+#ifdef CPPINTEROP_USE_CLING
   return CXError_Failure;
 #else
   return getInterpreter(I)->Undo(N) ? CXError_Failure : CXError_Success;
-#endif // USE_CLING
+#endif // CPPINTEROP_USE_CLING
 }
 
 void clang_Interpreter_dispose(CXInterpreter I) {
@@ -351,30 +351,30 @@ enum CXErrorCode clang_Interpreter_process(CXInterpreter I, const char* code) {
 }
 
 CXValue clang_createValue(void) {
-#ifdef USE_CLING
+#ifdef CPPINTEROP_USE_CLING
   auto val = std::make_unique<cling::Value>();
 #else
   auto val = std::make_unique<clang::Value>();
-#endif // USE_CLING
+#endif // CPPINTEROP_USE_CLING
 
   return val.release();
 }
 
 void clang_Value_dispose(CXValue V) {
-#ifdef USE_CLING
+#ifdef CPPINTEROP_USE_CLING
   delete static_cast<cling::Value*>(V); // NOLINT(*-owning-memory)
 #else
   delete static_cast<clang::Value*>(V); // NOLINT(*-owning-memory)
-#endif // USE_CLING
+#endif // CPPINTEROP_USE_CLING
 }
 
 enum CXErrorCode clang_Interpreter_evaluate(CXInterpreter I, const char* code,
                                             CXValue V) {
-#ifdef USE_CLING
+#ifdef CPPINTEROP_USE_CLING
   auto* val = static_cast<cling::Value*>(V);
 #else
   auto* val = static_cast<clang::Value*>(V);
-#endif // USE_CLING
+#endif // CPPINTEROP_USE_CLING
 
   if (getInterpreter(I)->evaluate(code, *val))
     return CXError_Failure;
