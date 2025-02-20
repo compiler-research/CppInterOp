@@ -43,9 +43,6 @@ static bool HasCudaRuntime() {
 
 #if CLANG_VERSION_MAJOR < 16
 TEST(DISABLED_CUDATest, Sanity) {
-#elif CLANG_VERSION_MAJOR == 20
-// FIXME: CUDA Tests Broken for llvm 20 release/
-TEST(DISABLED_CUDATest, Sanity) {
 #else
 TEST(CUDATest, Sanity) {
 #endif // CLANG_VERSION_MAJOR < 16
@@ -57,12 +54,7 @@ TEST(CUDATest, Sanity) {
   EXPECT_TRUE(Cpp::CreateInterpreter({}, {"--cuda"}));
 }
 
-#if CLANG_VERSION_MAJOR == 20
-// FIXME: CUDA Tests Broken for llvm 20 release/
-TEST(DISABLED_CUDATest, CUDAH) {
-#else
 TEST(CUDATest, CUDAH) {
-#endif
 #ifdef _WIN32
   GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
 #endif
@@ -74,12 +66,7 @@ TEST(CUDATest, CUDAH) {
   EXPECT_TRUE(success);
 }
 
-#if CLANG_VERSION_MAJOR == 20
-// FIXME: CUDA Tests Broken for llvm 20 release/
-TEST(DISABLED_CUDATest, CUDARuntime) {
-#else
 TEST(CUDATest, CUDARuntime) {
-#endif
 #ifdef _WIN32
   GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
 #endif
