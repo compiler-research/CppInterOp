@@ -119,8 +119,8 @@ jobs:
 
         if [[ "${cling_on}" == "ON" ]]; then
           emcmake  cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}        \
-                -DUSE_CLING=ON                                  \
-                -DUSE_REPL=OFF                                  \
+                -DCPPINTEROP_USE_CLING=ON                                  \
+                -DCPPINTEROP_USE_REPL=OFF                                  \
                 -DCMAKE_PREFIX_PATH=$PREFIX                     \
                 -DCling_DIR=$LLVM_BUILD_DIR/tools/cling         \
                 -DLLVM_DIR=$LLVM_BUILD_DIR/lib/cmake/llvm       \

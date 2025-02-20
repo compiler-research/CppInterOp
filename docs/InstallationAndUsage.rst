@@ -270,14 +270,14 @@ then execute the following commands on Linux and MacOS
 
 .. code:: bash
 
-   cmake -DBUILD_SHARED_LIBS=ON -DUSE_CLING=ON -DUSE_REPL=Off -DCling_DIR=$LLVM_DIR/build/tools/cling -DLLVM_DIR=$LLVM_DIR/build/lib/cmake/llvm -DClang_DIR=$LLVM_DIR/build/lib/cmake/clang -DCMAKE_INSTALL_PREFIX=$CPPINTEROP_DIR ..
+   cmake -DBUILD_SHARED_LIBS=ON -DCPPINTEROP_USE_CLING=ON -DCPPINTEROP_USE_REPL=Off -DCling_DIR=$LLVM_DIR/build/tools/cling -DLLVM_DIR=$LLVM_DIR/build/lib/cmake/llvm -DClang_DIR=$LLVM_DIR/build/lib/cmake/clang -DCMAKE_INSTALL_PREFIX=$CPPINTEROP_DIR ..
    cmake --build . --target install --parallel $(nproc --all)
 
 and
 
 .. code:: powershell
 
-   cmake -DUSE_CLING=ON -DUSE_REPL=Off -DCling_DIR=$env:LLVM_DIR\build\tools\cling -DLLVM_DIR=$env:LLVM_DIR\build\lib\cmake\llvm -DClang_DIR=$env:LLVM_DIR\build\lib\cmake\clang -DCMAKE_INSTALL_PREFIX=$env:CPPINTEROP_DIR ..
+   cmake -DCPPINTEROP_USE_CLING=ON -DCPPINTEROP_USE_REPL=Off -DCling_DIR=$env:LLVM_DIR\build\tools\cling -DLLVM_DIR=$env:LLVM_DIR\build\lib\cmake\llvm -DClang_DIR=$env:LLVM_DIR\build\lib\cmake\clang -DCMAKE_INSTALL_PREFIX=$env:CPPINTEROP_DIR ..
    cmake --build . --target install --parallel $env:ncpus
 
 ********************

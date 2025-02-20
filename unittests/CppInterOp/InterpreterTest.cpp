@@ -3,13 +3,13 @@
 
 #include "clang/Interpreter/CppInterOp.h"
 
-#ifdef USE_CLING
+#ifdef CPPINTEROP_USE_CLING
 #include "cling/Interpreter/Interpreter.h"
-#endif // USE_CLING
+#endif // CPPINTEROP_USE_CLING
 
-#ifndef USE_CLING
+#ifndef CPPINTEROP_USE_CLING
 #include "clang/Interpreter/Interpreter.h"
-#endif // USE_REPL
+#endif // CPPINTEROP_USE_REPL
 
 #include "clang/Basic/Version.h"
 
@@ -17,6 +17,7 @@
 
 #include "llvm/ADT/SmallString.h"
 #include "llvm/Support/Path.h"
+#include <llvm/Support/FileSystem.h>
 
 #include <gmock/gmock.h>
 #include "gtest/gtest.h"
@@ -112,7 +113,7 @@ TEST(InterpreterTest, CreateInterpreter) {
   EXPECT_FALSE(Cpp::GetNamed("cppUnknown"));
 
 
-#ifndef USE_CLING
+#ifndef CPPINTEROP_USE_CLING
   // C API
   auto CXI = clang_createInterpreterFromRawPtr(I);
   auto CLI = clang_Interpreter_getClangInterpreter(CXI);
@@ -135,6 +136,10 @@ TEST(InterpreterTest, DISABLED_DetectResourceDir) {
   EXPECT_STRNE(Cpp::DetectResourceDir().c_str(), Cpp::GetResourceDir());
   llvm::SmallString<256> Clang(LLVM_BINARY_DIR);
   llvm::sys::path::append(Clang, "bin", "clang");
+
+  if (!llvm::sys::fs::exists(llvm::Twine(Clang.str().str())))
+    GTEST_SKIP() << "Test not run (Clang binary does not exist)";
+
   std::string DetectedPath = Cpp::DetectResourceDir(Clang.str().str().c_str());
   EXPECT_STREQ(DetectedPath.c_str(), Cpp::GetResourceDir());
 }
@@ -167,7 +172,7 @@ TEST(InterpreterTest, GetIncludePaths) {
 }
 
 TEST(InterpreterTest, CodeCompletion) {
-#if CLANG_VERSION_MAJOR >= 18 || defined(USE_CLING)
+#if CLANG_VERSION_MAJOR >= 18 || defined(CPPINTEROP_USE_CLING)
   Cpp::CreateInterpreter();
   std::vector<std::string> cc;
   Cpp::Declare("int foo = 12;");
@@ -191,7 +196,7 @@ TEST(InterpreterTest, ExternalInterpreterTest) {
 if (llvm::sys::RunningOnValgrind())
   GTEST_SKIP() << "XFAIL due to Valgrind report";
 
-#ifndef USE_CLING
+#ifndef CPPINTEROP_USE_CLING
   llvm::ExitOnError ExitOnErr;
   clang::IncrementalCompilerBuilder CB;
   CB.SetCompilerArgs({"-std=c++20"});
@@ -204,9 +209,9 @@ if (llvm::sys::RunningOnValgrind())
   std::unique_ptr<clang::Interpreter> I =
       ExitOnErr(clang::Interpreter::create(std::move(CI)));
   auto ExtInterp = I.get();
-#endif // USE_REPL
+#endif // CPPINTEROP_USE_REPL
 
-#ifdef USE_CLING
+#ifdef CPPINTEROP_USE_CLING
     std::string MainExecutableName = sys::fs::getMainExecutable(nullptr, nullptr);
     std::string ResourceDir = compat::MakeResourceDir(LLVM_BINARY_DIR);
     std::vector<const char *> ClingArgv = {"-resource-dir", ResourceDir.c_str(),
@@ -224,11 +229,11 @@ if (llvm::sys::RunningOnValgrind())
 #endif
   EXPECT_TRUE(Cpp::GetInterpreter()) << "External Interpreter not set";
 
-#ifndef USE_CLING
+#ifndef CPPINTEROP_USE_CLING
   I.release();
 #endif
 
-#ifdef USE_CLING
+#ifdef CPPINTEROP_USE_CLING
   delete ExtInterp;
 #endif
 }

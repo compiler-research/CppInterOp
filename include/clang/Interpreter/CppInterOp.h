@@ -210,6 +210,9 @@ namespace Cpp {
   /// Checks if the scope is a class or not.
   CPPINTEROP_API bool IsClass(TCppScope_t scope);
 
+  /// Checks if the type is a function pointer.
+  CPPINTEROP_API bool IsFunctionPointerType(TCppType_t type);
+
   /// Checks if the klass polymorphic.
   /// which means that the class contains or inherits a virtual function
   CPPINTEROP_API bool IsClassPolymorphic(TCppScope_t klass);
@@ -458,6 +461,15 @@ namespace Cpp {
   CPPINTEROP_API void
   GetStaticDatamembers(TCppScope_t scope,
                        std::vector<TCppScope_t>& datamembers);
+
+  /// Gets all the Enum Constants declared in a Class
+  ///\param[in] scope - class
+  ///\param[out] funcs - vector of static data members
+  ///\param[in] include_enum_class - include enum constants from enum class
+  CPPINTEROP_API
+  void GetEnumConstantDatamembers(TCppScope_t scope,
+                                  std::vector<TCppScope_t>& datamembers,
+                                  bool include_enum_class = true);
 
   /// This is a Lookup function to be used specifically for data members.
   CPPINTEROP_API TCppScope_t LookupDatamember(const std::string& name,

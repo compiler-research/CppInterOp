@@ -370,8 +370,8 @@ jobs:
         if ( "${{ matrix.cling }}" -imatch "On" )
         {
           cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    `
-                -DUSE_CLING=ON                                  `
-                -DUSE_REPL=OFF                                  `
+                -DCPPINTEROP_USE_CLING=ON                                  `
+                -DCPPINTEROP_USE_REPL=OFF                                  `
                 -DCling_DIR="$env:LLVM_BUILD_DIR\tools\cling"   `
                 -DLLVM_DIR="$env:LLVM_BUILD_DIR" `
                 -DLLVM_ENABLE_WERROR=On                          `

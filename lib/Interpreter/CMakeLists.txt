@@ -50,18 +50,18 @@ else()
     DynamicLibraryManagerSymbol.cpp
     Paths.cpp
   )
-  if (USE_CLING)
+  if (CPPINTEROP_USE_CLING)
     set(LLVM_OPTIONAL_SOURCES ${LLVM_OPTIONAL_SOURCES} ${DLM})
     set(DLM)
-  endif(USE_CLING)
-  if (USE_REPL)
+  endif(CPPINTEROP_USE_CLING)
+  if (CPPINTEROP_USE_REPL)
     #Use DML optional sources
-  endif(USE_REPL)
+  endif(CPPINTEROP_USE_REPL)
 
-  if (USE_CLING)
+  if (CPPINTEROP_USE_CLING)
     set(cling_clang_interp clingInterpreter)
   endif()
-  if (USE_REPL)
+  if (CPPINTEROP_USE_REPL)
     set(cling_clang_interp clangInterpreter)
   endif()
 
