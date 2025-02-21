@@ -59,6 +59,7 @@ set(CMAKE_CXX_EXTENSIONS NO)
 include(GNUInstallDirs)
   option(CPPINTEROP_USE_CLING "Use Cling as backend" OFF)
   option(CPPINTEROP_USE_REPL "Use clang-repl as backend" ON)
+  option(CPPINTEROP_ENABLE_TESTING "Enable the CppInterOp testing infrastructure." ON)
 
   if (CPPINTEROP_USE_CLING AND CPPINTEROP_USE_REPL)
     message(FATAL_ERROR "We can only use Cling (CPPINTEROP_USE_CLING=On) or Repl (CPPINTEROP_USE_REPL=On), but not both of them.")
@@ -449,7 +450,6 @@ endif()
 option(CPPINTEROP_INCLUDE_DOCS "Generate build targets for the CppInterOp docs.")
 option(CPPINTEROP_ENABLE_DOXYGEN "Use doxygen to generate CppInterOp interal API documentation.")
 option(CPPINTEROP_ENABLE_SPHINX "Use sphinx to generage CppInterOp user documentation")
-
 
 option(CPPINTEROP_ENABLE_TESTING "Enables the testing infrastructure." ON)
 
