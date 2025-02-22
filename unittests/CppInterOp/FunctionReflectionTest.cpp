@@ -590,6 +590,34 @@ TEST(FunctionReflectionTest, InstantiateTemplateMethod) {
   EXPECT_TRUE(TA1.getAsType()->isIntegerType());
 }
 
+TEST(FunctionReflectionTest, InstantiateVariadicFunctionTemplate) {
+  std::vector<Decl*> Decls;
+  std::string code = R"(
+template<typename... Args> void VariadicFnTemplate(Args... args) {}
+)";
+
+  GetAllTopLevelDecls(code, Decls);
+  ASTContext& C = Interp->getCI()->getASTContext();
+
+  // Example instantiation with int and double
+  std::vector<Cpp::TemplateArgInfo> args1 = {C.IntTy.getAsOpaquePtr(),
+                                             C.DoubleTy.getAsOpaquePtr()};
+  auto Instance1 = Cpp::InstantiateTemplate(Decls[0], args1.data(),
+                                            /*type_size*/ args1.size());
+  // EXPECT_TRUE(isa<FunctionTemplateDecl>((Decl*)Instance1));
+  FunctionDecl* FD = cast<FunctionDecl>((Decl*)Instance1);
+  FunctionDecl* FnTD1 = FD->getTemplateInstantiationPattern();
+  EXPECT_TRUE(FnTD1->isThisDeclarationADefinition());
+  // TemplateArgument TA1 = FD->getTemplateSpecializationArgs()->get(0);
+
+  // // Validate the first argument is of integer type
+  // EXPECT_TRUE(TA1.getAsType()->isIntegerType());
+
+  // // Validate the second argument is of double type
+  // TemplateArgument TA2 = FD->getTemplateSpecializationArgs()->get(1);
+  // EXPECT_TRUE(TA2.getAsType()->isFloatingType());
+}
+
 TEST(FunctionReflectionTest, BestTemplateFunctionMatch) {
   std::vector<Decl*> Decls;
   std::string code = R"(
