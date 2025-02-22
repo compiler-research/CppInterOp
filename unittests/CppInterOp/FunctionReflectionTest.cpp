@@ -1043,6 +1043,34 @@ TEST(FunctionReflectionTest, GetFunctionCallWrapper) {
   FCI_f.Invoke(&res, {nullptr, 0});
   EXPECT_TRUE(res);
 #endif
+
+  // templated operators
+  Interp->process(R"(
+    class TOperator{
+    public:
+      template<typename T>
+      bool operator<(T t) { return true; }
+    };
+  )");
+  Cpp::TCppScope_t TOperator = Cpp::GetNamed("TOperator");
+
+  auto* TOperatorCtor = Cpp::GetDefaultConstructor(TOperator);
+  auto FCI_TOperatorCtor = Cpp::MakeFunctionCallable(TOperatorCtor);
+  void* toperator = nullptr;
+  FCI_TOperatorCtor.Invoke((void*)&toperator);
+
+  EXPECT_TRUE(toperator);
+  std::vector<Cpp::TCppScope_t> operators;
+  Cpp::GetOperator(TOperator, Cpp::OP_Less, operators);
+  EXPECT_EQ(operators.size(), 1);
+
+  Cpp::TCppScope_t op_templated = operators[0];
+  auto TAI = Cpp::TemplateArgInfo(Cpp::GetType("int"));
+  Cpp::TCppScope_t op = Cpp::InstantiateTemplate(op_templated, &TAI, 1);
+  auto FCI_op = Cpp::MakeFunctionCallable(op);
+  bool boolean = false;
+  FCI_op.Invoke((void*)&boolean, {args, /*args_size=*/1}, object);
+  EXPECT_TRUE(boolean);
 }
 
 TEST(FunctionReflectionTest, IsConstMethod) {
