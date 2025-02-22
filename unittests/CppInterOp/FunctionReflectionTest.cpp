@@ -653,6 +653,68 @@ TEST(FunctionReflectionTest, BestTemplateFunctionMatch) {
             "template<> long MyTemplatedMethodClass::get_size<float>(float &)");
 }
 
+TEST(FunctionReflectionTest, BestTemplateFunctionMatch2) {
+  std::vector<Decl*> Decls;
+  std::string code = R"(
+    template<typename T>
+    struct A { T value; };
+
+    A<int> a;
+
+    template<typename T>
+    void somefunc(A<T> arg) {}
+
+    template<typename T>
+    void somefunc(T arg) {}
+
+    template<typename T>
+    void somefunc(A<T> arg1, A<T> arg2) {}
+
+    template<typename T>
+    void somefunc(T arg1, T arg2) {}
+  )";
+
+  GetAllTopLevelDecls(code, Decls);
+  std::vector<Cpp::TCppFunction_t> candidates;
+
+  for (auto decl : Decls)
+    if (Cpp::IsTemplatedFunction(decl))
+      candidates.push_back((Cpp::TCppFunction_t)decl);
+
+  EXPECT_EQ(candidates.size(), 4);
+
+  ASTContext& C = Interp->getCI()->getASTContext();
+
+  std::vector<Cpp::TemplateArgInfo> args1 = {C.IntTy.getAsOpaquePtr()};
+  std::vector<Cpp::TemplateArgInfo> args2 = {
+      Cpp::GetVariableType(Cpp::GetNamed("a"))};
+  std::vector<Cpp::TemplateArgInfo> args3 = {C.IntTy.getAsOpaquePtr(),
+                                             C.IntTy.getAsOpaquePtr()};
+  std::vector<Cpp::TemplateArgInfo> args4 = {
+      Cpp::GetVariableType(Cpp::GetNamed("a")),
+      Cpp::GetVariableType(Cpp::GetNamed("a"))};
+
+  std::vector<Cpp::TemplateArgInfo> explicit_args;
+
+  Cpp::TCppFunction_t func1 =
+      Cpp::BestTemplateFunctionMatch(candidates, explicit_args, args1);
+  Cpp::TCppFunction_t func2 =
+      Cpp::BestTemplateFunctionMatch(candidates, explicit_args, args2);
+  Cpp::TCppFunction_t func3 =
+      Cpp::BestTemplateFunctionMatch(candidates, explicit_args, args3);
+  Cpp::TCppFunction_t func4 =
+      Cpp::BestTemplateFunctionMatch(candidates, explicit_args, args4);
+
+  EXPECT_EQ(Cpp::GetFunctionSignature(func1),
+            "template<> void somefunc<int>(int arg)");
+  EXPECT_EQ(Cpp::GetFunctionSignature(func2),
+            "template<> void somefunc<int>(A<int> arg)");
+  EXPECT_EQ(Cpp::GetFunctionSignature(func3),
+            "template<> void somefunc<int>(int arg1, int arg2)");
+  EXPECT_EQ(Cpp::GetFunctionSignature(func4),
+            "template<> void somefunc<int>(A<int> arg1, A<int> arg2)");
+}
+
 TEST(FunctionReflectionTest, IsPublicMethod) {
   std::vector<Decl *> Decls, SubDecls;
   std::string code = R"(

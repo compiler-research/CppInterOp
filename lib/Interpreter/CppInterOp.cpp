@@ -14,6 +14,7 @@
 #include "clang/AST/CXXInheritance.h"
 #include "clang/AST/Decl.h"
 #include "clang/AST/DeclCXX.h"
+#include "clang/AST/DeclTemplate.h"
 #include "clang/AST/GlobalDecl.h"
 #include "clang/AST/Mangle.h"
 #include "clang/AST/QualTypeNames.h"
@@ -42,6 +43,7 @@
 #include <set>
 #include <sstream>
 #include <string>
+#include <vector>
 
 // Stream redirect.
 #ifdef _WIN32
@@ -1026,10 +1028,102 @@ namespace Cpp {
         funcs.push_back(Found);
   }
 
+  namespace {
+  inline void
+  collectUniqueTemplateArgs(const std::vector<TemplateArgInfo>& templ_types,
+                            std::vector<TemplateArgInfo>& result) {
+    std::unique_copy(templ_types.begin(), templ_types.end(),
+                     std::back_inserter(result));
+  }
+  bool
+  IsTemplateFunctionGoodMatch(const FunctionTemplateDecl* FTD,
+                              const std::vector<TemplateArgInfo>& arg_types,
+                              std::vector<TemplateArgInfo>& templ_types) {
+    const FunctionDecl* F = FTD->getTemplatedDecl();
+    clang::TemplateParameterList* tpl = FTD->getTemplateParameters();
+
+    if (arg_types.size() != F->getNumParams())
+      return false;
+
+    for (size_t i = 0; i < arg_types.size(); i++) {
+      QualType fn_arg_type = F->getParamDecl(i)->getType();
+      QualType arg_type = QualType::getFromOpaquePtr(arg_types[i].m_Type);
+
+      // dereference
+      if (fn_arg_type->isReferenceType())
+        fn_arg_type = fn_arg_type.getNonReferenceType();
+      if (arg_type->isReferenceType())
+        arg_type = arg_type.getNonReferenceType();
+
+      fn_arg_type = fn_arg_type.getCanonicalType();
+      arg_type = arg_type.getCanonicalType();
+
+      // matching parameter and argument types
+      // resolving parameter
+      const auto* fn_TST =
+          fn_arg_type->getAs<clang::TemplateSpecializationType>();
+      const TemplateDecl* fn_TD = nullptr;
+      if (fn_TST)
+        fn_TD = fn_TST->getTemplateName().getAsTemplateDecl();
+
+      // resolving argument
+      const auto* arg_RT = arg_type->getAs<clang::RecordType>();
+      ClassTemplateSpecializationDecl* arg_CTSD = nullptr;
+      if (arg_RT)
+        arg_CTSD = llvm::dyn_cast<clang::ClassTemplateSpecializationDecl>(
+            arg_RT->getDecl());
+
+      if ((!arg_CTSD || !fn_TD) && (arg_CTSD || fn_TD))
+        return false;
+
+      // check if types match
+      if (arg_CTSD) {
+        auto* arg_D = arg_CTSD->getSpecializedTemplate()->getCanonicalDecl();
+        if (arg_D != fn_TD->getCanonicalDecl())
+          return false;
+        if (templ_types.size() < tpl->size()) {
+          Cpp::GetClassTemplateInstantiationArgs(arg_CTSD, templ_types);
+          break;
+        }
+      } else if (templ_types.size() < tpl->size()) {
+        templ_types.push_back(arg_types[i]);
+      }
+    }
+    return true;
+  }
+  } // namespace
+
   TCppFunction_t
   BestTemplateFunctionMatch(const std::vector<TCppFunction_t>& candidates,
                             const std::vector<TemplateArgInfo>& explicit_types,
                             const std::vector<TemplateArgInfo>& arg_types) {
+
+    /*
+      Try matching function with templated class as arguments first
+      Example:
+
+      template<typename T>
+      struct A { T value; };
+
+      template<typename T>
+      void somefunc(A<T> arg); // overload 1
+
+      template<typename T>
+      void somefunc(T arg);   // overload 2
+
+      somefunc(A<int>()); // should call overload 1; resolve this first
+      somefunc(3);        // should call overload 2
+    */
+    for (const auto& candidate : candidates) {
+      std::vector<TemplateArgInfo> templ_types;
+      auto* TFD = static_cast<FunctionTemplateDecl*>(candidate);
+      if (IsTemplateFunctionGoodMatch(TFD, arg_types, templ_types)) {
+        TCppFunction_t instantiated = InstantiateTemplate(
+            candidate, templ_types.data(), templ_types.size());
+        if (instantiated)
+          return instantiated;
+      }
+    }
 
     for (const auto& candidate : candidates) {
       auto* TFD = (FunctionTemplateDecl*)candidate;
@@ -1060,9 +1154,19 @@ namespace Cpp {
       if (instantiated)
         return instantiated;
 
+      std::vector<TemplateArgInfo> unique_arg_types;
+      collectUniqueTemplateArgs(arg_types, unique_arg_types);
+      instantiated = InstantiateTemplate(candidate, unique_arg_types.data(),
+                                         unique_arg_types.size());
+      if (instantiated)
+        return instantiated;
+
       // Force the instantiation with template params in case of no args
       // maybe steer instantiation better with arg set returned from
       // TemplateProxy?
+      if (explicit_types.empty())
+        continue;
+
       instantiated = InstantiateTemplate(candidate, explicit_types.data(),
                                           explicit_types.size());
       if (instantiated)
