@@ -504,6 +504,18 @@ namespace Cpp {
   /// Checks if the provided parameter is a Plain Old Data Type (POD).
   CPPINTEROP_API bool IsPODType(TCppType_t type);
 
+  /// Checks if type is a pointer
+  CPPINTEROP_API bool IsPointerType(TCppType_t type);
+
+  /// Get the underlying pointee type
+  CPPINTEROP_API TCppType_t GetPointeeType(TCppType_t type);
+
+  /// Checks if type is a reference
+  CPPINTEROP_API bool IsReferenceType(TCppType_t type);
+
+  /// Get the type that the reference refers to
+  CPPINTEROP_API TCppType_t GetNonReferenceType(TCppType_t type);
+
   /// Gets the pure, Underlying Type (as opposed to the Using Type).
   CPPINTEROP_API TCppType_t GetUnderlyingType(TCppType_t type);
 
