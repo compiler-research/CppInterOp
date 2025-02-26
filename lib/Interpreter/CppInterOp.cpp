@@ -1493,6 +1493,30 @@ namespace Cpp {
     return QT.isPODType(getASTContext());
   }
 
+  bool IsPointerType(TCppType_t type) {
+    QualType QT = QualType::getFromOpaquePtr(type);
+    return QT->isPointerType();
+  }
+
+  TCppType_t GetPointeeType(TCppType_t type) {
+    if (!IsPointerType(type))
+      return nullptr;
+    QualType QT = QualType::getFromOpaquePtr(type);
+    return QT->getPointeeType().getAsOpaquePtr();
+  }
+
+  bool IsReferenceType(TCppType_t type) {
+    QualType QT = QualType::getFromOpaquePtr(type);
+    return QT->isReferenceType();
+  }
+
+  TCppType_t GetNonReferenceType(TCppType_t type) {
+    if (!IsReferenceType(type))
+      return nullptr;
+    QualType QT = QualType::getFromOpaquePtr(type);
+    return QT.getNonReferenceType().getAsOpaquePtr();
+  }
+
   TCppType_t GetUnderlyingType(TCppType_t type)
   {
     QualType QT = QualType::getFromOpaquePtr(type);
