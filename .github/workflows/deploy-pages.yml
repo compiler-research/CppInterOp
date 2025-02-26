@@ -93,10 +93,11 @@ jobs:
       if: ${{ runner.os != 'windows' }}
       shell: bash -l {0}
       run: |
+        set -e
         ./emsdk/emsdk activate ${{matrix.emsdk_ver}}
         source ./emsdk/emsdk_env.sh
         micromamba create -f environment-wasm.yml --platform=emscripten-wasm32
-
+        export SYSROOT_PATH=$PWD/emsdk/upstream/emscripten/cache/sysroot
         export PREFIX=$MAMBA_ROOT_PREFIX/envs/CppInterOp-wasm
         export CMAKE_PREFIX_PATH=$PREFIX
         export CMAKE_SYSTEM_PREFIX_PATH=$PREFIX
@@ -130,6 +131,7 @@ jobs:
                 -DCODE_COVERAGE=${{ env.CODE_COVERAGE }}        \
                 -DCMAKE_INSTALL_PREFIX=$PREFIX         \
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            \
+                -DSYSROOT_PATH=$SYSROOT_PATH               \
                 ../
         else
           emcmake cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    \
@@ -141,13 +143,15 @@ jobs:
                 -DCODE_COVERAGE=${{ env.CODE_COVERAGE }}    \
                 -DCMAKE_INSTALL_PREFIX=$PREFIX      \
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            \
+                -DSYSROOT_PATH=$SYSROOT_PATH               \
                 ../
         fi
-        
+        emmake make -j ${{ env.ncpus }} check-cppinterop
         emmake make -j ${{ env.ncpus }} install
 
         cd ..
-        
+
+        echo "SYSROOT_PATH=$SYSROOT_PATH" >> $GITHUB_ENV        
         echo "CB_PYTHON_DIR=$CB_PYTHON_DIR" >> $GITHUB_ENV
         echo "CPPINTEROP_BUILD_DIR=$CPPINTEROP_BUILD_DIR" >> $GITHUB_ENV
         echo "CPPINTEROP_DIR=$CPPINTEROP_DIR" >> $GITHUB_ENV
@@ -160,7 +164,6 @@ jobs:
       run: |
         ./emsdk/emsdk activate ${{matrix.emsdk_ver}}
         source ./emsdk/emsdk_env.sh
-        export SYSROOT_PATH=$PWD/emsdk/upstream/emscripten/cache/sysroot
         micromamba activate CppInterOp-wasm  
         git clone --depth=1 https://github.com/compiler-research/xeus-cpp.git
         cd ./xeus-cpp
@@ -175,7 +178,7 @@ jobs:
           -DXEUS_CPP_EMSCRIPTEN_WASM_BUILD=ON               \
           -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            \
           -DCppInterOp_DIR="${{ env.CPPINTEROP_BUILD_DIR }}/lib/cmake/CppInterOp"  \
-          -DSYSROOT_PATH=$SYSROOT_PATH                      \
+          -DSYSROOT_PATH=${{ env.SYSROOT_PATH }}                     \
           ..
         emmake make -j ${{ env.ncpus }} install
 
