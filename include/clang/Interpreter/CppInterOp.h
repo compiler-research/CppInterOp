@@ -676,6 +676,15 @@ namespace Cpp {
     const char* m_IntegralValue;
     TemplateArgInfo(TCppScope_t type, const char* integral_value = nullptr)
       : m_Type(type), m_IntegralValue(integral_value) {}
+    friend bool operator==(const TemplateArgInfo& lhs,
+                           const TemplateArgInfo& rhs) {
+      return (lhs.m_Type == rhs.m_Type &&
+              lhs.m_IntegralValue == rhs.m_IntegralValue);
+    }
+    friend bool operator!=(const TemplateArgInfo& lhs,
+                           const TemplateArgInfo& rhs) {
+      return !(lhs == rhs);
+    }
   };
   /// Builds a template instantiation for a given templated declaration.
   /// Offers a single interface for instantiation of class, function and
