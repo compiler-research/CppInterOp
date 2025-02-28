@@ -126,7 +126,6 @@ jobs:
       if: ${{ steps.cache.outputs.cache-hit != 'true' }}
       run: |
         brew update
-        brew remove ruby@3.0
         # workaround for https://github.com/actions/setup-python/issues/577
         for pkg in $(brew list | grep '^python@'); do
           brew unlink "$pkg"
@@ -322,7 +321,6 @@ jobs:
     - name: Install deps
       run: |
         brew update --force 
-        brew remove ruby@3.0
         brew remove swiftlint
         # workaround for https://github.com/actions/setup-python/issues/577
         for pkg in $(brew list | grep '^python@'); do
