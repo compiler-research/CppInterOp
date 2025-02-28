@@ -1493,6 +1493,30 @@ namespace Cpp {
     return QT.isPODType(getASTContext());
   }
 
+  bool IsPointerType(TCppType_t type) {
+    QualType QT = QualType::getFromOpaquePtr(type);
+    return QT->isPointerType();
+  }
+
+  TCppType_t GetPointeeType(TCppType_t type) {
+    if (!IsPointerType(type))
+      return nullptr;
+    QualType QT = QualType::getFromOpaquePtr(type);
+    return QT->getPointeeType().getAsOpaquePtr();
+  }
+
+  bool IsReferenceType(TCppType_t type) {
+    QualType QT = QualType::getFromOpaquePtr(type);
+    return QT->isReferenceType();
+  }
+
+  TCppType_t GetNonReferenceType(TCppType_t type) {
+    if (!IsReferenceType(type))
+      return nullptr;
+    QualType QT = QualType::getFromOpaquePtr(type);
+    return QT.getNonReferenceType().getAsOpaquePtr();
+  }
+
   TCppType_t GetUnderlyingType(TCppType_t type)
   {
     QualType QT = QualType::getFromOpaquePtr(type);
@@ -1862,10 +1886,22 @@ namespace Cpp {
       {
         std::string name;
         {
-          llvm::raw_string_ostream stream(name);
+          std::string complete_name;
+          llvm::raw_string_ostream stream(complete_name);
           FD->getNameForDiagnostic(stream,
                                    FD->getASTContext().getPrintingPolicy(),
                                    /*Qualified=*/false);
+
+          // insert space between template argument list and the function name
+          // this is require if the function is `operator<`
+          // `operator<<type1, type2, ...>` is invalid syntax
+          // whereas `operator< <type1, type2, ...>` is valid
+          std::string simple_name = FD->getNameAsString();
+          size_t idx = complete_name.find(simple_name, 0) + simple_name.size();
+          std::string name_without_template_args = complete_name.substr(0, idx);
+          std::string template_args = complete_name.substr(idx);
+          name = name_without_template_args +
+                 (template_args.empty() ? "" : " " + template_args);
         }
         callbuf << name;
       }

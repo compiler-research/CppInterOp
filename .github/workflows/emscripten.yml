@@ -241,8 +241,6 @@ jobs:
         export ARCHITECHURE=$(uname -m)
         if [[ "$ARCHITECHURE" != "x86_64" ]]; then
           brew remove unxip
-        else
-          brew remove ruby@3.0
         fi
         # workaround for https://github.com/actions/setup-python/issues/577
         for pkg in $(brew list | grep '^python@'); do
