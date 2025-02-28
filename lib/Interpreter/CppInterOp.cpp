@@ -32,7 +32,9 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Demangle/Demangle.h"
+#include "llvm/ExecutionEngine/Orc/Core.h"
 #include "llvm/Support/Casting.h"
+#include "llvm/Support/Error.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_os_ostream.h"
 
@@ -42,6 +44,7 @@
 #include <set>
 #include <sstream>
 #include <string>
+#include <utility>
 
 // Stream redirect.
 #ifdef _WIN32
@@ -66,6 +69,10 @@ namespace Cpp {
   using namespace llvm;
   using namespace std;
 
+  // Last assigned Autoload SearchGenerator
+  // TODO: Test fot thread safe.
+  class AutoLoadLibrarySearchGenerator;
+  static AutoLoadLibrarySearchGenerator *sAutoSG = nullptr;
   // Flag to indicate ownership when an external interpreter instance is used.
   static bool OwningSInterpreter = true;
   static compat::Interpreter* sInterpreter = nullptr;
@@ -1144,7 +1151,6 @@ namespace Cpp {
       llvm::consumeError(std::move(Err)); // nullptr if missing
     else
       return llvm::jitTargetAddressToPointer<void*>(*FDAorErr);
-
     return nullptr;
   }
 
@@ -2798,7 +2804,7 @@ namespace Cpp {
     std::string BinaryPath = GetExecutablePath(/*Argv0=*/nullptr, MainAddr);
 
     // build/tools/clang/unittests/Interpreter/Executable -> build/
-    StringRef Dir = sys::path::parent_path(BinaryPath);
+    Dir = sys::path::parent_path(BinaryPath);
 
     Dir = sys::path::parent_path(Dir);
     Dir = sys::path::parent_path(Dir);
@@ -3615,5 +3621,200 @@ namespace Cpp {
     compat::codeComplete(Results, getInterp(), code, complete_line,
                          complete_column);
   }
+
+#define DEBUG_TYPE "autoload"
+
+  static inline std::string DemangleNameForDlsym(const std::string& name) {
+    std::string nameForDlsym = name;
+
+    static bool is_demangle_active = false;
+    static bool demangle = false;
+    if (!is_demangle_active) {
+      auto& I = getInterp();
+      llvm::orc::LLJIT& EE = *compat::getExecutionEngine(I);
+      auto t = EE.getTargetTriple();
+      demangle = t.isOSDarwin() || t.isOSWindows();
+      is_demangle_active = true;
+    }
+
+    // The JIT gives us a mangled name which has an additional leading underscore
+    // on macOS and Windows, for instance __ZN8TRandom34RndmEv. However, dlsym
+    // requires us to remove it.
+    // FIXME: get this information from the DataLayout via getGlobalPrefix()!
+    if (demangle && nameForDlsym[0] == '_')
+      nameForDlsym.erase(0, 1);
+    return nameForDlsym;
+  }
+
+  class AutoLoadLibrarySearchGenerator : public llvm::orc::DefinitionGenerator {
+    bool Enabled = false;
+  public:
+    bool isEnabled() {
+      return Enabled;
+    }
+
+    void setEnabled(bool enabled) {
+      Enabled = enabled;
+    }
+
+    // Lazy materialization unit class helper
+    class AutoloadLibraryMU : public llvm::orc::MaterializationUnit {
+      std::string lib;
+      std::string fLibrary;
+      llvm::orc::SymbolNameVector fSymbols;
+    public:
+      AutoloadLibraryMU(const std::string &Library, const llvm::orc::SymbolNameVector &Symbols)
+        : MaterializationUnit({getSymbolFlagsMap(Symbols), nullptr}), fLibrary(Library), fSymbols(Symbols) {}
+
+      StringRef getName() const override {
+        return "<Symbols from Autoloaded Library>";
+      }
+
+      void materialize(std::unique_ptr<llvm::orc::MaterializationResponsibility> R) override {
+        //if (!sAutoSG || !sAutoSG->isEnabled()) {
+        //  R->failMaterialization();
+        //  return;
+        //}
+
+        LLVM_DEBUG(dbgs() << "Materialize " << lib << " syms=" << fSymbols);
+
+        auto& I = getInterp();
+        auto *DLM = I.getDynamicLibraryManager();
+
+        llvm::orc::SymbolMap loadedSymbols;
+        llvm::orc::SymbolNameSet failedSymbols;
+        bool loadedLibrary = false;
+
+        for (const auto &symbol : fSymbols) {
+          std::string symbolStr = (*symbol).str();
+          std::string nameForDlsym = DemangleNameForDlsym(symbolStr);
+
+          // Check if the symbol is available without loading the library.
+          void *addr = llvm::sys::DynamicLibrary::SearchForAddressOfSymbol(nameForDlsym);
+
+          if (!addr && !loadedLibrary) {
+            // Try to load the library which should provide the symbol definition.
+            if (DLM->loadLibrary(lib, false) != DynamicLibraryManager::LoadLibResult::kLoadLibSuccess) {
+              LLVM_DEBUG(dbgs() << "MU: Failed to load library " << lib);
+              string err = "MU: Failed to load library! " + lib;
+              perror(err.c_str());
+            } else {
+              LLVM_DEBUG(dbgs() << "MU: Autoload library " << lib);
+            }
+
+            // Only try loading the library once.
+            loadedLibrary = true;
+
+            addr = llvm::sys::DynamicLibrary::SearchForAddressOfSymbol(nameForDlsym);
+          }
+
+          if (addr) {
+            loadedSymbols[symbol] =
+#if CLANG_VERSION_MAJOR < 17
+              llvm::JITEvaluatedSymbol::fromPointer(addr, JITSymbolFlags::Exported);
+#else
+              llvm::orc::ExecutorSymbolDef(llvm::orc::ExecutorAddr::fromPtr(addr), JITSymbolFlags::Exported);
+#endif // CLANG_VERSION_MAJOR < 17
+          } else {
+            // Collect all failing symbols, delegate their responsibility and then
+            // fail their materialization. R->defineNonExistent() sounds like it
+            // should do that, but it's not implemented?!
+            failedSymbols.insert(symbol);
+          }
+        }
+
+        if (!failedSymbols.empty()) {
+          auto failingMR = R->delegate(failedSymbols);
+          if (failingMR) {
+            (*failingMR)->failMaterialization();
+          }
+        }
+
+        if (!loadedSymbols.empty()) {
+          llvm::cantFail(R->notifyResolved(loadedSymbols));
+
+#if CLANG_VERSION_MAJOR > 18
+          llvm::orc::SymbolDependenceGroup DepGroup;
+          llvm::cantFail(R->notifyEmitted({DepGroup}));
+#else
+	  llvm::cantFail(R->notifyEmitted());
+#endif
+        }
+      }
+
+      void discard(const llvm::orc::JITDylib &JD, const llvm::orc::SymbolStringPtr &Name) override {}
+
+      private:
+        static llvm::orc::SymbolFlagsMap getSymbolFlagsMap(const llvm::orc::SymbolNameVector &Symbols) {
+          llvm::orc::SymbolFlagsMap map;
+          for (const auto &symbolName : Symbols)
+            map[symbolName] = llvm::JITSymbolFlags::Exported;
+          return map;
+        }
+    };
+
+    llvm::Error tryToGenerate(llvm::orc::LookupState &LS, llvm::orc::LookupKind K, llvm::orc::JITDylib &JD,
+                              llvm::orc::JITDylibLookupFlags JDLookupFlags, const llvm::orc::SymbolLookupSet &Symbols) override {
+      if (!isEnabled())
+	return llvm::Error::success();
+      LLVM_DEBUG(dbgs() << "tryToGenerate");
+
+      auto& I = getInterp();
+      auto *DLM = I.getDynamicLibraryManager();
+
+      std::unordered_map<std::string, llvm::orc::SymbolNameVector> found;
+      llvm::orc::SymbolMap NewSymbols;
+      for (const auto &KV : Symbols) {
+	const auto &Name = KV.first;
+	if ((*Name).empty())
+	  continue;
+
+	auto lib = DLM->searchLibrariesForSymbol(*Name, /*searchSystem=*/true); // false?
+	if (lib.empty())
+	  continue;
+
+	found[lib].push_back(Name);
+
+	// Workaround: This getAddressOfGlobal call make first symbol search
+	// to work, immediatelly after library auto load. This approach do not
+	// use MU
+	//DLM->loadLibrary(lib, true);
+	//I.getAddressOfGlobal(*Name);
+      }
+
+      for (auto &&KV : found) {
+	auto MU = std::make_unique<AutoloadLibraryMU>(KV.first, std::move(KV.second));
+	if (auto Err = JD.define(MU))
+	  return Err;
+      }
+
+      return llvm::Error::success();
+    }
+
+  };
+
+  void SetLibrariesAutoload(bool autoload /* = true */) {
+    auto& I = getInterp();
+    llvm::orc::LLJIT& EE = *compat::getExecutionEngine(I);
+#if CLANG_VERSION_MAJOR < 17
+    llvm::orc::JITDylib& DyLib = EE.getMainJITDylib();
+#else
+    llvm::orc::JITDylib& DyLib = *EE.getProcessSymbolsJITDylib().get();
+#endif // CLANG_VERSION_MAJOR
+
+    if (!sAutoSG) {
+      sAutoSG = &DyLib.addGenerator(std::make_unique<AutoLoadLibrarySearchGenerator>());
+    }
+    sAutoSG->setEnabled(autoload);
+
+    LLVM_DEBUG(dbgs() << "Autoload=" << (sAutoSG->isEnabled() ? "ON" : "OFF"));
+  }
+
+  bool GetLibrariesAutoload() {
+    LLVM_DEBUG(dbgs() << "Autoload is " << (sAutoSG && sAutoSG->isEnabled() ? "ON" : "OFF"));
+    return sAutoSG && sAutoSG->isEnabled();
+  }
+
+#undef DEBUG_TYPE
 
   } // end namespace Cpp
