@@ -29,27 +29,30 @@ infrastructure are described first.
 
 ## Introspection
 
--
+- Added `IsPointerType` and `GetPointerType` functions.
+- Added `IsReferenceType` and `GetNonReferenceType` functions.
+- Introduced `IsFunctionPointerType` function.
+- Implemented `GetEnumConstantDatamembers` function to resolve all
+  EnumConstantDecls declared in a class.
+- Added IsClassPolymorphic function.
+
 
 ## Just-in-Time Compilation
 
--
+- Introduced Demangle function for handling name demangling.
+
 
 ## Incremental C++
 
--
+- Code generation fixes for `MakeFunctionCallable` for template operators and
+  incorrect handling when the return type is a function pointer.
 
 ## Misc
 
--
-
-## Fixed Bugs
-
-[XXX](https://github.com/compiler-research/CppInterOp/issues/XXX)
-
-<!---Get release bugs
- git log v1.5.0..main | grep 'Fixes|Closes'
- --->
+- Fixed a bug preventing users from disabling testing in CMake.
+- Prefixed interpreter CMake option for better clarity.
+- Multiple improvements in the continuous integration infrastructure including
+  compilation times, cache sizes, added new jobs for arm.
 
 ## Special Kudos
 
@@ -60,7 +63,10 @@ FirstName LastName (#commits)
 
 A B (N)
 
-<!---Find contributor list for this release
- git log --pretty=format:"%an"  v1.5.0...main | sort | uniq -c | sort -rn |\
-   sed -E 's,^ *([0-9]+) (.*)$,\2 \(\1\),'
---->
+mcbarton (57)
+Vipul Cariappa (11)
+Aaron Jomy (7)
+Aaron  Jomy (3)
+maximusron (1)
+Vassil Vassilev (1)
+Gnimuc (1)
