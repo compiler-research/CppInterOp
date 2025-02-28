@@ -132,10 +132,12 @@ if(EMSCRIPTEN)
     NO_SONAME 1
     LINK_FLAGS "-s WASM_BIGINT  -s SIDE_MODULE=1 ${SYMBOLS_LIST}"
   )
-  # When compiling Emscripten tests the shared library it links to is expected to be in the same folder as the compiled Javascript
-  add_custom_command(TARGET clangCppInterOp POST_BUILD
-    COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:clangCppInterOp> ${CMAKE_BINARY_DIR}/unittests/CppInterOp/
-  )
+  if (CPPINTEROP_ENABLE_TESTING)
+    # When compiling Emscripten tests the shared library it links to is expected to be in the same folder as the compiled Javascript
+    add_custom_command(TARGET clangCppInterOp POST_BUILD
+      COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:clangCppInterOp> ${CMAKE_BINARY_DIR}/unittests/CppInterOp/
+    )
+  endif(CPPINTEROP_ENABLE_TESTING)
 endif()
 
 string(REPLACE ";" "\;" _VER CPPINTEROP_VERSION)

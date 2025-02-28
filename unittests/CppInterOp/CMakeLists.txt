@@ -34,7 +34,6 @@ if(EMSCRIPTEN)
   # Without ALLOW_MEMORY_GROWTH=1 tests will fail with aborted(OOM). Approach to fix taken from answers to
   # https://stackoverflow.com/questions/67222200/runtimeerror-abortoom-build-with-s-assertions-1-for-more-info
   set_target_properties(CppInterOpTests PROPERTIES
-    COMPILE_FLAGS "-s MAIN_MODULE=1"
     LINK_FLAGS "-s MAIN_MODULE=1 -s WASM_BIGINT -s EXPORTED_RUNTIME_METHODS='[\"FS\",\"PATH\",\"LDSO\",\"loadDynamicLibrary\",\"ERRNO_CODES\"]' --preload-file ${SYSROOT_PATH}/include@/include -s ALLOW_MEMORY_GROWTH=1"
   )
 endif()
@@ -79,7 +78,6 @@ if(EMSCRIPTEN)
   # Without ALLOW_MEMORY_GROWTH=1 tests will fail with aborted(OOM). Approach to fix taken from answers to
   # https://stackoverflow.com/questions/67222200/runtimeerror-abortoom-build-with-s-assertions-1-for-more-info
   set_target_properties(DynamicLibraryManagerTests PROPERTIES
-    COMPILE_FLAGS "-s MAIN_MODULE=1"
     LINK_FLAGS "-s MAIN_MODULE=1 -s WASM_BIGINT -s EXPORTED_RUNTIME_METHODS='[\"FS\",\"PATH\",\"LDSO\",\"loadDynamicLibrary\",\"ERRNO_CODES\"]' --preload-file ${SYSROOT_PATH}/include@/include -s ALLOW_MEMORY_GROWTH=1"
   )
 endif()
