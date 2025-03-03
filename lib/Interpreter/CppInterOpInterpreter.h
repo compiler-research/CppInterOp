@@ -437,7 +437,7 @@ public:
 #else
     if (llvm::Error Err = Undo(N)) {
       llvm::logAllUnhandledErrors(std::move(Err), llvm::errs(),
-                                  "Failed to undo via ::undo: or something");
+                                  "Failed to undo via ::undo");
       return kFailure;
     }
     return kSuccess;
