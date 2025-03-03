@@ -1627,11 +1627,7 @@ TEST(FunctionReflectionTest, UndoTest) {
   testing::internal::CaptureStderr();
   Cpp::Process("int y = x;");
   cerrs = testing::internal::GetCapturedStderr();
-  EXPECT_STREQ(
-      cerrs.c_str(),
-      "In file included from <<< inputs >>>:1:\ninput_line_2:1:9: error: use "
-      "of undeclared identifier 'x'\n    1 | int y = x;\n      |         "
-      "^\nFailed to parse via ::process:Parsing failed.\n");
+  EXPECT_TRUE(strstr(cerrs.c_str(), "error: use of undeclared identifier 'x'") != nullptr);
   testing::internal::CaptureStderr();
   Cpp::Process("int x = 10;");
   cerrs = testing::internal::GetCapturedStderr();
