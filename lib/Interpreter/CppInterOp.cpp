@@ -3674,7 +3674,7 @@ namespace Cpp {
 
   int Undo(unsigned N) {
 #ifdef CPPINTEROP_USE_CLING
-    auto &I = getInterp();
+    auto& I = getInterp();
     cling::Interpreter::PushTransactionRAII RAII(&I);
     I.unload(N);
     return compat::Interpreter::kSuccess;
