@@ -3618,8 +3618,6 @@ namespace Cpp {
 
   int Undo(unsigned N) {
 #ifdef CPPINTEROP_USE_CLING
-    llvm::logAllUnhandledErrors(Undo(N), llvm::errs(),
-                                "Undo not implemented in Cling");
     return compat::Interpreter::kFailure;
 #else
     return getInterp().undo(N);
