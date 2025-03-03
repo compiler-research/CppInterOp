@@ -3616,4 +3616,6 @@ namespace Cpp {
                          complete_column);
   }
 
+  int Undo(unsigned N) { return getInterp().undo(N); }
+
   } // end namespace Cpp
