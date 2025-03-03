@@ -1615,3 +1615,17 @@ TEST(FunctionReflectionTest, Destruct) {
   clang_Interpreter_takeInterpreterAsPtr(I);
   clang_Interpreter_dispose(I);
 }
+
+TEST(FunctionReflectionTest, UndoTest) {
+  Cpp::CreateInterpreter();
+  std::string cerrs;
+  testing::internal::CaptureStderr();
+  Cpp::Process("int x = 5;");
+  cerrs = testing::internal::GetCapturedStderr();
+  EXPECT_STREQ(cerrs.c_str(), "");
+  Cpp::Undo();
+  testing::internal::CaptureStderr();
+  Cpp::Process("int x = 10;");
+  cerrs = testing::internal::GetCapturedStderr();
+  EXPECT_STREQ(cerrs.c_str(), "");
+}

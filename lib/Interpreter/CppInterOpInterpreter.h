@@ -429,6 +429,21 @@ public:
     return ret; // TODO: Implement
   }
 
+  CompilationResult undo(unsigned N = 1) {
+#ifdef CPPINTEROP_USE_CLING
+    llvm::logAllUnhandledErrors(Undo(N), llvm::errs(),
+                                "Undo not implemented in Cling");
+    return kFailure;
+#else
+    if (llvm::Error Err = Undo(N)) {
+      llvm::logAllUnhandledErrors(std::move(Err), llvm::errs(),
+                                  "Failed to undo via ::undo: or something");
+      return kFailure;
+    }
+    return kSuccess;
+#endif
+  }
+
 }; // Interpreter
 } // namespace Cpp
 
