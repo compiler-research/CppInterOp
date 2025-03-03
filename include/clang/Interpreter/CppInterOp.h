@@ -785,6 +785,11 @@ namespace Cpp {
                                    unsigned complete_line = 1U,
                                    unsigned complete_column = 1U);
 
+  /// Reverts the last N operations performed by the interpreter.
+  ///\param[in] N The number of operations to undo. Defaults to 1.
+  ///\returns 0 on success, non-zero on failure.
+  CPPINTEROP_API int Undo(unsigned N = 1);
+
 } // end namespace Cpp
 
 #endif // CPPINTEROP_CPPINTEROP_H
