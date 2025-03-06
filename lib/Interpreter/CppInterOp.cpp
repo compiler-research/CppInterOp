@@ -900,7 +900,7 @@ namespace Cpp {
       if (Type->isUndeducedAutoType() && IsTemplatedFunction(FD) &&
           !FD->isDefined()) {
 #ifdef CPPINTEROP_USE_CLING
-        cling::Interpreter::PushTransactionRAII RAII(&I);
+        cling::Interpreter::PushTransactionRAII RAII(&getInterp());
 #endif
         getSema().InstantiateFunctionDefinition(SourceLocation(), FD, true,
                                                 true);
@@ -1061,6 +1061,10 @@ namespace Cpp {
                             const std::vector<TemplateArgInfo>& arg_types) {
     auto& S = getSema();
     auto& C = S.getASTContext();
+
+#ifdef CPPINTEROP_USE_CLING
+    cling::Interpreter::PushTransactionRAII RAII(&getInterp());
+#endif
 
     llvm::SmallVector<Expr*> Args;
     for (auto i : arg_types) {
