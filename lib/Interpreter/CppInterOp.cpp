@@ -1066,13 +1066,19 @@ namespace Cpp {
     cling::Interpreter::PushTransactionRAII RAII(&getInterp());
 #endif
 
+    // The overload resolution interfaces in Sema require a list of expressions.
+    // However, unlike handwritten C++, we do not always have a expression.
+    // Here we synthesize a placeholder expression to be able to use
+    // Sema::AddOverloadCandidate. Made up expressions are fine because the
+    // interface uses the list size and the expression types.
     llvm::SmallVector<Expr*> Args;
+    Args.reserve(arg_types.size());
     for (auto i : arg_types) {
       QualType Type = QualType::getFromOpaquePtr(i.m_Type);
       ExprValueKind ExprKind = ExprValueKind::VK_PRValue;
       if (Type->isReferenceType())
         ExprKind = ExprValueKind::VK_LValue;
-      Args.push_back(new (getSema().getASTContext())
+      Args.push_back(new (C)
                          OpaqueValueExpr(SourceLocation::getFromRawEncoding(1),
                                          Type.getNonReferenceType(), ExprKind));
     }
@@ -1093,37 +1099,26 @@ namespace Cpp {
       }
     }
 
-    TemplateArgumentListInfo TLI{};
+    TemplateArgumentListInfo ExplicitTemplateArgs{};
     for (auto TA : TemplateArgs)
-      TLI.addArgument(
+      ExplicitTemplateArgs.addArgument(
           S.getTrivialTemplateArgumentLoc(TA, QualType(), SourceLocation()));
 
     OverloadCandidateSet Overloads(
         SourceLocation(), OverloadCandidateSet::CandidateSetKind::CSK_Normal);
+
     for (void* i : candidates) {
       Decl* D = static_cast<Decl*>(i);
-      if (auto* MD = dyn_cast<CXXMethodDecl>(D)) {
-        S.AddMethodCandidate(
-            MD, DeclAccessPair::make(MD, MD->getAccess()), MD->getParent(),
-            C.getTypeDeclType(MD->getParent()),
-            Expr::Classification::makeSimpleLValue(), Args, Overloads);
-      } else if (auto* FD = dyn_cast<FunctionDecl>(D)) {
+      if (auto* FD = dyn_cast<FunctionDecl>(D)) {
         S.AddOverloadCandidate(FD, DeclAccessPair::make(FD, FD->getAccess()),
                                Args, Overloads);
       } else if (auto* FTD = dyn_cast<FunctionTemplateDecl>(D)) {
-        if (auto* CXXRD =
-                dyn_cast<CXXRecordDecl>(FTD->getTemplatedDecl()->getParent())) {
-          S.AddMethodTemplateCandidate(
-              FTD, DeclAccessPair::make(FTD, FTD->getAccess()), CXXRD, &TLI,
-              C.getTypeDeclType(CXXRD),
-              Expr::Classification::makeSimpleLValue(), Args, Overloads);
-        } else {
-          S.AddTemplateOverloadCandidate(
-              FTD, DeclAccessPair::make(FTD, FTD->getAccess()), &TLI, Args,
-              Overloads);
-        }
+        S.AddTemplateOverloadCandidate(
+            FTD, DeclAccessPair::make(FTD, FTD->getAccess()),
+            &ExplicitTemplateArgs, Args, Overloads);
       }
     }
+
     OverloadCandidateSet::iterator Best;
     Overloads.BestViableFunction(S, SourceLocation(), Best);
 
