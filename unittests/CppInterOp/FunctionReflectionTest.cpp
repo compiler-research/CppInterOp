@@ -313,6 +313,11 @@ TEST(FunctionReflectionTest, GetFunctionReturnType) {
           return sizeof(A) + i;
       }
     };
+
+    template<class ...T> struct RTTest_TemplatedList {};
+    template<class ...T> auto rttest_make_tlist(T ... args) {
+      return RTTest_TemplatedList<T...>{};
+    }
     )";
 
   GetAllTopLevelDecls(code, Decls, true);
@@ -348,6 +353,16 @@ TEST(FunctionReflectionTest, GetFunctionReturnType) {
   EXPECT_EQ(
       Cpp::GetTypeAsString(Cpp::GetFunctionReturnType(TemplateSubDecls[3])),
       "long");
+
+  ASTContext& C = Interp->getCI()->getASTContext();
+  std::vector<Cpp::TemplateArgInfo> args = {C.IntTy.getAsOpaquePtr(),
+                                            C.DoubleTy.getAsOpaquePtr()};
+  std::vector<Cpp::TemplateArgInfo> explicit_args;
+  std::vector<Cpp::TCppFunction_t> candidates = {Decls[14]};
+  EXPECT_EQ(
+      Cpp::GetTypeAsString(Cpp::GetFunctionReturnType(
+          Cpp::BestOverloadFunctionMatch(candidates, explicit_args, args))),
+      "RTTest_TemplatedList<int, double>");
 }
 
 TEST(FunctionReflectionTest, GetFunctionNumArgs) {
@@ -599,6 +614,7 @@ TEST(FunctionReflectionTest, BestOverloadFunctionMatch1) {
           template<class A> long get_size();
           template<class A, class B> long get_size(A a, B b);
           template<class A> long get_size(float a);
+          template <int N, class T> long get_size(T a);
       };
 
       template<class A>
@@ -620,6 +636,11 @@ TEST(FunctionReflectionTest, BestOverloadFunctionMatch1) {
       long MyTemplatedMethodClass::get_size(A a, B b) {
           return sizeof(A) + sizeof(B);
       }
+      
+      template <int N, class T>
+      long MyTemplatedMethodClass::get_size(T a) {
+        return N + sizeof(T) + a;
+      }
   )";
 
   GetAllTopLevelDecls(code, Decls);
@@ -638,6 +659,8 @@ TEST(FunctionReflectionTest, BestOverloadFunctionMatch1) {
 
   std::vector<Cpp::TemplateArgInfo> explicit_args0;
   std::vector<Cpp::TemplateArgInfo> explicit_args1 = {C.IntTy.getAsOpaquePtr()};
+  std::vector<Cpp::TemplateArgInfo> explicit_args2 = {
+      {C.IntTy.getAsOpaquePtr(), "1"}, C.IntTy.getAsOpaquePtr()};
 
   Cpp::TCppFunction_t func1 =
       Cpp::BestOverloadFunctionMatch(candidates, explicit_args0, args1);
@@ -647,6 +670,8 @@ TEST(FunctionReflectionTest, BestOverloadFunctionMatch1) {
       Cpp::BestOverloadFunctionMatch(candidates, explicit_args0, args2);
   Cpp::TCppFunction_t func4 =
       Cpp::BestOverloadFunctionMatch(candidates, explicit_args1, args3);
+  Cpp::TCppFunction_t func5 =
+      Cpp::BestOverloadFunctionMatch(candidates, explicit_args2, args3);
 
   EXPECT_EQ(Cpp::GetFunctionSignature(func1),
             "template<> long MyTemplatedMethodClass::get_size<int>(int &)");
@@ -656,6 +681,8 @@ TEST(FunctionReflectionTest, BestOverloadFunctionMatch1) {
             "template<> long MyTemplatedMethodClass::get_size<char, float>(char a, float b)");
   EXPECT_EQ(Cpp::GetFunctionSignature(func4),
             "template<> long MyTemplatedMethodClass::get_size<int>(float a)");
+  EXPECT_EQ(Cpp::GetFunctionSignature(func5),
+            "template<> long MyTemplatedMethodClass::get_size<1, int>(int a)");
 }
 
 TEST(FunctionReflectionTest, BestOverloadFunctionMatch2) {
