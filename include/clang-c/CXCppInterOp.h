@@ -12,7 +12,7 @@
 #include <stddef.h>
 #include <stdint.h>
 
-LLVM_CLANG_C_EXTERN_C_BEGIN
+extern "C" {
 
 /**
  * \defgroup CPPINTEROP_INTERPRETER_MANIP Interpreter manipulations
@@ -360,7 +360,7 @@ void clang_destruct(CXObject This, CXScope S, bool withFree);
  * @}
  */
 
-LLVM_CLANG_C_EXTERN_C_END
+}
 
 #endif // LLVM_CLANG_C_CXCPPINTEROP_H
        // NOLINTEND()
