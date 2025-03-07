@@ -1055,6 +1055,7 @@ namespace Cpp {
         funcs.push_back(Found);
   }
 
+  // Adapted from inner workings of Sema::BuildCallExpr
   TCppFunction_t
   BestOverloadFunctionMatch(const std::vector<TCppFunction_t>& candidates,
                             const std::vector<TemplateArgInfo>& explicit_types,
