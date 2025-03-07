@@ -293,16 +293,15 @@ set(CMAKE_INCLUDE_CURRENT_DIR ON)
 # In rare cases we might want to have clang installed in a different place
 # than llvm and the header files should be found first (even though the
 # LLVM_INCLUDE_DIRS) contain clang headers, too.
-if (CPPINTEROP_USE_CLING)
+if(CPPINTEROP_USE_CLING)
   add_definitions(-DCPPINTEROP_USE_CLING)
   include_directories(SYSTEM ${CLING_INCLUDE_DIRS})
-  else()
-  if (NOT CPPINTEROP_USE_REPL)
-  message(FATAL_ERROR "We need either CPPINTEROP_USE_CLING or CPPINTEROP_USE_REPL")
-  endif()
+elseif(CPPINTEROP_USE_REPL)
   add_definitions(-DCPPINTEROP_USE_REPL)
+else()
+  message(FATAL_ERROR "We need either CPPINTEROP_USE_CLING or CPPINTEROP_USE_REPL")
+endif()
 
-endif(CPPINTEROP_USE_CLING)
 include_directories(SYSTEM ${CLANG_INCLUDE_DIRS})
 include_directories(SYSTEM ${LLVM_INCLUDE_DIRS})
 separate_arguments(LLVM_DEFINITIONS_LIST NATIVE_COMMAND ${LLVM_DEFINITIONS})
