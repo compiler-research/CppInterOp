@@ -6,6 +6,16 @@ set(CMAKE_MODULE_PATH
   "${CMAKE_CURRENT_SOURCE_DIR}/cmake/modules"
   )
 
+enable_language(CXX)
+set(CMAKE_CXX_EXTENSIONS NO)
+
+option(CPPINTEROP_USE_CLING "Use Cling as backend" OFF)
+option(CPPINTEROP_USE_REPL "Use clang-repl as backend" ON)
+option(CPPINTEROP_ENABLE_TESTING "Enable the CppInterOp testing infrastructure." ON)
+
+if (CPPINTEROP_USE_CLING AND CPPINTEROP_USE_REPL)
+message(FATAL_ERROR "We can only use Cling (${CPPINTEROP_USE_CLING}=On) or Repl (CPPINTEROP_USE_REPL=On), but not both of them.")
+endif()
 # If we are not building as a part of LLVM, build CppInterOp as a standalone
 # project, using LLVM as an external library:
 if( CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR )
@@ -54,17 +64,7 @@ if( CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR )
     endif()
   endif()
 
-enable_language(CXX)
-set(CMAKE_CXX_EXTENSIONS NO)
 include(GNUInstallDirs)
-  option(CPPINTEROP_USE_CLING "Use Cling as backend" OFF)
-  option(CPPINTEROP_USE_REPL "Use clang-repl as backend" ON)
-  option(CPPINTEROP_ENABLE_TESTING "Enable the CppInterOp testing infrastructure." ON)
-
-  if (CPPINTEROP_USE_CLING AND CPPINTEROP_USE_REPL)
-    message(FATAL_ERROR "We can only use Cling (CPPINTEROP_USE_CLING=On) or Repl (CPPINTEROP_USE_REPL=On), but not both of them.")
-  endif()
-  
   ## Define supported version of clang and llvm
 
   set(CLANG_MIN_SUPPORTED 13.0)
