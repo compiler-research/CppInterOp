@@ -1646,9 +1646,9 @@ TEST(FunctionReflectionTest, UndoTest) {
   cerrs = testing::internal::GetCapturedStderr();
   EXPECT_STREQ(cerrs.c_str(), "");
   int ret = Cpp::Undo(100);
-  #if defined(CPPINTEROP_USE_CLING)
+#ifdef CPPINTEROP_USE_CLING
   EXPECT_EQ(ret, 0);
-  #else
+#else
   EXPECT_EQ(ret, 1);
-  #endif
+#endif
 }
