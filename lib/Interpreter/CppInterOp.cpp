@@ -1121,6 +1121,11 @@ namespace Cpp {
         S.AddOverloadCandidate(FD, DeclAccessPair::make(FD, FD->getAccess()),
                                Args, Overloads);
       } else if (auto* FTD = dyn_cast<FunctionTemplateDecl>(D)) {
+        // AddTemplateOverloadCandidate is causing a memory leak
+        // It is a known bug at clang
+        // call stack: AddTemplateOverloadCandidate -> MakeDeductionFailureInfo
+        // source:
+        // https://github.com/llvm/llvm-project/blob/release/19.x/clang/lib/Sema/SemaOverload.cpp#L731-L756
         S.AddTemplateOverloadCandidate(
             FTD, DeclAccessPair::make(FTD, FTD->getAccess()),
             &ExplicitTemplateArgs, Args, Overloads);
