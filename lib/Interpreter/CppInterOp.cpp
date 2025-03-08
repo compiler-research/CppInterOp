@@ -1072,16 +1072,23 @@ namespace Cpp {
     // Here we synthesize a placeholder expression to be able to use
     // Sema::AddOverloadCandidate. Made up expressions are fine because the
     // interface uses the list size and the expression types.
+    struct WrapperExpr : public OpaqueValueExpr {
+      WrapperExpr() : OpaqueValueExpr(clang::Stmt::EmptyShell()) {}
+    };
+    WrapperExpr Exprs[arg_types.size()];
     llvm::SmallVector<Expr*> Args;
     Args.reserve(arg_types.size());
+    size_t idx = 0;
     for (auto i : arg_types) {
       QualType Type = QualType::getFromOpaquePtr(i.m_Type);
       ExprValueKind ExprKind = ExprValueKind::VK_PRValue;
       if (Type->isReferenceType())
         ExprKind = ExprValueKind::VK_LValue;
-      Args.push_back(new (C)
-                         OpaqueValueExpr(SourceLocation::getFromRawEncoding(1),
-                                         Type.getNonReferenceType(), ExprKind));
+
+      new (&Exprs[idx]) OpaqueValueExpr(SourceLocation::getFromRawEncoding(1),
+                                        Type.getNonReferenceType(), ExprKind);
+      Args.push_back(&Exprs[idx]);
+      ++idx;
     }
 
     // Create a list of template arguments.
