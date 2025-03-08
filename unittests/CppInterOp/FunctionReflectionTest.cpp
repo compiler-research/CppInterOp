@@ -1529,7 +1529,7 @@ TEST(FunctionReflectionTest, UndoTest) {
   testing::internal::CaptureStderr();
   Cpp::Process("int y = x;");
   cerrs = testing::internal::GetCapturedStderr();
-  EXPECT_TRUE(strstr(cerrs.c_str(), "error: use of undeclared identifier 'x'") != nullptr);
+  EXPECT_TRUE(strstr(cerrs.c_str(), "use of undeclared identifier 'x'") != nullptr);
   testing::internal::CaptureStderr();
   Cpp::Process("int x = 10;");
   cerrs = testing::internal::GetCapturedStderr();
@@ -1547,4 +1547,11 @@ TEST(FunctionReflectionTest, UndoTest) {
   Cpp::Process("int y = 20;");
   cerrs = testing::internal::GetCapturedStderr();
   EXPECT_STREQ(cerrs.c_str(), "");
+
+  int ret = Cpp::Undo(100);
+  #if defined(CPPINTEROP_USE_CLING)
+  EXPECT_EQ(ret, 0);
+  #else
+  EXPECT_EQ(ret, 1);
+  #endif
 }
