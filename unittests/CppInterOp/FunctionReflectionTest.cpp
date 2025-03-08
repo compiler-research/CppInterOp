@@ -1251,3 +1251,40 @@ TEST(FunctionReflectionTest, Destruct) {
   output = testing::internal::GetCapturedStdout();
   EXPECT_EQ(output, "Destructor Executed");
 }
+
+TEST(FunctionReflectionTest, UndoTest) {
+  Cpp::CreateInterpreter();
+  std::string cerrs;
+  testing::internal::CaptureStderr();
+  Cpp::Process("int x = 5;");
+  cerrs = testing::internal::GetCapturedStderr();
+  EXPECT_STREQ(cerrs.c_str(), "");
+  Cpp::Undo();
+  testing::internal::CaptureStderr();
+  Cpp::Process("int y = x;");
+  cerrs = testing::internal::GetCapturedStderr();
+  EXPECT_TRUE(strstr(cerrs.c_str(), "use of undeclared identifier 'x'") != nullptr);
+  testing::internal::CaptureStderr();
+  Cpp::Process("int x = 10;");
+  cerrs = testing::internal::GetCapturedStderr();
+  EXPECT_STREQ(cerrs.c_str(), "");
+  testing::internal::CaptureStderr();
+  Cpp::Process("int y = 10;");
+  cerrs = testing::internal::GetCapturedStderr();
+  EXPECT_STREQ(cerrs.c_str(), "");
+  Cpp::Undo(2);
+  testing::internal::CaptureStderr();
+  Cpp::Process("int x = 20;");
+  cerrs = testing::internal::GetCapturedStderr();
+  EXPECT_STREQ(cerrs.c_str(), "");
+  testing::internal::CaptureStderr();
+  Cpp::Process("int y = 20;");
+  cerrs = testing::internal::GetCapturedStderr();
+  EXPECT_STREQ(cerrs.c_str(), "");
+  int ret = Cpp::Undo(100);
+#ifdef CPPINTEROP_USE_CLING
+  EXPECT_EQ(ret, 0);
+#else
+  EXPECT_EQ(ret, 1);
+#endif
+}
