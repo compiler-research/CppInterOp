@@ -1547,7 +1547,6 @@ TEST(FunctionReflectionTest, UndoTest) {
   Cpp::Process("int y = 20;");
   cerrs = testing::internal::GetCapturedStderr();
   EXPECT_STREQ(cerrs.c_str(), "");
-
   int ret = Cpp::Undo(100);
   #if defined(CPPINTEROP_USE_CLING)
   EXPECT_EQ(ret, 0);
