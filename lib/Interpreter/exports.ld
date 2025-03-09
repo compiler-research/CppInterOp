@@ -60,3 +60,4 @@
 -Wl,--export=_ZNK5clang4Decl15hasDefiningAttrEv
 -Wl,--export=_ZNK5clang4Decl8getAttrsEv
 -Wl,--export=_ZN4llvm3sys2fs6accessERKNS_5TwineENS1_10AccessModeE
+-Wl,--export=__ZNK5clang10ASTContext22getLValueReferenceTypeENS_8QualTypeEb
