@@ -1547,7 +1547,7 @@ TEST(FunctionReflectionTest, Construct) {
   output = testing::internal::GetCapturedStdout();
   EXPECT_EQ(output, "Constructor Executed");
   output.clear();
-  auto dummy = clang_allocate(8);
+  auto* dummy = clang_allocate(8);
   EXPECT_TRUE(dummy);
   clang_deallocate(dummy);
   // Clean up resources
