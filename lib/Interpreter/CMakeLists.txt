@@ -140,5 +140,10 @@ endif()
 string(REPLACE ";" "\;" _VER CPPINTEROP_VERSION)
 set_source_files_properties(CppInterOp.cpp PROPERTIES COMPILE_DEFINITIONS
   "LLVM_BINARY_DIR=\"${LLVM_BINARY_DIR}\";CPPINTEROP_VERSION=\"${_VAR}\""
-  COMPILE_FLAGS "-Wno-vla"
 )
+
+if(NOT WIN32)
+  set_source_files_properties(CppInterOp.cpp PROPERTIES
+    COMPILE_FLAGS "-Wno-vla"
+  )
+endif()
