@@ -1075,7 +1075,7 @@ namespace Cpp {
     struct WrapperExpr : public OpaqueValueExpr {
       WrapperExpr() : OpaqueValueExpr(clang::Stmt::EmptyShell()) {}
     };
-    WrapperExpr Exprs[arg_types.size()];
+    auto* Exprs = new WrapperExpr[arg_types.size()];
     llvm::SmallVector<Expr*> Args;
     Args.reserve(arg_types.size());
     size_t idx = 0;
@@ -1135,7 +1135,9 @@ namespace Cpp {
     OverloadCandidateSet::iterator Best;
     Overloads.BestViableFunction(S, SourceLocation(), Best);
 
-    return Best != Overloads.end() ? Best->Function : nullptr;
+    FunctionDecl* Result = Best != Overloads.end() ? Best->Function : nullptr;
+    delete[] Exprs;
+    return Result;
   }
 
   // Gets the AccessSpecifier of the function and checks if it is equal to
