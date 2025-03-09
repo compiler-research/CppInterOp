@@ -113,6 +113,7 @@ endif()
     ${link_libs}
   )
 
+
 if(EMSCRIPTEN)
   # FIXME: When dynamically linking the Emscripten shared library to the 
   # unit tests main_module you get errors due to undefined symbols. The reading of the file
@@ -138,7 +139,10 @@ if(EMSCRIPTEN)
       COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:clangCppInterOp> ${CMAKE_BINARY_DIR}/unittests/CppInterOp/
     )
   endif(CPPINTEROP_ENABLE_TESTING)
+
 endif()
+
+target_compile_definitions(clangCppInterOp PUBLIC "_CINDEX_LIB_") # workaround for the use of `CINDEX_LINKAGE`
 
 string(REPLACE ";" "\;" _VER CPPINTEROP_VERSION)
 set_source_files_properties(CppInterOp.cpp PROPERTIES COMPILE_DEFINITIONS
