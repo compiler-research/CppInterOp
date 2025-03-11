@@ -131,7 +131,7 @@ if(EMSCRIPTEN)
   # https://github.com/llvm/llvm-project/pull/123396
   set_target_properties(clangCppInterOp PROPERTIES 
     NO_SONAME 1
-    LINK_FLAGS "-s WASM_BIGINT  -s SIDE_MODULE=1 ${SYMBOLS_LIST}"
+    LINK_FLAGS "-s WASM_BIGINT  -s SIDE_MODULE=1"
   )
   if (CPPINTEROP_ENABLE_TESTING)
     # When compiling Emscripten tests the shared library it links to is expected to be in the same folder as the compiled Javascript
