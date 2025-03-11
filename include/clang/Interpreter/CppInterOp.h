@@ -210,6 +210,9 @@ namespace Cpp {
   /// Checks if the scope is a class or not.
   CPPINTEROP_API bool IsClass(TCppScope_t scope);
 
+  /// Checks if the scope is a function.
+  CPPINTEROP_API bool IsFunction(TCppScope_t scope);
+
   /// Checks if the type is a function pointer.
   CPPINTEROP_API bool IsFunctionPointerType(TCppType_t type);
 
@@ -706,17 +709,16 @@ namespace Cpp {
   CPPINTEROP_API TCppFunction_t
   InstantiateTemplateFunctionFromString(const char* function_template);
 
-  /// Finds best template match based on explicit template parameters and
-  /// argument types
+  /// Finds best overload match based on explicit template parameters (if any)
+  /// and argument types.
   ///
-  ///\param[in] candidates - Vector of suitable candidates that come under the
-  ///           parent scope and have the same name (obtained using
-  ///           GetClassTemplatedMethods)
+  ///\param[in] candidates - vector of overloads that come under the
+  ///           parent scope and have the same name
   ///\param[in] explicit_types - set of expicitly instantiated template types
   ///\param[in] arg_types - set of argument types
   ///\returns Instantiated function pointer
   CPPINTEROP_API TCppFunction_t
-  BestTemplateFunctionMatch(const std::vector<TCppFunction_t>& candidates,
+  BestOverloadFunctionMatch(const std::vector<TCppFunction_t>& candidates,
                             const std::vector<TemplateArgInfo>& explicit_types,
                             const std::vector<TemplateArgInfo>& arg_types);
 
