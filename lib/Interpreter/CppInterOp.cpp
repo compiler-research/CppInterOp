@@ -3477,7 +3477,7 @@ namespace Cpp {
     return PI->getNameAsString();
   }
 
-  OperatorArity GetOperatorArity(TCppFunction_t op) {
+  CPPINTEROP_API OperatorArity GetOperatorArity(TCppFunction_t op) {
     Decl* D = static_cast<Decl*>(op);
     if (auto* FD = llvm::dyn_cast<FunctionDecl>(D)) {
       if (FD->isOverloadedOperator()) {
@@ -3501,7 +3501,7 @@ namespace Cpp {
     return (OperatorArity)~0U;
   }
 
-  void GetOperator(TCppScope_t scope, Operator op,
+  CPPINTEROP_API void GetOperator(TCppScope_t scope, Operator op,
                    std::vector<TCppFunction_t>& operators, OperatorArity kind) {
     Decl* D = static_cast<Decl*>(scope);
     if (auto* DC = llvm::dyn_cast_or_null<DeclContext>(D)) {

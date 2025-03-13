@@ -1,4 +1,3 @@
--Wl,--export=_ZN3Cpp11GetOperatorEPvNS_8OperatorERNSt3__26vectorIS0_NS2_9allocatorIS0_EEEENS_13OperatorArityE
 -Wl,--export=_ZN4llvm11raw_ostream14flush_nonemptyEv
 -Wl,--export=_ZN4llvm11raw_ostream16SetBufferAndModeEPcmNS0_10BufferKindE
 -Wl,--export=_ZN4llvm11raw_ostream5writeEPKcm
