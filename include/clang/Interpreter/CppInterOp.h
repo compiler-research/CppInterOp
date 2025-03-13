@@ -567,8 +567,8 @@ namespace Cpp {
 
   ///\returns list of operator overloads
   CPPINTEROP_API void GetOperator(TCppScope_t scope, Operator op,
-                   std::vector<TCppFunction_t>& operators,
-                   OperatorArity kind = kBoth);
+                                  std::vector<TCppFunction_t>& operators,
+                                  OperatorArity kind = kBoth);
 
   /// Creates an instance of the interpreter we need for the various interop
   /// services.
