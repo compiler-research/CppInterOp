@@ -563,10 +563,10 @@ namespace Cpp {
                                                 TCppIndex_t param_index);
 
   ///\returns arity of the operator or kNone
-  OperatorArity GetOperatorArity(TCppFunction_t op);
+  CPPINTEROP_API OperatorArity GetOperatorArity(TCppFunction_t op);
 
   ///\returns list of operator overloads
-  void GetOperator(TCppScope_t scope, Operator op,
+  CPPINTEROP_API void GetOperator(TCppScope_t scope, Operator op,
                    std::vector<TCppFunction_t>& operators,
                    OperatorArity kind = kBoth);
 
