@@ -25,16 +25,21 @@ add_cppinterop_unittest(CppInterOpTests
 )
 
 if(EMSCRIPTEN)
-  # Explaination of compile and link flags
-  # To dynamically link to a shared library for Emscripten builds you must use the MAIN_MODULE flag (see both https://github.com/emscripten-core/emscripten/issues/23543#issuecomment-2625334414
-  # and https://emscripten.org/docs/compiling/Dynamic-Linking.html)
-  # Without WASM_BIGINT flag then you get fatal errors when trying to run compiled Javascript about trying to convert between BigInt and non BigInt types
-  # EXPORTED_RUNTIME_METHODS='[\"FS\",\"PATH\",\"LDSO\",\"loadDynamicLibrary\",\"ERRNO_CODES\"]' and --preload-file ${SYSROOT_PATH}/include@/include are not allow the Javascript that is 
-  # compiled to have access to the standard library headers (approach taken from xeus-cpp)
-  # Without ALLOW_MEMORY_GROWTH=1 tests will fail with aborted(OOM). Approach to fix taken from answers to
-  # https://stackoverflow.com/questions/67222200/runtimeerror-abortoom-build-with-s-assertions-1-for-more-info
-  set_target_properties(CppInterOpTests PROPERTIES
-    LINK_FLAGS "-s MAIN_MODULE=1 -s WASM_BIGINT -s EXPORTED_RUNTIME_METHODS='[\"FS\",\"PATH\",\"LDSO\",\"loadDynamicLibrary\",\"ERRNO_CODES\"]' --preload-file ${SYSROOT_PATH}/include@/include -s ALLOW_MEMORY_GROWTH=1"
+  target_compile_options(CppInterOpTests
+    PUBLIC "SHELL: -fexceptions"
+  )
+
+  target_link_options(CppInterOpTests
+    PUBLIC "SHELL: -fexceptions"
+    PUBLIC "SHELL: -s MAIN_MODULE=1"
+    PUBLIC "SHELL: -s WASM=1"
+    PUBLIC "SHELL: -s WASM_BIGINT"
+    PUBLIC "SHELL: -s ASSERTIONS=0"
+    PUBLIC "SHELL: -s ALLOW_MEMORY_GROWTH=1"
+    PUBLIC "SHELL: -s EXIT_RUNTIME=1"
+    PUBLIC "SHELL: -s STACK_SIZE=32mb"
+    PUBLIC "SHELL: -s INITIAL_MEMORY=128mb"
+    PUBLIC "SHELL: --preload-file ${SYSROOT_PATH}/include@/include"
   )
 endif()
 
@@ -69,16 +74,21 @@ target_link_libraries(DynamicLibraryManagerTests
 )
 
 if(EMSCRIPTEN)
-  # Explaination of compile and link flags
-  # To dynamically link to a shared library for Emscripten builds you must use the MAIN_MODULE flag (see both https://github.com/emscripten-core/emscripten/issues/23543#issuecomment-2625334414
-  # and https://emscripten.org/docs/compiling/Dynamic-Linking.html)
-  # Without WASM_BIGINT flag then you get fatal errors when trying to run compiled Javascript about trying to convert between BigInt and non BigInt types
-  # EXPORTED_RUNTIME_METHODS='[\"FS\",\"PATH\",\"LDSO\",\"loadDynamicLibrary\",\"ERRNO_CODES\"]' and --preload-file ${SYSROOT_PATH}/include@/include are not allow the Javascript that is 
-  # compiled to have access to the standard library headers (approach taken from xeus-cpp)
-  # Without ALLOW_MEMORY_GROWTH=1 tests will fail with aborted(OOM). Approach to fix taken from answers to
-  # https://stackoverflow.com/questions/67222200/runtimeerror-abortoom-build-with-s-assertions-1-for-more-info
-  set_target_properties(DynamicLibraryManagerTests PROPERTIES
-    LINK_FLAGS "-s MAIN_MODULE=1 -s WASM_BIGINT -s EXPORTED_RUNTIME_METHODS='[\"FS\",\"PATH\",\"LDSO\",\"loadDynamicLibrary\",\"ERRNO_CODES\"]' --preload-file ${SYSROOT_PATH}/include@/include -s ALLOW_MEMORY_GROWTH=1"
+  target_compile_options(DynamicLibraryManagerTests
+    PUBLIC "SHELL: -fexceptions"
+  )
+
+  target_link_options(DynamicLibraryManagerTests
+    PUBLIC "SHELL: -fexceptions"
+    PUBLIC "SHELL: -s MAIN_MODULE=1"
+    PUBLIC "SHELL: -s WASM=1"
+    PUBLIC "SHELL: -s WASM_BIGINT"
+    PUBLIC "SHELL: -s ASSERTIONS=0"
+    PUBLIC "SHELL: -s ALLOW_MEMORY_GROWTH=1"
+    PUBLIC "SHELL: -s EXIT_RUNTIME=1"
+    PUBLIC "SHELL: -s STACK_SIZE=32mb"
+    PUBLIC "SHELL: -s INITIAL_MEMORY=128mb"
+    PUBLIC "SHELL: --preload-file ${SYSROOT_PATH}/include@/include"
   )
 endif()
 
