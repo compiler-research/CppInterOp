@@ -361,7 +361,7 @@ endif()
 
 # Add appropriate flags for GCC
 if (LLVM_COMPILER_IS_GCC_COMPATIBLE)
-  if (APPLE)
+  if (APPLE OR EMSCRIPTEN)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-common -Woverloaded-virtual -Wcast-qual -fno-strict-aliasing -Wno-long-long -Wall -W -Wno-unused-parameter -Wwrite-strings")
   else()
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-common -Woverloaded-virtual -Wcast-qual -fno-strict-aliasing -pedantic -Wno-long-long -Wall -W -Wno-unused-parameter -Wwrite-strings")
@@ -450,11 +450,6 @@ option(CPPINTEROP_INCLUDE_DOCS "Generate build targets for the CppInterOp docs."
 option(CPPINTEROP_ENABLE_DOXYGEN "Use doxygen to generate CppInterOp interal API documentation.")
 option(CPPINTEROP_ENABLE_SPHINX "Use sphinx to generage CppInterOp user documentation")
 
-
-if(EMSCRIPTEN)
-    message("Build with emscripten")
-    set(CPPINTEROP_ENABLE_TESTING OFF)
-endif()
 
 if(MSVC)
 
