@@ -546,9 +546,6 @@ TEST(TypeReflectionTest, IsPODType) {
 }
 
 TEST(TypeReflectionTest, IsSmartPtrType) {
-#ifdef EMSCRIPTEN
-  GTEST_SKIP() << "Test crashes gtest on Emscipten";
-#endif
   if (llvm::sys::RunningOnValgrind())
     GTEST_SKIP() << "XFAIL due to Valgrind report";
   Cpp::CreateInterpreter();
