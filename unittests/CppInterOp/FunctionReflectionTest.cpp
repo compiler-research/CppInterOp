@@ -547,9 +547,6 @@ TEST(FunctionReflectionTest, ExistsFunctionTemplate) {
 }
 
 TEST(FunctionReflectionTest, InstantiateTemplateFunctionFromString) {
-#ifdef EMSCRIPTEN
-  GTEST_SKIP() << "Test crashes gtest on Emscipten";
-#endif
   if (llvm::sys::RunningOnValgrind())
     GTEST_SKIP() << "XFAIL due to Valgrind report";
   Cpp::CreateInterpreter();
@@ -1053,7 +1050,7 @@ TEST(FunctionReflectionTest, IsStaticMethod) {
 
 TEST(FunctionReflectionTest, GetFunctionAddress) {
 #ifdef EMSCRIPTEN
-  GTEST_SKIP() << "Test crashes gtest on Emscipten";
+  GTEST_SKIP() << "Test fails for Emscipten builds";
 #endif
   if (llvm::sys::RunningOnValgrind())
     GTEST_SKIP() << "XFAIL due to Valgrind report";
@@ -1100,7 +1097,7 @@ TEST(FunctionReflectionTest, IsVirtualMethod) {
 
 TEST(FunctionReflectionTest, JitCallAdvanced) {
 #ifdef EMSCRIPTEN
-  GTEST_SKIP() << "Test crashes gtest on Emscipten";
+  GTEST_SKIP() << "Test fails for Emscipten builds";
 #endif
   if (llvm::sys::RunningOnValgrind())
     GTEST_SKIP() << "XFAIL due to Valgrind report";
@@ -1127,7 +1124,7 @@ TEST(FunctionReflectionTest, JitCallAdvanced) {
 
 TEST(FunctionReflectionTest, GetFunctionCallWrapper) {
 #ifdef EMSCRIPTEN
-  GTEST_SKIP() << "Test crashes gtest on Emscipten";
+  GTEST_SKIP() << "Test fails for Emscipten builds";
 #endif
   if (llvm::sys::RunningOnValgrind())
     GTEST_SKIP() << "XFAIL due to Valgrind report";

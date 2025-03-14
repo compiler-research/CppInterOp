@@ -127,12 +127,12 @@ namespace Cpp {
       : m_Kind(K), m_DestructorCall(C), m_FD(Dtor) {}
 
     /// Checks if the passed arguments are valid for the given function.
-    bool AreArgumentsValid(void* result, ArgList args, void* self) const;
+    CPPINTEROP_API bool AreArgumentsValid(void* result, ArgList args, void* self) const;
 
     /// This function is used for debugging, it reports when the function was
     /// called.
-    void ReportInvokeStart(void* result, ArgList args, void* self) const;
-    void ReportInvokeStart(void* object, unsigned long nary,
+    CPPINTEROP_API void ReportInvokeStart(void* result, ArgList args, void* self) const;
+    CPPINTEROP_API void ReportInvokeStart(void* object, unsigned long nary,
                            int withFree) const;
     void ReportInvokeEnd() const;
   public:

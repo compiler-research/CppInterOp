@@ -161,9 +161,6 @@ TEST(ScopeReflectionTest, SizeOf) {
 
 
 TEST(ScopeReflectionTest, IsBuiltin) {
-#ifdef EMSCRIPTEN
-  GTEST_SKIP() << "Test crashes gtest on Emscipten";
-#endif
   // static std::set<std::string> g_builtins =
   // {"bool", "char", "signed char", "unsigned char", "wchar_t", "short", "unsigned short",
   //  "int", "unsigned int", "long", "unsigned long", "long long", "unsigned long long",
@@ -494,9 +491,6 @@ TEST(ScopeReflectionTest, GetScopefromCompleteName) {
 }
 
 TEST(ScopeReflectionTest, GetNamed) {
-#ifdef EMSCRIPTEN
-  GTEST_SKIP() << "Test crashes gtest on Emscipten";
-#endif
   std::string code = R"(namespace N1 {
                         namespace N2 {
                           class C {
@@ -882,9 +876,6 @@ template<typename T> T TrivialFnTemplate() { return T(); }
 }
 
 TEST(ScopeReflectionTest, InstantiateTemplateFunctionFromString) {
-#ifdef EMSCRIPTEN
-  GTEST_SKIP() << "Test crashes gtest on Emscipten";
-#endif
   if (llvm::sys::RunningOnValgrind())
     GTEST_SKIP() << "XFAIL due to Valgrind report";
   Cpp::CreateInterpreter();
@@ -1025,9 +1016,6 @@ TEST(ScopeReflectionTest, GetClassTemplateInstantiationArgs) {
 
 
 TEST(ScopeReflectionTest, IncludeVector) {
-#ifdef EMSCRIPTEN
-  GTEST_SKIP() << "Test crashes gtest on Emscipten";
-#endif
   if (llvm::sys::RunningOnValgrind())
       GTEST_SKIP() << "XFAIL due to Valgrind report";
   std::string code = R"(
