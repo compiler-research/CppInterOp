@@ -139,13 +139,6 @@ Assuming it passes all test you can install by executing the following.
 
    emmake make -j $(nproc --all) install
 
-Once this finishes building we need to take note of where we built
-CppInterOp. This can be done by executing the following
-
-.. code:: bash
-
-   export CPPINTEROP_BUILD_DIR=$PWD
-
 ## Xeus-cpp-lite Wasm Build Instructions
 
 A project which makes use of the wasm build of CppInterOp is xeus-cpp.
@@ -165,7 +158,6 @@ build folder, you can build the wasm version of xeus-cpp by executing
            -DCMAKE_INSTALL_PREFIX=$PREFIX                                 \
            -DXEUS_CPP_EMSCRIPTEN_WASM_BUILD=ON                            \
            -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON                         \
-           -DCppInterOp_DIR="$CPPINTEROP_BUILD_DIR/lib/cmake/CppInterOp"  \
            -DSYSROOT_PATH=$SYSROOT_PATH                                   \
            ..
    emmake make -j $(nproc --all) install
