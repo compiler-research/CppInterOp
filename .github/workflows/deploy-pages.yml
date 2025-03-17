@@ -116,7 +116,6 @@ jobs:
         # Build CppInterOp next to cling and llvm-project.
         mkdir build
         cd build
-        export CPPINTEROP_BUILD_DIR=$PWD
 
         if [[ "${cling_on}" == "ON" ]]; then
           emcmake  cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}        \
@@ -153,7 +152,6 @@ jobs:
 
         echo "SYSROOT_PATH=$SYSROOT_PATH" >> $GITHUB_ENV        
         echo "CB_PYTHON_DIR=$CB_PYTHON_DIR" >> $GITHUB_ENV
-        echo "CPPINTEROP_BUILD_DIR=$CPPINTEROP_BUILD_DIR" >> $GITHUB_ENV
         echo "CPPINTEROP_DIR=$CPPINTEROP_DIR" >> $GITHUB_ENV
         echo "LLVM_BUILD_DIR=$LLVM_BUILD_DIR" >> $GITHUB_ENV
         echo "CPLUS_INCLUDE_PATH=$CPLUS_INCLUDE_PATH" >> $GITHUB_ENV
@@ -177,7 +175,6 @@ jobs:
           -DCMAKE_INSTALL_PREFIX=${{ env.PREFIX }}          \
           -DXEUS_CPP_EMSCRIPTEN_WASM_BUILD=ON               \
           -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            \
-          -DCppInterOp_DIR="${{ env.CPPINTEROP_BUILD_DIR }}/lib/cmake/CppInterOp"  \
           -DSYSROOT_PATH=${{ env.SYSROOT_PATH }}                     \
           ..
         emmake make -j ${{ env.ncpus }} install
