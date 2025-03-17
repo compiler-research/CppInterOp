@@ -70,8 +70,8 @@ emcmake cmake -DCMAKE_BUILD_TYPE=Release \
                         -DLLVM_INCLUDE_TESTS=OFF                        \
                         -DLLVM_ENABLE_THREADS=OFF                       \
                         ../llvm
-emmake make clang -j $(nproc --all)
-emmake make clang-repl -j $(nproc --all)
+emmake make libclang -j $(nproc --all)
+emmake make clangInterpreter clangStaticAnalyzerCore -j $(nproc --all)
 emmake make lld -j $(nproc --all)
 ```
 
