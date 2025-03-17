@@ -134,7 +134,7 @@ namespace Cpp {
     void ReportInvokeStart(void* result, ArgList args, void* self) const;
     void ReportInvokeStart(void* object, unsigned long nary,
                            int withFree) const;
-    void ReportInvokeEnd() const;
+
   public:
     Kind getKind() const { return m_Kind; }
     bool isValid() const { return getKind() != kUnknown; }
