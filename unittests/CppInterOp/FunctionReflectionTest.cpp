@@ -1617,6 +1617,10 @@ TEST(FunctionReflectionTest, Destruct) {
 }
 
 TEST(FunctionReflectionTest, UndoTest) {
+#ifdef EMSCRIPTEN
+  GTEST_SKIP()
+      << "Currently not implemented while running clang-repl in the broswer";
+#else
   Cpp::CreateInterpreter();
   std::string cerrs;
   testing::internal::CaptureStderr();
@@ -1650,5 +1654,6 @@ TEST(FunctionReflectionTest, UndoTest) {
   EXPECT_EQ(ret, 0);
 #else
   EXPECT_EQ(ret, 1);
+#endif
 #endif
 }
