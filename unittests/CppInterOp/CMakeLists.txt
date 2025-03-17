@@ -25,12 +25,29 @@ add_cppinterop_unittest(CppInterOpTests
 )
 
 if(EMSCRIPTEN)
-
+  # Explanation of Emscripten-specific link flags for CppInterOpTests:
+  #
+  # MAIN_MODULE=1:
+  # Enables building CppInterOpTests.js as the main WebAssembly module, allowing dynamic linking of side modules.
+  #
+  # WASM_BIGINT:
+  # Ensures support for 64-bit integer types by enabling JavaScript BigInt integration in WASM.
+  #
+  # ALLOW_MEMORY_GROWTH=1:
+  # Allows the WebAssembly memory to grow dynamically at runtime to accommodate increasing memory needs.
+  # Would lead to an abortOnCannotGrowMemory error if memory cannot be grown while running the tests.
+  #
+  # STACK_SIZE=32mb: Allocates 32MB of stack space to handle deep recursion or large stack-allocated objects safely.
+  # INITIAL_MEMORY=128mb: Sets the initial linear memory size to 128MB to reduce the likelihood of early memory expansion and improve performance.
+  # The STACK_SIZE and INITIAL_MEMORY values are chosen based on what has been put to use for running xeus-cpp-lite.
+  # Check https://github.com/jupyter-xeus/xeus/blob/main/cmake/WasmBuildOptions.cmake#L35-L36 for more details.
+  # Not setting these flags would lead to a memory access out of bounds error while running the tests.
+  #
+  # --preload-file ${SYSROOT_PATH}/include@/include:
+  # Preloads the system include directory into the Emscripten virtual filesystem to make headers accessible at runtime.
   target_link_options(CppInterOpTests
-    PUBLIC "SHELL: -fexceptions"
     PUBLIC "SHELL: -s MAIN_MODULE=1"
     PUBLIC "SHELL: -s WASM_BIGINT"
-    PUBLIC "SHELL: -s ASSERTIONS=0"
     PUBLIC "SHELL: -s ALLOW_MEMORY_GROWTH=1"
     PUBLIC "SHELL: -s STACK_SIZE=32mb"
     PUBLIC "SHELL: -s INITIAL_MEMORY=128mb"
@@ -69,12 +86,10 @@ target_link_libraries(DynamicLibraryManagerTests
 )
 
 if(EMSCRIPTEN)
-
+  # Check explanation of Emscripten-specific link flags for CppInterOpTests above for DynamicLibraryManagerTests as well.
   target_link_options(DynamicLibraryManagerTests
-    PUBLIC "SHELL: -fexceptions"
     PUBLIC "SHELL: -s MAIN_MODULE=1"
     PUBLIC "SHELL: -s WASM_BIGINT"
-    PUBLIC "SHELL: -s ASSERTIONS=0"
     PUBLIC "SHELL: -s ALLOW_MEMORY_GROWTH=1"
     PUBLIC "SHELL: -s STACK_SIZE=32mb"
     PUBLIC "SHELL: -s INITIAL_MEMORY=128mb"
