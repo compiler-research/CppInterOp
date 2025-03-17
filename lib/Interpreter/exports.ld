@@ -37,3 +37,12 @@
 -Wl,--export=_ZNK5clang7TagType7getDeclEv
 -Wl,--export=_ZNK5clang7VarDecl28isThisDeclarationADefinitionERNS_10ASTContextE
 -Wl,--export=_ZTVN4llvm18raw_string_ostreamE
+-Wl,--export=_ZN4llvm13StringMapImpl11RehashTableEj
+-Wl,--export=_ZN4llvm13StringMapImpl15LookupBucketForENS_9StringRefEj
+-Wl,--export=_ZN4llvm13StringMapImpl4hashENS_9StringRefE
+-Wl,--export=_ZNK5clang10ASTContext14getComplexTypeENS_8QualTypeE
+-Wl,--export=_ZNK5clang10ASTContext19getTypeDeclTypeSlowEPKNS_8TypeDeclE
+-Wl,--export=_ZNK5clang10RecordDecl19isInjectedClassNameEv
+-Wl,--export=_ZNK5clang11DeclContext6lookupENS_15DeclarationNameE
+-Wl,--export=_ZNK5clang17ClassTemplateDecl18getSpecializationsEv
+-Wl,--export=_ZNK5clang4Sema15getStdNamespaceEv

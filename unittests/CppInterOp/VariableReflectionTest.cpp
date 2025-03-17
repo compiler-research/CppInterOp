@@ -264,7 +264,7 @@ CODE
 
 TEST(VariableReflectionTest, GetVariableOffset) {
 #ifdef EMSCRIPTEN
-  GTEST_SKIP() << "Test crashes gtest on Emscipten";
+  GTEST_SKIP() << "Test fails for Emscipten builds";
 #endif
   std::vector<Decl *> Decls;
 #define Stringify(s) Stringifyx(s)
@@ -331,9 +331,6 @@ TEST(VariableReflectionTest, GetVariableOffset) {
 CODE
 
 TEST(VariableReflectionTest, VariableOffsetsWithInheritance) {
-#ifdef EMSCRIPTEN
-  GTEST_SKIP() << "Test crashes gtest on Emscipten";
-#endif
   if (llvm::sys::RunningOnValgrind())
     GTEST_SKIP() << "XFAIL due to Valgrind report";
 
