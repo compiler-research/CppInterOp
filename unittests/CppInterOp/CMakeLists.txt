@@ -29,11 +29,9 @@ if(EMSCRIPTEN)
   target_link_options(CppInterOpTests
     PUBLIC "SHELL: -fexceptions"
     PUBLIC "SHELL: -s MAIN_MODULE=1"
-    PUBLIC "SHELL: -s WASM=1"
     PUBLIC "SHELL: -s WASM_BIGINT"
     PUBLIC "SHELL: -s ASSERTIONS=0"
     PUBLIC "SHELL: -s ALLOW_MEMORY_GROWTH=1"
-    PUBLIC "SHELL: -s EXIT_RUNTIME=1"
     PUBLIC "SHELL: -s STACK_SIZE=32mb"
     PUBLIC "SHELL: -s INITIAL_MEMORY=128mb"
     PUBLIC "SHELL: --preload-file ${SYSROOT_PATH}/include@/include"
@@ -75,11 +73,9 @@ if(EMSCRIPTEN)
   target_link_options(DynamicLibraryManagerTests
     PUBLIC "SHELL: -fexceptions"
     PUBLIC "SHELL: -s MAIN_MODULE=1"
-    PUBLIC "SHELL: -s WASM=1"
     PUBLIC "SHELL: -s WASM_BIGINT"
     PUBLIC "SHELL: -s ASSERTIONS=0"
     PUBLIC "SHELL: -s ALLOW_MEMORY_GROWTH=1"
-    PUBLIC "SHELL: -s EXIT_RUNTIME=1"
     PUBLIC "SHELL: -s STACK_SIZE=32mb"
     PUBLIC "SHELL: -s INITIAL_MEMORY=128mb"
     PUBLIC "SHELL: --preload-file ${SYSROOT_PATH}/include@/include"

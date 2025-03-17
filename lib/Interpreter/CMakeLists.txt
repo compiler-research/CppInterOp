@@ -129,15 +129,10 @@ if(EMSCRIPTEN)
   #FIXME: A patch is needed to llvm to remove -Wl,-z,defs since it is now recognised on emscripten. What needs to be removed is here
   # https://github.com/llvm/llvm-project/blob/128e2e446e90c3b1827cfc7d4d19e3c0976beff3/llvm/cmake/modules/HandleLLVMOptions.cmake#L318 . The PR to do try to do this is here 
   # https://github.com/llvm/llvm-project/pull/123396
-  set_target_properties(clangCppInterOp
-    PROPERTIES NO_SONAME 1
+  set_target_properties(clangCppInterOp PROPERTIES
+    NO_SONAME 1
+    LINK_FLAGS "-s WASM_BIGINT  -s SIDE_MODULE=1 ${SYMBOLS_LIST}"
   )
-  target_link_options(clangCppInterOp
-    PRIVATE "SHELL: -s WASM_BIGINT"
-    PRIVATE "SHELL: -s SIDE_MODULE=1"
-    PRIVATE "SHELL: ${SYMBOLS_LIST}"
-  )
-
   if (CPPINTEROP_ENABLE_TESTING)
     # When compiling Emscripten tests the shared library it links to is expected to be in the same folder as the compiled Javascript
     add_custom_command(TARGET clangCppInterOp POST_BUILD
