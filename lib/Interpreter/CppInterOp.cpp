@@ -100,7 +100,7 @@ namespace Cpp {
   static clang::ASTContext& getASTContext() { return getSema().getASTContext(); }
 
 #define DEBUG_TYPE "jitcall"
-  CPPINTEROP_API bool JitCall::AreArgumentsValid(void* result, ArgList args,
+  bool JitCall::AreArgumentsValid(void* result, ArgList args,
                                   void* self) const {
     bool Valid = true;
     if (Cpp::IsConstructor(m_FD)) {
@@ -130,7 +130,7 @@ namespace Cpp {
     return Valid;
   }
 
-  CPPINTEROP_API void JitCall::ReportInvokeStart(void* result, ArgList args, void* self) const{
+  void JitCall::ReportInvokeStart(void* result, ArgList args, void* self) const{
     std::string Name;
     llvm::raw_string_ostream OS(Name);
     auto FD = (const FunctionDecl*) m_FD;
@@ -145,7 +145,7 @@ namespace Cpp {
                );
   }
 
-  CPPINTEROP_API void JitCall::ReportInvokeStart(void* object, unsigned long nary,
+  void JitCall::ReportInvokeStart(void* object, unsigned long nary,
                                   int withFree) const {
     std::string Name;
     llvm::raw_string_ostream OS(Name);

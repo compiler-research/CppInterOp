@@ -25,9 +25,6 @@ add_cppinterop_unittest(CppInterOpTests
 )
 
 if(EMSCRIPTEN)
-  target_compile_options(CppInterOpTests
-    PUBLIC "SHELL: -fexceptions"
-  )
 
   target_link_options(CppInterOpTests
     PUBLIC "SHELL: -fexceptions"
@@ -74,9 +71,6 @@ target_link_libraries(DynamicLibraryManagerTests
 )
 
 if(EMSCRIPTEN)
-  target_compile_options(DynamicLibraryManagerTests
-    PUBLIC "SHELL: -fexceptions"
-  )
 
   target_link_options(DynamicLibraryManagerTests
     PUBLIC "SHELL: -fexceptions"
