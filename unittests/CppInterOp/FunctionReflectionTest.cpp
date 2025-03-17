@@ -1619,7 +1619,7 @@ TEST(FunctionReflectionTest, Destruct) {
 TEST(FunctionReflectionTest, UndoTest) {
 #ifdef EMSCRIPTEN
   GTEST_SKIP()
-      << "Currently not implemented while running clang-repl in the broswer";
+      << "Test fails for Emscipten builds";
 #else
   Cpp::CreateInterpreter();
   std::string cerrs;
