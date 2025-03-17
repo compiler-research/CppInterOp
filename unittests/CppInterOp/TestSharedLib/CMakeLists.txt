@@ -11,9 +11,12 @@ set_output_directory(TestSharedLib
 
 
 if (EMSCRIPTEN)
-  set_target_properties(TestSharedLib PROPERTIES
-    NO_SONAME 1
-    LINK_FLAGS "-s WASM_BIGINT  -s SIDE_MODULE=1"
+  set_target_properties(TestSharedLib
+    PROPERTIES NO_SONAME 1
+  )
+  target_link_options(TestSharedLib
+    PRIVATE "SHELL: -s WASM_BIGINT"
+    PRIVATE "SHELL: -s SIDE_MODULE=1"
   )
 endif()
 
