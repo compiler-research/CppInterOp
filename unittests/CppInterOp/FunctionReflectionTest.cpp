@@ -1622,6 +1622,8 @@ TEST(FunctionReflectionTest, UndoTest) {
         << "Test fails for Emscipten builds";
   #else
     Cpp::CreateInterpreter();
+    EXPECT_EQ(Cpp::Process("int a = 5;"), 0);
+    EXPECT_EQ(Cpp::Process("int b = 10;"), 0);
     EXPECT_EQ(Cpp::Process("int x = 5;"), 0);
     Cpp::Undo();
     EXPECT_NE(Cpp::Process("int y = x;"), 0);
