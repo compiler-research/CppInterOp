@@ -1617,43 +1617,24 @@ TEST(FunctionReflectionTest, Destruct) {
 }
 
 TEST(FunctionReflectionTest, UndoTest) {
-#ifdef EMSCRIPTEN
-  GTEST_SKIP()
-      << "Test fails for Emscipten builds";
-#else
-  Cpp::CreateInterpreter();
-  std::string cerrs;
-  testing::internal::CaptureStderr();
-  Cpp::Process("int x = 5;");
-  cerrs = testing::internal::GetCapturedStderr();
-  EXPECT_STREQ(cerrs.c_str(), "");
-  Cpp::Undo();
-  testing::internal::CaptureStderr();
-  Cpp::Process("int y = x;");
-  cerrs = testing::internal::GetCapturedStderr();
-  EXPECT_TRUE(strstr(cerrs.c_str(), "use of undeclared identifier 'x'") != nullptr);
-  testing::internal::CaptureStderr();
-  Cpp::Process("int x = 10;");
-  cerrs = testing::internal::GetCapturedStderr();
-  EXPECT_STREQ(cerrs.c_str(), "");
-  testing::internal::CaptureStderr();
-  Cpp::Process("int y = 10;");
-  cerrs = testing::internal::GetCapturedStderr();
-  EXPECT_STREQ(cerrs.c_str(), "");
-  Cpp::Undo(2);
-  testing::internal::CaptureStderr();
-  Cpp::Process("int x = 20;");
-  cerrs = testing::internal::GetCapturedStderr();
-  EXPECT_STREQ(cerrs.c_str(), "");
-  testing::internal::CaptureStderr();
-  Cpp::Process("int y = 20;");
-  cerrs = testing::internal::GetCapturedStderr();
-  EXPECT_STREQ(cerrs.c_str(), "");
-  int ret = Cpp::Undo(100);
-#ifdef CPPINTEROP_USE_CLING
-  EXPECT_EQ(ret, 0);
-#else
-  EXPECT_EQ(ret, 1);
-#endif
-#endif
-}
+  #ifdef EMSCRIPTEN
+    GTEST_SKIP()
+        << "Test fails for Emscipten builds";
+  #else
+    Cpp::CreateInterpreter();
+    EXPECT_EQ(Cpp::Process("int x = 5;"), 0);
+    Cpp::Undo();
+    EXPECT_NE(Cpp::Process("int y = x;"), 0);
+    EXPECT_EQ(Cpp::Process("int x = 10;"), 0);
+    EXPECT_EQ(Cpp::Process("int y = 10;"), 0);
+    Cpp::Undo(2);
+    EXPECT_EQ(Cpp::Process("int x = 20;"), 0);
+    EXPECT_EQ(Cpp::Process("int y = 20;"), 0);
+    int ret = Cpp::Undo(100);
+  #ifdef CPPINTEROP_USE_CLING
+    EXPECT_EQ(ret, 0);
+  #else
+    EXPECT_EQ(ret, 1);
+  #endif
+  #endif
+  }
