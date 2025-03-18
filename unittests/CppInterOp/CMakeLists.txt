@@ -1,6 +1,3 @@
-set(LLVM_LINK_COMPONENTS
-  Support
-)
 if (EMSCRIPTEN)
   # Omitting CUDATest.cpp since Emscripten build currently has no GPU support
   # For Emscripten builds linking to gtest_main will not suffice for gtest to run
