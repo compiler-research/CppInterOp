@@ -88,7 +88,7 @@ executing the following
                  ../llvm
    emmake make libclang -j $(nproc --all)
    emmake make clangInterpreter clangStaticAnalyzerCore -j $(nproc --all)
-   emmake make lld -j $(nproc --all)
+   emmake make lldWasm -j $(nproc --all)
 
 Once this finishes building we need to take note of where we built our
 llvm build. This can be done by executing the following
