@@ -15,6 +15,8 @@
 
 #include "llvm/Support/Valgrind.h"
 
+#include "clang-c/CXCppInterOp.h"
+
 #include "gtest/gtest.h"
 
 #include <string>
@@ -816,7 +818,7 @@ TEST(ScopeReflectionTest, InstantiateNNTPClassTemplate) {
                                        /*type_size*/ args1.size()));
 
   // C API
-  auto I = clang_createInterpreterFromRawPtr(Cpp::GetInterpreter());
+  auto* I = clang_createInterpreterFromRawPtr(Cpp::GetInterpreter());
   CXTemplateArgInfo Args1[] = {{IntTy, "5"}};
   auto C_API_SHIM = [&](auto Decl) {
     return clang_instantiateTemplate(make_scope(Decl, I), Args1, 1).data[0];

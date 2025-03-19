@@ -6,6 +6,8 @@
 #include "clang/Interpreter/CppInterOp.h"
 #include "clang/Sema/Sema.h"
 
+#include "clang-c/CXCppInterOp.h"
+
 #include "gtest/gtest.h"
 
 #include <string>
@@ -105,6 +107,20 @@ TEST(FunctionReflectionTest, GetClassMethods) {
   std::vector<Cpp::TCppFunction_t> methods5;
   Cpp::GetClassMethods(nullptr, methods5);
   EXPECT_EQ(methods5.size(), 0);
+
+  // C API
+  auto* I = clang_createInterpreterFromRawPtr(Cpp::GetInterpreter());
+  auto C_API_SHIM = [&](Cpp::TCppFunction_t method) {
+    auto Str = clang_getFunctionSignature(
+        make_scope(static_cast<clang::Decl*>(method), I));
+    auto Res = std::string(get_c_string(Str));
+    dispose_string(Str);
+    return Res;
+  };
+  EXPECT_EQ(C_API_SHIM(methods0[0]), "int A::f1(int a, int b)");
+  // Clean up resources
+  clang_Interpreter_takeInterpreterAsPtr(I);
+  clang_Interpreter_dispose(I);
 }
 
 TEST(FunctionReflectionTest, ConstructorInGetClassMethods) {
@@ -161,6 +177,15 @@ TEST(FunctionReflectionTest, HasDefaultConstructor) {
   EXPECT_TRUE(Cpp::HasDefaultConstructor(Decls[0]));
   EXPECT_TRUE(Cpp::HasDefaultConstructor(Decls[1]));
   EXPECT_FALSE(Cpp::HasDefaultConstructor(Decls[3]));
+
+  // C API
+  auto* I = clang_createInterpreterFromRawPtr(Cpp::GetInterpreter());
+  EXPECT_TRUE(clang_hasDefaultConstructor(make_scope(Decls[0], I)));
+  EXPECT_TRUE(clang_hasDefaultConstructor(make_scope(Decls[1], I)));
+  EXPECT_FALSE(clang_hasDefaultConstructor(make_scope(Decls[3], I)));
+  // Clean up resources
+  clang_Interpreter_takeInterpreterAsPtr(I);
+  clang_Interpreter_dispose(I);
 }
 
 TEST(FunctionReflectionTest, GetDestructor) {
@@ -189,6 +214,14 @@ TEST(FunctionReflectionTest, GetDestructor) {
   EXPECT_TRUE(DeletedDtor);
   EXPECT_TRUE(Cpp::IsFunctionDeleted(DeletedDtor));
   EXPECT_FALSE(Cpp::GetDestructor(Decls[3]));
+
+  // C API
+  auto* I = clang_createInterpreterFromRawPtr(Cpp::GetInterpreter());
+  EXPECT_TRUE(clang_getDestructor(make_scope(Decls[0], I)).data[0]);
+  EXPECT_TRUE(clang_getDestructor(make_scope(Decls[1], I)).data[0]);
+  // Clean up resources
+  clang_Interpreter_takeInterpreterAsPtr(I);
+  clang_Interpreter_dispose(I);
 }
 
 TEST(FunctionReflectionTest, GetFunctionsUsingName) {
@@ -524,6 +557,17 @@ TEST(FunctionReflectionTest, IsTemplatedFunction) {
   EXPECT_FALSE(Cpp::IsTemplatedFunction(Decls[3]));
   EXPECT_FALSE(Cpp::IsTemplatedFunction(SubDeclsC1[1]));
   EXPECT_TRUE(Cpp::IsTemplatedFunction(SubDeclsC1[2]));
+
+  // C API
+  auto* I = clang_createInterpreterFromRawPtr(Cpp::GetInterpreter());
+  EXPECT_FALSE(clang_isTemplatedFunction(make_scope(Decls[0], I)));
+  EXPECT_TRUE(clang_isTemplatedFunction(make_scope(Decls[1], I)));
+  EXPECT_FALSE(clang_isTemplatedFunction(make_scope(Decls[3], I)));
+  EXPECT_FALSE(clang_isTemplatedFunction(make_scope(SubDeclsC1[1], I)));
+  EXPECT_TRUE(clang_isTemplatedFunction(make_scope(SubDeclsC1[2], I)));
+  // Clean up resources
+  clang_Interpreter_takeInterpreterAsPtr(I);
+  clang_Interpreter_dispose(I);
 }
 
 TEST(FunctionReflectionTest, ExistsFunctionTemplate) {
@@ -544,6 +588,14 @@ TEST(FunctionReflectionTest, ExistsFunctionTemplate) {
   EXPECT_TRUE(Cpp::ExistsFunctionTemplate("f", 0));
   EXPECT_TRUE(Cpp::ExistsFunctionTemplate("f", Decls[1]));
   EXPECT_FALSE(Cpp::ExistsFunctionTemplate("f", Decls[2]));
+
+  // C API
+  auto* I = clang_createInterpreterFromRawPtr(Cpp::GetInterpreter());
+  EXPECT_TRUE(clang_existsFunctionTemplate("f", make_scope(Decls[1], I)));
+  EXPECT_FALSE(clang_existsFunctionTemplate("f", make_scope(Decls[2], I)));
+  // Clean up resources
+  clang_Interpreter_takeInterpreterAsPtr(I);
+  clang_Interpreter_dispose(I);
 }
 
 TEST(FunctionReflectionTest, InstantiateTemplateFunctionFromString) {
@@ -1119,6 +1171,17 @@ TEST(FunctionReflectionTest, JitCallAdvanced) {
   EXPECT_TRUE(object) << "Failed to call the ctor.";
   // Building a wrapper with a typedef decl must be possible.
   Cpp::Destruct(object, Decls[1]);
+
+  // C API
+  auto* I = clang_createInterpreterFromRawPtr(Cpp::GetInterpreter());
+  auto S = clang_getDefaultConstructor(make_scope(Decls[0], I));
+  void* object_c = nullptr;
+  clang_invoke(S, &object_c, nullptr, 0, nullptr);
+  EXPECT_TRUE(object_c) << "Failed to call the ctor.";
+  clang_destruct(object_c, make_scope(Decls[1], I), true);
+  // Clean up resources
+  clang_Interpreter_takeInterpreterAsPtr(I);
+  clang_Interpreter_dispose(I);
 }
 
 
@@ -1473,6 +1536,23 @@ TEST(FunctionReflectionTest, Construct) {
   Cpp::Deallocate(scope, where);
   output = testing::internal::GetCapturedStdout();
   EXPECT_EQ(output, "Constructor Executed");
+  output.clear();
+
+  // C API
+  testing::internal::CaptureStdout();
+  auto* I = clang_createInterpreterFromRawPtr(Cpp::GetInterpreter());
+  auto scope_c = make_scope(static_cast<clang::Decl*>(scope), I);
+  auto object_c = clang_construct(scope_c, nullptr);
+  EXPECT_TRUE(object_c != nullptr);
+  output = testing::internal::GetCapturedStdout();
+  EXPECT_EQ(output, "Constructor Executed");
+  output.clear();
+  auto* dummy = clang_allocate(8);
+  EXPECT_TRUE(dummy);
+  clang_deallocate(dummy);
+  // Clean up resources
+  clang_Interpreter_takeInterpreterAsPtr(I);
+  clang_Interpreter_dispose(I);
 }
 
 TEST(FunctionReflectionTest, Destruct) {
@@ -1516,4 +1596,17 @@ TEST(FunctionReflectionTest, Destruct) {
   Cpp::Deallocate(scope, object);
   output = testing::internal::GetCapturedStdout();
   EXPECT_EQ(output, "Destructor Executed");
+
+  // C API
+  testing::internal::CaptureStdout();
+  auto* I = clang_createInterpreterFromRawPtr(Cpp::GetInterpreter());
+  auto scope_c = make_scope(static_cast<clang::Decl*>(scope), I);
+  auto object_c = clang_construct(scope_c, nullptr);
+  clang_destruct(object_c, scope_c, true);
+  output = testing::internal::GetCapturedStdout();
+  EXPECT_EQ(output, "Destructor Executed");
+  output.clear();
+  // Clean up resources
+  clang_Interpreter_takeInterpreterAsPtr(I);
+  clang_Interpreter_dispose(I);
 }
