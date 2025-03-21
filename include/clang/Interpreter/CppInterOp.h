@@ -418,11 +418,12 @@ namespace Cpp {
 
   /// Sets a list of all the Templated Methods that are in the Class that is
   /// supplied as a parameter.
+  ///\returns true if the lookup succeeded, and false if there are no candidates
   ///\param[in] name - method name
   ///\param[in] parent - Pointer to the scope/class under which the methods have
   ///           to be retrieved
   ///\param[out] funcs - vector of function pointers matching the name
-  CPPINTEROP_API void
+  CPPINTEROP_API bool
   GetClassTemplatedMethods(const std::string& name, TCppScope_t parent,
                            std::vector<TCppFunction_t>& funcs);
 
