@@ -464,6 +464,8 @@ TEST(FunctionReflectionTest, GetFunctionSignature) {
   std::string code = R"(
     class C {
       void f(int i, double d, long l = 0, char ch = 'a') {}
+      template<typename T>
+      void ft(T a) {}
     };
 
     namespace N
@@ -471,6 +473,8 @@ TEST(FunctionReflectionTest, GetFunctionSignature) {
       void f(int i, double d, long l = 0, char ch = 'a') {}
     }
 
+    template<typename T>
+    void ft(T a) {}
     void f1() {}
     C f2(int i, double d, long l = 0, char ch = 'a') { return C(); }
     C *f3(int i, double d, long l = 0, char ch = 'a') { return new C(); }
@@ -482,18 +486,19 @@ TEST(FunctionReflectionTest, GetFunctionSignature) {
   GetAllSubDecls(Decls[0], Decls);
   GetAllSubDecls(Decls[1], Decls);
 
-  EXPECT_EQ(Cpp::GetFunctionSignature(Decls[2]), "void f1()");
-  EXPECT_EQ(Cpp::GetFunctionSignature(Decls[3]),
-            "C f2(int i, double d, long l = 0, char ch = 'a')");
+  EXPECT_EQ(Cpp::GetFunctionSignature(Decls[2]), "void ft(T a)");
+  EXPECT_EQ(Cpp::GetFunctionSignature(Decls[3]), "void f1()");
   EXPECT_EQ(Cpp::GetFunctionSignature(Decls[4]),
-            "C *f3(int i, double d, long l = 0, char ch = 'a')");
+            "C f2(int i, double d, long l = 0, char ch = 'a')");
   EXPECT_EQ(Cpp::GetFunctionSignature(Decls[5]),
-            "void f4(int i = 0, double d = 0., long l = 0, char ch = 'a')");
+            "C *f3(int i, double d, long l = 0, char ch = 'a')");
   EXPECT_EQ(Cpp::GetFunctionSignature(Decls[6]),
-            "<unknown>");
-  EXPECT_EQ(Cpp::GetFunctionSignature(Decls[8]),
+            "void f4(int i = 0, double d = 0., long l = 0, char ch = 'a')");
+  EXPECT_EQ(Cpp::GetFunctionSignature(Decls[7]), "<unknown>");
+  EXPECT_EQ(Cpp::GetFunctionSignature(Decls[9]),
             "void C::f(int i, double d, long l = 0, char ch = 'a')");
-  EXPECT_EQ(Cpp::GetFunctionSignature(Decls[13]),
+  EXPECT_EQ(Cpp::GetFunctionSignature(Decls[10]), "void C::ft(T a)");
+  EXPECT_EQ(Cpp::GetFunctionSignature(Decls[15]),
             "void N::f(int i, double d, long l = 0, char ch = 'a')");
   EXPECT_EQ(Cpp::GetFunctionSignature(nullptr), "<unknown>");
 }
