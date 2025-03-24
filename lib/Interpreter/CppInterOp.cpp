@@ -3684,4 +3684,15 @@ namespace Cpp {
                          complete_column);
   }
 
+  int Undo(unsigned N) {
+#ifdef CPPINTEROP_USE_CLING
+    auto& I = getInterp();
+    cling::Interpreter::PushTransactionRAII RAII(&I);
+    I.unload(N);
+    return compat::Interpreter::kSuccess;
+#else
+    return getInterp().undo(N);
+#endif
+  }
+
   } // end namespace Cpp
