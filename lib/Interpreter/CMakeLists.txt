@@ -130,8 +130,6 @@ if(EMSCRIPTEN)
     PRIVATE "SHELL: -s WASM_BIGINT"
     PRIVATE "SHELL: -s SIDE_MODULE=1"
     PRIVATE "SHELL: ${SYMBOLS_LIST}"
-    PUBLIC "SHELL: -Wl,--export=__clang_Interpreter_SetValueNoAlloc"
-    PUBLIC "SHELL: -Wl,--export=__clang_Interpreter_SetValueWithAlloc"
   )
   if (CPPINTEROP_ENABLE_TESTING)
     # When compiling Emscripten tests the shared library it links to is expected to be in the same folder as the compiled Javascript
