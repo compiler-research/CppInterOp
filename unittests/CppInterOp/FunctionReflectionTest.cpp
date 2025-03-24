@@ -662,6 +662,45 @@ TEST(FunctionReflectionTest, InstantiateTemplateMethod) {
   EXPECT_TRUE(TA1.getAsType()->isIntegerType());
 }
 
+TEST(FunctionReflectionTest, LookupConstructors) {
+  std::vector<Decl*> Decls;
+  std::string code = R"(
+    class MyClass {
+      public:
+        MyClass();
+        void helperMethod();
+        MyClass(const MyClass&);
+        static void staticFunc();
+        MyClass(MyClass&&);
+        template<typename T>
+        MyClass(T);
+        ~MyClass();
+    };
+
+    MyClass::MyClass() {}
+    void MyClass::helperMethod() {}
+    MyClass::MyClass(const MyClass&) {}
+    void MyClass::staticFunc() {}
+    MyClass::MyClass(MyClass&&) {}
+    template<typename T>
+    MyClass::MyClass(T t) {}
+    MyClass::~MyClass() {}
+  )";
+
+  GetAllTopLevelDecls(code, Decls);
+  std::vector<Cpp::TCppFunction_t> ctors;
+  Cpp::LookupConstructors("MyClass", Decls[0], ctors);
+
+  EXPECT_EQ(ctors.size(), 4)
+      << "Constructor lookup did not retrieve the expected set";
+  EXPECT_EQ(Cpp::GetFunctionSignature(ctors[0]), "MyClass::MyClass()");
+  EXPECT_EQ(Cpp::GetFunctionSignature(ctors[1]),
+            "MyClass::MyClass(const MyClass &)");
+  EXPECT_EQ(Cpp::GetFunctionSignature(ctors[2]),
+            "MyClass::MyClass(MyClass &&)");
+  EXPECT_EQ(Cpp::GetFunctionSignature(ctors[3]), "MyClass::MyClass(T t)");
+}
+
 TEST(FunctionReflectionTest, BestOverloadFunctionMatch1) {
   std::vector<Decl*> Decls;
   std::string code = R"(
@@ -1061,6 +1100,28 @@ TEST(FunctionReflectionTest, IsConstructor) {
   EXPECT_FALSE(Cpp::IsConstructor(SubDecls[4]));
   EXPECT_FALSE(Cpp::IsConstructor(SubDecls[6]));
   EXPECT_FALSE(Cpp::IsConstructor(SubDecls[8]));
+
+  // Test for templated constructor
+  std::vector<Decl*> templDecls, templSubDecls;
+  std::string templCode = R"(
+    class T {
+    public:
+      template<typename U>
+      T(U) {}
+      void func() {}
+      ~T() {}
+    };
+  )";
+
+  GetAllTopLevelDecls(templCode, templDecls);
+  GetAllSubDecls(templDecls[0], templSubDecls);
+
+  int templCtorCount = 0;
+  for (auto* decl : templSubDecls) {
+    if (Cpp::IsConstructor(decl))
+      templCtorCount++;
+  }
+  EXPECT_EQ(templCtorCount, 1);
 }
 
 TEST(FunctionReflectionTest, IsDestructor) {
