@@ -963,20 +963,25 @@ namespace Cpp {
       return "<unknown>";
 
     auto *D = (clang::Decl *) func;
-    if (auto *FD = llvm::dyn_cast<FunctionDecl>(D)) {
-      std::string Signature;
-      raw_string_ostream SS(Signature);
-      PrintingPolicy Policy = getASTContext().getPrintingPolicy();
-      // Skip printing the body
-      Policy.TerseOutput = true;
-      Policy.FullyQualifiedName = true;
-      Policy.SuppressDefaultTemplateArgs = false;
-      FD->print(SS, Policy);
-      SS.flush();
-      return Signature;
-    }
+    clang::FunctionDecl* FD;
 
-    return "<unknown>";
+    if (llvm::dyn_cast<FunctionDecl>(D))
+      FD = llvm::dyn_cast<FunctionDecl>(D);
+    else if (auto* FTD = llvm::dyn_cast<clang::FunctionTemplateDecl>(D))
+      FD = FTD->getTemplatedDecl();
+    else
+      return "<unknown>";
+
+    std::string Signature;
+    raw_string_ostream SS(Signature);
+    PrintingPolicy Policy = getASTContext().getPrintingPolicy();
+    // Skip printing the body
+    Policy.TerseOutput = true;
+    Policy.FullyQualifiedName = true;
+    Policy.SuppressDefaultTemplateArgs = false;
+    FD->print(SS, Policy);
+    SS.flush();
+    return Signature;
   }
 
   // Internal functions that are not needed outside the library are
