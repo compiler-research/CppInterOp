@@ -46,3 +46,5 @@
 -Wl,--export=_ZNK5clang11DeclContext6lookupENS_15DeclarationNameE
 -Wl,--export=_ZNK5clang17ClassTemplateDecl18getSpecializationsEv
 -Wl,--export=_ZNK5clang4Sema15getStdNamespaceEv
+-Wl,--export=__clang_Interpreter_SetValueNoAlloc
+-Wl,--export=__clang_Interpreter_SetValueWithAlloc
