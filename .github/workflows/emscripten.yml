@@ -21,25 +21,22 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: ubu24-arm-gcc12-clang-repl-19-emscripten
+          - name: ubu24-arm-clang-repl-19-emscripten
             os: ubuntu-24.04-arm
-            compiler: gcc-12
             clang-runtime: '19'
             cling: Off
             llvm_enable_projects: "clang;lld"
             llvm_targets_to_build: "WebAssembly"
             emsdk_ver: "3.1.73"
-          - name: osx15-arm-clang-clang-repl-19-emscripten
+          - name: osx15-arm-clang-repl-19-emscripten
             os: macos-15
-            compiler: clang
             clang-runtime: '19'
             cling: Off
             llvm_enable_projects: "clang;lld"
             llvm_targets_to_build: "WebAssembly"            
             emsdk_ver: "3.1.73"
-          - name: ubu24-x86-gcc12-clang-repl-19-emscripten
+          - name: ubu24-x86-clang-repl-19-emscripten
             os: ubuntu-24.04
-            compiler: gcc-12
             clang-runtime: '19'
             cling: Off
             llvm_enable_projects: "clang;lld"
@@ -112,7 +109,7 @@ jobs:
         path: |
           llvm-project
           ${{ matrix.cling=='On' && 'cling' || '' }}
-        key: ${{ env.CLING_HASH }}-${{ runner.os }}-${{ matrix.os }}-${{ matrix.compiler }}-clang-${{ matrix.clang-runtime }}.x-emscripten
+        key: ${{ env.CLING_HASH }}-${{ runner.os }}-${{ matrix.os }}-clang-${{ matrix.clang-runtime }}.x-emscripten
         lookup-only: true
 
     - name: Setup emsdk
@@ -127,12 +124,6 @@ jobs:
       run: |
         echo "BUILD_TYPE=Release" >> $GITHUB_ENV
         echo "CODE_COVERAGE=0" >> $GITHUB_ENV
-        os="${{ matrix.os }}"
-        if [[ "${os}" == "macos"* ]]; then
-          echo "ncpus=$(sysctl -n hw.ncpu)" >> $GITHUB_ENV
-        else
-          echo "ncpus=$(nproc --all)" >> $GITHUB_ENV
-        fi
 
     - name: Setup default Build Type on Windows
       if: ${{ runner.os == 'windows' && steps.cache.outputs.cache-hit != 'true' }}
@@ -141,92 +132,6 @@ jobs:
         echo "CODE_COVERAGE=0" >>  $env:GITHUB_ENV
         $env:ncpus=$([Environment]::ProcessorCount) 
         echo "ncpus=$env:ncpus" >> $env:GITHUB_ENV
-
-    - name: Setup compiler on Linux
-      if: ${{ runner.os == 'Linux' && steps.cache.outputs.cache-hit != 'true' }}
-      run: |
-        # https://www.gnu.org/software/bash/manual/html_node/Shell-Parameter-Expansion.html
-        vers="${compiler#*-}"
-        os_codename="`cat /etc/os-release | grep UBUNTU_CODENAME | cut -d = -f 2`"
-        ##sudo apt update
-        if [[ "${{ matrix.compiler }}" == *"gcc"* ]]; then
-          sudo apt install -y gcc-${vers} g++-${vers} lld
-          echo "CC=gcc-${vers}" >> $GITHUB_ENV
-          echo "CXX=g++-${vers}" >> $GITHUB_ENV
-        else
-          if ! sudo apt install -y clang-${vers}; then
-            curl https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
-            echo "deb https://apt.llvm.org/${os_codename}/ llvm-toolchain-${os_codename}-${vers} main" | sudo tee -a /etc/apt/sources.list
-            sudo apt-get update
-            sudo apt-get install -y clang-${vers}
-          fi
-          echo "CC=clang-${vers}" >> $GITHUB_ENV
-          echo "CXX=clang++-${vers}" >> $GITHUB_ENV
-        fi
-      env:
-        compiler: ${{ matrix.compiler }}
-
-    - name: Setup compiler on macOS
-      if: ${{ runner.os == 'macOS' && steps.cache.outputs.cache-hit != 'true' }}
-      run: |
-        vers="${compiler#*-}"
-        if [[ "${{ matrix.compiler }}" == *"gcc"* ]]; then
-          brew install "gcc@$vers"
-          echo "CC=gcc-${vers}" >> $GITHUB_ENV
-          echo "CXX=g++-${vers}" >> $GITHUB_ENV
-        else
-          export ARCHITECHURE=$(uname -m)
-          if [[ "$ARCHITECHURE" == "arm64" ]]; then
-            cling_on=$(echo "${{ matrix.cling }}" | tr '[:lower:]' '[:upper:]')
-            if [[ "${cling_on}" == "ON" ]]; then  
-                brew install llvm@15
-                brew remove llvm@18
-                brew cleanup
-                #FIXME: Do not believe setting all these environment variables are necessary
-                #       They were set to avoid using Xcodes libc++ and to stop CppInterOp using llvm@18 in tests
-                echo 'LDFLAGS="-L/opt/homebrew/opt/llvm@15/lib/ -L/opt/homebrew/opt/llvm@15/c++/"' >> $GITHUB_ENV
-                echo 'CPPFLAGS="-I/opt/homebrew/opt/llvm@15/include"' >> $GITHUB_ENV
-                echo 'CPATH="/opt/homebrew/include/"' >> $GITHUB_ENV
-                echo 'LIBRARY_PATH="/opt/homebrew/lib/"' >> $GITHUB_ENV
-                echo "CC=$(brew --prefix llvm@15)/bin/clang" >> $GITHUB_ENV
-                echo "CXX=$(brew --prefix llvm@15)/bin/clang++" >> $GITHUB_ENV
-            else
-              echo "CC=$(brew --prefix llvm@18)/bin/clang" >> $GITHUB_ENV
-              echo "CXX=$(brew --prefix llvm@18)/bin/clang++" >> $GITHUB_ENV
-            fi
-          else
-            echo "CC=$(brew --prefix llvm@15)/bin/clang" >> $GITHUB_ENV
-            echo "CXX=$(brew --prefix llvm@15)/bin/clang++" >> $GITHUB_ENV
-          fi
-        fi
-        echo "SDKROOT=$(xcrun --sdk macosx --show-sdk-path)" >> $GITHUB_ENV
-      env:
-        compiler: ${{ matrix.compiler }}
-        
-    #Section slightly modified version of
-    #https://github.com/vgvassilev/clad/blob/40d8bec11bde47b14a281078183a4f6147abeac5/.github/workflows/ci.yml#L510C1-L534C10
-    - name: Setup compiler on Windows
-      if: ${{ runner.os == 'windows' && steps.cache.outputs.cache-hit != 'true' }}
-      run: |
-        if ( "${{ matrix.compiler }}" -imatch "clang" )
-        {
-          $ver="${{ matrix.compiler }}".split("-")[1]
-          choco install llvm --version=$ver --no-progress -my
-          clang --version
-          #
-          $env:CC="clang"
-          $env:CXX="clang++"
-          echo "CC=clang" >> $env:GITHUB_ENV
-          echo "CXX=clang++" >> $env:GITHUB_ENV
-        }
-        elseif ( "${{ matrix.compiler }}" -imatch "msvc" )
-        {
-          # MSVC is builtin in container image
-        }
-        else
-        {
-          echo "Unsupported compiler - fix YAML file"
-        }
 
     - name: Install deps on Windows
       if: ${{ runner.os == 'windows' && steps.cache.outputs.cache-hit != 'true' }}
@@ -299,8 +204,11 @@ jobs:
                         -DLLVM_INCLUDE_TESTS=OFF                        \
                         -DLLVM_ENABLE_THREADS=OFF                       \
                         -G Ninja                                         \
+                        -DLLVM_BUILD_TOOLS=OFF                          \
+                        -DLLVM_ENABLE_LIBPFM=OFF                        \
+                        -DCLANG_BUILD_TOOLS=OFF                         \
                          ../llvm
-          emmake ninja clang cling lld gtest_main -j ${{ env.ncpus }}
+          emmake ninja clang cling lld gtest_main
         else
           # Apply patches
           llvm_vers=$(echo "${{ matrix.clang-runtime }}" | tr '[:lower:]' '[:upper:]')
@@ -325,10 +233,14 @@ jobs:
                         -DLLVM_INCLUDE_EXAMPLES=OFF                     \
                         -DLLVM_INCLUDE_TESTS=OFF                        \
                         -DLLVM_ENABLE_THREADS=OFF                       \
+                        -DLLVM_BUILD_TOOLS=OFF                          \
+                        -DLLVM_ENABLE_LIBPFM=OFF                        \
+                        -DCLANG_BUILD_TOOLS=OFF                         \
                         -G Ninja                                         \
                         ../llvm
-          emmake ninja libclang clangInterpreter clangStaticAnalyzerCore lldWasm -j ${{ env.ncpus }}
+          emmake ninja libclang clangInterpreter clangStaticAnalyzerCore lldWasm
         fi
+        rm -rf ./NATIVE/
         cd ../
         rm -rf $(find . -maxdepth 1 ! -name "build" ! -name "llvm" ! -name "clang" ! -name ".")
         if [[ "${cling_on}" == "ON" ]]; then
@@ -457,23 +369,20 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: ubu24-x86-gcc12-clang-repl-19-emscripten_wasm
+          - name: ubu24-x86-clang-repl-19-emscripten_wasm
             os: ubuntu-24.04
-            compiler: gcc-12
             clang-runtime: '19'
             cling: Off
             micromamba_shell_init: bash
             emsdk_ver: "3.1.73"
-          - name: osx15-arm-clang-clang-repl-19-emscripten_wasm
+          - name: osx15-arm-clang-repl-19-emscripten_wasm
             os: macos-15
-            compiler: clang
             clang-runtime: '19'
             cling: Off
             micromamba_shell_init: bash
             emsdk_ver: "3.1.73"
-          - name: ubu24-arm-gcc12-clang-repl-19-emscripten_wasm
+          - name: ubu24-arm-clang-repl-19-emscripten_wasm
             os: ubuntu-24.04-arm
-            compiler: gcc-12
             clang-runtime: '19'
             cling: Off
             micromamba_shell_init: bash
@@ -483,11 +392,6 @@ jobs:
     - uses: actions/checkout@v4
       with:
         fetch-depth: 0
-
-    - name: Set up Python 
-      uses: actions/setup-python@v5
-      with:
-        python-version: '3.11'
 
     - name: Save PR Info on Unix systems
       if: ${{ runner.os != 'windows' }}
@@ -542,7 +446,7 @@ jobs:
         path: |
           llvm-project
           ${{ matrix.cling=='On' && 'cling' || '' }}
-        key: ${{ env.CLING_HASH }}-${{ runner.os }}-${{ matrix.os }}-${{ matrix.compiler }}-clang-${{ matrix.clang-runtime }}.x-emscripten
+        key: ${{ env.CLING_HASH }}-${{ runner.os }}-${{ matrix.os }}-clang-${{ matrix.clang-runtime }}.x-emscripten
         
     - name: Emscripten build of CppInterOp on Unix systems
       if: ${{ runner.os != 'windows' }}

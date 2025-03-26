@@ -85,6 +85,9 @@ executing the following
                  -DLLVM_INCLUDE_EXAMPLES=OFF                     \
                  -DLLVM_INCLUDE_TESTS=OFF                        \
                  -DLLVM_ENABLE_THREADS=OFF                       \
+                 -DLLVM_BUILD_TOOLS=OFF                          \
+                 -DLLVM_ENABLE_LIBPFM=OFF                        \
+                 -DCLANG_BUILD_TOOLS=OFF                         \
                  ../llvm
    emmake make libclang -j $(nproc --all)
    emmake make clangInterpreter clangStaticAnalyzerCore -j $(nproc --all)
