@@ -384,7 +384,7 @@ TEST(TypeReflectionTest, GetTypeFromScope) {
     struct S {};
     int a = 10;
     )";
-  
+
   GetAllTopLevelDecls(code, Decls);
 
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetTypeFromScope(Decls[0])), "C");
@@ -476,7 +476,7 @@ TEST(TypeReflectionTest, GetDimensions) {
   {
     EXPECT_EQ(dims[i], truth_dims[i]);
   }
-  
+
   // Variable c
   dims = Cpp::GetDimensions(Cpp::GetVariableType(Decls[2]));
   truth_dims = std::vector<long int>({1, 2});

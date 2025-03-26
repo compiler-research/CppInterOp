@@ -7,12 +7,12 @@ on:
     - main
   schedule:
     - cron: '30 20 * * *' # Warning: Timezone dep - 20:00 is 1:00
-    
+
 permissions:
   contents: read
   pages: write
   id-token: write
-    
+
 jobs:
   build:
     runs-on: ${{ matrix.os }}
@@ -33,7 +33,7 @@ jobs:
       with:
         fetch-depth: 0
 
-    - name: Set up Python 
+    - name: Set up Python
       uses: actions/setup-python@v5
       with:
         python-version: '3.11'
@@ -87,7 +87,7 @@ jobs:
           llvm-project
           ${{ matrix.cling=='On' && 'cling' || '' }}
         key: ${{ env.CLING_HASH }}-${{ runner.os }}-${{ matrix.os }}-clang-${{ matrix.clang-runtime }}.x-emscripten
-        
+
     - name: Emscripten build of CppInterOp on Unix systems
       if: ${{ runner.os != 'windows' }}
       shell: bash -l {0}
@@ -100,7 +100,7 @@ jobs:
         export PREFIX=$MAMBA_ROOT_PREFIX/envs/CppInterOp-wasm
         export CMAKE_PREFIX_PATH=$PREFIX
         export CMAKE_SYSTEM_PREFIX_PATH=$PREFIX
-        
+
         LLVM_DIR="$(pwd)/llvm-project"
         LLVM_BUILD_DIR="$(pwd)/llvm-project/build"
         cling_on=$(echo "${{ matrix.cling }}" | tr '[:lower:]' '[:upper:]')
@@ -149,7 +149,7 @@ jobs:
 
         cd ..
 
-        echo "SYSROOT_PATH=$SYSROOT_PATH" >> $GITHUB_ENV        
+        echo "SYSROOT_PATH=$SYSROOT_PATH" >> $GITHUB_ENV
         echo "CB_PYTHON_DIR=$CB_PYTHON_DIR" >> $GITHUB_ENV
         echo "CPPINTEROP_DIR=$CPPINTEROP_DIR" >> $GITHUB_ENV
         echo "LLVM_BUILD_DIR=$LLVM_BUILD_DIR" >> $GITHUB_ENV
@@ -161,13 +161,13 @@ jobs:
       run: |
         ./emsdk/emsdk activate ${{matrix.emsdk_ver}}
         source ./emsdk/emsdk_env.sh
-        micromamba activate CppInterOp-wasm  
+        micromamba activate CppInterOp-wasm
         git clone --depth=1 https://github.com/compiler-research/xeus-cpp.git
         cd ./xeus-cpp
         mkdir build
         pushd build
-        export CMAKE_PREFIX_PATH=${{ env.PREFIX }} 
-        export CMAKE_SYSTEM_PREFIX_PATH=${{ env.PREFIX }} 
+        export CMAKE_PREFIX_PATH=${{ env.PREFIX }}
+        export CMAKE_SYSTEM_PREFIX_PATH=${{ env.PREFIX }}
         emcmake cmake \
           -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}          \
           -DCMAKE_PREFIX_PATH=${{ env.PREFIX }}             \
@@ -178,7 +178,7 @@ jobs:
           ..
         emmake make -j ${{ env.ncpus }} install
 
-    - name: Jupyter Lite integration 
+    - name: Jupyter Lite integration
       shell: bash -l {0}
       run: |
           cd ./xeus-cpp/

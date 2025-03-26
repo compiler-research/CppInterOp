@@ -114,12 +114,12 @@ endif()
 
 
 if(EMSCRIPTEN)
-  # FIXME: When dynamically linking the Emscripten shared library to the 
+  # FIXME: When dynamically linking the Emscripten shared library to the
   # unit tests main_module you get errors due to undefined symbols. The reading of the file
   # below into a SYMBOLS_LIST variable is a temporary workaround that exports the undefined
   # symbols from the shared library, until it can be determined why they are not being exported already.
   file(READ "${CMAKE_SOURCE_DIR}/lib/Interpreter/exports.ld" SYMBOLS_LIST)
-  
+
   # Replace newlines with spaces
   string(REPLACE "\n" " " SYMBOLS_LIST "${SYMBOLS_LIST}")
 

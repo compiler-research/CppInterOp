@@ -101,14 +101,14 @@ TEST(ScopeReflectionTest, IsClassPolymorphic) {
   std::vector<Decl*> Decls;
   GetAllTopLevelDecls(R"(
     namespace N {}
-    
+
     class C{};
-    
+
     class C2 {
     public:
       virtual ~C2() {}
     };
-    
+
     int I;
   )",
                       Decls);
@@ -577,7 +577,7 @@ TEST(ScopeReflectionTest, GetScopeFromType) {
     N::S s;
 
     int i;
-    
+
     N::T t;
 
     N::E e;

@@ -33,7 +33,7 @@ jobs:
             clang-runtime: '19'
             cling: Off
             llvm_enable_projects: "clang;lld"
-            llvm_targets_to_build: "WebAssembly"            
+            llvm_targets_to_build: "WebAssembly"
             emsdk_ver: "3.1.73"
           - name: ubu24-x86-clang-repl-19-emscripten
             os: ubuntu-24.04
@@ -42,13 +42,13 @@ jobs:
             llvm_enable_projects: "clang;lld"
             llvm_targets_to_build: "WebAssembly"
             emsdk_ver: "3.1.73"
-            
+
     steps:
     - uses: actions/checkout@v4
       with:
         fetch-depth: 0
 
-    - name: Set up Python 
+    - name: Set up Python
       uses: actions/setup-python@v5
       with:
         python-version: '3.11'
@@ -72,7 +72,7 @@ jobs:
         fi
 
         echo "CLING_HASH=$CLING_HASH" >> $GITHUB_ENV
-        echo "LLVM_HASH=$LLVM_HASH" >> $GITHUB_ENV        
+        echo "LLVM_HASH=$LLVM_HASH" >> $GITHUB_ENV
 
     - name: Save PR Info on Windows systems
       if: ${{ runner.os == 'windows' }}
@@ -83,8 +83,8 @@ jobs:
         echo ${{ github.repository }} > ./pr/REPO
 
         if ( "${{ matrix.cling }}" -imatch "On" )
-        { 
-          $env:CLING_HASH_TEMP = ( git ls-remote https://github.com/root-project/cling.git refs/tags/v${{ matrix.cling-version }} ) 
+        {
+          $env:CLING_HASH_TEMP = ( git ls-remote https://github.com/root-project/cling.git refs/tags/v${{ matrix.cling-version }} )
           $env:CLING_HASH = $env:CLING_HASH_TEMP -replace "\t","-"
         }
         else
@@ -98,7 +98,7 @@ jobs:
 
         echo "CLING_HASH=$env:CLING_HASH"
         echo "LLVM_HASH=$env:LLVM_HASH"
-        
+
         echo "CLING_HASH=$env:CLING_HASH" >> $GITHUB_ENV
         echo "LLVM_HASH=$env:LLVM_HASH" >> $GITHUB_ENV
 
@@ -130,7 +130,7 @@ jobs:
       run: |
         echo "BUILD_TYPE=Release" >> $env:GITHUB_ENV
         echo "CODE_COVERAGE=0" >>  $env:GITHUB_ENV
-        $env:ncpus=$([Environment]::ProcessorCount) 
+        $env:ncpus=$([Environment]::ProcessorCount)
         echo "ncpus=$env:ncpus" >> $env:GITHUB_ENV
 
     - name: Install deps on Windows
@@ -152,7 +152,7 @@ jobs:
           brew unlink "$pkg"
           brew link --overwrite "$pkg"
         done
-        brew upgrade openssl >/dev/null 2>&1 
+        brew upgrade openssl >/dev/null 2>&1
         brew install ninja
         brew upgrade
 
@@ -173,7 +173,7 @@ jobs:
         cling_on=$(echo "${{ matrix.cling }}" | tr '[:lower:]' '[:upper:]')
         if [[ "${cling_on}" == "ON" ]]; then
           git clone https://github.com/root-project/cling.git
-          cd ./cling 
+          cd ./cling
           git checkout tags/v${{ matrix.cling-version }}
           cd ..
           git clone --depth=1 -b cling-llvm${{ matrix.clang-runtime }} https://github.com/root-project/llvm-project.git
@@ -261,11 +261,11 @@ jobs:
     - name: Build LLVM/Cling on Windows systems if the cache is invalid
       if: ${{ runner.os == 'windows' && steps.cache.outputs.cache-hit != 'true' }}
       run: |
-      
+
         if ( "${{ matrix.cling }}" -imatch "On" )
         {
           git clone https://github.com/root-project/cling.git
-          cd ./cling 
+          cd ./cling
           git checkout tags/v${{ matrix.cling-version }}
           cd ..
           git clone --depth=1 -b cling-llvm${{ matrix.clang-runtime }} https://github.com/root-project/llvm-project.git
@@ -341,7 +341,7 @@ jobs:
           rm -r -force $(find.exe . -maxdepth 1 ! -name "include" ! -name "lib" ! -name "cmake" ! -name "utils" ! -name ".")
           cd ..\clang\
           rm -r -force $(find.exe . -maxdepth 1 ! -name "include" ! -name "lib" ! -name "cmake" ! -name "utils" ! -name ".")
-          cd ..\..    
+          cd ..\..
         }
         else
         {
@@ -349,8 +349,8 @@ jobs:
           rm -r -force $(find.exe . -maxdepth 1 ! -name "include" ! -name "lib" ! -name "cmake" ! -name ".")
           cd ..\clang\
           rm -r -force $(find.exe . -maxdepth 1 ! -name "include" ! -name "lib" ! -name "cmake"  ! -name ".")
-          cd ..\..    
-        } 
+          cd ..\..
+        }
 
     - name: Save Cache LLVM/Clang runtime build directory (Unix Systems Emscripten)
       uses: actions/cache/save@v4
@@ -447,7 +447,7 @@ jobs:
           llvm-project
           ${{ matrix.cling=='On' && 'cling' || '' }}
         key: ${{ env.CLING_HASH }}-${{ runner.os }}-${{ matrix.os }}-clang-${{ matrix.clang-runtime }}.x-emscripten
-        
+
     - name: Emscripten build of CppInterOp on Unix systems
       if: ${{ runner.os != 'windows' }}
       shell: bash -l {0}
@@ -460,7 +460,7 @@ jobs:
         export PREFIX=$MAMBA_ROOT_PREFIX/envs/CppInterOp-wasm
         export CMAKE_PREFIX_PATH=$PREFIX
         export CMAKE_SYSTEM_PREFIX_PATH=$PREFIX
-        
+
         LLVM_DIR="$(pwd)/llvm-project"
         LLVM_BUILD_DIR="$(pwd)/llvm-project/build"
         cling_on=$(echo "${{ matrix.cling }}" | tr '[:lower:]' '[:upper:]')
@@ -471,7 +471,7 @@ jobs:
         else
           CPLUS_INCLUDE_PATH="${LLVM_DIR}/llvm/include:${LLVM_DIR}/clang/include:${LLVM_BUILD_DIR}/include:${LLVM_BUILD_DIR}/tools/clang/include:$PWD/include"
         fi
-        
+
         # Build CppInterOp next to cling and llvm-project.
         mkdir build
         cd build
@@ -522,13 +522,13 @@ jobs:
       run: |
         ./emsdk/emsdk activate ${{matrix.emsdk_ver}}
         source ./emsdk/emsdk_env.sh
-        micromamba activate CppInterOp-wasm  
+        micromamba activate CppInterOp-wasm
         git clone --depth=1 https://github.com/compiler-research/xeus-cpp.git
         cd ./xeus-cpp
         mkdir build
         pushd build
-        export CMAKE_PREFIX_PATH=${{ env.PREFIX }} 
-        export CMAKE_SYSTEM_PREFIX_PATH=${{ env.PREFIX }} 
+        export CMAKE_PREFIX_PATH=${{ env.PREFIX }}
+        export CMAKE_SYSTEM_PREFIX_PATH=${{ env.PREFIX }}
         emcmake cmake \
           -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}          \
           -DCMAKE_PREFIX_PATH=${{ env.PREFIX }}             \
@@ -538,3 +538,4 @@ jobs:
           -DSYSROOT_PATH=${{ env.SYSROOT_PATH }}                     \
           ..
         emmake make -j ${{ env.ncpus }} install
+

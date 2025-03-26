@@ -1,6 +1,6 @@
 name: clang-tidy-review
 
-on: 
+on:
   pull_request:
     paths:
       - '**.h'
@@ -29,7 +29,7 @@ jobs:
 
       - name: install lit
         run: pip install lit
-        
+
       - name: Run clang-tidy
         uses: ZedThree/clang-tidy-review@v0.20.1
         id: review
