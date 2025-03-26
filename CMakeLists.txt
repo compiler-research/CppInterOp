@@ -246,9 +246,9 @@ endif()
       message(fatal "LLVM/CppInterOp requires c++14 or later")
     endif()
   endif()
-  
+
   ## Find supported Cling
-  
+
   if (CPPINTEROP_USE_CLING)
     if (NOT Cling_FOUND AND DEFINED Cling_DIR)
       find_package(Cling REQUIRED CONFIG ${cling_extra_hints} NO_DEFAULT_PATH)

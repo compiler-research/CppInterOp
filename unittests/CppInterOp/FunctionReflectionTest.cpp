@@ -170,7 +170,7 @@ TEST(FunctionReflectionTest, HasDefaultConstructor) {
     int sum(int a, int b){
       return a+b;
     }
-    
+
     )";
 
   GetAllTopLevelDecls(code, Decls);
@@ -277,7 +277,7 @@ TEST(FunctionReflectionTest, GetClassDecls) {
 
       template<class A = int, class B = char>
       long get_float_size(int i, A a = A(), B b = B()) {}
-           
+
       template<class A>
       void get_char_size(long k, A, char ch = 'a', double l = 0.0) {}
 
@@ -294,7 +294,7 @@ TEST(FunctionReflectionTest, GetClassDecls) {
 
   GetAllTopLevelDecls(code, Decls);
   GetAllSubDecls(Decls[0], SubDecls);
-  
+
   std::vector<Cpp::TCppFunction_t> methods;
   std::vector<Cpp::TCppFunction_t> template_methods;
 
@@ -337,7 +337,7 @@ TEST(FunctionReflectionTest, GetFunctionReturnType) {
       char get_string(A) {
           return 'A';
       }
-              
+
       template<class A>
       void get_size() {}
 
@@ -412,7 +412,7 @@ TEST(FunctionReflectionTest, GetFunctionNumArgs) {
       char get_string(A, int i) {
           return 'A';
       }
-              
+
       template<class A>
       void get_size() {}
 
@@ -452,7 +452,7 @@ TEST(FunctionReflectionTest, GetFunctionRequiredArgs) {
 
       template<class A = int, class B = char>
       long get_size(int i, A a = A(), B b = B()) {}
-           
+
       template<class A>
       void get_size(long k, A, char ch = 'a', double l = 0.0) {}
     };
@@ -693,7 +693,7 @@ TEST(FunctionReflectionTest, BestOverloadFunctionMatch1) {
       long MyTemplatedMethodClass::get_size(A a, B b) {
           return sizeof(A) + sizeof(B);
       }
-      
+
       template <int N, class T>
       long MyTemplatedMethodClass::get_size(T a) {
         return N + sizeof(T) + a;
@@ -818,7 +818,7 @@ TEST(FunctionReflectionTest, BestOverloadFunctionMatch3) {
     template<typename T>
     struct A {
       T value;
-      
+
       template<typename TT>
       A<TT> operator-(A<TT> rhs) {
         return A<TT>{value - rhs.value};
@@ -1293,12 +1293,12 @@ TEST(FunctionReflectionTest, GetFunctionCallWrapper) {
   FCI_Dtor.Invoke(object);
   output = testing::internal::GetCapturedStdout();
   EXPECT_EQ(output, "Dtor Called\n");
-  
+
   std::vector<Decl*> Decls1;
   std::string code1 = R"(
-        template<typename T> 
+        template<typename T>
         struct S {
-        
+
         static T Add(T a, T b) { return a + b; }
 
         };
@@ -1430,7 +1430,7 @@ TEST(FunctionReflectionTest, GetFunctionArgName) {
 
     template<class A = int, class B = char>
     long get_size(int i, A a = A(), B b = B()) {}
-          
+
     template<class A>
     void get_size(long k, A, char ch = 'a', double l = 0.0) {}
     )";
@@ -1470,7 +1470,7 @@ TEST(FunctionReflectionTest, GetFunctionArgDefault) {
 
     template<class A = int, class B = char>
     long get_size(int i, A a = A(), B b = B()) {}
-          
+
     template<class A>
     void get_size(long k, A, char ch = 'a', double l = 0.0) {}
 

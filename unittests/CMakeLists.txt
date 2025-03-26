@@ -43,7 +43,7 @@ endif()
   # FIXME: Just call gtest_add_tests this function is available.
   #gtest_add_tests(${name} "${Arguments}" AUTO)
 endfunction()
- 
+
 add_subdirectory(CppInterOp)
 
 add_custom_target(check-cppinterop COMMAND ${CMAKE_CTEST_COMMAND} -V --build-config $<CONFIG>
