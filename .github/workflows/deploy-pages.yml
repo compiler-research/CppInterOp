@@ -21,9 +21,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: osx15-arm-clang-clang-repl-19-emscripten_wasm
+          - name: osx15-arm-clang-repl-19-emscripten_wasm
             os: macos-15
-            compiler: clang
             clang-runtime: '19'
             cling: Off
             micromamba_shell_init: bash
@@ -87,7 +86,7 @@ jobs:
         path: |
           llvm-project
           ${{ matrix.cling=='On' && 'cling' || '' }}
-        key: ${{ env.CLING_HASH }}-${{ runner.os }}-${{ matrix.os }}-${{ matrix.compiler }}-clang-${{ matrix.clang-runtime }}.x-emscripten
+        key: ${{ env.CLING_HASH }}-${{ runner.os }}-${{ matrix.os }}-${{ matrix.clang-runtime }}.x-emscripten
         
     - name: Emscripten build of CppInterOp on Unix systems
       if: ${{ runner.os != 'windows' }}
