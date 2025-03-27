@@ -412,6 +412,18 @@ public:
   }
 
   CompilationResult loadLibrary(const std::string& filename, bool lookup) {
+#ifdef __EMSCRIPTEN__
+    if (lookup) {
+      llvm::errs() << "[cppinterop] Warning: 'lookup' has no effect on WASM.\n";
+    }
+    // In WASM: directly use Interpreter's LoadDynamicLibrary
+    if (auto Err = inner->LoadDynamicLibrary(filename.c_str())) {
+      llvm::logAllUnhandledErrors(std::move(Err), llvm::errs(),
+                                  "loadLibrary: ");
+      return kFailure;
+    }
+    return kSuccess;
+#endif
     DynamicLibraryManager* DLM = getDynamicLibraryManager();
     std::string canonicalLib;
     if (lookup)
