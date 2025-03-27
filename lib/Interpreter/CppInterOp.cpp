@@ -1559,9 +1559,45 @@ namespace Cpp {
     return QT.isPODType(getASTContext());
   }
 
+  bool IsIntegerType(TCppType_t type) {
+    QualType QT = QualType::getFromOpaquePtr(type);
+    return QT->hasIntegerRepresentation();
+  }
+
+  bool IsIntegralType(TCppType_t type) {
+    QualType QT = QualType::getFromOpaquePtr(type);
+    return QT->isIntegralType(getASTContext());
+  }
+
+  bool IsSignedIntegerType(TCppType_t type) {
+    QualType QT = QualType::getFromOpaquePtr(type);
+    return QT->hasSignedIntegerRepresentation();
+  }
+
+  bool IsUnsignedIntegerType(TCppType_t type) {
+    QualType QT = QualType::getFromOpaquePtr(type);
+    return QT->hasUnsignedIntegerRepresentation();
+  }
+
+  bool IsFloatingType(TCppType_t type) {
+    QualType QT = QualType::getFromOpaquePtr(type);
+    return QT->hasFloatingRepresentation();
+  }
+
+  bool IsSameType(TCppType_t type_a, TCppType_t type_b) {
+    clang::QualType QT1 = clang::QualType::getFromOpaquePtr(type_a);
+    clang::QualType QT2 = clang::QualType::getFromOpaquePtr(type_b);
+    return getASTContext().hasSameType(QT1, QT2);
+  }
+
   bool IsPointerType(TCppType_t type) {
     QualType QT = QualType::getFromOpaquePtr(type);
     return QT->isPointerType();
+  }
+
+  bool IsVoidPointerType(TCppType_t type) {
+    QualType QT = QualType::getFromOpaquePtr(type);
+    return QT->isVoidPointerType();
   }
 
   TCppType_t GetPointeeType(TCppType_t type) {
@@ -1583,8 +1619,17 @@ namespace Cpp {
     return QT.getNonReferenceType().getAsOpaquePtr();
   }
 
+  TCppType_t GetUnqualifiedType(TCppType_t type) {
+    if (!type)
+      return 0;
+    QualType QT = QualType::getFromOpaquePtr(type);
+    return QT.getUnqualifiedType().getAsOpaquePtr();
+  }
+
   TCppType_t GetUnderlyingType(TCppType_t type)
   {
+    if (!type)
+      return 0;
     QualType QT = QualType::getFromOpaquePtr(type);
     QT = QT->getCanonicalTypeUnqualified();
 
