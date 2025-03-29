@@ -416,13 +416,27 @@ namespace Cpp {
   CPPINTEROP_API bool ExistsFunctionTemplate(const std::string& name,
                                              TCppScope_t parent = nullptr);
 
+  /// Sets a list of all the constructor for a scope/class that is
+  /// supplied as a parameter.
+  ///\param[in] name - This string is used as a constraint, that clients can use
+  ///           to ensure the constructors match the name that they provide
+  ///\param[in] parent - Pointer to the scope/class for which the constructors
+  ///           are being looked up
+  ///           to be retrieved
+  ///\param[out] funcs - vector of handles to all constructors found under the
+  ///            given scope
+  CPPINTEROP_API void LookupConstructors(const std::string& name,
+                                         TCppScope_t parent,
+                                         std::vector<TCppFunction_t>& funcs);
+
   /// Sets a list of all the Templated Methods that are in the Class that is
   /// supplied as a parameter.
+  ///\returns true if the lookup succeeded, and false if there are no candidates
   ///\param[in] name - method name
   ///\param[in] parent - Pointer to the scope/class under which the methods have
   ///           to be retrieved
   ///\param[out] funcs - vector of function pointers matching the name
-  CPPINTEROP_API void
+  CPPINTEROP_API bool
   GetClassTemplatedMethods(const std::string& name, TCppScope_t parent,
                            std::vector<TCppFunction_t>& funcs);
 
