@@ -734,6 +734,118 @@ TEST(FunctionReflectionTest, LookupConstructors) {
   EXPECT_EQ(Cpp::GetFunctionSignature(ctors[3]), "MyClass::MyClass(T t)");
 }
 
+TEST(FunctionReflectionTest, GetClassTemplatedMethods) {
+  if (llvm::sys::RunningOnValgrind())
+    GTEST_SKIP() << "XFAIL due to Valgrind report";
+
+  std::vector<Decl*> Decls;
+  std::string code = R"(
+    class MyClass {
+      public:
+        MyClass();
+        void helperMethod();
+        template<typename T>
+        MyClass(T);
+        template<typename U>
+        void templatedMethod(U param);
+        template<typename U, typename V>
+        U templatedMethod(U a, V b);
+        static void staticFunc();
+        template<typename T>
+        static void templatedStaticMethod(T param);
+        ~MyClass();
+    };
+
+    MyClass::MyClass() {}
+    void MyClass::helperMethod() {}
+    template<typename T>
+    MyClass::MyClass(T t) {}
+    template<typename U>
+    void MyClass::templatedMethod(U param) {}
+    template<typename U, typename V>
+    U MyClass::templatedMethod(U a, V b) { return a * b; }
+    void MyClass::staticFunc() {}
+    template<typename T>
+    void MyClass::templatedStaticMethod(T param) {}
+  )";
+
+  GetAllTopLevelDecls(code, Decls);
+  std::vector<Cpp::TCppFunction_t> templatedMethods;
+  Cpp::GetClassTemplatedMethods("MyClass", Decls[0], templatedMethods);
+  Cpp::GetClassTemplatedMethods("templatedMethod", Decls[0], templatedMethods);
+  Cpp::GetClassTemplatedMethods("templatedStaticMethod", Decls[0],
+                                templatedMethods);
+
+  EXPECT_EQ(templatedMethods.size(), 6)
+      << "Templated methods lookup did not retrieve the expected set";
+  EXPECT_EQ(Cpp::GetFunctionSignature(templatedMethods[0]),
+            "MyClass::MyClass()");
+  EXPECT_EQ(Cpp::GetFunctionSignature(templatedMethods[1]),
+            "MyClass::MyClass(T t)");
+  EXPECT_EQ(Cpp::GetFunctionSignature(templatedMethods[2]),
+            "inline constexpr MyClass::MyClass(const MyClass &)");
+  EXPECT_EQ(Cpp::GetFunctionSignature(templatedMethods[3]),
+            "void MyClass::templatedMethod(U param)");
+  EXPECT_EQ(Cpp::GetFunctionSignature(templatedMethods[4]),
+            "U MyClass::templatedMethod(U a, V b)");
+  EXPECT_EQ(Cpp::GetFunctionSignature(templatedMethods[5]),
+            "void MyClass::templatedStaticMethod(T param)");
+}
+
+TEST(FunctionReflectionTest, GetClassTemplatedMethods_VariadicsAndOthers) {
+  std::vector<Decl*> Decls;
+  std::string code = R"(
+    class MyClass {
+      public:
+        template<typename... Args>
+        void variadicMethod(Args... args);
+
+        template<int N>
+        int fixedMethod();
+
+        template<typename T = int>
+        T defaultMethod(T param);
+
+        template<typename U, typename... V>
+        U variadicMethod(U first, V... rest);
+
+        template<typename T, typename... Args>
+        static void staticVariadic(T t, Args... args);
+    };
+
+    template<typename... Args>
+    void MyClass::variadicMethod(Args... args) {}
+    template<int N>
+    int MyClass::fixedMethod() { return N; }
+    template<typename T>
+    T MyClass::defaultMethod(T param) { return param; }
+    template<typename U, typename... V>
+    U MyClass::variadicMethod(U first, V... rest) { return first; }
+    template<typename T, typename... Args>
+    void MyClass::staticVariadic(T t, Args... args) {}
+  )";
+
+  GetAllTopLevelDecls(code, Decls);
+  std::vector<Cpp::TCppFunction_t> templatedMethods;
+  Cpp::GetClassTemplatedMethods("fixedMethod", Decls[0], templatedMethods);
+  Cpp::GetClassTemplatedMethods("defaultMethod", Decls[0], templatedMethods);
+  Cpp::GetClassTemplatedMethods("variadicMethod", Decls[0], templatedMethods);
+  Cpp::GetClassTemplatedMethods("staticVariadic", Decls[0], templatedMethods);
+
+  EXPECT_EQ(templatedMethods.size(), 5)
+      << "Templated methods lookup did not retrieve the expected set";
+  EXPECT_EQ(Cpp::GetFunctionSignature(templatedMethods[0]),
+            "int MyClass::fixedMethod()");
+  EXPECT_EQ(Cpp::GetFunctionSignature(templatedMethods[1]),
+            "T MyClass::defaultMethod(T param)");
+  EXPECT_EQ(Cpp::GetFunctionSignature(templatedMethods[2]),
+            "void MyClass::variadicMethod(Args ...args)");
+  EXPECT_EQ(Cpp::GetFunctionSignature(templatedMethods[3]),
+            "U MyClass::variadicMethod(U first, V ...rest)");
+  EXPECT_EQ(Cpp::GetFunctionSignature(templatedMethods[4]),
+            "void MyClass::staticVariadic(T t, Args ...args)");
+}
+
 TEST(FunctionReflectionTest, BestOverloadFunctionMatch1) {
   std::vector<Decl*> Decls;
   std::string code = R"(
