@@ -104,6 +104,34 @@ TEST(InterpreterTest, Process) {
   clang_Interpreter_dispose(CXI);
 }
 
+TEST(InterpreterTest, EmscriptenExceptionHandling) {
+#ifndef EMSCRIPTEN
+  GTEST_SKIP() << "This test is intended to check exception handling for Emscripten builds.";
+#endif
+
+  std::vector<const char*> Args = {
+    "-std=c++20",
+    "-v",
+    "-fexceptions",
+    "-fcxx-exceptions",
+    "-mllvm", "-enable-emscripten-cxx-exceptions",
+    "-mllvm", "-enable-emscripten-sjlj"
+  };
+
+  auto* I = Cpp::CreateInterpreter(Args);
+
+  // Should compile and execute successfully
+  const char* tryCatchCode = R"(
+    try {
+      throw 1;
+    } catch (...) {
+      0;
+    }
+  )";
+
+  EXPECT_TRUE(Cpp::Process(tryCatchCode) == 0);
+}
+
 TEST(InterpreterTest, CreateInterpreter) {
   auto* I = Cpp::CreateInterpreter();
   EXPECT_TRUE(I);
