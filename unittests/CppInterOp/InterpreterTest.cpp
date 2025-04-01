@@ -68,11 +68,8 @@ TEST(InterpreterTest, Evaluate) {
   //EXPECT_TRUE(Cpp::Evaluate(I, "__cplusplus;") == 201402);
   // Due to a deficiency in the clang-repl implementation to get the value we
   // always must omit the ;
-  std::vector<const char*> Args = {
-    "-std=c++20"
-  };
-  Cpp::CreateInterpreter(Args);
-  EXPECT_TRUE(Cpp::Evaluate("__cplusplus") == 202002);
+  Cpp::CreateInterpreter();
+  EXPECT_TRUE(Cpp::Evaluate("__cplusplus") == 201402);
 
   bool HadError;
   EXPECT_TRUE(Cpp::Evaluate("#error", &HadError) == (intptr_t)~0UL);
