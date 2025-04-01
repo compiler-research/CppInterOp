@@ -118,9 +118,8 @@ TEST(InterpreterTest, EmscriptenExceptionHandling) {
     "-mllvm", "-enable-emscripten-sjlj"
   };
 
-  auto* I = Cpp::CreateInterpreter(Args);
+  Cpp::CreateInterpreter(Args);
 
-  // Should compile and execute successfully
   const char* tryCatchCode = R"(
     try {
       throw 1;
