@@ -178,6 +178,14 @@ jobs:
           ..
         emmake make -j ${{ env.ncpus }} install
 
+    - name: Test xeus-cpp C++ Emscripten
+      shell: bash -l {0}
+      run: |
+        set -e
+        micromamba activate CppInterOp-wasm
+        cd ./xeus-cpp/build/test
+        node test_xeus_cpp.js
+
     - name: Jupyter Lite integration
       shell: bash -l {0}
       run: |
