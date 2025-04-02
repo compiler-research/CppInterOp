@@ -2,6 +2,7 @@
 -Wl,--export=_ZN4llvm11raw_ostream16SetBufferAndModeEPcmNS0_10BufferKindE
 -Wl,--export=_ZN4llvm11raw_ostream5writeEPKcm
 -Wl,--export=_ZN4llvm11raw_ostreamD2Ev
+-Wl,--export=_ZN4llvm11raw_ostreamlsEm
 -Wl,--export=_ZN4llvm15SmallVectorBaseIjE8grow_podEPvmm
 -Wl,--export=_ZN4llvm15allocate_bufferEmm
 -Wl,--export=_ZN4llvm21logAllUnhandledErrorsENS_5ErrorERNS_11raw_ostreamENS_5TwineE

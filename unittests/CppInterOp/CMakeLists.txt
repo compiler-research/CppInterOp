@@ -43,6 +43,7 @@ if(EMSCRIPTEN)
   # --preload-file ${SYSROOT_PATH}/include@/include:
   # Preloads the system include directory into the Emscripten virtual filesystem to make headers accessible at runtime.
   target_link_options(CppInterOpTests
+    PUBLIC "SHELL: -fexceptions"
     PUBLIC "SHELL: -s MAIN_MODULE=1"
     PUBLIC "SHELL: -s WASM_BIGINT"
     PUBLIC "SHELL: -s ALLOW_MEMORY_GROWTH=1"
