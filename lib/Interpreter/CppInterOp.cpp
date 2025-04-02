@@ -2948,68 +2948,72 @@ namespace Cpp {
   TInterp_t CreateInterpreter(const std::vector<std::string>& Args,
     const std::vector<std::string>& GpuArgs) {
     // Retrieve the path to the main executable
-    std::string MainExecutableName = sys::fs::getMainExecutable(nullptr, nullptr);
+    std::string MainExecutableName = 
+      sys::fs::getMainExecutable(nullptr, nullptr);
 
     // Construct the resource directory path
     std::string ResourceDir = MakeResourcesPath();
 
     // Initialize the argument list for the interpreter
-    std::vector<std::string> ClingArgv = {MainExecutableName, "-resource-dir", ResourceDir, "-std=c++14"};
+    std::vector<std::string> ClingArgv = {"-resource-dir", ResourceDir, "-std=c++14"};
+    ClingArgv.insert(ClingArgv.begin(), MainExecutableName);
 
-    #ifdef _WIN32
-    // Add Windows-specific workaround for delayed template parsing
+#ifdef _WIN32
+    // FIXME : Workaround Sema::PushDeclContext assert on windows
     ClingArgv.push_back("-fno-delayed-template-parsing");
-    #endif
-
-    // Append user-provided arguments
+#endif
     ClingArgv.insert(ClingArgv.end(), Args.begin(), Args.end());
-
-    // Validate and append GPU-specific arguments
+    // To keep the Interpreter creation interface between cling and clang-repl
+    // to some extent compatible we should put Args and GpuArgs together. On the
+    // receiving end we should check for -xcuda to know.
     if (!GpuArgs.empty()) {
       llvm::StringRef Arg0 = GpuArgs[0];
       Arg0 = Arg0.trim().ltrim('-');
       if (Arg0 != "cuda") {
         llvm::errs() << "[CreateInterpreter]: Make sure --cuda is passed as the"
-          << " first argument of the GpuArgs\n";
+                     << " first argument of the GpuArgs\n";
         return nullptr;
       }
     }
     ClingArgv.insert(ClingArgv.end(), GpuArgs.begin(), GpuArgs.end());
 
-    // Process additional arguments from the environment variable
-    auto EnvOpt = llvm::sys::Process::GetEnv("CPPINTEROP_EXTRA_INTERPRETER_ARGS");
+    // Process externally passed arguments if present.
+    auto EnvOpt = 
+        llvm::sys::Process::GetEnv("CPPINTEROP_EXTRA_INTERPRETER_ARGS");
     if (EnvOpt) {
-      llvm::StringRef Env(*EnvOpt);
+      StringRef Env(*EnvOpt);
       while (!Env.empty()) {
-        llvm::StringRef Arg;
+        StringRef Arg;
         std::tie(Arg, Env) = Env.split(' ');
         ClingArgv.push_back(Arg.str());
       }
     }
-
-    // Convert std::vector<std::string> to std::vector<const char*> for compatibility
+    // Convert std::vector<std::string> to std::vector<const char*>
     std::vector<const char*> ClingArgvCStr;
-    for (const auto& arg : ClingArgv) {
-      ClingArgvCStr.push_back(arg.c_str());
-    }
+    std::transform(ClingArgv.begin(), ClingArgv.end(),
+                   std::back_inserter(ClingArgvCStr),
+                   [](const std::string& str) { return str.c_str(); });
 
-    // Create the interpreter instance
     auto I = new compat::Interpreter(ClingArgvCStr.size(), ClingArgvCStr.data());
 
-    // Process LLVM-specific arguments
+    // Honor -mllvm.
+    //
+    // FIXME: Remove this, one day.
+    // This should happen AFTER plugins have been loaded!
     const CompilerInstance* Clang = I->getCI();
     if (!Clang->getFrontendOpts().LLVMArgs.empty()) {
       unsigned NumArgs = Clang->getFrontendOpts().LLVMArgs.size();
       auto Args = std::make_unique<const char*[]>(NumArgs + 2);
       Args[0] = "clang (LLVM option parsing)";
-      for (unsigned i = 0; i != NumArgs; ++i) {
+      for (unsigned i = 0; i != NumArgs; ++i)
         Args[i + 1] = Clang->getFrontendOpts().LLVMArgs[i].c_str();
-      }
       Args[NumArgs + 1] = nullptr;
       llvm::cl::ParseCommandLineOptions(NumArgs + 1, Args.get());
     }
 
-    // Set the global interpreter instance
+    // FIXME: Enable this assert once we figure out how to fix the multiple
+    // calls to CreateInterpreter.
+    //assert(!sInterpreter && "Interpreter already set.");
     sInterpreter = I;
     return I;
   }
