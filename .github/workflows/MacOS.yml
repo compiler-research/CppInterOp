@@ -209,7 +209,8 @@ jobs:
           rm -rf $(find . -maxdepth 1 ! -name "include" ! -name "lib" ! -name "cmake" ! -name "utils" ! -name ".")
           cd ../clang/
           rm -rf $(find . -maxdepth 1 ! -name "include" ! -name "lib" ! -name "cmake" ! -name "utils" ! -name ".")
-          cd ../..
+          cd ../../cling/
+          rm -rf $(find . -maxdepth 1 ! -name "include" ! -name "lib" ! -name "cmake" ! -name ".")
         else # repl
           cd ./llvm/
           rm -rf $(find . -maxdepth 1 ! -name "include" ! -name "lib" ! -name "cmake" ! -name ".")
