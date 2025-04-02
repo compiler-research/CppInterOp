@@ -48,6 +48,7 @@
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_os_ostream.h"
+#include "llvm/Support/FileSystem.h"
 
 #include <algorithm>
 #include <iterator>
@@ -55,6 +56,8 @@
 #include <set>
 #include <sstream>
 #include <string>
+#include <initializer_list>
+
 
 // Stream redirect.
 #ifdef _WIN32
