@@ -196,7 +196,8 @@ jobs:
           rm -r -force $(find.exe . -maxdepth 1 ! -name "include" ! -name "lib" ! -name "cmake" ! -name "utils" ! -name ".")
           cd ..\clang\
           rm -r -force $(find.exe . -maxdepth 1 ! -name "include" ! -name "lib" ! -name "cmake" ! -name "utils" ! -name ".")
-          cd ..\..
+          cd ..\..\cling\
+          rm -r -force $(find.exe . -maxdepth 1 ! -name "include" ! -name "lib" ! -name "cmake" ! -name ".")
         }
         else
         {
