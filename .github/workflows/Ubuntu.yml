@@ -108,13 +108,13 @@ jobs:
             cling-version: '1.0'
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
-            
+
     steps:
     - uses: actions/checkout@v4
       with:
         fetch-depth: 0
 
-    - name: Set up Python 
+    - name: Set up Python
       uses: actions/setup-python@v5
       with:
         python-version: '3.11'
@@ -137,7 +137,7 @@ jobs:
         fi
 
         echo "CLING_HASH=$CLING_HASH" >> $GITHUB_ENV
-        echo "LLVM_HASH=$LLVM_HASH" >> $GITHUB_ENV        
+        echo "LLVM_HASH=$LLVM_HASH" >> $GITHUB_ENV
 
     - name: Restore Cache LLVM/Clang runtime build directory
       uses: actions/cache/restore@v4
@@ -195,7 +195,7 @@ jobs:
         cling_on=$(echo "${{ matrix.cling }}" | tr '[:lower:]' '[:upper:]')
         if [[ "${cling_on}" == "ON" ]]; then
           git clone https://github.com/root-project/cling.git
-          cd ./cling 
+          cd ./cling
           git checkout tags/v${{ matrix.cling-version }}
           cd ..
           git clone --depth=1 -b cling-llvm${{ matrix.clang-runtime }} https://github.com/root-project/llvm-project.git
@@ -263,7 +263,8 @@ jobs:
           rm -rf $(find . -maxdepth 1 ! -name "include" ! -name "lib" ! -name "cmake" ! -name "utils" ! -name ".")
           cd ../clang/
           rm -rf $(find . -maxdepth 1 ! -name "include" ! -name "lib" ! -name "cmake" ! -name "utils" ! -name ".")
-          cd ../..
+          cd ../../cling/
+          rm -rf $(find . -maxdepth 1 ! -name "include" ! -name "lib" ! -name "cmake" ! -name ".")
         else # repl
           cd ./llvm/
           rm -rf $(find . -maxdepth 1 ! -name "include" ! -name "lib" ! -name "cmake" ! -name ".")
@@ -377,7 +378,7 @@ jobs:
       with:
         fetch-depth: 0
 
-    - name: Set up Python 
+    - name: Set up Python
       uses: actions/setup-python@v5
       with:
         python-version: '3.11'
@@ -443,7 +444,7 @@ jobs:
         # Install libraries used by the cppyy test suite
         sudo apt install libeigen3-dev
         sudo apt install libboost-all-dev
-        
+
 
     - name: Restore Cache LLVM/Clang runtime build directory
       uses: actions/cache/restore@v4
@@ -556,7 +557,7 @@ jobs:
         cmake --build . --parallel ${{ env.ncpus }}
         cp libcppyy-backend.so $CPPINTEROP_DIR/lib/
         cd ..
-        
+
     - name: Install CPyCppyy
       if: ${{ matrix.cppyy == 'On' }}
       run: |
@@ -630,7 +631,7 @@ jobs:
         declare -i RETCODE=0
 
         set -o pipefail
-    
+
         echo "Running valgrind on passing tests"
         CLANG_VERSION="${{ matrix.clang-runtime }}"
         SUPPRESSION_FILE="../etc/clang${CLANG_VERSION}-valgrind.supp"
@@ -648,7 +649,7 @@ jobs:
         tail -n1 test_xfailed.log
         echo "Return Code: ${RETCODE}"
         exit $RETCODE
-            
+
     - name: Show debug info
       if: ${{ failure() }}
       run: |

@@ -7,12 +7,12 @@ on:
     - main
   schedule:
     - cron: '30 20 * * *' # Warning: Timezone dep - 20:00 is 1:00
-    
+
 permissions:
   contents: read
   pages: write
   id-token: write
-    
+
 jobs:
   build:
     runs-on: ${{ matrix.os }}
@@ -21,9 +21,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: osx15-arm-clang-clang-repl-19-emscripten_wasm
+          - name: osx15-arm-clang-repl-19-emscripten_wasm
             os: macos-15
-            compiler: clang
             clang-runtime: '19'
             cling: Off
             micromamba_shell_init: bash
@@ -34,7 +33,7 @@ jobs:
       with:
         fetch-depth: 0
 
-    - name: Set up Python 
+    - name: Set up Python
       uses: actions/setup-python@v5
       with:
         python-version: '3.11'
@@ -87,20 +86,21 @@ jobs:
         path: |
           llvm-project
           ${{ matrix.cling=='On' && 'cling' || '' }}
-        key: ${{ env.CLING_HASH }}-${{ runner.os }}-${{ matrix.os }}-${{ matrix.compiler }}-clang-${{ matrix.clang-runtime }}.x-emscripten
-        
+        key: ${{ env.CLING_HASH }}-${{ runner.os }}-${{ matrix.os }}-clang-${{ matrix.clang-runtime }}.x-emscripten
+
     - name: Emscripten build of CppInterOp on Unix systems
       if: ${{ runner.os != 'windows' }}
       shell: bash -l {0}
       run: |
+        set -e
         ./emsdk/emsdk activate ${{matrix.emsdk_ver}}
         source ./emsdk/emsdk_env.sh
         micromamba create -f environment-wasm.yml --platform=emscripten-wasm32
-
+        export SYSROOT_PATH=$PWD/emsdk/upstream/emscripten/cache/sysroot
         export PREFIX=$MAMBA_ROOT_PREFIX/envs/CppInterOp-wasm
         export CMAKE_PREFIX_PATH=$PREFIX
         export CMAKE_SYSTEM_PREFIX_PATH=$PREFIX
-        
+
         LLVM_DIR="$(pwd)/llvm-project"
         LLVM_BUILD_DIR="$(pwd)/llvm-project/build"
         cling_on=$(echo "${{ matrix.cling }}" | tr '[:lower:]' '[:upper:]')
@@ -115,7 +115,6 @@ jobs:
         # Build CppInterOp next to cling and llvm-project.
         mkdir build
         cd build
-        export CPPINTEROP_BUILD_DIR=$PWD
 
         if [[ "${cling_on}" == "ON" ]]; then
           emcmake  cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}        \
@@ -130,6 +129,7 @@ jobs:
                 -DCODE_COVERAGE=${{ env.CODE_COVERAGE }}        \
                 -DCMAKE_INSTALL_PREFIX=$PREFIX         \
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            \
+                -DSYSROOT_PATH=$SYSROOT_PATH               \
                 ../
         else
           emcmake cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    \
@@ -141,15 +141,16 @@ jobs:
                 -DCODE_COVERAGE=${{ env.CODE_COVERAGE }}    \
                 -DCMAKE_INSTALL_PREFIX=$PREFIX      \
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            \
+                -DSYSROOT_PATH=$SYSROOT_PATH               \
                 ../
         fi
-        
+        emmake make -j ${{ env.ncpus }} check-cppinterop
         emmake make -j ${{ env.ncpus }} install
 
         cd ..
-        
+
+        echo "SYSROOT_PATH=$SYSROOT_PATH" >> $GITHUB_ENV
         echo "CB_PYTHON_DIR=$CB_PYTHON_DIR" >> $GITHUB_ENV
-        echo "CPPINTEROP_BUILD_DIR=$CPPINTEROP_BUILD_DIR" >> $GITHUB_ENV
         echo "CPPINTEROP_DIR=$CPPINTEROP_DIR" >> $GITHUB_ENV
         echo "LLVM_BUILD_DIR=$LLVM_BUILD_DIR" >> $GITHUB_ENV
         echo "CPLUS_INCLUDE_PATH=$CPLUS_INCLUDE_PATH" >> $GITHUB_ENV
@@ -160,26 +161,32 @@ jobs:
       run: |
         ./emsdk/emsdk activate ${{matrix.emsdk_ver}}
         source ./emsdk/emsdk_env.sh
-        export SYSROOT_PATH=$PWD/emsdk/upstream/emscripten/cache/sysroot
-        micromamba activate CppInterOp-wasm  
+        micromamba activate CppInterOp-wasm
         git clone --depth=1 https://github.com/compiler-research/xeus-cpp.git
         cd ./xeus-cpp
         mkdir build
         pushd build
-        export CMAKE_PREFIX_PATH=${{ env.PREFIX }} 
-        export CMAKE_SYSTEM_PREFIX_PATH=${{ env.PREFIX }} 
+        export CMAKE_PREFIX_PATH=${{ env.PREFIX }}
+        export CMAKE_SYSTEM_PREFIX_PATH=${{ env.PREFIX }}
         emcmake cmake \
           -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}          \
           -DCMAKE_PREFIX_PATH=${{ env.PREFIX }}             \
           -DCMAKE_INSTALL_PREFIX=${{ env.PREFIX }}          \
           -DXEUS_CPP_EMSCRIPTEN_WASM_BUILD=ON               \
           -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            \
-          -DCppInterOp_DIR="${{ env.CPPINTEROP_BUILD_DIR }}/lib/cmake/CppInterOp"  \
-          -DSYSROOT_PATH=$SYSROOT_PATH                      \
+          -DSYSROOT_PATH=${{ env.SYSROOT_PATH }}                     \
           ..
         emmake make -j ${{ env.ncpus }} install
 
-    - name: Jupyter Lite integration 
+    - name: Test xeus-cpp C++ Emscripten
+      shell: bash -l {0}
+      run: |
+        set -e
+        micromamba activate CppInterOp-wasm
+        cd ./xeus-cpp/build/test
+        node test_xeus_cpp.js
+
+    - name: Jupyter Lite integration
       shell: bash -l {0}
       run: |
           cd ./xeus-cpp/

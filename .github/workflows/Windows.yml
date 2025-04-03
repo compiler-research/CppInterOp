@@ -35,16 +35,16 @@ jobs:
             cling: Off
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
-            
+
     steps:
     - uses: actions/checkout@v4
       with:
         fetch-depth: 0
 
-    - name: Set up Python 
+    - name: Set up Python
       uses: actions/setup-python@v5
       with:
-        python-version: '3.11'  
+        python-version: '3.11'
 
     - name: Save PR Info on Windows systems
       run: |
@@ -54,8 +54,8 @@ jobs:
         echo ${{ github.repository }} > ./pr/REPO
 
         if ( "${{ matrix.cling }}" -imatch "On" )
-        { 
-          $env:CLING_HASH_TEMP = ( git ls-remote https://github.com/root-project/cling.git refs/tags/v${{ matrix.cling-version }} ) 
+        {
+          $env:CLING_HASH_TEMP = ( git ls-remote https://github.com/root-project/cling.git refs/tags/v${{ matrix.cling-version }} )
           $env:CLING_HASH = $env:CLING_HASH_TEMP -replace "\t","-"
         }
         else
@@ -69,7 +69,7 @@ jobs:
 
         echo "CLING_HASH=$env:CLING_HASH"
         echo "LLVM_HASH=$env:LLVM_HASH"
-        
+
         echo "CLING_HASH=$env:CLING_HASH" >> $GITHUB_ENV
         echo "LLVM_HASH=$env:LLVM_HASH" >> $GITHUB_ENV
 
@@ -88,9 +88,9 @@ jobs:
       run: |
         echo "BUILD_TYPE=Release" >> $env:GITHUB_ENV
         echo "CODE_COVERAGE=0" >>  $env:GITHUB_ENV
-        $env:ncpus=$([Environment]::ProcessorCount) 
+        $env:ncpus=$([Environment]::ProcessorCount)
         echo "ncpus=$env:ncpus" >> $env:GITHUB_ENV
-        
+
     - name: Setup compiler on Windows
       if: ${{ steps.cache.outputs.cache-hit != 'true' }}
       run: |
@@ -123,11 +123,11 @@ jobs:
     - name: Build LLVM/Cling on Windows systems if the cache is invalid
       if: ${{ steps.cache.outputs.cache-hit != 'true' }}
       run: |
-      
+
         if ( "${{ matrix.cling }}" -imatch "On" )
         {
           git clone https://github.com/root-project/cling.git
-          cd ./cling 
+          cd ./cling
           git checkout tags/v${{ matrix.cling-version }}
           cd ..
           git clone --depth=1 -b cling-llvm${{ matrix.clang-runtime }} https://github.com/root-project/llvm-project.git
@@ -203,7 +203,8 @@ jobs:
           rm -r -force $(find.exe . -maxdepth 1 ! -name "include" ! -name "lib" ! -name "cmake" ! -name "utils" ! -name ".")
           cd ..\clang\
           rm -r -force $(find.exe . -maxdepth 1 ! -name "include" ! -name "lib" ! -name "cmake" ! -name "utils" ! -name ".")
-          cd ..\..    
+          cd ..\..\cling\
+          rm -r -force $(find.exe . -maxdepth 1 ! -name "include" ! -name "lib" ! -name "cmake" ! -name ".")
         }
         else
         {
@@ -211,10 +212,10 @@ jobs:
           rm -r -force $(find.exe . -maxdepth 1 ! -name "include" ! -name "lib" ! -name "cmake" ! -name ".")
           cd ..\clang\
           rm -r -force $(find.exe . -maxdepth 1 ! -name "include" ! -name "lib" ! -name "cmake"  ! -name ".")
-          cd ..\..    
-        } 
+          cd ..\..
+        }
 
-    - name: Save Cache LLVM/Clang runtime build directory 
+    - name: Save Cache LLVM/Clang runtime build directory
       uses: actions/cache/save@v4
       if: ${{ steps.cache.outputs.cache-hit != 'true' }}
       with:
@@ -249,7 +250,7 @@ jobs:
       with:
         fetch-depth: 0
 
-    - name: Set up Python 
+    - name: Set up Python
       uses: actions/setup-python@v5
       with:
         python-version: '3.11'
@@ -262,8 +263,8 @@ jobs:
         echo ${{ github.repository }} > ./pr/REPO
 
         if ( "${{ matrix.cling }}" -imatch "On" )
-        { 
-          $env:CLING_HASH_TEMP = ( git ls-remote https://github.com/root-project/cling.git refs/tags/v${{ matrix.cling-version }} ) 
+        {
+          $env:CLING_HASH_TEMP = ( git ls-remote https://github.com/root-project/cling.git refs/tags/v${{ matrix.cling-version }} )
           $env:CLING_HASH = $env:CLING_HASH_TEMP -replace "\t","-"
         }
         else
@@ -277,7 +278,7 @@ jobs:
 
         echo "CLING_HASH=$env:CLING_HASH"
         echo "LLVM_HASH=$env:LLVM_HASH"
-        
+
         echo "CLING_HASH=$env:CLING_HASH" >> $GITHUB_ENV
         echo "LLVM_HASH=$env:LLVM_HASH" >> $GITHUB_ENV
 
@@ -285,9 +286,9 @@ jobs:
       run: |
         echo "BUILD_TYPE=Release" >> $env:GITHUB_ENV
         echo "CODE_COVERAGE=0" >>  $env:GITHUB_ENV
-        $env:ncpus=$([Environment]::ProcessorCount) 
+        $env:ncpus=$([Environment]::ProcessorCount)
         echo "ncpus=$env:ncpus" >> $env:GITHUB_ENV
-        
+
     - name: Setup compiler on Windows
       run: |
         if ( "${{ matrix.compiler }}" -imatch "clang" )
@@ -308,7 +309,7 @@ jobs:
         else
         {
           echo "Unsupported compiler - fix YAML file"
-        }        
+        }
 
     - name: Restore Cache LLVM/Clang runtime build directory
       uses: actions/cache/restore@v4
@@ -318,12 +319,12 @@ jobs:
           llvm-project
           ${{ matrix.cling=='On' && 'cling' || '' }}
         key: ${{ env.CLING_HASH }}-${{ runner.os }}-${{ matrix.os }}-${{ matrix.compiler }}-clang-${{ matrix.clang-runtime }}.x-patch-${{ hashFiles(format('patches/llvm/clang{0}-*.patch', matrix.clang-runtime)) || 'none' }}
-         
+
     - name: Build and Test/Install CppInterOp on Windows systems
       run: |
         #until https://github.com/compiler-research/CppInterOp/issues/188 is solved
         $env:PWD_DIR= $PWD.Path
-        
+
         $env:LLVM_DIR="$env:PWD_DIR\llvm-project"
         echo "LLVM_DIR=$env:LLVM_DIR"
         echo "LLVM_DIR=$env:LLVM_DIR" >> $env:GITHUB_ENV
@@ -336,37 +337,37 @@ jobs:
         {
           $env:CLING_DIR="$env:PWD_DIR\cling"
           echo "CLING_DIR=$env:CLING_DIR"
-          echo "CLING_DIR=$env:CLING_DIR" >> $env:GITHUB_ENV   
-          
+          echo "CLING_DIR=$env:CLING_DIR" >> $env:GITHUB_ENV
+
           $env:CLING_BUILD_DIR="$env:PWD_DIR\cling\build"
           echo "CLING_BUILD_DIR=$env:CLING_BUILD_DIR"
-          echo "CLING_BUILD_DIR=$env:CLING_BUILD_DIR" >> $env:GITHUB_ENV   
-      
+          echo "CLING_BUILD_DIR=$env:CLING_BUILD_DIR" >> $env:GITHUB_ENV
+
           $env:CPLUS_INCLUDE_PATH="$env:CLING_DIR\tools\cling\include;$env:CLING_BUILD_DIR\include;$env:LLVM_DIR\llvm\include;$env:LLVM_DIR\clang\include;$env:LLVM_BUILD_DIR\include;$env:LLVM_BUILD_DIR\tools\clang\include;$env:PWD_DIR\include;"
           echo "CPLUS_INCLUDE_PATH=$env:CPLUS_INCLUDE_PATH"
-          echo "CPLUS_INCLUDE_PATH=$env:CPLUS_INCLUDE_PATH" >> $env:GITHUB_ENV   
+          echo "CPLUS_INCLUDE_PATH=$env:CPLUS_INCLUDE_PATH" >> $env:GITHUB_ENV
         }
         else
         {
           $env:CPLUS_INCLUDE_PATH="$env:LLVM_DIR\llvm\include;$env:LLVM_DIR\clang\include;$env:LLVM_BUILD_DIR\include;$env:LLVM_BUILD_DIR\tools\clang\include;$env:PWD_DIR\include;"
           echo "CPLUS_INCLUDE_PATH=$env:CPLUS_INCLUDE_PATH"
-          echo "CPLUS_INCLUDE_PATH=$env:CPLUS_INCLUDE_PATH" >> $env:GITHUB_ENV   
+          echo "CPLUS_INCLUDE_PATH=$env:CPLUS_INCLUDE_PATH" >> $env:GITHUB_ENV
         }
-        
+
         $env:CB_PYTHON_DIR="$env:PWD_DIR\cppyy-backend\python"
         echo "CB_PYTHON_DIR=$env:CB_PYTHON_DIR"
-        echo "CB_PYTHON_DIR=$env:CB_PYTHON_DIR" >> $env:GITHUB_ENV  
+        echo "CB_PYTHON_DIR=$env:CB_PYTHON_DIR" >> $env:GITHUB_ENV
 
         $env:CPPINTEROP_DIR="$env:CB_PYTHON_DIR\cppyy-backend"
         echo "CPPINTEROP_DIR=$env:CPPINTEROP_DIR"
-        echo "CPPINTEROP_DIR=$env:CPPINTEROP_DIR" >> $env:GITHUB_ENV  
+        echo "CPPINTEROP_DIR=$env:CPPINTEROP_DIR" >> $env:GITHUB_ENV
 
         # Build CppInterOp next to cling and llvm-project.
-        mkdir build 
+        mkdir build
         cd build
         $env:CPPINTEROP_BUILD_DIR="$env:PWD_DIR"
         echo "CPPINTEROP_BUILD_DIR=$env:CPPINTEROP_BUILD_DIR"
-        echo "CPPINTEROP_BUILD_DIR=$env:CPPINTEROP_BUILD_DIR" >> $env:GITHUB_ENV  
+        echo "CPPINTEROP_BUILD_DIR=$env:CPPINTEROP_BUILD_DIR" >> $env:GITHUB_ENV
         if ( "${{ matrix.cling }}" -imatch "On" )
         {
           cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    `
