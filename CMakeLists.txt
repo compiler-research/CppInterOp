@@ -66,7 +66,6 @@ if( CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR )
 
 include(GNUInstallDirs)
   ## Define supported version of clang and llvm
-
   set(CLANG_MIN_SUPPORTED 13.0)
   set(CLANG_MAX_SUPPORTED "19.1.x")
   set(CLANG_VERSION_UPPER_BOUND 20.0.0)
@@ -78,12 +77,10 @@ include(GNUInstallDirs)
   set(LLVM_VERSION_UPPER_BOUND 20.0.0)
 
   ## Set Cmake packages search order
-
   set(CMAKE_FIND_PACKAGE_SORT_ORDER NATURAL)
   set(CMAKE_FIND_PACKAGE_SORT_DIRECTION DEC)
 
   ## Search packages HINTS and PATHS
-
   if (DEFINED LLVM_DIR)
     set(llvm_search_hints PATHS ${LLVM_DIR} HINTS "${LLVM_DIR}/lib/cmake/llvm" "${LLVM_DIR}/cmake" "${LLVM_CONFIG_EXTRA_PATH_HINTS}")
     set(clang_search_hints PATHS ${LLVM_DIR} HINTS "${LLVM_DIR}/lib/cmake/clang" "${LLVM_DIR}/cmake")
@@ -102,7 +99,6 @@ include(GNUInstallDirs)
   endif()
 
   ## Find supported LLVM
-
   if (CPPINTEROP_USE_CLING)
     message(STATUS "Mode CPPINTEROP_USE_CLING = ON")
     find_package(LLVM REQUIRED CONFIG ${llvm_search_hints} NO_DEFAULT_PATH)
@@ -154,8 +150,7 @@ include(GNUInstallDirs)
   message(STATUS "Found supported version: LLVM ${LLVM_PACKAGE_VERSION}")
   message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
 
-  ## Find supported LLD only while building for webassembly against emscripten
-
+## Find supported LLD only while building for webassembly against emscripten
 if(EMSCRIPTEN)
   if (DEFINED LLD_VERSION)
     if (LLD_VERSION VERSION_GREATER_EQUAL LLD_VERSION_UPPER_BOUND)
@@ -194,7 +189,6 @@ if(EMSCRIPTEN)
 endif()
 
   ## Find supported Clang
-
   if (DEFINED CLANG_VERSION)
     if (CLANG_VERSION VERSION_GREATER_EQUAL CLANG_VERSION_UPPER_BOUND)
       set(CLANG_VERSION ${CLANG_VERSION_UPPER_BOUND})
@@ -236,19 +230,18 @@ endif()
       set (CMAKE_CXX_STANDARD 17)
     endif()
     if (CMAKE_CXX_STANDARD LESS 17)
-      message(fatal "LLVM/CppInterOp requires c++17 or later")
+      message(fatal "LLVM/CppInterOp requires C++17 or later")
     endif()
   elseif (CLANG_VERSION_MAJOR GREATER_EQUAL 13)
     if (NOT CMAKE_CXX_STANDARD)
       set (CMAKE_CXX_STANDARD 14)
     endif()
     if (CMAKE_CXX_STANDARD LESS 14)
-      message(fatal "LLVM/CppInterOp requires c++14 or later")
+      message(fatal "LLVM/CppInterOp requires C++14 or later")
     endif()
   endif()
 
   ## Find supported Cling
-
   if (CPPINTEROP_USE_CLING)
     if (NOT Cling_FOUND AND DEFINED Cling_DIR)
       find_package(Cling REQUIRED CONFIG ${cling_extra_hints} NO_DEFAULT_PATH)
@@ -273,8 +266,6 @@ endif()
   # When in debug mode the llvm package thinks it is built with -frtti.
   # For consistency we should set it to the correct value.
   set(LLVM_CONFIG_HAS_RTTI NO CACHE BOOL "" FORCE)
-
-  ## Init
 
   # In case this was a path to a build folder of llvm still try to find AddLLVM
   list(APPEND CMAKE_MODULE_PATH "${LLVM_DIR}")
@@ -352,7 +343,7 @@ if( CMAKE_SOURCE_DIR STREQUAL CMAKE_BINARY_DIR AND NOT MSVC_IDE )
 "`CMakeFiles'. Please delete them.")
 endif()
 
-# Add appropriate flags for GCC
+## Add appropriate flags for GCC
 if (LLVM_COMPILER_IS_GCC_COMPATIBLE)
   if (APPLE OR EMSCRIPTEN)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-common -Woverloaded-virtual -Wcast-qual -fno-strict-aliasing -Wno-long-long -Wall -W -Wno-unused-parameter -Wwrite-strings")
@@ -383,7 +374,7 @@ include_directories(BEFORE SYSTEM
   ${CMAKE_CURRENT_SOURCE_DIR}/include
   )
 
-#Removes flag due to issue with Google test download when LLVM_ENABLE_WERROR=On
+# Removes flag due to issue with Google test download when LLVM_ENABLE_WERROR=On
 string(REPLACE "-Wcovered-switch-default" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 
 file(STRINGS "VERSION" CPPINTEROP_VERSION)
@@ -405,7 +396,6 @@ install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/lib/cmake/CppInterOp/
   FILES_MATCHING
   PATTERN "*.cmake"
   )
-
 
 install(DIRECTORY include/
   DESTINATION include
