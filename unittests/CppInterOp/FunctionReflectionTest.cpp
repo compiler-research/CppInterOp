@@ -6,6 +6,8 @@
 #include "clang/Interpreter/CppInterOp.h"
 #include "clang/Sema/Sema.h"
 
+#include <llvm/ADT/ArrayRef.h>
+
 #include "clang-c/CXCppInterOp.h"
 
 #include "gtest/gtest.h"
@@ -844,6 +846,69 @@ TEST(FunctionReflectionTest, GetClassTemplatedMethods_VariadicsAndOthers) {
             "U MyClass::variadicMethod(U first, V ...rest)");
   EXPECT_EQ(Cpp::GetFunctionSignature(templatedMethods[4]),
             "void MyClass::staticVariadic(T t, Args ...args)");
+}
+
+TEST(FunctionReflectionTest, InstantiateVariadicFunction) {
+  std::vector<Decl*> Decls;
+  std::string code = R"(
+    class MyClass {};
+
+    template<typename... Args>
+    void VariadicFn(Args... args) {}
+
+    template<typename... Args>
+    void VariadicFnExtended(int fixedParam, Args... args) {}
+  )";
+
+  GetAllTopLevelDecls(code, Decls);
+  ASTContext& C = Interp->getCI()->getASTContext();
+
+  std::vector<Cpp::TemplateArgInfo> args1 = {C.DoubleTy.getAsOpaquePtr(),
+                                             C.IntTy.getAsOpaquePtr()};
+  auto Instance1 = Cpp::InstantiateTemplate(Decls[1], args1.data(),
+                                            /*type_size*/ args1.size());
+  EXPECT_TRUE(Cpp::IsTemplatedFunction(Instance1));
+  EXPECT_EQ(Cpp::GetFunctionSignature(Instance1),
+            "template<> void VariadicFn<<double, int>>(double args, int args)");
+
+  FunctionDecl* FD = cast<FunctionDecl>((Decl*)Instance1);
+  FunctionDecl* FnTD1 = FD->getTemplateInstantiationPattern();
+  EXPECT_TRUE(FnTD1->isThisDeclarationADefinition());
+  EXPECT_EQ(FD->getNumParams(), 2);
+
+  const TemplateArgumentList* TA1 = FD->getTemplateSpecializationArgs();
+  llvm::ArrayRef<TemplateArgument> Args = TA1->get(0).getPackAsArray();
+  EXPECT_EQ(Args.size(), 2);
+  EXPECT_TRUE(Args[0].getAsType()->isFloatingType());
+  EXPECT_TRUE(Args[1].getAsType()->isIntegerType());
+
+  // handle to MyClass type
+  auto MyClassType = Cpp::GetTypeFromScope(Decls[0]);
+  std::vector<Cpp::TemplateArgInfo> args2 = {MyClassType,
+                                             C.DoubleTy.getAsOpaquePtr()};
+
+  // instantiate VariadicFnExtended
+  auto Instance2 =
+      Cpp::InstantiateTemplate(Decls[2], args2.data(), args2.size());
+  EXPECT_TRUE(Cpp::IsTemplatedFunction(Instance2));
+
+  FunctionDecl* FD2 = cast<FunctionDecl>((Decl*)Instance2);
+  FunctionDecl* FnTD2 = FD2->getTemplateInstantiationPattern();
+  EXPECT_TRUE(FnTD2->isThisDeclarationADefinition());
+
+  // VariadicFnExtended has one fixed param + 2 elements in TemplateArgument
+  // pack
+  EXPECT_EQ(FD2->getNumParams(), 3);
+
+  const TemplateArgumentList* TA2 = FD2->getTemplateSpecializationArgs();
+  llvm::ArrayRef<TemplateArgument> PackArgs2 = TA2->get(0).getPackAsArray();
+  EXPECT_EQ(PackArgs2.size(), 2);
+
+  EXPECT_TRUE(PackArgs2[0].getAsType()->isRecordType());   // MyClass
+  EXPECT_TRUE(PackArgs2[1].getAsType()->isFloatingType()); // double
+  EXPECT_EQ(Cpp::GetFunctionSignature(Instance2),
+            "template<> void VariadicFnExtended<<MyClass, double>>(int "
+            "fixedParam, MyClass args, double args)");
 }
 
 TEST(FunctionReflectionTest, BestOverloadFunctionMatch1) {
