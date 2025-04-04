@@ -294,9 +294,11 @@ createClangInterpreter(std::vector<const char*>& args) {
     return nullptr;
   }
   if (CudaEnabled) {
-    if (auto Err = (*innerOrErr)->LoadDynamicLibrary("libcudart.so"))
+    if (auto Err = (*innerOrErr)->LoadDynamicLibrary("libcudart.so")) {
       llvm::logAllUnhandledErrors(std::move(Err), llvm::errs(),
                                   "Failed load libcudart.so runtime:");
+      return nullptr;
+    }
   }
 
   return std::move(*innerOrErr);
