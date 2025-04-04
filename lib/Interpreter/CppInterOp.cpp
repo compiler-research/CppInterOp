@@ -48,6 +48,7 @@
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_os_ostream.h"
+#include "llvm/Support/FileSystem.h"
 
 #include <algorithm>
 #include <iterator>
@@ -55,6 +56,8 @@
 #include <set>
 #include <sstream>
 #include <string>
+#include <initializer_list>
+
 
 // Stream redirect.
 #ifdef _WIN32
@@ -2914,14 +2917,47 @@ namespace Cpp {
   }
   } // namespace
 
-  TInterp_t CreateInterpreter(const std::vector<const char*>& Args /*={}*/,
-                              const std::vector<const char*>& GpuArgs /*={}*/) {
-    std::string MainExecutableName =
+  // This Methond is Deprecated and should not be used
+  // It is kept for backward compatibility
+  // Updated overload of CreateInterpreter using std::vector<std::string>
+  // is preferred and defined below 
+  [[deprecated("Use the overload that takes std::vector<std::string> instead.")]]
+  TInterp_t CreateInterpreter(const std::vector<const char*>& Args,
+                              const std::vector<const char*>& GpuArgs) {
+
+      //Convert const char* vectors to std::string vectors
+      std::vector<std::string> ArgsStr(Args.begin(), Args.end());
+      std::vector<std::string> GpuArgsStr(GpuArgs.begin(), GpuArgs.end());
+      //forwarding to the overloaded implementation
+      return CreateInterpreter(ArgsStr, GpuArgsStr);
+  }
+
+  //Overloaded defination of CreateInterpreter using std::initializer_list
+  // for Args and GpuArgs
+  // This is a convenience function that allows the user to pass
+  // arguments as initializer lists, which are then converted to
+  // std::vector<std::string> internally.
+  TInterp_t CreateInterpreter(std::initializer_list<std::string> Args,
+                              std::initializer_list<std::string> GpuArgs) {
+    return CreateInterpreter(std::vector<std::string>(Args),
+    std::vector<std::string>(GpuArgs));
+  }
+
+  //overloaded defination of CreateInterpreter using std::vector<std::string>
+  // for Args and GpuArgs
+  TInterp_t CreateInterpreter(const std::vector<std::string>& Args,
+    const std::vector<std::string>& GpuArgs) {
+    // Retrieve the path to the main executable
+    std::string MainExecutableName = 
       sys::fs::getMainExecutable(nullptr, nullptr);
+
+    // Construct the resource directory path
     std::string ResourceDir = MakeResourcesPath();
-    std::vector<const char *> ClingArgv = {"-resource-dir", ResourceDir.c_str(),
-                                           "-std=c++14"};
-    ClingArgv.insert(ClingArgv.begin(), MainExecutableName.c_str());
+
+    // Initialize the argument list for the interpreter
+    std::vector<std::string> ClingArgv = {"-resource-dir", ResourceDir, "-std=c++14"};
+    ClingArgv.insert(ClingArgv.begin(), MainExecutableName);
+
 #ifdef _WIN32
     // FIXME : Workaround Sema::PushDeclContext assert on windows
     ClingArgv.push_back("-fno-delayed-template-parsing");
@@ -2942,22 +2978,23 @@ namespace Cpp {
     ClingArgv.insert(ClingArgv.end(), GpuArgs.begin(), GpuArgs.end());
 
     // Process externally passed arguments if present.
-    std::vector<std::string> ExtraArgs;
-    auto EnvOpt =
+    auto EnvOpt = 
         llvm::sys::Process::GetEnv("CPPINTEROP_EXTRA_INTERPRETER_ARGS");
     if (EnvOpt) {
       StringRef Env(*EnvOpt);
       while (!Env.empty()) {
         StringRef Arg;
         std::tie(Arg, Env) = Env.split(' ');
-        ExtraArgs.push_back(Arg.str());
+        ClingArgv.push_back(Arg.str());
       }
     }
-    std::transform(ExtraArgs.begin(), ExtraArgs.end(),
-                   std::back_inserter(ClingArgv),
-                   [&](const std::string& str) { return str.c_str(); });
+    // Convert std::vector<std::string> to std::vector<const char*>
+    std::vector<const char*> ClingArgvCStr;
+    std::transform(ClingArgv.begin(), ClingArgv.end(),
+                   std::back_inserter(ClingArgvCStr),
+                   [](const std::string& str) { return str.c_str(); });
 
-    auto I = new compat::Interpreter(ClingArgv.size(), &ClingArgv[0]);
+    auto I = new compat::Interpreter(ClingArgvCStr.size(), ClingArgvCStr.data());
 
     // Honor -mllvm.
     //
@@ -2973,6 +3010,7 @@ namespace Cpp {
       Args[NumArgs + 1] = nullptr;
       llvm::cl::ParseCommandLineOptions(NumArgs + 1, Args.get());
     }
+
     // FIXME: Enable this assert once we figure out how to fix the multiple
     // calls to CreateInterpreter.
     //assert(!sInterpreter && "Interpreter already set.");

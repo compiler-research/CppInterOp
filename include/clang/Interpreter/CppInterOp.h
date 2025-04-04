@@ -591,9 +591,24 @@ namespace Cpp {
   ///\param[in] Args - the list of arguments for interpreter constructor.
   ///\param[in] CPPINTEROP_EXTRA_INTERPRETER_ARGS - an env variable, if defined,
   ///           adds additional arguments to the interpreter.
+
+  //New Overload for CreateInterpreter, takes std::vector<std::string>
+  CPPINTEROP_API TInterp_t CreateInterpreter(
+    const std::vector<std::string>& Args = {},
+    const std::vector<std::string>& GpuArgs = {});
+  
+  /// New Overload for CreateInterpreter, takes std::initializer_list<std::string>
+  /// later converted to std::vector<std::string> in the implementation
+  /// This is a temporary solution until we can remove the old overload.  
+  CPPINTEROP_API TInterp_t CreateInterpreter(
+    std::initializer_list<std::string> Args,
+    std::initializer_list<std::string> GpuArgs);
+  
+  /// @deprecated Use the overload that takes std::vector<std::string> instead.  
+  [[deprecated("Use the overload that takes std::vector<std::string> instead.")]]
   CPPINTEROP_API TInterp_t
-  CreateInterpreter(const std::vector<const char*>& Args = {},
-                    const std::vector<const char*>& GpuArgs = {});
+  CreateInterpreter(const std::vector<const char*>& Args,
+                    const std::vector<const char*>& GpuArgs);
 
   /// Checks which Interpreter backend was CppInterOp library built with (Cling,
   /// Clang-REPL, etcetera). In practice, the selected interpreter should not
