@@ -57,3 +57,31 @@ TEST(DynamicLibraryManagerTest, Sanity) {
   // invalidated...
   // EXPECT_FALSE(Cpp::GetFunctionAddress("ret_zero"));
 }
+
+TEST(DynamicLibraryManagerTest, BasicSymbolLookup) {
+#ifndef EMSCRIPTEN
+  GTEST_SKIP() << "This test is only intended for Emscripten builds.";
+#endif
+
+  // 1. Create interpreter
+  ASSERT_TRUE(Cpp::CreateInterpreter());
+
+  // 2. Before loading, the symbol should not exist
+  EXPECT_FALSE(Cpp::GetFunctionAddress("ret_zero"));
+
+  // 3. Load the library manually. Use exact known preload path (MEMFS path)
+  const char* wasmLibPath = "libTestSharedLib.so";  // Preloaded path in MEMFS
+  EXPECT_TRUE(Cpp::LoadLibrary(wasmLibPath, false));
+
+  // 4. Force engine setup (optional here)
+  Cpp::Process("");
+
+  // 5. Symbol should now be found
+  void* Addr = Cpp::GetFunctionAddress("ret_zero");
+  EXPECT_NE(Addr, nullptr) << "Symbol 'ret_zero' not found after dlopen.";
+
+  // 6. Optionally, cast and call to test actual function (should return 0)
+  using RetZeroFn = int (*)();
+  RetZeroFn Fn = reinterpret_cast<RetZeroFn>(Addr);
+  EXPECT_EQ(Fn(), 0);
+}
