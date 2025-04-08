@@ -81,7 +81,7 @@ else()
 endif()
 
 # Use gmock_main instead of gtest_main because it initializes gtest as well.
-# Note: The libraries are listed in reverse order of their dependancies.
+# Note: The libraries are listed in reverse order of their dependencies.
 foreach(lib gtest gtest_main gmock gmock_main)
   add_library(${lib} IMPORTED STATIC GLOBAL)
   set_target_properties(${lib} PROPERTIES

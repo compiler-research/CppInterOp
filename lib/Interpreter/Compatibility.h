@@ -483,7 +483,7 @@ inline std::string MakeResourceDir(llvm::StringRef Dir) {
   return std::string(P.str());
 }
 
-// Clang >= 16 (=16 with Value patch) change castAs to converTo
+// Clang >= 16 (=16 with Value patch) change castAs to convertTo
 #ifdef CPPINTEROP_USE_CLING
 template <typename T> inline T convertTo(cling::Value V) {
   return V.castAs<T>();
