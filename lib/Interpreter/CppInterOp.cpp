@@ -1421,7 +1421,7 @@ namespace Cpp {
         // not C. That means BaseCXXRD derives from C. Offset needs to be
         // calculated for Derived class
 
-        // Depth first Search is performed to the class that declears FD from
+        // Depth first Search is performed to the class that declares FD from
         // the base class
         std::vector<CXXRecordDecl*> stack;
         std::map<CXXRecordDecl*, CXXRecordDecl*> direction;
@@ -3646,7 +3646,7 @@ namespace Cpp {
       m_DupFD = dup(FD);
 
       // Flush now or can drop the buffer when dup2 is called with Fd later.
-      // This seems only neccessary when piping stdout or stderr, but do it
+      // This seems only necessary when piping stdout or stderr, but do it
       // for ttys to avoid over complicated code for minimal benefit.
       ::fflush(FD == STDOUT_FILENO ? stdout : stderr);
       if (dup2(fileno(m_TempFile.get()), FD) < 0)
