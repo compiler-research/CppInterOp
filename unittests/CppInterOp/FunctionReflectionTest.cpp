@@ -1766,6 +1766,66 @@ TEST(FunctionReflectionTest, Construct) {
   clang_Interpreter_dispose(I);
 }
 
+// Test nested constructor calls
+TEST(FunctionReflectionTest, ConstructNested) {
+#ifdef EMSCRIPTEN
+  GTEST_SKIP() << "Test fails for Emscipten builds";
+#endif
+  if (llvm::sys::RunningOnValgrind())
+    GTEST_SKIP() << "XFAIL due to Valgrind report";
+#ifdef _WIN32
+  GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
+#endif
+
+  Cpp::CreateInterpreter();
+
+  Interp->declare(R"(
+    #include <new>
+    extern "C" int printf(const char*,...);
+    class A {
+    public:
+      int a_val;
+      A() : a_val(7) {
+        printf("A Constructor Called\n");
+      }
+    };
+
+    class B {
+    public:
+      A a;
+      int b_val;
+      B() : b_val(99) {
+        printf("B Constructor Called\n");
+      }
+    };
+    )");
+
+  testing::internal::CaptureStdout();
+  Cpp::TCppScope_t scope_A = Cpp::GetNamed("A");
+  Cpp::TCppScope_t scope_B = Cpp::GetNamed("B");
+  Cpp::TCppObject_t object = Cpp::Construct(scope_B);
+  EXPECT_TRUE(object != nullptr);
+  std::string output = testing::internal::GetCapturedStdout();
+  EXPECT_EQ(output, "A Constructor Called\nB Constructor Called\n");
+  output.clear();
+
+  // In-memory construction
+  testing::internal::CaptureStdout();
+  void* arena = Cpp::Allocate(scope_B);
+  EXPECT_TRUE(arena == Cpp::Construct(scope_B, arena));
+
+  // Check if both integers a_val and b_val were set.
+  EXPECT_EQ(*(int*)arena, 7);
+  size_t a_size = Cpp::SizeOf(scope_A);
+  int* b_val_ptr =
+      reinterpret_cast<int*>(reinterpret_cast<char*>(arena) + a_size);
+  EXPECT_EQ(*b_val_ptr, 99);
+  Cpp::Deallocate(scope_B, arena);
+  output = testing::internal::GetCapturedStdout();
+  EXPECT_EQ(output, "A Constructor Called\nB Constructor Called\n");
+  output.clear();
+}
+
 TEST(FunctionReflectionTest, Destruct) {
 #ifdef EMSCRIPTEN
   GTEST_SKIP() << "Test fails for Emscipten builds";
