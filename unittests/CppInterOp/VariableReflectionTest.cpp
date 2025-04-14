@@ -334,6 +334,9 @@ TEST(VariableReflectionTest, VariableOffsetsWithInheritance) {
   if (llvm::sys::RunningOnValgrind())
     GTEST_SKIP() << "XFAIL due to Valgrind report";
 
+  std::vector<const char*> interpreter_args = {"-include", "string"};
+  Cpp::CreateInterpreter(interpreter_args);
+
   Cpp::Declare("#include<string>");
 
 #define Stringify(s) Stringifyx(s)
