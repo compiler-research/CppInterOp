@@ -1325,7 +1325,8 @@ TEST(FunctionReflectionTest, GetFunctionAddress) {
   std::string code = "int f1(int i) { return i * i; }";
   std::vector<const char*> interpreter_args = {"-include", "new"};
 
-  GetAllTopLevelDecls(code, Decls, false, interpreter_args);
+  GetAllTopLevelDecls(code, Decls, /*filter_implicitGenerated=*/false,
+                      interpreter_args);
 
   testing::internal::CaptureStdout();
   Interp->declare("#include <iostream>");
@@ -1376,7 +1377,8 @@ TEST(FunctionReflectionTest, JitCallAdvanced) {
 
   std::vector<const char*> interpreter_args = {"-include", "new"};
 
-  GetAllTopLevelDecls(code, Decls, false, interpreter_args);
+  GetAllTopLevelDecls(code, Decls, /*filter_implicitGenerated=*/false,
+                      interpreter_args);
   auto *CtorD
     = (clang::CXXConstructorDecl*)Cpp::GetDefaultConstructor(Decls[0]);
   auto Ctor = Cpp::MakeFunctionCallable(CtorD);
@@ -1416,7 +1418,8 @@ TEST(FunctionReflectionTest, GetFunctionCallWrapper) {
 
   std::vector<const char*> interpreter_args = {"-include", "new"};
 
-  GetAllTopLevelDecls(code, Decls, false, interpreter_args);
+  GetAllTopLevelDecls(code, Decls, /*filter_implicitGenerated=*/false,
+                      interpreter_args);
 
   Interp->process(R"(
     #include <string>
@@ -1516,7 +1519,8 @@ TEST(FunctionReflectionTest, GetFunctionCallWrapper) {
         };
     )";
 
-  GetAllTopLevelDecls(code1, Decls1, false, interpreter_args);
+  GetAllTopLevelDecls(code1, Decls1, /*filter_implicitGenerated=*/false,
+                      interpreter_args);
   ASTContext& C = Interp->getCI()->getASTContext();
 
   std::vector<Cpp::TemplateArgInfo> argument = {C.IntTy.getAsOpaquePtr()};
