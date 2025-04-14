@@ -440,8 +440,8 @@ endif()
 
 # Generate docs for CppInterOp
 option(CPPINTEROP_INCLUDE_DOCS "Generate build targets for the CppInterOp docs.")
-option(CPPINTEROP_ENABLE_DOXYGEN "Use doxygen to generate CppInterOp interal API documentation.")
-option(CPPINTEROP_ENABLE_SPHINX "Use sphinx to generage CppInterOp user documentation")
+option(CPPINTEROP_ENABLE_DOXYGEN "Use doxygen to generate CppInterOp internal API documentation.")
+option(CPPINTEROP_ENABLE_SPHINX "Use sphinx to generate CppInterOp user documentation")
 
 
 if(MSVC)
