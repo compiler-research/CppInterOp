@@ -113,6 +113,7 @@ if(NOT WIN32)
     ${link_libs}
   )
 else()
+  message(STATUS "link_libs is ${link_libs}")
   add_llvm_library(clangCppInterOp
     DISABLE_LLVM_LINK_LLVM_DYLIB
     CppInterOp.cpp
