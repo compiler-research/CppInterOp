@@ -86,7 +86,8 @@ TEST(InterpreterTest, Process) {
 #endif
   if (llvm::sys::RunningOnValgrind())
     GTEST_SKIP() << "XFAIL due to Valgrind report";
-  auto* I = Cpp::CreateInterpreter();
+  std::vector<const char*> interpreter_args = { "-include", "new" };
+  auto* I = Cpp::CreateInterpreter(interpreter_args);
   EXPECT_TRUE(Cpp::Process("") == 0);
   EXPECT_TRUE(Cpp::Process("int a = 12;") == 0);
   EXPECT_FALSE(Cpp::Process("error_here;") == 0);
