@@ -120,7 +120,7 @@ else()
     CXCppInterOp.cpp
     ${DLM}
     LINK_LIBS
-    clangAST
+    ${cling_clang_interp}
   )
 endif()
 
