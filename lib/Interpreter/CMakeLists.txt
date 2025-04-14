@@ -119,6 +119,8 @@ else()
     CppInterOp.cpp
     CXCppInterOp.cpp
     ${DLM}
+    ${link_libs}
+    clangAST
   )
 endif()
 
