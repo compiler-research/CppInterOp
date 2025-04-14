@@ -2,7 +2,6 @@ if(EMSCRIPTEN)
   set_property(GLOBAL PROPERTY TARGET_SUPPORTS_SHARED_LIBS TRUE)
   set(LLVM_LINK_COMPONENTS "")
 else()
-  if(NOT WIN32)
   set(LLVM_LINK_COMPONENTS
     ${LLVM_TARGETS_TO_BUILD}
     BinaryFormat
@@ -11,9 +10,6 @@ else()
     OrcJit
     Support
   )
-  else()
-    set(LLVM_LINK_COMPONENTS "")
-  endif()
   # FIXME: Investigate why this needs to be conditionally included.
   if ("LLVMFrontendDriver" IN_LIST LLVM_AVAILABLE_LIBS)
     list(APPEND LLVM_LINK_COMPONENTS  FrontendDriver)
@@ -107,6 +103,7 @@ endif()
       )
   endif(LLVM_LINK_LLVM_DYLIB)
 endif()
+if(NOT WIN32)
   add_llvm_library(clangCppInterOp
     DISABLE_LLVM_LINK_LLVM_DYLIB
     CppInterOp.cpp
@@ -115,6 +112,14 @@ endif()
     LINK_LIBS
     ${link_libs}
   )
+else()
+  add_llvm_library(clangCppInterOp
+    DISABLE_LLVM_LINK_LLVM_DYLIB
+    CppInterOp.cpp
+    CXCppInterOp.cpp
+    ${DLM}
+  )
+endif()
 
 if(EMSCRIPTEN)
   # FIXME: When dynamically linking the Emscripten shared library to the
