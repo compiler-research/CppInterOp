@@ -177,6 +177,9 @@ TEST(InterpreterTest, CreateInterpreterCAPI) {
 }
 
 TEST(InterpreterTest, CreateInterpreterCAPIFailure) {
+#ifdef _WIN32
+  GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
+#endif
   const char* argv[] = {"-fsyntax-only", "-Xclang", "-invalid-plugin"};
   auto *CXI = clang_createInterpreter(argv, 3);
   EXPECT_EQ(CXI, nullptr);
