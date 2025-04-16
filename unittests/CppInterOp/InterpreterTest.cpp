@@ -286,3 +286,17 @@ if (llvm::sys::RunningOnValgrind())
   delete ExtInterp;
 #endif
 }
+
+TEST(InterpreterTest, NewOverloadCreateInterpreter) {
+  // This uses the new overload taking std::vector<std::string>
+  auto* I = Cpp::CreateInterpreter({ "-std=c++17" }, {});
+  EXPECT_TRUE(I);
+}
+
+TEST(InterpreterTest, DeprecatedCreateInterpreter) {
+  // This uses the deprecated interface taking std::vector<const char*>
+  std::vector<const char*> args = { "-std=c++14" };
+  std::vector<const char*> gpuArgs;
+  auto* I = Cpp::CreateInterpreter(args, gpuArgs);
+  EXPECT_TRUE(I);
+}
