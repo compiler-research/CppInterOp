@@ -498,7 +498,7 @@ if(MSVC)
     set(MSVC_EXPORTLIST ${MSVC_EXPORTLIST} ??3@YAXPAX0@Z ??_V@YAXPAX0@Z)
   endif()
 
-  if(MSVC_VERSION GREATER_EQUAL 1936)
+  if(MSVC_VERSION GREATER_EQUAL 1936 AND NOT (CMAKE_C_COMPILER MATCHES "aarch64|arm"))
     set(MSVC_EXPORTLIST ${MSVC_EXPORTLIST}
         __std_find_trivial_1
         __std_find_trivial_2
