@@ -25,6 +25,7 @@
 #if CLANG_VERSION_MAJOR >= 19
 #include "clang/Sema/Redeclaration.h"
 #endif
+#include "clang/Serialization/ModuleFileExtension.h"
 
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/SmallSet.h"
@@ -33,7 +34,11 @@
 #include "llvm/ExecutionEngine/Orc/LLJIT.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/Error.h"
+#include "llvm/Support/raw_ostream.h"
 #include "llvm/Support/TargetSelect.h"
+
+#include <utility>
+#include <vector>
 
 namespace clang {
 class CompilerInstance;
