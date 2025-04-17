@@ -167,6 +167,25 @@ TEST(InterpreterTest, CreateInterpreter) {
 #endif
 }
 
+#ifndef CPPINTEROP_USE_CLING
+TEST(InterpreterTest, CreateInterpreterCAPI) {
+  const char* argv[] = {"-std=c++17"};
+  auto *CXI = clang_createInterpreter(argv, 1);
+  auto CLI = clang_Interpreter_getClangInterpreter(CXI);
+  EXPECT_TRUE(CLI);
+  clang_Interpreter_dispose(CXI);
+}
+
+TEST(InterpreterTest, CreateInterpreterCAPIFailure) {
+#ifdef _WIN32
+  GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
+#endif
+  const char* argv[] = {"-fsyntax-only", "-Xclang", "-invalid-plugin"};
+  auto *CXI = clang_createInterpreter(argv, 3);
+  EXPECT_EQ(CXI, nullptr);
+}
+#endif
+
 #ifdef LLVM_BINARY_DIR
 TEST(InterpreterTest, DetectResourceDir) {
 #ifdef EMSCRIPTEN
