@@ -637,7 +637,8 @@ TEST(FunctionReflectionTest, ExistsFunctionTemplate) {
 TEST(FunctionReflectionTest, InstantiateTemplateFunctionFromString) {
   if (llvm::sys::RunningOnValgrind())
     GTEST_SKIP() << "XFAIL due to Valgrind report";
-  Cpp::CreateInterpreter();
+  std::vector<const char*> interpreter_args = { "-include", "new" };
+  Cpp::CreateInterpreter(interpreter_args);
   std::string code = R"(#include <memory>)";
   Interp->process(code);
   const char* str = "std::make_unique<int,int>";
@@ -1322,8 +1323,10 @@ TEST(FunctionReflectionTest, GetFunctionAddress) {
 #endif
   std::vector<Decl*> Decls, SubDecls;
   std::string code = "int f1(int i) { return i * i; }";
+  std::vector<const char*> interpreter_args = {"-include", "new"};
 
-  GetAllTopLevelDecls(code, Decls);
+  GetAllTopLevelDecls(code, Decls, /*filter_implicitGenerated=*/false,
+                      interpreter_args);
 
   testing::internal::CaptureStdout();
   Interp->declare("#include <iostream>");
@@ -1372,7 +1375,10 @@ TEST(FunctionReflectionTest, JitCallAdvanced) {
       } name;
     )";
 
-  GetAllTopLevelDecls(code, Decls);
+  std::vector<const char*> interpreter_args = {"-include", "new"};
+
+  GetAllTopLevelDecls(code, Decls, /*filter_implicitGenerated=*/false,
+                      interpreter_args);
   auto *CtorD
     = (clang::CXXConstructorDecl*)Cpp::GetDefaultConstructor(Decls[0]);
   auto Ctor = Cpp::MakeFunctionCallable(CtorD);
@@ -1410,7 +1416,10 @@ TEST(FunctionReflectionTest, GetFunctionCallWrapper) {
     int f1(int i) { return i * i; }
     )";
 
-  GetAllTopLevelDecls(code, Decls);
+  std::vector<const char*> interpreter_args = {"-include", "new"};
+
+  GetAllTopLevelDecls(code, Decls, /*filter_implicitGenerated=*/false,
+                      interpreter_args);
 
   Interp->process(R"(
     #include <string>
@@ -1510,7 +1519,8 @@ TEST(FunctionReflectionTest, GetFunctionCallWrapper) {
         };
     )";
 
-  GetAllTopLevelDecls(code1, Decls1);
+  GetAllTopLevelDecls(code1, Decls1, /*filter_implicitGenerated=*/false,
+                      interpreter_args);
   ASTContext& C = Interp->getCI()->getASTContext();
 
   std::vector<Cpp::TemplateArgInfo> argument = {C.IntTy.getAsOpaquePtr()};
@@ -1715,8 +1725,8 @@ TEST(FunctionReflectionTest, Construct) {
 #ifdef _WIN32
   GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
 #endif
-
-  Cpp::CreateInterpreter();
+  std::vector<const char*> interpreter_args = {"-include", "new"};
+  Cpp::CreateInterpreter(interpreter_args);
 
   Interp->declare(R"(
     #include <new>
@@ -1777,7 +1787,8 @@ TEST(FunctionReflectionTest, ConstructNested) {
   GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
 #endif
 
-  Cpp::CreateInterpreter();
+  std::vector<const char*> interpreter_args = {"-include", "new"};
+  Cpp::CreateInterpreter(interpreter_args);
 
   Interp->declare(R"(
     #include <new>
@@ -1837,7 +1848,8 @@ TEST(FunctionReflectionTest, Destruct) {
   GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
 #endif
 
-  Cpp::CreateInterpreter();
+  std::vector<const char*> interpreter_args = {"-include", "new"};
+  Cpp::CreateInterpreter(interpreter_args);
 
   Interp->declare(R"(
     #include <new>
