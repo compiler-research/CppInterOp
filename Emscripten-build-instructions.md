@@ -33,12 +33,12 @@ source ./emsdk/emsdk_env.sh
 export SYSROOT_PATH=$PWD/emsdk/upstream/emscripten/cache/sysroot
 ```
 
-Now clone the 19.x release of the LLVM project repository and CppInterOp (the building of the emscripten version of llvm can be
+Now clone the 20.x release of the LLVM project repository and CppInterOp (the building of the emscripten version of llvm can be
 avoided by executing micromamba install llvm -c <https://repo.mamba.pm/emscripten-forge> and setting the LLVM_BUILD_DIR appropriately)
 
 
 ```bash
-git clone --depth=1 --branch release/19.x https://github.com/llvm/llvm-project.git
+git clone --depth=1 --branch release/20.x https://github.com/llvm/llvm-project.git
 git clone --depth=1 https://github.com/compiler-research/CppInterOp.git
 ```
 
@@ -46,7 +46,7 @@ Now move into the cloned llvm-project folder and apply the required patches
 
 ```bash
 cd ./llvm-project/
-git apply -v ../CppInterOp/patches/llvm/emscripten-clang19-*.patch
+git apply -v ../CppInterOp/patches/llvm/emscripten-clang20-*.patch
 ```
 
 We are now in a position to build an emscripten build of llvm by executing the following
