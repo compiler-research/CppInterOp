@@ -1918,7 +1918,7 @@ namespace Cpp {
             callbuf << ' ';
           } else {
             callbuf << "\n";
-            indent(callbuf, indent_level);
+            indent(callbuf, indent_level + 1);
           }
         }
         if (refType != kNotReference) {
@@ -1978,7 +1978,7 @@ namespace Cpp {
                 callbuf << ' ';
               } else {
                 callbuf << "\n";
-                indent(callbuf, indent_level);
+                indent(callbuf, indent_level + 1);
               }
             }
             const ParmVarDecl* PVD = FD->getParamDecl(i);
@@ -2052,7 +2052,7 @@ namespace Cpp {
             callbuf << ' ';
           } else {
             callbuf << "\n";
-            indent(callbuf, indent_level);
+            indent(callbuf, indent_level + 1);
           }
         }
 
