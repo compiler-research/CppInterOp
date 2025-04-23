@@ -1611,7 +1611,7 @@ namespace Cpp {
 
   TCppType_t GetUnqualifiedType(TCppType_t type) {
     if (!type)
-      return 0;
+      return nullptr;
     QualType QT = QualType::getFromOpaquePtr(type);
     return QT.getUnqualifiedType().getAsOpaquePtr();
   }
@@ -1619,7 +1619,7 @@ namespace Cpp {
   TCppType_t GetUnderlyingType(TCppType_t type)
   {
     if (!type)
-      return 0;
+      return nullptr;
     QualType QT = QualType::getFromOpaquePtr(type);
     QT = QT->getCanonicalTypeUnqualified();
 
