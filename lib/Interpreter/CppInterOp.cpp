@@ -1043,19 +1043,15 @@ namespace Cpp {
   }
 
   // Looks up all constructors in the current DeclContext
-  void LookupConstructors(const std::string& name, TCppScope_t parent,
+  void LookupConstructors(const std::string&, TCppScope_t parent,
                           std::vector<TCppFunction_t>& funcs) {
     auto* D = (Decl*)parent;
 
     if (auto* CXXRD = llvm::dyn_cast_or_null<CXXRecordDecl>(D)) {
       getSema().ForceDeclarationOfImplicitMembers(CXXRD);
       DeclContextLookupResult Result = getSema().LookupConstructors(CXXRD);
-      // Obtaining all constructors when we intend to lookup a method under a
-      // scope can lead to crashes. We avoid that by accumulating constructors
-      // only if the Decl matches the lookup name.
       for (auto* i : Result)
-        if (GetName(i) == name)
-          funcs.push_back(i);
+        funcs.push_back(i);
     }
   }
 
