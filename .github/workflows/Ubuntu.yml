@@ -22,42 +22,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: ubu22-x86-gcc12-clang-repl-19
-            os: ubuntu-22.04
-            compiler: gcc-12
-            clang-runtime: '19'
-            cling: Off
-            llvm_enable_projects: "clang"
-            llvm_targets_to_build: "host;NVPTX"
-          - name: ubu22-x86-gcc12-clang-repl-18
-            os: ubuntu-22.04
-            compiler: gcc-12
-            clang-runtime: '18'
-            cling: Off
-            llvm_enable_projects: "clang"
-            llvm_targets_to_build: "host;NVPTX"
-          - name: ubu22-x86-gcc12-clang-repl-17
-            os: ubuntu-22.04
-            compiler: gcc-12
-            clang-runtime: '17'
-            cling: Off
-            llvm_enable_projects: "clang"
-            llvm_targets_to_build: "host;NVPTX"
-          - name: ubu22-x86-gcc12-clang-repl-16
-            os: ubuntu-22.04
-            compiler: gcc-12
-            clang-runtime: '16'
-            cling: Off
-            llvm_enable_projects: "clang"
-            llvm_targets_to_build: "host;NVPTX"
-          - name: ubu22-x86-gcc9-clang13-cling
-            os: ubuntu-22.04
-            compiler: gcc-9
-            clang-runtime: '13'
-            cling: On
-            cling-version: '1.0'
-            llvm_enable_projects: "clang"
-            llvm_targets_to_build: "host;NVPTX"
           - name: ubu24-x86-gcc12-clang-repl-19
             os: ubuntu-24.04
             compiler: gcc-12
@@ -276,45 +240,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: ubu22-x86-gcc12-clang-repl-19-docs
-            os: ubuntu-22.04
-            compiler: gcc-12
-            clang-runtime: '19'
-            cling: Off
-            cppyy: Off
-            documentation: On
-          - name: ubu22-x86-gcc12-clang-repl-19-cppyy
-            os: ubuntu-22.04
-            compiler: gcc-12
-            clang-runtime: '19'
-            cling: Off
-            cppyy: On
-            coverage: true
-          - name: ubu22-x86-gcc12-clang-repl-18-cppyy
-            os: ubuntu-22.04
-            compiler: gcc-12
-            clang-runtime: '18'
-            cling: Off
-            cppyy: On
-          - name: ubu22-x86-gcc12-clang-repl-17-cppyy
-            os: ubuntu-22.04
-            compiler: gcc-12
-            clang-runtime: '17'
-            cling: Off
-            cppyy: On
-          - name: ubu22-x86-gcc12-clang-repl-16
-            os: ubuntu-22.04
-            compiler: gcc-12
-            clang-runtime: '16'
-            cling: Off
-            cppyy: Off
-          - name: ubu22-x86-gcc9-clang13-cling-cppyy
-            os: ubuntu-22.04
-            compiler: gcc-9
-            clang-runtime: '13'
-            cling: On
-            cling-version: '1.0'
-            cppyy: On
           - name: ubu24-x86-gcc12-clang-repl-19-cppyy
             os: ubuntu-24.04
             compiler: gcc-12
