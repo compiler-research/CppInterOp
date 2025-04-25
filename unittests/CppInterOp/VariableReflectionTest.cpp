@@ -264,7 +264,9 @@ CODE
 
 TEST(VariableReflectionTest, GetVariableOffset) {
 #ifdef EMSCRIPTEN
+#if CLANG_VERSION_MAJOR < 20
   GTEST_SKIP() << "Test fails for Emscipten builds";
+#endif
 #endif
   std::vector<Decl *> Decls;
 #define Stringify(s) Stringifyx(s)
