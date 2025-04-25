@@ -76,6 +76,11 @@ export_executable_symbols(CppInterOpTests)
 
 unset(LLVM_LINK_COMPONENTS)
 
+if (NOT EMSCRIPTEN)
+  set(EXTRA_TEST_SOURCE_FILES "")
+  set(EXTRA_PATH_TEST_BINARIES /TestSharedLib/unittests/bin/$<CONFIG>/)
+endif()
+
 add_cppinterop_unittest(DynamicLibraryManagerTests DynamicLibraryManagerTest.cpp ${EXTRA_TEST_SOURCE_FILES})
 
 target_link_libraries(DynamicLibraryManagerTests
@@ -93,10 +98,6 @@ if(EMSCRIPTEN)
     PUBLIC "SHELL: -s INITIAL_MEMORY=128mb"
     PUBLIC "SHELL: --preload-file ${SYSROOT_PATH}/include@/include"
   )
-endif()
-
- if (NOT EMSCRIPTEN)
-  set(EXTRA_PATH_TEST_BINARIES /TestSharedLib/unittests/bin/$<CONFIG>/)
 endif()
 
 set_output_directory(DynamicLibraryManagerTests

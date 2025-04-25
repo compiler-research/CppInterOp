@@ -1792,6 +1792,29 @@ namespace Cpp {
       QT.getAsStringInternal(type_name, Policy);
     }
 
+    static void GetDeclName(const clang::Decl* D, ASTContext& Context,
+                            std::string& name) {
+      // Helper to extract a fully qualified name from a Decl
+      PrintingPolicy Policy(Context.getPrintingPolicy());
+      Policy.SuppressTagKeyword = true;
+      Policy.SuppressUnwrittenScope = true;
+      if (const TypeDecl* TD = dyn_cast<TypeDecl>(D)) {
+        // This is a class, struct, or union member.
+        QualType QT;
+        if (const TypedefDecl* Typedef = dyn_cast<const TypedefDecl>(TD)) {
+          // Handle the typedefs to anonymous types.
+          QT = Typedef->getTypeSourceInfo()->getType();
+        } else
+          QT = {TD->getTypeForDecl(), 0};
+        get_type_as_string(QT, name, Context, Policy);
+      } else if (const NamedDecl* ND = dyn_cast<NamedDecl>(D)) {
+        // This is a namespace member.
+        raw_string_ostream stream(name);
+        ND->getNameForDiagnostic(stream, Policy, /*Qualified=*/true);
+        stream.flush();
+      }
+    }
+
     void collect_type_info(const FunctionDecl* FD, QualType& QT,
                            std::ostringstream& typedefbuf,
                            std::ostringstream& callbuf, std::string& type_name,
@@ -1895,7 +1918,7 @@ namespace Cpp {
             callbuf << ' ';
           } else {
             callbuf << "\n";
-            indent(callbuf, indent_level);
+            indent(callbuf, indent_level + 1);
           }
         }
         if (refType != kNotReference) {
@@ -1955,7 +1978,7 @@ namespace Cpp {
                 callbuf << ' ';
               } else {
                 callbuf << "\n";
-                indent(callbuf, indent_level);
+                indent(callbuf, indent_level + 1);
               }
             }
             const ParmVarDecl* PVD = FD->getParamDecl(i);
@@ -2029,7 +2052,7 @@ namespace Cpp {
             callbuf << ' ';
           } else {
             callbuf << "\n";
-            indent(callbuf, indent_level);
+            indent(callbuf, indent_level + 1);
           }
         }
 
@@ -2205,22 +2228,12 @@ namespace Cpp {
                          std::string& wrapper_name, std::string& wrapper) {
       assert(FD && "generate_wrapper called without a function decl!");
       ASTContext& Context = FD->getASTContext();
-      PrintingPolicy Policy(Context.getPrintingPolicy());
       //
       //  Get the class or namespace name.
       //
       std::string class_name;
       const clang::DeclContext* DC = get_non_transparent_decl_context(FD);
-      if (const TypeDecl* TD = dyn_cast<TypeDecl>(DC)) {
-        // This is a class, struct, or union member.
-        QualType QT(TD->getTypeForDecl(), 0);
-        get_type_as_string(QT, class_name, Context, Policy);
-      } else if (const NamedDecl* ND = dyn_cast<NamedDecl>(DC)) {
-        // This is a namespace member.
-        raw_string_ostream stream(class_name);
-        ND->getNameForDiagnostic(stream, Policy, /*Qualified=*/true);
-        stream.flush();
-      }
+      GetDeclName(cast<Decl>(DC), Context, class_name);
       //
       //  Check to make sure that we can
       //  instantiate and codegen this function.
@@ -2670,31 +2683,11 @@ namespace Cpp {
     }
 
     // FIXME: Sink in the code duplication from get_wrapper_code.
-    static std::string PrepareTorWrapper(const Decl* D,
-                                         const char* wrapper_prefix,
-                                         std::string& class_name) {
+    static std::string PrepareStructorWrapper(const Decl* D,
+                                              const char* wrapper_prefix,
+                                              std::string& class_name) {
       ASTContext &Context = D->getASTContext();
-      PrintingPolicy Policy(Context.getPrintingPolicy());
-      Policy.SuppressTagKeyword = true;
-      Policy.SuppressUnwrittenScope = true;
-      //
-      //  Get the class or namespace name.
-      //
-      if (const TypeDecl *TD = dyn_cast<TypeDecl>(D)) {
-        // This is a class, struct, or union member.
-        // Handle the typedefs to anonymous types.
-        QualType QT;
-        if (const TypedefDecl *Typedef = dyn_cast<const TypedefDecl>(TD))
-          QT = Typedef->getTypeSourceInfo()->getType();
-        else
-          QT = {TD->getTypeForDecl(), 0};
-        get_type_as_string(QT, class_name, Context, Policy);
-      } else if (const NamedDecl *ND = dyn_cast<NamedDecl>(D)) {
-        // This is a namespace member.
-        raw_string_ostream stream(class_name);
-        ND->getNameForDiagnostic(stream, Policy, /*Qualified=*/true);
-        stream.flush();
-      }
+      GetDeclName(D, Context, class_name);
 
       //
       //  Make the wrapper name.
@@ -2754,7 +2747,7 @@ namespace Cpp {
       //  Make the wrapper name.
       //
       std::string class_name;
-      string wrapper_name = PrepareTorWrapper(D, "__dtor", class_name);
+      string wrapper_name = PrepareStructorWrapper(D, "__dtor", class_name);
       //
       //  Write the wrapper code.
       //

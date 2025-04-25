@@ -42,6 +42,13 @@ jobs:
             llvm_enable_projects: "clang;lld"
             llvm_targets_to_build: "WebAssembly"
             emsdk_ver: "3.1.73"
+          - name: win2025-x86-clang-repl-19-emscripten
+            os: windows-2025
+            clang-runtime: '19'
+            cling: Off
+            llvm_enable_projects: "clang;lld"
+            llvm_targets_to_build: "WebAssembly"
+            emsdk_ver: "3.1.73"
           - name: ubu24-arm-clang-repl-20-emscripten
             os: ubuntu-24.04-arm
             clang-runtime: '20'
@@ -58,6 +65,13 @@ jobs:
             emsdk_ver: "3.1.73"
           - name: ubu24-x86-clang-repl-20-emscripten
             os: ubuntu-24.04
+            clang-runtime: '20'
+            cling: Off
+            llvm_enable_projects: "clang;lld"
+            llvm_targets_to_build: "WebAssembly"
+            emsdk_ver: "3.1.73"
+          - name: win2025-x86-clang-repl-20-emscripten
+            os: windows-2025
             clang-runtime: '20'
             cling: Off
             llvm_enable_projects: "clang;lld"
@@ -134,7 +148,7 @@ jobs:
         lookup-only: true
 
     - name: Setup emsdk
-      if: ${{ runner.os != 'windows' && steps.cache.outputs.cache-hit != 'true' }}
+      if: ${{ steps.cache.outputs.cache-hit != 'true' }}
       run: |
           git clone --depth=1 https://github.com/emscripten-core/emsdk.git
           cd emsdk
@@ -157,8 +171,9 @@ jobs:
     - name: Install deps on Windows
       if: ${{ runner.os == 'windows' && steps.cache.outputs.cache-hit != 'true' }}
       run: |
-        choco install findutils
+        choco install findutils ninja
         $env:PATH="C:\Program Files (x86)\GnuWin32\bin;$env:PATH"
+        $env:PATH="C:\Program Files (x86)\Ninja\bin;$env:PATH"
 
     - name: Install deps on MacOS
       if: ${{ runner.os == 'macOS' && steps.cache.outputs.cache-hit != 'true' }}
@@ -279,10 +294,11 @@ jobs:
         fi
 
 
-    - name: Build LLVM/Cling on Windows systems if the cache is invalid
+    - name: Build LLVM/Cling on Windows systems if the cache is invalid (emscripten)
       if: ${{ runner.os == 'windows' && steps.cache.outputs.cache-hit != 'true' }}
       run: |
-
+        .\emsdk\emsdk activate ${{matrix.emsdk_ver}}
+        .\emsdk\emsdk_env.ps1
         if ( "${{ matrix.cling }}" -imatch "On" )
         {
           git clone https://github.com/root-project/cling.git
@@ -305,54 +321,72 @@ jobs:
         if ( "${{ matrix.cling }}" -imatch "On" )
         {
           cd build
-          cmake -DLLVM_ENABLE_PROJECTS="${{ matrix.llvm_enable_projects}}" `
-                -DLLVM_EXTERNAL_PROJECTS=cling                `
-                -DLLVM_EXTERNAL_CLING_SOURCE_DIR="$env:CLING_DIR"   `
-                -DLLVM_TARGETS_TO_BUILD="${{ matrix.llvm_targets_to_build }}" `
-                -DCMAKE_BUILD_TYPE=Release                         `
-                -DLLVM_ENABLE_ASSERTIONS=ON                        `
-                -DCLANG_ENABLE_STATIC_ANALYZER=OFF                 `
-                -DCLANG_ENABLE_ARCMT=OFF                           `
-                -DCLANG_ENABLE_FORMAT=OFF                          `
-                -DCLANG_ENABLE_BOOTSTRAP=OFF                       `
-                -DLLVM_ENABLE_ZSTD=OFF                             `
-                -DLLVM_ENABLE_TERMINFO=OFF                         `
-                -DLLVM_ENABLE_LIBXML2=OFF                          `
+          emcmake cmake -DLLVM_EXTERNAL_PROJECTS=cling `
+                        -DLLVM_EXTERNAL_CLING_SOURCE_DIR=../../cling  `
+                        -DCMAKE_BUILD_TYPE=Release `
+                        -DLLVM_HOST_TRIPLE=wasm32-unknown-emscripten `
+                        -DLLVM_ENABLE_ASSERTIONS=ON                        `
+                        -DLLVM_TARGETS_TO_BUILD="${{ matrix.llvm_targets_to_build }}" `
+                        -DLLVM_ENABLE_LIBEDIT=OFF `
+                        -DLLVM_ENABLE_PROJECTS="${{ matrix.llvm_enable_projects }}" `
+                        -DLLVM_ENABLE_ZSTD=OFF `
+                        -DLLVM_ENABLE_LIBXML2=OFF `
+                        -DCLANG_ENABLE_STATIC_ANALYZER=OFF `
+                        -DCLANG_ENABLE_ARCMT=OFF `
+                        -DCLANG_ENABLE_BOOTSTRAP=OFF `
+                        -DCMAKE_CXX_FLAGS="-Dwait4=__syscall_wait4" `
+                        -DLLVM_INCLUDE_BENCHMARKS=OFF                   `
+                        -DLLVM_INCLUDE_EXAMPLES=OFF                     `
+                        -DLLVM_INCLUDE_TESTS=OFF                        `
+                        -DLLVM_ENABLE_THREADS=OFF                       `
+                        -G Ninja                                         `
+                        -DLLVM_BUILD_TOOLS=OFF                          `
+                        -DLLVM_ENABLE_LIBPFM=OFF                        `
+                        -DCLANG_BUILD_TOOLS=OFF                         `
                 ..\llvm
-          cmake --build . --config Release --target clang --parallel ${{ env.ncpus }}
-          cmake --build . --config Release --target cling --parallel ${{ env.ncpus }}
-          # Now build gtest.a and gtest_main for CppInterOp to run its tests.
-          cmake --build . --config Release --target gtest_main --parallel ${{ env.ncpus }}
+          emmake make clang cling lld gtest_main
         }
         else
         {
-          cp -r ..\patches\llvm\clang${{ matrix.clang-runtime }}*
+          cp -r ..\patches\llvm\emscripten-clang${{ matrix.clang-runtime }}*
+          cp -r ..\patches\llvm\Windows-emscripten-clang${{ matrix.clang-runtime }}*
           #FIXME: Apply patches without hardcoding
-          if ( "${{ matrix.clang-runtime }}" -imatch "16" )
+          if ( "${{ matrix.clang-runtime }}" -imatch "19" )
           {
-            git apply -v clang16-1-Value.patch
-            git apply -v clang16-2-CUDA.patch
-            git apply -v clang16-3-WeakRef.patch
+            git apply -v Windows-emscripten-clang19-1-CrossCompile.patch
+            git apply -v emscripten-clang19-2-shift-temporary-files-to-tmp-dir.patch
+            git apply -v emscripten-clang19-3-remove-zdefs.patch
           }
-          elseif ( "${{ matrix.clang-runtime }}" -imatch "17" )
+          elseif ( "${{ matrix.clang-runtime }}" -imatch "20" )
           {
-            git apply -v clang17-1-NewOperator.patch
+            git apply -v Windows-emscripten-clang20-1-CrossCompile.patch
+            git apply -v emscripten-clang20-2-shift-temporary-files-to-tmp-dir.patch
+            git apply -v emscripten-clang20-3-remove-zdefs.patch
           }
           cd build
           echo "Apply clang${{ matrix.clang-runtime }}-*.patch patches:"
-          cmake -DLLVM_ENABLE_PROJECTS="${{ matrix.llvm_enable_projects}}"                   `
-                -DLLVM_TARGETS_TO_BUILD="${{ matrix.llvm_targets_to_build }}"          `
-                -DCMAKE_BUILD_TYPE=Release                          `
-                -DLLVM_ENABLE_ASSERTIONS=ON                         `
-                -DCLANG_ENABLE_STATIC_ANALYZER=OFF                  `
-                -DCLANG_ENABLE_ARCMT=OFF                            `
-                -DCLANG_ENABLE_FORMAT=OFF                           `
-                -DCLANG_ENABLE_BOOTSTRAP=OFF                        `
-                -DLLVM_ENABLE_ZSTD=OFF                              `
-                -DLLVM_ENABLE_TERMINFO=OFF                          `
-                -DLLVM_ENABLE_LIBXML2=OFF                           `
-                ..\llvm
-          cmake --build . --config Release --target clang clang-repl --parallel ${{ env.ncpus }}
+          emcmake cmake -DCMAKE_BUILD_TYPE=Release `
+                        -DLLVM_HOST_TRIPLE=wasm32-unknown-emscripten `
+                        -DLLVM_ENABLE_ASSERTIONS=ON                        `
+                        -DLLVM_TARGETS_TO_BUILD="${{ matrix.llvm_targets_to_build }}" `
+                        -DLLVM_ENABLE_LIBEDIT=OFF `
+                        -DLLVM_ENABLE_PROJECTS="${{ matrix.llvm_enable_projects }}" `
+                        -DLLVM_ENABLE_ZSTD=OFF `
+                        -DLLVM_ENABLE_LIBXML2=OFF `
+                        -DCLANG_ENABLE_STATIC_ANALYZER=OFF `
+                        -DCLANG_ENABLE_ARCMT=OFF `
+                        -DCLANG_ENABLE_BOOTSTRAP=OFF `
+                        -DCMAKE_CXX_FLAGS="-Dwait4=__syscall_wait4" `
+                        -DLLVM_INCLUDE_BENCHMARKS=OFF                   `
+                        -DLLVM_INCLUDE_EXAMPLES=OFF                     `
+                        -DLLVM_INCLUDE_TESTS=OFF                        `
+                        -DLLVM_ENABLE_THREADS=OFF                       `
+                        -DLLVM_BUILD_TOOLS=OFF                          `
+                        -DLLVM_ENABLE_LIBPFM=OFF                        `
+                        -DCLANG_BUILD_TOOLS=OFF                         `
+                        -G Ninja `
+                        ..\llvm
+          emmake ninja libclang clangInterpreter clangStaticAnalyzerCore lldWasm
         }
         cd ..\
         rm -r -force $(find.exe . -maxdepth 1 ! -name "build" ! -name "llvm" ! -name "clang" ! -name ".")
@@ -373,9 +407,9 @@ jobs:
           cd ..\..
         }
 
-    - name: Save Cache LLVM/Clang runtime build directory (Unix Systems Emscripten)
+    - name: Save Cache LLVM/Clang runtime build directory
       uses: actions/cache/save@v4
-      if: ${{ runner.os != 'windows' && steps.cache.outputs.cache-hit != 'true' }}
+      if: ${{ steps.cache.outputs.cache-hit != 'true' }}
       with:
         path: |
           llvm-project
@@ -408,6 +442,12 @@ jobs:
             cling: Off
             micromamba_shell_init: bash
             emsdk_ver: "3.1.73"
+          - name: win2025-x86-clang-repl-19-emscripten
+            os: windows-2025
+            clang-runtime: '19'
+            cling: Off
+            micromamba_shell_init: powershell
+            emsdk_ver: "3.1.73"
           - name: ubu24-x86-clang-repl-20-emscripten_wasm
             os: ubuntu-24.04
             clang-runtime: '20'
@@ -425,6 +465,12 @@ jobs:
             clang-runtime: '20'
             cling: Off
             micromamba_shell_init: bash
+            emsdk_ver: "3.1.73"
+          - name: win2025-x86-clang-repl-20-emscripten
+            os: windows-2025
+            clang-runtime: '20'
+            cling: Off
+            micromamba_shell_init: powershell
             emsdk_ver: "3.1.73"
 
     steps:
@@ -464,6 +510,14 @@ jobs:
         else
           echo "ncpus=$(nproc --all)" >> $GITHUB_ENV
         fi
+
+    - name: Setup default Build Type on Windows
+      if: ${{ runner.os == 'windows' }}
+      run: |
+        echo "BUILD_TYPE=Release" >> $env:GITHUB_ENV
+        echo "CODE_COVERAGE=0" >>  $env:GITHUB_ENV
+        $env:ncpus=$([Environment]::ProcessorCount)
+        echo "ncpus=$env:ncpus" >> $env:GITHUB_ENV
 
     - name: install mamba
       uses: mamba-org/setup-micromamba@main
@@ -556,7 +610,100 @@ jobs:
         echo "CPLUS_INCLUDE_PATH=$CPLUS_INCLUDE_PATH" >> $GITHUB_ENV
         echo "PREFIX=$PREFIX" >> $GITHUB_ENV
 
+    - name: micromamba shell hook
+      if: ${{ runner.os == 'windows' }}
+      shell: powershell
+      run: |
+        micromamba shell hook -s cmd.exe --root-prefix C:\Users\runneradmin\micromamba-root
+
+    - name: Build and Test/Install CppInterOp on Windows systems
+      continue-on-error: true
+      if: ${{ runner.os == 'windows' }}
+      shell: powershell
+      run: |
+        micromamba create -f environment-wasm.yml --platform=emscripten-wasm32
+        .\emsdk\emsdk activate ${{matrix.emsdk_ver}}
+        .\emsdk\emsdk_env.ps1
+        $env:PWD_DIR= $PWD.Path
+        $env:SYSROOT_PATH="$env:EMSDK/upstream/emscripten/cache/sysroot"
+        $env:PREFIX="%CONDA_PREFIX%/envs/CppInterOp-wasm"
+        $env:CMAKE_PREFIX_PATH=$env:PREFIX
+        $env:CMAKE_SYSTEM_PREFIX_PATH=$env:PREFIX
+        
+        $env:LLVM_DIR="$env:PWD_DIR\llvm-project"
+        echo "LLVM_DIR=$env:LLVM_DIR"
+        echo "LLVM_DIR=$env:LLVM_DIR" >> $env:GITHUB_ENV
+
+        $env:LLVM_BUILD_DIR="$env:PWD_DIR\llvm-project\build"
+        echo "LLVM_BUILD_DIR=$env:LLVM_BUILD_DIR"
+        echo "LLVM_BUILD_DIR=$env:LLVM_BUILD_DIR" >> $env:GITHUB_ENV
+
+        if ( "${{ matrix.cling }}" -imatch "On" )
+        {
+          $env:CLING_DIR="$env:PWD_DIR\cling"
+          echo "CLING_DIR=$env:CLING_DIR"
+          echo "CLING_DIR=$env:CLING_DIR" >> $env:GITHUB_ENV
+
+          $env:CLING_BUILD_DIR="$env:PWD_DIR\cling\build"
+          echo "CLING_BUILD_DIR=$env:CLING_BUILD_DIR"
+          echo "CLING_BUILD_DIR=$env:CLING_BUILD_DIR" >> $env:GITHUB_ENV
+
+          $env:CPLUS_INCLUDE_PATH="$env:CLING_DIR\tools\cling\include;$env:CLING_BUILD_DIR\include;$env:LLVM_DIR\llvm\include;$env:LLVM_DIR\clang\include;$env:LLVM_BUILD_DIR\include;$env:LLVM_BUILD_DIR\tools\clang\include;$env:PWD_DIR\include;"
+          echo "CPLUS_INCLUDE_PATH=$env:CPLUS_INCLUDE_PATH"
+          echo "CPLUS_INCLUDE_PATH=$env:CPLUS_INCLUDE_PATH" >> $env:GITHUB_ENV
+        }
+        else
+        {
+          $env:CPLUS_INCLUDE_PATH="$env:LLVM_DIR\llvm\include;$env:LLVM_DIR\clang\include;$env:LLVM_BUILD_DIR\include;$env:LLVM_BUILD_DIR\tools\clang\include;$env:PWD_DIR\include;"
+          echo "CPLUS_INCLUDE_PATH=$env:CPLUS_INCLUDE_PATH"
+          echo "CPLUS_INCLUDE_PATH=$env:CPLUS_INCLUDE_PATH" >> $env:GITHUB_ENV
+        }
+
+        # Build CppInterOp next to cling and llvm-project.
+        mkdir build
+        cd build
+        $env:CPPINTEROP_BUILD_DIR="$env:PWD_DIR"
+        echo "CPPINTEROP_BUILD_DIR=$env:CPPINTEROP_BUILD_DIR"
+        echo "CPPINTEROP_BUILD_DIR=$env:CPPINTEROP_BUILD_DIR" >> $env:GITHUB_ENV
+        if ( "${{ matrix.cling }}" -imatch "On" )
+        {
+          emcmake cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}        `
+                -DCPPINTEROP_USE_CLING=ON                                  `
+                -DCPPINTEROP_USE_REPL=OFF                                  `
+                -DCMAKE_PREFIX_PATH="$env:PREFIX"                     `
+                -DCling_DIR="$env:LLVM_BUILD_DIR\tools\cling"         `
+                -DLLVM_DIR="$env:LLVM_BUILD_DIR\lib\cmake\llvm"        `
+                -DLLD_DIR="$env:LLVM_BUILD_DIR\lib\cmake\lld"       `
+                -DClang_DIR="$env:LLVM_BUILD_DIR\lib\cmake\clang"     `
+                -DBUILD_SHARED_LIBS=ON                          `
+                -DCODE_COVERAGE=${{ env.CODE_COVERAGE }}        `
+                -DCMAKE_INSTALL_PREFIX="$env:PREFIX"         `
+                -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            `
+                -DLLVM_ENABLE_WERROR=On                      `
+                -DSYSROOT_PATH="$env:SYSROOT_PATH"              `
+                ..\
+        }
+        else
+        {
+          emcmake cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    `
+                -DCMAKE_PREFIX_PATH="$env:PREFIX"                      `
+                -DLLVM_DIR="$env:LLVM_BUILD_DIR\lib\cmake\llvm"        `
+                -DLLD_DIR="$env:LLVM_BUILD_DIR\lib\cmake\lld"        `
+                -DClang_DIR="$env:LLVM_BUILD_DIR\lib\cmake\clang"    `
+                -DBUILD_SHARED_LIBS=ON                      `
+                -DCODE_COVERAGE=${{ env.CODE_COVERAGE }}    `
+                -DCMAKE_INSTALL_PREFIX="$env:PREFIX"      `
+                -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            `
+                -DLLVM_ENABLE_WERROR=On                      `
+                -DSYSROOT_PATH="$env:SYSROOT_PATH"                     `
+                ..\
+        }
+        emmake make -j ${{ env.ncpus }} check-cppinterop
+        emmake make -j ${{ env.ncpus }} install
+        
+
     - name: Build xeus-cpp
+      if: ${{ runner.os != 'windows' }}
       shell: bash -l {0}
       run: |
         ./emsdk/emsdk activate ${{matrix.emsdk_ver}}
@@ -579,6 +726,7 @@ jobs:
         emmake make -j ${{ env.ncpus }} install
 
     - name: Test xeus-cpp C++ Emscripten
+      if: ${{ runner.os != 'windows' }}
       shell: bash -l {0}
       run: |
         set -e
