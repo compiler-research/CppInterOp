@@ -64,9 +64,9 @@ On Windows execute the following
 cd .\llvm-project\
 cp -r ..\patches\llvm\emscripten-clang${{ matrix.clang-runtime }}*
 cp -r ..\patches\llvm\Windows-emscripten-clang${{ matrix.clang-runtime }}*
-git apply -v Windows-emscripten-clang19-1-CrossCompile.patch
-git apply -v emscripten-clang19-2-shift-temporary-files-to-tmp-dir.patch
-git apply -v emscripten-clang19-3-remove-zdefs.patch
+git apply -v Windows-emscripten-clang20-1-CrossCompile.patch
+git apply -v emscripten-clang20-2-shift-temporary-files-to-tmp-dir.patch
+git apply -v emscripten-clang20-3-remove-zdefs.patch
 ```
 
 We are now in a position to build an emscripten build of llvm by executing the following on Linux
