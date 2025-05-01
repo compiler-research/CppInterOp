@@ -1,4 +1,5 @@
 if (EMSCRIPTEN)
+  set(CMAKE_EXECUTABLE_SUFFIX ".html")
   # Omitting CUDATest.cpp since Emscripten build currently has no GPU support
   # For Emscripten builds linking to gtest_main will not suffice for gtest to run
   # the tests and an explicitly main.cpp is needed
@@ -50,6 +51,7 @@ if(EMSCRIPTEN)
     PUBLIC "SHELL: -s STACK_SIZE=32mb"
     PUBLIC "SHELL: -s INITIAL_MEMORY=128mb"
     PUBLIC "SHELL: --preload-file ${SYSROOT_PATH}/include@/include"
+    PUBLIC "SHELL: --emrun"
   )
 endif()
 
@@ -97,6 +99,7 @@ if(EMSCRIPTEN)
     PUBLIC "SHELL: -s STACK_SIZE=32mb"
     PUBLIC "SHELL: -s INITIAL_MEMORY=128mb"
     PUBLIC "SHELL: --preload-file ${SYSROOT_PATH}/include@/include"
+    PUBLIC "SHELL: --emrun"
   )
 endif()
 
