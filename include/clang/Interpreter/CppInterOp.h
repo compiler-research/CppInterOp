@@ -523,14 +523,39 @@ namespace Cpp {
   /// Checks if the provided parameter is a Plain Old Data Type (POD).
   CPPINTEROP_API bool IsPODType(TCppType_t type);
 
+  /// Checks if type has an integer representation
+  CPPINTEROP_API bool IsIntegerType(TCppType_t type);
+
+  /// Checks if type is an integral type
+  CPPINTEROP_API bool IsIntegralType(TCppType_t type);
+
+  /// Checks if type is a signed integer
+  CPPINTEROP_API bool IsSignedIntegerType(TCppType_t type);
+
+  /// Checks if type has an unsigned integer
+  CPPINTEROP_API bool IsUnsignedIntegerType(TCppType_t type);
+
+  /// Checks if type has a floating representation
+  CPPINTEROP_API bool IsFloatingType(TCppType_t type);
+
+  /// Checks if two types are the equivalent
+  /// i.e. have the same canonical type
+  CPPINTEROP_API bool IsSameType(TCppType_t type_a, TCppType_t type_b);
+
   /// Checks if type is a pointer
   CPPINTEROP_API bool IsPointerType(TCppType_t type);
+
+  /// Checks if type is a void pointer
+  CPPINTEROP_API bool IsVoidPointerType(TCppType_t type);
 
   /// Get the underlying pointee type
   CPPINTEROP_API TCppType_t GetPointeeType(TCppType_t type);
 
   /// Checks if type is a reference
   CPPINTEROP_API bool IsReferenceType(TCppType_t type);
+
+  /// Get the type handle to the unqualified type
+  CPPINTEROP_API TCppType_t GetUnqualifiedType(TCppType_t type);
 
   /// Get the type that the reference refers to
   CPPINTEROP_API TCppType_t GetNonReferenceType(TCppType_t type);
