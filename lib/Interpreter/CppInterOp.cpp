@@ -1963,8 +1963,12 @@ namespace Cpp {
       // Same applies with member methods which seem to cause parse failures
       // even when we supply the object parameter. Therefore we only use it in
       // cases where we know it works and set this variable to true when we do.
+
+      bool op_flag = !FD->isOverloadedOperator() ||
+                     FD->getOverloadedOperator() == clang::OO_Call;
+
       bool ShouldCastFunction =
-          !isa<CXXMethodDecl>(FD) && N == FD->getNumParams();
+          !isa<CXXMethodDecl>(FD) && N == FD->getNumParams() && op_flag;
       if (ShouldCastFunction) {
         callbuf << "(";
         callbuf << "(";
@@ -2003,11 +2007,10 @@ namespace Cpp {
           callbuf << "((const " << class_name << "*)obj)->";
         else
           callbuf << "((" << class_name << "*)obj)->";
-      } else if (const NamedDecl* ND =
-                     dyn_cast<NamedDecl>(get_non_transparent_decl_context(FD))) {
+      } else if (isa<NamedDecl>(get_non_transparent_decl_context(FD))) {
         // This is a namespace member.
-        (void)ND;
-        callbuf << class_name << "::";
+        if (op_flag || N <= 1)
+          callbuf << class_name << "::";
       }
       //   callbuf << fMethod->Name() << "(";
       {
@@ -2030,7 +2033,8 @@ namespace Cpp {
           name = name_without_template_args +
                  (template_args.empty() ? "" : " " + template_args);
         }
-        callbuf << name;
+        if (op_flag || N <= 1)
+          callbuf << name;
       }
       if (ShouldCastFunction)
         callbuf << ")";
@@ -2047,12 +2051,16 @@ namespace Cpp {
                           isPointer, indent_level, true);
 
         if (i) {
-          callbuf << ',';
-          if (i % 2) {
-            callbuf << ' ';
+          if (op_flag) {
+            callbuf << ',';
+            if (i % 2) {
+              callbuf << ' ';
+            } else {
+              callbuf << "\n";
+              indent(callbuf, indent_level + 1);
+            }
           } else {
-            callbuf << "\n";
-            indent(callbuf, indent_level + 1);
+            callbuf << Cpp::getOperatorSpelling(FD->getOverloadedOperator());
           }
         }
 
