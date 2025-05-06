@@ -1964,6 +1964,8 @@ namespace Cpp {
       // even when we supply the object parameter. Therefore we only use it in
       // cases where we know it works and set this variable to true when we do.
 
+      // true if not a overloaded operators or the overloaded operator is call
+      // operator
       bool op_flag = !FD->isOverloadedOperator() ||
                      FD->getOverloadedOperator() == clang::OO_Call;
 
