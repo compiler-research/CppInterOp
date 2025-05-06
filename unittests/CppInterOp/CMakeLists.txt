@@ -10,9 +10,9 @@ else()
 endif()
 
 add_cppinterop_unittest(CppInterOpTests
-  EnumReflectionTest.cpp
-  FunctionReflectionTest.cpp
   InterpreterTest.cpp
+  FunctionReflectionTest.cpp
+  EnumReflectionTest.cpp
   JitTest.cpp
   ScopeReflectionTest.cpp
   TypeReflectionTest.cpp
