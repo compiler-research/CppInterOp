@@ -1680,6 +1680,36 @@ TEST(FunctionReflectionTest, GetFunctionCallWrapper) {
   bool boolean = false;
   FCI_op.Invoke((void*)&boolean, {args, /*args_size=*/1}, object);
   EXPECT_TRUE(boolean);
+
+  Interp->process("#include <chrono>");
+  Cpp::TCppScope_t chrono = Cpp::GetNamed("chrono", Cpp::GetNamed("std"));
+  EXPECT_TRUE(chrono);
+
+  Cpp::TCppScope_t seconds = Cpp::GetNamed("seconds", chrono);
+  EXPECT_TRUE(seconds);
+
+  operators.clear();
+  Cpp::GetOperator(chrono, Cpp::OP_Plus, operators);
+  EXPECT_TRUE(operators.size());
+
+  Cpp::TCppType_t seconds_type = Cpp::GetTypeFromScope(seconds);
+  EXPECT_TRUE(seconds_type);
+
+  Cpp::TCppScope_t system_clock = Cpp::GetNamed("system_clock", chrono);
+  EXPECT_TRUE(system_clock);
+
+  Cpp::TCppScope_t now_fn = Cpp::GetNamed("now", system_clock);
+  EXPECT_TRUE(now_fn);
+
+  Cpp::TCppType_t time_point_type = Cpp::GetFunctionReturnType(now_fn);
+  EXPECT_TRUE(time_point_type);
+
+  Cpp::TCppFunction_t chrono_op_fn = Cpp::BestOverloadFunctionMatch(
+      operators, {}, {time_point_type, seconds_type});
+  EXPECT_TRUE(chrono_op_fn);
+
+  auto chrono_op_fn_callable = Cpp::MakeFunctionCallable(chrono_op_fn);
+  EXPECT_EQ(chrono_op_fn_callable.getKind(), Cpp::JitCall::kGenericCall);
 }
 
 TEST(FunctionReflectionTest, IsConstMethod) {
