@@ -154,7 +154,7 @@ include(GNUInstallDirs)
   message(STATUS "Found supported version: LLVM ${LLVM_PACKAGE_VERSION}")
   message(STATUS "Using LLVMConfig.cmake in: ${LLVM_DIR}")
 
-  ## Find supported LLD only while building for webassembly against emscripten
+## Find supported LLD only while building for webassembly against emscripten
 
 if(EMSCRIPTEN)
   if (DEFINED LLD_VERSION)
@@ -236,14 +236,14 @@ endif()
       set (CMAKE_CXX_STANDARD 17)
     endif()
     if (CMAKE_CXX_STANDARD LESS 17)
-      message(fatal "LLVM/CppInterOp requires c++17 or later")
+      message(fatal "LLVM/CppInterOp requires C++17 or later")
     endif()
   elseif (CLANG_VERSION_MAJOR GREATER_EQUAL 13)
     if (NOT CMAKE_CXX_STANDARD)
       set (CMAKE_CXX_STANDARD 14)
     endif()
     if (CMAKE_CXX_STANDARD LESS 14)
-      message(fatal "LLVM/CppInterOp requires c++14 or later")
+      message(fatal "LLVM/CppInterOp requires C++14 or later")
     endif()
   endif()
 
@@ -273,8 +273,6 @@ endif()
   # When in debug mode the llvm package thinks it is built with -frtti.
   # For consistency we should set it to the correct value.
   set(LLVM_CONFIG_HAS_RTTI NO CACHE BOOL "" FORCE)
-
-  ## Init
 
   # In case this was a path to a build folder of llvm still try to find AddLLVM
   list(APPEND CMAKE_MODULE_PATH "${LLVM_DIR}")
@@ -383,7 +381,7 @@ include_directories(BEFORE SYSTEM
   ${CMAKE_CURRENT_SOURCE_DIR}/include
   )
 
-#Removes flag due to issue with Google test download when LLVM_ENABLE_WERROR=On
+# Removes flag due to issue with Google test download when LLVM_ENABLE_WERROR=On
 string(REPLACE "-Wcovered-switch-default" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 
 file(STRINGS "VERSION" CPPINTEROP_VERSION)
