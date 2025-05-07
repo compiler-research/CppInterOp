@@ -1,0 +1,137 @@
+name: 'Builds and test CppInterOp'
+description: 'This action builds and tests CppInterOp for native platforms'
+
+runs:
+  using: composite
+  steps:
+    - name: Build and Test/Install CppInterOp
+      if: runner.os != 'Windows'
+      shell: bash
+      run: |
+        LLVM_DIR="$(pwd)/llvm-project"
+        LLVM_BUILD_DIR="$(pwd)/llvm-project/build"
+        cling_on=$(echo "${{ matrix.cling }}" | tr '[:lower:]' '[:upper:]')
+        if [[ "${cling_on}" == "ON" ]]; then
+          CLING_DIR="$(pwd)/cling"
+          CLING_BUILD_DIR="$(pwd)/cling/build"
+          CPLUS_INCLUDE_PATH="${CLING_DIR}/tools/cling/include:${CLING_BUILD_DIR}/include:${LLVM_DIR}/llvm/include:${LLVM_DIR}/clang/include:${LLVM_BUILD_DIR}/include:${LLVM_BUILD_DIR}/tools/clang/include:$PWD/include"
+        else
+          CPLUS_INCLUDE_PATH="${LLVM_DIR}/llvm/include:${LLVM_DIR}/clang/include:${LLVM_BUILD_DIR}/include:${LLVM_BUILD_DIR}/tools/clang/include:$PWD/include"
+        fi
+
+        export CB_PYTHON_DIR="$PWD/cppyy-backend/python"
+        export CPPINTEROP_DIR="$CB_PYTHON_DIR/cppyy_backend"
+
+        # Build CppInterOp next to cling and llvm-project.
+        mkdir build && cd build
+        export CPPINTEROP_BUILD_DIR=$PWD
+        cling_on=$(echo "${{ matrix.cling }}" | tr '[:lower:]' '[:upper:]')
+        if [[ "${cling_on}" == "ON" ]]; then
+          cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}        \
+                -DCPPINTEROP_USE_CLING=ON                                  \
+                -DCPPINTEROP_USE_REPL=OFF                                  \
+                -DCPPINTEROP_INCLUDE_DOCS=${{ matrix.documentation }} \
+                -DCling_DIR=$LLVM_BUILD_DIR/tools/cling         \
+                -DLLVM_DIR=$LLVM_BUILD_DIR/lib/cmake/llvm       \
+                -DClang_DIR=$LLVM_BUILD_DIR/lib/cmake/clang     \
+                -DBUILD_SHARED_LIBS=ON                          \
+                -DCODE_COVERAGE=${{ env.CODE_COVERAGE }}        \
+                -DCMAKE_INSTALL_PREFIX=$CPPINTEROP_DIR          \
+                -DLLVM_ENABLE_WERROR=On                         \
+                ../
+        else
+          cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}     \
+                -DCPPINTEROP_INCLUDE_DOCS=${{ matrix.documentation }} \
+                -DLLVM_DIR=$LLVM_BUILD_DIR/lib/cmake/llvm    \
+                -DClang_DIR=$LLVM_BUILD_DIR/lib/cmake/clang  \
+                -DBUILD_SHARED_LIBS=ON                       \
+                -DCODE_COVERAGE=${{ env.CODE_COVERAGE }}     \
+                -DCMAKE_INSTALL_PREFIX=$CPPINTEROP_DIR       \
+                -DLLVM_ENABLE_WERROR=On                      \
+                ../
+        fi
+        docs_on=$(echo "${{ matrix.documentation }}" | tr '[:lower:]' '[:upper:]')
+        if [[ "${docs_on}" == "ON" ]]; then
+          cmake --build . --target doxygen-cppinterop --parallel ${{ env.ncpus }}
+          cmake --build . --target sphinx-cppinterop --parallel ${{ env.ncpus }}
+        else
+          cmake --build . --target check-cppinterop --parallel ${{ env.ncpus }}
+          os="${{ matrix.os }}"
+          if [[ "${os}" != "macos"* ]]; then
+            valgrind --show-error-list=yes --track-origins=yes --error-exitcode=1 unittests/CppInterOp/CppInterOpTests/unittests/bin/${{ env.BUILD_TYPE }}/CppInterOpTests
+          fi
+        fi
+        echo "CB_PYTHON_DIR=$CB_PYTHON_DIR" >> $GITHUB_ENV
+        echo "CPPINTEROP_BUILD_DIR=$CPPINTEROP_BUILD_DIR" >> $GITHUB_ENV
+        echo "CPPINTEROP_DIR=$CPPINTEROP_DIR" >> $GITHUB_ENV
+        echo "LLVM_BUILD_DIR=$LLVM_BUILD_DIR" >> $GITHUB_ENV
+        echo "CPLUS_INCLUDE_PATH=$CPLUS_INCLUDE_PATH" >> $GITHUB_ENV
+
+    - name: Build and Test/Install CppInterOp on Windows systems
+      if: runner.os == 'Windows'
+      shell: powershell
+      run: |
+        $env:PWD_DIR= $PWD.Path
+
+        $env:LLVM_DIR="$env:PWD_DIR\llvm-project"
+        echo "LLVM_DIR=$env:LLVM_DIR"
+        echo "LLVM_DIR=$env:LLVM_DIR" >> $env:GITHUB_ENV
+
+        $env:LLVM_BUILD_DIR="$env:PWD_DIR\llvm-project\build"
+        echo "LLVM_BUILD_DIR=$env:LLVM_BUILD_DIR"
+        echo "LLVM_BUILD_DIR=$env:LLVM_BUILD_DIR" >> $env:GITHUB_ENV
+
+        if ( "${{ matrix.cling }}" -imatch "On" )
+        {
+          $env:CLING_DIR="$env:PWD_DIR\cling"
+          echo "CLING_DIR=$env:CLING_DIR"
+          echo "CLING_DIR=$env:CLING_DIR" >> $env:GITHUB_ENV
+
+          $env:CLING_BUILD_DIR="$env:PWD_DIR\cling\build"
+          echo "CLING_BUILD_DIR=$env:CLING_BUILD_DIR"
+          echo "CLING_BUILD_DIR=$env:CLING_BUILD_DIR" >> $env:GITHUB_ENV
+
+          $env:CPLUS_INCLUDE_PATH="$env:CLING_DIR\tools\cling\include;$env:CLING_BUILD_DIR\include;$env:LLVM_DIR\llvm\include;$env:LLVM_DIR\clang\include;$env:LLVM_BUILD_DIR\include;$env:LLVM_BUILD_DIR\tools\clang\include;$env:PWD_DIR\include;"
+          echo "CPLUS_INCLUDE_PATH=$env:CPLUS_INCLUDE_PATH"
+          echo "CPLUS_INCLUDE_PATH=$env:CPLUS_INCLUDE_PATH" >> $env:GITHUB_ENV
+        }
+        else
+        {
+          $env:CPLUS_INCLUDE_PATH="$env:LLVM_DIR\llvm\include;$env:LLVM_DIR\clang\include;$env:LLVM_BUILD_DIR\include;$env:LLVM_BUILD_DIR\tools\clang\include;$env:PWD_DIR\include;"
+          echo "CPLUS_INCLUDE_PATH=$env:CPLUS_INCLUDE_PATH"
+          echo "CPLUS_INCLUDE_PATH=$env:CPLUS_INCLUDE_PATH" >> $env:GITHUB_ENV
+        }
+
+        $env:CB_PYTHON_DIR="$env:PWD_DIR\cppyy-backend\python"
+        echo "CB_PYTHON_DIR=$env:CB_PYTHON_DIR"
+        echo "CB_PYTHON_DIR=$env:CB_PYTHON_DIR" >> $env:GITHUB_ENV
+
+        $env:CPPINTEROP_DIR="$env:CB_PYTHON_DIR\cppyy-backend"
+        echo "CPPINTEROP_DIR=$env:CPPINTEROP_DIR"
+        echo "CPPINTEROP_DIR=$env:CPPINTEROP_DIR" >> $env:GITHUB_ENV
+
+        # Build CppInterOp next to cling and llvm-project.
+        mkdir build
+        cd build
+        $env:CPPINTEROP_BUILD_DIR="$env:PWD_DIR"
+        echo "CPPINTEROP_BUILD_DIR=$env:CPPINTEROP_BUILD_DIR"
+        echo "CPPINTEROP_BUILD_DIR=$env:CPPINTEROP_BUILD_DIR" >> $env:GITHUB_ENV
+        if ( "${{ matrix.cling }}" -imatch "On" )
+        {
+          cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    `
+                -DCPPINTEROP_USE_CLING=ON                                  `
+                -DCPPINTEROP_USE_REPL=OFF                                  `
+                -DCling_DIR="$env:LLVM_BUILD_DIR\tools\cling"   `
+                -DLLVM_DIR="$env:LLVM_BUILD_DIR" `
+                -DLLVM_ENABLE_WERROR=On                          `
+                -DClang_DIR="$env:LLVM_BUILD_DIR"  -DCODE_COVERAGE=${{ env.CODE_COVERAGE }} -DCMAKE_INSTALL_PREFIX="$env:CPPINTEROP_DIR"  ..\
+        }
+        else
+        {
+          cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    `
+                -DLLVM_DIR="$env:LLVM_BUILD_DIR\lib\cmake\llvm"  `
+                -DLLVM_ENABLE_WERROR=On                          `
+                -DClang_DIR="$env:LLVM_BUILD_DIR\lib\cmake\clang"  -DCODE_COVERAGE=${{ env.CODE_COVERAGE }}  -DCMAKE_INSTALL_PREFIX="$env:CPPINTEROP_DIR"  ..\
+                cmake --build . --config ${{ env.BUILD_TYPE }} --target googletest --parallel ${{ env.ncpus }}
+        }
+        cmake --build . --config ${{ env.BUILD_TYPE }} --target check-cppinterop --parallel ${{ env.ncpus }}
