@@ -55,7 +55,6 @@ endif()
 
   if(NOT WIN32 AND NOT EMSCRIPTEN)
     list(APPEND link_libs dl)
-  endif()
 
   # Get rid of libLLVM-X.so which is appended to the list of static libraries.
   if (LLVM_LINK_LLVM_DYLIB)
@@ -103,6 +102,8 @@ endif()
       clangStaticAnalyzerCore
       )
   endif(LLVM_LINK_LLVM_DYLIB)
+endif()
+if(NOT WIN32)
   add_llvm_library(clangCppInterOp
     DISABLE_LLVM_LINK_LLVM_DYLIB
     CppInterOp.cpp
@@ -111,7 +112,17 @@ endif()
     LINK_LIBS
     ${link_libs}
   )
-
+else()
+  message(STATUS "link_libs is ${link_libs}")
+  add_llvm_library(clangCppInterOp
+    DISABLE_LLVM_LINK_LLVM_DYLIB
+    CppInterOp.cpp
+    CXCppInterOp.cpp
+    ${DLM}
+    LINK_LIBS
+    ${cling_clang_interp}
+  )
+endif()
 
 if(EMSCRIPTEN)
   # FIXME: When dynamically linking the Emscripten shared library to the
