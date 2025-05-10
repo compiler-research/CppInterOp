@@ -3043,7 +3043,7 @@ namespace Cpp {
         CLANG_VERSION_MAJOR_STRING;
 #endif
     // We need to check if the detected resource directory is compatible.
-    if (llvm::sys::path::filename(detected_resource_dir) != version)
+    if (detected_resource_dir.find(version) == std::string::npos)
       return "";
 
     return detected_resource_dir;
