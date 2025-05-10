@@ -357,7 +357,7 @@ public:
         const_cast<const Interpreter*>(this)->getDynamicLibraryManager());
   }
 
-  ///\brief Adds multiple include paths separated by a delimter.
+  ///\brief Adds multiple include paths separated by a delimiter.
   ///
   ///\param[in] PathsStr - Path(s)
   ///\param[in] Delim - Delimiter to separate paths or NULL if a single path

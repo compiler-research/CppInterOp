@@ -1,7 +1,7 @@
 if (EMSCRIPTEN)
   # Omitting CUDATest.cpp since Emscripten build currently has no GPU support
   # For Emscripten builds linking to gtest_main will not suffice for gtest to run
-  # the tests and an explictly main.cpp is needed
+  # the tests and an explicitly main.cpp is needed
   set(EXTRA_TEST_SOURCE_FILES main.cpp)
 else()
   # Do not need main.cpp for native builds, but we do have GPU support for native builds

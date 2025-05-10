@@ -248,8 +248,8 @@ void CopyIncludePaths(const clang::HeaderSearchOptions& Opts,
     incpaths.push_back("-v");
 }
 
-void LogNonExistantDirectory(llvm::StringRef Path) {
-#define DEBUG_TYPE "LogNonExistantDirectory"
+void LogNonExistentDirectory(llvm::StringRef Path) {
+#define DEBUG_TYPE "LogNonExistentDirectory"
   LLVM_DEBUG(dbgs() << "  ignoring nonexistent directory \"" << Path << "\"\n");
 #undef  DEBUG_TYPE
 }
@@ -293,27 +293,27 @@ bool SplitPaths(llvm::StringRef PathStr,
       AllExisted = AllExisted && Exists;
 
       if (!Exists) {
-        if (Mode == kFailNonExistant) {
+        if (Mode == kFailNonExistent) {
           if (Verbose) {
-            // Exiting early, but still log all non-existant paths that we have
-            LogNonExistantDirectory(Split.first);
+            // Exiting early, but still log all non-existent paths that we have
+            LogNonExistentDirectory(Split.first);
             while (!Split.second.empty()) {
               Split = PathStr.split(Delim);
               if (llvm::sys::fs::is_directory(Split.first)) {
                 LLVM_DEBUG(dbgs() << "  ignoring directory that exists \""
                                   << Split.first << "\"\n");
               } else
-                LogNonExistantDirectory(Split.first);
+                LogNonExistentDirectory(Split.first);
               Split = Split.second.split(Delim);
             }
             if (!llvm::sys::fs::is_directory(Split.first))
-              LogNonExistantDirectory(Split.first);
+              LogNonExistentDirectory(Split.first);
           }
           return false;
-        } else if (Mode == kAllowNonExistant)
+        } else if (Mode == kAllowNonExistent)
           Paths.push_back(Split.first);
         else if (Verbose)
-          LogNonExistantDirectory(Split.first);
+          LogNonExistentDirectory(Split.first);
       } else
         Paths.push_back(Split.first);
     }
@@ -328,10 +328,10 @@ bool SplitPaths(llvm::StringRef PathStr,
   if (!PathStr.empty()) {
     if (!llvm::sys::fs::is_directory(PathStr)) {
       AllExisted = false;
-      if (Mode == kAllowNonExistant)
+      if (Mode == kAllowNonExistent)
         Paths.push_back(PathStr);
       else if (Verbose)
-        LogNonExistantDirectory(PathStr);
+        LogNonExistentDirectory(PathStr);
     } else
       Paths.push_back(PathStr);
   }
@@ -348,7 +348,7 @@ void AddIncludePaths(llvm::StringRef PathStr,
 
   llvm::SmallVector<llvm::StringRef, 10> Paths;
   if (Delim && *Delim)
-    SplitPaths(PathStr, Paths, kAllowNonExistant, Delim, HOpts.Verbose);
+    SplitPaths(PathStr, Paths, kAllowNonExistent, Delim, HOpts.Verbose);
   else
     Paths.push_back(PathStr);
 
