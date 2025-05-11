@@ -1682,7 +1682,7 @@ TEST(FunctionReflectionTest, GetFunctionCallWrapper) {
   Cpp::TCppScope_t op = Cpp::InstantiateTemplate(op_templated, &TAI, 1);
   auto FCI_op = Cpp::MakeFunctionCallable(op);
   bool boolean = false;
-  FCI_op.Invoke((void*)&boolean, {args, /*args_size=*/1}, object);
+  FCI_op.Invoke((void*)&boolean, {args, /*args_size=*/1}, toperator);
   EXPECT_TRUE(boolean);
 }
 
