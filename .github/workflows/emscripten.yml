@@ -361,7 +361,6 @@ jobs:
           {
             git apply -v Windows-emscripten-clang20-1-CrossCompile.patch
             git apply -v emscripten-clang20-2-shift-temporary-files-to-tmp-dir.patch
-            git apply -v emscripten-clang20-3-wasm-ld.patch
           }
           cd build
           echo "Apply clang${{ matrix.clang-runtime }}-*.patch patches:"
