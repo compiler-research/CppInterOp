@@ -1379,7 +1379,9 @@ TEST(FunctionReflectionTest, IsStaticMethod) {
 
 TEST(FunctionReflectionTest, GetFunctionAddress) {
 #ifdef EMSCRIPTEN
+#if CLANG_VERSION_MAJOR < 20
   GTEST_SKIP() << "Test fails for Emscipten builds";
+#endif  
 #endif
   if (llvm::sys::RunningOnValgrind())
     GTEST_SKIP() << "XFAIL due to Valgrind report";
@@ -1428,7 +1430,9 @@ TEST(FunctionReflectionTest, IsVirtualMethod) {
 
 TEST(FunctionReflectionTest, JitCallAdvanced) {
 #ifdef EMSCRIPTEN
+#if CLANG_VERSION_MAJOR < 20
   GTEST_SKIP() << "Test fails for Emscipten builds";
+#endif
 #endif
   if (llvm::sys::RunningOnValgrind())
     GTEST_SKIP() << "XFAIL due to Valgrind report";
@@ -1783,7 +1787,9 @@ TEST(FunctionReflectionTest, GetFunctionArgDefault) {
 
 TEST(FunctionReflectionTest, Construct) {
 #ifdef EMSCRIPTEN
+#if CLANG_VERSION_MAJOR < 20
   GTEST_SKIP() << "Test fails for Emscipten builds";
+#endif
 #endif
   if (llvm::sys::RunningOnValgrind())
     GTEST_SKIP() << "XFAIL due to Valgrind report";
@@ -1844,7 +1850,9 @@ TEST(FunctionReflectionTest, Construct) {
 // Test nested constructor calls
 TEST(FunctionReflectionTest, ConstructNested) {
 #ifdef EMSCRIPTEN
+#if CLANG_VERSION_MAJOR < 20
   GTEST_SKIP() << "Test fails for Emscipten builds";
+#endif
 #endif
   if (llvm::sys::RunningOnValgrind())
     GTEST_SKIP() << "XFAIL due to Valgrind report";

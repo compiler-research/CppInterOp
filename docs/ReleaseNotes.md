@@ -25,7 +25,7 @@ infrastructure are described first.
 ## External Dependencies
 
 - CppInterOp now works with:
-  - llvm19
+  - llvm20
 
 ## Introspection
 

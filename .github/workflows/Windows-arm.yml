@@ -21,10 +21,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: win11-msvc-clang-repl-19
+          - name: win11-msvc-clang-repl-20
             os: windows-11-arm
             compiler: msvc
-            clang-runtime: '19'
+            clang-runtime: '20'
             cling: Off
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
@@ -225,10 +225,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: win11-msvc-clang-repl-19
+          - name: win11-msvc-clang-repl-20
             os: windows-11-arm
             compiler: msvc
-            clang-runtime: '19'
+            clang-runtime: '20'
             cling: Off
             cppyy: Off
 

@@ -49,6 +49,34 @@ jobs:
             llvm_enable_projects: "clang;lld"
             llvm_targets_to_build: "WebAssembly"
             emsdk_ver: "3.1.73"
+          - name: ubu24-arm-clang-repl-20-emscripten
+            os: ubuntu-24.04-arm
+            clang-runtime: '20'
+            cling: Off
+            llvm_enable_projects: "clang;lld"
+            llvm_targets_to_build: "WebAssembly"
+            emsdk_ver: "3.1.73"
+          - name: osx15-arm-clang-repl-20-emscripten
+            os: macos-15
+            clang-runtime: '20'
+            cling: Off
+            llvm_enable_projects: "clang;lld"
+            llvm_targets_to_build: "WebAssembly"
+            emsdk_ver: "3.1.73"
+          - name: ubu24-x86-clang-repl-20-emscripten
+            os: ubuntu-24.04
+            clang-runtime: '20'
+            cling: Off
+            llvm_enable_projects: "clang;lld"
+            llvm_targets_to_build: "WebAssembly"
+            emsdk_ver: "3.1.73"
+          - name: win2025-x86-clang-repl-20-emscripten
+            os: windows-2025
+            clang-runtime: '20'
+            cling: Off
+            llvm_enable_projects: "clang;lld"
+            llvm_targets_to_build: "WebAssembly"
+            emsdk_ver: "3.1.73"
 
     steps:
     - uses: actions/checkout@v4
@@ -220,7 +248,7 @@ jobs:
         else
           # Apply patches
           llvm_vers=$(echo "${{ matrix.clang-runtime }}" | tr '[:lower:]' '[:upper:]')
-          if [[ "${llvm_vers}" == "19" ]]; then
+          if [[ "${llvm_vers}" == "19" || "${llvm_vers}" == "20" ]]; then
             git apply -v ../patches/llvm/emscripten-clang${{ matrix.clang-runtime }}-*.patch
             echo "Apply emscripten-clang${{ matrix.clang-runtime }}-*.patch patches:"
           fi
@@ -329,6 +357,11 @@ jobs:
             git apply -v emscripten-clang19-2-shift-temporary-files-to-tmp-dir.patch
             git apply -v emscripten-clang19-3-remove-zdefs.patch
           }
+          elseif ( "${{ matrix.clang-runtime }}" -imatch "20" )
+          {
+            git apply -v Windows-emscripten-clang20-1-CrossCompile.patch
+            git apply -v emscripten-clang20-2-shift-temporary-files-to-tmp-dir.patch
+          }
           cd build
           echo "Apply clang${{ matrix.clang-runtime }}-*.patch patches:"
           emcmake cmake -DCMAKE_BUILD_TYPE=Release `
@@ -411,6 +444,30 @@ jobs:
           - name: win2025-x86-clang-repl-19-emscripten
             os: windows-2025
             clang-runtime: '19'
+            cling: Off
+            micromamba_shell_init: powershell
+            emsdk_ver: "3.1.73"
+          - name: ubu24-x86-clang-repl-20-emscripten_wasm
+            os: ubuntu-24.04
+            clang-runtime: '20'
+            cling: Off
+            micromamba_shell_init: bash
+            emsdk_ver: "3.1.73"
+          - name: osx15-arm-clang-repl-20-emscripten_wasm
+            os: macos-15
+            clang-runtime: '20'
+            cling: Off
+            micromamba_shell_init: bash
+            emsdk_ver: "3.1.73"
+          - name: ubu24-arm-clang-repl-20-emscripten_wasm
+            os: ubuntu-24.04-arm
+            clang-runtime: '20'
+            cling: Off
+            micromamba_shell_init: bash
+            emsdk_ver: "3.1.73"
+          - name: win2025-x86-clang-repl-20-emscripten
+            os: windows-2025
+            clang-runtime: '20'
             cling: Off
             micromamba_shell_init: powershell
             emsdk_ver: "3.1.73"

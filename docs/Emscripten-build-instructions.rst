@@ -53,7 +53,7 @@ and on Windows execute in Powershell
    $env:PWD_DIR= $PWD.Path
    $env:SYSROOT_PATH="$env:EMSDK/upstream/emscripten/cache/sysroot"
 
-Now clone the 19.x release of the LLVM project repository and CppInterOp
+Now clone the 20.x release of the LLVM project repository and CppInterOp
 (the building of the emscripten version of llvm can be avoided by
 executing micromamba install llvm -c
 <https://repo.mamba.pm/emscripten-forge> and setting the LLVM_BUILD_DIR/$env:LLVM_BUILD_DIR
@@ -61,7 +61,7 @@ appropriately)
 
 .. code:: bash
 
-   git clone --depth=1 --branch release/19.x https://github.com/llvm/llvm-project.git
+   git clone --depth=1 --branch release/20.x https://github.com/llvm/llvm-project.git
    git clone --depth=1 https://github.com/compiler-research/CppInterOp.git
 
 Now move into the cloned llvm-project folder and apply the required patches. On Linux and osx this
@@ -70,7 +70,7 @@ executing
 .. code:: bash
 
    cd ./llvm-project/
-   git apply -v ../CppInterOp/patches/llvm/emscripten-clang19-*.patch
+   git apply -v ../CppInterOp/patches/llvm/emscripten-clang20-*.patch
 
 On Windows execute the following
 
@@ -79,9 +79,8 @@ On Windows execute the following
    cd .\llvm-project\
    cp -r ..\patches\llvm\emscripten-clang${{ matrix.clang-runtime }}*
    cp -r ..\patches\llvm\Windows-emscripten-clang${{ matrix.clang-runtime }}*
-   git apply -v Windows-emscripten-clang19-1-CrossCompile.patch
-   git apply -v emscripten-clang19-2-shift-temporary-files-to-tmp-dir.patch
-   git apply -v emscripten-clang19-3-remove-zdefs.patch
+   git apply -v Windows-emscripten-clang20-1-CrossCompile.patch
+   git apply -v emscripten-clang20-2-shift-temporary-files-to-tmp-dir.patch
 
 We are now in a position to build an emscripten build of llvm by executing the following on Linux
 and osx
