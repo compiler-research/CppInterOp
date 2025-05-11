@@ -81,7 +81,6 @@ On Windows execute the following
    cp -r ..\patches\llvm\Windows-emscripten-clang${{ matrix.clang-runtime }}*
    git apply -v Windows-emscripten-clang20-1-CrossCompile.patch
    git apply -v emscripten-clang20-2-shift-temporary-files-to-tmp-dir.patch
-   git apply -v emscripten-clang20-3-wasm-ld.patch
 
 We are now in a position to build an emscripten build of llvm by executing the following on Linux
 and osx
