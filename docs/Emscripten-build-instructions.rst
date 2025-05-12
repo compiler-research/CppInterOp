@@ -3,7 +3,11 @@
 #########################
 
 It should be noted that the wasm build of CppInterOp is still
-experimental and subject to change.
+experimental and subject to change. Try a Jupyter Lite demo of xeus-cpp by clicking
+
+.. image:: https://jupyterlite.rtfd.io/en/latest/_static/badge.svg
+   :target: https://compiler-research.github.io/CppInterOp/lab/index.html
+   :alt: lite-badge
 
 ************************************
  CppInterOp Wasm Build Instructions
