@@ -62,8 +62,8 @@ On Windows execute the following
 
 ```powershell
 cd .\llvm-project\
-cp -r ..\patches\llvm\emscripten-clang${{ matrix.clang-runtime }}*
-cp -r ..\patches\llvm\Windows-emscripten-clang${{ matrix.clang-runtime }}*
+cp -r ..\patches\llvm\emscripten-clang20*
+cp -r ..\patches\llvm\Windows-emscripten-clang20*
 git apply -v Windows-emscripten-clang20-1-CrossCompile.patch
 git apply -v emscripten-clang20-2-shift-temporary-files-to-tmp-dir.patch
 ```
@@ -113,9 +113,9 @@ cd build
 emcmake cmake -DCMAKE_BUILD_TYPE=Release `
                         -DLLVM_HOST_TRIPLE=wasm32-unknown-emscripten `
                         -DLLVM_ENABLE_ASSERTIONS=ON                        `
-                        -DLLVM_TARGETS_TO_BUILD="${{ matrix.llvm_targets_to_build }}" `
+                        -DLLVM_TARGETS_TO_BUILD="WebAssembly" `
                         -DLLVM_ENABLE_LIBEDIT=OFF `
-                        -DLLVM_ENABLE_PROJECTS="${{ matrix.llvm_enable_projects }}" `
+                        -DLLVM_ENABLE_PROJECTS="clang;lld" `
                         -DLLVM_ENABLE_ZSTD=OFF `
                         -DLLVM_ENABLE_LIBXML2=OFF `
                         -DCLANG_ENABLE_STATIC_ANALYZER=OFF `
@@ -192,13 +192,12 @@ emmake make -j $(nproc --all) check-cppinterop
 To build and test your Emscripten build of CppInterOp on Windows execute the following
 
 ```powershell
-emcmake cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    `
+emcmake cmake -DCMAKE_BUILD_TYPE=Release    `
                 -DCMAKE_PREFIX_PATH="$env:PREFIX"                      `
                 -DLLVM_DIR="$env:LLVM_BUILD_DIR\lib\cmake\llvm"        `
                 -DLLD_DIR="$env:LLVM_BUILD_DIR\lib\cmake\lld"        `
                 -DClang_DIR="$env:LLVM_BUILD_DIR\lib\cmake\clang"    `
                 -DBUILD_SHARED_LIBS=ON                      `
-                -DCODE_COVERAGE=${{ env.CODE_COVERAGE }}    `
                 -DCMAKE_INSTALL_PREFIX="$env:PREFIX"      `
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            `
                 -DLLVM_ENABLE_WERROR=On                      `
