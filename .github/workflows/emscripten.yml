@@ -620,6 +620,7 @@ jobs:
       if: ${{ runner.os == 'windows' }}
       shell: powershell
       run: |
+        $ErrorActionPreference = "Stop"
         micromamba create -f environment-wasm.yml --platform=emscripten-wasm32
         .\emsdk\emsdk activate ${{matrix.emsdk_ver}}
         .\emsdk\emsdk_env.ps1
