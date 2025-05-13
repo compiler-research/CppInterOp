@@ -43,6 +43,7 @@ if(EMSCRIPTEN)
   # --preload-file ${SYSROOT_PATH}/include@/include:
   # Preloads the system include directory into the Emscripten virtual filesystem to make headers accessible at runtime.
   target_link_options(CppInterOpTests
+    PUBLIC "SHELL: -s STRICT=1"
     PUBLIC "SHELL: -fexceptions"
     PUBLIC "SHELL: -s MAIN_MODULE=1"
     PUBLIC "SHELL: -s WASM_BIGINT"
@@ -91,6 +92,7 @@ target_link_libraries(DynamicLibraryManagerTests
 if(EMSCRIPTEN)
   # Check explanation of Emscripten-specific link flags for CppInterOpTests above for DynamicLibraryManagerTests as well.
   target_link_options(DynamicLibraryManagerTests
+    PUBLIC "SHELL: -s STRICT=1"
     PUBLIC "SHELL: -s MAIN_MODULE=1"
     PUBLIC "SHELL: -s WASM_BIGINT"
     PUBLIC "SHELL: -s ALLOW_MEMORY_GROWTH=1"
