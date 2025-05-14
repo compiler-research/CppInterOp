@@ -17,6 +17,7 @@
 #include "clang/AST/DeclarationName.h"
 #include "clang/AST/GlobalDecl.h"
 #include "clang/Basic/LangOptions.h"
+#include "clang/Basic/TargetOptions.h"
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Frontend/FrontendOptions.h"
 #include "clang/Lex/Preprocessor.h"
@@ -36,6 +37,7 @@
 #include "llvm/Support/Error.h"
 #include "llvm/Support/TargetSelect.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/TargetParser/Triple.h"
 
 #include <utility>
 #include <vector>
@@ -412,18 +414,17 @@ public:
   }
 
   CompilationResult loadLibrary(const std::string& filename, bool lookup) {
-#ifdef __EMSCRIPTEN__
-    if (lookup) {
-      llvm::errs() << "[cppinterop] Warning: 'lookup' has no effect on WASM.\n";
+    llvm::Triple triple(getCompilerInstance()->getTargetOpts().Triple);
+    if (triple.isWasm()) {
+      // On WASM, dlopen-style canonical lookup has no effect.
+      if (auto Err = inner->LoadDynamicLibrary(filename.c_str())) {
+        llvm::logAllUnhandledErrors(std::move(Err), llvm::errs(),
+                                    "loadLibrary: ");
+        return kFailure;
+      }
+      return kSuccess;
     }
-    // In WASM: directly use Interpreter's LoadDynamicLibrary
-    if (auto Err = inner->LoadDynamicLibrary(filename.c_str())) {
-      llvm::logAllUnhandledErrors(std::move(Err), llvm::errs(),
-                                  "loadLibrary: ");
-      return kFailure;
-    }
-    return kSuccess;
-#endif
+
     DynamicLibraryManager* DLM = getDynamicLibraryManager();
     std::string canonicalLib;
     if (lookup)
