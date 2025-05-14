@@ -2009,8 +2009,9 @@ namespace Cpp {
           callbuf << "((const " << class_name << "*)obj)->";
         else
           callbuf << "((" << class_name << "*)obj)->";
-        
-        if (op_flag) callbuf << class_name << "::";
+
+        if (op_flag)
+          callbuf << class_name << "::";
       } else if (isa<NamedDecl>(get_non_transparent_decl_context(FD))) {
         // This is a namespace member.
         if (op_flag || N <= 1)

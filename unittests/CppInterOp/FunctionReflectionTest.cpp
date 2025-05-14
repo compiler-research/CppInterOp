@@ -1381,7 +1381,7 @@ TEST(FunctionReflectionTest, GetFunctionAddress) {
 #ifdef EMSCRIPTEN
 #if CLANG_VERSION_MAJOR < 20
   GTEST_SKIP() << "Test fails for Emscipten builds";
-#endif  
+#endif
 #endif
   if (llvm::sys::RunningOnValgrind())
     GTEST_SKIP() << "XFAIL due to Valgrind report";
@@ -1717,7 +1717,8 @@ TEST(FunctionReflectionTest, GetFunctionCallWrapper) {
   Cpp::TCppType_t K1 = Cpp::GetTypeFromScope(Cpp::GetNamed("K1"));
   Cpp::TCppType_t K2 = Cpp::GetTypeFromScope(Cpp::GetNamed("K2"));
   operators.clear();
-  Cpp::GetOperator(Cpp::GetScope("N2", Cpp::GetScope("N1")), Cpp::OP_Plus, operators);
+  Cpp::GetOperator(Cpp::GetScope("N2", Cpp::GetScope("N1")), Cpp::OP_Plus,
+                   operators);
   EXPECT_EQ(operators.size(), 1);
   Cpp::TCppFunction_t kop =
       Cpp::BestOverloadFunctionMatch(operators, {}, {K1, K2});
@@ -2031,4 +2032,4 @@ TEST(FunctionReflectionTest, UndoTest) {
   EXPECT_EQ(ret, 1);
 #endif
 #endif
-  }
+}
