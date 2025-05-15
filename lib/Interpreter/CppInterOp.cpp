@@ -2057,15 +2057,9 @@ namespace Cpp {
 
         if (i) {
           if (op_flag) {
-            callbuf << ',';
-            if (i % 2) {
-              callbuf << ' ';
-            } else {
-              callbuf << "\n";
-              indent(callbuf, indent_level + 1);
-            }
+            callbuf << ", ";
           } else {
-            callbuf << Cpp::getOperatorSpelling(FD->getOverloadedOperator());
+            callbuf << ' ' << Cpp::getOperatorSpelling(FD->getOverloadedOperator()) << ' ';
           }
         }
 
