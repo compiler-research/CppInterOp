@@ -547,10 +547,10 @@ namespace Cpp {
   CPPINTEROP_API TCppType_t GetCanonicalType(TCppType_t type);
 
   /// Get non restrict qualified version of the given type
-  CPPINTEROP_API TCppType_t GetNonRestrictQualifiedType(TCppType_t type);
+  CPPINTEROP_API TCppType_t GetNonRestrictType(TCppType_t type);
 
   /// check if the type is restrict qualified i.e. __restrict
-  CPPINTEROP_API bool IsRestrictQualifiedType(TCppType_t type);
+  CPPINTEROP_API bool IsRestrictType(TCppType_t type);
 
   /// Used to either get the built-in type of the provided string, or
   /// use the name to lookup the actual type.
