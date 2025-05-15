@@ -610,3 +610,21 @@ TEST(TypeReflectionTest, IsFunctionPointerType) {
   EXPECT_FALSE(
       Cpp::IsFunctionPointerType(Cpp::GetVariableType(Cpp::GetNamed("i"))));
 }
+
+TEST(TypeReflectionTest, RestrictQualifiedType) {
+  Cpp::CreateInterpreter();
+  Cpp::Declare(R"(
+    int *x;
+    int *__restrict y;
+  )");
+
+  Cpp::TCppType_t x = Cpp::GetVariableType(Cpp::GetNamed("x"));
+  Cpp::TCppType_t y = Cpp::GetVariableType(Cpp::GetNamed("y"));
+
+  EXPECT_FALSE(Cpp::IsRestrictQualifiedType(x));
+  EXPECT_TRUE(Cpp::IsRestrictQualifiedType(y));
+
+  EXPECT_FALSE(Cpp::GetNonRestrictQualifiedType(x));
+  EXPECT_EQ(Cpp::GetCanonicalType(Cpp::GetNonRestrictQualifiedType(y)),
+            Cpp::GetCanonicalType(x));
+}
