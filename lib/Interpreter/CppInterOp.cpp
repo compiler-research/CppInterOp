@@ -1657,6 +1657,21 @@ namespace Cpp {
     return QT.getCanonicalType().getAsOpaquePtr();
   }
 
+  bool IsRestrictType(TCppType_t type) {
+    QualType QT = QualType::getFromOpaquePtr(type);
+    return QT.isRestrictQualified();
+  }
+
+  TCppType_t GetNonRestrictType(TCppType_t type) {
+    QualType QT = QualType::getFromOpaquePtr(type);
+    if (QT.isRestrictQualified()) {
+      QualType NonRestrictType(QT);
+      NonRestrictType.removeLocalRestrict();
+      return NonRestrictType.getAsOpaquePtr();
+    }
+    return type;
+  }
+
   // Internal functions that are not needed outside the library are
   // encompassed in an anonymous namespace as follows. This function converts
   // from a string to the actual type. It is used in the GetType() function.
