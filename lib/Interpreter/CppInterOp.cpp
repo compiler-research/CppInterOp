@@ -2059,7 +2059,9 @@ namespace Cpp {
           if (op_flag) {
             callbuf << ", ";
           } else {
-            callbuf << ' ' << Cpp::getOperatorSpelling(FD->getOverloadedOperator()) << ' ';
+            callbuf << ' '
+                    << Cpp::getOperatorSpelling(FD->getOverloadedOperator())
+                    << ' ';
           }
         }
 
