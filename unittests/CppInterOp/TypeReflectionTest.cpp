@@ -621,10 +621,11 @@ TEST(TypeReflectionTest, RestrictQualifiedType) {
   Cpp::TCppType_t x = Cpp::GetVariableType(Cpp::GetNamed("x"));
   Cpp::TCppType_t y = Cpp::GetVariableType(Cpp::GetNamed("y"));
 
-  EXPECT_FALSE(Cpp::IsRestrictQualifiedType(x));
-  EXPECT_TRUE(Cpp::IsRestrictQualifiedType(y));
+  EXPECT_FALSE(Cpp::IsRestrictType(x));
+  EXPECT_TRUE(Cpp::IsRestrictType(y));
 
-  EXPECT_FALSE(Cpp::GetNonRestrictQualifiedType(x));
-  EXPECT_EQ(Cpp::GetCanonicalType(Cpp::GetNonRestrictQualifiedType(y)),
+  EXPECT_EQ(Cpp::GetCanonicalType(Cpp::GetNonRestrictType(y)),
+            Cpp::GetCanonicalType(x));
+  EXPECT_EQ(Cpp::GetCanonicalType(Cpp::GetNonRestrictType(x)),
             Cpp::GetCanonicalType(x));
 }
