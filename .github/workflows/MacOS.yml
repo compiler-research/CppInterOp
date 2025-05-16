@@ -57,12 +57,12 @@ jobs:
             cling: Off
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host"
-          - name: osx13-x86-clang-clang13-cling
+          - name: osx13-x86-clang-clang18-cling
             os: macos-13
             compiler: clang
-            clang-runtime: '13'
+            clang-runtime: '18'
             cling: On
-            cling-version: '1.0'
+            cling-version: '1.2'
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
 
@@ -177,8 +177,6 @@ jobs:
                 ../llvm
           ninja clang -j ${{ env.ncpus }}
           ninja clingInterpreter -j ${{ env.ncpus }}
-          # Now build gtest.a and gtest_main for CppInterOp to run its tests.
-          ninja gtest_main -j ${{ env.ncpus }}
         else
           # Apply patches
           llvm_vers=$(echo "${{ matrix.clang-runtime }}" | tr '[:lower:]' '[:upper:]')
@@ -273,12 +271,12 @@ jobs:
             clang-runtime: '16'
             cling: Off
             cppyy: Off
-          - name: osx13-x86-clang-clang13-cling-cppyy
+          - name: osx13-x86-clang-clang18-cling-cppyy
             os: macos-13
             compiler: clang
-            clang-runtime: '13'
+            clang-runtime: '18'
             cling: On
-            cling-version: '1.0'
+            cling-version: '1.2'
             cppyy: On
 
     steps:
