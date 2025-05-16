@@ -22,6 +22,12 @@ TEST(DynamicLibraryManagerTest, Sanity) {
 #ifdef EMSCRIPTEN
   GTEST_SKIP() << "Test fails for Emscipten builds";
 #endif
+
+#if CLANG_VERSION_MAJOR == 18 && defined(CPPINTEROP_USE_CLING) &&              \
+    defined(_WIN32)
+  GTEST_SKIP() << "Test fails with Cling on Windows";
+#endif
+
   EXPECT_TRUE(Cpp::CreateInterpreter());
   EXPECT_FALSE(Cpp::GetFunctionAddress("ret_zero"));
 
