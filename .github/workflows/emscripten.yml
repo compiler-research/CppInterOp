@@ -211,6 +211,7 @@ jobs:
           git clone https://github.com/root-project/cling.git
           cd ./cling
           git checkout tags/v${{ matrix.cling-version }}
+          git apply -v ../patches/llvm/cling1.2-LookupHelper.patch
           cd ..
           git clone --depth=1 -b cling-llvm${{ matrix.clang-runtime }} https://github.com/root-project/llvm-project.git
         else # repl
@@ -311,6 +312,7 @@ jobs:
           git clone https://github.com/root-project/cling.git
           cd ./cling
           git checkout tags/v${{ matrix.cling-version }}
+          git apply -v ../patches/llvm/cling1.2-LookupHelper.patch
           cd ..
           git clone --depth=1 -b cling-llvm${{ matrix.clang-runtime }} https://github.com/root-project/llvm-project.git
           $env:PWD_DIR= $PWD.Path
