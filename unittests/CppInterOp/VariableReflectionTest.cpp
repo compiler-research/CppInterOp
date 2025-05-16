@@ -1,6 +1,7 @@
 #include "Utils.h"
 
 #include "clang/AST/ASTContext.h"
+#include "clang/Basic/Version.h"
 #include "clang/Interpreter/CppInterOp.h"
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Sema/Sema.h"
@@ -333,6 +334,10 @@ TEST(VariableReflectionTest, GetVariableOffset) {
 CODE
 
 TEST(VariableReflectionTest, VariableOffsetsWithInheritance) {
+#if CLANG_VERSION_MAJOR == 18 && defined(CPPINTEROP_USE_CLING) &&              \
+    defined(_WIN32) && (defined(_M_ARM) || defined(_M_ARM64))
+  GTEST_SKIP() << "Test fails with Cling on Windows on ARM";
+#endif
   if (llvm::sys::RunningOnValgrind())
     GTEST_SKIP() << "XFAIL due to Valgrind report";
 
