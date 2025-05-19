@@ -261,12 +261,12 @@ jobs:
             cling: Off
             cppyy: Off
             coverage: true
-          - name: ubu24-arm-gcc12-clang-repl-20
+          - name: ubu24-arm-gcc12-clang-repl-20-cppyy
             os: ubuntu-24.04-arm
             compiler: gcc-12
             clang-runtime: '20'
             cling: Off
-            cppyy: Off
+            cppyy: On
           - name: ubu24-arm-gcc12-clang-repl-19-cppyy
             os: ubuntu-24.04-arm
             compiler: gcc-12

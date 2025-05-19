@@ -247,12 +247,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: ubu24-x86-gcc12-clang-repl-20
+          - name: ubu24-x86-gcc12-clang-repl-20-cppyy
             os: ubuntu-24.04
             compiler: gcc-12
             clang-runtime: '20'
             cling: Off
-            cppyy: Off
+            cppyy: On
           - name: ubu24-x86-gcc12-clang-repl-19-cppyy
             os: ubuntu-24.04
             compiler: gcc-12
