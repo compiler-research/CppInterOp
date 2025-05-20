@@ -71,6 +71,12 @@ git apply -v emscripten-clang20-2-shift-temporary-files-to-tmp-dir.patch
 We are now in a position to build an emscripten build of llvm by executing the following on Linux
 and osx
 ```bash
+mkdir native_build
+cd native_build
+cmake -DLLVM_ENABLE_PROJECTS=clang -DLLVM_TARGETS_TO_BUILD=host -DCMAKE_BUILD_TYPE=Release ../llvm/
+cmake --build . --target llvm-tblgen clang-tblgen --parallel $(nproc --all)
+export NATIVE_DIR=$PWD/bin/
+cd ..
 mkdir build
 cd build
 emcmake cmake -DCMAKE_BUILD_TYPE=Release \
@@ -92,6 +98,7 @@ emcmake cmake -DCMAKE_BUILD_TYPE=Release \
                         -DLLVM_BUILD_TOOLS=OFF                          \
                         -DLLVM_ENABLE_LIBPFM=OFF                        \
                         -DCLANG_BUILD_TOOLS=OFF                         \
+                        -DLLVM_NATIVE_TOOL_DIR=$NATIVE_DIR              \
                         ../llvm
 emmake make libclang -j $(nproc --all)
 emmake make clangInterpreter clangStaticAnalyzerCore -j $(nproc --all)

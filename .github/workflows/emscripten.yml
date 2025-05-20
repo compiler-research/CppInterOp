@@ -218,6 +218,12 @@ jobs:
         fi
         cd llvm-project
         # Build
+        mkdir native_build
+        cd native_build
+        cmake -DLLVM_ENABLE_PROJECTS=clang -DLLVM_TARGETS_TO_BUILD=host -DCMAKE_BUILD_TYPE=Release ../llvm/
+        cmake --build . --target llvm-tblgen clang-tblgen --parallel $(nproc --all)
+        export NATIVE_DIR=$PWD/bin/
+        cd ..
         mkdir build
         if [[ "${cling_on}" == "ON" ]]; then
           cd build
@@ -243,6 +249,7 @@ jobs:
                         -DLLVM_BUILD_TOOLS=OFF                          \
                         -DLLVM_ENABLE_LIBPFM=OFF                        \
                         -DCLANG_BUILD_TOOLS=OFF                         \
+                        -DLLVM_NATIVE_TOOL_DIR=$NATIVE_DIR 		\
                          ../llvm
           emmake ninja clang cling lld gtest_main
         else
@@ -273,10 +280,10 @@ jobs:
                         -DLLVM_ENABLE_LIBPFM=OFF                        \
                         -DCLANG_BUILD_TOOLS=OFF                         \
                         -G Ninja                                         \
+                        -DLLVM_NATIVE_TOOL_DIR=$NATIVE_DIR 		\
                         ../llvm
           emmake ninja libclang clangInterpreter clangStaticAnalyzerCore lldWasm
         fi
-        rm -rf ./NATIVE/
         cd ../
         rm -rf $(find . -maxdepth 1 ! -name "build" ! -name "llvm" ! -name "clang" ! -name ".")
         if [[ "${cling_on}" == "ON" ]]; then
