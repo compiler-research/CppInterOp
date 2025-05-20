@@ -91,6 +91,12 @@ and osx
 
 .. code:: bash
 
+   mkdir native_build
+   cd native_build
+   cmake -DLLVM_ENABLE_PROJECTS=clang -DLLVM_TARGETS_TO_BUILD=host -DCMAKE_BUILD_TYPE=Release ../llvm/
+   cmake --build . --target llvm-tblgen clang-tblgen --parallel $(nproc --all)
+   export NATIVE_DIR=$PWD/bin/
+   cd ..
    mkdir build
    cd build
    emcmake cmake -DCMAKE_BUILD_TYPE=Release \
@@ -112,6 +118,7 @@ and osx
                  -DLLVM_BUILD_TOOLS=OFF                          \
                  -DLLVM_ENABLE_LIBPFM=OFF                        \
                  -DCLANG_BUILD_TOOLS=OFF                         \
+                 -DLLVM_NATIVE_TOOL_DIR=$NATIVE_DIR 		\
                  ../llvm
    emmake make libclang -j $(nproc --all)
    emmake make clangInterpreter clangStaticAnalyzerCore -j $(nproc --all)
