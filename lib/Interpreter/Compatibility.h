@@ -104,43 +104,13 @@ inline void maybeMangleDeclName(const clang::GlobalDecl& GD,
   cling::utils::Analyze::maybeMangleDeclName(GD, mangledName);
 }
 
-/// For Cling <= LLVM 16, this is a horrible hack obtaining the private
-/// llvm::orc::LLJIT by computing the object offsets in the cling::Interpreter
-/// instance(IncrementalExecutor): sizeof (m_Opts) + sizeof(m_LLVMContext). The
-/// IncrementalJIT and JIT itself have an offset of 0 as the first datamember.
-///
-/// The getExecutionEngine() interface has been added for Cling based on LLVM
-/// >=18 and should be used in future releases.
+/// The getExecutionEngine() interface was been added for Cling based on LLVM
+/// >=18. For previous versions, the LLJIT was obtained by computing the object
+/// offsets in the cling::Interpreter instance(IncrementalExecutor):
+/// sizeof (m_Opts) + sizeof(m_LLVMContext). The IncrementalJIT and JIT itself
+/// have an offset of 0 as the first datamember.
 inline llvm::orc::LLJIT* getExecutionEngine(cling::Interpreter& I) {
-#if CLANG_VERSION_MAJOR >= 18
   return I.getExecutionEngine();
-#endif
-
-  unsigned m_ExecutorOffset = 0;
-
-#if CLANG_VERSION_MAJOR == 13
-#ifdef __APPLE__
-  m_ExecutorOffset = 62;
-#else
-  m_ExecutorOffset = 72;
-#endif // __APPLE__
-#endif
-
-// Note: The offsets changed in Cling based on LLVM 16 with the introduction of
-// a thread safe context - llvm::orc::ThreadSafeContext
-#if CLANG_VERSION_MAJOR == 16
-#ifdef __APPLE__
-  m_ExecutorOffset = 68;
-#else
-  m_ExecutorOffset = 78;
-#endif // __APPLE__
-#endif
-
-  int* IncrementalExecutor =
-      ((int*)(const_cast<cling::Interpreter*>(&I))) + m_ExecutorOffset;
-  int* IncrementalJit = *(int**)IncrementalExecutor + 0;
-  int* LLJIT = *(int**)IncrementalJit + 0;
-  return *(llvm::orc::LLJIT**)LLJIT;
 }
 
 inline llvm::Expected<llvm::JITTargetAddress>
