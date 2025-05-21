@@ -1896,13 +1896,19 @@ namespace Cpp {
     void make_narg_ctor(const FunctionDecl* FD, const unsigned N,
                         std::ostringstream& typedefbuf,
                         std::ostringstream& callbuf,
-                        const std::string& class_name, int indent_level) {
+                        const std::string& class_name, int indent_level,
+                        bool array = false) {
       // Make a code string that follows this pattern:
       //
       // ClassName(args...)
+      //    OR
+      // ClassName[nary](args...) // array of objects
       //
 
-      callbuf << class_name << "(";
+      callbuf << class_name;
+      if (array)
+        callbuf << "[nary]";
+      callbuf << "(";
       for (unsigned i = 0U; i < N; ++i) {
         const ParmVarDecl* PVD = FD->getParamDecl(i);
         QualType Ty = PVD->getType();
@@ -2085,15 +2091,42 @@ namespace Cpp {
                                     std::ostringstream& buf, int indent_level) {
       // Make a code string that follows this pattern:
       //
-      //  (*(ClassName**)ret) = (obj) ?
-      //    new (*(ClassName**)ret) ClassName(args...) : new ClassName(args...);
-      //
+      // // array of objects construction
+      // if (nary > 1) {
+      //    (*(ClassName**)ret) = (obj) ? new (*(ClassName**)ret)
+      //    ClassName[nary](args...) : new ClassName[nary](args...);
+      //   }
+      // else {
+      //    (*(ClassName**)ret) = (obj) ? new (*(ClassName**)ret)
+      //    ClassName(args...) : new ClassName(args...);
+      //   }
       {
         std::ostringstream typedefbuf;
         std::ostringstream callbuf;
         //
         //  Write the return value assignment part.
         //
+        indent(callbuf, indent_level);
+        callbuf << "if (nary > 1) {\n";
+        indent(callbuf, indent_level);
+        callbuf << "(*(" << class_name << "**)ret) = ";
+        callbuf << "(obj) ? new (*(" << class_name << "**)ret) ";
+        make_narg_ctor(FD, N, typedefbuf, callbuf, class_name, indent_level,
+                       true);
+
+        callbuf << ": new ";
+        //
+        //  Write the actual expression.
+        //
+        make_narg_ctor(FD, N, typedefbuf, callbuf, class_name, indent_level,
+                       true);
+        //
+        //  End the new expression statement.
+        //
+        callbuf << ";\n";
+        indent(callbuf, indent_level);
+        callbuf << "}\n";
+        callbuf << "else {\n";
         indent(callbuf, indent_level);
         callbuf << "(*(" << class_name << "**)ret) = ";
         callbuf << "(obj) ? new (*(" << class_name << "**)ret) ";
@@ -2108,6 +2141,8 @@ namespace Cpp {
         //  End the new expression statement.
         //
         callbuf << ";\n";
+        indent(callbuf, --indent_level);
+        callbuf << "}\n";
         //
         //  Output the whole new expression and return statement.
         //
@@ -2626,7 +2661,8 @@ namespace Cpp {
              "__attribute__((annotate(\"__cling__ptrcheck(off)\")))\n"
              "extern \"C\" void ";
       buf << wrapper_name;
-      buf << "(void* obj, int nargs, void** args, void* ret)\n"
+      buf << "(void* obj, int nargs, void** args, void* ret, unsigned long "
+             "nary)\n"
              "{\n";
       ++indent_level;
       if (min_args == num_params) {
@@ -3577,17 +3613,18 @@ namespace Cpp {
     }
   }
 
-  TCppObject_t Allocate(TCppScope_t scope) {
-    return (TCppObject_t)::operator new(Cpp::SizeOf(scope));
+  TCppObject_t Allocate(TCppScope_t scope, TCppIndex_t count) {
+    return (TCppObject_t)::operator new(Cpp::SizeOf(scope) * count);
   }
 
-  void Deallocate(TCppScope_t scope, TCppObject_t address) {
-    ::operator delete(address);
+  void Deallocate(TCppScope_t scope, TCppObject_t address, TCppIndex_t count) {
+    size_t bytes = Cpp::SizeOf(scope) * count;
+    ::operator delete(address, bytes);
   }
 
   // FIXME: Add optional arguments to the operator new.
   TCppObject_t Construct(compat::Interpreter& interp, TCppScope_t scope,
-                         void* arena /*=nullptr*/) {
+                         void* arena /*=nullptr*/, TCppIndex_t count /*=1UL*/) {
     auto* Class = (Decl*) scope;
     // FIXME: Diagnose.
     if (!HasDefaultConstructor(Class))
@@ -3596,7 +3633,8 @@ namespace Cpp {
     auto* const Ctor = GetDefaultConstructor(interp, Class);
     if (JitCall JC = MakeFunctionCallable(&interp, Ctor)) {
       if (arena) {
-        JC.Invoke(&arena, {}, (void*)~0); // Tell Invoke to use placement new.
+        JC.Invoke(&arena, {}, (void*)~0,
+                  count); // Tell Invoke to use placement new.
         return arena;
       }
 
@@ -3607,22 +3645,24 @@ namespace Cpp {
     return nullptr;
   }
 
-  TCppObject_t Construct(TCppScope_t scope, void* arena /*=nullptr*/) {
-    return Construct(getInterp(), scope, arena);
+  TCppObject_t Construct(TCppScope_t scope, void* arena /*=nullptr*/,
+                         TCppIndex_t count /*=0UL*/) {
+    return Construct(getInterp(), scope, arena, count);
   }
 
   void Destruct(compat::Interpreter& interp, TCppObject_t This, Decl* Class,
-                bool withFree) {
+                bool withFree, TCppIndex_t nary) {
     if (auto wrapper = make_dtor_wrapper(interp, Class)) {
-      (*wrapper)(This, /*nary=*/0, withFree);
+      (*wrapper)(This, nary, withFree);
       return;
     }
     // FIXME: Diagnose.
   }
 
-  void Destruct(TCppObject_t This, TCppScope_t scope, bool withFree /*=true*/) {
+  void Destruct(TCppObject_t This, TCppScope_t scope, bool withFree /*=true*/,
+                TCppIndex_t count /*=1UL*/) {
     auto* Class = static_cast<Decl*>(scope);
-    Destruct(getInterp(), This, Class, withFree);
+    Destruct(getInterp(), This, Class, withFree, count);
   }
 
   class StreamCaptureInfo {
