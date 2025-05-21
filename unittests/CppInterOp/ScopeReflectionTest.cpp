@@ -1111,14 +1111,16 @@ TEST(ScopeReflectionTest, GetOperator) {
   std::string inheritance_code = R"(
   struct Parent {
     int x;
+    Parent(int x) : x(x) {}
     Parent operator+(const Parent& other) {
-      return Parent{x + other.x};
+      return Parent(x + other.x);
     }
   };
 
   struct Child : Parent {
+    Child(int x) : Parent(x) {}
     Child operator-(const Child& other) {
-      return Child{x - other.x};
+      return Child(x - other.x);
     }
   };
   )";
