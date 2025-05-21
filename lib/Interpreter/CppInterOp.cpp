@@ -3564,7 +3564,21 @@ namespace Cpp {
   void GetOperator(TCppScope_t scope, Operator op,
                    std::vector<TCppFunction_t>& operators, OperatorArity kind) {
     Decl* D = static_cast<Decl*>(scope);
-    if (auto* DC = llvm::dyn_cast_or_null<DeclContext>(D)) {
+    if (auto* CXXRD = llvm::dyn_cast_or_null<CXXRecordDecl>(D)) {
+      auto fn = [&operators, kind, op](const RecordDecl* RD) {
+        ASTContext& C = RD->getASTContext();
+        DeclContextLookupResult Result =
+            RD->lookup(C.DeclarationNames.getCXXOperatorName(
+                (clang::OverloadedOperatorKind)op));
+        for (auto* i : Result) {
+          if (kind & GetOperatorArity(i))
+            operators.push_back(i);
+        }
+        return true;
+      };
+      fn(CXXRD);
+      CXXRD->forallBases(fn);
+    } else if (auto* DC = llvm::dyn_cast_or_null<DeclContext>(D)) {
       ASTContext& C = getSema().getASTContext();
       DeclContextLookupResult Result =
           DC->lookup(C.DeclarationNames.getCXXOperatorName(

@@ -1107,4 +1107,28 @@ TEST(ScopeReflectionTest, GetOperator) {
   Cpp::GetOperator(Cpp::GetScope("extra_ops"), Cpp::Operator::OP_Tilde, ops,
                    Cpp::OperatorArity::kBinary);
   EXPECT_EQ(ops.size(), 0);
+
+  std::string inheritance_code = R"(
+  struct Parent {
+    int x;
+    Parent operator+(const Parent& other) {
+      return Parent{x + other.x};
+    }
+  };
+
+  struct Child : Parent {
+    Child operator-(const Child& other) {
+      return Child{x - other.x};
+    }
+  };
+  )";
+  Cpp::Declare(inheritance_code.c_str());
+
+  ops.clear();
+  Cpp::GetOperator(Cpp::GetScope("Child"), Cpp::Operator::OP_Plus, ops);
+  EXPECT_EQ(ops.size(), 1);
+
+  ops.clear();
+  Cpp::GetOperator(Cpp::GetScope("Child"), Cpp::Operator::OP_Minus, ops);
+  EXPECT_EQ(ops.size(), 1);
 }
