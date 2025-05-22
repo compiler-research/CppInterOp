@@ -230,6 +230,80 @@ To build and test your Emscripten build of CppInterOp on Windows execute the fol
                 ..\
    emmake make -j $(nproc --all) check-cppinterop
 
+It is possible to run the Emscripten tests in a headless browser on Linux and osx (in future we plan to include instructions on how to run the tests in a browser on Windows too). To do this we will first move to the tests directory
+
+.. code:: bash
+
+   cd ./unittests/CppInterOp/
+
+We will run our tests in a fresh installed browser. Installing the browsers, and running the tests within the installed browsers will be platform dependent. To do this on MacOS execute the following
+
+.. code:: bash
+
+   wget "https://download.mozilla.org/?product=firefox-latest&os=osx&lang=en-US" -O Firefox-latest.dmg
+   hdiutil attach Firefox-latest.dmg
+   cp -r /Volumes/Firefox/Firefox.app $PWD
+   hdiutil detach /Volumes/Firefox
+   cd ./Firefox.app/Contents/MacOS/
+   export PATH="$PWD:$PATH"
+   cd -
+
+   wget https://dl.google.com/chrome/mac/stable/accept_tos%3Dhttps%253A%252F%252Fwww.google.com%252Fintl%252Fen_ph%252Fchrome%252Fterms%252F%26_and_accept_tos%3Dhttps%253A%252F%252Fpolicies.google.com%252Fterms/googlechrome.pkg
+   pkgutil --expand-full googlechrome.pkg google-chrome
+   cd ./google-chrome/GoogleChrome.pkg/Payload/Google\ Chrome.app/Contents/MacOS/
+   export PATH="$PWD:$PATH"
+   cd -
+
+   echo "Running CppInterOpTests in Firefox"
+   emrun --browser="firefox" --kill_exit --timeout 60 --browser-args="--headless"  CppInterOpTests.html
+   echo "Running DynamicLibraryManagerTests in Firefox"
+   emrun --browser="firefox" --kill_exit --timeout 60 --browser-args="--headless"  DynamicLibraryManagerTests.html
+   echo "Running CppInterOpTests in Google Chrome"
+   emrun --browser="Google Chrome" --kill_exit --timeout 60 --browser-args="--headless --no-sandbox"  CppInterOpTests.html
+   echo "Running DynamicLibraryManagerTests in Google Chrome"          
+   emrun --browser="Google Chrome" --kill_exit --timeout 60 --browser-args="--headless --no-sandbox"  DynamicLibraryManagerTests.html
+
+To do this on Ubuntu x86 execute the following
+
+.. code:: bash
+
+   wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+   dpkg-deb -x google-chrome-stable_current_amd64.deb $PWD/chrome
+   cd ./chrome/opt/google/chrome/
+   export PATH="$PWD:$PATH"
+   cd -
+
+   wget https://ftp.mozilla.org/pub/firefox/releases/138.0.1/linux-x86_64/en-GB/firefox-138.0.1.tar.xz
+   tar -xJf firefox-138.0.1.tar.xz
+   cd ./firefox
+   export PATH="$PWD:$PATH"
+   cd -
+
+   echo "Running CppInterOpTests in Firefox"
+   emrun --browser="firefox" --kill_exit --timeout 60 --browser-args="--headless"  CppInterOpTests.html
+   echo "Running DynamicLibraryManagerTests in Firefox"
+   emrun --browser="firefox" --kill_exit --timeout 60 --browser-args="--headless"  DynamicLibraryManagerTests.html
+   echo "Running CppInterOpTests in Google Chrome"
+   emrun --browser="google-chrome" --kill_exit --timeout 60 --browser-args="--headless --no-sandbox"  CppInterOpTests.html
+   echo "Running DynamicLibraryManagerTests in Google Chrome"          
+   emrun --browser="google-chrome" --kill_exit --timeout 60 --browser-args="--headless --no-sandbox"  DynamicLibraryManagerTests.html
+
+and on Ubuntu Arm execute the following (Google Chrome is not available on Ubuntu arm,
+so we currently only run the tests using Firefox on this platform, unlike other plaforms)
+
+.. code:: bash
+
+   wget https://ftp.mozilla.org/pub/firefox/releases/138.0.1/linux-aarch64/en-GB/firefox-138.0.1.tar.xz
+   tar -xJf firefox-138.0.1.tar.xz
+   cd ./firefox
+   export PATH="$PWD:$PATH"
+   cd -
+
+   echo "Running CppInterOpTests in Firefox"
+   emrun --browser="firefox" --kill_exit --timeout 60 --browser-args="--headless"  CppInterOpTests.html
+   echo "Running DynamicLibraryManagerTests in Firefox"
+   emrun --browser="firefox" --kill_exit --timeout 60 --browser-args="--headless"  DynamicLibraryManagerTests.html
+
 Assuming it passes all test you can install by executing the following. 
 
 .. code:: bash

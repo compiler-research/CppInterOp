@@ -1,4 +1,6 @@
 if (EMSCRIPTEN)
+  # So we create a html file, as well as the javascript file
+  set(CMAKE_EXECUTABLE_SUFFIX ".html")
   # Omitting CUDATest.cpp since Emscripten build currently has no GPU support
   # For Emscripten builds linking to gtest_main will not suffice for gtest to run
   # the tests and an explicitly main.cpp is needed
@@ -42,6 +44,10 @@ if(EMSCRIPTEN)
   #
   # --preload-file ${SYSROOT_PATH}/include@/include:
   # Preloads the system include directory into the Emscripten virtual filesystem to make headers accessible at runtime.
+  #
+  # --emrun
+  # Makes it so that we run the html file created by this target, that we can capture the standard output
+  # and output to the terminal
   target_link_options(CppInterOpTests
     PUBLIC "SHELL: -fexceptions"
     PUBLIC "SHELL: -s MAIN_MODULE=1"
@@ -50,6 +56,7 @@ if(EMSCRIPTEN)
     PUBLIC "SHELL: -s STACK_SIZE=32mb"
     PUBLIC "SHELL: -s INITIAL_MEMORY=128mb"
     PUBLIC "SHELL: --preload-file ${SYSROOT_PATH}/include@/include"
+    PUBLIC "SHELL: --emrun"
   )
 endif()
 
@@ -97,6 +104,7 @@ if(EMSCRIPTEN)
     PUBLIC "SHELL: -s STACK_SIZE=32mb"
     PUBLIC "SHELL: -s INITIAL_MEMORY=128mb"
     PUBLIC "SHELL: --preload-file ${SYSROOT_PATH}/include@/include"
+    PUBLIC "SHELL: --emrun"
     PUBLIC "SHELL: --preload-file ${CMAKE_CURRENT_BINARY_DIR}/TestSharedLib/unittests/bin/Release/libTestSharedLib.so@/libTestSharedLib.so"
   )
 endif()
