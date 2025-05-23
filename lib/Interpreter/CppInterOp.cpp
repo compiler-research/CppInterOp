@@ -3046,11 +3046,7 @@ namespace Cpp {
     std::string detected_resource_dir = outs.back();
 
     std::string version =
-#if CLANG_VERSION_MAJOR < 16
-        CLANG_VERSION_STRING;
-#else
         CLANG_VERSION_MAJOR_STRING;
-#endif
     // We need to check if the detected resource directory is compatible.
     if (llvm::sys::path::filename(detected_resource_dir) != version)
       return "";
