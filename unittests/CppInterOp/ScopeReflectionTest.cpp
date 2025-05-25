@@ -1,6 +1,6 @@
 #include "Utils.h"
 
-#include "clang/Interpreter/CppInterOp.h"
+#include "CppInterOp/CppInterOp.h"
 #include "clang-c/CXCppInterOp.h"
 
 #include "clang/AST/ASTContext.h"

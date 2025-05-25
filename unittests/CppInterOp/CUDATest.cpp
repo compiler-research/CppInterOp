@@ -1,7 +1,8 @@
 #include "Utils.h"
 
+#include "CppInterOp/CppInterOp.h"
+
 #include "clang/Basic/Version.h"
-#include "clang/Interpreter/CppInterOp.h"
 
 #include "gtest/gtest.h"
 
