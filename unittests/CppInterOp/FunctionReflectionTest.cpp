@@ -1,9 +1,10 @@
 #include "Utils.h"
 
+#include "CppInterOp/CppInterOp.h"
+
 #include "clang/AST/ASTContext.h"
 #include "clang/Basic/Version.h"
 #include "clang/Frontend/CompilerInstance.h"
-#include "clang/Interpreter/CppInterOp.h"
 #include "clang/Sema/Sema.h"
 
 #include <llvm/ADT/ArrayRef.h>
