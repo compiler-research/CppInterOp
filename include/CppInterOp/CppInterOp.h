@@ -115,7 +115,7 @@ public:
   // FIXME: Figure out how to unify the wrapper signatures.
   // FIXME: Hide these implementation details by moving wrapper generation in
   // this class.
-  using GenericCall = void (*)(void*, int, void**, void*);
+  using GenericCall = void (*)(void*, size_t, void**, void*);
   using DestructorCall = void (*)(void*, unsigned long, int);
 
 private:
