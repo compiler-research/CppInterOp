@@ -221,7 +221,7 @@ TEST(InterpreterTest, DetectSystemCompilerIncludePaths) {
   EXPECT_FALSE(includes.empty());
 }
 
-TEST(InterpreterTest, GetIncludePaths) {
+TEST(InterpreterTest, IncludePaths) {
   std::vector<std::string> includes;
   Cpp::GetIncludePaths(includes);
   EXPECT_FALSE(includes.empty());
@@ -237,6 +237,12 @@ TEST(InterpreterTest, GetIncludePaths) {
   Cpp::GetIncludePaths(includes, true, true);
   EXPECT_FALSE(includes.empty());
   EXPECT_TRUE(includes.size() >= len);
+
+  len = includes.size();
+  Cpp::AddIncludePath("/non/existent/");
+  Cpp::GetIncludePaths(includes);
+  EXPECT_NE(std::find(includes.begin(), includes.end(), "/non/existent/"),
+             std::end(includes));
 }
 
 TEST(InterpreterTest, CodeCompletion) {
