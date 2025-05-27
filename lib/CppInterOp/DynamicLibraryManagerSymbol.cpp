@@ -745,7 +745,7 @@ namespace Cpp {
               return;
             }
           } else if (BinObjF->isMachO()) {
-            MachOObjectFile *Obj = dynamic_cast<MachOObjectFile*>(BinObjF);
+            MachOObjectFile *Obj = (MachOObjectFile*)BinObjF;
             for (const auto &Command : Obj->load_commands()) {
               if (Command.C.cmd == MachO::LC_LOAD_DYLIB) {
                   //Command.C.cmd == MachO::LC_ID_DYLIB ||
