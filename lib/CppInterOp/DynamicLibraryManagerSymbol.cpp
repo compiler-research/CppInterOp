@@ -745,7 +745,7 @@ namespace Cpp {
               return;
             }
           } else if (BinObjF->isMachO()) {
-            MachOObjectFile *Obj = (MachOObjectFile*)BinObjF;
+            MachOObjectFile *Obj = dynamic_cast<MachOObjectFile*>(BinObjF);
             for (const auto &Command : Obj->load_commands()) {
               if (Command.C.cmd == MachO::LC_LOAD_DYLIB) {
                   //Command.C.cmd == MachO::LC_ID_DYLIB ||
@@ -755,7 +755,7 @@ namespace Cpp {
                   //Command.C.cmd == MachO::LC_LOAD_UPWARD_DYLIB ||
                 MachO::dylib_command dylibCmd =
                   Obj->getDylibIDLoadCommand(Command);
-                Deps.push_back(StringRef(Command.Ptr + dylibCmd.dylib.name));
+                Deps.emplace_back(Command.Ptr + dylibCmd.dylib.name);
               }
               else if (Command.C.cmd == MachO::LC_RPATH) {
                 MachO::rpath_command rpathCmd = Obj->getRpathCommand(Command);
@@ -783,8 +783,8 @@ namespace Cpp {
           };
           // (H2) If RPATH subset of LD_LIBRARY_PATH &&
           //         RUNPATH subset of LD_LIBRARY_PATH  -> skip handling Deps
-          if (std::all_of(RPath.begin(), RPath.end(), [&](StringRef item){ return std::any_of(searchPaths.begin(), searchPaths.end(), [&](DynamicLibraryManager::SearchPathInfo item1){ return item==item1.Path; }); }) &&
-              std::all_of(RunPath.begin(), RunPath.end(), [&](StringRef item){ return std::any_of(searchPaths.begin(), searchPaths.end(), [&](DynamicLibraryManager::SearchPathInfo item1){ return item==item1.Path; }); }) ) {
+          if (std::all_of(RPath.begin(), RPath.end(), [&](StringRef item){ return std::any_of(searchPaths.begin(), searchPaths.end(), [&](const DynamicLibraryManager::SearchPathInfo& item1){ return item==item1.Path; }); }) &&
+              std::all_of(RunPath.begin(), RunPath.end(), [&](StringRef item){ return std::any_of(searchPaths.begin(), searchPaths.end(), [&](const DynamicLibraryManager::SearchPathInfo& item1){ return item==item1.Path; }); }) ) {
             LLVM_DEBUG(dbgs() << "Dyld::ScanForLibraries: Skip all deps by Heuristic2: " << FileName.str() << "\n");
             return;
           }
