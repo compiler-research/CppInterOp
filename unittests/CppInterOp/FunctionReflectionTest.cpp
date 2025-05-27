@@ -1441,6 +1441,10 @@ TEST(FunctionReflectionTest, JitCallAdvanced) {
 #endif
   if (llvm::sys::RunningOnValgrind())
     GTEST_SKIP() << "XFAIL due to Valgrind report";
+
+  Cpp::JitCall JC = Cpp::MakeFunctionCallable(nullptr);
+  EXPECT_TRUE(JC.getKind() == Cpp::JitCall::kUnknown);
+
   std::vector<Decl*> Decls;
   std::string code = R"(
       typedef struct _name {
