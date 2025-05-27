@@ -22,15 +22,11 @@ That is, embed Clang and LLVM as a libraries in their codebases.
 The API are designed to be minimalistic and aid non-trivial tasks such as language interoperability on the fly.
 In such scenarios CppInterOp can be used to provide the necessary introspection information to the other side helping the language cross talk.
 
-[Installation](#build-instructions)  
+<div align="center">
 
-[Documentation](https://cppinterop.readthedocs.io/en/latest/index.html)  
+[Installation](#build-instructions) | [Documentation](https://cppinterop.readthedocs.io/en/latest/index.html) | [CppInterOp API Documentation](https://cppinterop.readthedocs.io/en/latest/build/html/index.html) | [![lite-badge](https://jupyterlite.rtfd.io/en/latest/_static/badge.svg)](https://compiler-research.github.io/CppInterOp/lab/index.html)
 
-[CppInterOp API Documentation](https://cppinterop.readthedocs.io/en/latest/build/html/index.html)  
-
-Try Jupyter Lite CppInterOp demo by clicking below
-
-[![lite-badge](https://jupyterlite.rtfd.io/en/latest/_static/badge.svg)](https://compiler-research.github.io/CppInterOp/lab/index.html)
+</div>
 
 ## CppInterOp Introduction
 
