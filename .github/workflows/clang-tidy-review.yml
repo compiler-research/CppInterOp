@@ -44,7 +44,9 @@ jobs:
             -DCMAKE_CXX_COMPILER="$GITHUB_WORKSPACE/llvm/bin/clang++"
             -DLLVM_DIR="$GITHUB_WORKSPACE/llvm"
             -DBUILD_SHARED_LIBS=ON
-            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON &&
+            cd build &&
+            cmake --build . --target googletest --parallel $(nproc --all)
 
       - name: Upload artifacts
         uses: ZedThree/clang-tidy-review/upload@v0.21.0
