@@ -15,6 +15,7 @@
 #define CPPINTEROP_CPPINTEROP_H
 
 #include <cassert>
+#include <cstddef>
 #include <cstdint>
 #include <set>
 #include <string>
@@ -41,7 +42,7 @@ using TCppFuncAddr_t = void*;
 using TInterp_t = void*;
 using TCppObject_t = void*;
 
-enum Operator {
+enum Operator : unsigned char {
   OP_None,
   OP_New,
   OP_Delete,
@@ -90,7 +91,7 @@ enum Operator {
   OP_Coawait,
 };
 
-enum OperatorArity { kUnary = 1, kBinary, kBoth };
+enum OperatorArity : unsigned char { kUnary = 1, kBinary, kBoth };
 
 /// A class modeling function calls for functions produced by the interpreter
 /// in compiled code. It provides an information if we are calling a standard
@@ -108,7 +109,7 @@ public:
     void** m_Args = nullptr;
     size_t m_ArgSize = 0;
     // Clang struggles with =default...
-    ArgList() : m_Args(nullptr), m_ArgSize(0) {}
+    ArgList() {}
     ArgList(void** Args, size_t ArgSize) : m_Args(Args), m_ArgSize(ArgSize) {}
   };
   // FIXME: Figure out how to unify the wrapper signatures.
@@ -122,13 +123,13 @@ private:
     GenericCall m_GenericCall;
     DestructorCall m_DestructorCall;
   };
-  const Kind m_Kind;
+  Kind m_Kind;
   TCppConstFunction_t m_FD;
-  JitCall() : m_Kind(kUnknown), m_GenericCall(nullptr), m_FD(nullptr) {}
+  JitCall() : m_GenericCall(nullptr), m_Kind(kUnknown), m_FD(nullptr) {}
   JitCall(Kind K, GenericCall C, TCppConstFunction_t FD)
-      : m_Kind(K), m_GenericCall(C), m_FD(FD) {}
+      : m_GenericCall(C), m_Kind(K), m_FD(FD) {}
   JitCall(Kind K, DestructorCall C, TCppConstFunction_t Dtor)
-      : m_Kind(K), m_DestructorCall(C), m_FD(Dtor) {}
+      : m_DestructorCall(C), m_Kind(K), m_FD(Dtor) {}
 
   /// Checks if the passed arguments are valid for the given function.
   CPPINTEROP_API bool AreArgumentsValid(void* result, ArgList args,
@@ -162,15 +163,19 @@ public:
   // by default. These changes should be synchronized with the wrapper if we
   // decide to directly.
   void Invoke(void* result, ArgList args = {}, void* self = nullptr) const {
+    // NOLINTBEGIN(*-type-union-access)
     // Forward if we intended to call a dtor with only 1 parameter.
-    if (m_Kind == kDestructorCall && result && !args.m_Args)
-      return InvokeDestructor(result, /*nary=*/0UL, /*withFree=*/true);
+    if (m_Kind == kDestructorCall && result && !args.m_Args) {
+      InvokeDestructor(result, /*nary=*/0UL, /*withFree=*/true);
+      return;
+    }
 
 #ifndef NDEBUG
     assert(AreArgumentsValid(result, args, self) && "Invalid args!");
     ReportInvokeStart(result, args, self);
 #endif // NDEBUG
     m_GenericCall(self, args.m_ArgSize, args.m_Args, result);
+    // NOLINTEND(*-type-union-access)
   }
   /// Makes a call to a destructor.
   ///\param[in] object - the pointer of the object whose destructor we call.
@@ -746,6 +751,7 @@ CPPINTEROP_API void GetAllCppNames(TCppScope_t scope,
 
 CPPINTEROP_API void DumpScope(TCppScope_t scope);
 
+// FIXME: Rework the GetDimensions and make this enum redundant.
 namespace DimensionValue {
 enum : long int {
   UNKNOWN_SIZE = -1,
