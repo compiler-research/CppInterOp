@@ -745,7 +745,7 @@ namespace Cpp {
               return;
             }
           } else if (BinObjF->isMachO()) {
-            MachOObjectFile *Obj = (MachOObjectFile*)BinObjF;
+            auto *Obj = (MachOObjectFile*)BinObjF;
             for (const auto &Command : Obj->load_commands()) {
               if (Command.C.cmd == MachO::LC_LOAD_DYLIB) {
                   //Command.C.cmd == MachO::LC_ID_DYLIB ||
@@ -906,7 +906,7 @@ namespace Cpp {
       }
     }
     else if (BinObjFile->isCOFF()) { // On Windows, the symbols are present in COFF format.
-      llvm::object::COFFObjectFile* CoffObj = cast<llvm::object::COFFObjectFile>(BinObjFile);
+      auto* CoffObj = cast<llvm::object::COFFObjectFile>(BinObjFile);
 
       // In COFF, the symbols are not present in the SymbolTable section
       // of the Object file. They are present in the ExportDirectory section.
@@ -1010,7 +1010,7 @@ namespace Cpp {
     }
 
     auto ForeachSymbol =
-      [&library_filename](llvm::iterator_range<llvm::object::symbol_iterator> range,
+      [](llvm::iterator_range<llvm::object::symbol_iterator> range,
          unsigned IgnoreSymbolFlags, llvm::StringRef mangledName) -> bool {
       for (const llvm::object::SymbolRef &S : range) {
         uint32_t Flags = llvm::cantFail(S.getFlags());
@@ -1186,7 +1186,7 @@ namespace Cpp {
 
       LLVM_DEBUG(dbgs() << "Dyld::ResolveSymbol: m_QueriedLibraries:\n");
       size_t x = 0;
-      for (auto item : m_QueriedLibraries.GetLibraries()) {
+      for (const auto *item : m_QueriedLibraries.GetLibraries()) {
         LLVM_DEBUG(dbgs() << "Dyld::ResolveSymbol - [" << x++ << "]:"
                           << &item << ": " << item->GetFullName() << "\n");
       }
