@@ -9,10 +9,6 @@
 #include "clang/Sema/Lookup.h"
 #include "clang/Sema/Sema.h"
 
-#include "llvm/ADT/StringRef.h"
-#include "llvm/Support/FileSystem.h"
-#include "llvm/Support/Path.h"
-
 #include <algorithm>
 #include <string>
 #include <vector>
