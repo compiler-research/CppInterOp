@@ -243,12 +243,12 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: osx13-x86-clang-clang-repl-20
+          - name: osx13-x86-clang-clang-repl-20-cppyy
             os: macos-13
             compiler: clang
             clang-runtime: '20'
             cling: Off
-            cppyy: Off
+            cppyy: On
           - name: osx13-x86-clang-clang-repl-19-cppyy
             os: macos-13
             compiler: clang
