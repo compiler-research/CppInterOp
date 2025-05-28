@@ -53,9 +53,11 @@
 #ifdef _WIN32
 #define WIN32_LEAN_AND_MEAN
 #define NOMINMAX
+// clang-format off
+#include <windows.h>
 #include <libloaderapi.h> // For GetModuleFileNameA
 #include <memoryapi.h>    // For VirtualQuery
-#include <windows.h>
+// clang-format on
 #endif
 
 namespace {
