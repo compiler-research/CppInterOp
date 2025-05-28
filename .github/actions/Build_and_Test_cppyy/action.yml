@@ -15,7 +15,7 @@ runs:
         # Install CppInterOp
         (cd $CPPINTEROP_BUILD_DIR && cmake --build . --target install --parallel ${{ env.ncpus }} )
         # Build and Install cppyy-backend
-        cmake -DCppInterOp_DIR=$CPPINTEROP_DIR ..
+        cmake -DCppInterOp_DIR=$CPPINTEROP_DIR -DINCLUDE_PATH="$env:CPLUS_INCLUDE_PATH" ..
         cmake --build . --parallel ${{ env.ncpus }}
         os="${{ matrix.os }}"
         if [[ "${os}" == "macos"* ]]; then
@@ -138,3 +138,99 @@ runs:
         tail -n1 test_xfailed.log
         echo "Return Code: ${RETCODE}"
         exit $RETCODE
+
+    - name: Build and Install cppyy-backend
+      if: ${{ matrix.cppyy == 'On' && runner.os == 'Windows' }}
+      shell: powershell
+      run: |
+        # Download cppyy-backend
+        git clone --depth=1 https://github.com/compiler-research/cppyy-backend.git
+        cd cppyy-backend
+        mkdir $env:CPPINTEROP_DIR\lib
+        mkdir build
+        cd build
+        # Install CppInterOp
+        cd $env:CPPINTEROP_BUILD_DIR
+        cmake --build . --target install --parallel ${{ env.ncpus }}
+        cd ..\cppyy-backend\build\
+        # Build and Install cppyy-backend
+        cmake -DCppInterOp_DIR=$env:CPPINTEROP_DIR -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} ..
+        cmake --build . --config ${{ env.BUILD_TYPE }} --parallel ${{ env.ncpus }}
+        cp Release\libcppyy-backend.lib $env:CPPINTEROP_DIR\lib\
+        cd ..
+
+    - name: Install CPyCppyy
+      if: ${{ matrix.cppyy == 'On' && runner.os == 'Windows' }}
+      shell: powershell
+      run: |
+        python -m venv .venv
+        . .\.venv\Scripts\Activate.ps1
+        # Install CPyCppyy
+        git clone --depth=1 https://github.com/compiler-research/CPyCppyy.git
+        mkdir CPyCppyy\build
+        cd CPyCppyy\build
+        cmake ..
+        cmake --build . --parallel ${{ env.ncpus }}
+        #
+        env:CPYCPPYY_DIR = $PWD.Path
+        cd ../..
+        # We need CPYCPPYY_DIR later
+        echo "CPYCPPYY_DIR=$env:CPYCPPYY_DIR" >> $env:GITHUB_ENV
+
+    - name: Install cppyy
+      if: ${{ matrix.cppyy == 'On' && runner.os == 'Windows' }}
+      shell: powershell
+      run: |
+        # source virtual environment
+        . .\.venv\Scripts\Activate.ps1
+        # Install cppyy
+        git clone --depth=1 https://github.com/compiler-research/cppyy.git
+        cd cppyy
+        python -m pip install --upgrade . --no-deps
+        cd ..
+
+    - name: Run cppyy
+      if: ${{ matrix.cppyy == 'On' && runner.os == 'Windows' }}
+      shell: powershell
+      run: |
+        # Run cppyy
+        . .\.venv\Scripts\Activate.ps1
+        $env:PYTHONPATH=$env:PYTHONPATH:$env:CPYCPPYY_DIR:$env:CB_PYTHON_DIR
+        python -c "import cppyy"
+        # We need PYTHONPATH later
+        echo "PYTHONPATH=$env:PYTHONPATH" >> $GITHUB_ENV
+
+    - name: Run the tests
+      if: ${{ matrix.cppyy == 'On' && runner.os == 'Windows' }}
+      shell: powershell
+      run: |
+        # Run the tests
+        . .\.venv\Scripts\Activate.ps1
+        cd cppyy\test
+        echo ::group::Prepare For Testing
+        make all
+        python -m pip install --upgrade pip
+        python -m pip install pytest
+        python -m pip install pytest-xdist
+        python -m pip install numba
+        echo ::endgroup::
+        echo ::group::Run complete test suite
+        $ErrorActionPreference = "Stop"
+        python -m pytest -sv -ra 2>&1 | Tee-Object -FilePath complete_testrun.log
+        $ErrorActionPreference = "Continue"
+        echo ::group::Crashing Test Logs
+        # See if we don't have a crash that went away
+        # Comment out all xfails but the ones that have a run=False condition.
+        find.exe . -name "*.py" -exec sed.exe -i '/run=False/!s/^ *@mark.xfail\(.*\)/#&/' {} \;
+        python -m pytest -n 1 -m "xfail" --runxfail -sv -ra --max-worker-restart 512 2>&1 | Tee-Object -FilePath test_crashed.log
+        $LASTEXITCODE = 0
+        git checkout .
+        echo ::endgroup::
+        echo ::group::XFAIL Test Logs
+        # Rewrite all xfails that have a run clause to skipif. This way we will
+        # avoid conditionally crashing xfails
+        find.exe . -name "*.py" -exec sed.exe -i -E 's/(^ *)@mark.xfail\(run=(.*)/\1@mark.skipif(condition=not \2/g' {} \;
+        # See if we don't have an xfail that went away
+        python -m pytest --runxfail -sv -ra  | tee test_xfailed.log 2>&1 || true
+        git checkout .
+        echo ::endgroup::
