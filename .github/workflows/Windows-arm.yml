@@ -158,9 +158,6 @@ jobs:
                 -DCLANG_ENABLE_ARCMT=OFF                           `
                 -DCLANG_ENABLE_FORMAT=OFF                          `
                 -DCLANG_ENABLE_BOOTSTRAP=OFF                       `
-                -DLLVM_ENABLE_ZSTD=OFF                             `
-                -DLLVM_ENABLE_TERMINFO=OFF                         `
-                -DLLVM_ENABLE_LIBXML2=OFF                          `
                 ..\llvm
           cmake --build . --config Release --target clang --parallel ${{ env.ncpus }}
           cmake --build . --config Release --target LLVMOrcDebugging --parallel ${{ env.ncpus }}
@@ -190,9 +187,6 @@ jobs:
                 -DCLANG_ENABLE_ARCMT=OFF                            `
                 -DCLANG_ENABLE_FORMAT=OFF                           `
                 -DCLANG_ENABLE_BOOTSTRAP=OFF                        `
-                -DLLVM_ENABLE_ZSTD=OFF                              `
-                -DLLVM_ENABLE_TERMINFO=OFF                          `
-                -DLLVM_ENABLE_LIBXML2=OFF                           `
                 ..\llvm
           cmake --build . --config Release --target clang clangInterpreter clangStaticAnalyzerCore --parallel ${{ env.ncpus }}
         }
