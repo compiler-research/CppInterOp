@@ -390,8 +390,7 @@ inline std::string FixTypeName(const std::string type_name) {
 inline std::string MakeResourceDir(llvm::StringRef Dir) {
   llvm::SmallString<128> P(Dir);
   llvm::sys::path::append(P, CLANG_INSTALL_LIBDIR_BASENAME, "clang",
-                          CLANG_VERSION_MAJOR_STRING
-  );
+                          CLANG_VERSION_MAJOR_STRING);
   return std::string(P.str());
 }
 
