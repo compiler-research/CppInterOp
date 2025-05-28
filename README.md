@@ -1,28 +1,20 @@
 # CppInterOp
+<div align="center">
 
 [![Build Status](https://github.com/compiler-research/CppInterOp/actions/workflows/Ubuntu.yml/badge.svg)](https://github.com/compiler-research/CppInterOp/actions/workflows/Ubuntu.yml)
-
 [![Build Status](https://github.com/compiler-research/CppInterOp/actions/workflows/Ubuntu-arm.yml/badge.svg)](https://github.com/compiler-research/CppInterOp/actions/workflows/Ubuntu-arm.yml)
-
 [![Build Status](https://github.com/compiler-research/CppInterOp/actions/workflows/MacOS.yml/badge.svg)](https://github.com/compiler-research/CppInterOp/actions/workflows/MacOS.yml)
-
 [![Build Status](https://github.com/compiler-research/CppInterOp/actions/workflows/MacOS-arm.yml/badge.svg)](https://github.com/compiler-research/CppInterOp/actions/workflows/MacOS-arm.yml)
-
 [![Build Status](https://github.com/compiler-research/CppInterOp/actions/workflows/Windows.yml/badge.svg)](https://github.com/compiler-research/CppInterOp/actions/workflows/Windows.yml)
-
 [![Build Status](https://github.com/compiler-research/CppInterOp/actions/workflows/Windows-arm.yml/badge.svg)](https://github.com/compiler-research/CppInterOp/actions/workflows/Windows-arm.yml)
-
 [![Build Status](https://github.com/compiler-research/CppInterOp/actions/workflows/emscripten.yml/badge.svg)](https://github.com/compiler-research/CppInterOp/actions/workflows/emscripten.yml)
-
 [![codecov](https://codecov.io/gh/compiler-research/CppInterOp/branch/main/graph/badge.svg)](https://codecov.io/gh/compiler-research/CppInterOp)
-
 [![Conda-Forge](https://img.shields.io/conda/vn/conda-forge/cppinterop)](https://github.com/conda-forge/cppinterop-feedstock)
-
 [![Anaconda-Server Badge](https://anaconda.org/conda-forge/cppinterop/badges/license.svg)](https://github.com/conda-forge/cppinterop-feedstock)
-
 [![Conda Platforms](https://img.shields.io/conda/pn/conda-forge/cppinterop.svg)](https://anaconda.org/conda-forge/cppinterop)
-
 [![Anaconda-Server Badge](https://anaconda.org/conda-forge/cppinterop/badges/downloads.svg)](https://github.com/conda-forge/cppinterop-feedstock)
+
+</div>
 
 CppInterOp exposes API from [Clang](http://clang.llvm.org/) and [LLVM](https://llvm.org) in a backward compatible way.
 The API support downstream tools that utilize interactive C++ by using the compiler as a service.
@@ -30,15 +22,11 @@ That is, embed Clang and LLVM as a libraries in their codebases.
 The API are designed to be minimalistic and aid non-trivial tasks such as language interoperability on the fly.
 In such scenarios CppInterOp can be used to provide the necessary introspection information to the other side helping the language cross talk.
 
-[Installation](#build-instructions)  
+<div align="center">
 
-[Documentation](https://cppinterop.readthedocs.io/en/latest/index.html)  
+[Installation](#build-instructions) | [Documentation](https://cppinterop.readthedocs.io/en/latest/index.html) | [CppInterOp API Documentation](https://cppinterop.readthedocs.io/en/latest/build/html/index.html) | [![lite-badge](https://jupyterlite.rtfd.io/en/latest/_static/badge.svg)](https://compiler-research.github.io/CppInterOp/lab/index.html)
 
-[CppInterOp API Documentation](https://cppinterop.readthedocs.io/en/latest/build/html/index.html)  
-
-Try Jupyter Lite CppInterOp demo by clicking below
-
-[![lite-badge](https://jupyterlite.rtfd.io/en/latest/_static/badge.svg)](https://compiler-research.github.io/CppInterOp/lab/index.html)
+</div>
 
 ## CppInterOp Introduction
 

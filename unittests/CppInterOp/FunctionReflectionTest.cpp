@@ -1,9 +1,10 @@
 #include "Utils.h"
 
+#include "CppInterOp/CppInterOp.h"
+
 #include "clang/AST/ASTContext.h"
 #include "clang/Basic/Version.h"
 #include "clang/Frontend/CompilerInstance.h"
-#include "clang/Interpreter/CppInterOp.h"
 #include "clang/Sema/Sema.h"
 
 #include <llvm/ADT/ArrayRef.h>
@@ -1440,6 +1441,10 @@ TEST(FunctionReflectionTest, JitCallAdvanced) {
 #endif
   if (llvm::sys::RunningOnValgrind())
     GTEST_SKIP() << "XFAIL due to Valgrind report";
+
+  Cpp::JitCall JC = Cpp::MakeFunctionCallable(nullptr);
+  EXPECT_TRUE(JC.getKind() == Cpp::JitCall::kUnknown);
+
   std::vector<Decl*> Decls;
   std::string code = R"(
       typedef struct _name {

@@ -233,7 +233,6 @@ createClangInterpreter(std::vector<const char*>& args) {
     DeviceCI = std::move(*devOrErr);
   }
   auto ciOrErr = CudaEnabled ? CB.CreateCudaHost() : CB.CreateCpp();
-
   if (!ciOrErr) {
     llvm::logAllUnhandledErrors(ciOrErr.takeError(), llvm::errs(),
                                 "Failed to build Incremental compiler:");
