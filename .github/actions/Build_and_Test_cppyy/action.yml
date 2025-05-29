@@ -15,7 +15,7 @@ runs:
         # Install CppInterOp
         (cd $CPPINTEROP_BUILD_DIR && cmake --build . --target install --parallel ${{ env.ncpus }} )
         # Build and Install cppyy-backend
-        cmake -DCppInterOp_DIR=$CPPINTEROP_DIR -DINCLUDE_PATH="$env:CPLUS_INCLUDE_PATH" ..
+        cmake -DCppInterOp_DIR=$CPPINTEROP_DIR ..
         cmake --build . --parallel ${{ env.ncpus }}
         os="${{ matrix.os }}"
         if [[ "${os}" == "macos"* ]]; then
