@@ -22,6 +22,20 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - name: osx15-x86-clang-clang-repl-20
+            os: macos-15
+            compiler: clang
+            clang-runtime: '20'
+            cling: Off
+            llvm_enable_projects: "clang"
+            llvm_targets_to_build: "host"
+          - name: osx14-x86-clang-clang-repl-20
+            os: macos-14
+            compiler: clang
+            clang-runtime: '20'
+            cling: Off
+            llvm_enable_projects: "clang"
+            llvm_targets_to_build: "host"
           - name: osx13-x86-clang-clang-repl-20
             os: macos-13
             compiler: clang

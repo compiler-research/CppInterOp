@@ -71,9 +71,11 @@ static inline char* GetEnv(const char* Var_Name) {
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/Twine.h"
+#include "llvm/BinaryFormat/MachO.h"
 #include "llvm/Config/llvm-config.h"
 #include "llvm/ExecutionEngine/JITSymbol.h"
 #include "llvm/ExecutionEngine/Orc/LLJIT.h"
+#include "llvm/Object/MachO.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/Path.h"
 
