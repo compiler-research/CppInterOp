@@ -78,9 +78,6 @@ following command
            -DCLANG_ENABLE_ARCMT=OFF                            \
            -DCLANG_ENABLE_FORMAT=OFF                           \
            -DCLANG_ENABLE_BOOTSTRAP=OFF                        \
-           -DLLVM_ENABLE_ZSTD=OFF                              \
-           -DLLVM_ENABLE_TERMINFO=OFF                          \
-           -DLLVM_ENABLE_LIBXML2=OFF                           \
            ../llvm
    cmake --build . --target clang clang-repl --parallel $(nproc --all)
 
@@ -148,9 +145,6 @@ build instructions to build on Linux and MacOS
            -DCLANG_ENABLE_ARCMT=OFF                           \
            -DCLANG_ENABLE_FORMAT=OFF                          \
            -DCLANG_ENABLE_BOOTSTRAP=OFF                       \
-           -DLLVM_ENABLE_ZSTD=OFF                             \
-           -DLLVM_ENABLE_TERMINFO=OFF                         \
-           -DLLVM_ENABLE_LIBXML2=OFF                          \
            ../llvm
    cmake --build . --target clang --parallel $(nproc --all)
    cmake --build . --target cling --parallel $(nproc --all)

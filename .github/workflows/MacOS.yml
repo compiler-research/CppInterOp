@@ -171,9 +171,6 @@ jobs:
                 -DCLANG_ENABLE_ARCMT=OFF                           \
                 -DCLANG_ENABLE_FORMAT=OFF                          \
                 -DCLANG_ENABLE_BOOTSTRAP=OFF                       \
-                -DLLVM_ENABLE_ZSTD=OFF                             \
-                -DLLVM_ENABLE_TERMINFO=OFF                         \
-                -DLLVM_ENABLE_LIBXML2=OFF                          \
                 -G Ninja                                           \
                 ../llvm
           ninja clang -j ${{ env.ncpus }}
@@ -195,9 +192,6 @@ jobs:
                 -DCLANG_ENABLE_ARCMT=OFF                            \
                 -DCLANG_ENABLE_FORMAT=OFF                           \
                 -DCLANG_ENABLE_BOOTSTRAP=OFF                        \
-                -DLLVM_ENABLE_ZSTD=OFF                              \
-                -DLLVM_ENABLE_TERMINFO=OFF                          \
-                -DLLVM_ENABLE_LIBXML2=OFF                           \
                 -G Ninja                                            \
                 -DLLVM_INCLUDE_BENCHMARKS=OFF                   \
                 -DLLVM_INCLUDE_EXAMPLES=OFF                     \
