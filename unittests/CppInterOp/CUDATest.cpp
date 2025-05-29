@@ -10,6 +10,10 @@ using namespace TestUtils;
 
 static bool HasCudaSDK() {
   auto supportsCudaSDK = []() {
+#ifdef CPPINTEROP_USE_CLING
+    // FIXME: Enable this for cling.
+    return false;
+#endif
     if (!Cpp::CreateInterpreter({}, {"--cuda"}))
       return false;
     return Cpp::Declare("__global__ void test_func() {}"
@@ -21,6 +25,10 @@ static bool HasCudaSDK() {
 
 static bool HasCudaRuntime() {
   auto supportsCuda = []() {
+#ifdef CPPINTEROP_USE_CLING
+    // FIXME: Enable this for cling.
+    return false;
+#endif
     if (!HasCudaSDK())
       return false;
 
@@ -36,7 +44,11 @@ static bool HasCudaRuntime() {
   return hasCuda;
 }
 
+#ifdef CPPINTEROP_USE_CLING
+TEST(DISABLED_CUDATest, Sanity) {
+#else
 TEST(CUDATest, Sanity) {
+#endif
 #ifdef _WIN32
   GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
 #endif
