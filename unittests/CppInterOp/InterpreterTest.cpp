@@ -80,6 +80,47 @@ TEST(InterpreterTest, Evaluate) {
   EXPECT_FALSE(HadError) ;
 }
 
+TEST(InterpreterTest, DeleteInterpreter) {
+  auto* I1 = Cpp::CreateInterpreter();
+  auto* I2 = Cpp::CreateInterpreter();
+  auto* I3 = Cpp::CreateInterpreter();
+  EXPECT_TRUE(I1 && I2 && I3) << "Failed to create interpreters";
+
+  EXPECT_EQ(I3, Cpp::GetInterpreter()) << "I3 is not active";
+
+  EXPECT_TRUE(Cpp::DeleteInterpreter(nullptr));
+  EXPECT_EQ(I2, Cpp::GetInterpreter());
+
+  auto* I4 = reinterpret_cast<void*>(static_cast<std::uintptr_t>(~0U));
+  EXPECT_FALSE(Cpp::DeleteInterpreter(I4));
+
+  EXPECT_TRUE(Cpp::DeleteInterpreter(I1));
+  EXPECT_EQ(I2, Cpp::GetInterpreter()) << "I2 is not active";
+}
+
+TEST(InterpreterTest, ActivateInterpreter) {
+  EXPECT_FALSE(Cpp::ActivateInterpreter(nullptr));
+  auto* Cpp14 = Cpp::CreateInterpreter({"-std=c++14"});
+  auto* Cpp17 = Cpp::CreateInterpreter({"-std=c++17"});
+  auto* Cpp20 = Cpp::CreateInterpreter({"-std=c++20"});
+
+  EXPECT_TRUE(Cpp14 && Cpp17 && Cpp20);
+  EXPECT_TRUE(Cpp::Evaluate("__cplusplus") == 202002L)
+      << "Failed to activate C++20";
+
+  auto* UntrackedI = reinterpret_cast<void*>(static_cast<std::uintptr_t>(~0U));
+  EXPECT_FALSE(Cpp::ActivateInterpreter(UntrackedI));
+
+  EXPECT_TRUE(Cpp::ActivateInterpreter(Cpp14));
+  EXPECT_TRUE(Cpp::Evaluate("__cplusplus") == 201402L);
+
+  Cpp::DeleteInterpreter(Cpp14);
+  EXPECT_EQ(Cpp::GetInterpreter(), Cpp20);
+
+  EXPECT_TRUE(Cpp::ActivateInterpreter(Cpp17));
+  EXPECT_TRUE(Cpp::Evaluate("__cplusplus") == 201703L);
+}
+
 TEST(InterpreterTest, Process) {
 #ifdef _WIN32
   GTEST_SKIP() << "Disabled on Windows. Needs fixing.";

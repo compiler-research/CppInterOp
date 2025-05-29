@@ -595,14 +595,25 @@ CPPINTEROP_API void GetOperator(TCppScope_t scope, Operator op,
                                 std::vector<TCppFunction_t>& operators,
                                 OperatorArity kind = kBoth);
 
-/// Creates an instance of the interpreter we need for the various interop
-/// services.
+/// Creates an owned instance of the interpreter we need for the various interop
+/// services and pushes it onto a stack.
 ///\param[in] Args - the list of arguments for interpreter constructor.
 ///\param[in] CPPINTEROP_EXTRA_INTERPRETER_ARGS - an env variable, if defined,
 ///           adds additional arguments to the interpreter.
+///\returns nullptr on failure.
 CPPINTEROP_API TInterp_t
 CreateInterpreter(const std::vector<const char*>& Args = {},
                   const std::vector<const char*>& GpuArgs = {});
+
+/// Deletes an instance of an interpreter.
+///\param[in] I - the interpreter to be deleted, if nullptr, deletes the last.
+///\returns false on failure or if \c I is not tracked in the stack.
+CPPINTEROP_API bool DeleteInterpreter(TInterp_t I = nullptr);
+
+/// Activates an instance of an interpreter to handle subsequent API requests
+///\param[in] I - the interpreter to be activated.
+///\returns false on failure.
+CPPINTEROP_API bool ActivateInterpreter(TInterp_t I);
 
 /// Checks which Interpreter backend was CppInterOp library built with (Cling,
 /// Clang-REPL, etcetera). In practice, the selected interpreter should not
