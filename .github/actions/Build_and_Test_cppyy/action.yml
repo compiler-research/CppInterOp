@@ -152,13 +152,14 @@ runs:
         # Install CppInterOp
         cd $env:CPPINTEROP_BUILD_DIR
         cmake --build . --target install --parallel ${{ env.ncpus }}
+        find.exe . -name "*.dll"
+        find.exe . -name "*.lib"
         cd ..\cppyy-backend\build\
         # Build and Install cppyy-backend
         cmake -DCppInterOp_DIR=$env:CPPINTEROP_DIR -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }} ..
         cmake --build . --config ${{ env.BUILD_TYPE }} --parallel ${{ env.ncpus }}
-        find.exe . -name "*.dll"
-        find.exe . -name "*.lib"
-        cp Release\libcppyy-backend.lib $env:CPPINTEROP_DIR\lib\
+        find.exe . -name "*"
+        cp Release\libcppyy-backend.dll $env:CPPINTEROP_DIR\lib\
         cd ..
 
     - name: Install CPyCppyy
