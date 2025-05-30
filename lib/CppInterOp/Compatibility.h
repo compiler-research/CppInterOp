@@ -122,12 +122,8 @@ getSymbolAddress(cling::Interpreter& I, llvm::StringRef IRName) {
   llvm::orc::SymbolNameVector Names;
   llvm::orc::ExecutionSession& ES = Jit.getExecutionSession();
   Names.push_back(ES.intern(IRName));
-#if CLANG_VERSION_MAJOR < 16
-  return llvm::make_error<llvm::orc::SymbolsNotFound>(Names);
-#else
   return llvm::make_error<llvm::orc::SymbolsNotFound>(ES.getSymbolStringPool(),
                                                       std::move(Names));
-#endif // CLANG_VERSION_MAJOR
 }
 
 inline void codeComplete(std::vector<std::string>& Results,
@@ -208,9 +204,6 @@ namespace compat {
 
 inline std::unique_ptr<clang::Interpreter>
 createClangInterpreter(std::vector<const char*>& args) {
-#if CLANG_VERSION_MAJOR < 16
-  auto ciOrErr = clang::IncrementalCompilerBuilder::create(args);
-#else
   auto has_arg = [](const char* x, llvm::StringRef match = "cuda") {
     llvm::StringRef Arg = x;
     Arg = Arg.trim().ltrim('-');
@@ -240,15 +233,11 @@ createClangInterpreter(std::vector<const char*>& args) {
     DeviceCI = std::move(*devOrErr);
   }
   auto ciOrErr = CudaEnabled ? CB.CreateCudaHost() : CB.CreateCpp();
-#endif // CLANG_VERSION_MAJOR < 16
   if (!ciOrErr) {
     llvm::logAllUnhandledErrors(ciOrErr.takeError(), llvm::errs(),
                                 "Failed to build Incremental compiler:");
     return nullptr;
   }
-#if CLANG_VERSION_MAJOR < 16
-  auto innerOrErr = clang::Interpreter::create(std::move(*ciOrErr));
-#else
   (*ciOrErr)->LoadRequestedPlugins();
   if (CudaEnabled)
     DeviceCI->LoadRequestedPlugins();
@@ -256,7 +245,6 @@ createClangInterpreter(std::vector<const char*>& args) {
       CudaEnabled ? clang::Interpreter::createWithCUDA(std::move(*ciOrErr),
                                                        std::move(DeviceCI))
                   : clang::Interpreter::create(std::move(*ciOrErr));
-#endif // CLANG_VERSION_MAJOR < 16
 
   if (!innerOrErr) {
     llvm::logAllUnhandledErrors(innerOrErr.takeError(), llvm::errs(),
@@ -303,29 +291,15 @@ inline void maybeMangleDeclName(const clang::GlobalDecl& GD,
   RawStr.flush();
 }
 
-// Clang 13 - Initial implementation of Interpreter and clang-repl
-// Clang 14 - Add new Interpreter methods: getExecutionEngine,
-//            getSymbolAddress, getSymbolAddressFromLinkerName
-// Clang 15 - Add new Interpreter methods: Undo
 // Clang 18 - Add new Interpreter methods: CodeComplete
 
 inline llvm::orc::LLJIT* getExecutionEngine(clang::Interpreter& I) {
-#if CLANG_VERSION_MAJOR >= 14
   auto* engine = &llvm::cantFail(I.getExecutionEngine());
   return const_cast<llvm::orc::LLJIT*>(engine);
-#else
-  assert(0 && "Not implemented in Clang <14!");
-  return nullptr;
-#endif
 }
 
 inline llvm::Expected<llvm::JITTargetAddress>
 getSymbolAddress(clang::Interpreter& I, llvm::StringRef IRName) {
-#if CLANG_VERSION_MAJOR < 14
-  assert(0 && "Not implemented in Clang <14!");
-  return llvm::createStringError(llvm::inconvertibleErrorCode(),
-                                 "Not implemented in Clang <14!");
-#endif // CLANG_VERSION_MAJOR < 14
 
   auto AddrOrErr = I.getSymbolAddress(IRName);
   if (llvm::Error Err = AddrOrErr.takeError())
@@ -343,7 +317,6 @@ getSymbolAddress(clang::Interpreter& I, clang::GlobalDecl GD) {
 inline llvm::Expected<llvm::JITTargetAddress>
 getSymbolAddressFromLinkerName(clang::Interpreter& I,
                                llvm::StringRef LinkerName) {
-#if CLANG_VERSION_MAJOR >= 14
   const auto& DL = getExecutionEngine(I)->getDataLayout();
   char GlobalPrefix = DL.getGlobalPrefix();
   std::string LinkerNameTmp(LinkerName);
@@ -354,21 +327,10 @@ getSymbolAddressFromLinkerName(clang::Interpreter& I,
   if (llvm::Error Err = AddrOrErr.takeError())
     return std::move(Err);
   return AddrOrErr->getValue();
-#else
-  assert(0 && "Not implemented in Clang <14!");
-  return llvm::createStringError(llvm::inconvertibleErrorCode(),
-                                 "Not implemented in Clang <14!");
-#endif
 }
 
 inline llvm::Error Undo(clang::Interpreter& I, unsigned N = 1) {
-#if CLANG_VERSION_MAJOR >= 15
   return I.Undo(N);
-#else
-  assert(0 && "Not implemented in Clang <15!");
-  return llvm::createStringError(llvm::inconvertibleErrorCode(),
-                                 "Not implemented in Clang <15!");
-#endif
 }
 
 inline void codeComplete(std::vector<std::string>& Results,
@@ -421,35 +383,14 @@ using Interpreter = Cpp::Interpreter;
 namespace compat {
 
 // Clang >= 14 change type name to string (spaces formatting problem)
-#if CLANG_VERSION_MAJOR >= 14
 inline std::string FixTypeName(const std::string type_name) {
   return type_name;
 }
-#else
-inline std::string FixTypeName(const std::string type_name) {
-  std::string result = type_name;
-  size_t pos = 0;
-  while ((pos = result.find(" [", pos)) != std::string::npos) {
-    result.erase(pos, 1);
-    pos++;
-  }
-  return result;
-}
-#endif
 
-// Clang >= 16 change CLANG_LIBDIR_SUFFIX to CLANG_INSTALL_LIBDIR_BASENAME
-#if CLANG_VERSION_MAJOR < 16
-#define CLANG_INSTALL_LIBDIR_BASENAME (llvm::Twine("lib") + CLANG_LIBDIR_SUFFIX)
-#endif
 inline std::string MakeResourceDir(llvm::StringRef Dir) {
   llvm::SmallString<128> P(Dir);
   llvm::sys::path::append(P, CLANG_INSTALL_LIBDIR_BASENAME, "clang",
-#if CLANG_VERSION_MAJOR < 16
-                          CLANG_VERSION_STRING
-#else
-                          CLANG_VERSION_MAJOR_STRING
-#endif
-  );
+                          CLANG_VERSION_MAJOR_STRING);
   return std::string(P.str());
 }
 

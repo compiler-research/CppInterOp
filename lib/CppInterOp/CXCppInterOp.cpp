@@ -200,9 +200,7 @@ CXTypeKind cxtype_GetTypeKind(QualType T) {
     TKCASE(Elaborated);
     TKCASE(Pipe);
     TKCASE(Attributed);
-#if CLANG_VERSION_MAJOR >= 16
     TKCASE(BTFTagAttributed);
-#endif
     TKCASE(Atomic);
   default:
     return CXType_Unexposed;
