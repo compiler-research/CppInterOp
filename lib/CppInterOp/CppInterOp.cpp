@@ -3647,17 +3647,18 @@ void GetOperator(TCppScope_t scope, Operator op,
   }
 }
 
-TCppObject_t Allocate(TCppScope_t scope) {
-  return (TCppObject_t)::operator new(Cpp::SizeOf(scope));
+TCppObject_t Allocate(TCppScope_t scope, TCppIndex_t count) {
+  return (TCppObject_t)::operator new(Cpp::SizeOf(scope) * count);
 }
 
-void Deallocate(TCppScope_t scope, TCppObject_t address) {
-  ::operator delete(address);
+void Deallocate(TCppScope_t scope, TCppObject_t address, TCppIndex_t count) {
+  size_t bytes = Cpp::SizeOf(scope) * count;
+  ::operator delete(address, bytes);
 }
 
 // FIXME: Add optional arguments to the operator new.
 TCppObject_t Construct(compat::Interpreter& interp, TCppScope_t scope,
-                       void* arena /*=nullptr*/) {
+                       void* arena /*=nullptr*/, TCppIndex_t count /*=1UL*/) {
   auto* Class = (Decl*)scope;
   // FIXME: Diagnose.
   if (!HasDefaultConstructor(Class))
@@ -3666,7 +3667,8 @@ TCppObject_t Construct(compat::Interpreter& interp, TCppScope_t scope,
   auto* const Ctor = GetDefaultConstructor(interp, Class);
   if (JitCall JC = MakeFunctionCallable(&interp, Ctor)) {
     if (arena) {
-      JC.Invoke(&arena, {}, (void*)~0); // Tell Invoke to use placement new.
+      JC.Invoke(&arena, {}, (void*)~0,
+                count); // Tell Invoke to use placement new.
       return arena;
     }
 
@@ -3677,22 +3679,24 @@ TCppObject_t Construct(compat::Interpreter& interp, TCppScope_t scope,
   return nullptr;
 }
 
-TCppObject_t Construct(TCppScope_t scope, void* arena /*=nullptr*/) {
-  return Construct(getInterp(), scope, arena);
+TCppObject_t Construct(TCppScope_t scope, void* arena /*=nullptr*/,
+                       TCppIndex_t count /*=1UL*/) {
+  return Construct(getInterp(), scope, arena, count);
 }
 
 void Destruct(compat::Interpreter& interp, TCppObject_t This, Decl* Class,
-              bool withFree) {
+              bool withFree, TCppIndex_t nary) {
   if (auto wrapper = make_dtor_wrapper(interp, Class)) {
-    (*wrapper)(This, /*nary=*/0, withFree);
+    (*wrapper)(This, nary, withFree);
     return;
   }
   // FIXME: Diagnose.
 }
 
-void Destruct(TCppObject_t This, TCppScope_t scope, bool withFree /*=true*/) {
+void Destruct(TCppObject_t This, TCppScope_t scope, bool withFree /*=true*/,
+              TCppIndex_t count /*=0UL*/) {
   auto* Class = static_cast<Decl*>(scope);
-  Destruct(getInterp(), This, Class, withFree);
+  Destruct(getInterp(), This, Class, withFree, count);
 }
 
 class StreamCaptureInfo {
