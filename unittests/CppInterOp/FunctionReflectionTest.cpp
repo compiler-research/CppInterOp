@@ -1483,7 +1483,7 @@ TEST(FunctionReflectionTest, JitCallAdvanced) {
   auto* I = clang_createInterpreterFromRawPtr(Cpp::GetInterpreter());
   auto S = clang_getDefaultConstructor(make_scope(Decls[0], I));
   void* object_c = nullptr;
-  clang_invoke(S, &object_c, nullptr, 0, nullptr);
+  clang_invoke(S, &object_c, nullptr, 0, 0UL, nullptr);
   EXPECT_TRUE(object_c) << "Failed to call the ctor.";
   clang_destruct(object_c, make_scope(Decls[1], I), true);
   // Clean up resources
@@ -2034,7 +2034,7 @@ TEST(FunctionReflectionTest, Construct) {
   testing::internal::CaptureStdout();
   auto* I = clang_createInterpreterFromRawPtr(Cpp::GetInterpreter());
   auto scope_c = make_scope(static_cast<clang::Decl*>(scope), I);
-  auto object_c = clang_construct(scope_c, nullptr);
+  auto object_c = clang_construct(scope_c, nullptr, 0UL);
   EXPECT_TRUE(object_c != nullptr);
   output = testing::internal::GetCapturedStdout();
   EXPECT_EQ(output, "Constructor Executed");
@@ -2157,7 +2157,7 @@ TEST(FunctionReflectionTest, Destruct) {
   testing::internal::CaptureStdout();
   auto* I = clang_createInterpreterFromRawPtr(Cpp::GetInterpreter());
   auto scope_c = make_scope(static_cast<clang::Decl*>(scope), I);
-  auto object_c = clang_construct(scope_c, nullptr);
+  auto object_c = clang_construct(scope_c, nullptr, 0UL);
   clang_destruct(object_c, scope_c, true);
   output = testing::internal::GetCapturedStdout();
   EXPECT_EQ(output, "Destructor Executed");
