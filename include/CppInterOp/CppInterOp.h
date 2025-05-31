@@ -115,8 +115,10 @@ public:
   // FIXME: Figure out how to unify the wrapper signatures.
   // FIXME: Hide these implementation details by moving wrapper generation in
   // this class.
-  using GenericCall = void (*)(void*, size_t, void**, void*);
-  using DestructorCall = void (*)(void*, unsigned long, int);
+  // (self, nargs, args, result, nary)
+  using GenericCall = void (*)(void*, size_t, void**, void*, size_t);
+  // (self, nary, withFree)
+  using DestructorCall = void (*)(void*, size_t, int);
 
 private:
   union {
@@ -162,11 +164,12 @@ public:
   // self can go in the end and be nullptr by default; result can be a nullptr
   // by default. These changes should be synchronized with the wrapper if we
   // decide to directly.
-  void Invoke(void* result, ArgList args = {}, void* self = nullptr) const {
+  void Invoke(void* result, ArgList args = {}, void* self = nullptr,
+              size_t nary = 0UL) const {
     // NOLINTBEGIN(*-type-union-access)
     // Forward if we intended to call a dtor with only 1 parameter.
     if (m_Kind == kDestructorCall && result && !args.m_Args) {
-      InvokeDestructor(result, /*nary=*/0UL, /*withFree=*/true);
+      InvokeDestructor(result, nary, /*withFree=*/true);
       return;
     }
 
@@ -174,7 +177,7 @@ public:
     assert(AreArgumentsValid(result, args, self) && "Invalid args!");
     ReportInvokeStart(result, args, self);
 #endif // NDEBUG
-    m_GenericCall(self, args.m_ArgSize, args.m_Args, result);
+    m_GenericCall(self, args.m_ArgSize, args.m_Args, result, nary);
     // NOLINTEND(*-type-union-access)
   }
   /// Makes a call to a destructor.
@@ -779,19 +782,24 @@ enum : long int {
 CPPINTEROP_API std::vector<long int> GetDimensions(TCppType_t type);
 
 /// Allocates memory for a given class.
-CPPINTEROP_API TCppObject_t Allocate(TCppScope_t scope);
+/// \c count is used to indicate the number of objects to allocate for.
+CPPINTEROP_API TCppObject_t Allocate(TCppScope_t scope,
+                                     TCppIndex_t count = 1UL);
 
 /// Deallocates memory for a given class.
-CPPINTEROP_API void Deallocate(TCppScope_t scope, TCppObject_t address);
+CPPINTEROP_API void Deallocate(TCppScope_t scope, TCppObject_t address,
+                               TCppIndex_t count = 1UL);
 
 /// Creates an object of class \c scope and calls its default constructor. If
 /// \c arena is set it uses placement new.
-CPPINTEROP_API TCppObject_t Construct(TCppScope_t scope, void* arena = nullptr);
+/// \c count is used to indicate the number of objects to construct.
+CPPINTEROP_API TCppObject_t Construct(TCppScope_t scope, void* arena = nullptr,
+                                      TCppIndex_t count = 1UL);
 
 /// Calls the destructor of object of type \c type. When withFree is true it
 /// calls operator delete/free.
 CPPINTEROP_API void Destruct(TCppObject_t This, TCppScope_t type,
-                             bool withFree = true);
+                             bool withFree = true, TCppIndex_t count = 0UL);
 
 /// @name Stream Redirection
 ///
