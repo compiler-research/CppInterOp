@@ -597,25 +597,25 @@ void clang_deallocate(CXObject address) { ::operator delete(address); }
 
 namespace Cpp {
 void* Construct(compat::Interpreter& interp, TCppScope_t scope,
-                void* arena /*=nullptr*/);
+                void* arena /*=nullptr*/, TCppIndex_t count);
 } // namespace Cpp
 
-CXObject clang_construct(CXScope scope, void* arena) {
+CXObject clang_construct(CXScope scope, void* arena, size_t count) {
   return Cpp::Construct(*getInterpreter(scope),
-                        static_cast<void*>(getDecl(scope)), arena);
+                        static_cast<void*>(getDecl(scope)), arena, count);
 }
 
 void clang_invoke(CXScope func, void* result, void** args, size_t n,
-                  void* self) {
+                  size_t nary, void* self) {
   Cpp::MakeFunctionCallable(getInterpreter(func), getDecl(func))
-      .Invoke(result, {args, n}, self);
+      .Invoke(result, {args, n}, self, nary);
 }
 
 namespace Cpp {
 void Destruct(compat::Interpreter& interp, TCppObject_t This,
-              clang::Decl* Class, bool withFree);
+              clang::Decl* Class, bool withFree, size_t nary);
 } // namespace Cpp
 
-void clang_destruct(CXObject This, CXScope S, bool withFree) {
-  Cpp::Destruct(*getInterpreter(S), This, getDecl(S), withFree);
+void clang_destruct(CXObject This, CXScope S, bool withFree, size_t nary) {
+  Cpp::Destruct(*getInterpreter(S), This, getDecl(S), withFree, nary);
 }
