@@ -53,6 +53,7 @@
 
 #include <algorithm>
 #include <cassert>
+#include <cstddef>
 #include <deque>
 #include <iterator>
 #include <map>
@@ -1920,42 +1921,58 @@ void collect_type_info(const FunctionDecl* FD, QualType& QT,
 
 void make_narg_ctor(const FunctionDecl* FD, const unsigned N,
                     std::ostringstream& typedefbuf, std::ostringstream& callbuf,
-                    const std::string& class_name, int indent_level) {
+                    const std::string& class_name, int indent_level,
+                    bool array = false) {
   // Make a code string that follows this pattern:
   //
   // ClassName(args...)
+  //    OR
+  // ClassName[nary] // array of objects
   //
 
-  callbuf << class_name << "(";
-  for (unsigned i = 0U; i < N; ++i) {
-    const ParmVarDecl* PVD = FD->getParamDecl(i);
-    QualType Ty = PVD->getType();
-    QualType QT = Ty.getCanonicalType();
-    std::string type_name;
-    EReferenceType refType = kNotReference;
-    bool isPointer = false;
-    collect_type_info(FD, QT, typedefbuf, callbuf, type_name, refType,
-                      isPointer, indent_level, true);
-    if (i) {
-      callbuf << ',';
-      if (i % 2) {
-        callbuf << ' ';
+  if (array)
+    callbuf << class_name << "[nary]";
+  else
+    callbuf << class_name;
+
+  // We cannot pass initialization parameters if we call array new
+  if (N && !array) {
+    callbuf << "(";
+    for (unsigned i = 0U; i < N; ++i) {
+      const ParmVarDecl* PVD = FD->getParamDecl(i);
+      QualType Ty = PVD->getType();
+      QualType QT = Ty.getCanonicalType();
+      std::string type_name;
+      EReferenceType refType = kNotReference;
+      bool isPointer = false;
+      collect_type_info(FD, QT, typedefbuf, callbuf, type_name, refType,
+                        isPointer, indent_level, true);
+      if (i) {
+        callbuf << ',';
+        if (i % 2) {
+          callbuf << ' ';
+        } else {
+          callbuf << "\n";
+          indent(callbuf, indent_level);
+        }
+      }
+      if (refType != kNotReference) {
+        callbuf << "(" << type_name.c_str()
+                << (refType == kLValueReference ? "&" : "&&") << ")*("
+                << type_name.c_str() << "*)args[" << i << "]";
+      } else if (isPointer) {
+        callbuf << "*(" << type_name.c_str() << "**)args[" << i << "]";
       } else {
-        callbuf << "\n";
-        indent(callbuf, indent_level + 1);
+        callbuf << "*(" << type_name.c_str() << "*)args[" << i << "]";
       }
     }
-    if (refType != kNotReference) {
-      callbuf << "(" << type_name.c_str()
-              << (refType == kLValueReference ? "&" : "&&") << ")*("
-              << type_name.c_str() << "*)args[" << i << "]";
-    } else if (isPointer) {
-      callbuf << "*(" << type_name.c_str() << "**)args[" << i << "]";
-    } else {
-      callbuf << "*(" << type_name.c_str() << "*)args[" << i << "]";
-    }
+    callbuf << ")";
   }
-  callbuf << ")";
+  // This can be zero or default-initialized
+  else if (const auto* CD = dyn_cast<CXXConstructorDecl>(FD);
+           CD && CD->isDefaultConstructor() && !array) {
+    callbuf << "()";
+  }
 }
 
 const DeclContext* get_non_transparent_decl_context(const FunctionDecl* FD) {
@@ -2115,9 +2132,15 @@ void make_narg_ctor_with_return(const FunctionDecl* FD, const unsigned N,
                                 std::ostringstream& buf, int indent_level) {
   // Make a code string that follows this pattern:
   //
-  //  (*(ClassName**)ret) = (obj) ?
-  //    new (*(ClassName**)ret) ClassName(args...) : new ClassName(args...);
-  //
+  // Array new if nary has been passed, and nargs is 0 (must be default ctor)
+  // if (nary) {
+  //    (*(ClassName**)ret) = (obj) ? new (*(ClassName**)ret) ClassName[nary] :
+  //    new ClassName[nary];
+  //   }
+  // else {
+  //    (*(ClassName**)ret) = (obj) ? new (*(ClassName**)ret) ClassName(args...)
+  //    : new ClassName(args...);
+  //   }
   {
     std::ostringstream typedefbuf;
     std::ostringstream callbuf;
@@ -2125,8 +2148,43 @@ void make_narg_ctor_with_return(const FunctionDecl* FD, const unsigned N,
     //  Write the return value assignment part.
     //
     indent(callbuf, indent_level);
+    const auto* CD = dyn_cast<CXXConstructorDecl>(FD);
+
+    // Activate this block only if array new is possible
+    // if (nary) {
+    //    (*(ClassName**)ret) = (obj) ? new (*(ClassName**)ret) ClassName[nary]
+    //    : new ClassName[nary];
+    //   }
+    // else {
+    if (CD->isDefaultConstructor()) {
+      callbuf << "if (nary > 1) {\n";
+      indent(callbuf, indent_level);
+      callbuf << "(*(" << class_name << "**)ret) = ";
+      callbuf << "(is_arena) ? new (*(" << class_name << "**)ret) ";
+      make_narg_ctor(FD, N, typedefbuf, callbuf, class_name, indent_level,
+                     true);
+
+      callbuf << ": new ";
+      //
+      //  Write the actual expression.
+      //
+      make_narg_ctor(FD, N, typedefbuf, callbuf, class_name, indent_level,
+                     true);
+      //
+      //  End the new expression statement.
+      //
+      callbuf << ";\n";
+      indent(callbuf, indent_level);
+      callbuf << "}\n";
+      callbuf << "else {\n";
+    }
+
+    // Standard branch:
+    // (*(ClassName**)ret) = (obj) ? new (*(ClassName**)ret) ClassName(args...)
+    // : new ClassName(args...);
+    indent(callbuf, indent_level);
     callbuf << "(*(" << class_name << "**)ret) = ";
-    callbuf << "(obj) ? new (*(" << class_name << "**)ret) ";
+    callbuf << "(is_arena) ? new (*(" << class_name << "**)ret) ";
     make_narg_ctor(FD, N, typedefbuf, callbuf, class_name, indent_level);
 
     callbuf << ": new ";
@@ -2138,6 +2196,10 @@ void make_narg_ctor_with_return(const FunctionDecl* FD, const unsigned N,
     //  End the new expression statement.
     //
     callbuf << ";\n";
+    indent(callbuf, --indent_level);
+    if (CD->isDefaultConstructor())
+      callbuf << "}\n";
+
     //
     //  Output the whole new expression and return statement.
     //
@@ -2652,8 +2714,14 @@ int get_wrapper_code(compat::Interpreter& I, const FunctionDecl* FD,
          "__attribute__((annotate(\"__cling__ptrcheck(off)\")))\n"
          "extern \"C\" void ";
   buf << wrapper_name;
-  buf << "(void* obj, int nargs, void** args, void* ret)\n"
-         "{\n";
+  if (Cpp::IsConstructor(FD)) {
+    buf << "(void* ret, unsigned long nary, unsigned long nargs, void** args, "
+           "void* is_arena)\n"
+           "{\n";
+  } else
+    buf << "(void* obj, unsigned long nargs, void** args, void* ret)\n"
+           "{\n";
+
   ++indent_level;
   if (min_args == num_params) {
     // No parameters with defaults.
