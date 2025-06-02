@@ -158,83 +158,9 @@ jobs:
         brew upgrade
         brew install ninja
 
-    - name: Build LLVM/Cling if the cache is invalid
-      if: ${{ steps.cache.outputs.cache-hit != 'true' }}
-      run: |
-        cling_on=$(echo "${{ matrix.cling }}" | tr '[:lower:]' '[:upper:]')
-        if [[ "${cling_on}" == "ON" ]]; then
-          git clone https://github.com/root-project/cling.git
-          cd ./cling
-          git checkout tags/v${{ matrix.cling-version }}
-          git apply -v ../patches/llvm/cling1.2-LookupHelper.patch
-          cd ..
-          git clone --depth=1 -b cling-llvm${{ matrix.clang-runtime }} https://github.com/root-project/llvm-project.git
-        else # repl
-          git clone --depth=1 -b release/${{ matrix.clang-runtime }}.x https://github.com/llvm/llvm-project.git
-        fi
-        cd llvm-project
-        # Build
-        mkdir build
-        if [[ "${cling_on}" == "ON" ]]; then
-          cd build
-          cmake -DLLVM_ENABLE_PROJECTS="${{ matrix.llvm_enable_projects }}" \
-                -DLLVM_EXTERNAL_PROJECTS=cling                     \
-                -DLLVM_EXTERNAL_CLING_SOURCE_DIR=../../cling       \
-                -DLLVM_TARGETS_TO_BUILD="${{ matrix.llvm_targets_to_build }}" \
-                -DCMAKE_BUILD_TYPE=Release                         \
-                -DLLVM_ENABLE_ASSERTIONS=ON                        \
-                -DCLANG_ENABLE_STATIC_ANALYZER=OFF                 \
-                -DCLANG_ENABLE_ARCMT=OFF                           \
-                -DCLANG_ENABLE_FORMAT=OFF                          \
-                -DCLANG_ENABLE_BOOTSTRAP=OFF                       \
-                -G Ninja                                           \
-                ../llvm
-          ninja clang -j ${{ env.ncpus }}
-          ninja LLVMOrcDebugging -j ${{ env.ncpus }}
-          ninja clingInterpreter -j ${{ env.ncpus }}
-        else
-          # Apply patches
-          llvm_vers=$(echo "${{ matrix.clang-runtime }}" | tr '[:lower:]' '[:upper:]')
-          if [[ "${llvm_vers}" == "16" ]]||[[ "${llvm_vers}" == "17" ]]; then
-            git apply -v ../patches/llvm/clang${{ matrix.clang-runtime }}-*.patch
-            echo "Apply clang${{ matrix.clang-runtime }}-*.patch patches:"
-          fi
-          cd build
-          cmake -DLLVM_ENABLE_PROJECTS="${{ matrix.llvm_enable_projects}}" \
-                -DLLVM_TARGETS_TO_BUILD="${{ matrix.llvm_targets_to_build }}"  \
-                -DCMAKE_BUILD_TYPE=Release                          \
-                -DLLVM_ENABLE_ASSERTIONS=ON                         \
-                -DCLANG_ENABLE_STATIC_ANALYZER=OFF                  \
-                -DCLANG_ENABLE_ARCMT=OFF                            \
-                -DCLANG_ENABLE_FORMAT=OFF                           \
-                -DCLANG_ENABLE_BOOTSTRAP=OFF                        \
-                -G Ninja                                            \
-                -DLLVM_INCLUDE_BENCHMARKS=OFF                   \
-                -DLLVM_INCLUDE_EXAMPLES=OFF                     \
-                -DLLVM_INCLUDE_TESTS=OFF                        \
-                ../llvm
-          ninja clang clangInterpreter clangStaticAnalyzerCore -j ${{ env.ncpus }}
-          cd ./tools/
-          rm -rf $(find . -maxdepth 1 ! -name "clang" ! -name ".")
-          cd ..
-          rm compile_commands.json build.ninja
-        fi
-        cd ../
-        rm -rf $(find . -maxdepth 1 ! -name "build" ! -name "llvm" ! -name "clang" ! -name ".")
-        if [[ "${cling_on}" == "ON" ]]; then
-          cd ./llvm/
-          rm -rf $(find . -maxdepth 1 ! -name "include" ! -name "lib" ! -name "cmake" ! -name "utils" ! -name ".")
-          cd ../clang/
-          rm -rf $(find . -maxdepth 1 ! -name "include" ! -name "lib" ! -name "cmake" ! -name "utils" ! -name ".")
-          cd ../../cling/
-          rm -rf $(find . -maxdepth 1 ! -name "include" ! -name "lib" ! -name "cmake" ! -name ".")
-        else # repl
-          cd ./llvm/
-          rm -rf $(find . -maxdepth 1 ! -name "include" ! -name "lib" ! -name "cmake" ! -name ".")
-          cd ../clang/
-          rm -rf $(find . -maxdepth 1 ! -name "include" ! -name "lib" ! -name "cmake" ! -name ".")
-          cd ../..
-        fi
+    - uses: ./.github/actions/Build_LLVM
+      with:
+        cache-hit: ${{ steps.cache.outputs.cache-hit }}
 
     - name: Save Cache LLVM/Clang runtime build directory
       uses: actions/cache/save@v4
