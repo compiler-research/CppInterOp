@@ -2976,6 +2976,13 @@ CPPINTEROP_API JitCall MakeFunctionCallable(TInterp_t I,
     return {};
   }
 
+  if (const auto* Ctor = dyn_cast<CXXConstructorDecl>(D)) {
+    if (auto Wrapper = make_wrapper(*interp, cast<FunctionDecl>(D)))
+      return {JitCall::kConstructorCall, Wrapper, Ctor};
+    // FIXME: else error we failed to compile the wrapper.
+    return {};
+  }
+
   if (auto Wrapper = make_wrapper(*interp, cast<FunctionDecl>(D))) {
     return {JitCall::kGenericCall, Wrapper, cast<FunctionDecl>(D)};
   }
@@ -3735,13 +3742,13 @@ TCppObject_t Construct(compat::Interpreter& interp, TCppScope_t scope,
   auto* const Ctor = GetDefaultConstructor(interp, Class);
   if (JitCall JC = MakeFunctionCallable(&interp, Ctor)) {
     if (arena) {
-      JC.Invoke(&arena, {}, (void*)~0,
-                count); // Tell Invoke to use placement new.
+      JC.InvokeConstructor(&arena, count, {},
+                           (void*)~0); // Tell Invoke to use placement new.
       return arena;
     }
 
     void* obj = nullptr;
-    JC.Invoke(&obj);
+    JC.InvokeConstructor(&obj, count, {}, nullptr);
     return obj;
   }
   return nullptr;
