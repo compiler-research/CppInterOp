@@ -140,8 +140,8 @@ private:
       : m_DestructorCall(C), m_Kind(K), m_FD(Dtor) {}
 
   /// Checks if the passed arguments are valid for the given function.
-  CPPINTEROP_API bool AreArgumentsValid(void* result, ArgList args,
-                                        void* self) const;
+  CPPINTEROP_API bool AreArgumentsValid(void* result, ArgList args, void* self,
+                                        size_t nary = 1UL) const;
 
   /// This function is used for debugging, it reports when the function was
   /// called.
@@ -222,12 +222,8 @@ public:
                          ArgList args = {}, void* is_arena = nullptr) const {
     assert(m_Kind == kConstructorCall && "Wrong overload!");
 #ifndef NDEBUG
-<<<<<<< Updated upstream
-    assert(AreArgumentsValid(result, args, nullptr, nary) && "Invalid args!");
-=======
     assert(AreArgumentsValid(result, args, /*self=*/nullptr, nary) &&
            "Invalid args!");
->>>>>>> Stashed changes
     ReportInvokeStart(result, args, nullptr);
 #endif // NDEBUG
     m_ConstructorCall(result, nary, args.m_ArgSize, args.m_Args, is_arena);
