@@ -103,6 +103,7 @@ public:
   enum Kind : char {
     kUnknown = 0,
     kGenericCall,
+    kConstructorCall,
     kDestructorCall,
   };
   struct ArgList {
@@ -116,13 +117,16 @@ public:
   // FIXME: Hide these implementation details by moving wrapper generation in
   // this class.
   // (self, nargs, args, result, nary)
-  using GenericCall = void (*)(void*, size_t, void**, void*, size_t);
+  using GenericCall = void (*)(void*, size_t, void**, void*);
+  // (result, nary, nargs, args, is_arena)
+  using ConstructorCall = void (*)(void*, size_t, size_t, void**, void*);
   // (self, nary, withFree)
   using DestructorCall = void (*)(void*, size_t, int);
 
 private:
   union {
     GenericCall m_GenericCall;
+    ConstructorCall m_ConstructorCall;
     DestructorCall m_DestructorCall;
   };
   Kind m_Kind;
@@ -130,6 +134,8 @@ private:
   JitCall() : m_GenericCall(nullptr), m_Kind(kUnknown), m_FD(nullptr) {}
   JitCall(Kind K, GenericCall C, TCppConstFunction_t FD)
       : m_GenericCall(C), m_Kind(K), m_FD(FD) {}
+  JitCall(Kind K, ConstructorCall C, TCppConstFunction_t Ctor)
+      : m_ConstructorCall(C), m_Kind(K), m_FD(Ctor) {}
   JitCall(Kind K, DestructorCall C, TCppConstFunction_t Dtor)
       : m_DestructorCall(C), m_Kind(K), m_FD(Dtor) {}
 
@@ -164,12 +170,17 @@ public:
   // self can go in the end and be nullptr by default; result can be a nullptr
   // by default. These changes should be synchronized with the wrapper if we
   // decide to directly.
-  void Invoke(void* result, ArgList args = {}, void* self = nullptr,
-              size_t nary = 0UL) const {
+  void Invoke(void* result, ArgList args = {}, void* self = nullptr) const {
     // NOLINTBEGIN(*-type-union-access)
     // Forward if we intended to call a dtor with only 1 parameter.
     if (m_Kind == kDestructorCall && result && !args.m_Args) {
-      InvokeDestructor(result, nary, /*withFree=*/true);
+      InvokeDestructor(result, /*nary=*/0UL, /*withFree=*/true);
+      return;
+    }
+    // Forward if we intended to call a constructor (nary cannot be inferred, so
+    // we stick to constructing a single object)
+    else if (m_Kind == kConstructorCall && result && !args.m_Args) {
+      InvokeConstructor(result, /*nary=*/1UL, args, self);
       return;
     }
 
@@ -177,7 +188,7 @@ public:
     assert(AreArgumentsValid(result, args, self) && "Invalid args!");
     ReportInvokeStart(result, args, self);
 #endif // NDEBUG
-    m_GenericCall(self, args.m_ArgSize, args.m_Args, result, nary);
+    m_GenericCall(self, args.m_ArgSize, args.m_Args, result);
     // NOLINTEND(*-type-union-access)
   }
   /// Makes a call to a destructor.
@@ -194,6 +205,23 @@ public:
     ReportInvokeStart(object, nary, withFree);
 #endif // NDEBUG
     m_DestructorCall(object, nary, withFree);
+  }
+
+  /// Makes a call to a constructor.
+  ///\param[in] result - the memory address at which we construct the object
+  ///           (placement new).
+  ///\param[in] nary - Use array new if we have to construct an array of 
+  ///           objects (nary > 1).
+  ///\param[in] args - a pointer to a argument list and argument size.
+  // FIXME: Change the type of withFree from int to bool in the wrapper code.
+  void InvokeConstructor(void* result, unsigned long nary = 1,
+                         ArgList args = {}, void* is_arena = nullptr) const {
+    assert(m_Kind == kConstructorCall && "Wrong overload!");
+#ifndef NDEBUG
+    assert(AreArgumentsValid(result, args, nullptr, nary) && "Invalid args!");
+    ReportInvokeStart(result, args, nullptr);
+#endif // NDEBUG
+    m_ConstructorCall(result, nary, args.m_ArgSize, args.m_Args, is_arena);
   }
 };
 
