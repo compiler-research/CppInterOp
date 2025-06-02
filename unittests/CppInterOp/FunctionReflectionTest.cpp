@@ -1959,6 +1959,58 @@ TEST(FunctionReflectionTest, ConstructNested) {
   output.clear();
 }
 
+TEST(FunctionReflectionTest, ConstructArray) {
+#if defined(EMSCRIPTEN) && (CLANG_VERSION_MAJOR < 20)
+  GTEST_SKIP() << "Test fails for LLVM < 20 Emscripten builds";
+#endif
+  if (llvm::sys::RunningOnValgrind())
+    GTEST_SKIP() << "XFAIL due to Valgrind report";
+#ifdef _WIN32
+  GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
+#endif
+
+  Cpp::CreateInterpreter();
+
+  Interp->declare(R"(
+      #include <new>
+      extern "C" int printf(const char*,...);
+      class C {
+        int x;
+        C() {
+          x = 42;
+          printf("\nConstructor Executed\n");
+        }
+      };
+      )");
+
+  Cpp::TCppScope_t scope = Cpp::GetNamed("C");
+  std::string output;
+
+  size_t a = 5;                          // Construct an array of 5 objects
+  void* where = Cpp::Allocate(scope, a); // operator new
+
+  testing::internal::CaptureStdout();
+  EXPECT_TRUE(where == Cpp::Construct(scope, where, a)); // placement new
+  // Check for the value of x which should be at the start of the object.
+  EXPECT_TRUE(*(int*)where == 42);
+  // Check for the value of x in the second object
+  int* obj = reinterpret_cast<int*>(reinterpret_cast<char*>(where) +
+                                    Cpp::SizeOf(scope));
+  EXPECT_TRUE(*obj == 42);
+
+  // Check for the value of x in the last object
+  obj = reinterpret_cast<int*>(reinterpret_cast<char*>(where) +
+                               Cpp::SizeOf(scope) * 4);
+  EXPECT_TRUE(*obj == 42);
+  Cpp::Destruct(where, scope, /*withFree=*/false, 5);
+  Cpp::Deallocate(scope, where, 5);
+  output = testing::internal::GetCapturedStdout();
+  EXPECT_EQ(output,
+            "\nConstructor Executed\n\nConstructor Executed\n\nConstructor "
+            "Executed\n\nConstructor Executed\n\nConstructor Executed\n");
+  output.clear();
+}
+
 TEST(FunctionReflectionTest, Destruct) {
 #ifdef EMSCRIPTEN
   GTEST_SKIP() << "Test fails for Emscipten builds";
@@ -2014,6 +2066,82 @@ TEST(FunctionReflectionTest, Destruct) {
   // Clean up resources
   clang_Interpreter_takeInterpreterAsPtr(I);
   clang_Interpreter_dispose(I);
+}
+
+TEST(FunctionReflectionTest, DestructArray) {
+#ifdef EMSCRIPTEN
+  GTEST_SKIP() << "Test fails for Emscipten builds";
+#endif
+  if (llvm::sys::RunningOnValgrind())
+    GTEST_SKIP() << "XFAIL due to Valgrind report";
+
+#ifdef _WIN32
+  GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
+#endif
+
+  std::vector<const char*> interpreter_args = {"-include", "new"};
+  Cpp::CreateInterpreter(interpreter_args);
+
+  Interp->declare(R"(
+      #include <new>
+      extern "C" int printf(const char*,...);
+      class C {
+        int x;
+        C() {
+          printf("\nCtor Executed\n");
+          x = 42;
+        }
+        ~C() {
+          printf("\nDestructor Executed\n");
+        }
+      };
+      )");
+
+  Cpp::TCppScope_t scope = Cpp::GetNamed("C");
+  std::string output;
+
+  size_t a = 5;                          // Construct an array of 5 objects
+  void* where = Cpp::Allocate(scope, a); // operator new
+  EXPECT_TRUE(where == Cpp::Construct(scope, where, a)); // placement new
+
+  // verify the array of objects has been constructed
+  int* obj = reinterpret_cast<int*>(reinterpret_cast<char*>(where) +
+                                    Cpp::SizeOf(scope) * 4);
+  EXPECT_TRUE(*obj == 42);
+
+  testing::internal::CaptureStdout();
+  // destruct 3 out of 5 objects
+  Cpp::Destruct(where, scope, false, 3);
+  output = testing::internal::GetCapturedStdout();
+
+  EXPECT_EQ(
+      output,
+      "\nDestructor Executed\n\nDestructor Executed\n\nDestructor Executed\n");
+  output.clear();
+  testing::internal::CaptureStdout();
+
+  // destruct the rest
+  auto new_head = reinterpret_cast<void*>(reinterpret_cast<char*>(where) +
+                                          Cpp::SizeOf(scope) * 3);
+  Cpp::Destruct(new_head, scope, false, 2);
+
+  output = testing::internal::GetCapturedStdout();
+  EXPECT_EQ(output, "\nDestructor Executed\n\nDestructor Executed\n");
+  output.clear();
+
+  // deallocate since we call the destructor withFree = false
+  Cpp::Deallocate(scope, where, 5);
+
+  // perform the same withFree=true
+  where = Cpp::Allocate(scope, a);
+  EXPECT_TRUE(where == Cpp::Construct(scope, where, a));
+  testing::internal::CaptureStdout();
+  // FIXME : This should work with the array of objects as well
+  // Cpp::Destruct(where, scope, true, 5);
+  Cpp::Destruct(where, scope, true);
+  output = testing::internal::GetCapturedStdout();
+  EXPECT_EQ(output, "\nDestructor Executed\n");
+  output.clear();
 }
 
 TEST(FunctionReflectionTest, UndoTest) {
