@@ -46,14 +46,18 @@
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Demangle/Demangle.h"
 #include "llvm/Support/Casting.h"
+#include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/raw_os_ostream.h"
 
 #include <algorithm>
+#include <cassert>
 #include <iterator>
 #include <map>
+#include <memory>
 #include <set>
 #include <sstream>
+#include <stack>
 #include <string>
 
 // Stream redirect.
@@ -71,30 +75,29 @@
 #include <unistd.h>
 #endif // WIN32
 
-#include <stack>
-
 namespace Cpp {
 
 using namespace clang;
 using namespace llvm;
 using namespace std;
 
-// Flag to indicate ownership when an external interpreter instance is used.
-static bool OwningSInterpreter = true;
-static compat::Interpreter* sInterpreter = nullptr;
-// Valgrind complains about __cxa_pure_virtual called when deleting
-// llvm::SectionMemoryManager::~SectionMemoryManager as part of the dtor chain
-// of the Interpreter.
-// This might fix the issue https://reviews.llvm.org/D107087
-// FIXME: For now we just leak the Interpreter.
-struct InterpDeleter {
-  ~InterpDeleter() = default;
-} Deleter;
+struct InterpreterInfo {
+  compat::Interpreter* Interpreter = nullptr;
+  bool isOwned = true;
+
+  // Valgrind complains about __cxa_pure_virtual called when deleting
+  // llvm::SectionMemoryManager::~SectionMemoryManager as part of the dtor
+  // chain of the Interpreter.
+  // This might fix the issue https://reviews.llvm.org/D107087
+  // FIXME: For now we just leak the Interpreter.
+  ~InterpreterInfo() = default;
+};
+static llvm::SmallVector<InterpreterInfo, 8> sInterpreters;
 
 static compat::Interpreter& getInterp() {
-  assert(sInterpreter &&
+  assert(!sInterpreters.empty() &&
          "Interpreter instance must be set before calling this!");
-  return *sInterpreter;
+  return *sInterpreters.back().Interpreter;
 }
 static clang::Sema& getSema() { return getInterp().getCI()->getSema(); }
 static clang::ASTContext& getASTContext() { return getSema().getASTContext(); }
@@ -2930,19 +2933,54 @@ TInterp_t CreateInterpreter(const std::vector<const char*>& Args /*={}*/,
     Args[NumArgs + 1] = nullptr;
     llvm::cl::ParseCommandLineOptions(NumArgs + 1, Args.get());
   }
-  // FIXME: Enable this assert once we figure out how to fix the multiple
-  // calls to CreateInterpreter.
-  // assert(!sInterpreter && "Interpreter already set.");
-  sInterpreter = I;
+
+  sInterpreters.push_back({I, /*isOwned=*/true});
+
   return I;
 }
 
-TInterp_t GetInterpreter() { return sInterpreter; }
+bool DeleteInterpreter(TInterp_t I /*=nullptr*/) {
+  if (!I) {
+    sInterpreters.pop_back();
+    return true;
+  }
+
+  auto* found =
+      std::find_if(sInterpreters.begin(), sInterpreters.end(),
+                   [&I](const auto& Info) { return Info.Interpreter == I; });
+  if (found == sInterpreters.end())
+    return false; // failure
+
+  sInterpreters.erase(found);
+  return true;
+}
+
+bool ActivateInterpreter(TInterp_t I) {
+  if (!I)
+    return false;
+
+  auto* found =
+      std::find_if(sInterpreters.begin(), sInterpreters.end(),
+                   [&I](const auto& Info) { return Info.Interpreter == I; });
+  if (found == sInterpreters.end())
+    return false;
+
+  if (std::next(found) != sInterpreters.end()) // if not already last element.
+    std::rotate(found, found + 1, sInterpreters.end());
+
+  return true; // success
+}
+
+TInterp_t GetInterpreter() {
+  if (sInterpreters.empty())
+    return nullptr;
+  return sInterpreters.back().Interpreter;
+}
 
 void UseExternalInterpreter(TInterp_t I) {
-  assert(!sInterpreter && "sInterpreter already in use!");
-  sInterpreter = static_cast<compat::Interpreter*>(I);
-  OwningSInterpreter = false;
+  assert(sInterpreters.empty() && "sInterpreter already in use!");
+  sInterpreters.push_back(
+      {static_cast<compat::Interpreter*>(I), /*isOwned=*/false});
 }
 
 void AddSearchPath(const char* dir, bool isUser, bool prepend) {
