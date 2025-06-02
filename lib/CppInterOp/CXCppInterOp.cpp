@@ -607,9 +607,9 @@ CXObject clang_construct(CXScope scope, void* arena, size_t count) {
 }
 
 void clang_invoke(CXScope func, void* result, void** args, size_t n,
-                  size_t nary, void* self) {
+                  void* self) {
   Cpp::MakeFunctionCallable(getInterpreter(func), getDecl(func))
-      .Invoke(result, {args, n}, self, nary);
+      .Invoke(result, {args, n}, self);
 }
 
 namespace Cpp {
