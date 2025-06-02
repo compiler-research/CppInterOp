@@ -1733,6 +1733,53 @@ TEST(FunctionReflectionTest, GetFunctionCallWrapper) {
       Cpp::BestOverloadFunctionMatch(operators, {}, {K1, K2});
   auto chrono_op_fn_callable = Cpp::MakeFunctionCallable(kop);
   EXPECT_EQ(chrono_op_fn_callable.getKind(), Cpp::JitCall::kGenericCall);
+
+  Interp->process(R"(
+    #include <tuple>
+
+    namespace libchemist {
+    namespace type {
+        template<typename T> class tensor {};
+    } // namespace type
+
+    template<typename element_type = double, typename tensor_type = type::tensor<element_type>>
+    class CanonicalMO {};
+
+    template class CanonicalMO<double, type::tensor<double>>;
+
+    auto produce() {
+        return std::make_tuple(10., type::tensor<double>{});
+    }
+
+    } // namespace libchemist
+
+    namespace property_types {
+    namespace type {
+        template<typename T>
+        using canonical_mos = libchemist::CanonicalMO<T>;
+    }
+
+    auto produce() {
+        return std::make_tuple(5., type::canonical_mos<double>{});
+    }
+    }
+
+    auto tmp = property_types::produce();
+    auto &p = tmp;
+  )");
+
+  std::vector<Cpp::TCppFunction_t> unresolved_candidate_methods;
+  Cpp::GetClassTemplatedMethods("get", Cpp::GetScope("std"),
+                                unresolved_candidate_methods);
+  Cpp::TCppType_t p = Cpp::GetTypeFromScope(Cpp::GetNamed("p"));
+  EXPECT_TRUE(p);
+
+  Cpp::TCppScope_t fn = Cpp::BestOverloadFunctionMatch(
+      unresolved_candidate_methods, {{Cpp::GetType("int"), "0"}}, {p});
+  EXPECT_TRUE(fn);
+
+  auto fn_callable = Cpp::MakeFunctionCallable(fn);
+  EXPECT_EQ(fn_callable.getKind(), Cpp::JitCall::kGenericCall);
 }
 
 TEST(FunctionReflectionTest, IsConstMethod) {
