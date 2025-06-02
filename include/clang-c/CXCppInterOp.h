@@ -333,7 +333,7 @@ CINDEX_LINKAGE void clang_deallocate(CXObject address);
  * arena is set it uses placement new.
  */
 CINDEX_LINKAGE CXObject clang_construct(CXScope scope, void* arena,
-                                        size_t count);
+                                        size_t count = 1UL);
 
 /**
  * Creates a trampoline function and makes a call to a generic function or
@@ -350,7 +350,7 @@ CINDEX_LINKAGE CXObject clang_construct(CXScope scope, void* arena,
  * \param self The 'this pointer' of the object.
  */
 CINDEX_LINKAGE void clang_invoke(CXScope func, void* result, void** args,
-                                 size_t n, size_t nary, void* self);
+                                 size_t n, void* self);
 
 /**
  * Calls the destructor of object of type \c type. When withFree is true it
