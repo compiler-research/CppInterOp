@@ -132,7 +132,8 @@ static clang::Sema& getSema() { return getInterp().getCI()->getSema(); }
 static clang::ASTContext& getASTContext() { return getSema().getASTContext(); }
 
 #define DEBUG_TYPE "jitcall"
-bool JitCall::AreArgumentsValid(void* result, ArgList args, void* self) const {
+bool JitCall::AreArgumentsValid(void* result, ArgList args, void* self,
+                                size_t nary) const {
   bool Valid = true;
   if (Cpp::IsConstructor(m_FD)) {
     assert(result && "Must pass the location of the created object!");
@@ -155,6 +156,18 @@ bool JitCall::AreArgumentsValid(void* result, ArgList args, void* self) const {
   if (!FD->getReturnType()->isVoidType() && !result) {
     assert(0 && "We are discarding the return type of the function!");
     Valid = false;
+  }
+  if (Cpp::IsConstructor(m_FD) || Cpp::IsDestructor(m_FD))
+    assert(nary > 0 &&
+           "Number of objects to construct/destruct should be atleast 1");
+
+  if (Cpp::IsConstructor(m_FD)) {
+    const auto* CD = cast<CXXConstructorDecl>((const Decl*)m_FD);
+    if (CD->getMinRequiredArguments() != 0 && nary > 1) {
+      assert(0 &&
+             "Cannot pass initialization parameters to array new construction");
+      Valid = false;
+    }
   }
   assert(m_Kind != kDestructorCall && "Wrong overload!");
   Valid &= m_Kind != kDestructorCall;
