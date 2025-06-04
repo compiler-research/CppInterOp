@@ -209,7 +209,6 @@ if(MSVC)
 "/EXPORT:?grow_pod@?$SmallVectorBase@_K@llvm@@IEAAXPEAX_K1@Z"
 "/EXPORT:?access@fs@sys@llvm@@YA?AVerror_code@std@@AEBVTwine@3@W4AccessMode@123@@Z"
 "/EXPORT:?CreateCpp@IncrementalCompilerBuilder@clang@@QEAA?AV?$Expected@V?$unique_ptr@VCompilerInstance@clang@@U?$default_delete@VCompilerInstance@clang@@@std@@@std@@@llvm@@XZ"
-"/EXPORT:?create@Interpreter@clang@@SA?AV?$Expected@V?$unique_ptr@VInterpreter@clang@@U?$default_delete@VInterpreter@clang@@@std@@@std@@@llvm@@V?$unique_ptr@VCompilerInstance@clang@@U?$default_delete@VCompilerInstance@clang@@@std@@@std@@@Z"
-"/EXPORT:__imp_?classof@CUDAGlobalAttr@clang@@SA_NPEBVAttr@2@@Z"
+"/EXPORT:?create@Interpreter@clang@@SA?AV?$Expected@V?$unique_ptr@VInterpreter@clang@@U?$default_delete@VInterpreter@clang@@@std@@@std@@@llvm@@V?$unique_ptr@VCompilerInstance@clang@@U?$default_delete@VCompilerInstance@clang@@@std@@@std@@@"
   )
 endif()
