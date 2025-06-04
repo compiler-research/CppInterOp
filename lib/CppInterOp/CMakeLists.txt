@@ -190,5 +190,6 @@ if(MSVC)
     "/EXPORT:?SetBufferAndMode@raw_ostream@llvm@@AEAAXPEAD_KW4BufferKind@12@@Z"
     "/EXPORT:?flush_nonempty@raw_ostream@llvm@@AEAAXXZ"
     "/EXPORT:?anchor@raw_ostream@llvm@@EEAAXXZ"
+    "/EXPORT:?maybeMangleDeclName@compat@@YAXAEBVGlobalDecl@clang@@AEAV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z"
   )
 endif()
