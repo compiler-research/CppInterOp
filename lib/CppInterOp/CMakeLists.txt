@@ -201,5 +201,15 @@ if(MSVC)
 "/EXPORT:?castToDeclContext@Decl@clang@@SAPEAVDeclContext@2@PEBV12@@Z"
 "/EXPORT:?decls_begin@DeclContext@clang@@QEBA?AVdecl_iterator@12@XZ"
 "/EXPORT:?classof@DeclContext@clang@@SA_NPEBVDecl@2@@Z"
+"/EXPORT:?Parse@Interpreter@clang@@QEAA?AV?$Expected@AEAUPartialTranslationUnit@clang@@@llvm@@VStringRef@4@@Z"
+"/EXPORT:?Execute@Interpreter@clang@@QEAA?AVError@llvm@@AEAUPartialTranslationUnit@2@@Z"
+"/EXPORT:?getLValueReferenceType@ASTContext@clang@@QEBA?AVQualType@2@V32@_N@Z"
+"/EXPORT:?getCompilerInstance@Interpreter@clang@@QEAAPEAVCompilerInstance@2@XZ"
+"/EXPORT:?RunningOnValgrind@sys@llvm@@YA_NXZ"
+"/EXPORT:?grow_pod@?$SmallVectorBase@_K@llvm@@IEAAXPEAX_K1@Z"
+"/EXPORT:?access@fs@sys@llvm@@YA?AVerror_code@std@@AEBVTwine@3@W4AccessMode@123@@Z"
+"/EXPORT:?CreateCpp@IncrementalCompilerBuilder@clang@@QEAA?AV?$Expected@V?$unique_ptr@VCompilerInstance@clang@@U?$default_delete@VCompilerInstance@clang@@@std@@@std@@@llvm@@XZ"
+"/EXPORT:?create@Interpreter@clang@@SA?AV?$Expected@V?$unique_ptr@VInterpreter@clang@@U?$default_delete@VInterpreter@clang@@@std@@@std@@@llvm@@V?$unique_ptr@VCompilerInstance@clang@@U?$default_delete@VCompilerInstance@clang@@@std@@@std@@@Z"
+"/EXPORT:__imp_?classof@CUDAGlobalAttr@clang@@SA_NPEBVAttr@2@@Z"
   )
 endif()
