@@ -178,5 +178,8 @@ if(MSVC)
     "/EXPORT:?flush_nonempty@raw_ostream@llvm@@AEAAXXZ"
     "/EXPORT:?anchor@raw_ostream@llvm@@EEAAXXZ"
     "/EXPORT:?maybeMangleDeclName@compat@@YAXAEBVGlobalDecl@clang@@AEAV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z"
+    "/EXPORT:?Execute@Interpreter@clang@@QEAA?AVError@llvm@@AEAUPartialTranslationUnit@2@@Z"
+    "/EXPORT:?Parse@Interpreter@clang@@QEAA?AV?$Expected@AEAUPartialTranslationUnit@clang@@@llvm@@VStringRef@4@@Z"
+    "/EXPORT:?maybeMangleDeclName@compat@@YAXAEBVGlobalDecl@clang@@AEAV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@@Z"
   )
 endif()
