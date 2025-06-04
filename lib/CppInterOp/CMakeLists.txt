@@ -168,7 +168,6 @@ if(MSVC)
     "/EXPORT:?compareSigned@APInt@llvm@@AEBAHAEBV12@@Z"
     "/EXPORT:?compareValues@APSInt@llvm@@SAHAEBV12@0@Z"
     "/EXPORT:??1raw_ostream@llvm@@UEAA@XZ"
-    "/EXPORT:??1raw_string_ostream"
     "/EXPORT:??1raw_string_ostream@llvm@@UEAA@XZ"
     "/EXPORT:?write_impl@raw_string_ostream@llvm@@EEAAXPEBD_K@Z"
     "/EXPORT:?changeColor@raw_ostream@llvm@@UEAAAEAV12@W4Colors@12@_N1@Z"
