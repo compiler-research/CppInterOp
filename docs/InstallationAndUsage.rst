@@ -129,9 +129,10 @@ build instructions to build on Linux and MacOS
 
    git clone https://github.com/root-project/cling.git
    cd ./cling/
-   git checkout tags/v1.0
+   git checkout tags/v1.2
+   git apply -v ../CppInterOp/patches/llvm/cling1.2-LookupHelper.patch
    cd ..
-   git clone --depth=1 -b cling-llvm13 https://github.com/root-project/llvm-project.git
+   git clone --depth=1 -b cling-llvm18 https://github.com/root-project/llvm-project.git
    mkdir llvm-project/build
    cd llvm-project/build
    cmake   -DLLVM_ENABLE_PROJECTS=clang                       \
@@ -147,7 +148,6 @@ build instructions to build on Linux and MacOS
            ../llvm
    cmake --build . --target clang --parallel $(nproc --all)
    cmake --build . --target cling --parallel $(nproc --all)
-   cmake --build . --target gtest_main --parallel $(nproc --all)
 
 Use the following build instructions to build on Windows
 
@@ -155,9 +155,10 @@ Use the following build instructions to build on Windows
 
    git clone https://github.com/root-project/cling.git
    cd .\cling\
-   git checkout tags/v1.0
+   git checkout tags/v1.2
+   git apply -v ..\CppInterOp\patches\llvm\cling1.2-LookupHelper.patch
    cd ..
-   git clone --depth=1 -b cling-llvm13 https://github.com/root-project/llvm-project.git
+   git clone --depth=1 -b cling-llvm18 https://github.com/root-project/llvm-project.git
    $env:ncpus = %NUMBER_OF_PROCESSORS%
    $env:PWD_DIR= $PWD.Path
    $env:CLING_DIR="$env:PWD_DIR\cling"
@@ -176,7 +177,6 @@ Use the following build instructions to build on Windows
            ../llvm
    cmake --build . --target clang --parallel $env:ncpus
    cmake --build . --target cling --parallel $env:ncpus
-   cmake --build . --target gtest_main --parallel $env:ncpus
 
 Note the 'llvm-project' directory location. On linux and MacOS you execute the
 following
