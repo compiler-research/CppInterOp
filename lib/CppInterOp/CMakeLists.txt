@@ -181,6 +181,6 @@ if(MSVC)
     "/EXPORT:??1raw_ostream@llvm@@UEAA@XZ"
     "/EXPORT:??1raw_string_ostream"
     "/EXPORT:??1raw_string_ostream@llvm@@UEAA@XZ"
-    "/INCLUDE:??1raw_string_ostream@@QEAA@XZ"
+    "/EXPORT:?write_impl@raw_string_ostream@llvm@@EEAAXPEBD_K@Z"
   )
 endif()
