@@ -181,6 +181,7 @@ if(MSVC)
     "/EXPORT:??1raw_ostream@llvm@@UEAA@XZ"
     "/EXPORT:??1raw_string_ostream"
     "/EXPORT:??1raw_string_ostream@llvm@@UEAA@XZ"
+    "/EXPORT:??1raw_string_ostream@llvm@@QEAA@XZ"
     "/EXPORT:?write_impl@raw_string_ostream@llvm@@EEAAXPEBD_K@Z"
     "/EXPORT:?changeColor@raw_ostream@llvm@@UEAAAEAV12@W4Colors@12@_N1@Z"
     "/EXPORT:?resetColor@raw_ostream@llvm@@UEAAAEAV12@XZ"
