@@ -180,5 +180,6 @@ if(MSVC)
     "/EXPORT:?compareValues@APSInt@llvm@@SAHAEBV12@0@Z"
     "/EXPORT:??1raw_ostream@llvm@@UEAA@XZ"
     "/EXPORT:??1raw_string_ostream"
+    "/EXPORT:??1raw_string_ostream@llvm@@UEAA@XZ"
   )
 endif()
