@@ -190,7 +190,6 @@ if(MSVC)
 "/EXPORT:?lookup@DeclContext@clang@@QEBA?AVDeclContextLookupResult@2@VDeclarationName@2@@Z"
 "/EXPORT:?isThisDeclarationADefinition@VarDecl@clang@@QEBA?AW4DefinitionKind@12@AEAVASTContext@2@@Z"
 "/EXPORT:?isInjectedClassName@RecordDecl@clang@@QEBA_NXZ"
-"/EXPORT:__imp_?classof@CUDAGlobalAttr@clang@@SA_NPEBVAttr@2@@Z"
 "/EXPORT:?getTypeDeclTypeSlow@ASTContext@clang@@AEBA?AVQualType@2@PEBVTypeDecl@2@@Z"
 "/EXPORT:?getComplexType@ASTContext@clang@@QEBA?AVQualType@2@V32@@Z"
 "/EXPORT:?createMangleContext@ASTContext@clang@@QEAAPEAVMangleContext@2@PEBVTargetInfo@2@@Z"
