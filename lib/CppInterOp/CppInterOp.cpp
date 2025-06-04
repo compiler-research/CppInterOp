@@ -547,7 +547,13 @@ std::string GetQualifiedCompleteName(TCppType_t klass) {
     if (auto* TD = llvm::dyn_cast<TagDecl>(ND)) {
       std::string type_name;
       QualType QT = C.getTagDeclType(TD);
-      QT.getAsStringInternal(type_name, C.getPrintingPolicy());
+      PrintingPolicy PP = C.getPrintingPolicy();
+      PP.FullyQualifiedName = true;
+      PP.SuppressUnwrittenScope = true;
+#if CLANG_VERSION_MAJOR > 16
+      PP.SuppressElaboration = true;
+#endif
+      QT.getAsStringInternal(type_name, PP);
 
       return type_name;
     }
@@ -630,7 +636,8 @@ TCppScope_t GetScope(const std::string& name, TCppScope_t parent) {
     return 0;
 
   if (llvm::isa<NamespaceDecl>(ND) || llvm::isa<RecordDecl>(ND) ||
-      llvm::isa<ClassTemplateDecl>(ND) || llvm::isa<TypedefNameDecl>(ND))
+      llvm::isa<ClassTemplateDecl>(ND) || llvm::isa<TypedefNameDecl>(ND) ||
+      llvm::isa<TypeAliasTemplateDecl>(ND) || llvm::isa<TypeAliasDecl>(ND))
     return (TCppScope_t)(ND->getCanonicalDecl());
 
   return 0;
@@ -2012,7 +2019,13 @@ void make_narg_call(const FunctionDecl* FD, const std::string& return_type,
     {
       std::string complete_name;
       llvm::raw_string_ostream stream(complete_name);
-      FD->getNameForDiagnostic(stream, FD->getASTContext().getPrintingPolicy(),
+      PrintingPolicy PP = FD->getASTContext().getPrintingPolicy();
+      PP.FullyQualifiedName = true;
+      PP.SuppressUnwrittenScope = true;
+#if CLANG_VERSION_MAJOR > 16
+      PP.SuppressElaboration = true;
+#endif
+      FD->getNameForDiagnostic(stream, PP,
                                /*Qualified=*/false);
 
       // insert space between template argument list and the function name
