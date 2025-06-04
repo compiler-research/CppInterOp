@@ -209,5 +209,8 @@ if(MSVC)
 "/EXPORT:?grow_pod@?$SmallVectorBase@_K@llvm@@IEAAXPEAX_K1@Z"
 "/EXPORT:?access@fs@sys@llvm@@YA?AVerror_code@std@@AEBVTwine@3@W4AccessMode@123@@Z"
 "/EXPORT:?CreateCpp@IncrementalCompilerBuilder@clang@@QEAA?AV?$Expected@V?$unique_ptr@VCompilerInstance@clang@@U?$default_delete@VCompilerInstance@clang@@@std@@@std@@@llvm@@XZ"
+"/EXPORT:__imp_?classof@DeclContext@clang@@SA_NPEBVDecl@2@@Z"
+"/EXPORT:?getMainExecutable@fs@sys@llvm@@YA?AV?$basic_string@DU?$char_traits@D@std@@V?$allocator@D@2@@std@@PEBDPEAX@Z"
+"/EXPORT:?parent_path@path@sys@llvm@@YA?AVStringRef@3@V43@W4Style@123@@Z"
   )
 endif()
