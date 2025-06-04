@@ -155,5 +155,13 @@ if(MSVC)
     "/EXPORT:?dbgs@llvm@@YAAEAVraw_ostream@1@XZ"
     "/EXPORT:?fatalUncheckedError@Error@llvm@@AEBAXXZ"
     "/EXPORT:?logAllUnhandledErrors@llvm@@YAXVError@1@AEAVraw_ostream@1@VTwine@1@@Z"
+    "/EXPORT:?Parse@Interpreter@clang@@QEAA?AV?$Expected@AEAUPartialTranslationUnit@clang@@@llvm@@VStringRef@4@@Z"
+    "/EXPORT:?Execute@Interpreter@clang@@QEAA?AVError@llvm@@AEAUPartialTranslationUnit@2@@Z"
+    "/EXPORT:?isFloatingType@Type@clang@@QEBA_NXZ"
+    "/EXPORT:?getDecl@TagType@clang@@QEBAPEAVTagDecl@2@XZ"
+    "/EXPORT:?hasDefiningAttr@Decl@clang@@QEBA_NXZ"
+    "/EXPORT:?getNumParams@FunctionDecl@clang@@QEBAIXZ"
+    "/EXPORT:?getTemplateInstantiationPattern@FunctionDecl@clang@@QEBAPEAV12@_N@Z"
+    "/EXPORT:?getTemplateSpecializationArgs@FunctionDecl@clang@@QEBAPEBVTemplateArgumentList@2@XZ"
   )
 endif()
