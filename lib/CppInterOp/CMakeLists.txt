@@ -146,3 +146,14 @@ string(REPLACE ";" "\;" _VER CPPINTEROP_VERSION)
 set_source_files_properties(CppInterOp.cpp PROPERTIES COMPILE_DEFINITIONS
   "LLVM_BINARY_DIR=\"${LLVM_BINARY_DIR}\";CPPINTEROP_VERSION=\"${_VAR}\""
 )
+
+if(MSVC)
+  target_link_options(clangCppInterOp PRIVATE
+    "/INCLUDE:?write@raw_ostream@llvm@@QEAAAEAV12@PEBD_K@Z"
+    "/INCLUDE:?errs@llvm@@YAAEAVraw_fd_ostream@1@XZ"
+    "/INCLUDE:?DestroyDataAndMakeUninit@APValue@clang@@AEAAXXZ"
+    "/INCLUDE:?dbgs@llvm@@YAAEAVraw_ostream@1@XZ"
+    "/INCLUDE:?fatalUncheckedError@Error@llvm@@AEBAXXZ"
+    "/INCLUDE:?logAllUnhandledErrors@llvm@@YAXVError@1@AEAVraw_ostream@1@VTwine@1@@Z"
+  )
+endif()
