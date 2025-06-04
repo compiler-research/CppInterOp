@@ -199,7 +199,7 @@ if(MSVC)
 "/EXPORT:?shouldMangleDeclName@MangleContext@clang@@QEAA_NPEBVNamedDecl@2@@Z"
 "/EXPORT:?mangleName@MangleContext@clang@@QEAAXVGlobalDecl@2@AEAVraw_ostream@llvm@@@Z"
 "/EXPORT:?getStdNamespace@Sema@clang@@QEBAPEAVNamespaceDecl@2@XZ"
-"/EXPORT:?castToDeclContext@Decl@clang@@SAPEAVDeclContext@2@PEBV12@@Z
+"/EXPORT:?castToDeclContext@Decl@clang@@SAPEAVDeclContext@2@PEBV12@@Z"
 "/EXPORT:?decls_begin@DeclContext@clang@@QEBA?AVdecl_iterator@12@XZ"
 "/EXPORT:?classof@DeclContext@clang@@SA_NPEBVDecl@2@@Z"
   )
