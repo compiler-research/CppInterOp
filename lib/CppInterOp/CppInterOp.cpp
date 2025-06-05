@@ -48,10 +48,12 @@
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/raw_os_ostream.h"
 
 #include <algorithm>
 #include <cassert>
+#include <deque>
 #include <iterator>
 #include <map>
 #include <memory>
@@ -84,20 +86,47 @@ using namespace std;
 struct InterpreterInfo {
   compat::Interpreter* Interpreter = nullptr;
   bool isOwned = true;
+  InterpreterInfo(compat::Interpreter* I, bool Owned)
+      : Interpreter(I), isOwned(Owned) {}
 
-  // Valgrind complains about __cxa_pure_virtual called when deleting
-  // llvm::SectionMemoryManager::~SectionMemoryManager as part of the dtor
-  // chain of the Interpreter.
-  // This might fix the issue https://reviews.llvm.org/D107087
-  // FIXME: For now we just leak the Interpreter.
-  ~InterpreterInfo() = default;
+  // Enable move constructors.
+  InterpreterInfo(InterpreterInfo&& other) noexcept
+      : Interpreter(other.Interpreter), isOwned(other.isOwned) {
+    other.Interpreter = nullptr;
+    other.isOwned = false;
+  }
+  InterpreterInfo& operator=(InterpreterInfo&& other) noexcept {
+    if (this != &other) {
+      // Delete current resource if owned
+      if (isOwned)
+        delete Interpreter;
+
+      Interpreter = other.Interpreter;
+      isOwned = other.isOwned;
+
+      other.Interpreter = nullptr;
+      other.isOwned = false;
+    }
+    return *this;
+  }
+
+  ~InterpreterInfo() {
+    if (isOwned)
+      delete Interpreter;
+  }
+
+  // Disable copy semantics (to avoid accidental double deletes)
+  InterpreterInfo(const InterpreterInfo&) = delete;
+  InterpreterInfo& operator=(const InterpreterInfo&) = delete;
 };
-static llvm::SmallVector<InterpreterInfo, 8> sInterpreters;
+
+// std::deque avoids relocations and calling the dtor of InterpreterInfo.
+static llvm::ManagedStatic<std::deque<InterpreterInfo>> sInterpreters;
 
 static compat::Interpreter& getInterp() {
-  assert(!sInterpreters.empty() &&
+  assert(!sInterpreters->empty() &&
          "Interpreter instance must be set before calling this!");
-  return *sInterpreters.back().Interpreter;
+  return *sInterpreters->back().Interpreter;
 }
 static clang::Sema& getSema() { return getInterp().getCI()->getSema(); }
 static clang::ASTContext& getASTContext() { return getSema().getASTContext(); }
@@ -518,7 +547,13 @@ std::string GetQualifiedCompleteName(TCppType_t klass) {
     if (auto* TD = llvm::dyn_cast<TagDecl>(ND)) {
       std::string type_name;
       QualType QT = C.getTagDeclType(TD);
-      QT.getAsStringInternal(type_name, C.getPrintingPolicy());
+      PrintingPolicy PP = C.getPrintingPolicy();
+      PP.FullyQualifiedName = true;
+      PP.SuppressUnwrittenScope = true;
+#if CLANG_VERSION_MAJOR > 16
+      PP.SuppressElaboration = true;
+#endif
+      QT.getAsStringInternal(type_name, PP);
 
       return type_name;
     }
@@ -601,7 +636,8 @@ TCppScope_t GetScope(const std::string& name, TCppScope_t parent) {
     return 0;
 
   if (llvm::isa<NamespaceDecl>(ND) || llvm::isa<RecordDecl>(ND) ||
-      llvm::isa<ClassTemplateDecl>(ND) || llvm::isa<TypedefNameDecl>(ND))
+      llvm::isa<ClassTemplateDecl>(ND) || llvm::isa<TypedefNameDecl>(ND) ||
+      llvm::isa<TypeAliasTemplateDecl>(ND) || llvm::isa<TypeAliasDecl>(ND))
     return (TCppScope_t)(ND->getCanonicalDecl());
 
   return 0;
@@ -1983,7 +2019,13 @@ void make_narg_call(const FunctionDecl* FD, const std::string& return_type,
     {
       std::string complete_name;
       llvm::raw_string_ostream stream(complete_name);
-      FD->getNameForDiagnostic(stream, FD->getASTContext().getPrintingPolicy(),
+      PrintingPolicy PP = FD->getASTContext().getPrintingPolicy();
+      PP.FullyQualifiedName = true;
+      PP.SuppressUnwrittenScope = true;
+#if CLANG_VERSION_MAJOR > 16
+      PP.SuppressElaboration = true;
+#endif
+      FD->getNameForDiagnostic(stream, PP,
                                /*Qualified=*/false);
 
       // insert space between template argument list and the function name
@@ -2934,24 +2976,24 @@ TInterp_t CreateInterpreter(const std::vector<const char*>& Args /*={}*/,
     llvm::cl::ParseCommandLineOptions(NumArgs + 1, Args.get());
   }
 
-  sInterpreters.push_back({I, /*isOwned=*/true});
+  sInterpreters->emplace_back(I, /*Owned=*/true);
 
   return I;
 }
 
 bool DeleteInterpreter(TInterp_t I /*=nullptr*/) {
   if (!I) {
-    sInterpreters.pop_back();
+    sInterpreters->pop_back();
     return true;
   }
 
-  auto* found =
-      std::find_if(sInterpreters.begin(), sInterpreters.end(),
+  auto found =
+      std::find_if(sInterpreters->begin(), sInterpreters->end(),
                    [&I](const auto& Info) { return Info.Interpreter == I; });
-  if (found == sInterpreters.end())
+  if (found == sInterpreters->end())
     return false; // failure
 
-  sInterpreters.erase(found);
+  sInterpreters->erase(found);
   return true;
 }
 
@@ -2959,28 +3001,28 @@ bool ActivateInterpreter(TInterp_t I) {
   if (!I)
     return false;
 
-  auto* found =
-      std::find_if(sInterpreters.begin(), sInterpreters.end(),
+  auto found =
+      std::find_if(sInterpreters->begin(), sInterpreters->end(),
                    [&I](const auto& Info) { return Info.Interpreter == I; });
-  if (found == sInterpreters.end())
+  if (found == sInterpreters->end())
     return false;
 
-  if (std::next(found) != sInterpreters.end()) // if not already last element.
-    std::rotate(found, found + 1, sInterpreters.end());
+  if (std::next(found) != sInterpreters->end()) // if not already last element.
+    std::rotate(found, found + 1, sInterpreters->end());
 
   return true; // success
 }
 
 TInterp_t GetInterpreter() {
-  if (sInterpreters.empty())
+  if (sInterpreters->empty())
     return nullptr;
-  return sInterpreters.back().Interpreter;
+  return sInterpreters->back().Interpreter;
 }
 
 void UseExternalInterpreter(TInterp_t I) {
-  assert(sInterpreters.empty() && "sInterpreter already in use!");
-  sInterpreters.push_back(
-      {static_cast<compat::Interpreter*>(I), /*isOwned=*/false});
+  assert(sInterpreters->empty() && "sInterpreter already in use!");
+  sInterpreters->emplace_back(static_cast<compat::Interpreter*>(I),
+                              /*isOwned=*/false);
 }
 
 void AddSearchPath(const char* dir, bool isUser, bool prepend) {
@@ -3029,12 +3071,7 @@ std::string DetectResourceDir(const char* ClangBinaryName /* = clang */) {
 
   std::string detected_resource_dir = outs.back();
 
-  std::string version =
-#if CLANG_VERSION_MAJOR < 16
-      CLANG_VERSION_STRING;
-#else
-      CLANG_VERSION_MAJOR_STRING;
-#endif
+  std::string version = CLANG_VERSION_MAJOR_STRING;
   // We need to check if the detected resource directory is compatible.
   if (llvm::sys::path::filename(detected_resource_dir) != version)
     return "";
