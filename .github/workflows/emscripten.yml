@@ -832,6 +832,7 @@ jobs:
         node test_xeus_cpp.js
 
     - name: Jupyter Lite integration
+      if: ${{ runner.os != 'windows' }}
       shell: bash -l {0}
       run: |
           cd ./xeus-cpp/
