@@ -142,19 +142,19 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: win11-msvc-clang-repl-20
+          - name: win11-msvc-clang-repl-20-cppyy
             os: windows-11-arm
             compiler: msvc
             clang-runtime: '20'
             cling: Off
-            cppyy: Off
-          - name: win11-msvc-clang18-cling
+            cppyy: On
+          - name: win11-msvc-clang18-cling-cppyy
             os: windows-11-arm
             compiler: msvc
             clang-runtime: '18'
             cling: On
             cling-version: '1.2'
-            cppyy: Off
+            cppyy: On
 
     steps:
     - uses: actions/checkout@v4
@@ -200,6 +200,13 @@ jobs:
         $env:ncpus=$([Environment]::ProcessorCount)
         echo "ncpus=$env:ncpus" >> $env:GITHUB_ENV
 
+    - name: Install deps on Windows
+      if: ${{ steps.cache.outputs.cache-hit != 'true' }}
+      run: |
+        choco install findutils
+        choco install gnuwin32-coreutils.install
+        $env:PATH="C:\Program Files (x86)\GnuWin32\bin;$env:PATH"
+
     - name: Setup compiler on Windows
       run: |
         if ( "${{ matrix.compiler }}" -imatch "clang" )
@@ -232,6 +239,8 @@ jobs:
         key: ${{ env.CLING_HASH }}-${{ runner.os }}-${{ matrix.os }}-${{ matrix.compiler }}-clang-${{ matrix.clang-runtime }}.x-patch-${{ hashFiles(format('patches/llvm/clang{0}-*.patch', matrix.clang-runtime)) || 'none' }}
 
     - uses: ./.github/actions/Build_and_Test_CppInterOp
+
+    - uses: ./.github/actions/Build_and_Test_cppyy
 
     - name: Setup tmate session
       if: ${{ failure() && runner.debug }}
