@@ -2499,6 +2499,16 @@ int get_wrapper_code(compat::Interpreter& I, const FunctionDecl* FD,
     S.InstantiateFunctionDefinition(SourceLocation(), FDmod,
                                     /*Recursive=*/true,
                                     /*DefinitionRequired=*/true);
+#ifndef CPPINTEROP_USE_CLING
+    // TODO: Will need to replace this with a RAII for clang-repl too
+    auto GeneratedPTU = I.Parse("");
+    if (!GeneratedPTU)
+      llvm::logAllUnhandledErrors(
+          GeneratedPTU.takeError(), llvm::errs(),
+          "[MakeFunctionCallable -> InstantiateFunctionDefinition] Failed to "
+          "generate PTU:");
+#endif
+
     if (!FD->isDefined(Definition)) {
       llvm::errs() << "TClingCallFunc::make_wrapper"
                    << ":"

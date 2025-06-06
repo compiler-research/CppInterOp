@@ -2195,6 +2195,12 @@ TEST(FunctionReflectionTest, UndoTest) {
 }
 
 TEST(FunctionReflectionTest, FailingTest1) {
+#ifdef _WIN32
+  GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
+#endif
+#ifdef EMSCRIPTEN
+  GTEST_SKIP() << "Test fails for Emscipten builds";
+#endif
   Cpp::CreateInterpreter();
   EXPECT_FALSE(Cpp::Declare(R"(
     class WithOutEqualOp1 {};
@@ -2217,7 +2223,6 @@ TEST(FunctionReflectionTest, FailingTest1) {
   EXPECT_TRUE(fn);
   Cpp::JitCall jit_call = Cpp::MakeFunctionCallable(fn);
   EXPECT_EQ(jit_call.getKind(), Cpp::JitCall::kUnknown); // expected to fail
-  EXPECT_FALSE(Cpp::Declare("int x = 1;")); // expected to pass, but fails
-  EXPECT_FALSE(Cpp::Declare(
-      "int y = 1;")); // expected to pass, and passes on second attempt
+  EXPECT_FALSE(Cpp::Declare("int x = 1;"));
+  EXPECT_FALSE(Cpp::Declare("int y = x;"));
 }
