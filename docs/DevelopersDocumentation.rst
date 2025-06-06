@@ -159,7 +159,7 @@ Use the following build instructions to build on Windows
    git apply -v ..\CppInterOp\patches\llvm\cling1.2-LookupHelper.patch
    cd ..
    git clone --depth=1 -b cling-llvm18 https://github.com/root-project/llvm-project.git
-   $env:ncpus = %NUMBER_OF_PROCESSORS%
+   $env:ncpus = $([Environment]::ProcessorCount)
    $env:PWD_DIR= $PWD.Path
    $env:CLING_DIR="$env:PWD_DIR\cling"
    mkdir llvm-project\build
@@ -209,7 +209,20 @@ define as follows
 
    export CB_PYTHON_DIR="$PWD/cppyy-backend/python"
    export CPPINTEROP_DIR="$CB_PYTHON_DIR/cppyy_backend"
+
+If building CppInterOp against clang-repl you will need to define the following
+
+.. code:: bash
+
    export CPLUS_INCLUDE_PATH="${CPLUS_INCLUDE_PATH}:${LLVM_DIR}/llvm/include:${LLVM_DIR}/clang/include:${LLVM_DIR}/build/include:${LLVM_DIR}/build/tools/clang/include"
+
+and if building against cling you will need to define the following
+
+.. code:: bash
+   
+   export CLING_DIR="$(pwd)/cling"
+   export CLING_BUILD_DIR="$(pwd)/cling/build"
+   export CPLUS_INCLUDE_PATH="${CLING_DIR}/tools/cling/include:${CLING_BUILD_DIR}/include:${LLVM_DIR}/llvm/include:${LLVM_DIR}/clang/include:${LLVM_BUILD_DIR}/include:${LLVM_BUILD_DIR}/tools/clang/include:$PWD/include"
 
 If on MacOS you will also need the following environment variable defined
 
@@ -224,7 +237,20 @@ $PWD.Path )
 
    $env:CB_PYTHON_DIR="$env:PWD_DIR\cppyy-backend\python"
    $env:CPPINTEROP_DIR="$env:CB_PYTHON_DIR\cppyy_backend"
+
+If building against clang-repl you will have the following defined
+
+.. code:: powershell
+
    $env:CPLUS_INCLUDE_PATH="$env:CPLUS_INCLUDE_PATH;$env:LLVM_DIR\llvm\include;$env:LLVM_DIR\clang\include;$env:LLVM_DIR\build\include;$env:LLVM_DIR\build\tools\clang\include"
+
+and if building against cling
+
+.. code:: powershell
+
+   $env:CLING_DIR="$env:PWD_DIR\cling"
+   $env:CLING_BUILD_DIR="$env:PWD_DIR\cling\build"
+   $env:CPLUS_INCLUDE_PATH="$env:CLING_DIR\tools\cling\include;$env:CLING_BUILD_DIR\include;$env:LLVM_DIR\llvm\include;$env:LLVM_DIR\clang\include;$env:LLVM_BUILD_DIR\include;$env:LLVM_BUILD_DIR\tools\clang\include;$env:PWD_DIR\include;"
 
 ******************
  Build CppInterOp
