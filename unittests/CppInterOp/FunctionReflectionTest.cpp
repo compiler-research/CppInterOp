@@ -2193,3 +2193,31 @@ TEST(FunctionReflectionTest, UndoTest) {
 #endif
 #endif
 }
+
+TEST(FunctionReflectionTest, FailingTest1) {
+  Cpp::CreateInterpreter();
+  EXPECT_FALSE(Cpp::Declare(R"(
+    class WithOutEqualOp1 {};
+    class WithOutEqualOp2 {};
+
+    WithOutEqualOp1 o1;
+    WithOutEqualOp2 o2;
+
+    template<class C1, class C2>
+    bool is_equal(const C1& c1, const C2& c2) { return (bool)(c1 == c2); }
+  )"));
+
+  Cpp::TCppType_t o1 = Cpp::GetTypeFromScope(Cpp::GetNamed("o1"));
+  Cpp::TCppType_t o2 = Cpp::GetTypeFromScope(Cpp::GetNamed("o2"));
+  std::vector<Cpp::TCppFunction_t> fns;
+  Cpp::GetClassTemplatedMethods("is_equal", Cpp::GetGlobalScope(), fns);
+  EXPECT_EQ(fns.size(), 1);
+
+  Cpp::TCppScope_t fn = Cpp::BestOverloadFunctionMatch(fns, {}, {o1, o2});
+  EXPECT_TRUE(fn);
+  Cpp::JitCall jit_call = Cpp::MakeFunctionCallable(fn);
+  EXPECT_EQ(jit_call.getKind(), Cpp::JitCall::kUnknown); // expected to fail
+  EXPECT_FALSE(Cpp::Declare("int x = 1;")); // expected to pass, but fails
+  EXPECT_FALSE(Cpp::Declare(
+      "int y = 1;")); // expected to pass, and passes on second attempt
+}
