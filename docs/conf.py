@@ -61,7 +61,7 @@ command_emscripten = 'git clone https://github.com/emscripten-core/emsdk.git {0}
                 export SYSROOT_PATH={0}/emsdk/upstream/emscripten/cache/sysroot;\
                 git clone --depth=1 --branch release/20.x https://github.com/llvm/llvm-project.git {0}/llvm-project;\
                 cd {0}/llvm-project;\
-                git apply -v {0}/patches/llvm/emscripten-clang20-*.patch\
+                git apply -v {0}/patches/llvm/emscripten-clang20-*.patch;\
                 mkdir {0}/llvm-project/native_build;\
                 cd {0}/llvm-project/native_build;\
                 cmake -DLLVM_ENABLE_PROJECTS=clang -DLLVM_TARGETS_TO_BUILD=host -DCMAKE_BUILD_TYPE=Release {0}/llvm-project/llvm;\
