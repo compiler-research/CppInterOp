@@ -132,7 +132,8 @@ static clang::Sema& getSema() { return getInterp().getCI()->getSema(); }
 static clang::ASTContext& getASTContext() { return getSema().getASTContext(); }
 
 #define DEBUG_TYPE "jitcall"
-bool JitCall::AreArgumentsValid(void* result, ArgList args, void* self) const {
+bool JitCall::AreArgumentsValid(void* result, ArgList args, void* self,
+                                size_t nary) const {
   bool Valid = true;
   if (Cpp::IsConstructor(m_FD)) {
     assert(result && "Must pass the location of the created object!");
@@ -155,6 +156,18 @@ bool JitCall::AreArgumentsValid(void* result, ArgList args, void* self) const {
   if (!FD->getReturnType()->isVoidType() && !result) {
     assert(0 && "We are discarding the return type of the function!");
     Valid = false;
+  }
+  if (Cpp::IsConstructor(m_FD) || Cpp::IsDestructor(m_FD))
+    assert(nary > 0 &&
+           "Number of objects to construct/destruct should be atleast 1");
+
+  if (Cpp::IsConstructor(m_FD)) {
+    const auto* CD = cast<CXXConstructorDecl>((const Decl*)m_FD);
+    if (CD->getMinRequiredArguments() != 0 && nary > 1) {
+      assert(0 &&
+             "Cannot pass initialization parameters to array new construction");
+      Valid = false;
+    }
   }
   assert(m_Kind != kDestructorCall && "Wrong overload!");
   Valid &= m_Kind != kDestructorCall;
@@ -1892,42 +1905,51 @@ void collect_type_info(const FunctionDecl* FD, QualType& QT,
 
 void make_narg_ctor(const FunctionDecl* FD, const unsigned N,
                     std::ostringstream& typedefbuf, std::ostringstream& callbuf,
-                    const std::string& class_name, int indent_level) {
+                    const std::string& class_name, int indent_level,
+                    bool array = false) {
   // Make a code string that follows this pattern:
   //
   // ClassName(args...)
+  //    OR
+  // ClassName[nary] // array of objects
   //
 
-  callbuf << class_name << "(";
-  for (unsigned i = 0U; i < N; ++i) {
-    const ParmVarDecl* PVD = FD->getParamDecl(i);
-    QualType Ty = PVD->getType();
-    QualType QT = Ty.getCanonicalType();
-    std::string type_name;
-    EReferenceType refType = kNotReference;
-    bool isPointer = false;
-    collect_type_info(FD, QT, typedefbuf, callbuf, type_name, refType,
-                      isPointer, indent_level, true);
-    if (i) {
-      callbuf << ',';
-      if (i % 2) {
-        callbuf << ' ';
+  if (array)
+    callbuf << class_name << "[nary]";
+  else
+    callbuf << class_name;
+  if (N) {
+    callbuf << "(";
+    for (unsigned i = 0U; i < N; ++i) {
+      const ParmVarDecl* PVD = FD->getParamDecl(i);
+      QualType Ty = PVD->getType();
+      QualType QT = Ty.getCanonicalType();
+      std::string type_name;
+      EReferenceType refType = kNotReference;
+      bool isPointer = false;
+      collect_type_info(FD, QT, typedefbuf, callbuf, type_name, refType,
+                        isPointer, indent_level, true);
+      if (i) {
+        callbuf << ',';
+        if (i % 2) {
+          callbuf << ' ';
+        } else {
+          callbuf << "\n";
+          indent(callbuf, indent_level);
+        }
+      }
+      if (refType != kNotReference) {
+        callbuf << "(" << type_name.c_str()
+                << (refType == kLValueReference ? "&" : "&&") << ")*("
+                << type_name.c_str() << "*)args[" << i << "]";
+      } else if (isPointer) {
+        callbuf << "*(" << type_name.c_str() << "**)args[" << i << "]";
       } else {
-        callbuf << "\n";
-        indent(callbuf, indent_level + 1);
+        callbuf << "*(" << type_name.c_str() << "*)args[" << i << "]";
       }
     }
-    if (refType != kNotReference) {
-      callbuf << "(" << type_name.c_str()
-              << (refType == kLValueReference ? "&" : "&&") << ")*("
-              << type_name.c_str() << "*)args[" << i << "]";
-    } else if (isPointer) {
-      callbuf << "*(" << type_name.c_str() << "**)args[" << i << "]";
-    } else {
-      callbuf << "*(" << type_name.c_str() << "*)args[" << i << "]";
-    }
+    callbuf << ")";
   }
-  callbuf << ")";
 }
 
 const DeclContext* get_non_transparent_decl_context(const FunctionDecl* FD) {
@@ -2085,9 +2107,15 @@ void make_narg_ctor_with_return(const FunctionDecl* FD, const unsigned N,
                                 std::ostringstream& buf, int indent_level) {
   // Make a code string that follows this pattern:
   //
-  //  (*(ClassName**)ret) = (obj) ?
-  //    new (*(ClassName**)ret) ClassName(args...) : new ClassName(args...);
-  //
+  // Array new if nary has been passed, and nargs is 0 (must be default ctor)
+  // if (nary) {
+  //    (*(ClassName**)ret) = (obj) ? new (*(ClassName**)ret) ClassName[nary] :
+  //    new ClassName[nary];
+  //   }
+  // else {
+  //    (*(ClassName**)ret) = (obj) ? new (*(ClassName**)ret) ClassName(args...)
+  //    : new ClassName(args...);
+  //   }
   {
     std::ostringstream typedefbuf;
     std::ostringstream callbuf;
@@ -2095,8 +2123,43 @@ void make_narg_ctor_with_return(const FunctionDecl* FD, const unsigned N,
     //  Write the return value assignment part.
     //
     indent(callbuf, indent_level);
+    auto* CD = dyn_cast<CXXConstructorDecl>(FD);
+
+    // Activate this block only if array new is possible
+    // if (nary) {
+    //    (*(ClassName**)ret) = (obj) ? new (*(ClassName**)ret) ClassName[nary]
+    //    : new ClassName[nary];
+    //   }
+    // else {
+    if (!CD->isDefaultConstructor() && CD->getNumParams() == 0) {
+      callbuf << "if (nary > 1) {\n";
+      indent(callbuf, indent_level);
+      callbuf << "(*(" << class_name << "**)ret) = ";
+      callbuf << "(is_arena) ? new (*(" << class_name << "**)ret) ";
+      make_narg_ctor(FD, N, typedefbuf, callbuf, class_name, indent_level,
+                     true);
+
+      callbuf << ": new ";
+      //
+      //  Write the actual expression.
+      //
+      make_narg_ctor(FD, N, typedefbuf, callbuf, class_name, indent_level,
+                     true);
+      //
+      //  End the new expression statement.
+      //
+      callbuf << ";\n";
+      indent(callbuf, indent_level);
+      callbuf << "}\n";
+      callbuf << "else {\n";
+    }
+
+    // Standard branch:
+    // (*(ClassName**)ret) = (obj) ? new (*(ClassName**)ret) ClassName(args...)
+    // : new ClassName(args...);
+    indent(callbuf, indent_level);
     callbuf << "(*(" << class_name << "**)ret) = ";
-    callbuf << "(obj) ? new (*(" << class_name << "**)ret) ";
+    callbuf << "(is_arena) ? new (*(" << class_name << "**)ret) ";
     make_narg_ctor(FD, N, typedefbuf, callbuf, class_name, indent_level);
 
     callbuf << ": new ";
@@ -2108,6 +2171,10 @@ void make_narg_ctor_with_return(const FunctionDecl* FD, const unsigned N,
     //  End the new expression statement.
     //
     callbuf << ";\n";
+    indent(callbuf, --indent_level);
+    if (!CD->isDefaultConstructor() && CD->getNumParams() == 0)
+      callbuf << "}\n";
+
     //
     //  Output the whole new expression and return statement.
     //
@@ -2620,8 +2687,14 @@ int get_wrapper_code(compat::Interpreter& I, const FunctionDecl* FD,
          "__attribute__((annotate(\"__cling__ptrcheck(off)\")))\n"
          "extern \"C\" void ";
   buf << wrapper_name;
-  buf << "(void* obj, int nargs, void** args, void* ret)\n"
-         "{\n";
+  if (Cpp::IsConstructor(FD)) {
+    buf << "(void* ret, unsigned long nary, unsigned long nargs, void** args, "
+           "void* is_arena)\n"
+           "{\n";
+  } else
+    buf << "(void* obj, unsigned long nargs, void** args, void* ret)\n"
+           "{\n";
+
   ++indent_level;
   if (min_args == num_params) {
     // No parameters with defaults.
@@ -2872,6 +2945,13 @@ CPPINTEROP_API JitCall MakeFunctionCallable(TInterp_t I,
   if (const auto* Dtor = dyn_cast<CXXDestructorDecl>(D)) {
     if (auto Wrapper = make_dtor_wrapper(*interp, Dtor->getParent()))
       return {JitCall::kDestructorCall, Wrapper, Dtor};
+    // FIXME: else error we failed to compile the wrapper.
+    return {};
+  }
+
+  if (const auto* Ctor = dyn_cast<CXXConstructorDecl>(D)) {
+    if (auto Wrapper = make_wrapper(*interp, cast<FunctionDecl>(D)))
+      return {JitCall::kConstructorCall, Wrapper, Ctor};
     // FIXME: else error we failed to compile the wrapper.
     return {};
   }
@@ -3602,17 +3682,18 @@ void GetOperator(TCppScope_t scope, Operator op,
   }
 }
 
-TCppObject_t Allocate(TCppScope_t scope) {
-  return (TCppObject_t)::operator new(Cpp::SizeOf(scope));
+TCppObject_t Allocate(TCppScope_t scope, TCppIndex_t count) {
+  return (TCppObject_t)::operator new(Cpp::SizeOf(scope) * count);
 }
 
-void Deallocate(TCppScope_t scope, TCppObject_t address) {
-  ::operator delete(address);
+void Deallocate(TCppScope_t scope, TCppObject_t address, TCppIndex_t count) {
+  size_t bytes = Cpp::SizeOf(scope) * count;
+  ::operator delete(address, bytes);
 }
 
 // FIXME: Add optional arguments to the operator new.
 TCppObject_t Construct(compat::Interpreter& interp, TCppScope_t scope,
-                       void* arena /*=nullptr*/) {
+                       void* arena /*=nullptr*/, TCppIndex_t count /*=1UL*/) {
   auto* Class = (Decl*)scope;
   // FIXME: Diagnose.
   if (!HasDefaultConstructor(Class))
@@ -3621,33 +3702,36 @@ TCppObject_t Construct(compat::Interpreter& interp, TCppScope_t scope,
   auto* const Ctor = GetDefaultConstructor(interp, Class);
   if (JitCall JC = MakeFunctionCallable(&interp, Ctor)) {
     if (arena) {
-      JC.Invoke(&arena, {}, (void*)~0); // Tell Invoke to use placement new.
+      JC.InvokeConstructor(&arena, count, {},
+                           (void*)~0); // Tell Invoke to use placement new.
       return arena;
     }
 
     void* obj = nullptr;
-    JC.Invoke(&obj);
+    JC.InvokeConstructor(&obj, count, {}, nullptr);
     return obj;
   }
   return nullptr;
 }
 
-TCppObject_t Construct(TCppScope_t scope, void* arena /*=nullptr*/) {
-  return Construct(getInterp(), scope, arena);
+TCppObject_t Construct(TCppScope_t scope, void* arena /*=nullptr*/,
+                       TCppIndex_t count /*=0UL*/) {
+  return Construct(getInterp(), scope, arena, count);
 }
 
 void Destruct(compat::Interpreter& interp, TCppObject_t This, Decl* Class,
-              bool withFree) {
+              bool withFree, TCppIndex_t nary) {
   if (auto wrapper = make_dtor_wrapper(interp, Class)) {
-    (*wrapper)(This, /*nary=*/0, withFree);
+    (*wrapper)(This, nary, withFree);
     return;
   }
   // FIXME: Diagnose.
 }
 
-void Destruct(TCppObject_t This, TCppScope_t scope, bool withFree /*=true*/) {
+void Destruct(TCppObject_t This, TCppScope_t scope, bool withFree /*=true*/,
+              TCppIndex_t count /*=1UL*/) {
   auto* Class = static_cast<Decl*>(scope);
-  Destruct(getInterp(), This, Class, withFree);
+  Destruct(getInterp(), This, Class, withFree, count);
 }
 
 class StreamCaptureInfo {
