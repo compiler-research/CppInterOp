@@ -24,6 +24,12 @@ add_cppinterop_unittest(CppInterOpTests
 )
 
 if(EMSCRIPTEN)
+  if (SYSROOT_PATH MATCHES "@")
+    execute_process(
+        COMMAND ln -s ${SYSROOT_PATH} ${CMAKE_CURRENT_BINARY_DIR}
+    )
+    set(SYSROOT_PATH "./sysroot/")
+  endif()
   # Explanation of Emscripten-specific link flags for CppInterOpTests:
   #
   # MAIN_MODULE=1:
@@ -96,6 +102,13 @@ target_link_libraries(DynamicLibraryManagerTests
 )
 
 if(EMSCRIPTEN)
+  set(TEST_SHARED_LIBRARY_PATH "${CMAKE_CURRENT_BINARY_DIR}/TestSharedLib/unittests/bin/Release/")
+  if (TEST_SHARED_LIBRARY_PATH MATCHES "@")
+    execute_process(
+        COMMAND ln -s ${TEST_SHARED_LIBRARY_PATH} ${CMAKE_CURRENT_BINARY_DIR}
+    )
+    set(TEST_SHARED_LIBRARY_PATH "./Release/")
+  endif()
   # Check explanation of Emscripten-specific link flags for CppInterOpTests above for DynamicLibraryManagerTests as well.
   target_link_options(DynamicLibraryManagerTests
     PUBLIC "SHELL: -s MAIN_MODULE=1"
@@ -105,7 +118,7 @@ if(EMSCRIPTEN)
     PUBLIC "SHELL: -s INITIAL_MEMORY=128mb"
     PUBLIC "SHELL: --preload-file ${SYSROOT_PATH}/include@/include"
     PUBLIC "SHELL: --emrun"
-    PUBLIC "SHELL: --preload-file ${CMAKE_CURRENT_BINARY_DIR}/TestSharedLib/unittests/bin/Release/libTestSharedLib.so@/libTestSharedLib.so"
+    PUBLIC "SHELL: --preload-file ${TEST_SHARED_LIBRARY_PATH}/libTestSharedLib.so@/libTestSharedLib.so"
   )
 endif()
 
