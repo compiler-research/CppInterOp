@@ -164,8 +164,8 @@ jobs:
         brew install gnu-sed
         pip install distro pytest
 
-
-    - uses: ./.github/actions/Build_LLVM
+    - name: Build LLVM and ${{ matrix.cling == 'On' && 'Cling' || 'Clang-REPL' }}
+      uses: ./.github/actions/Build_LLVM
       with:
         cache-hit: ${{ steps.cache.outputs.cache-hit }}
 
@@ -178,9 +178,11 @@ jobs:
           ${{ matrix.cling=='On' && 'cling' || '' }}
         key: ${{ steps.cache.outputs.cache-primary-key }}
 
-    - uses: ./.github/actions/Build_and_Test_CppInterOp
+    - name: Build and test CppInterOp
+      uses: ./.github/actions/Build_and_Test_CppInterOp
 
-    - uses: ./.github/actions/Build_and_Test_cppyy
+    - name: Build and test cppyy
+      uses: ./.github/actions/Build_and_Test_cppyy
 
     - name: Show debug info
       if: ${{ failure() }}

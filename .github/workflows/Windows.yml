@@ -117,7 +117,8 @@ jobs:
         choco install findutils
         $env:PATH="C:\Program Files (x86)\GnuWin32\bin;$env:PATH"
 
-    - uses: ./.github/actions/Build_LLVM
+    - name: Build LLVM and ${{ matrix.cling == 'On' && 'Cling' || 'Clang-REPL' }}
+      uses: ./.github/actions/Build_LLVM
       with:
         cache-hit: ${{ steps.cache.outputs.cache-hit }}
 
@@ -130,7 +131,8 @@ jobs:
           ${{ matrix.cling=='On' && 'cling' || '' }}
         key: ${{ steps.cache.outputs.cache-primary-key }}   
 
-    - uses: ./.github/actions/Build_and_Test_CppInterOp
+    - name: Build and test CppInterOp
+      uses: ./.github/actions/Build_and_Test_CppInterOp
 
     - name: Setup tmate session
       if: ${{ failure() && runner.debug }}

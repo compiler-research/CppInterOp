@@ -163,7 +163,9 @@ jobs:
         sudo apt install libeigen3-dev
         sudo apt install libboost-all-dev
 
-    - uses: ./.github/actions/Build_LLVM       
+    
+    - name: Build LLVM and ${{ matrix.cling == 'On' && 'Cling' || 'Clang-REPL' }}
+      uses: ./.github/actions/Build_LLVM
       with:
         cache-hit: ${{ steps.cache.outputs.cache-hit }}
 
@@ -183,7 +185,8 @@ jobs:
         echo "CODE_COVERAGE=1" >> $GITHUB_ENV
         echo "BUILD_TYPE=Debug" >> $GITHUB_ENV
 
-    - uses: ./.github/actions/Build_and_Test_CppInterOp
+    - name: Build and test CppInterOp
+      uses: ./.github/actions/Build_and_Test_CppInterOp
 
     - name: Prepare code coverage report
       if: ${{ success() && (matrix.coverage == true) }}
@@ -205,7 +208,8 @@ jobs:
         verbose: true
         token: ${{ secrets.CODECOV_TOKEN }}
 
-    - uses: ./.github/actions/Build_and_Test_cppyy        
+    - name: Build and test cppyy
+      uses: ./.github/actions/Build_and_Test_cppyy        
 
     - name: Show debug info
       if: ${{ failure() }}
