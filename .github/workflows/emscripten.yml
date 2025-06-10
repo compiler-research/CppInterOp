@@ -137,7 +137,7 @@ jobs:
         echo "CLING_HASH=$env:CLING_HASH" >> $GITHUB_ENV
         echo "LLVM_HASH=$env:LLVM_HASH" >> $GITHUB_ENV
 
-    - name: Restore Cache LLVM/Clang runtime build directory (Unix like systems emscripten)
+    - name: Restore cached LLVM-${{ matrix.clang-runtime }} and ${{ matrix.cling == 'On' && 'Cling' || 'Clang-REPL' }} build (Unix like systems emscripten)
       uses: actions/cache/restore@v4
       id: cache
       with:
@@ -415,7 +415,7 @@ jobs:
           cd ..\..
         }
 
-    - name: Save Cache LLVM/Clang runtime build directory
+    - name: Cache LLVM-${{ matrix.clang-runtime }} and ${{ matrix.cling == 'On' && 'Cling' || 'Clang-REPL' }} build
       uses: actions/cache/save@v4
       if: ${{ steps.cache.outputs.cache-hit != 'true' }}
       with:
@@ -540,7 +540,7 @@ jobs:
           cd emsdk
           ./emsdk install  ${{ matrix.emsdk_ver }}
 
-    - name: Restore Cache LLVM/Clang runtime build directory
+    - name: Restore cached LLVM-${{ matrix.clang-runtime }} and ${{ matrix.cling == 'On' && 'Cling' || 'Clang-REPL' }} build
       uses: actions/cache/restore@v4
       id: cache
       with:
