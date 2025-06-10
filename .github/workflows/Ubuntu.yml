@@ -102,7 +102,7 @@ jobs:
         echo "CLING_HASH=$CLING_HASH" >> $GITHUB_ENV
         echo "LLVM_HASH=$LLVM_HASH" >> $GITHUB_ENV
 
-    - name: Restore Cache LLVM/Clang runtime build directory
+    - name: Restore cached LLVM-${{ matrix.clang-runtime }} and ${{ matrix.cling == 'On' && 'Cling' || 'Clang-REPL' }} build
       uses: actions/cache/restore@v4
       id: cache
       with:
@@ -153,12 +153,12 @@ jobs:
         sudo apt install libeigen3-dev
         sudo apt install libboost-all-dev
 
-    - name: Build LLVM and ${{ matrix.cling == 'On' && 'Cling' || 'Clang-REPL' }}
+    - name: Build LLVM-${{ matrix.clang-runtime }} and ${{ matrix.cling == 'On' && 'Cling' || 'Clang-REPL' }}
       uses: ./.github/actions/Build_LLVM
       with:
         cache-hit: ${{ steps.cache.outputs.cache-hit }}
 
-    - name: Save Cache LLVM/Clang runtime build directory
+    - name: Cache LLVM-${{ matrix.clang-runtime }} and ${{ matrix.cling == 'On' && 'Cling' || 'Clang-REPL' }} build
       uses: actions/cache/save@v4
       if: ${{ steps.cache.outputs.cache-hit != 'true' }}
       with:

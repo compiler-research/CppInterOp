@@ -79,7 +79,7 @@ jobs:
           cd emsdk
           ./emsdk install  ${{ matrix.emsdk_ver }}
 
-    - name: Restore Cache LLVM/Clang runtime build directory
+    - name: Restore cached LLVM-${{ matrix.clang-runtime }} and ${{ matrix.cling == 'On' && 'Cling' || 'Clang-REPL' }} build
       uses: actions/cache/restore@v4
       id: cache
       with:
