@@ -1,6 +1,7 @@
 LIBRARY clangCppInterOp
 EXPORTS
   ?write@raw_ostream@llvm@@QEAAAEAV12@PEBD_K@Z
+  ??0GlobalDecl@clang@@QEAA@PEBVNamedDecl@1@@Z
   ?create@Interpreter@clang@@SA?AV?$Expected@V?$unique_ptr@VInterpreter@clang@@U?$default_delete@VInterpreter@clang@@@std@@@std@@@llvm@@V?$unique_ptr@VCompilerInstance@clang@@U?$default_delete@VCompilerInstance@clang@@@std@@@std@@@Z
   ?errs@llvm@@YAAEAVraw_fd_ostream@1@XZ
   ?DestroyDataAndMakeUninit@APValue@clang@@AEAAXXZ
