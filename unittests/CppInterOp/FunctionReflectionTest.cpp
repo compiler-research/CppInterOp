@@ -2219,8 +2219,10 @@ TEST(FunctionReflectionTest, FailingTest1) {
   Cpp::GetClassTemplatedMethods("is_equal", Cpp::GetGlobalScope(), fns);
   EXPECT_EQ(fns.size(), 1);
 
-  Cpp::TCppScope_t fn = Cpp::BestOverloadFunctionMatch(fns, {}, {o1, o2});
+  Cpp::TemplateArgInfo args[2] = {{o1}, {o2}};
+  Cpp::TCppScope_t fn = Cpp::InstantiateTemplate(fns[0], args, 2);
   EXPECT_TRUE(fn);
+
   Cpp::JitCall jit_call = Cpp::MakeFunctionCallable(fn);
   EXPECT_EQ(jit_call.getKind(), Cpp::JitCall::kUnknown); // expected to fail
   EXPECT_FALSE(Cpp::Declare("int x = 1;"));
