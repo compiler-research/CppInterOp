@@ -146,3 +146,9 @@ string(REPLACE ";" "\;" _VER CPPINTEROP_VERSION)
 set_source_files_properties(CppInterOp.cpp PROPERTIES COMPILE_DEFINITIONS
   "LLVM_BINARY_DIR=\"${LLVM_BINARY_DIR}\";CPPINTEROP_VERSION=\"${_VAR}\""
 )
+
+if(MSVC)
+  set_target_properties(clangCppInterOp PROPERTIES
+      LINK_FLAGS "/DEF:${CMAKE_CURRENT_SOURCE_DIR}/clangCppInterOp.def"
+  )
+endif()

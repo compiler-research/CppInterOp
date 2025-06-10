@@ -134,6 +134,8 @@ jobs:
     - name: Build and test CppInterOp
       uses: ./.github/actions/Build_and_Test_CppInterOp
 
+    - uses: ./.github/actions/Build_and_Test_cppyy
+
     - name: Setup tmate session
       if: ${{ failure() && runner.debug }}
       uses: mxschmitt/action-tmate@v3
