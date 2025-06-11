@@ -1,5 +1,5 @@
-Debugging in CppInterOp
------------------------
+Debugging in JIT Compiled Code
+------------------------------
 
 C++ Language Interoperability Layer - Debugging Guide
 ======================================================
