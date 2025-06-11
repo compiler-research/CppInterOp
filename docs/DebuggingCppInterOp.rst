@@ -31,7 +31,7 @@ When compiling your CppInterOp application, use the following essential flags:
 
 .. code-block:: bash
 
-   g++ -I$CPPINTEROP_DIR/include -g -O0 -lclangCppInterOp -Wl,-rpath,$CPPINTEROP_DIR/build/lib
+   $CXX -I$CPPINTEROP_DIR/include -g -O0 -lclangCppInterOp -Wl,-rpath,$CPPINTEROP_DIR/build/lib
 
 **Flag Explanation:**
 
@@ -63,38 +63,13 @@ Here's a comprehensive example that demonstrates common CppInterOp usage pattern
   void f1() {
     std::cout << "in f1 function" << std::endl;
   }
-  void f2() {
-    std::cout << "in f2 function" << std::endl;
-  }
-  void f3() {
-    std::cout << "in f3 function" << std::endl;
-  }
   std::cout << "In codeblock 1" << std::endl;
   int a = 100;
   int b = 1000;
+    )";
+    run_code(code);
+    code = R"(
   f1();
-  f2();
-  f3();
-    )";
-    run_code(code);
-    code = R"(
-  std::cout << "In codeblock 2" << std::endl;
-  std::cout << "a = " << a << std::endl;
-  std::cout << "b = " << b << std::endl;
-  void f4() {
-    std::cout << "in f4 function" << std::endl;
-    f2();
-  }
-  f3();
-  f2();
-    )";
-    run_code(code);
-
-    code = R"(
-  std::cout << "In codeblock 3" << std::endl;
-  f3();
-  f2();
-  f4();
     )";
     run_code(code);
     return 0;
@@ -132,7 +107,7 @@ For debugging the main executable and compiled portions of your CppInterOp appli
 **Note**
 
 1. Ensure the JIT loader is enabled to allow LLDB to debug dynamically generated code.
-2. Use ``(lldb) settings set plugin.jit-loader.gdb.enable on`` to enable JIT debugging.
+2. Use ``settings set plugin.jit-loader.gdb.enable on`` to enable JIT debugging.
 3. Set breakpoints in both compiled and interpreted code using ``breakpoint set --name function_name``.
 
 
