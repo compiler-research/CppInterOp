@@ -31,7 +31,7 @@ When compiling your CppInterOp application, use the following essential flags:
 
 .. code-block:: bash
 
-   $LLVM_DIR/build/bin/clang++ -I$CPPINTEROP_DIR/include -g -O0 -lclangCppInterOp -Wl,-rpath,$CPPINTEROP_DIR/build/lib
+   g++ -I$CPPINTEROP_DIR/include -g -O0 -lclangCppInterOp -Wl,-rpath,$CPPINTEROP_DIR/build/lib
 
 **Flag Explanation:**
 
@@ -119,7 +119,7 @@ For debugging the main executable and compiled portions of your CppInterOp appli
 
 .. code-block:: bash
 
-   lldb ./test
+   lldb /path/to/executable
    (lldb) settings set plugin.jit-loader.gdb.enable on
    (lldb) breakpoint set --name f1
    (lldb) r
@@ -139,7 +139,25 @@ For debugging the main executable and compiled portions of your CppInterOp appli
 **Some Caveats**
 
 1. For each block of code, there is a file named ``input_line_<execution_number>`` that contains the code block. This file is in-memory and thus cannot be directly accessed.
-2. If a function is called from different cell, then it may take multiple step-ins to reach the function definition due to the way CppInterOp handles code blocks.
+2. However, generating actual input_line_<number> files on disk will let LLDB pick them up and render the source content correctly during debugging. This can be achieved by modifying run_code as follows:
+
+.. code-block:: cpp
+
+    void run_code(std::string code) {
+        static size_t i = 0;
+        i++;
+        std::string filename = "input_line_" + std::to_string(i);
+        std::ofstream file(filename);
+        file << code;
+        file.close();
+        Cpp::Declare(code.c_str());
+    }
+
+.. note::
+
+    You'll need to manually delete these files later to avoid cluttering the filesystem.
+
+3. If a function is called from different cell, then it may take multiple step-ins to reach the function definition due to the way CppInterOp handles code blocks.
 
 Advanced Debugging Techniques
 =============================
@@ -160,7 +178,7 @@ For IDE-based debugging:
                 "type": "lldb-dap",
                 "request": "launch",
                 "name": "Debug",
-                "program": "${workspaceFolder}/test",
+                "program": "/path/to/executable",
                 "sourcePath" : ["${workspaceFolder}"],
                 "cwd": "${workspaceFolder}",
                 "initCommands": [
@@ -179,3 +197,5 @@ Further Reading
 - **CppInterOp Source**: `CppInterOp Repository <https://github.com/compiler-research/CppInterOp>`_
 - **Clang Documentation**: `Clang Compiler <https://clang.llvm.org/docs/>`_
 - **LLVM Debugging Guide**: `LLVM Debug Info <https://llvm.org/docs/SourceLevelDebugging.html>`_
+
+
