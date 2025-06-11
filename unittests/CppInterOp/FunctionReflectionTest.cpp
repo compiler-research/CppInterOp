@@ -1421,6 +1421,8 @@ TEST(FunctionReflectionTest, GetFunctionAddress) {
   std::stringstream address;
   address << Cpp::GetFunctionAddress(Decls[0]);
   EXPECT_EQ(address.str(), output);
+
+  EXPECT_FALSE(Cpp::GetFunctionAddress(Cpp::GetGlobalScope()));
 }
 
 TEST(FunctionReflectionTest, IsVirtualMethod) {
@@ -1489,6 +1491,15 @@ TEST(FunctionReflectionTest, JitCallAdvanced) {
   clang_Interpreter_dispose(I);
 }
 
+template <typename T> T instantiation_in_host() { return T(0); }
+#if defined(_WIN32)
+template __declspec(dllexport) int instantiation_in_host<int>();
+#elif defined(__GNUC__)
+template __attribute__((__visibility__("default"))) int
+instantiation_in_host<int>();
+#else
+template int instantiation_in_host<int>();
+#endif
 
 TEST(FunctionReflectionTest, GetFunctionCallWrapper) {
 #ifdef EMSCRIPTEN
@@ -1824,6 +1835,35 @@ TEST(FunctionReflectionTest, GetFunctionCallWrapper) {
 
   auto fn_callable = Cpp::MakeFunctionCallable(fn);
   EXPECT_EQ(fn_callable.getKind(), Cpp::JitCall::kGenericCall);
+
+  // instantiation in host, no template function body
+  Interp->process("template<typename T> T instantiation_in_host();");
+
+  unresolved_candidate_methods.clear();
+  Cpp::GetClassTemplatedMethods("instantiation_in_host", Cpp::GetGlobalScope(),
+                                unresolved_candidate_methods);
+  EXPECT_EQ(unresolved_candidate_methods.size(), 1);
+
+  Cpp::TCppScope_t instantiation_in_host = Cpp::BestOverloadFunctionMatch(
+      unresolved_candidate_methods, {Cpp::GetType("int")}, {});
+  EXPECT_TRUE(instantiation_in_host);
+
+  Cpp::JitCall instantiation_in_host_callable =
+      Cpp::MakeFunctionCallable(instantiation_in_host);
+  EXPECT_EQ(instantiation_in_host_callable.getKind(),
+            Cpp::JitCall::kGenericCall);
+
+  instantiation_in_host = Cpp::BestOverloadFunctionMatch(
+      unresolved_candidate_methods, {Cpp::GetType("double")}, {});
+  EXPECT_TRUE(instantiation_in_host);
+
+  Cpp::BeginStdStreamCapture(Cpp::CaptureStreamKind::kStdErr);
+  instantiation_in_host_callable =
+      Cpp::MakeFunctionCallable(instantiation_in_host);
+  std::string err_msg = Cpp::EndStdStreamCapture();
+  EXPECT_TRUE(err_msg.find("instantiation with no body") != std::string::npos);
+  EXPECT_EQ(instantiation_in_host_callable.getKind(),
+            Cpp::JitCall::kUnknown); // expect to fail
 }
 
 TEST(FunctionReflectionTest, IsConstMethod) {
