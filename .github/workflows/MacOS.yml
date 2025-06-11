@@ -102,23 +102,8 @@ jobs:
     - name: Setup compiler
       uses: ./.github/actions/Miscellaneous/Setup_Compiler
 
-    - name: Install deps
-      if: ${{ steps.cache.outputs.cache-hit != 'true' }}
-      run: |
-        brew update --force
-        brew remove swiftlint
-        # workaround for https://github.com/actions/setup-python/issues/577
-        for pkg in $(brew list | grep '^python@'); do
-          brew unlink "$pkg"
-          brew link --overwrite "$pkg"
-        done
-        brew upgrade openssl >/dev/null 2>&1
-        brew upgrade --force
-        brew install ninja
-        brew install eigen
-        brew install boost
-        brew install gnu-sed
-        pip install distro pytest
+    - name: Install dependencies
+      uses: ./.github/actions/Miscellaneous/Install_Dependencies
 
     - name: Build LLVM-${{ matrix.clang-runtime }} and ${{ matrix.cling == 'On' && 'Cling' || 'Clang-REPL' }}
       uses: ./.github/actions/Build_LLVM

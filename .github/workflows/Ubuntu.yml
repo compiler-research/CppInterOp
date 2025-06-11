@@ -103,18 +103,8 @@ jobs:
     - name: Setup compiler
       uses: ./.github/actions/Miscellaneous/Setup_Compiler
 
-    - name: Install deps
-      run: |
-        # Install deps
-        sudo apt-get update
-        sudo apt-get install valgrind ninja-build
-        sudo apt-get install git g++ debhelper devscripts gnupg python3 doxygen graphviz python3-sphinx
-        sudo apt-get install -y libc6-dbg
-        sudo apt autoremove
-        sudo apt clean
-        # Install libraries used by the cppyy test suite
-        sudo apt install libeigen3-dev
-        sudo apt install libboost-all-dev
+    - name: Install dependencies
+      uses: ./.github/actions/Miscellaneous/Install_Dependencies
 
     - name: Build LLVM-${{ matrix.clang-runtime }} and ${{ matrix.cling == 'On' && 'Cling' || 'Clang-REPL' }}
       uses: ./.github/actions/Build_LLVM
