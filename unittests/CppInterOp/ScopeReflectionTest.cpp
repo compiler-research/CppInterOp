@@ -789,7 +789,10 @@ TEST(ScopeReflectionTest, GetAllCppNames) {
     }
   )";
 
-  GetAllTopLevelDecls(code, Decls);
+  std::vector<const char*> interpreter_args = {"-Wno-inaccessible-base"};
+
+  GetAllTopLevelDecls(code, Decls, /*filter_implicitGenerated=*/false,
+                      interpreter_args);
 
   auto test_get_all_cpp_names =
       [](Decl* D, const std::vector<std::string>& truth_names) {
