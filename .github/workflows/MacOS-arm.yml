@@ -101,34 +101,7 @@ jobs:
         echo "ncpus=$(sysctl -n hw.ncpu)" >> $GITHUB_ENV
 
     - name: Setup compiler
-      run: |
-        vers="${compiler#*-}"
-        if [[ "${{ matrix.compiler }}" == *"gcc"* ]]; then
-          brew install "gcc@$vers"
-          echo "CC=gcc-${vers}" >> $GITHUB_ENV
-          echo "CXX=g++-${vers}" >> $GITHUB_ENV
-        else
-          cling_on=$(echo "${{ matrix.cling }}" | tr '[:lower:]' '[:upper:]')
-          if [[ "${cling_on}" == "ON" ]]; then
-              brew install llvm@15
-              brew remove llvm@18
-              brew cleanup
-              #FIXME: Do not believe setting all these environment variables are necessary
-              #       They were set to avoid using Xcodes libc++ and to stop CppInterOp using llvm@18 in tests
-              echo 'LDFLAGS="-L/opt/homebrew/opt/llvm@15/lib/ -L/opt/homebrew/opt/llvm@15/c++/"' >> $GITHUB_ENV
-              echo 'CPPFLAGS="-I/opt/homebrew/opt/llvm@15/include"' >> $GITHUB_ENV
-              echo 'CPATH="/opt/homebrew/include/"' >> $GITHUB_ENV
-              echo 'LIBRARY_PATH="/opt/homebrew/lib/"' >> $GITHUB_ENV
-              echo "CC=$(brew --prefix llvm@15)/bin/clang" >> $GITHUB_ENV
-              echo "CXX=$(brew --prefix llvm@15)/bin/clang++" >> $GITHUB_ENV
-          else
-            echo "CC=$(brew --prefix llvm@18)/bin/clang" >> $GITHUB_ENV
-            echo "CXX=$(brew --prefix llvm@18)/bin/clang++" >> $GITHUB_ENV
-          fi
-        fi
-        echo "SDKROOT=$(xcrun --sdk macosx --show-sdk-path)" >> $GITHUB_ENV
-      env:
-        compiler: ${{ matrix.compiler }}
+      uses: ./.github/actions/Miscellaneous/Setup_Compiler
 
     - name: Install deps
       run: |

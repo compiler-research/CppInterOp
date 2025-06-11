@@ -66,27 +66,8 @@ jobs:
         $env:ncpus=$([Environment]::ProcessorCount)
         echo "ncpus=$env:ncpus" >> $env:GITHUB_ENV
 
-    - name: Setup compiler on Windows
-      run: |
-        if ( "${{ matrix.compiler }}" -imatch "clang" )
-        {
-          $ver="${{ matrix.compiler }}".split("-")[1]
-          choco install llvm --version=$ver --no-progress -my
-          clang --version
-          #
-          $env:CC="clang"
-          $env:CXX="clang++"
-          echo "CC=clang" >> $env:GITHUB_ENV
-          echo "CXX=clang++" >> $env:GITHUB_ENV
-        }
-        elseif ( "${{ matrix.compiler }}" -imatch "msvc" )
-        {
-          # MSVC is builtin in container image
-        }
-        else
-        {
-          echo "Unsupported compiler - fix YAML file"
-        }
+    - name: Setup compiler
+      uses: ./.github/actions/Miscellaneous/Setup_Compiler
 
     - name: Install deps on Windows
       run: |

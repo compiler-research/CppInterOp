@@ -101,27 +101,7 @@ jobs:
         echo "ncpus=$(nproc --all)" >> $GITHUB_ENV
 
     - name: Setup compiler
-      run: |
-        # https://www.gnu.org/software/bash/manual/html_node/Shell-Parameter-Expansion.html
-        vers="${compiler#*-}"
-        os_codename="`cat /etc/os-release | grep UBUNTU_CODENAME | cut -d = -f 2`"
-        ##sudo apt update
-        if [[ "${{ matrix.compiler }}" == *"gcc"* ]]; then
-          sudo apt install -y gcc-${vers} g++-${vers} lld
-          echo "CC=gcc-${vers}" >> $GITHUB_ENV
-          echo "CXX=g++-${vers}" >> $GITHUB_ENV
-        else
-          if ! sudo apt install -y clang-${vers}; then
-            curl https://apt.llvm.org/llvm-snapshot.gpg.key | sudo apt-key add -
-            echo "deb https://apt.llvm.org/${os_codename}/ llvm-toolchain-${os_codename}-${vers} main" | sudo tee -a /etc/apt/sources.list
-            sudo apt-get update
-            sudo apt-get install -y clang-${vers}
-          fi
-          echo "CC=clang-${vers}" >> $GITHUB_ENV
-          echo "CXX=clang++-${vers}" >> $GITHUB_ENV
-        fi
-      env:
-        compiler: ${{ matrix.compiler }}
+      uses: ./.github/actions/Miscellaneous/Setup_Compiler
 
     - name: Install deps
       run: |

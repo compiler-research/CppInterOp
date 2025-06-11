@@ -100,19 +100,7 @@ jobs:
         echo "ncpus=$(sysctl -n hw.ncpu)" >> $GITHUB_ENV
 
     - name: Setup compiler
-      run: |
-        vers="${compiler#*-}"
-        if [[ "${{ matrix.compiler }}" == *"gcc"* ]]; then
-          brew install "gcc@$vers"
-          echo "CC=gcc-${vers}" >> $GITHUB_ENV
-          echo "CXX=g++-${vers}" >> $GITHUB_ENV
-        else
-          echo "CC=$(brew --prefix llvm@15)/bin/clang" >> $GITHUB_ENV
-          echo "CXX=$(brew --prefix llvm@15)/bin/clang++" >> $GITHUB_ENV
-        fi
-        echo "SDKROOT=$(xcrun --sdk macosx --show-sdk-path)" >> $GITHUB_ENV
-      env:
-        compiler: ${{ matrix.compiler }}
+      uses: ./.github/actions/Miscellaneous/Setup_Compiler
 
     - name: Install deps
       if: ${{ steps.cache.outputs.cache-hit != 'true' }}
