@@ -385,6 +385,11 @@ TEST(FunctionReflectionTest, GetFunctionReturnType) {
     template<class ...T> auto rttest_make_tlist(T ... args) {
       return RTTest_TemplatedList<T...>{};
     }
+
+    template<typename T>
+    struct Klass {
+      auto func(T t) { return t; }
+    };
     )";
 
   GetAllTopLevelDecls(code, Decls, true);
@@ -430,6 +435,11 @@ TEST(FunctionReflectionTest, GetFunctionReturnType) {
       Cpp::GetTypeAsString(Cpp::GetFunctionReturnType(
           Cpp::BestOverloadFunctionMatch(candidates, explicit_args, args))),
       "RTTest_TemplatedList<int, double>");
+
+  std::vector<Cpp::TemplateArgInfo> args2 = {C.DoubleTy.getAsOpaquePtr()};
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetFunctionReturnType(Cpp::GetNamed(
+                "func", Cpp::InstantiateTemplate(Decls[15], args2.data(), 1)))),
+            "double");
 }
 
 TEST(FunctionReflectionTest, GetFunctionNumArgs) {

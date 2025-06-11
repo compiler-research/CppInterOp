@@ -913,12 +913,22 @@ TCppType_t GetFunctionReturnType(TCppFunction_t func) {
   auto* D = (clang::Decl*)func;
   if (auto* FD = llvm::dyn_cast_or_null<clang::FunctionDecl>(D)) {
     QualType Type = FD->getReturnType();
-    if (Type->isUndeducedAutoType() && IsTemplatedFunction(FD) &&
-        !FD->isDefined()) {
+    if (Type->isUndeducedAutoType()) {
+      bool needInstantiation = false;
+      if (IsTemplatedFunction(FD) && !FD->isDefined())
+        needInstantiation = true;
+      if (auto* MD = llvm::dyn_cast<clang::CXXMethodDecl>(FD)) {
+        if (IsTemplateSpecialization(MD->getParent()))
+          needInstantiation = true;
+      }
+
+      if (needInstantiation) {
 #ifdef CPPINTEROP_USE_CLING
-      cling::Interpreter::PushTransactionRAII RAII(&getInterp());
+        cling::Interpreter::PushTransactionRAII RAII(&getInterp());
 #endif
-      getSema().InstantiateFunctionDefinition(SourceLocation(), FD, true, true);
+        getSema().InstantiateFunctionDefinition(SourceLocation(), FD, true,
+                                                true);
+      }
       Type = FD->getReturnType();
     }
     return Type.getAsOpaquePtr();
