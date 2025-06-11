@@ -41,12 +41,8 @@ jobs:
     - name: Save PR Info
       uses: ./.github/actions/Miscellaneous/Save_PR_Info
 
-    - name: Setup default Build Type on *nux
-      if: runner.os != 'windows'
-      run: |
-        echo "BUILD_TYPE=Release" >> $GITHUB_ENV
-        echo "CODE_COVERAGE=0" >> $GITHUB_ENV
-        echo "ncpus=$(nproc --all)" >> $GITHUB_ENV
+    - name: Setup default Build Type
+      uses: ./.github/actions/Miscellaneous/Select_Default_Build_Type
 
     - name: install mamba
       uses: mamba-org/setup-micromamba@main

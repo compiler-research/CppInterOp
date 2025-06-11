@@ -94,10 +94,7 @@ jobs:
         key: ${{ env.CLING_HASH }}-${{ runner.os }}-${{ matrix.os }}-${{ matrix.compiler }}-clang-${{ matrix.clang-runtime }}.x-patch-${{ hashFiles(format('patches/llvm/clang{0}-*.patch', matrix.clang-runtime)) || 'none' }}
 
     - name: Setup default Build Type
-      run: |
-        echo "BUILD_TYPE=Release" >> $GITHUB_ENV
-        echo "CODE_COVERAGE=0" >> $GITHUB_ENV
-        echo "ncpus=$(sysctl -n hw.ncpu)" >> $GITHUB_ENV
+      uses: ./.github/actions/Miscellaneous/Select_Default_Build_Type
 
     - name: Setup compiler
       uses: ./.github/actions/Miscellaneous/Setup_Compiler

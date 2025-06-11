@@ -108,19 +108,8 @@ jobs:
           cd emsdk
           ./emsdk install  ${{ matrix.emsdk_ver }}
 
-    - name: Setup default Build Type on *nux
-      if: ${{ runner.os != 'windows' && steps.cache.outputs.cache-hit != 'true' }}
-      run: |
-        echo "BUILD_TYPE=Release" >> $GITHUB_ENV
-        echo "CODE_COVERAGE=0" >> $GITHUB_ENV
-
-    - name: Setup default Build Type on Windows
-      if: ${{ runner.os == 'windows' && steps.cache.outputs.cache-hit != 'true' }}
-      run: |
-        echo "BUILD_TYPE=Release" >> $env:GITHUB_ENV
-        echo "CODE_COVERAGE=0" >>  $env:GITHUB_ENV
-        $env:ncpus=$([Environment]::ProcessorCount)
-        echo "ncpus=$env:ncpus" >> $env:GITHUB_ENV
+    - name: Setup default Build Type
+      uses: ./.github/actions/Miscellaneous/Select_Default_Build_Type
 
     - name: Install deps on Windows
       if: ${{ runner.os == 'windows' && steps.cache.outputs.cache-hit != 'true' }}
@@ -443,25 +432,11 @@ jobs:
     - name: Save PR Info
       uses: ./.github/actions/Miscellaneous/Save_PR_Info
 
-    - name: Setup default Build Type on *nux
-      if: runner.os != 'windows'
-      run: |
-        echo "BUILD_TYPE=Release" >> $GITHUB_ENV
-        echo "CODE_COVERAGE=0" >> $GITHUB_ENV
-        os="${{ matrix.os }}"
-        if [[ "${os}" == "macos"* ]]; then
-          echo "ncpus=$(sysctl -n hw.ncpu)" >> $GITHUB_ENV
-        else
-          echo "ncpus=$(nproc --all)" >> $GITHUB_ENV
-        fi
+    - name: Setup default Build Type
+      uses: ./.github/actions/Miscellaneous/Select_Default_Build_Type
 
-    - name: Setup default Build Type on Windows
-      if: ${{ runner.os == 'windows' }}
-      run: |
-        echo "BUILD_TYPE=Release" >> $env:GITHUB_ENV
-        echo "CODE_COVERAGE=0" >>  $env:GITHUB_ENV
-        $env:ncpus=$([Environment]::ProcessorCount)
-        echo "ncpus=$env:ncpus" >> $env:GITHUB_ENV
+    - name: Setup default Build Type
+      uses: ./.github/actions/Miscellaneous/Select_Default_Build_Type
 
     - name: install mamba
       uses: mamba-org/setup-micromamba@main

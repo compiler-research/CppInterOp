@@ -59,12 +59,8 @@ jobs:
           ${{ matrix.cling=='On' && 'cling' || '' }}
         key: ${{ env.CLING_HASH }}-${{ runner.os }}-${{ matrix.os }}-${{ matrix.compiler }}-clang-${{ matrix.clang-runtime }}.x-patch-${{ hashFiles(format('patches/llvm/clang{0}-*.patch', matrix.clang-runtime)) || 'none' }}
 
-    - name: Setup default Build Type on Windows
-      run: |
-        echo "BUILD_TYPE=Release" >> $env:GITHUB_ENV
-        echo "CODE_COVERAGE=0" >>  $env:GITHUB_ENV
-        $env:ncpus=$([Environment]::ProcessorCount)
-        echo "ncpus=$env:ncpus" >> $env:GITHUB_ENV
+    - name: Setup default Build Type
+      uses: ./.github/actions/Miscellaneous/Select_Default_Build_Type
 
     - name: Setup compiler
       uses: ./.github/actions/Miscellaneous/Setup_Compiler
