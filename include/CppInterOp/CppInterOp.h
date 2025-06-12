@@ -594,10 +594,10 @@ CPPINTEROP_API std::string GetFunctionArgName(TCppFunction_t func,
                                               TCppIndex_t param_index);
 
 ///\returns string representation of the operator
-std::string GetSpellingFromOperator(Operator Operator);
+CPPINTEROP_API std::string GetSpellingFromOperator(Operator Operator);
 
 ///\returns operator of representing the string
-Operator GetOperatorFromSpelling(const std::string& op);
+CPPINTEROP_API Operator GetOperatorFromSpelling(const std::string& op);
 
 ///\returns arity of the operator or kNone
 CPPINTEROP_API OperatorArity GetOperatorArity(TCppFunction_t op);
