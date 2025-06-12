@@ -611,3 +611,11 @@ TEST(TypeReflectionTest, IsFunctionPointerType) {
   EXPECT_FALSE(
       Cpp::IsFunctionPointerType(Cpp::GetVariableType(Cpp::GetNamed("i"))));
 }
+
+TEST(TypeReflectionTest, OperatorSpelling) {
+  EXPECT_EQ(Cpp::GetSpellingFromOperator(Cpp::OP_Less), "<");
+  EXPECT_EQ(Cpp::GetSpellingFromOperator(Cpp::OP_Plus), "+");
+  EXPECT_EQ(Cpp::GetOperatorFromSpelling("->"), Cpp::OP_Arrow);
+  EXPECT_EQ(Cpp::GetOperatorFromSpelling("()"), Cpp::OP_Call);
+  EXPECT_EQ(Cpp::GetOperatorFromSpelling("invalid"), Cpp::OP_None);
+}

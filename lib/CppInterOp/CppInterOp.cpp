@@ -2082,7 +2082,8 @@ void make_narg_call(const FunctionDecl* FD, const std::string& return_type,
       if (op_flag) {
         callbuf << ", ";
       } else {
-        callbuf << ' ' << Cpp::getOperatorSpelling(FD->getOverloadedOperator())
+        callbuf << ' '
+                << clang::getOperatorSpelling(FD->getOverloadedOperator())
                 << ' ';
       }
     }
@@ -3569,6 +3570,19 @@ std::string GetFunctionArgName(TCppFunction_t func, TCppIndex_t param_index) {
     PI = (FD->getTemplatedDecl())->getParamDecl(param_index);
 
   return PI->getNameAsString();
+}
+
+std::string GetSpellingFromOperator(Operator Operator) {
+  return clang::getOperatorSpelling((clang::OverloadedOperatorKind)Operator);
+}
+
+Operator GetOperatorFromSpelling(const std::string& op) {
+#define OVERLOADED_OPERATOR(Name, Spelling, Token, Unary, Binary, MemberOnly)  \
+  if ((Spelling) == op) {                                                      \
+    return (Operator)OO_##Name;                                                \
+  }
+#include "clang/Basic/OperatorKinds.def"
+  return Operator::OP_None;
 }
 
 OperatorArity GetOperatorArity(TCppFunction_t op) {
