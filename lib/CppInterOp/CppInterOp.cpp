@@ -1615,8 +1615,20 @@ bool IsLValueReferenceType(TCppType_t type) {
   return QT->isLValueReferenceType();
 }
 
-TCppType_t GetReferencedType(TCppType_t type) {
+bool IsRValueReferenceType(TCppType_t type) {
   QualType QT = QualType::getFromOpaquePtr(type);
+  return QT->isRValueReferenceType();
+}
+
+TCppType_t GetPointerType(TCppType_t type) {
+  QualType QT = QualType::getFromOpaquePtr(type);
+  return getASTContext().getPointerType(QT).getAsOpaquePtr();
+}
+
+TCppType_t GetReferencedType(TCppType_t type, bool rvalue) {
+  QualType QT = QualType::getFromOpaquePtr(type);
+  if (rvalue)
+    return getASTContext().getRValueReferenceType(QT).getAsOpaquePtr();
   return getASTContext().getLValueReferenceType(QT).getAsOpaquePtr();
 }
 
