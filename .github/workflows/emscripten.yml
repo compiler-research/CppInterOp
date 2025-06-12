@@ -88,54 +88,8 @@ jobs:
       with:
         python-version: '3.11'
 
-    - name: Save PR Info on Unix systems
-      if: ${{ runner.os != 'windows' }}
-      run: |
-        mkdir -p ./pr
-        echo ${{ github.event.number }} > ./pr/NR
-        echo ${{ github.repository }} > ./pr/REPO
-
-        cling_on=$(echo "${{ matrix.cling }}" | tr '[:lower:]' '[:upper:]')
-        if [[ "$cling_on" == "ON" ]]; then
-          export CLING_HASH=$(git ls-remote https://github.com/root-project/cling.git refs/tags/v${{ matrix.cling-version }} | tr '\t' '-')
-          export LLVM_HASH=$(git ls-remote https://github.com/root-project/llvm-project.git cling-llvm${{ matrix.clang-runtime}} | tr '\t' '-')
-        else
-          export CLING_HASH="Repl"
-          # May need to revert back to both having same llvm_hash, as below cause llvm to be rebuilt everytime commit is made to llvm/llvm-project for release a.x
-          # which could be quite often for new releases
-          export LLVM_HASH=$(git ls-remote https://github.com/llvm/llvm-project.git refs/heads/release/${{ matrix.clang-runtime}}.x | tr '\t' '-')
-        fi
-
-        echo "CLING_HASH=$CLING_HASH" >> $GITHUB_ENV
-        echo "LLVM_HASH=$LLVM_HASH" >> $GITHUB_ENV
-
-    - name: Save PR Info on Windows systems
-      if: ${{ runner.os == 'windows' }}
-      run: |
-        #can be found
-        mkdir  ./pr
-        echo "${{ github.event.number }}" > ./pr/NR
-        echo ${{ github.repository }} > ./pr/REPO
-
-        if ( "${{ matrix.cling }}" -imatch "On" )
-        {
-          $env:CLING_HASH_TEMP = ( git ls-remote https://github.com/root-project/cling.git refs/tags/v${{ matrix.cling-version }} )
-          $env:CLING_HASH = $env:CLING_HASH_TEMP -replace "\t","-"
-        }
-        else
-        {
-          $env:CLING_HASH="Repl"
-          # May need to revert back to both having same llvm_hash, as below cause llvm to be rebuilt everytime commit is made to llvm/llvm-project for release a.x
-          # which could be quite often for new releases
-          $env:LLVM_HASH_TEMP = (git ls-remote https://github.com/llvm/llvm-project.git refs/heads/release/${{ matrix.clang-runtime}}.x )
-          $env:LLVM_HASH = $env:LLVM_HASH_TEMP -replace "\t","-"
-        }
-
-        echo "CLING_HASH=$env:CLING_HASH"
-        echo "LLVM_HASH=$env:LLVM_HASH"
-
-        echo "CLING_HASH=$env:CLING_HASH" >> $GITHUB_ENV
-        echo "LLVM_HASH=$env:LLVM_HASH" >> $GITHUB_ENV
+    - name: Save PR Info
+      uses: ./.github/actions/Miscellaneous/Save_PR_Info
 
     - name: Restore cached LLVM-${{ matrix.clang-runtime }} and ${{ matrix.cling == 'On' && 'Cling' || 'Clang-REPL' }} build (Unix like systems emscripten)
       uses: actions/cache/restore@v4
@@ -154,19 +108,8 @@ jobs:
           cd emsdk
           ./emsdk install  ${{ matrix.emsdk_ver }}
 
-    - name: Setup default Build Type on *nux
-      if: ${{ runner.os != 'windows' && steps.cache.outputs.cache-hit != 'true' }}
-      run: |
-        echo "BUILD_TYPE=Release" >> $GITHUB_ENV
-        echo "CODE_COVERAGE=0" >> $GITHUB_ENV
-
-    - name: Setup default Build Type on Windows
-      if: ${{ runner.os == 'windows' && steps.cache.outputs.cache-hit != 'true' }}
-      run: |
-        echo "BUILD_TYPE=Release" >> $env:GITHUB_ENV
-        echo "CODE_COVERAGE=0" >>  $env:GITHUB_ENV
-        $env:ncpus=$([Environment]::ProcessorCount)
-        echo "ncpus=$env:ncpus" >> $env:GITHUB_ENV
+    - name: Setup default Build Type
+      uses: ./.github/actions/Miscellaneous/Select_Default_Build_Type
 
     - name: Install deps on Windows
       if: ${{ runner.os == 'windows' && steps.cache.outputs.cache-hit != 'true' }}
@@ -486,46 +429,14 @@ jobs:
       with:
         fetch-depth: 0
 
-    - name: Save PR Info on Unix systems
-      if: ${{ runner.os != 'windows' }}
-      run: |
-        mkdir -p ./pr
-        echo ${{ github.event.number }} > ./pr/NR
-        echo ${{ github.repository }} > ./pr/REPO
+    - name: Save PR Info
+      uses: ./.github/actions/Miscellaneous/Save_PR_Info
 
-        cling_on=$(echo "${{ matrix.cling }}" | tr '[:lower:]' '[:upper:]')
-        if [[ "$cling_on" == "ON" ]]; then
-          export CLING_HASH=$(git ls-remote https://github.com/root-project/cling.git refs/tags/v${{ matrix.cling-version }} | tr '\t' '-')
-          export LLVM_HASH=$(git ls-remote https://github.com/root-project/llvm-project.git cling-llvm${{ matrix.clang-runtime}} | tr '\t' '-')
-        else
-          export CLING_HASH="Repl"
-          # May need to revert back to both having same llvm_hash, as below cause llvm to be rebuilt everytime commit is made to llvm/llvm-project for release a.x
-          # which could be quite often for new releases
-          export LLVM_HASH=$(git ls-remote https://github.com/llvm/llvm-project.git refs/heads/release/${{ matrix.clang-runtime}}.x | tr '\t' '-')
-        fi
+    - name: Setup default Build Type
+      uses: ./.github/actions/Miscellaneous/Select_Default_Build_Type
 
-        echo "CLING_HASH=$CLING_HASH" >> $GITHUB_ENV
-        echo "LLVM_HASH=$LLVM_HASH" >> $GITHUB_ENV
-
-    - name: Setup default Build Type on *nux
-      if: runner.os != 'windows'
-      run: |
-        echo "BUILD_TYPE=Release" >> $GITHUB_ENV
-        echo "CODE_COVERAGE=0" >> $GITHUB_ENV
-        os="${{ matrix.os }}"
-        if [[ "${os}" == "macos"* ]]; then
-          echo "ncpus=$(sysctl -n hw.ncpu)" >> $GITHUB_ENV
-        else
-          echo "ncpus=$(nproc --all)" >> $GITHUB_ENV
-        fi
-
-    - name: Setup default Build Type on Windows
-      if: ${{ runner.os == 'windows' }}
-      run: |
-        echo "BUILD_TYPE=Release" >> $env:GITHUB_ENV
-        echo "CODE_COVERAGE=0" >>  $env:GITHUB_ENV
-        $env:ncpus=$([Environment]::ProcessorCount)
-        echo "ncpus=$env:ncpus" >> $env:GITHUB_ENV
+    - name: Setup default Build Type
+      uses: ./.github/actions/Miscellaneous/Select_Default_Build_Type
 
     - name: install mamba
       uses: mamba-org/setup-micromamba@main

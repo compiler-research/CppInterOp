@@ -1,0 +1,23 @@
+name: 'Select Default Build Type'
+description: 'This action selects the default build typose'
+
+runs:
+  using: composite
+  steps:
+    - name: Select default build type of Unix Systems
+      if: runner.os != 'Windows'
+      shell: bash
+      run: |
+        echo "BUILD_TYPE=Release" >> $GITHUB_ENV
+        echo "CODE_COVERAGE=0" >> $GITHUB_ENV
+        echo "ncpus=$(sysctl -n hw.ncpu)" >> $GITHUB_ENV
+
+    - name: Select default build type on Windows
+      if: runner.os == 'Windows'
+      shell: powershell
+      run: |
+        echo "BUILD_TYPE=Release" >> $env:GITHUB_ENV
+        echo "CODE_COVERAGE=0" >>  $env:GITHUB_ENV
+        $env:ncpus=$([Environment]::ProcessorCount)
+        echo "ncpus=$env:ncpus" >> $env:GITHUB_ENV
+
