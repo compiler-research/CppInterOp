@@ -830,3 +830,12 @@ jobs:
         micromamba activate CppInterOp-wasm
         cd ./xeus-cpp/build/test
         node test_xeus_cpp.js
+
+    - name: Jupyter Lite integration
+      if: ${{ runner.os != 'windows' }}
+      shell: bash -l {0}
+      run: |
+          cd ./xeus-cpp/
+          micromamba create -n xeus-lite-host jupyterlite-core=0.6 jupyterlite-xeus jupyter_server jupyterlab notebook python-libarchive-c -c conda-forge
+          micromamba activate xeus-lite-host
+          jupyter lite build --XeusAddon.prefix=${{ env.PREFIX }} --contents notebooks/xeus-cpp-lite-demo.ipynb --contents notebooks/smallpt.ipynb --contents notebooks/images/marie.png --contents notebooks/audio/audio.wav --output-dir dist
