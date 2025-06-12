@@ -681,4 +681,29 @@ TEST(VariableReflectionTest, Is_Get_Reference) {
   EXPECT_TRUE(Cpp::IsLValueReferenceType(Cpp::GetVariableType(Decls[2])));
   EXPECT_EQ(Cpp::GetReferencedType(Cpp::GetVariableType(Decls[1])),
             Cpp::GetVariableType(Decls[2]));
+  EXPECT_TRUE(Cpp::IsRValueReferenceType(
+      Cpp::GetReferencedType(Cpp::GetVariableType(Decls[1]), true)));
+}
+
+TEST(VariableReflectionTest, GetPointerType) {
+  Cpp::CreateInterpreter();
+  std::vector<Decl*> Decls;
+  std::string code = R"(
+  class A {};
+  int a;
+  int *b = &a;
+  double c;
+  double *d = &c;
+  A e;
+  A *f = &e;
+  )";
+
+  GetAllTopLevelDecls(code, Decls);
+
+  EXPECT_EQ(Cpp::GetPointerType(Cpp::GetVariableType(Decls[1])),
+            Cpp::GetVariableType(Decls[2]));
+  EXPECT_EQ(Cpp::GetPointerType(Cpp::GetVariableType(Decls[3])),
+            Cpp::GetVariableType(Decls[4]));
+  EXPECT_EQ(Cpp::GetPointerType(Cpp::GetVariableType(Decls[5])),
+            Cpp::GetVariableType(Decls[6]));
 }

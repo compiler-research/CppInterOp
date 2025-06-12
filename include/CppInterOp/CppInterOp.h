@@ -544,11 +544,18 @@ CPPINTEROP_API bool IsReferenceType(TCppType_t type);
 /// Checks if type is a LValue reference
 CPPINTEROP_API bool IsLValueReferenceType(TCppType_t type);
 
+/// Checks if type is a LValue reference
+CPPINTEROP_API bool IsRValueReferenceType(TCppType_t type);
+
 /// Get the type that the reference refers to
 CPPINTEROP_API TCppType_t GetNonReferenceType(TCppType_t type);
 
-/// Get lvalue referenced type
-CPPINTEROP_API TCppType_t GetReferencedType(TCppType_t type);
+/// Get lvalue referenced type, or rvalue if rvalue is true
+CPPINTEROP_API TCppType_t GetReferencedType(TCppType_t type,
+                                            bool rvalue = false);
+
+/// Get the pointer to type
+CPPINTEROP_API TCppType_t GetPointerType(TCppType_t type);
 
 /// Gets the pure, Underlying Type (as opposed to the Using Type).
 CPPINTEROP_API TCppType_t GetUnderlyingType(TCppType_t type);
