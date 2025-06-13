@@ -1987,8 +1987,9 @@ void make_narg_call(const FunctionDecl* FD, const std::string& return_type,
   bool op_flag = !FD->isOverloadedOperator() ||
                  FD->getOverloadedOperator() == clang::OO_Call;
 
-  bool ShouldCastFunction =
-      !isa<CXXMethodDecl>(FD) && N == FD->getNumParams() && op_flag;
+  bool ShouldCastFunction = !isa<CXXMethodDecl>(FD) &&
+                            N == FD->getNumParams() && op_flag &&
+                            !FD->isTemplateInstantiation();
   if (ShouldCastFunction) {
     callbuf << "(";
     callbuf << "(";
