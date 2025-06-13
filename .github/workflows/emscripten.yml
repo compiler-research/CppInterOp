@@ -718,6 +718,7 @@ jobs:
         micromamba activate CppInterOp-wasm
         git clone --depth=1 https://github.com/compiler-research/xeus-cpp.git
         cd ./xeus-cpp
+        git reset --hard HEAD~1
         mkdir build
         pushd build
         export CMAKE_PREFIX_PATH=${{ env.PREFIX }}
