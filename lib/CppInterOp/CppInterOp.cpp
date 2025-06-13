@@ -1142,7 +1142,7 @@ BestOverloadFunctionMatch(const std::vector<TCppFunction_t>& candidates,
   for (auto i : arg_types) {
     QualType Type = QualType::getFromOpaquePtr(i.m_Type);
     ExprValueKind ExprKind = ExprValueKind::VK_PRValue;
-    if (Type->isReferenceType())
+    if (Type->isLValueReferenceType())
       ExprKind = ExprValueKind::VK_LValue;
 
     new (&Exprs[idx]) OpaqueValueExpr(SourceLocation::getFromRawEncoding(1),
