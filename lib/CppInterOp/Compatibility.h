@@ -200,10 +200,20 @@ inline void codeComplete(std::vector<std::string>& Results,
 
 #include "llvm/Support/Error.h"
 
+#include "clang/Interpreter/RemoteJITUtils.h"
+#include "clang/Basic/Version.h"
+#include "llvm/TargetParser/Host.h"
+
+#include "llvm/ExecutionEngine/Orc/Debugging/DebuggerSupport.h"
+
+#include "llvm/Support/CommandLine.h"
+
+static llvm::ExitOnError ExitOnError;
+
 namespace compat {
 
 inline std::unique_ptr<clang::Interpreter>
-createClangInterpreter(std::vector<const char*>& args) {
+createClangInterpreter(std::vector<const char*>& args, bool is_out_of_process) {
   auto has_arg = [](const char* x, llvm::StringRef match = "cuda") {
     llvm::StringRef Arg = x;
     Arg = Arg.trim().ltrim('-');
@@ -241,10 +251,31 @@ createClangInterpreter(std::vector<const char*>& args) {
   (*ciOrErr)->LoadRequestedPlugins();
   if (CudaEnabled)
     DeviceCI->LoadRequestedPlugins();
+
+  std::unique_ptr<llvm::orc::LLJITBuilder> JB;
+
+  if(is_out_of_process) {
+      std::string OOPExecutor = "/Users/abhinavkumar/Desktop/Coding/CERN_HSF_COMPILER_RESEARCH/llvm-project-test/build/bin/llvm-jitlink-executor";
+      bool UseSharedMemory = false;
+      std::string SlabAllocateSizeString = "";
+      std::unique_ptr<llvm::orc::ExecutorProcessControl> EPC;
+      EPC = ExitOnError(
+          launchExecutor(OOPExecutor, UseSharedMemory, SlabAllocateSizeString));
+
+      
+      std::string OrcRuntimePath = "/Users/abhinavkumar/Desktop/Coding/CERN_HSF_COMPILER_RESEARCH/llvm-project-test/build/lib/clang/20/lib/darwin/liborc_rt_osx.a";
+      if (EPC) {
+        
+        CB.SetTargetTriple(EPC->getTargetTriple().getTriple());
+        JB = ExitOnError(
+            clang::Interpreter::createLLJITBuilder(std::move(EPC), OrcRuntimePath));
+      }
+  }
+
   auto innerOrErr =
       CudaEnabled ? clang::Interpreter::createWithCUDA(std::move(*ciOrErr),
                                                        std::move(DeviceCI))
-                  : clang::Interpreter::create(std::move(*ciOrErr));
+                  : clang::Interpreter::create(std::move(*ciOrErr), std::move(JB));
 
   if (!innerOrErr) {
     llvm::logAllUnhandledErrors(innerOrErr.takeError(), llvm::errs(),
