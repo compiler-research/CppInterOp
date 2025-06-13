@@ -716,9 +716,8 @@ jobs:
         ./emsdk/emsdk activate ${{matrix.emsdk_ver}}
         source ./emsdk/emsdk_env.sh
         micromamba activate CppInterOp-wasm
-        git clone https://github.com/compiler-research/xeus-cpp.git
+        git clone https://github.com/mcbarton/xeus-cpp.git
         cd ./xeus-cpp
-        git reset --hard HEAD~1
         mkdir build
         pushd build
         export CMAKE_PREFIX_PATH=${{ env.PREFIX }}
