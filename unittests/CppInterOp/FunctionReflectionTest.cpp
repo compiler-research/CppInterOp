@@ -905,7 +905,7 @@ TEST(FunctionReflectionTest, InstantiateVariadicFunction) {
 
   // instantiate VariadicFnExtended
   auto Instance2 =
-      Cpp::InstantiateTemplate(Decls[2], args2.data(), args2.size());
+      Cpp::InstantiateTemplate(Decls[2], args2.data(), args2.size(), true);
   EXPECT_TRUE(Cpp::IsTemplatedFunction(Instance2));
 
   FunctionDecl* FD2 = cast<FunctionDecl>((Decl*)Instance2);

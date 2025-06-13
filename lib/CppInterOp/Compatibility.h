@@ -99,6 +99,11 @@ namespace compat {
 
 using Interpreter = cling::Interpreter;
 
+class PushTransactionRAII : public Interpreter::PushTransactionRAII {
+public:
+  PushTransactionRAII(Interpreter* i) : Interpreter::PushTransactionRAII(i) {}
+};
+
 inline void maybeMangleDeclName(const clang::GlobalDecl& GD,
                                 std::string& mangledName) {
   cling::utils::Analyze::maybeMangleDeclName(GD, mangledName);
@@ -376,6 +381,20 @@ namespace Cpp_utils = Cpp::utils;
 
 namespace compat {
 using Interpreter = Cpp::Interpreter;
+
+class PushTransactionRAII {
+private:
+  Interpreter* m_Interpreter;
+
+public:
+  PushTransactionRAII(Interpreter* i) : m_Interpreter(i) {}
+  ~PushTransactionRAII() {
+    auto GeneratedPTU = m_Interpreter->Parse("");
+    if (!GeneratedPTU)
+      llvm::logAllUnhandledErrors(GeneratedPTU.takeError(), llvm::errs(),
+                                  "Failed to generate PTU:");
+  }
+};
 }
 
 #endif // CPPINTEROP_USE_REPL
