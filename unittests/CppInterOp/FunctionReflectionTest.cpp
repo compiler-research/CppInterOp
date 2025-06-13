@@ -1824,6 +1824,26 @@ TEST(FunctionReflectionTest, GetFunctionCallWrapper) {
 
   auto fn_callable = Cpp::MakeFunctionCallable(fn);
   EXPECT_EQ(fn_callable.getKind(), Cpp::JitCall::kGenericCall);
+
+  Interp->process(R"(
+    template <typename T>
+    bool call_move(T&& t) {
+      return true;
+    }
+  )");
+
+  unresolved_candidate_methods.clear();
+  Cpp::GetClassTemplatedMethods("call_move", Cpp::GetGlobalScope(),
+                                unresolved_candidate_methods);
+  EXPECT_EQ(unresolved_candidate_methods.size(), 1);
+
+  Cpp::TCppScope_t call_move = Cpp::BestOverloadFunctionMatch(
+      unresolved_candidate_methods, {},
+      {Cpp::GetReferencedType(Cpp::GetType("int"), true)});
+  EXPECT_TRUE(call_move);
+
+  auto call_move_callable = Cpp::MakeFunctionCallable(call_move);
+  EXPECT_EQ(call_move_callable.getKind(), Cpp::JitCall::kGenericCall);
 }
 
 TEST(FunctionReflectionTest, IsConstMethod) {
