@@ -33,6 +33,7 @@
 #include "clang/Basic/Specifiers.h"
 #include "clang/Basic/Version.h"
 #include "clang/Frontend/CompilerInstance.h"
+#include "clang/Interpreter/Interpreter.h"
 #include "clang/Sema/Lookup.h"
 #include "clang/Sema/Overload.h"
 #include "clang/Sema/Ownership.h"
@@ -221,6 +222,15 @@ std::string Demangle(const std::string& mangled_name) {
 void EnableDebugOutput(bool value /* =true*/) { llvm::DebugFlag = value; }
 
 bool IsDebugOutputEnabled() { return llvm::DebugFlag; }
+
+static void InstantiateFunctionDefinition(Decl* D) {
+  compat::SynthesizingCodeRAII RAII(&getInterp());
+  if (auto* FD = llvm::dyn_cast_or_null<FunctionDecl>(D)) {
+    getSema().InstantiateFunctionDefinition(SourceLocation(), FD,
+                                            /*Recursive=*/true,
+                                            /*DefinitionRequired=*/true);
+  }
+}
 
 bool IsAggregate(TCppScope_t scope) {
   Decl* D = static_cast<Decl*>(scope);
@@ -923,11 +933,7 @@ TCppType_t GetFunctionReturnType(TCppFunction_t func) {
       }
 
       if (needInstantiation) {
-#ifdef CPPINTEROP_USE_CLING
-        cling::Interpreter::PushTransactionRAII RAII(&getInterp());
-#endif
-        getSema().InstantiateFunctionDefinition(SourceLocation(), FD, true,
-                                                true);
+        InstantiateFunctionDefinition(FD);
       }
       Type = FD->getReturnType();
     }
@@ -2491,23 +2497,7 @@ int get_wrapper_code(compat::Interpreter& I, const FunctionDecl* FD,
   }
   if (needInstantiation) {
     clang::FunctionDecl* FDmod = const_cast<clang::FunctionDecl*>(FD);
-    clang::Sema& S = I.getCI()->getSema();
-    // Could trigger deserialization of decls.
-#ifdef CPPINTEROP_USE_CLING
-    cling::Interpreter::PushTransactionRAII RAII(&I);
-#endif
-    S.InstantiateFunctionDefinition(SourceLocation(), FDmod,
-                                    /*Recursive=*/true,
-                                    /*DefinitionRequired=*/true);
-#ifndef CPPINTEROP_USE_CLING
-    // TODO: Will need to replace this with a RAII for clang-repl too
-    auto GeneratedPTU = I.Parse("");
-    if (!GeneratedPTU)
-      llvm::logAllUnhandledErrors(
-          GeneratedPTU.takeError(), llvm::errs(),
-          "[MakeFunctionCallable -> InstantiateFunctionDefinition] Failed to "
-          "generate PTU:");
-#endif
+    InstantiateFunctionDefinition(FDmod);
 
     if (!FD->isDefined(Definition)) {
       llvm::errs() << "TClingCallFunc::make_wrapper"
@@ -3313,7 +3303,8 @@ std::string ObjToString(const char* type, void* obj) {
 }
 
 static Decl* InstantiateTemplate(TemplateDecl* TemplateD,
-                                 TemplateArgumentListInfo& TLI, Sema& S) {
+                                 TemplateArgumentListInfo& TLI, Sema& S,
+                                 bool instantiate_body) {
   // This is not right but we don't have a lot of options to choose from as a
   // template instantiation requires a valid source location.
   SourceLocation fakeLoc = GetValidSLoc(S);
@@ -3327,6 +3318,8 @@ static Decl* InstantiateTemplate(TemplateDecl* TemplateD,
       // FIXME: Diagnose what happened.
       (void)Result;
     }
+    if (instantiate_body)
+      InstantiateFunctionDefinition(Specialization);
     return Specialization;
   }
 
@@ -3358,19 +3351,21 @@ static Decl* InstantiateTemplate(TemplateDecl* TemplateD,
 }
 
 Decl* InstantiateTemplate(TemplateDecl* TemplateD,
-                          ArrayRef<TemplateArgument> TemplateArgs, Sema& S) {
+                          ArrayRef<TemplateArgument> TemplateArgs, Sema& S,
+                          bool instantiate_body) {
   // Create a list of template arguments.
   TemplateArgumentListInfo TLI{};
   for (auto TA : TemplateArgs)
     TLI.addArgument(
         S.getTrivialTemplateArgumentLoc(TA, QualType(), SourceLocation()));
 
-  return InstantiateTemplate(TemplateD, TLI, S);
+  return InstantiateTemplate(TemplateD, TLI, S, instantiate_body);
 }
 
 TCppScope_t InstantiateTemplate(compat::Interpreter& I, TCppScope_t tmpl,
                                 const TemplateArgInfo* template_args,
-                                size_t template_args_size) {
+                                size_t template_args_size,
+                                bool instantiate_body) {
   auto& S = I.getSema();
   auto& C = S.getASTContext();
 
@@ -3395,14 +3390,15 @@ TCppScope_t InstantiateTemplate(compat::Interpreter& I, TCppScope_t tmpl,
 #ifdef CPPINTEROP_USE_CLING
   cling::Interpreter::PushTransactionRAII RAII(&I);
 #endif
-  return InstantiateTemplate(TmplD, TemplateArgs, S);
+  return InstantiateTemplate(TmplD, TemplateArgs, S, instantiate_body);
 }
 
 TCppScope_t InstantiateTemplate(TCppScope_t tmpl,
                                 const TemplateArgInfo* template_args,
-                                size_t template_args_size) {
+                                size_t template_args_size,
+                                bool instantiate_body) {
   return InstantiateTemplate(getInterp(), tmpl, template_args,
-                             template_args_size);
+                             template_args_size, instantiate_body);
 }
 
 void GetClassTemplateInstantiationArgs(TCppScope_t templ_instance,

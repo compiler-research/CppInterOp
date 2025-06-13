@@ -743,11 +743,12 @@ struct TemplateArgInfo {
 ///           in the \c TemplateArgInfo struct
 ///\param[in] template_args_size - Size of the vector of template arguments
 ///           passed as \c template_args
+///\param[in] instantiate_body - also instantiate/define the body
 ///
 ///\returns Instantiated templated class/function/variable pointer
 CPPINTEROP_API TCppScope_t
 InstantiateTemplate(TCppScope_t tmpl, const TemplateArgInfo* template_args,
-                    size_t template_args_size);
+                    size_t template_args_size, bool instantiate_body = false);
 
 /// Sets the class template instantiation arguments of \c templ_instance.
 ///
