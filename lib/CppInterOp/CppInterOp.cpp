@@ -1260,10 +1260,8 @@ TCppFuncAddr_t GetFunctionAddress(const char* mangled_name) {
   return nullptr;
 }
 
-TCppFuncAddr_t GetFunctionAddress(TCppFunction_t method) {
-  auto* D = (Decl*)method;
-
-  const auto get_mangled_name = [](FunctionDecl* FD) {
+static TCppFuncAddr_t GetFunctionAddress(const FunctionDecl* FD) {
+  const auto get_mangled_name = [](const FunctionDecl* FD) {
     auto MangleCtxt = getASTContext().createMangleContext();
 
     if (!MangleCtxt->shouldMangleDeclName(FD)) {
@@ -1281,10 +1279,18 @@ TCppFuncAddr_t GetFunctionAddress(TCppFunction_t method) {
     return mangled_name;
   };
 
-  if (auto* FD = llvm::dyn_cast_or_null<FunctionDecl>(D))
+  // Constructor and Destructors needs to be handled differently
+  if (!llvm::isa<CXXConstructorDecl>(FD) && !llvm::isa<CXXDestructorDecl>(FD))
     return GetFunctionAddress(get_mangled_name(FD).c_str());
 
   return 0;
+}
+
+TCppFuncAddr_t GetFunctionAddress(TCppFunction_t method) {
+  auto* D = static_cast<Decl*>(method);
+  if (auto* FD = llvm::dyn_cast_or_null<FunctionDecl>(D))
+    return GetFunctionAddress(FD);
+  return nullptr;
 }
 
 bool IsVirtualMethod(TCppFunction_t method) {
@@ -2387,15 +2393,17 @@ int get_wrapper_code(compat::Interpreter& I, const FunctionDecl* FD,
         //       header file.
         break;
       }
-      if (!Pattern->hasBody()) {
-        llvm::errs() << "TClingCallFunc::make_wrapper"
-                     << ":"
-                     << "Cannot make wrapper for a function template"
-                        "instantiation with no body!";
-        return 0;
-      }
-      if (FD->isImplicitlyInstantiable()) {
-        needInstantiation = true;
+      if (!GetFunctionAddress(FD)) {
+        if (!Pattern->hasBody()) {
+          llvm::errs() << "TClingCallFunc::make_wrapper"
+                       << ":"
+                       << "Cannot make wrapper for a function template "
+                       << "instantiation with no body!";
+          return 0;
+        }
+        if (FD->isImplicitlyInstantiable()) {
+          needInstantiation = true;
+        }
       }
     } break;
     case FunctionDecl::TK_DependentFunctionTemplateSpecialization: {
