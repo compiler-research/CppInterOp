@@ -571,7 +571,8 @@ bool clang_existsFunctionTemplate(const char* name, CXScope parent) {
 namespace Cpp {
 TCppScope_t InstantiateTemplate(compat::Interpreter& I, TCppScope_t tmpl,
                                 const TemplateArgInfo* template_args,
-                                size_t template_args_size);
+                                size_t template_args_size,
+                                bool instantiate_body = false);
 } // namespace Cpp
 
 CXScope clang_instantiateTemplate(CXScope tmpl,
