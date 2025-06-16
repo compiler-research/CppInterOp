@@ -1491,6 +1491,91 @@ TEST(FunctionReflectionTest, JitCallAdvanced) {
   clang_Interpreter_dispose(I);
 }
 
+#if !defined(NDEBUG) && GTEST_HAS_DEATH_TEST
+#ifndef _WIN32 // Death tests do not work on Windows
+TEST(FunctionReflectionTest, JitCallDebug) {
+#ifdef EMSCRIPTEN
+#if CLANG_VERSION_MAJOR < 20
+  GTEST_SKIP() << "Test fails for Emscipten builds";
+#endif
+#endif
+  if (llvm::sys::RunningOnValgrind())
+    GTEST_SKIP() << "XFAIL due to Valgrind report";
+
+  std::vector<Decl*> Decls, SubDecls;
+  std::string code = R"(
+    class C {
+      int x;
+      C() {
+        x = 12345;
+      }
+    };)";
+
+  std::vector<const char*> interpreter_args = {"-include", "new",
+                                               "-debug-only=jitcall"};
+  GetAllTopLevelDecls(code, Decls, /*filter_implicitGenerated=*/false,
+                      interpreter_args);
+
+  const auto* CtorD = Cpp::GetDefaultConstructor(Decls[0]);
+  auto JC = Cpp::MakeFunctionCallable(CtorD);
+
+  EXPECT_TRUE(JC.getKind() == Cpp::JitCall::kConstructorCall);
+  EXPECT_DEATH(
+      { JC.InvokeConstructor(/*result=*/nullptr); },
+      "Must pass the location of the created object!");
+
+  void* result = Cpp::Allocate(Decls[0]);
+  EXPECT_DEATH(
+      { JC.InvokeConstructor(&result, 0UL); },
+      "Number of objects to construct should be atleast 1");
+
+  // Succeeds
+  JC.InvokeConstructor(&result, 5UL);
+
+  Decls.clear();
+  code = R"(
+    class C {
+    public:
+      int x;
+      C(int a) {
+        x = a;
+      }
+      ~C() {}
+    };)";
+
+  GetAllTopLevelDecls(code, Decls, /*filter_implicitGenerated=*/false,
+                      interpreter_args);
+  GetAllSubDecls(Decls[0], SubDecls);
+
+  EXPECT_TRUE(Cpp::IsConstructor(SubDecls[3]));
+  JC = Cpp::MakeFunctionCallable(SubDecls[3]);
+  EXPECT_TRUE(JC.getKind() == Cpp::JitCall::kConstructorCall);
+
+  result = Cpp::Allocate(Decls[0], 5);
+  int i = 42;
+  void* args0[1] = {(void*)&i};
+  EXPECT_DEATH(
+      { JC.InvokeConstructor(&result, 5UL, {args0, 1}); },
+      "Cannot pass initialization parameters to array new construction");
+
+  JC.InvokeConstructor(&result, 1UL, {args0, 1}, (void*)~0);
+
+  int* obj = reinterpret_cast<int*>(reinterpret_cast<char*>(result));
+  EXPECT_TRUE(*obj == 42);
+
+  // Destructors
+  Cpp::TCppScope_t scope_C = Cpp::GetNamed("C");
+  Cpp::TCppObject_t object_C = Cpp::Construct(scope_C);
+
+  // Make destructor callable and pass arguments
+  JC = Cpp::MakeFunctionCallable(SubDecls[4]);
+  EXPECT_DEATH(
+      { JC.Invoke(&object_C, {args0, 1}); },
+      "Destructor called with arguments");
+}
+#endif // _WIN32
+#endif
+
 template <typename T> T instantiation_in_host() { return T(0); }
 #if defined(_WIN32)
 template __declspec(dllexport) int instantiation_in_host<int>();
