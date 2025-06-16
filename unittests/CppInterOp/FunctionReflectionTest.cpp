@@ -905,7 +905,7 @@ TEST(FunctionReflectionTest, InstantiateVariadicFunction) {
 
   // instantiate VariadicFnExtended
   auto Instance2 =
-      Cpp::InstantiateTemplate(Decls[2], args2.data(), args2.size());
+      Cpp::InstantiateTemplate(Decls[2], args2.data(), args2.size(), true);
   EXPECT_TRUE(Cpp::IsTemplatedFunction(Instance2));
 
   FunctionDecl* FD2 = cast<FunctionDecl>((Decl*)Instance2);
@@ -2192,4 +2192,39 @@ TEST(FunctionReflectionTest, UndoTest) {
   EXPECT_EQ(ret, 1);
 #endif
 #endif
+}
+
+TEST(FunctionReflectionTest, FailingTest1) {
+#ifdef _WIN32
+  GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
+#endif
+#ifdef EMSCRIPTEN
+  GTEST_SKIP() << "Test fails for Emscipten builds";
+#endif
+  Cpp::CreateInterpreter();
+  EXPECT_FALSE(Cpp::Declare(R"(
+    class WithOutEqualOp1 {};
+    class WithOutEqualOp2 {};
+
+    WithOutEqualOp1 o1;
+    WithOutEqualOp2 o2;
+
+    template<class C1, class C2>
+    bool is_equal(const C1& c1, const C2& c2) { return (bool)(c1 == c2); }
+  )"));
+
+  Cpp::TCppType_t o1 = Cpp::GetTypeFromScope(Cpp::GetNamed("o1"));
+  Cpp::TCppType_t o2 = Cpp::GetTypeFromScope(Cpp::GetNamed("o2"));
+  std::vector<Cpp::TCppFunction_t> fns;
+  Cpp::GetClassTemplatedMethods("is_equal", Cpp::GetGlobalScope(), fns);
+  EXPECT_EQ(fns.size(), 1);
+
+  Cpp::TemplateArgInfo args[2] = {{o1}, {o2}};
+  Cpp::TCppScope_t fn = Cpp::InstantiateTemplate(fns[0], args, 2);
+  EXPECT_TRUE(fn);
+
+  Cpp::JitCall jit_call = Cpp::MakeFunctionCallable(fn);
+  EXPECT_EQ(jit_call.getKind(), Cpp::JitCall::kUnknown); // expected to fail
+  EXPECT_FALSE(Cpp::Declare("int x = 1;"));
+  EXPECT_FALSE(Cpp::Declare("int y = x;"));
 }
