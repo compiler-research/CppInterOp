@@ -1142,7 +1142,7 @@ BestOverloadFunctionMatch(const std::vector<TCppFunction_t>& candidates,
   for (auto i : arg_types) {
     QualType Type = QualType::getFromOpaquePtr(i.m_Type);
     ExprValueKind ExprKind = ExprValueKind::VK_PRValue;
-    if (Type->isReferenceType())
+    if (Type->isLValueReferenceType())
       ExprKind = ExprValueKind::VK_LValue;
 
     new (&Exprs[idx]) OpaqueValueExpr(SourceLocation::getFromRawEncoding(1),
@@ -1993,8 +1993,9 @@ void make_narg_call(const FunctionDecl* FD, const std::string& return_type,
   bool op_flag = !FD->isOverloadedOperator() ||
                  FD->getOverloadedOperator() == clang::OO_Call;
 
-  bool ShouldCastFunction =
-      !isa<CXXMethodDecl>(FD) && N == FD->getNumParams() && op_flag;
+  bool ShouldCastFunction = !isa<CXXMethodDecl>(FD) &&
+                            N == FD->getNumParams() && op_flag &&
+                            !FD->isTemplateInstantiation();
   if (ShouldCastFunction) {
     callbuf << "(";
     callbuf << "(";
