@@ -79,7 +79,6 @@ static inline char* GetEnv(const char* Var_Name) {
 
 // std::regex breaks pytorch's jit: pytorch/pytorch#49460
 #include "llvm/Support/Regex.h"
-#include "llvm/ExecutionEngine/Orc/ExecutionUtils.h"
 
 #ifdef CPPINTEROP_USE_CLING
 
