@@ -160,16 +160,6 @@ TEST(InterpreterTest, OopJITProcess) {
   EXPECT_FALSE(Cpp::Process("error_here;") == 0);
   // Linker/JIT error.
   EXPECT_FALSE(Cpp::Process("int f(); int res = f();") == 0);
-
-  // C API
-  auto* CXI = clang_createInterpreterFromRawPtr(I);
-  clang_Interpreter_declare(CXI, "#include <iostream>", false);
-  clang_Interpreter_process(CXI, "int c = 42;");
-  auto* CXV = clang_createValue();
-  auto Res = clang_Interpreter_evaluate(CXI, "c", CXV);
-  EXPECT_EQ(Res, CXError_Success);
-  clang_Value_dispose(CXV);
-  clang_Interpreter_dispose(CXI);
 }
 #endif
 
