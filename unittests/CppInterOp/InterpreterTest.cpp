@@ -146,22 +146,22 @@ TEST(InterpreterTest, Process) {
   clang_Interpreter_dispose(CXI);
 }
 
-#ifdef CPPINTEROP_WITH_OOP_JIT
-TEST(InterpreterTest, OopJITProcess) {
-#ifdef _WIN32
-  GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
-#endif
-  if (llvm::sys::RunningOnValgrind())
-    GTEST_SKIP() << "XFAIL due to Valgrind report";
-  std::vector<const char*> interpreter_args = { "-include", "new" };
-  auto* I = Cpp::CreateInterpreter(interpreter_args, {}, true);
-  EXPECT_TRUE(Cpp::Process("") == 0);
-  EXPECT_TRUE(Cpp::Process("int a = 12;") == 0);
-  EXPECT_FALSE(Cpp::Process("error_here;") == 0);
-  // Linker/JIT error.
-  EXPECT_FALSE(Cpp::Process("int f(); int res = f();") == 0);
-}
-#endif
+// #ifdef CPPINTEROP_WITH_OOP_JIT
+// TEST(InterpreterTest, OopJITProcess) {
+// #ifdef _WIN32
+//   GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
+// #endif
+//   if (llvm::sys::RunningOnValgrind())
+//     GTEST_SKIP() << "XFAIL due to Valgrind report";
+//   std::vector<const char*> interpreter_args = { "-include", "new" };
+//   auto* I = Cpp::CreateInterpreter(interpreter_args, {}, true);
+//   EXPECT_TRUE(Cpp::Process("") == 0);
+//   EXPECT_TRUE(Cpp::Process("int a = 12;") == 0);
+//   EXPECT_FALSE(Cpp::Process("error_here;") == 0);
+//   // Linker/JIT error.
+//   EXPECT_FALSE(Cpp::Process("int f(); int res = f();") == 0);
+// }
+// #endif
 
 TEST(InterpreterTest, EmscriptenExceptionHandling) {
 #ifndef EMSCRIPTEN

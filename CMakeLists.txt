@@ -305,17 +305,17 @@ else()
   message(FATAL_ERROR "We need either CPPINTEROP_USE_CLING or CPPINTEROP_USE_REPL")
 endif()
 
+include_directories(SYSTEM ${CLANG_INCLUDE_DIRS})
+include_directories(SYSTEM ${LLVM_INCLUDE_DIRS})
+separate_arguments(LLVM_DEFINITIONS_LIST NATIVE_COMMAND ${LLVM_DEFINITIONS})
+add_definitions(${LLVM_DEFINITIONS_LIST})
+
 if(CPPINTEROP_WITH_OOP_JIT)
   add_definitions(-DCPPINTEROP_WITH_OOP_JIT)
 endif()
 
 string(REGEX REPLACE "/build/lib/cmake/llvm$" "" LLVM_SOURCE_DIR "${LLVM_DIR}")
 add_definitions(-DLLVM_SOURCE_DIR="${LLVM_SOURCE_DIR}")
-
-include_directories(SYSTEM ${CLANG_INCLUDE_DIRS})
-include_directories(SYSTEM ${LLVM_INCLUDE_DIRS})
-separate_arguments(LLVM_DEFINITIONS_LIST NATIVE_COMMAND ${LLVM_DEFINITIONS})
-add_definitions(${LLVM_DEFINITIONS_LIST})
 
 # If the llvm sources are present add them with higher priority.
 if (LLVM_BUILD_MAIN_SRC_DIR)

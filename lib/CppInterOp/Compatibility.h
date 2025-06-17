@@ -206,16 +206,17 @@ inline void codeComplete(std::vector<std::string>& Results,
 
 #include "llvm/Support/Error.h"
 
+#include <vector>
+
 #ifdef CPPINTEROP_WITH_OOP_JIT
-#include "clang/Interpreter/RemoteJITUtils.h"
 #include "clang/Basic/Version.h"
+#include "clang/Interpreter/RemoteJITUtils.h"
 #include "llvm/TargetParser/Host.h"
 
 #include "llvm/ExecutionEngine/Orc/Debugging/DebuggerSupport.h"
 #endif
 
-
-static llvm::ExitOnError ExitOnError;
+static const llvm::ExitOnError ExitOnError;
 
 namespace compat {
 
@@ -259,45 +260,54 @@ createClangInterpreter(std::vector<const char*>& args, bool outOfProcess) {
   if (CudaEnabled)
     DeviceCI->LoadRequestedPlugins();
 
-  #ifdef CPPINTEROP_WITH_OOP_JIT
+#ifdef CPPINTEROP_WITH_OOP_JIT
   std::unique_ptr<llvm::orc::LLJITBuilder> JB;
 
-  if(outOfProcess) {
-      std::string OOPExecutor = std::string(LLVM_SOURCE_DIR) + "/build/bin/llvm-jitlink-executor";
-      bool UseSharedMemory = false;
-      std::string SlabAllocateSizeString = "";
-      std::unique_ptr<llvm::orc::ExecutorProcessControl> EPC;
-      EPC = ExitOnError(
-          launchExecutor(OOPExecutor, UseSharedMemory, SlabAllocateSizeString));
+  if (outOfProcess) {
+    std::string OOPExecutor =
+        std::string(LLVM_SOURCE_DIR) + "/build/bin/llvm-jitlink-executor";
+    bool UseSharedMemory = false;
+    std::string SlabAllocateSizeString = "";
+    std::unique_ptr<llvm::orc::ExecutorProcessControl> EPC;
+    EPC = ExitOnError(
+        launchExecutor(OOPExecutor, UseSharedMemory, SlabAllocateSizeString));
 
-      #ifdef __APPLE__
-        std::string OrcRuntimePath = std::string(LLVM_SOURCE_DIR) + "/build/lib/clang/20/lib/darwin/liborc_rt_osx.a";
-      #else
-        std::string OrcRuntimePath = std::string(LLVM_SOURCE_DIR) + "/build/lib/x86_64-unknown-linux-gnu/liborc_rt.a";
-      #endif
-      if (EPC) {
-        
-        CB.SetTargetTriple(EPC->getTargetTriple().getTriple());
-        JB = ExitOnError(
-            clang::Interpreter::createLLJITBuilder(std::move(EPC), OrcRuntimePath));
-      }
+#ifdef __APPLE__
+    std::string OrcRuntimePath =
+        std::string(LLVM_SOURCE_DIR) +
+        "/build/lib/clang/20/lib/darwin/liborc_rt_osx.a";
+#else
+    std::string OrcRuntimePath =
+        std::string(LLVM_SOURCE_DIR) +
+        "/build/lib/x86_64-unknown-linux-gnu/liborc_rt.a";
+#endif
+    if (EPC) {
+
+      CB.SetTargetTriple(EPC->getTargetTriple().getTriple());
+      JB = ExitOnError(clang::Interpreter::createLLJITBuilder(std::move(EPC),
+                                                              OrcRuntimePath));
+    }
   }
 
   auto innerOrErr =
-      CudaEnabled ? clang::Interpreter::createWithCUDA(std::move(*ciOrErr),
-                                                       std::move(DeviceCI))
-                  : clang::Interpreter::create(std::move(*ciOrErr), std::move(JB));
-  #else
-  if(outOfProcess) {
-    llvm::errs() << "[CreateClangInterpreter]: No compatibility with out-of-process JIT"
-                   << "\n";
+      CudaEnabled
+          ? clang::Interpreter::createWithCUDA(std::move(*ciOrErr),
+                                               std::move(DeviceCI))
+          : clang::Interpreter::create(std::move(*ciOrErr), std::move(JB));
+#else
+  if (outOfProcess) {
+    llvm::errs()
+        << "[CreateClangInterpreter]: No compatibility with out-of-process JIT"
+        << "(To enable recompile CppInterOp with "
+           "`-DCPPINTEROP_WITH_OOP_JIT=ON`)"
+        << "\n";
     return nullptr;
   }
   auto innerOrErr =
       CudaEnabled ? clang::Interpreter::createWithCUDA(std::move(*ciOrErr),
                                                        std::move(DeviceCI))
                   : clang::Interpreter::create(std::move(*ciOrErr));
-  #endif
+#endif
 
   if (!innerOrErr) {
     llvm::logAllUnhandledErrors(innerOrErr.takeError(), llvm::errs(),
@@ -444,7 +454,7 @@ public:
                                   "Failed to generate PTU:");
   }
 };
-}
+} // namespace compat
 
 #endif // CPPINTEROP_USE_REPL
 

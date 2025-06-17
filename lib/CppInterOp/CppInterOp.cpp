@@ -3031,11 +3031,11 @@ static std::string MakeResourcesPath() {
 } // namespace
 
 TInterp_t CreateInterpreter(const std::vector<const char*>& Args /*={}*/,
-                            const std::vector<const char*>& GpuArgs /*={}*/, bool is_out_of_process) {
+                            const std::vector<const char*>& GpuArgs /*={}*/, bool outOfProcess) {
   std::string MainExecutableName = sys::fs::getMainExecutable(nullptr, nullptr);
   std::string ResourceDir = MakeResourcesPath();
   std::vector<const char*> ClingArgv = {"-resource-dir", ResourceDir.c_str(),
-                                        "-std=c++14", "-gdwarf-4", "-O0"};
+                                        "-std=c++14"};
   ClingArgv.insert(ClingArgv.begin(), MainExecutableName.c_str());
 #ifdef _WIN32
   // FIXME : Workaround Sema::PushDeclContext assert on windows
@@ -3075,7 +3075,7 @@ TInterp_t CreateInterpreter(const std::vector<const char*>& Args /*={}*/,
   auto I = new compat::Interpreter(ClingArgv.size(), &ClingArgv[0]);
 #else
   auto Interp = compat::Interpreter::create(static_cast<int>(ClingArgv.size()),
-                                            ClingArgv.data(), nullptr, {}, nullptr, true, is_out_of_process);
+                                            ClingArgv.data(), nullptr, {}, nullptr, true, outOfProcess);
   if (!Interp)
     return nullptr;
   auto* I = Interp.release();

@@ -32,8 +32,7 @@ jobs:
             llvm_enable_projects: "clang;compiler-rt"
             llvm_targets_to_build: "host;NVPTX"
             coverage: true
-            oop-jit: "On"
-          - name: ubu24-arm-gcc12-clang-repl-20
+          - name: ubu24-arm-gcc12-clang-repl-20-oop
             os: ubuntu-24.04-arm
             compiler: gcc-12
             clang-runtime: '20'
@@ -41,7 +40,15 @@ jobs:
             cppyy: Off
             llvm_enable_projects: "clang;compiler-rt"
             llvm_targets_to_build: "host;NVPTX"
-            oop-jit: "On"
+            oop-jit: On
+          - name: ubu24-arm-gcc12-clang-repl-20
+            os: ubuntu-24.04-arm
+            compiler: gcc-12
+            clang-runtime: '20'
+            cling: Off
+            cppyy: Off
+            llvm_enable_projects: "clang"
+            llvm_targets_to_build: "host;NVPTX"
           - name: ubu24-arm-gcc12-clang-repl-19-cppyy
             os: ubuntu-24.04-arm
             compiler: gcc-12
@@ -134,7 +141,7 @@ jobs:
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
           # MacOS Arm Jobs
-          - name: osx15-arm-clang-clang-repl-20
+          - name: osx15-arm-clang-clang-repl-20-oop
             os: macos-15
             compiler: clang
             clang-runtime: '20'
@@ -142,7 +149,15 @@ jobs:
             cppyy: Off
             llvm_enable_projects: "clang;compiler-rt"
             llvm_targets_to_build: "host"
-            oop-jit: "On"
+            oop-jit: On
+          - name: osx15-arm-clang-clang-repl-20
+            os: macos-15
+            compiler: clang
+            clang-runtime: '20'
+            cling: Off
+            cppyy: Off
+            llvm_enable_projects: "clang"
+            llvm_targets_to_build: "host"
           - name: osx15-arm-clang-clang-repl-19-cppyy
             os: macos-15
             compiler: clang
@@ -185,7 +200,7 @@ jobs:
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
           # MacOS X86 Jobs
-          - name: osx13-x86-clang-clang-repl-20
+          - name: osx13-x86-clang-clang-repl-20-oop
             os: macos-13
             compiler: clang
             clang-runtime: '20'
@@ -193,7 +208,15 @@ jobs:
             cppyy: Off
             llvm_enable_projects: "clang;compiler-rt"
             llvm_targets_to_build: "host"
-            oop-jit: "On"
+            oop-jit: On
+          - name: osx13-x86-clang-clang-repl-20
+            os: macos-13
+            compiler: clang
+            clang-runtime: '20'
+            cling: Off
+            cppyy: Off
+            llvm_enable_projects: "clang"
+            llvm_targets_to_build: "host"
           - name: osx13-x86-clang-clang-repl-19-cppyy
             os: macos-13
             compiler: clang
