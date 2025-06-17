@@ -103,6 +103,7 @@ public:
   enum Kind : char {
     kUnknown = 0,
     kGenericCall,
+    kConstructorCall,
     kDestructorCall,
   };
   struct ArgList {
@@ -115,12 +116,17 @@ public:
   // FIXME: Figure out how to unify the wrapper signatures.
   // FIXME: Hide these implementation details by moving wrapper generation in
   // this class.
+  // (self, nargs, args, result, nary)
   using GenericCall = void (*)(void*, size_t, void**, void*);
-  using DestructorCall = void (*)(void*, unsigned long, int);
+  // (result, nary, nargs, args, is_arena)
+  using ConstructorCall = void (*)(void*, size_t, size_t, void**, void*);
+  // (self, nary, withFree)
+  using DestructorCall = void (*)(void*, size_t, int);
 
 private:
   union {
     GenericCall m_GenericCall;
+    ConstructorCall m_ConstructorCall;
     DestructorCall m_DestructorCall;
   };
   Kind m_Kind;
@@ -128,12 +134,14 @@ private:
   JitCall() : m_GenericCall(nullptr), m_Kind(kUnknown), m_FD(nullptr) {}
   JitCall(Kind K, GenericCall C, TCppConstFunction_t FD)
       : m_GenericCall(C), m_Kind(K), m_FD(FD) {}
+  JitCall(Kind K, ConstructorCall C, TCppConstFunction_t Ctor)
+      : m_ConstructorCall(C), m_Kind(K), m_FD(Ctor) {}
   JitCall(Kind K, DestructorCall C, TCppConstFunction_t Dtor)
       : m_DestructorCall(C), m_Kind(K), m_FD(Dtor) {}
 
   /// Checks if the passed arguments are valid for the given function.
-  CPPINTEROP_API bool AreArgumentsValid(void* result, ArgList args,
-                                        void* self) const;
+  CPPINTEROP_API bool AreArgumentsValid(void* result, ArgList args, void* self,
+                                        size_t nary) const;
 
   /// This function is used for debugging, it reports when the function was
   /// called.
@@ -164,17 +172,34 @@ public:
   // decide to directly.
   void Invoke(void* result, ArgList args = {}, void* self = nullptr) const {
     // NOLINTBEGIN(*-type-union-access)
-    // Forward if we intended to call a dtor with only 1 parameter.
-    if (m_Kind == kDestructorCall && result && !args.m_Args) {
-      InvokeDestructor(result, /*nary=*/0UL, /*withFree=*/true);
-      return;
-    }
+    // Its possible the JitCall object deals with structor decls but went
+    // through Invoke
 
+    switch (m_Kind) {
+    case kUnknown:
+      assert(0 && "Attempted to call an invalid function declaration");
+      break;
+
+    case kGenericCall:
 #ifndef NDEBUG
-    assert(AreArgumentsValid(result, args, self) && "Invalid args!");
-    ReportInvokeStart(result, args, self);
+      // We pass 1UL to nary which is only relevant for structors
+      assert(AreArgumentsValid(result, args, self, 1UL) && "Invalid args!");
+      ReportInvokeStart(result, args, self);
 #endif // NDEBUG
-    m_GenericCall(self, args.m_ArgSize, args.m_Args, result);
+      m_GenericCall(self, args.m_ArgSize, args.m_Args, result);
+      break;
+
+    case kConstructorCall:
+      // Forward if we intended to call a constructor (nary cannot be inferred,
+      // so we stick to constructing a single object)
+      InvokeConstructor(result, /*nary=*/1UL, args, self);
+      break;
+    case kDestructorCall:
+      // Forward if we intended to call a dtor with only 1 parameter.
+      assert(!args.m_Args && "Destructor called with arguments");
+      InvokeDestructor(result, /*nary=*/0UL, /*withFree=*/true);
+      break;
+    }
     // NOLINTEND(*-type-union-access)
   }
   /// Makes a call to a destructor.
@@ -191,6 +216,24 @@ public:
     ReportInvokeStart(object, nary, withFree);
 #endif // NDEBUG
     m_DestructorCall(object, nary, withFree);
+  }
+
+  /// Makes a call to a constructor.
+  ///\param[in] result - the memory address at which we construct the object
+  ///           (placement new).
+  ///\param[in] nary - Use array new if we have to construct an array of
+  ///           objects (nary > 1).
+  ///\param[in] args - a pointer to a argument list and argument size.
+  // FIXME: Change the type of withFree from int to bool in the wrapper code.
+  void InvokeConstructor(void* result, unsigned long nary = 1,
+                         ArgList args = {}, void* is_arena = nullptr) const {
+    assert(m_Kind == kConstructorCall && "Wrong overload!");
+#ifndef NDEBUG
+    assert(AreArgumentsValid(result, args, /*self=*/nullptr, nary) &&
+           "Invalid args!");
+    ReportInvokeStart(result, args, nullptr);
+#endif // NDEBUG
+    m_ConstructorCall(result, nary, args.m_ArgSize, args.m_Args, is_arena);
   }
 };
 
@@ -544,11 +587,18 @@ CPPINTEROP_API bool IsReferenceType(TCppType_t type);
 /// Checks if type is a LValue reference
 CPPINTEROP_API bool IsLValueReferenceType(TCppType_t type);
 
+/// Checks if type is a LValue reference
+CPPINTEROP_API bool IsRValueReferenceType(TCppType_t type);
+
 /// Get the type that the reference refers to
 CPPINTEROP_API TCppType_t GetNonReferenceType(TCppType_t type);
 
-/// Get lvalue referenced type
-CPPINTEROP_API TCppType_t GetReferencedType(TCppType_t type);
+/// Get lvalue referenced type, or rvalue if rvalue is true
+CPPINTEROP_API TCppType_t GetReferencedType(TCppType_t type,
+                                            bool rvalue = false);
+
+/// Get the pointer to type
+CPPINTEROP_API TCppType_t GetPointerType(TCppType_t type);
 
 /// Gets the pure, Underlying Type (as opposed to the Using Type).
 CPPINTEROP_API TCppType_t GetUnderlyingType(TCppType_t type);
@@ -592,6 +642,12 @@ CPPINTEROP_API std::string GetFunctionArgDefault(TCppFunction_t func,
 ///\returns the argument name of function as string.
 CPPINTEROP_API std::string GetFunctionArgName(TCppFunction_t func,
                                               TCppIndex_t param_index);
+
+///\returns string representation of the operator
+CPPINTEROP_API std::string GetSpellingFromOperator(Operator Operator);
+
+///\returns operator of representing the string
+CPPINTEROP_API Operator GetOperatorFromSpelling(const std::string& op);
 
 ///\returns arity of the operator or kNone
 CPPINTEROP_API OperatorArity GetOperatorArity(TCppFunction_t op);
@@ -730,11 +786,12 @@ struct TemplateArgInfo {
 ///           in the \c TemplateArgInfo struct
 ///\param[in] template_args_size - Size of the vector of template arguments
 ///           passed as \c template_args
+///\param[in] instantiate_body - also instantiate/define the body
 ///
 ///\returns Instantiated templated class/function/variable pointer
 CPPINTEROP_API TCppScope_t
 InstantiateTemplate(TCppScope_t tmpl, const TemplateArgInfo* template_args,
-                    size_t template_args_size);
+                    size_t template_args_size, bool instantiate_body = false);
 
 /// Sets the class template instantiation arguments of \c templ_instance.
 ///
@@ -778,20 +835,36 @@ enum : long int {
 /// Gets the size/dimensions of a multi-dimension array.
 CPPINTEROP_API std::vector<long int> GetDimensions(TCppType_t type);
 
-/// Allocates memory for a given class.
-CPPINTEROP_API TCppObject_t Allocate(TCppScope_t scope);
+/// Allocates memory required by an object of a given class
+/// \c scope Given class for which to allocate memory for
+/// \c count is used to indicate the number of objects to allocate for.
+CPPINTEROP_API TCppObject_t Allocate(TCppScope_t scope,
+                                     TCppIndex_t count = 1UL);
 
 /// Deallocates memory for a given class.
-CPPINTEROP_API void Deallocate(TCppScope_t scope, TCppObject_t address);
+/// \c scope Class to indicate size of memory to deallocate
+/// \c count is used to indicate the number of objects to dallocate for
+CPPINTEROP_API void Deallocate(TCppScope_t scope, TCppObject_t address,
+                               TCppIndex_t count = 1UL);
 
-/// Creates an object of class \c scope and calls its default constructor. If
-/// \c arena is set it uses placement new.
-CPPINTEROP_API TCppObject_t Construct(TCppScope_t scope, void* arena = nullptr);
+/// Creates one or more objects of class \c scope by calling its default
+/// constructor.
+/// \param[in] scope Class to construct
+/// \param[in] arena If set, this API uses placement new to construct at this
+/// address.
+/// \param[in] is used to indicate the number of objects to construct.
+CPPINTEROP_API TCppObject_t Construct(TCppScope_t scope, void* arena = nullptr,
+                                      TCppIndex_t count = 1UL);
 
-/// Calls the destructor of object of type \c type. When withFree is true it
-/// calls operator delete/free.
+/// Destroys one or more objects of a class
+/// \param[in] This this pointer of the object to destruct. Can also be the
+/// starting address of an array of objects
+/// \param[in] withFree if true, we call operator delete/free, else just the
+/// destructor
+/// \param[in] count indicate the number of objects to destruct, if \c This
+/// points to an array of objects
 CPPINTEROP_API void Destruct(TCppObject_t This, TCppScope_t type,
-                             bool withFree = true);
+                             bool withFree = true, TCppIndex_t count = 0UL);
 
 /// @name Stream Redirection
 ///

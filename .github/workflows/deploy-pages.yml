@@ -38,33 +38,11 @@ jobs:
       with:
         python-version: '3.11'
 
-    - name: Save PR Info on Unix systems
-      if: ${{ runner.os != 'windows' }}
-      run: |
-        mkdir -p ./pr
-        echo ${{ github.event.number }} > ./pr/NR
-        echo ${{ github.repository }} > ./pr/REPO
+    - name: Save PR Info
+      uses: ./.github/actions/Miscellaneous/Save_PR_Info
 
-        cling_on=$(echo "${{ matrix.cling }}" | tr '[:lower:]' '[:upper:]')
-        if [[ "$cling_on" == "ON" ]]; then
-          export CLING_HASH=$(git ls-remote https://github.com/root-project/cling.git refs/tags/v${{ matrix.cling-version }} | tr '\t' '-')
-          export LLVM_HASH=$(git ls-remote https://github.com/root-project/llvm-project.git cling-llvm${{ matrix.clang-runtime}} | tr '\t' '-')
-        else
-          export CLING_HASH="Repl"
-          # May need to revert back to both having same llvm_hash, as below cause llvm to be rebuilt everytime commit is made to llvm/llvm-project for release a.x
-          # which could be quite often for new releases
-          export LLVM_HASH=$(git ls-remote https://github.com/llvm/llvm-project.git refs/heads/release/${{ matrix.clang-runtime}}.x | tr '\t' '-')
-        fi
-
-        echo "CLING_HASH=$CLING_HASH" >> $GITHUB_ENV
-        echo "LLVM_HASH=$LLVM_HASH" >> $GITHUB_ENV
-
-    - name: Setup default Build Type on *nux
-      if: runner.os != 'windows'
-      run: |
-        echo "BUILD_TYPE=Release" >> $GITHUB_ENV
-        echo "CODE_COVERAGE=0" >> $GITHUB_ENV
-        echo "ncpus=$(nproc --all)" >> $GITHUB_ENV
+    - name: Setup default Build Type
+      uses: ./.github/actions/Miscellaneous/Select_Default_Build_Type
 
     - name: install mamba
       uses: mamba-org/setup-micromamba@main
@@ -79,7 +57,7 @@ jobs:
           cd emsdk
           ./emsdk install  ${{ matrix.emsdk_ver }}
 
-    - name: Restore Cache LLVM/Clang runtime build directory
+    - name: Restore cached LLVM-${{ matrix.clang-runtime }} and ${{ matrix.cling == 'On' && 'Cling' || 'Clang-REPL' }} build
       uses: actions/cache/restore@v4
       id: cache
       with:
@@ -238,10 +216,15 @@ jobs:
       shell: bash -l {0}
       run: |
           cd ./xeus-cpp/
-          micromamba create -n xeus-lite-host jupyterlite-core -c conda-forge
+          micromamba create -n xeus-lite-host jupyterlite-core=0.6 jupyterlite-xeus jupyter_server jupyterlab notebook python-libarchive-c -c conda-forge
           micromamba activate xeus-lite-host
-          python -m pip install jupyterlite-xeus jupyterlite-core jupyterlab notebook libarchive-c
-          jupyter lite build --XeusAddon.prefix=${{ env.PREFIX }} --contents notebooks/xeus-cpp-lite-demo.ipynb --contents notebooks/smallpt.ipynb --contents notebooks/images/marie.png --contents notebooks/audio/audio.wav --output-dir dist
+          jupyter lite build --XeusAddon.prefix=${{ env.PREFIX }} \
+                             --contents notebooks/xeus-cpp-lite-demo.ipynb \
+                             --contents notebooks/smallpt.ipynb \
+                             --contents notebooks/images/marie.png \
+                             --contents notebooks/audio/audio.wav \
+                             --XeusAddon.mounts="${{ env.PREFIX }}/share/xeus-cpp/tagfiles:/share/xeus-cpp/tagfiles" \
+                             --XeusAddon.mounts="${{ env.PREFIX }}/etc/xeus-cpp/tags.d:/etc/xeus-cpp/tags.d" --output-dir dist
 
     - name: Upload artifact
       uses: actions/upload-pages-artifact@v3

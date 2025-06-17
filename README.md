@@ -1,12 +1,7 @@
 # CppInterOp
 <div align="center">
 
-[![Build Status](https://github.com/compiler-research/CppInterOp/actions/workflows/Ubuntu.yml/badge.svg)](https://github.com/compiler-research/CppInterOp/actions/workflows/Ubuntu.yml)
-[![Build Status](https://github.com/compiler-research/CppInterOp/actions/workflows/Ubuntu-arm.yml/badge.svg)](https://github.com/compiler-research/CppInterOp/actions/workflows/Ubuntu-arm.yml)
-[![Build Status](https://github.com/compiler-research/CppInterOp/actions/workflows/MacOS.yml/badge.svg)](https://github.com/compiler-research/CppInterOp/actions/workflows/MacOS.yml)
-[![Build Status](https://github.com/compiler-research/CppInterOp/actions/workflows/MacOS-arm.yml/badge.svg)](https://github.com/compiler-research/CppInterOp/actions/workflows/MacOS-arm.yml)
-[![Build Status](https://github.com/compiler-research/CppInterOp/actions/workflows/Windows.yml/badge.svg)](https://github.com/compiler-research/CppInterOp/actions/workflows/Windows.yml)
-[![Build Status](https://github.com/compiler-research/CppInterOp/actions/workflows/Windows-arm.yml/badge.svg)](https://github.com/compiler-research/CppInterOp/actions/workflows/Windows-arm.yml)
+[![Build Status](https://github.com/compiler-research/CppInterOp/actions/workflows/main.yml/badge.svg)](https://github.com/compiler-research/CppInterOp/actions/workflows/main.yml)
 [![Build Status](https://github.com/compiler-research/CppInterOp/actions/workflows/emscripten.yml/badge.svg)](https://github.com/compiler-research/CppInterOp/actions/workflows/emscripten.yml)
 [![codecov](https://codecov.io/gh/compiler-research/CppInterOp/branch/main/graph/badge.svg)](https://codecov.io/gh/compiler-research/CppInterOp)
 [![Conda-Forge](https://img.shields.io/conda/vn/conda-forge/cppinterop)](https://github.com/conda-forge/cppinterop-feedstock)

@@ -1,0 +1,54 @@
+name: 'Install Dependencies'
+description: 'This PR installs the dependencies needed'
+
+runs:
+  using: composite
+  steps:
+
+    - name: Install dependencies on MacOS
+      if: runner.os == 'macOS'
+      shell: bash
+      run: |
+        brew update --force
+        if [[ "$(uname -m)" == "x86_64" ]]; then
+          brew remove swiftlint
+        else
+          brew remove unxip
+        fi
+        # workaround for https://github.com/actions/setup-python/issues/577
+        for pkg in $(brew list | grep '^python@'); do
+          brew unlink "$pkg"
+          brew link --overwrite "$pkg"
+        done
+        brew upgrade openssl >/dev/null 2>&1
+        brew upgrade --force
+        brew install ninja
+        brew install eigen
+        brew install boost
+        brew install gnu-sed
+        pip install distro pytest
+
+    - name: Install dependencies on Linux
+      if: runner.os == 'Linux'
+      shell: bash
+      run: |
+        # Install deps
+        sudo apt-get update
+        sudo apt-get install valgrind ninja-build
+        sudo apt-get install git g++ debhelper devscripts gnupg python3 doxygen graphviz python3-sphinx
+        sudo apt-get install -y libc6-dbg
+        sudo apt-get install valgrind
+        sudo apt autoremove
+        sudo apt clean
+        # Install libraries used by the cppyy test suite
+        sudo apt install libeigen3-dev
+        sudo apt install libboost-all-dev
+
+
+    - name: Install dependencies on Windows
+      if: runner.os == 'Windows'
+      shell: powershell
+      run: |
+        choco install findutils
+        $env:PATH="C:\Program Files (x86)\GnuWin32\bin;$env:PATH"
+        

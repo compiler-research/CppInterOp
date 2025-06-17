@@ -316,10 +316,15 @@ To build Jupyter Lite website with this kernel locally that you can use for test
 
 ```bash
 cd ../..
-micromamba create -n xeus-lite-host jupyterlite-core -c conda-forge
+micromamba create -n xeus-lite-host jupyterlite-core=0.6 jupyterlite-xeus jupyter_server jupyterlab notebook python-libarchive-c -c conda-forge
 micromamba activate xeus-lite-host
-python -m pip install jupyterlite-xeus jupyter_server
-jupyter lite build --XeusAddon.prefix=$PREFIX --contents xeus-cpp/notebooks/xeus-cpp-lite-demo.ipynb --contents notebooks/smallpt.ipynb --contents notebooks/images/marie.png --contents notebooks/audio/audio.wav
+jupyter lite build --XeusAddon.prefix=$PREFIX \
+                   --contents xeus-cpp/notebooks/xeus-cpp-lite-demo.ipynb \
+                   --contents xeus-cpp/notebooks/smallpt.ipynb \
+                   --contents xeus-cpp/notebooks/images/marie.png \
+                   --contents xeus-cpp/notebooks/audio/audio.wav \
+                   --XeusAddon.mounts="$PREFIX/share/xeus-cpp/tagfiles:/share/xeus-cpp/tagfiles" \
+                   --XeusAddon.mounts="$PREFIX/etc/xeus-cpp/tags.d:/etc/xeus-cpp/tags.d"
 ```
 
 Once the Jupyter Lite site has built you can test the website locally by executing
