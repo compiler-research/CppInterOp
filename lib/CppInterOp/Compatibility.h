@@ -79,6 +79,7 @@ static inline char* GetEnv(const char* Var_Name) {
 
 // std::regex breaks pytorch's jit: pytorch/pytorch#49460
 #include "llvm/Support/Regex.h"
+#include "llvm/ExecutionEngine/Orc/ExecutionUtils.h"
 
 #ifdef CPPINTEROP_USE_CLING
 
@@ -200,10 +201,21 @@ inline void codeComplete(std::vector<std::string>& Results,
 
 #include "llvm/Support/Error.h"
 
+#ifdef CPPINTEROP_WITH_OOP_JIT
+#include "clang/Interpreter/RemoteJITUtils.h"
+#include "clang/Basic/Version.h"
+#include "llvm/TargetParser/Host.h"
+
+#include "llvm/ExecutionEngine/Orc/Debugging/DebuggerSupport.h"
+#endif
+
+
+static llvm::ExitOnError ExitOnError;
+
 namespace compat {
 
 inline std::unique_ptr<clang::Interpreter>
-createClangInterpreter(std::vector<const char*>& args) {
+createClangInterpreter(std::vector<const char*>& args, bool outOfProcess) {
   auto has_arg = [](const char* x, llvm::StringRef match = "cuda") {
     llvm::StringRef Arg = x;
     Arg = Arg.trim().ltrim('-');
@@ -241,16 +253,53 @@ createClangInterpreter(std::vector<const char*>& args) {
   (*ciOrErr)->LoadRequestedPlugins();
   if (CudaEnabled)
     DeviceCI->LoadRequestedPlugins();
+
+  #ifdef CPPINTEROP_WITH_OOP_JIT
+  std::unique_ptr<llvm::orc::LLJITBuilder> JB;
+
+  if(outOfProcess) {
+      std::string OOPExecutor = std::string(LLVM_SOURCE_DIR) + "/build/bin/llvm-jitlink-executor";
+      bool UseSharedMemory = false;
+      std::string SlabAllocateSizeString = "";
+      std::unique_ptr<llvm::orc::ExecutorProcessControl> EPC;
+      EPC = ExitOnError(
+          launchExecutor(OOPExecutor, UseSharedMemory, SlabAllocateSizeString));
+
+      #ifdef __APPLE__
+        std::string OrcRuntimePath = std::string(LLVM_SOURCE_DIR) + "/build/lib/clang/20/lib/darwin/liborc_rt_osx.a";
+      #else
+        std::string OrcRuntimePath = std::string(LLVM_SOURCE_DIR) + "/build/lib/x86_64-unknown-linux-gnu/liborc_rt.a";
+      #endif
+      if (EPC) {
+        
+        CB.SetTargetTriple(EPC->getTargetTriple().getTriple());
+        JB = ExitOnError(
+            clang::Interpreter::createLLJITBuilder(std::move(EPC), OrcRuntimePath));
+      }
+  }
+
+  auto innerOrErr =
+      CudaEnabled ? clang::Interpreter::createWithCUDA(std::move(*ciOrErr),
+                                                       std::move(DeviceCI))
+                  : clang::Interpreter::create(std::move(*ciOrErr), std::move(JB));
+  #else
+  if(outOfProcess) {
+    llvm::errs() << "[CreateClangInterpreter]: No compatibility with out-of-process JIT"
+                   << "\n";
+    return nullptr;
+  }
   auto innerOrErr =
       CudaEnabled ? clang::Interpreter::createWithCUDA(std::move(*ciOrErr),
                                                        std::move(DeviceCI))
                   : clang::Interpreter::create(std::move(*ciOrErr));
+  #endif
 
   if (!innerOrErr) {
     llvm::logAllUnhandledErrors(innerOrErr.takeError(), llvm::errs(),
                                 "Failed to build Interpreter:");
     return nullptr;
   }
+
   if (CudaEnabled) {
     if (auto Err = (*innerOrErr)->LoadDynamicLibrary("libcudart.so")) {
       llvm::logAllUnhandledErrors(std::move(Err), llvm::errs(),

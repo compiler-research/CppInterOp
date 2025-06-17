@@ -49,6 +49,10 @@ runs:
             git apply -v ../patches/llvm/clang${{ matrix.clang-runtime }}-*.patch
             echo "Apply clang${{ matrix.clang-runtime }}-*.patch patches:"
           fi
+          if [[ "${{ matrix.llvm_enable_runtimes }}" == "clang;compile-rt" ]]; then
+            git apply -v ../patches/llvm/out-of-process-jit-execution.patch
+            echo "Apply out-of-process-jit-execution.patch:"
+          fi
           cd build
           cmake -DLLVM_ENABLE_PROJECTS="${{ matrix.llvm_enable_projects}}" \
                 -DLLVM_TARGETS_TO_BUILD="${{ matrix.llvm_targets_to_build }}"  \
@@ -64,6 +68,13 @@ runs:
                 -DLLVM_INCLUDE_TESTS=OFF                        \
                 ../llvm
           ninja clang clangInterpreter clangStaticAnalyzerCore -j ${{ env.ncpus }}
+          if [[ "${{ matrix.oop-jit }}" == "On" ]]; then
+            if [[ "${{ runner.os }}" == "Linux" ]]; then
+              ninja clang clang-repl llvm-jitlink-executor orc_rt -j $(nproc --all)
+            elif [[ "${{ runner.os }}" == "macOS" ]]; then
+              ninja clang clang-repl llvm-jitlink-executor orc_rt -j $(nproc --all)
+            fi
+          fi
           cd ./tools/
           rm -rf $(find . -maxdepth 1 ! -name "clang" ! -name ".")
           cd ..

@@ -609,7 +609,7 @@ CPPINTEROP_API void GetOperator(TCppScope_t scope, Operator op,
 ///\returns nullptr on failure.
 CPPINTEROP_API TInterp_t
 CreateInterpreter(const std::vector<const char*>& Args = {},
-                  const std::vector<const char*>& GpuArgs = {});
+                  const std::vector<const char*>& GpuArgs = {}, bool outOfProcess = false);
 
 /// Deletes an instance of an interpreter.
 ///\param[in] I - the interpreter to be deleted, if nullptr, deletes the last.

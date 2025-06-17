@@ -28,8 +28,9 @@ jobs:
             clang-runtime: '20'
             cling: Off
             cppyy: Off
-            llvm_enable_projects: "clang"
+            llvm_enable_projects: "clang;compiler-rt"
             llvm_targets_to_build: "host"
+            oop-jit: On
           - name: osx15-arm-clang-clang-repl-19-cppyy
             os: macos-15
             compiler: clang
@@ -38,6 +39,7 @@ jobs:
             cppyy: On
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host"
+            oop-jit: Off
           - name: osx15-arm-clang-clang-repl-18-cppyy
             os: macos-15
             compiler: clang
@@ -46,6 +48,7 @@ jobs:
             cppyy: On
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host"
+            oop-jit: Off
           - name: osx15-arm-clang-clang-repl-17-cppyy
             os: macos-15
             compiler: clang
@@ -54,6 +57,7 @@ jobs:
             cppyy: On
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host"
+            oop-jit: Off
           - name: osx15-arm-clang-clang-repl-16
             os: macos-15
             compiler: clang
@@ -62,6 +66,7 @@ jobs:
             cppyy: Off
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host"
+            oop-jit: Off
           - name: osx15-arm-clang-clang18-cling-cppyy
             os: macos-15
             compiler: clang
@@ -71,6 +76,7 @@ jobs:
             cling-version: '1.2'
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
+            oop-jit: Off
 
     steps:
     - uses: actions/checkout@v4

@@ -125,6 +125,13 @@ git apply -v clang{version}-*.patch
 
 on Windows.
 
+If you want to have out-of-process JIT execution enabled in CppInterOp, then apply this patch on Linux and MacOS environment. 
+> Note that this patch will not work for Windows because out-of-process JIT execution is currently implemented for Linux and MacOS only.
+
+```bash
+git apply -v ../CppInterOp/patches/llvm/out-of-process-jit-execution.patch
+```
+
 ##### Build Clang-REPL
 
 Clang-REPL is an interpreter that CppInterOp works alongside. Build Clang (and
@@ -178,6 +185,30 @@ On Windows you execute the following
 cd ..\
 $env:LLVM_DIR= $PWD.Path
 cd ..\
+```
+
+##### Build Clang-REPL with Out-of-Process JIT Execution
+
+To have ``Out-of-Process JIT Execution`` enabled, run following commands to build clang and clang-repl to support this feature:
+> Only for Linux and Macos
+```bash
+mkdir build 
+cd build 
+cmake -DLLVM_ENABLE_PROJECTS="clang;compiler-rt                     \
+                -DLLVM_TARGETS_TO_BUILD="host;NVPTX"                \
+                -DCMAKE_BUILD_TYPE=Release                          \
+                -DLLVM_ENABLE_ASSERTIONS=ON                         \
+                -DCLANG_ENABLE_STATIC_ANALYZER=OFF                  \
+                -DCLANG_ENABLE_ARCMT=OFF                            \
+                -DCLANG_ENABLE_FORMAT=OFF                           \
+                -DCLANG_ENABLE_BOOTSTRAP=OFF                        \
+                ../llvm
+
+## For Linux
+cmake --build . --target clang clang-repl llvm-jitlink-executor orc_rt --parallel $(nproc --all)
+
+## For MacOS
+cmake --build . --target clang clang-repl llvm-jitlink-executor orc_rt_osx --parallel $(nproc --all)
 ```
 
 #### Build Cling and related dependencies
@@ -328,6 +359,8 @@ Now if you want to build CppInterOp with Clang-REPL then execute the following c
 cmake -DBUILD_SHARED_LIBS=ON -DLLVM_DIR=$LLVM_DIR/build/lib/cmake/llvm -DClang_DIR=$LLVM_DIR/build/lib/cmake/clang -DCMAKE_INSTALL_PREFIX=$CPPINTEROP_DIR ..
 cmake --build . --target install --parallel $(nproc --all)
 ```
+
+> Do make sure to add ``-DCPPINTEROP_WITH_OOP_JIT=ON``, if you want to have out-of-process JIT execution feature enabled.
 
 and
 
