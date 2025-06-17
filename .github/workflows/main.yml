@@ -29,7 +29,7 @@ jobs:
             clang-runtime: '20'
             cling: Off
             cppyy: Off
-            llvm_enable_projects: "clang"
+            llvm_enable_projects: "clang;compiler-rt"
             llvm_targets_to_build: "host;NVPTX"
             coverage: true
             oop-jit: "On"
@@ -39,7 +39,7 @@ jobs:
             clang-runtime: '20'
             cling: Off
             cppyy: Off
-            llvm_enable_projects: "clang"
+            llvm_enable_projects: "clang;compiler-rt"
             llvm_targets_to_build: "host;NVPTX"
             oop-jit: "On"
           - name: ubu24-arm-gcc12-clang-repl-19-cppyy
@@ -140,7 +140,7 @@ jobs:
             clang-runtime: '20'
             cling: Off
             cppyy: Off
-            llvm_enable_projects: "clang"
+            llvm_enable_projects: "clang;compiler-rt"
             llvm_targets_to_build: "host"
             oop-jit: "On"
           - name: osx15-arm-clang-clang-repl-19-cppyy
@@ -191,7 +191,7 @@ jobs:
             clang-runtime: '20'
             cling: Off
             cppyy: Off
-            llvm_enable_projects: "clang"
+            llvm_enable_projects: "clang;compiler-rt"
             llvm_targets_to_build: "host"
             oop-jit: "On"
           - name: osx13-x86-clang-clang-repl-19-cppyy

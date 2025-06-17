@@ -49,7 +49,7 @@ runs:
             git apply -v ../patches/llvm/clang${{ matrix.clang-runtime }}-*.patch
             echo "Apply clang${{ matrix.clang-runtime }}-*.patch patches:"
           fi
-          if [[ "${{ matrix.llvm_enable_runtimes }}" == "clang;compile-rt" ]]; then
+          if [[ "${{ matrix.oop-jit }}" == "On" ]]; then
             git apply -v ../patches/llvm/out-of-process-jit-execution.patch
             echo "Apply out-of-process-jit-execution.patch:"
           fi
@@ -72,7 +72,7 @@ runs:
             if [[ "${{ runner.os }}" == "Linux" ]]; then
               ninja clang clang-repl llvm-jitlink-executor orc_rt -j $(nproc --all)
             elif [[ "${{ runner.os }}" == "macOS" ]]; then
-              ninja clang clang-repl llvm-jitlink-executor orc_rt -j $(nproc --all)
+              ninja clang clang-repl llvm-jitlink-executor orc_rt_osx -j $(nproc --all)
             fi
           fi
           cd ./tools/
