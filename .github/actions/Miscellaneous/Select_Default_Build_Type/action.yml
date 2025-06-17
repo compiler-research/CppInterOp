@@ -10,7 +10,12 @@ runs:
       run: |
         echo "BUILD_TYPE=Release" >> $GITHUB_ENV
         echo "CODE_COVERAGE=0" >> $GITHUB_ENV
-        echo "ncpus=$(sysctl -n hw.ncpu)" >> $GITHUB_ENV
+        os="${{ matrix.os }}"
+        if [[ "${os}" != "macos"* ]]; then
+          echo "ncpus=$(nproc --all)" >> $GITHUB_ENV      
+        else
+          echo "ncpus=$(sysctl -n hw.ncpu)" >> $GITHUB_ENV
+        fi
 
     - name: Select default build type on Windows
       if: runner.os == 'Windows'
