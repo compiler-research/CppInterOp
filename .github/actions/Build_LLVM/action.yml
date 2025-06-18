@@ -70,9 +70,9 @@ runs:
           ninja clang clangInterpreter clangStaticAnalyzerCore -j ${{ env.ncpus }}
           if [[ "${{ matrix.oop-jit }}" == "On" ]]; then
             if [[ "${{ runner.os }}" == "Linux" ]]; then
-              ninja clang clang-repl llvm-jitlink-executor orc_rt -j $(nproc --all)
+              ninja clang clang-repl llvm-jitlink-executor orc_rt -j ${{ env.ncpus }}
             elif [[ "${{ runner.os }}" == "macOS" ]]; then
-              ninja clang clang-repl llvm-jitlink-executor orc_rt_osx -j $(nproc --all)
+              ninja clang clang-repl llvm-jitlink-executor orc_rt_osx -j ${{ env.ncpus }}
             fi
           fi
           cd ./tools/
