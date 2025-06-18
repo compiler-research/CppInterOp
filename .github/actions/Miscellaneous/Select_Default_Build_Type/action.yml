@@ -10,8 +10,7 @@ runs:
       run: |
         echo "BUILD_TYPE=Release" >> $GITHUB_ENV
         echo "CODE_COVERAGE=0" >> $GITHUB_ENV
-        os="${{ matrix.os }}"
-        if [[ "${os}" != "macos"* ]]; then
+        if [[ "${{ matrix.os }}" != "macos"* ]]; then
           echo "ncpus=$(nproc --all)" >> $GITHUB_ENV      
         else
           echo "ncpus=$(sysctl -n hw.ncpu)" >> $GITHUB_ENV
