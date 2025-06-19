@@ -42,6 +42,11 @@ runs:
           ninja clang -j ${{ env.ncpus }}
           ninja LLVMOrcDebugging -j ${{ env.ncpus }}
           ninja clingInterpreter -j ${{ env.ncpus }}
+          cd ./tools/
+          rm -rf $(find . -maxdepth 1 ! -name "cling" ! -name "clang" ! -name ".")
+          cd ..
+          rm compile_commands.json build.ninja
+          cd ../
         else
           # Apply patches
           llvm_vers=$(echo "${{ matrix.clang-runtime }}" | tr '[:lower:]' '[:upper:]')
@@ -64,12 +69,12 @@ runs:
                 -DLLVM_INCLUDE_TESTS=OFF                        \
                 ../llvm
           ninja clang clangInterpreter clangStaticAnalyzerCore -j ${{ env.ncpus }}
+          cd ./tools/
+          rm -rf $(find . -maxdepth 1 ! -name "clang" ! -name ".")
+          cd ..
+          rm compile_commands.json build.ninja
+          cd ../
         fi
-        cd ./tools/
-        rm -rf $(find . -maxdepth 1 ! -name "clang" ! -name ".")
-        cd ..
-        rm compile_commands.json build.ninja
-        cd ../
         rm -rf $(find . -maxdepth 1 ! -name "build" ! -name "llvm" ! -name "clang" ! -name ".")
         if [[ "${cling_on}" == "ON" ]]; then
           cd ./llvm/
@@ -129,6 +134,9 @@ runs:
           cmake --build . --config Release --target clang --parallel ${{ env.ncpus }}
           cmake --build . --config Release --target LLVMOrcDebugging --parallel ${{ env.ncpus }}
           cmake --build . --config Release --target clingInterpreter --parallel ${{ env.ncpus }}
+          cd .\tools\
+          rm -r -force $(find.exe . -maxdepth 1 ! -name "cling" ! -name "clang" ! -name ".")
+          cd ..\..
         }
         else
         {
@@ -156,10 +164,10 @@ runs:
                 -DCLANG_ENABLE_BOOTSTRAP=OFF                        `
                 ..\llvm
           cmake --build . --config Release --target clang clangInterpreter clangStaticAnalyzerCore --parallel ${{ env.ncpus }}
+          cd .\tools\
+          rm -r -force $(find.exe . -maxdepth 1 ! -name "clang" ! -name ".")
+          cd ..\..
         }
-        cd .\tools\
-        rm -r -force $(find.exe . -maxdepth 1 ! -name "clang" ! -name ".")
-        cd ..\..
         rm -r -force $(find.exe . -maxdepth 1 ! -name "build" ! -name "llvm" ! -name "clang" ! -name ".")
         if ( "${{ matrix.cling }}" -imatch "On" )
         {
