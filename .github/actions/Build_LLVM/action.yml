@@ -69,7 +69,7 @@ runs:
                 ../llvm
           ninja clang clangInterpreter clangStaticAnalyzerCore -j ${{ env.ncpus }}
           if [[ "${{ matrix.oop-jit }}" == "On" ]]; then
-            if [ "${{ matrix.os }}}" = "macos"*  ]; then SUFFIX="_osx"; fi
+            if [ "${{ matrix.os }}}" == "macos"*  ]; then SUFFIX="_osx"; fi
             ninja clang_repl llvm-jitlink-executor orc_rt${SUFFIX} -j ${{ env.ncpus }}
           fi
           cd ./tools/

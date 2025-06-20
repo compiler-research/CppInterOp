@@ -429,9 +429,11 @@ inline void codeComplete(std::vector<std::string>& Results,
 #endif
 }
 
+#ifdef CPPINTEROP_WITH_OOP_JIT
 inline pid_t getExecutorPID() {
   return getLastLaunchedExecutorPID();
 }
+#endif // CPPINTEROP_WITH_OOP_JIT
 
 } // namespace compat
 
