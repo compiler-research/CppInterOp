@@ -310,6 +310,16 @@ include_directories(SYSTEM ${LLVM_INCLUDE_DIRS})
 separate_arguments(LLVM_DEFINITIONS_LIST NATIVE_COMMAND ${LLVM_DEFINITIONS})
 add_definitions(${LLVM_DEFINITIONS_LIST})
 
+if(CPPINTEROP_WITH_OOP_JIT)
+  if(WIN32 OR EMSCRIPTEN)
+    message(FATAL_ERROR "CPPINTEROP_WITH_OOP_JIT is not supported on Windows or Emscripten platforms.")
+  endif()
+  add_definitions(-DCPPINTEROP_WITH_OOP_JIT)
+endif()
+
+string(REGEX REPLACE "/build/lib/cmake/llvm$" "" LLVM_SOURCE_DIR "${LLVM_DIR}")
+add_definitions(-DLLVM_SOURCE_DIR="${LLVM_SOURCE_DIR}")
+
 # If the llvm sources are present add them with higher priority.
 if (LLVM_BUILD_MAIN_SRC_DIR)
   # LLVM_INCLUDE_DIRS contains the include paths to both LLVM's source and
