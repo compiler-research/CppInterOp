@@ -3909,8 +3909,10 @@ int Undo(unsigned N) {
 #endif
 }
 
+#ifdef CPPINTEROP_WITH_OOP_JIT
 pid_t GetExecutorPID() {
   return compat::getExecutorPID();
 }
+#endif // CPPINTEROP_WITH_OOP_JIT
 
 } // end namespace Cpp

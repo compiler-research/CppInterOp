@@ -901,7 +901,9 @@ CPPINTEROP_API void CodeComplete(std::vector<std::string>& Results,
 ///\returns 0 on success, non-zero on failure.
 CPPINTEROP_API int Undo(unsigned N = 1);
 
+#ifdef CPPINTEROP_WITH_OOP_JIT
 CPPINTEROP_API pid_t GetExecutorPID();
+#endif // CPPINTEROP_WITH_OOP_JIT
 
 } // end namespace Cpp
 
