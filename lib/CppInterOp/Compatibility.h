@@ -429,6 +429,10 @@ inline void codeComplete(std::vector<std::string>& Results,
 #endif
 }
 
+inline pid_t getExecutorPID() {
+  return getLastLaunchedExecutorPID();
+}
+
 } // namespace compat
 
 #include "CppInterOpInterpreter.h"

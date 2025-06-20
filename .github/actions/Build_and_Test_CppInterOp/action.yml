@@ -40,29 +40,16 @@ runs:
                 -DLLVM_ENABLE_WERROR=On                         \
                 ../
         else
-          if [[ "${{ matrix.oop-jit }}" == "On" ]]; then
-              cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}     \
-                -DCPPINTEROP_INCLUDE_DOCS=${{ matrix.documentation }} \
-                -DLLVM_DIR=$LLVM_BUILD_DIR/lib/cmake/llvm    \
-                -DClang_DIR=$LLVM_BUILD_DIR/lib/cmake/clang  \
-                -DBUILD_SHARED_LIBS=ON                       \
-                -DCODE_COVERAGE=${{ env.CODE_COVERAGE }}     \
-                -DCMAKE_INSTALL_PREFIX=$CPPINTEROP_DIR       \
-                -DLLVM_ENABLE_WERROR=On                      \
-                -DCPPINTEROP_WITH_OOP_JIT=ON                 \
-                ../
-          else
-              cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}     \
-                -DCPPINTEROP_INCLUDE_DOCS=${{ matrix.documentation }} \
-                -DLLVM_DIR=$LLVM_BUILD_DIR/lib/cmake/llvm    \
-                -DClang_DIR=$LLVM_BUILD_DIR/lib/cmake/clang  \
-                -DBUILD_SHARED_LIBS=ON                       \
-                -DCODE_COVERAGE=${{ env.CODE_COVERAGE }}     \
-                -DCMAKE_INSTALL_PREFIX=$CPPINTEROP_DIR       \
-                -DLLVM_ENABLE_WERROR=On                      \
-                -DCPPINTEROP_WITH_OOP_JIT=OFF                \
-                ../
-          fi
+          cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}     \
+            -DCPPINTEROP_INCLUDE_DOCS=${{ matrix.documentation }} \
+            -DLLVM_DIR=$LLVM_BUILD_DIR/lib/cmake/llvm    \
+            -DClang_DIR=$LLVM_BUILD_DIR/lib/cmake/clang  \
+            -DBUILD_SHARED_LIBS=ON                       \
+            -DCODE_COVERAGE=${{ env.CODE_COVERAGE }}     \
+            -DCMAKE_INSTALL_PREFIX=$CPPINTEROP_DIR       \
+            -DLLVM_ENABLE_WERROR=On                      \
+            -DCPPINTEROP_WITH_OOP_JIT=${{ matrix.oop-jit }} \
+            ../
         fi
         docs_on=$(echo "${{ matrix.documentation }}" | tr '[:lower:]' '[:upper:]')
         if [[ "${docs_on}" == "ON" ]]; then

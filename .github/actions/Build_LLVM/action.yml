@@ -69,11 +69,8 @@ runs:
                 ../llvm
           ninja clang clangInterpreter clangStaticAnalyzerCore -j ${{ env.ncpus }}
           if [[ "${{ matrix.oop-jit }}" == "On" ]]; then
-            if [[ "${{ runner.os }}" == "Linux" ]]; then
-              ninja clang clang-repl llvm-jitlink-executor orc_rt -j ${{ env.ncpus }}
-            elif [[ "${{ runner.os }}" == "macOS" ]]; then
-              ninja clang clang-repl llvm-jitlink-executor orc_rt_osx -j ${{ env.ncpus }}
-            fi
+            if [ "${{ matrix.os }}}" = "macos"*  ]; then SUFFIX="_osx"; fi
+            ninja clang_repl llvm-jitlink-executor orc_rt${SUFFIX} -j ${{ env.ncpus }}
           fi
           cd ./tools/
           rm -rf $(find . -maxdepth 1 ! -name "clang" ! -name ".")

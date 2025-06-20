@@ -311,6 +311,9 @@ separate_arguments(LLVM_DEFINITIONS_LIST NATIVE_COMMAND ${LLVM_DEFINITIONS})
 add_definitions(${LLVM_DEFINITIONS_LIST})
 
 if(CPPINTEROP_WITH_OOP_JIT)
+  if(WIN32 OR EMSCRIPTEN)
+    message(FATAL_ERROR "CPPINTEROP_WITH_OOP_JIT is not supported on Windows or Emscripten platforms.")
+  endif()
   add_definitions(-DCPPINTEROP_WITH_OOP_JIT)
 endif()
 

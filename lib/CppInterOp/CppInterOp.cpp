@@ -3909,4 +3909,8 @@ int Undo(unsigned N) {
 #endif
 }
 
+pid_t GetExecutorPID() {
+  return compat::getExecutorPID();
+}
+
 } // end namespace Cpp
