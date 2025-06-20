@@ -124,7 +124,7 @@ If you want to have out-of-process JIT execution enabled in CppInterOp, then app
 > Note that this patch will not work for Windows because out-of-process JIT execution is currently implemented for Linux and MacOS only.
 
 ```bash
-git apply -v ../CppInterOp/patches/llvm/clang20-1-out-of-process-jit-execution.patch
+git apply -v ../CppInterOp/patches/llvm/clang20-2-out-of-process-jit-execution.patch
 ```
 
 ##### Build Clang-REPL

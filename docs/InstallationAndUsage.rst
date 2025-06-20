@@ -65,7 +65,7 @@ If you want to have out-of-process JIT execution enabled in CppInterOp, then app
 
 .. code:: bash
 
-   git apply -v ../CppInterOp/patches/llvm/clang20-1-out-of-process-jit-execution.patch
+   git apply -v ../CppInterOp/patches/llvm/clang20-2-out-of-process-jit-execution.patch
 
 ******************
  Build Clang-REPL

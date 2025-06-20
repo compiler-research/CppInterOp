@@ -1,5 +1,5 @@
 diff --git a/clang/include/clang/Interpreter/Interpreter.h b/clang/include/clang/Interpreter/Interpreter.h
-index f8663e3193a18..78dff1165dcf5 100644
+index f8663e3193..78dff1165d 100644
 --- a/clang/include/clang/Interpreter/Interpreter.h
 +++ b/clang/include/clang/Interpreter/Interpreter.h
 @@ -20,6 +20,7 @@
@@ -28,10 +28,10 @@ index f8663e3193a18..78dff1165dcf5 100644
    const CompilerInstance *getCompilerInstance() const;
 diff --git a/clang/include/clang/Interpreter/RemoteJITUtils.h b/clang/include/clang/Interpreter/RemoteJITUtils.h
 new file mode 100644
-index 0000000000000..8705a3b1f669d
+index 0000000000..ae978be2c8
 --- /dev/null
 +++ b/clang/include/clang/Interpreter/RemoteJITUtils.h
-@@ -0,0 +1,38 @@
+@@ -0,0 +1,43 @@
 +//===-- RemoteJITUtils.h - Utilities for remote-JITing ----------*- C++ -*-===//
 +//
 +// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
@@ -69,9 +69,14 @@ index 0000000000000..8705a3b1f669d
 +connectTCPSocket(llvm::StringRef NetworkAddress, bool UseSharedMemory,
 +                 llvm::StringRef SlabAllocateSizeString);
 +
++
++/// Get the PID of the last launched executor.
++/// This is useful for debugging or for cleanup purposes.
++pid_t getLastLaunchedExecutorPID();
++
 +#endif // LLVM_CLANG_INTERPRETER_REMOTEJITUTILS_H
 diff --git a/clang/lib/Interpreter/CMakeLists.txt b/clang/lib/Interpreter/CMakeLists.txt
-index bf70cdfbee01e..38cf139fa86a6 100644
+index bf70cdfbee..38cf139fa8 100644
 --- a/clang/lib/Interpreter/CMakeLists.txt
 +++ b/clang/lib/Interpreter/CMakeLists.txt
 @@ -27,6 +27,7 @@ add_clang_library(clangInterpreter
@@ -83,7 +88,7 @@ index bf70cdfbee01e..38cf139fa86a6 100644
    ${WASM_SRC}
    PARTIAL_SOURCES_INTENDED
 diff --git a/clang/lib/Interpreter/Interpreter.cpp b/clang/lib/Interpreter/Interpreter.cpp
-index 3b81f9d701b42..e59656f554f3d 100644
+index 3b81f9d701..eaa5c31cb6 100644
 --- a/clang/lib/Interpreter/Interpreter.cpp
 +++ b/clang/lib/Interpreter/Interpreter.cpp
 @@ -46,6 +46,7 @@
@@ -109,7 +114,16 @@ index 3b81f9d701b42..e59656f554f3d 100644
    if (Err)
      return std::move(Err);
  
-@@ -617,6 +619,25 @@ createJITTargetMachineBuilder(const std::string &TT) {
+@@ -467,6 +469,8 @@ Interpreter::create(std::unique_ptr<CompilerInstance> CI) {
+   auto PTU = Interp->Parse(Runtimes);
+   if (!PTU)
+     return PTU.takeError();
++
++  if (llvm::Error Err = Interp->Execute(*PTU)) return Err;
+   Interp->markUserCodeStart();
+ 
+   Interp->ValuePrintingInfo.resize(4);
+@@ -617,6 +621,25 @@ createJITTargetMachineBuilder(const std::string &TT) {
    return llvm::orc::JITTargetMachineBuilder(llvm::Triple(TT));
  }
  
@@ -135,7 +149,7 @@ index 3b81f9d701b42..e59656f554f3d 100644
  llvm::Error Interpreter::CreateExecutor() {
    if (IncrExecutor)
      return llvm::make_error<llvm::StringError>("Operation failed. "
-@@ -757,11 +778,11 @@ llvm::Error Interpreter::LoadDynamicLibrary(const char *name) {
+@@ -757,11 +780,11 @@ llvm::Error Interpreter::LoadDynamicLibrary(const char *name) {
    if (!EE)
      return EE.takeError();
  
@@ -154,10 +168,10 @@ index 3b81f9d701b42..e59656f554f3d 100644
  #endif
 diff --git a/clang/lib/Interpreter/RemoteJITUtils.cpp b/clang/lib/Interpreter/RemoteJITUtils.cpp
 new file mode 100644
-index 0000000000000..24a5f729f2dcb
+index 0000000000..2cc160625b
 --- /dev/null
 +++ b/clang/lib/Interpreter/RemoteJITUtils.cpp
-@@ -0,0 +1,267 @@
+@@ -0,0 +1,319 @@
 +//===-- RemoteJITUtils.cpp - Utilities for remote-JITing --------*- C++ -*-===//
 +//
 +// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
@@ -184,6 +198,7 @@ index 0000000000000..24a5f729f2dcb
 +#include "llvm/Support/Path.h"
 +
 +#ifdef LLVM_ON_UNIX
++#include <iostream>
 +#include <netdb.h>
 +#include <netinet/in.h>
 +#include <sys/socket.h>
@@ -192,6 +207,8 @@ index 0000000000000..24a5f729f2dcb
 +
 +using namespace llvm;
 +using namespace llvm::orc;
++
++static std::atomic<pid_t> LaunchedExecutorPID{-1};
 +
 +Expected<uint64_t> getSlabAllocSize(StringRef SizeString) {
 +  SizeString = SizeString.trim();
@@ -253,19 +270,16 @@ index 0000000000000..24a5f729f2dcb
 +launchExecutor(StringRef ExecutablePath, bool UseSharedMemory,
 +               llvm::StringRef SlabAllocateSizeString) {
 +#ifndef LLVM_ON_UNIX
-+  // FIXME: Add support for Windows.
 +  return make_error<StringError>("-" + ExecutablePath +
 +                                     " not supported on non-unix platforms",
 +                                 inconvertibleErrorCode());
 +#elif !LLVM_ENABLE_THREADS
-+  // Out of process mode using SimpleRemoteEPC depends on threads.
 +  return make_error<StringError>(
 +      "-" + ExecutablePath +
 +          " requires threads, but LLVM was built with "
 +          "LLVM_ENABLE_THREADS=Off",
 +      inconvertibleErrorCode());
 +#else
-+
 +  if (!sys::fs::can_execute(ExecutablePath))
 +    return make_error<StringError>(
 +        formatv("Specified executor invalid: {0}", ExecutablePath),
@@ -274,15 +288,20 @@ index 0000000000000..24a5f729f2dcb
 +  constexpr int ReadEnd = 0;
 +  constexpr int WriteEnd = 1;
 +
-+  // Pipe FDs.
++  // Pipe FDs for RPC
 +  int ToExecutor[2];
 +  int FromExecutor[2];
 +
++  // New pipes for stdout and stderr
++  int StdoutPipe[2];
++  int StderrPipe[2];
++
 +  pid_t ChildPID;
 +
-+  // Create pipes to/from the executor..
-+  if (pipe(ToExecutor) != 0 || pipe(FromExecutor) != 0)
-+    return make_error<StringError>("Unable to create pipe for executor",
++  // Create pipes
++  if (pipe(ToExecutor) != 0 || pipe(FromExecutor) != 0 ||
++      pipe(StdoutPipe) != 0 || pipe(StderrPipe) != 0)
++    return make_error<StringError>("Unable to create pipes",
 +                                   inconvertibleErrorCode());
 +
 +  ChildPID = fork();
@@ -290,11 +309,23 @@ index 0000000000000..24a5f729f2dcb
 +  if (ChildPID == 0) {
 +    // In the child...
 +
-+    // Close the parent ends of the pipes
++    // Close parent ends of RPC pipes
 +    close(ToExecutor[WriteEnd]);
 +    close(FromExecutor[ReadEnd]);
 +
-+    // Execute the child process.
++    // Close read ends of stdout and stderr pipes
++    close(StdoutPipe[ReadEnd]);
++    close(StderrPipe[ReadEnd]);
++
++    // Redirect stdout and stderr to the pipes
++    dup2(StdoutPipe[WriteEnd], STDOUT_FILENO);
++    dup2(StderrPipe[WriteEnd], STDERR_FILENO);
++
++    // Close write ends after redirection
++    close(StdoutPipe[WriteEnd]);
++    close(StderrPipe[WriteEnd]);
++
++    // Execute the child process
 +    std::unique_ptr<char[]> ExecutorPath, FDSpecifier;
 +    {
 +      ExecutorPath = std::make_unique<char[]>(ExecutablePath.size() + 1);
@@ -315,12 +346,17 @@ index 0000000000000..24a5f729f2dcb
 +             << ExecutorPath.get() << "\"\n";
 +      exit(1);
 +    }
++  } else {
++     LaunchedExecutorPID = ChildPID;
 +  }
-+  // else we're the parent...
 +
-+  // Close the child ends of the pipes
++  // Close child ends of RPC pipes
 +  close(ToExecutor[ReadEnd]);
 +  close(FromExecutor[WriteEnd]);
++
++  // Close write ends of stdout and stderr pipes
++  close(StdoutPipe[WriteEnd]);
++  close(StderrPipe[WriteEnd]);
 +
 +  auto S = SimpleRemoteEPC::Setup();
 +  if (UseSharedMemory)
@@ -328,9 +364,35 @@ index 0000000000000..24a5f729f2dcb
 +      return createSharedMemoryManager(EPC, SlabAllocateSizeString);
 +    };
 +
-+  return SimpleRemoteEPC::Create<FDSimpleRemoteEPCTransport>(
++  auto EPC = SimpleRemoteEPC::Create<FDSimpleRemoteEPCTransport>(
 +      std::make_unique<DynamicThreadPoolTaskDispatcher>(std::nullopt),
 +      std::move(S), FromExecutor[ReadEnd], ToExecutor[WriteEnd]);
++
++  // Read stdout
++  std::thread([readFd = StdoutPipe[ReadEnd]] {
++    char buffer[1024];
++    ssize_t bytesRead;
++    while ((bytesRead = read(readFd, buffer, sizeof(buffer) - 1)) > 0) {
++      buffer[bytesRead] = '\0';
++      fwrite(buffer, 1, bytesRead, stdout);
++      fflush(stdout);
++    }
++    close(readFd);
++  }).detach();
++
++  // Spawn a background thread to read stderr
++  std::thread([readFd = StderrPipe[ReadEnd]] {
++    char buffer[1024];
++    ssize_t bytesRead;
++    while ((bytesRead = read(readFd, buffer, sizeof(buffer) - 1)) > 0) {
++      buffer[bytesRead] = '\0';
++      fwrite(buffer, 1, bytesRead, stderr);
++      fflush(stderr);
++    }
++    close(readFd);
++  }).detach();
++
++  return EPC;
 +#endif
 +}
 +
@@ -425,9 +487,13 @@ index 0000000000000..24a5f729f2dcb
 +      std::move(S), *SockFD, *SockFD);
 +#endif
 +}
++
++pid_t getLastLaunchedExecutorPID() {
++  return LaunchedExecutorPID;
++}
 diff --git a/clang/test/Interpreter/out-of-process.cpp b/clang/test/Interpreter/out-of-process.cpp
 new file mode 100644
-index 0000000000000..edc4c3fee0966
+index 0000000000..edc4c3fee0
 --- /dev/null
 +++ b/clang/test/Interpreter/out-of-process.cpp
 @@ -0,0 +1,88 @@
@@ -520,7 +586,7 @@ index 0000000000000..edc4c3fee0966
 +
 +%quit
 diff --git a/clang/tools/clang-repl/CMakeLists.txt b/clang/tools/clang-repl/CMakeLists.txt
-index f9a911b0ae8e2..68d86dd98cac3 100644
+index f9a911b0ae..68d86dd98c 100644
 --- a/clang/tools/clang-repl/CMakeLists.txt
 +++ b/clang/tools/clang-repl/CMakeLists.txt
 @@ -4,7 +4,9 @@ set( LLVM_LINK_COMPONENTS
@@ -534,7 +600,7 @@ index f9a911b0ae8e2..68d86dd98cac3 100644
  
  add_clang_tool(clang-repl
 diff --git a/clang/tools/clang-repl/ClangRepl.cpp b/clang/tools/clang-repl/ClangRepl.cpp
-index 7af8e4f25d99e..54b27782d3db3 100644
+index 7af8e4f25d..6113cc2a99 100644
 --- a/clang/tools/clang-repl/ClangRepl.cpp
 +++ b/clang/tools/clang-repl/ClangRepl.cpp
 @@ -10,7 +10,11 @@
@@ -672,7 +738,7 @@ index 7af8e4f25d99e..54b27782d3db3 100644
  static void LLVMErrorHandler(void *UserData, const char *Message,
                               bool GenCrashDiag) {
    auto &Diags = *static_cast<clang::DiagnosticsEngine *>(UserData);
-@@ -183,6 +282,25 @@ int main(int argc, const char **argv) {
+@@ -183,6 +282,29 @@ int main(int argc, const char **argv) {
      DeviceCI = ExitOnErr(CB.CreateCudaDevice());
    }
  
@@ -681,6 +747,9 @@ index 7af8e4f25d99e..54b27782d3db3 100644
 +  std::unique_ptr<llvm::orc::ExecutorProcessControl> EPC;
 +  if (OOPExecutor.getNumOccurrences()) {
 +    // Launch an out-of-process executor locally in a child process.
++    std::cout << "OOPExecutor: " << OOPExecutor << std::endl;
++    std::cout << "UseSharedMemory: " << UseSharedMemory << std::endl;
++    std::cout << "SlabAllocateSizeString: " << SlabAllocateSizeString << std::endl;
 +    EPC = ExitOnErr(
 +        launchExecutor(OOPExecutor, UseSharedMemory, SlabAllocateSizeString));
 +  } else if (OOPExecutorConnect.getNumOccurrences()) {
@@ -691,6 +760,7 @@ index 7af8e4f25d99e..54b27782d3db3 100644
 +  std::unique_ptr<llvm::orc::LLJITBuilder> JB;
 +  if (EPC) {
 +    CB.SetTargetTriple(EPC->getTargetTriple().getTriple());
++    std::cout << "OrcRuntimePath: " << OrcRuntimePath << std::endl;
 +    JB = ExitOnErr(
 +        clang::Interpreter::createLLJITBuilder(std::move(EPC), OrcRuntimePath));
 +  }
@@ -698,7 +768,7 @@ index 7af8e4f25d99e..54b27782d3db3 100644
    // FIXME: Investigate if we could use runToolOnCodeWithArgs from tooling. It
    // can replace the boilerplate code for creation of the compiler instance.
    std::unique_ptr<clang::CompilerInstance> CI;
-@@ -214,6 +332,9 @@ int main(int argc, const char **argv) {
+@@ -214,6 +336,9 @@ int main(int argc, const char **argv) {
        auto CudaRuntimeLibPath = CudaPath + "/lib/libcudart.so";
        ExitOnErr(Interp->LoadDynamicLibrary(CudaRuntimeLibPath.c_str()));
      }

@@ -50,7 +50,7 @@ runs:
             echo "Apply clang${{ matrix.clang-runtime }}-*.patch patches:"
           fi
           if [[ "${{ matrix.oop-jit }}" == "On" ]]; then
-            git apply -v ../patches/llvm/clang20-1-out-of-process-jit-execution.patch
+            git apply -v ../patches/llvm/clang20-2-out-of-process-jit-execution.patch
             echo "Apply out-of-process-jit-execution.patch:"
           fi
           cd build
