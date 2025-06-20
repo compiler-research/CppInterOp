@@ -616,8 +616,6 @@ static Decl* GetScopeFromType(QualType QT) {
     Type = Type->getUnqualifiedDesugaredType();
     if (auto* ET = llvm::dyn_cast<EnumType>(Type))
       return ET->getDecl();
-    if (auto* FnType = llvm::dyn_cast<FunctionProtoType>(Type))
-      Type = const_cast<clang::Type*>(FnType->getReturnType().getTypePtr());
     return Type->getAsCXXRecordDecl();
   }
   return 0;
@@ -1689,6 +1687,10 @@ std::string GetTypeAsString(TCppType_t var) {
   PrintingPolicy Policy((LangOptions()));
   Policy.Bool = true;               // Print bool instead of _Bool.
   Policy.SuppressTagKeyword = true; // Do not print `class std::string`.
+#if CLANG_VERSION_MAJOR > 16
+  Policy.SuppressElaboration = true;
+#endif
+  Policy.FullyQualifiedName = true;
   return compat::FixTypeName(QT.getAsString(Policy));
 }
 
@@ -2103,6 +2105,30 @@ void make_narg_call(const FunctionDecl* FD, const std::string& return_type,
       std::string template_args = complete_name.substr(idx);
       name = name_without_template_args +
              (template_args.empty() ? "" : " " + template_args);
+
+      // If a template has consecutive parameter packs, then it is impossible to
+      // use the explicit name in the wrapper, since the type deduction is what
+      // determines the split of the packs. Instead, we'll revert to the
+      // non-templated function name and hope that the type casts in the wrapper
+      // will suffice.
+      if (FD->isTemplateInstantiation() && FD->getPrimaryTemplate()) {
+        const FunctionTemplateDecl* FTDecl =
+            llvm::dyn_cast<FunctionTemplateDecl>(FD->getPrimaryTemplate());
+        if (FTDecl) {
+          auto* templateParms = FTDecl->getTemplateParameters();
+          int numPacks = 0;
+          for (size_t iParam = 0, nParams = templateParms->size();
+               iParam < nParams; ++iParam) {
+            if (templateParms->getParam(iParam)->isTemplateParameterPack())
+              numPacks += 1;
+            else
+              numPacks = 0;
+          }
+          if (numPacks > 1) {
+            name = name_without_template_args;
+          }
+        }
+      }
     }
     if (op_flag || N <= 1)
       callbuf << name;
@@ -3422,6 +3448,8 @@ static Decl* InstantiateTemplate(TemplateDecl* TemplateD,
   // This will instantiate tape<T> type and return it.
   SourceLocation noLoc;
   QualType TT = S.CheckTemplateIdType(TemplateName(TemplateD), noLoc, TLI);
+  if (TT.isNull())
+    return nullptr;
 
   // Perhaps we can extract this into a new interface.
   S.RequireCompleteType(fakeLoc, TT, diag::err_tentative_def_incomplete_type);

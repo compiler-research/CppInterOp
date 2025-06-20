@@ -1969,6 +1969,31 @@ TEST(FunctionReflectionTest, GetFunctionCallWrapper) {
   EXPECT_TRUE(err_msg.find("instantiation with no body") != std::string::npos);
   EXPECT_EQ(instantiation_in_host_callable.getKind(),
             Cpp::JitCall::kUnknown); // expect to fail
+
+  Interp->process(R"(
+    template<typename ...T>
+    struct tuple {};
+
+    template<typename ...Ts, typename ...TTs>
+    void tuple_tuple(tuple<Ts...> one, tuple<TTs...> two) { return; }
+
+    tuple<int, double> tuple_one;
+    tuple<char, char> tuple_two;
+  )");
+
+  unresolved_candidate_methods.clear();
+  Cpp::GetClassTemplatedMethods("tuple_tuple", Cpp::GetGlobalScope(),
+                                unresolved_candidate_methods);
+  EXPECT_EQ(unresolved_candidate_methods.size(), 1);
+
+  Cpp::TCppScope_t tuple_tuple = Cpp::BestOverloadFunctionMatch(
+      unresolved_candidate_methods, {},
+      {Cpp::GetVariableType(Cpp::GetNamed("tuple_one")),
+       Cpp::GetVariableType(Cpp::GetNamed("tuple_two"))});
+  EXPECT_TRUE(tuple_tuple);
+
+  auto tuple_tuple_callable = Cpp::MakeFunctionCallable(tuple_tuple);
+  EXPECT_EQ(tuple_tuple_callable.getKind(), Cpp::JitCall::kGenericCall);
 }
 
 TEST(FunctionReflectionTest, IsConstMethod) {
