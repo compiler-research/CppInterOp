@@ -2485,8 +2485,8 @@ TEST(FunctionReflectionTest, FailingTest1) {
 #ifdef _WIN32
   GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
 #endif
-#ifdef EMSCRIPTEN
-  GTEST_SKIP() << "Test fails for Emscipten builds";
+#ifdef EMSCRIPTEN_SHARED_LIBRARY
+  GTEST_SKIP() << "Test fails for Emscipten shared library builds";
 #endif
   Cpp::CreateInterpreter();
   EXPECT_FALSE(Cpp::Declare(R"(
