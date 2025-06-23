@@ -426,6 +426,15 @@ CPPINTEROP_API void
 GetFunctionTemplatedDecls(TCppScope_t klass,
                           std::vector<TCppFunction_t>& methods);
 
+/// Returns instantiated functions with the given templated function name
+///\param[in] name - name of the templated function
+///\param[in] scope - Pointer to the scope/class under which the functions have
+///           to be retrieved
+///\param[out] methods - Vector of methods in the class
+CPPINTEROP_API void
+GetTemplateInstantiatedFunctions(const std::string& name, TCppScope_t scope,
+                                 std::vector<TCppFunction_t>& methods);
+
 ///\returns if a class has a default constructor.
 CPPINTEROP_API bool HasDefaultConstructor(TCppScope_t scope);
 

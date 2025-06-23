@@ -345,6 +345,26 @@ TEST(FunctionReflectionTest, GetFunctionTemplatedDecls) {
   EXPECT_EQ(Cpp::GetName(template_methods[3]), Cpp::GetName(SubDecls[6]));
 }
 
+TEST(FunctionReflectionTest, GetTemplateInstantiatedFunctions) {
+  Cpp::Declare(R"(
+    template<class T>
+    T my_templated_function(T t) { return t; }
+                
+    template char my_templated_function<char>(char);
+    template double my_templated_function<double>(double);
+  )");
+
+  std::vector<Cpp::TCppFunction_t> template_methods;
+  Cpp::GetTemplateInstantiatedFunctions(
+      "my_templated_function", Cpp::GetGlobalScope(), template_methods);
+
+  EXPECT_EQ(template_methods.size(), 2);
+  EXPECT_EQ(Cpp::GetFunctionSignature(template_methods[0]),
+            "template<> char my_templated_function<char>(char t)");
+  EXPECT_EQ(Cpp::GetFunctionSignature(template_methods[1]),
+            "template<> double my_templated_function<double>(double t)");
+}
+
 TEST(FunctionReflectionTest, GetFunctionReturnType) {
   std::vector<Decl*> Decls, SubDecls, TemplateSubDecls;
   std::string code = R"(
