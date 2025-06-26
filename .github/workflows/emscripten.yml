@@ -928,7 +928,7 @@ jobs:
 
     - name: Build xeus-cpp on Windows systems
       if: ${{ runner.os == 'windows' }}
-      shell: bash -l {0}
+      shell: powershell
       run: |
         .\emsdk\emsdk activate ${{matrix.emsdk_ver}}
         .\emsdk\emsdk_env.ps1
@@ -959,9 +959,9 @@ jobs:
         cd ./xeus-cpp/build/test
         node test_xeus_cpp.js
 
-    - name: Test xeus-cpp C++ Emscripten
+    - name: Test xeus-cpp C++ Emscripten on Windows Systems
       if: ${{ runner.os == 'windows' }}
-      shell: bash -l {0}
+      shell: powershell
       run: |
         $ErrorActionPreference = "Stop"
         micromamba activate CppInterOp-wasm
