@@ -1325,6 +1325,8 @@ void GetDatamembers(TCppScope_t scope, std::vector<TCppScope_t>& datamembers) {
 
   if (auto* CXXRD = llvm::dyn_cast_or_null<CXXRecordDecl>(D)) {
     getSema().ForceDeclarationOfImplicitMembers(CXXRD);
+    if (CXXRD->hasDefinition())
+      CXXRD = CXXRD->getDefinition();
 
     llvm::SmallVector<RecordDecl::decl_iterator, 2> stack_begin;
     llvm::SmallVector<RecordDecl::decl_iterator, 2> stack_end;
@@ -1445,7 +1447,7 @@ intptr_t GetVariableOffset(compat::Interpreter& I, Decl* D,
       }
       offset += C.toCharUnitsFromBits(C.getFieldOffset(FD)).getQuantity();
     }
-    if (BaseCXXRD && BaseCXXRD != FieldParentRecordDecl) {
+    if (BaseCXXRD && BaseCXXRD != FieldParentRecordDecl->getCanonicalDecl()) {
       // FieldDecl FD belongs to some class C, but the base class BaseCXXRD is
       // not C. That means BaseCXXRD derives from C. Offset needs to be
       // calculated for Derived class
@@ -1474,7 +1476,7 @@ intptr_t GetVariableOffset(compat::Interpreter& I, Decl* D,
       }
       if (auto* RD = llvm::dyn_cast<CXXRecordDecl>(FieldParentRecordDecl)) {
         // add in the offsets for the (multi level) base classes
-        while (BaseCXXRD != RD) {
+        while (BaseCXXRD != RD->getCanonicalDecl()) {
           CXXRecordDecl* Parent = direction.at(RD);
           offset +=
               C.getASTRecordLayout(Parent).getBaseClassOffset(RD).getQuantity();
