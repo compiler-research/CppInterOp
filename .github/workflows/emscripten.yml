@@ -735,7 +735,6 @@ jobs:
         micromamba shell hook -s cmd.exe --root-prefix C:\Users\runneradmin\micromamba-root
 
     - name: Build and Test/Install CppInterOp on Windows systems (shared library)
-      continue-on-error: true
       if: ${{ runner.os == 'windows' }}
       shell: powershell
       run: |
@@ -821,7 +820,6 @@ jobs:
         emmake make -j ${{ env.ncpus }} install
 
     - name: Build and Test/Install CppInterOp on Windows systems (static library)
-      continue-on-error: true
       if: ${{ runner.os == 'windows' }}
       shell: powershell
       run: |
