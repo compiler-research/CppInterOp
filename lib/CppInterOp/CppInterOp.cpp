@@ -271,6 +271,14 @@ bool IsClass(TCppScope_t scope) {
   return isa<CXXRecordDecl>(D);
 }
 
+bool IsClassDefined(TCppScope_t klass) {
+  Decl* D = static_cast<Decl*>(klass);
+  if (auto* CXXRD = llvm::dyn_cast<CXXRecordDecl>(D)) {
+    return CXXRD->hasDefinition();
+  }
+  return false;
+}
+
 bool IsFunction(TCppScope_t scope) {
   Decl* D = static_cast<Decl*>(scope);
   return isa<FunctionDecl>(D);

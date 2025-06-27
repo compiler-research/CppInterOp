@@ -308,8 +308,11 @@ TEST(VariableReflectionTest, GetVariableOffset) {
   Cpp::Declare("struct K;");
   Cpp::TCppScope_t k = Cpp::GetNamed("K");
   EXPECT_TRUE(k);
+  EXPECT_TRUE(Cpp::IsClass(k));
+  EXPECT_FALSE(Cpp::IsClassDefined(k));
 
   Cpp::Declare("struct K { int x; int y; int z; };");
+  EXPECT_TRUE(Cpp::IsClassDefined(k));
 
   datamembers.clear();
   Cpp::GetDatamembers(k, datamembers);
@@ -318,6 +321,7 @@ TEST(VariableReflectionTest, GetVariableOffset) {
   EXPECT_EQ(Cpp::GetVariableOffset(datamembers[0]), offsetof(K, x));
   EXPECT_EQ(Cpp::GetVariableOffset(datamembers[1]), offsetof(K, y));
   EXPECT_EQ(Cpp::GetVariableOffset(datamembers[2]), offsetof(K, z));
+  EXPECT_FALSE(Cpp::IsClassDefined(datamembers[2]));
 }
 
 #define CODE                                                                   \
