@@ -2122,20 +2122,24 @@ TEST(FunctionReflectionTest, Construct) {
   GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
 #endif
   std::vector<const char*> interpreter_args = {"-include", "new"};
-  Cpp::CreateInterpreter(interpreter_args);
+  std::vector<Decl*> Decls, SubDecls;
 
-  Interp->declare(R"(
+  std::string code = R"(
     #include <new>
     extern "C" int printf(const char*,...);
     class C {
+    public:
       int x;
       C() {
         x = 12345;
         printf("Constructor Executed");
       }
     };
-    )");
+    void construct() { return; }
+    )";
 
+  GetAllTopLevelDecls(code, Decls, false, interpreter_args);
+  GetAllSubDecls(Decls[1], SubDecls);
   testing::internal::CaptureStdout();
   Cpp::TCppScope_t scope = Cpp::GetNamed("C");
   Cpp::TCppObject_t object = Cpp::Construct(scope);
@@ -2155,6 +2159,20 @@ TEST(FunctionReflectionTest, Construct) {
   EXPECT_EQ(output, "Constructor Executed");
   output.clear();
 
+  // Pass a constructor
+  testing::internal::CaptureStdout();
+  where = Cpp::Allocate(scope);
+  EXPECT_TRUE(where == Cpp::Construct(SubDecls[3], where));
+  EXPECT_TRUE(*(int*)where == 12345);
+  Cpp::Deallocate(scope, where);
+  output = testing::internal::GetCapturedStdout();
+  EXPECT_EQ(output, "Constructor Executed");
+  output.clear();
+
+  // Pass a non-class decl, this should fail
+  where = Cpp::Allocate(scope);
+  where = Cpp::Construct(Decls[2], where);
+  EXPECT_TRUE(where == nullptr);
   // C API
   testing::internal::CaptureStdout();
   auto* I = clang_createInterpreterFromRawPtr(Cpp::GetInterpreter());
