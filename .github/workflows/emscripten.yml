@@ -745,7 +745,7 @@ jobs:
         .\emsdk\emsdk_env.ps1
         $env:PWD_DIR= $PWD.Path
         $env:SYSROOT_PATH="$env:EMSDK/upstream/emscripten/cache/sysroot"
-        $env:PREFIX="$env:CONDA_PREFIX/envs/CppInterOp-wasm"
+        $env:PREFIX="$env:MAMBA_ROOT_PREFIX/envs/CppInterOp-wasm"
         $env:CMAKE_PREFIX_PATH=$env:PREFIX
         $env:CMAKE_SYSTEM_PREFIX_PATH=$env:PREFIX
         
