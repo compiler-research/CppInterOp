@@ -819,6 +819,11 @@ jobs:
         }
         emmake make -j ${{ env.ncpus }} check-cppinterop
         emmake make -j ${{ env.ncpus }} install
+        echo "SYSROOT_PATH=$env:SYSROOT_PATH" >> $GITHUB_ENV
+        echo "CPPINTEROP_DIR=$env:CPPINTEROP_DIR" >> $GITHUB_ENV
+        echo "LLVM_BUILD_DIR=$env:LLVM_BUILD_DIR" >> $GITHUB_ENV
+        echo "CPLUS_INCLUDE_PATH=$env:CPLUS_INCLUDE_PATH" >> $GITHUB_ENV
+        echo "PREFIX=$PREFIX" >> $env:GITHUB_ENV
 
     - name: Build and Test/Install CppInterOp on Windows systems (static library)
       continue-on-error: true
