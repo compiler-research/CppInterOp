@@ -1994,6 +1994,21 @@ TEST(FunctionReflectionTest, GetFunctionCallWrapper) {
 
   auto tuple_tuple_callable = Cpp::MakeFunctionCallable(tuple_tuple);
   EXPECT_EQ(tuple_tuple_callable.getKind(), Cpp::JitCall::kGenericCall);
+
+  Interp->process(R"(
+    namespace EnumFunctionSameName {
+    enum foo { FOO = 42 };
+    void foo() {}
+    unsigned int bar(enum foo f) { return (unsigned int)f; }
+    }
+  )");
+
+  Cpp::TCppScope_t bar =
+      Cpp::GetNamed("bar", Cpp::GetScope("EnumFunctionSameName"));
+  EXPECT_TRUE(bar);
+
+  auto bar_callable = Cpp::MakeFunctionCallable(bar);
+  EXPECT_EQ(bar_callable.getKind(), Cpp::JitCall::kGenericCall);
 }
 
 TEST(FunctionReflectionTest, IsConstMethod) {

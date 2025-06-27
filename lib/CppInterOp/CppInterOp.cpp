@@ -1837,6 +1837,7 @@ void get_type_as_string(QualType QT, std::string& type_name, ASTContext& C,
 #if CLANG_VERSION_MAJOR > 16
   Policy.SuppressElaboration = true;
 #endif
+  Policy.SuppressTagKeyword = !QT->isEnumeralType();
   Policy.FullyQualifiedName = true;
   QT.getAsStringInternal(type_name, Policy);
 }
