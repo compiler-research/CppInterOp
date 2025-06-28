@@ -863,6 +863,21 @@ void GetFunctionTemplatedDecls(TCppScope_t klass,
   GetClassDecls<FunctionTemplateDecl>(klass, methods);
 }
 
+void GetTemplateInstantiatedFunctions(const std::string& name,
+                                      TCppScope_t scope,
+                                      std::vector<TCppFunction_t>& methods) {
+  std::vector<TCppFunction_t> tmpl_funcs;
+  GetClassTemplatedMethods(name, scope, tmpl_funcs);
+  for (TCppFunction_t i : tmpl_funcs) {
+    auto* D = static_cast<Decl*>(i);
+    if (auto* FTD = llvm::dyn_cast<FunctionTemplateDecl>(D)) {
+      for (FunctionDecl* FD : FTD->specializations()) {
+        methods.push_back(FD);
+      }
+    }
+  }
+}
+
 bool HasDefaultConstructor(TCppScope_t scope) {
   auto* D = (clang::Decl*)scope;
 
