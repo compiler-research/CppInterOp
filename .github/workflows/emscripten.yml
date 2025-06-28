@@ -746,6 +746,9 @@ jobs:
         $env:PWD_DIR= $PWD.Path
         $env:SYSROOT_PATH="$env:EMSDK/upstream/emscripten/cache/sysroot"
         $env:PREFIX="$env:MAMBA_ROOT_PREFIX/envs/CppInterOp-wasm"
+        echo "PREFIX=$env:PREFIX"
+        echo "PREFIX=$env:PREFIX" >> $env:GITHUB_ENV
+        
         $env:CMAKE_PREFIX_PATH=$env:PREFIX
         $env:CMAKE_SYSTEM_PREFIX_PATH=$env:PREFIX
         
