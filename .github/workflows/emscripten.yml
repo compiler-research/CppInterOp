@@ -975,7 +975,7 @@ jobs:
         $ErrorActionPreference = "Stop"
         micromamba activate CppInterOp-wasm
         cd .\xeus-cpp\build\test
-        node test_xeus_cpp.js --report-failures --force-colors --success
+        node test_xeus_cpp.js --report-failures --force-colors --success --reporters=console
 
     - name: Jupyter Lite integration
       if: ${{ runner.os != 'windows' }}
