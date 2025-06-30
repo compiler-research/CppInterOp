@@ -1477,7 +1477,7 @@ TEST(FunctionReflectionTest, JitCallAdvanced) {
   Ctor.Invoke(&object);
   EXPECT_TRUE(object) << "Failed to call the ctor.";
   // Building a wrapper with a typedef decl must be possible.
-  Cpp::Destruct(object, Decls[1]);
+  EXPECT_TRUE(Cpp::Destruct(object, Decls[1]));
 
   // C API
   auto* I = clang_createInterpreterFromRawPtr(Cpp::GetInterpreter());
@@ -2342,7 +2342,7 @@ TEST(FunctionReflectionTest, ConstructArray) {
   obj = reinterpret_cast<int*>(reinterpret_cast<char*>(where) +
                                (Cpp::SizeOf(scope) * 4));
   EXPECT_TRUE(*obj == 42);
-  Cpp::Destruct(where, scope, /*withFree=*/false, 5);
+  EXPECT_TRUE(Cpp::Destruct(where, scope, /*withFree=*/false, 5));
   Cpp::Deallocate(scope, where, 5);
   output = testing::internal::GetCapturedStdout();
   EXPECT_EQ(output,
@@ -2379,7 +2379,7 @@ TEST(FunctionReflectionTest, Destruct) {
   testing::internal::CaptureStdout();
   Cpp::TCppScope_t scope = Cpp::GetNamed("C");
   Cpp::TCppObject_t object = Cpp::Construct(scope);
-  Cpp::Destruct(object, scope);
+  EXPECT_TRUE(Cpp::Destruct(object, scope));
   std::string output = testing::internal::GetCapturedStdout();
 
   EXPECT_EQ(output, "Destructor Executed");
@@ -2389,7 +2389,7 @@ TEST(FunctionReflectionTest, Destruct) {
   object = Cpp::Construct(scope);
   // Make sure we do not call delete by adding an explicit Deallocate. If we
   // called delete the Deallocate will cause a double deletion error.
-  Cpp::Destruct(object, scope, /*withFree=*/false);
+  EXPECT_TRUE(Cpp::Destruct(object, scope, /*withFree=*/false));
   Cpp::Deallocate(scope, object);
   output = testing::internal::GetCapturedStdout();
   EXPECT_EQ(output, "Destructor Executed");
@@ -2454,7 +2454,7 @@ TEST(FunctionReflectionTest, DestructArray) {
 
   testing::internal::CaptureStdout();
   // destruct 3 out of 5 objects
-  Cpp::Destruct(where, scope, false, 3);
+  EXPECT_TRUE(Cpp::Destruct(where, scope, false, 3));
   output = testing::internal::GetCapturedStdout();
 
   EXPECT_EQ(
@@ -2466,7 +2466,7 @@ TEST(FunctionReflectionTest, DestructArray) {
   // destruct the rest
   auto *new_head = reinterpret_cast<void*>(reinterpret_cast<char*>(where) +
                                           (Cpp::SizeOf(scope) * 3));
-  Cpp::Destruct(new_head, scope, false, 2);
+  EXPECT_TRUE(Cpp::Destruct(new_head, scope, false, 2));
 
   output = testing::internal::GetCapturedStdout();
   EXPECT_EQ(output, "\nDestructor Executed\n\nDestructor Executed\n");
@@ -2481,7 +2481,7 @@ TEST(FunctionReflectionTest, DestructArray) {
   testing::internal::CaptureStdout();
   // FIXME : This should work with the array of objects as well
   // Cpp::Destruct(where, scope, true, 5);
-  Cpp::Destruct(where, scope, true);
+  EXPECT_TRUE(Cpp::Destruct(where, scope, true));
   output = testing::internal::GetCapturedStdout();
   EXPECT_EQ(output, "\nDestructor Executed\n");
   output.clear();
