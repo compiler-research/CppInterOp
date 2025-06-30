@@ -865,7 +865,8 @@ CPPINTEROP_API TCppObject_t Construct(TCppScope_t scope, void* arena = nullptr,
 /// destructor
 /// \param[in] count indicate the number of objects to destruct, if \c This
 /// points to an array of objects
-CPPINTEROP_API void Destruct(TCppObject_t This, TCppScope_t type,
+/// \returns true if wrapper generation and invocation succeeded.
+CPPINTEROP_API bool Destruct(TCppObject_t This, TCppScope_t type,
                              bool withFree = true, TCppIndex_t count = 0UL);
 
 /// @name Stream Redirection
