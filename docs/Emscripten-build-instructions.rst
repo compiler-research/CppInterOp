@@ -120,9 +120,9 @@ and osx
                  -DCLANG_BUILD_TOOLS=OFF                         \
                  -DLLVM_NATIVE_TOOL_DIR=$NATIVE_DIR 		\
                  ../llvm
-   emmake make libclang -j $(nproc --all)
-   emmake make clangInterpreter clangStaticAnalyzerCore -j $(nproc --all)
-   emmake make lldWasm -j $(nproc --all)
+   EMCC_CFLAGS="-Oz -flto" emmake make libclang -j $(nproc --all)
+   EMCC_CFLAGS="-Oz -flto" emmake make clangInterpreter clangStaticAnalyzerCore -j $(nproc --all)
+   EMCC_CFLAGS="-Oz -flto" emmake make lldWasm -j $(nproc --all)
 
 or executing
 
@@ -151,7 +151,9 @@ or executing
                         -DCLANG_BUILD_TOOLS=OFF                         `
                         -G Ninja `
                         ..\llvm
+   $env:EMCC_CFLAGS="-Oz -flto" 
    emmake ninja libclang clangInterpreter clangStaticAnalyzerCore lldWasm
+   $env:EMCC_CFLAGS=""
 
 on Windows. Once this finishes building we need to take note of where we built our llvm build.
 This can be done by executing the following on Linux and osx

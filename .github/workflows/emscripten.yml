@@ -195,7 +195,7 @@ jobs:
                         -DCLANG_BUILD_TOOLS=OFF                         \
                         -DLLVM_NATIVE_TOOL_DIR=$NATIVE_DIR 		\
                          ../llvm
-          emmake ninja clang cling lld gtest_main
+          EMCC_CFLAGS="-Oz -flto" emmake ninja clang cling lld gtest_main
         else
           # Apply patches
           llvm_vers=$(echo "${{ matrix.clang-runtime }}" | tr '[:lower:]' '[:upper:]')
@@ -226,7 +226,7 @@ jobs:
                         -G Ninja                                         \
                         -DLLVM_NATIVE_TOOL_DIR=$NATIVE_DIR 		\
                         ../llvm
-          emmake ninja libclang clangInterpreter clangStaticAnalyzerCore lldWasm
+          EMCC_CFLAGS="-Oz -flto" emmake ninja libclang clangInterpreter clangStaticAnalyzerCore lldWasm
         fi
         cd ../
         rm -rf $(find . -maxdepth 1 ! -name "build" ! -name "llvm" ! -name "clang" ! -name ".")
@@ -296,6 +296,7 @@ jobs:
                         -DLLVM_ENABLE_LIBPFM=OFF                        `
                         -DCLANG_BUILD_TOOLS=OFF                         `
                 ..\llvm
+          $env:EMCC_CFLAGS="-Oz -flto"
           emmake make clang cling lld gtest_main
         }
         else
@@ -337,6 +338,7 @@ jobs:
                         -DCLANG_BUILD_TOOLS=OFF                         `
                         -G Ninja `
                         ..\llvm
+          $env:EMCC_CFLAGS="-Oz -flto"
           emmake ninja libclang clangInterpreter clangStaticAnalyzerCore lldWasm
         }
         cd ..\
