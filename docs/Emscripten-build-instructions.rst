@@ -376,4 +376,6 @@ executing
 
 .. code:: bash
 
-   jupyter lite serve --XeusAddon.prefix=$PREFIX
+   jupyter lite serve --XeusAddon.prefix=$PREFIX \
+                      --XeusAddon.mounts="$PREFIX/share/xeus-cpp/tagfiles:/share/xeus-cpp/tagfiles" \
+                      --XeusAddon.mounts="$PREFIX/etc/xeus-cpp/tags.d:/etc/xeus-cpp/tags.d"
