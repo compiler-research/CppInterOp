@@ -614,7 +614,7 @@ void clang_invoke(CXScope func, void* result, void** args, size_t n,
 
 namespace Cpp {
 bool Destruct(compat::Interpreter& interp, TCppObject_t This,
-              clang::Decl* Class, bool withFree, size_t nary);
+              const clang::Decl* Class, bool withFree, size_t nary);
 } // namespace Cpp
 
 bool clang_destruct(CXObject This, CXScope S, bool withFree, size_t nary) {

@@ -3812,7 +3812,7 @@ TCppObject_t Construct(TCppScope_t scope, void* arena /*=nullptr*/,
   return Construct(getInterp(), scope, arena, count);
 }
 
-bool Destruct(compat::Interpreter& interp, TCppObject_t This, Decl* Class,
+bool Destruct(compat::Interpreter& interp, TCppObject_t This, const Decl* Class,
               bool withFree, TCppIndex_t nary) {
   if (auto wrapper = make_dtor_wrapper(interp, Class)) {
     (*wrapper)(This, nary, withFree);
@@ -3822,9 +3822,9 @@ bool Destruct(compat::Interpreter& interp, TCppObject_t This, Decl* Class,
   // FIXME: Enable stronger diagnostics
 }
 
-bool Destruct(TCppObject_t This, TCppScope_t scope, bool withFree /*=true*/,
-              TCppIndex_t count /*=0UL*/) {
-  auto* Class = static_cast<Decl*>(scope);
+bool Destruct(TCppObject_t This, TCppConstScope_t scope,
+              bool withFree /*=true*/, TCppIndex_t count /*=0UL*/) {
+  const auto* Class = static_cast<const Decl*>(scope);
   return Destruct(getInterp(), This, Class, withFree, count);
 }
 

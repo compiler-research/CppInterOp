@@ -35,6 +35,7 @@
 namespace Cpp {
 using TCppIndex_t = size_t;
 using TCppScope_t = void*;
+using TCppConstScope_t = const void*;
 using TCppType_t = void*;
 using TCppFunction_t = void*;
 using TCppConstFunction_t = const void*;
@@ -868,7 +869,7 @@ CPPINTEROP_API TCppObject_t Construct(TCppScope_t scope, void* arena = nullptr,
 /// \param[in] count indicate the number of objects to destruct, if \c This
 /// points to an array of objects
 /// \returns true if wrapper generation and invocation succeeded.
-CPPINTEROP_API bool Destruct(TCppObject_t This, TCppScope_t type,
+CPPINTEROP_API bool Destruct(TCppObject_t This, TCppConstScope_t type,
                              bool withFree = true, TCppIndex_t count = 0UL);
 
 /// @name Stream Redirection
