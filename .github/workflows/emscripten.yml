@@ -194,6 +194,9 @@ jobs:
                         -DLLVM_ENABLE_LIBPFM=OFF                        \
                         -DCLANG_BUILD_TOOLS=OFF                         \
                         -DLLVM_NATIVE_TOOL_DIR=$NATIVE_DIR 		\
+                        -DCMAKE_C_FLAGS_RELEASE="-Oz -g0" \
+                        -DCMAKE_CXX_FLAGS_RELEASE="-Oz -g0" \
+                        -DLLVM_ENABLE_LTO=Full \
                          ../llvm
           emmake ninja clang cling lld gtest_main
         else
@@ -225,6 +228,9 @@ jobs:
                         -DCLANG_BUILD_TOOLS=OFF                         \
                         -G Ninja                                         \
                         -DLLVM_NATIVE_TOOL_DIR=$NATIVE_DIR 		\
+                        -DCMAKE_C_FLAGS_RELEASE="-Oz -g0" \
+                        -DCMAKE_CXX_FLAGS_RELEASE="-Oz -g0" \
+                        -DLLVM_ENABLE_LTO=Full \
                         ../llvm
           emmake ninja libclang clangInterpreter clangStaticAnalyzerCore lldWasm
         fi
@@ -295,6 +301,9 @@ jobs:
                         -DLLVM_BUILD_TOOLS=OFF                          `
                         -DLLVM_ENABLE_LIBPFM=OFF                        `
                         -DCLANG_BUILD_TOOLS=OFF                         `
+                        -DCMAKE_C_FLAGS_RELEASE="-Oz -g0" `
+                        -DCMAKE_CXX_FLAGS_RELEASE="-Oz -g0" `
+                        -DLLVM_ENABLE_LTO=Full `
                 ..\llvm
           emmake make clang cling lld gtest_main
         }
@@ -335,6 +344,9 @@ jobs:
                         -DLLVM_BUILD_TOOLS=OFF                          `
                         -DLLVM_ENABLE_LIBPFM=OFF                        `
                         -DCLANG_BUILD_TOOLS=OFF                         `
+                        -DCMAKE_C_FLAGS_RELEASE="-Oz -g0" `
+                        -DCMAKE_CXX_FLAGS_RELEASE="-Oz -g0" `
+                        -DLLVM_ENABLE_LTO=Full `
                         -G Ninja `
                         ..\llvm
           emmake ninja libclang clangInterpreter clangStaticAnalyzerCore lldWasm
@@ -519,6 +531,15 @@ jobs:
         fi
 
         emmake make -j ${{ env.ncpus }} check-cppinterop
+        os="${{ matrix.os }}"
+        if [[ "${os}" != macos* ]] ; then
+          actual_size=$(stat -c%s "./lib/libclangCppInterOp.so")
+          max_size=$((46 * 1024 * 1024))
+          if [[ "$actual_size" -gt "$max_size" ]]; then
+            echo "Error: libclangCppInterOp.so is larger than 46 MB."
+            exit 1
+          fi
+        fi
         cd ./unittests/CppInterOp/
         # Fresh install browsers, and run Emscripten tests in them
         # This is to match the Emscripten build instructions, where
@@ -673,7 +694,12 @@ jobs:
                 -DSYSROOT_PATH=$SYSROOT_PATH                     \
                 ../
         fi
-        emmake make -j ${{ env.ncpus }} check-cppinterop
+        os="${{ matrix.os }}"
+        if [[ "${os}" != macos* ]] ; then
+          EMCC_CORES=1 emmake make -j 1 check-cppinterop
+        else
+          EMCC_CORES=2 emmake make -j 2 check-cppinterop
+        fi
         cd ./unittests/CppInterOp/
         # Explaination of options for emrun
         # --browser (name of browser on path)

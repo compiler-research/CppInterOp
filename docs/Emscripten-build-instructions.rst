@@ -119,6 +119,9 @@ and osx
                  -DLLVM_ENABLE_LIBPFM=OFF                        \
                  -DCLANG_BUILD_TOOLS=OFF                         \
                  -DLLVM_NATIVE_TOOL_DIR=$NATIVE_DIR 		\
+                 -DCMAKE_C_FLAGS_RELEASE="-Oz -g0" \
+                 -DCMAKE_CXX_FLAGS_RELEASE="-Oz -g0" \
+                 -DLLVM_ENABLE_LTO=Full \
                  ../llvm
    emmake make libclang -j $(nproc --all)
    emmake make clangInterpreter clangStaticAnalyzerCore -j $(nproc --all)
@@ -150,6 +153,9 @@ or executing
                         -DLLVM_ENABLE_LIBPFM=OFF                        `
                         -DCLANG_BUILD_TOOLS=OFF                         `
                         -G Ninja `
+                        -DCMAKE_C_FLAGS_RELEASE="-Oz -g0" `
+                        -DCMAKE_CXX_FLAGS_RELEASE="-Oz -g0" `
+                        -DLLVM_ENABLE_LTO=Full `
                         ..\llvm
    emmake ninja libclang clangInterpreter clangStaticAnalyzerCore lldWasm
 
