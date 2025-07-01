@@ -2406,6 +2406,20 @@ TEST(FunctionReflectionTest, Destruct) {
   // Clean up resources
   clang_Interpreter_takeInterpreterAsPtr(I);
   clang_Interpreter_dispose(I);
+
+  // Failure test, this wrapper should not compile since we explicitly delete
+  // the destructor
+  Interp->declare(R"(
+  class D {
+    public:
+      D() {}
+      ~D() = delete;
+  };
+  )");
+
+  scope = Cpp::GetNamed("D");
+  object = Cpp::Construct(scope);
+  EXPECT_FALSE(Cpp::Destruct(object, scope));
 }
 
 TEST(FunctionReflectionTest, DestructArray) {
