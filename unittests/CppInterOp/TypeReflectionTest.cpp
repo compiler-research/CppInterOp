@@ -620,3 +620,107 @@ TEST(TypeReflectionTest, OperatorSpelling) {
   EXPECT_EQ(Cpp::GetOperatorFromSpelling("()"), Cpp::OP_Call);
   EXPECT_EQ(Cpp::GetOperatorFromSpelling("invalid"), Cpp::OP_None);
 }
+
+TEST(TypeReflectionTest, IntegerTypes) {
+  Cpp::CreateInterpreter();
+  std::vector<Decl*> Decls;
+  std::string code = R"(
+  int a;
+  int *b;
+  double c;
+  enum A { x, y };
+  A evar = x;
+  char k;
+  long int l;
+  unsigned int m;
+  unsigned long n;
+  )";
+
+  GetAllTopLevelDecls(code, Decls);
+
+  // Signedness defaults to Any and returns true for both signed and unsigned
+  // types.
+  EXPECT_TRUE(Cpp::IsIntegerType(Cpp::GetVariableType(Decls[0])));
+  EXPECT_FALSE(Cpp::IsIntegerType(Cpp::GetVariableType(Decls[1])));
+  EXPECT_FALSE(Cpp::IsIntegerType(Cpp::GetVariableType(Decls[2])));
+  EXPECT_TRUE(Cpp::IsIntegerType(Cpp::GetVariableType(Decls[4])));
+  EXPECT_TRUE(Cpp::IsIntegerType(Cpp::GetVariableType(Decls[5])));
+  EXPECT_TRUE(Cpp::IsIntegerType(Cpp::GetVariableType(Decls[6])));
+  EXPECT_TRUE(Cpp::IsIntegerType(Cpp::GetVariableType(Decls[7]),
+                                 Cpp::Signedness::kUnsigned));
+  EXPECT_FALSE(Cpp::IsIntegerType(Cpp::GetVariableType(Decls[8]),
+                                  Cpp::Signedness::kSigned));
+}
+
+TEST(TypeReflectionTest, VoidPtrType) {
+  Cpp::CreateInterpreter();
+  std::vector<Decl*> Decls;
+  std::string code = R"(
+  class A {};
+  using VoidPtrType = void*;
+  VoidPtrType a = nullptr;
+  void * b = nullptr;
+  A *pa = nullptr;
+  )";
+
+  GetAllTopLevelDecls(code, Decls);
+
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetVariableType(Decls[2])),
+            "VoidPtrType");
+  EXPECT_TRUE(Cpp::IsVoidPointerType(Cpp::GetVariableType(Decls[2])));
+  EXPECT_TRUE(Cpp::IsVoidPointerType(Cpp::GetVariableType(Decls[3])));
+  EXPECT_FALSE(Cpp::IsVoidPointerType(Cpp::GetVariableType(Decls[4])));
+}
+
+TEST(TypeReflectionTest, IsSameType) {
+  Cpp::CreateInterpreter();
+  std::vector<Decl*> Decls;
+
+  std::string code = R"(
+    #include <cstdarg>
+    #include <iostream>
+    
+    typedef std::va_list VaListAlias;
+    std::va_list va1;
+    VaListAlias va2;
+    const int ci = 0;
+    int const ic = 0;
+    signed int si1 = 0;
+    int si2 = 0;
+    void *x;
+  )";
+
+  GetAllTopLevelDecls(code, Decls);
+  ASTContext& Ctxt = Interp->getCI()->getASTContext();
+  Decls.assign(Decls.end() - 8, Decls.end());
+
+  EXPECT_TRUE(
+      Cpp::IsSameType(Cpp::GetType("bool"), Ctxt.BoolTy.getAsOpaquePtr()));
+  EXPECT_TRUE(
+      Cpp::IsSameType(Cpp::GetType("float"), Ctxt.FloatTy.getAsOpaquePtr()));
+  EXPECT_TRUE(
+      Cpp::IsSameType(Cpp::GetType("long"), Ctxt.LongTy.getAsOpaquePtr()));
+  EXPECT_TRUE(Cpp::IsSameType(Cpp::GetType("long long"),
+                              Ctxt.LongLongTy.getAsOpaquePtr()));
+  EXPECT_TRUE(
+      Cpp::IsSameType(Cpp::GetType("short"), Ctxt.ShortTy.getAsOpaquePtr()));
+  EXPECT_TRUE(Cpp::IsSameType(Cpp::GetType("char"),
+                              Ctxt.SignedCharTy.getAsOpaquePtr()));
+  EXPECT_TRUE(Cpp::IsSameType(Cpp::GetType("unsigned char"),
+                              Ctxt.UnsignedCharTy.getAsOpaquePtr()));
+  EXPECT_TRUE(Cpp::IsSameType(Cpp::GetType("unsigned int"),
+                              Ctxt.UnsignedIntTy.getAsOpaquePtr()));
+
+#if CLANG_VERSION_MAJOR > 16 || !defined(CPPINTEROP_USE_CLING)
+  EXPECT_TRUE(Cpp::IsSameType(Cpp::GetVariableType(Decls[7]),
+                              Ctxt.VoidPtrTy.getAsOpaquePtr()));
+
+  // Expect the typedef to std::va_list to be the same type
+  EXPECT_TRUE(Cpp::IsSameType(Cpp::GetVariableType(Decls[1]),
+                              Cpp::GetVariableType(Decls[2])));
+  EXPECT_TRUE(Cpp::IsSameType(Cpp::GetVariableType(Decls[3]),
+                              Cpp::GetVariableType(Decls[4])));
+  EXPECT_TRUE(Cpp::IsSameType(Cpp::GetVariableType(Decls[5]),
+                              Cpp::GetVariableType(Decls[6])));
+#endif
+}
