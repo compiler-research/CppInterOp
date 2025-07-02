@@ -93,6 +93,7 @@ enum Operator : unsigned char {
 };
 
 enum OperatorArity : unsigned char { kUnary = 1, kBinary, kBoth };
+enum Signedness : unsigned char { kSigned = 1, kUnsigned, kAny };
 
 /// A class modeling function calls for functions produced by the interpreter
 /// in compiled code. It provides an information if we are calling a standard
@@ -578,6 +579,22 @@ CPPINTEROP_API bool IsRecordType(TCppType_t type);
 /// Checks if the provided parameter is a Plain Old Data Type (POD).
 CPPINTEROP_API bool IsPODType(TCppType_t type);
 
+/// Checks if type has an integer representation
+CPPINTEROP_API bool IsIntegerType(TCppType_t type,
+                                  Signedness s = Signedness::kAny);
+
+/// Checks if type has a floating representation
+CPPINTEROP_API bool IsFloatingType(TCppType_t type);
+
+/// Checks if two types are the equivalent
+/// i.e. have the same canonical type
+CPPINTEROP_API bool IsSameType(TCppType_t type_a, TCppType_t type_b);
+
+/// Checks if type is a void pointer
+CPPINTEROP_API bool IsVoidPointerType(TCppType_t type);
+
+/// Get the type handle to the unqualified type
+CPPINTEROP_API TCppType_t GetUnqualifiedType(TCppType_t type);
 /// Checks if type is a pointer
 CPPINTEROP_API bool IsPointerType(TCppType_t type);
 
