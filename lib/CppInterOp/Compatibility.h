@@ -295,11 +295,10 @@ createClangInterpreter(std::vector<const char*>& args, bool outOfProcess,
 #else
   if (outOfProcess) {
     llvm::errs()
-        << "[CreateClangInterpreter]: No compatibility with out-of-process JIT"
+        << "[CreateClangInterpreter]: No compatibility with out-of-process JIT. Running in-process JIT execution."
         << "(To enable recompile CppInterOp with patch applied and change "
            "VERSION file to 1.8.1;dev."
         << "\n";
-    return nullptr;
   }
   auto innerOrErr =
       CudaEnabled ? clang::Interpreter::createWithCUDA(std::move(*ciOrErr),

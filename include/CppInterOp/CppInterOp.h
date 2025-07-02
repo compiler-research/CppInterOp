@@ -904,9 +904,11 @@ CPPINTEROP_API void CodeComplete(std::vector<std::string>& Results,
 ///\returns 0 on success, non-zero on failure.
 CPPINTEROP_API int Undo(unsigned N = 1);
 
+#ifdef CPPINTEROP_VERSION_PATCH
 /// Returns the process ID of the executor process.
 /// \returns the PID of the executor process.
 CPPINTEROP_API pid_t GetExecutorPID();
+#endif
 
 } // end namespace Cpp
 
