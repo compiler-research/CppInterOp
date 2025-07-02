@@ -65,7 +65,7 @@ If you want to have out-of-process JIT execution enabled in CppInterOp, then app
 
 .. code:: bash
 
-   git apply -v ../CppInterOp/patches/llvm/clang20-2-out-of-process-jit-execution.patch
+   git apply -v ../CppInterOp/patches/llvm/clang20-1-out-of-process.patch
 
 ******************
  Build Clang-REPL
@@ -139,7 +139,7 @@ To have `Out-of-Process JIT Execution` enabled, run following commands to build 
 
    mkdir build 
    cd build 
-   cmake -DLLVM_ENABLE_PROJECTS="clang;compiler-rt                    \
+   cmake -DLLVM_ENABLE_PROJECTS="clang;compiler-rt"                   \
                   -DLLVM_TARGETS_TO_BUILD="host;NVPTX"                \
                   -DCMAKE_BUILD_TYPE=Release                          \
                   -DLLVM_ENABLE_ASSERTIONS=ON                         \
