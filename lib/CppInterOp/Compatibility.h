@@ -295,8 +295,8 @@ createClangInterpreter(std::vector<const char*>& args, bool outOfProcess,
 #else
   if (outOfProcess) {
     llvm::errs()
-        << "[CreateClangInterpreter]: No compatibility with out-of-process 
-           JIT. Running in-process JIT execution."
+        << "[CreateClangInterpreter]: No compatibility with out-of-process "
+           "JIT. Running in-process JIT execution."
         << "(To enable recompile CppInterOp with patch applied and change "
            "VERSION file to 1.8.1;dev."
         << "\n";
@@ -455,7 +455,7 @@ public:
                                   "Failed to generate PTU:");
   }
 };
-}
+} // namespace compat
 
 #endif // CPPINTEROP_USE_REPL
 
