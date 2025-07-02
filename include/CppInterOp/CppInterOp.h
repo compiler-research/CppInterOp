@@ -20,6 +20,7 @@
 #include <set>
 #include <string>
 #include <vector>
+#include <sys/types.h>
 
 // The cross-platform CPPINTEROP_API macro definition
 #if defined _WIN32 || defined __CYGWIN__

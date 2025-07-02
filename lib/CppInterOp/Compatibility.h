@@ -213,6 +213,8 @@ inline void codeComplete(std::vector<std::string>& Results,
 #include "llvm/ExecutionEngine/Orc/Debugging/DebuggerSupport.h"
 #endif
 
+#include <algorithm>
+
 static const llvm::ExitOnError ExitOnError;
 
 namespace compat {
