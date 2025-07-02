@@ -16,16 +16,21 @@ using namespace clang;
 using namespace llvm;
 
 namespace clang {
-  class Decl;
+class Decl;
 }
 #define Interp (static_cast<compat::Interpreter*>(Cpp::GetInterpreter()))
 namespace TestUtils {
+extern bool g_use_oop_jit;
 void GetAllTopLevelDecls(const std::string& code,
                          std::vector<clang::Decl*>& Decls,
                          bool filter_implicitGenerated = false,
                          const std::vector<const char*>& interpreter_args = {});
 void GetAllSubDecls(clang::Decl* D, std::vector<clang::Decl*>& SubDecls,
                     bool filter_implicitGenerated = false);
+TInterp_t CreateInterpreter(const std::vector<const char*>& Args = {},
+                            const std::vector<const char*>& GpuArgs = {},
+                            int stdin_fd = 0, int stdout_fd = 1,
+                            int stderr_fd = 2);
 } // end namespace TestUtils
 
 const char* get_c_string(CXString string);

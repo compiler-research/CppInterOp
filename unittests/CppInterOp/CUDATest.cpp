@@ -14,7 +14,7 @@ static bool HasCudaSDK() {
     // FIXME: Enable this for cling.
     return false;
 #endif
-    if (!Cpp::CreateInterpreter({}, {"--cuda"}))
+    if (!TestUtils::CreateInterpreter({}, {"--cuda"}))
       return false;
     return Cpp::Declare("__global__ void test_func() {}"
                         "test_func<<<1,1>>>();") == 0;
@@ -32,7 +32,7 @@ static bool HasCudaRuntime() {
     if (!HasCudaSDK())
       return false;
 
-    if (!Cpp::CreateInterpreter({}, {"--cuda"}))
+    if (!TestUtils::CreateInterpreter({}, {"--cuda"}))
       return false;
     if (Cpp::Declare("__global__ void test_func() {}"
                      "test_func<<<1,1>>>();"))
@@ -54,7 +54,7 @@ TEST(CUDATest, Sanity) {
 #endif
   if (!HasCudaSDK())
     GTEST_SKIP() << "Skipping CUDA tests as CUDA SDK not found";
-  EXPECT_TRUE(Cpp::CreateInterpreter({}, {"--cuda"}));
+  EXPECT_TRUE(TestUtils::CreateInterpreter({}, {"--cuda"}));
 }
 
 TEST(CUDATest, CUDAH) {
@@ -64,7 +64,7 @@ TEST(CUDATest, CUDAH) {
   if (!HasCudaSDK())
     GTEST_SKIP() << "Skipping CUDA tests as CUDA SDK not found";
 
-  Cpp::CreateInterpreter({}, {"--cuda"});
+  TestUtils::CreateInterpreter({}, {"--cuda"});
   bool success = !Cpp::Declare("#include <cuda.h>");
   EXPECT_TRUE(success);
 }

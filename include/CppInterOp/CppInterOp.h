@@ -665,10 +665,10 @@ CPPINTEROP_API void GetOperator(TCppScope_t scope, Operator op,
 ///\param[in] CPPINTEROP_EXTRA_INTERPRETER_ARGS - an env variable, if defined,
 ///           adds additional arguments to the interpreter.
 ///\returns nullptr on failure.
-CPPINTEROP_API TInterp_t CreateInterpreter(
-    const std::vector<const char*>& Args = {},
-    const std::vector<const char*>& GpuArgs = {}, bool outOfProcess = false,
-    int stdin_fd = 0, int stdout_fd = 1, int stderr_fd = 2);
+CPPINTEROP_API TInterp_t
+CreateInterpreter(const std::vector<const char*>& Args = {},
+                  const std::vector<const char*>& GpuArgs = {},
+                  int stdin_fd = 0, int stdout_fd = 1, int stderr_fd = 2);
 
 /// Deletes an instance of an interpreter.
 ///\param[in] I - the interpreter to be deleted, if nullptr, deletes the last.
@@ -904,11 +904,9 @@ CPPINTEROP_API void CodeComplete(std::vector<std::string>& Results,
 ///\returns 0 on success, non-zero on failure.
 CPPINTEROP_API int Undo(unsigned N = 1);
 
-#ifdef CPPINTEROP_VERSION_PATCH
 /// Returns the process ID of the executor process.
 /// \returns the PID of the executor process.
 CPPINTEROP_API pid_t GetExecutorPID();
-#endif
 
 } // end namespace Cpp
 

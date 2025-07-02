@@ -1108,16 +1108,16 @@ bool GetClassTemplatedMethods(const std::string& name, TCppScope_t parent,
   auto* DC = clang::Decl::castToDeclContext(D);
   Cpp_utils::Lookup::Named(&S, R, DC);
 
-  if (R.getResultKind() == clang::LookupResult::NotFound && funcs.empty())
+  if (R.getResultKind() == clang::LookupResultKind::NotFound && funcs.empty())
     return false;
 
   // Distinct match, single Decl
-  else if (R.getResultKind() == clang::LookupResult::Found) {
+  else if (R.getResultKind() == clang::LookupResultKind::Found) {
     if (IsTemplatedFunction(R.getFoundDecl()))
       funcs.push_back(R.getFoundDecl());
   }
   // Loop over overload set
-  else if (R.getResultKind() == clang::LookupResult::FoundOverloaded) {
+  else if (R.getResultKind() == clang::LookupResultKind::FoundOverloaded) {
     for (auto* Found : R)
       if (IsTemplatedFunction(Found))
         funcs.push_back(Found);
@@ -3061,8 +3061,8 @@ static std::string MakeResourcesPath() {
 
 TInterp_t CreateInterpreter(const std::vector<const char*>& Args /*={}*/,
                             const std::vector<const char*>& GpuArgs /*={}*/,
-                            bool outOfProcess /*=false*/, int stdin_fd /*=0*/,
-                            int stdout_fd /*=1*/, int stderr_fd /*=2*/) {
+                            int stdin_fd /*=0*/, int stdout_fd /*=1*/,
+                            int stderr_fd /*=2*/) {
   std::string MainExecutableName = sys::fs::getMainExecutable(nullptr, nullptr);
   std::string ResourceDir = MakeResourcesPath();
   std::vector<const char*> ClingArgv = {"-resource-dir", ResourceDir.c_str(),
@@ -3107,7 +3107,7 @@ TInterp_t CreateInterpreter(const std::vector<const char*>& Args /*={}*/,
 #else
   auto Interp = compat::Interpreter::create(
       static_cast<int>(ClingArgv.size()), ClingArgv.data(), nullptr, {},
-      nullptr, true, outOfProcess, stdin_fd, stdout_fd, stderr_fd);
+      nullptr, true, stdin_fd, stdout_fd, stderr_fd);
   if (!Interp)
     return nullptr;
   auto* I = Interp.release();
@@ -3946,8 +3946,11 @@ int Undo(unsigned N) {
 #endif
 }
 
+pid_t GetExecutorPID() {
 #ifdef CPPINTEROP_VERSION_PATCH
-pid_t GetExecutorPID() { return compat::getExecutorPID(); }
+  return compat::getExecutorPID();
 #endif
+  return -1;
+}
 
 } // end namespace Cpp

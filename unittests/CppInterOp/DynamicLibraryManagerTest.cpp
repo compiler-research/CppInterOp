@@ -1,3 +1,4 @@
+#include "Utils.h"
 #include "CppInterOp/CppInterOp.h"
 
 #include "clang/Basic/Version.h"
@@ -29,7 +30,7 @@ TEST(DynamicLibraryManagerTest, Sanity) {
   GTEST_SKIP() << "Test fails with Cling on Windows";
 #endif
 
-  EXPECT_TRUE(Cpp::CreateInterpreter());
+  EXPECT_TRUE(TestUtils::CreateInterpreter());
   EXPECT_FALSE(Cpp::GetFunctionAddress("ret_zero"));
 
   std::string BinaryPath = GetExecutablePath(/*Argv0=*/nullptr);
@@ -75,7 +76,7 @@ TEST(DynamicLibraryManagerTest, BasicSymbolLookup) {
   #endif
 #endif
 
-  ASSERT_TRUE(Cpp::CreateInterpreter());
+  ASSERT_TRUE(TestUtils::CreateInterpreter());
   EXPECT_FALSE(Cpp::GetFunctionAddress("ret_zero"));
 
   // Load the library manually. Use known preload path (MEMFS path)

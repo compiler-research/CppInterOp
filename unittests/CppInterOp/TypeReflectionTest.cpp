@@ -109,7 +109,7 @@ TEST(TypeReflectionTest, GetCanonicalType) {
 }
 
 TEST(TypeReflectionTest, GetType) {
-  Cpp::CreateInterpreter();
+  TestUtils::CreateInterpreter();
 
   std::string code =  R"(
     class A {};
@@ -346,7 +346,7 @@ TEST(TypeReflectionTest, IsUnderlyingTypeRecordType) {
 }
 
 TEST(TypeReflectionTest, GetComplexType) {
-  Cpp::CreateInterpreter();
+  TestUtils::CreateInterpreter();
 
   auto get_complex_type_as_string = [&](const std::string &element_type) {
     auto ElementQT = Cpp::GetType(element_type);
@@ -559,7 +559,7 @@ TEST(TypeReflectionTest, IsSmartPtrType) {
     GTEST_SKIP() << "XFAIL due to Valgrind report";
 
   std::vector<const char*> interpreter_args = {"-include", "new"};
-  Cpp::CreateInterpreter(interpreter_args);
+  TestUtils::CreateInterpreter(interpreter_args);
 
   Interp->declare(R"(
     #include <memory>
@@ -598,7 +598,7 @@ TEST(TypeReflectionTest, IsSmartPtrType) {
 
 TEST(TypeReflectionTest, IsFunctionPointerType) {
   std::vector<const char*> interpreter_args = {"-include", "new"};
-  Cpp::CreateInterpreter(interpreter_args);
+  TestUtils::CreateInterpreter(interpreter_args);
 
   Interp->declare(R"(
     typedef int (*int_func)(int, int);

@@ -218,8 +218,8 @@ static const llvm::ExitOnError ExitOnError;
 namespace compat {
 
 inline std::unique_ptr<clang::Interpreter>
-createClangInterpreter(std::vector<const char*>& args, bool outOfProcess,
-                       int stdin_fd = 0, int stdout_fd = 1, int stderr_fd = 2) {
+createClangInterpreter(std::vector<const char*>& args, int stdin_fd = 0,
+                       int stdout_fd = 1, int stderr_fd = 2) {
   auto has_arg = [](const char* x, llvm::StringRef match = "cuda") {
     llvm::StringRef Arg = x;
     Arg = Arg.trim().ltrim('-');
@@ -231,6 +231,15 @@ createClangInterpreter(std::vector<const char*>& args, bool outOfProcess,
   bool CudaEnabled = false;
 #else
   bool CudaEnabled = !gpu_args.empty();
+#endif
+
+#if defined(_WIN32)
+  bool outOfProcess = false;
+#else
+  bool outOfProcess =
+      std::any_of(args.begin(), args.end(), [](const char* arg) {
+        return llvm::StringRef(arg).trim() == "--use-oop-jit";
+      });
 #endif
 
   clang::IncrementalCompilerBuilder CB;

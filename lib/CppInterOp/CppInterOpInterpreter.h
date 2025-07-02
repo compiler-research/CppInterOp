@@ -153,8 +153,7 @@ public:
          const std::vector<std::shared_ptr<clang::ModuleFileExtension>>&
              moduleExtensions = {},
          void* extraLibHandle = nullptr, bool noRuntime = true,
-         bool outOfProcess = false, int stdin_fd = 0, int stdout_fd = 1,
-         int stderr_fd = 2) {
+         int stdin_fd = 0, int stdout_fd = 1, int stderr_fd = 2) {
     // Initialize all targets (required for device offloading)
     llvm::InitializeAllTargetInfos();
     llvm::InitializeAllTargets();
@@ -162,8 +161,8 @@ public:
     llvm::InitializeAllAsmPrinters();
 
     std::vector<const char*> vargs(argv + 1, argv + argc);
-    auto CI = compat::createClangInterpreter(vargs, outOfProcess, stdin_fd,
-                                             stdout_fd, stderr_fd);
+    auto CI =
+        compat::createClangInterpreter(vargs, stdin_fd, stdout_fd, stderr_fd);
     if (!CI) {
       llvm::errs() << "Interpreter creation failed\n";
       return nullptr;
