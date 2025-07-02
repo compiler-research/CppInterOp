@@ -3060,7 +3060,9 @@ static std::string MakeResourcesPath() {
 } // namespace
 
 TInterp_t CreateInterpreter(const std::vector<const char*>& Args /*={}*/,
-                            const std::vector<const char*>& GpuArgs /*={}*/) {
+                            const std::vector<const char*>& GpuArgs /*={}*/,
+                            bool outOfProcess /*=false*/, int stdin_fd /*=0*/,
+                            int stdout_fd /*=1*/, int stderr_fd /*=2*/) {
   std::string MainExecutableName = sys::fs::getMainExecutable(nullptr, nullptr);
   std::string ResourceDir = MakeResourcesPath();
   std::vector<const char*> ClingArgv = {"-resource-dir", ResourceDir.c_str(),
@@ -3103,8 +3105,9 @@ TInterp_t CreateInterpreter(const std::vector<const char*>& Args /*={}*/,
 #ifdef CPPINTEROP_USE_CLING
   auto I = new compat::Interpreter(ClingArgv.size(), &ClingArgv[0]);
 #else
-  auto Interp = compat::Interpreter::create(static_cast<int>(ClingArgv.size()),
-                                            ClingArgv.data());
+  auto Interp = compat::Interpreter::create(
+      static_cast<int>(ClingArgv.size()), ClingArgv.data(), nullptr, {},
+      nullptr, true, outOfProcess, stdin_fd, stdout_fd, stderr_fd);
   if (!Interp)
     return nullptr;
   auto* I = Interp.release();
@@ -3942,5 +3945,9 @@ int Undo(unsigned N) {
   return getInterp().undo(N);
 #endif
 }
+
+#ifdef CPPINTEROP_VERSION_PATCH
+pid_t GetExecutorPID() { return compat::getExecutorPID(); }
+#endif
 
 } // end namespace Cpp

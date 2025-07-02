@@ -39,6 +39,8 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/TargetParser/Triple.h"
 
+#include <fcntl.h>
+#include <unistd.h>
 #include <utility>
 #include <vector>
 
@@ -150,7 +152,9 @@ public:
   create(int argc, const char* const* argv, const char* llvmdir = nullptr,
          const std::vector<std::shared_ptr<clang::ModuleFileExtension>>&
              moduleExtensions = {},
-         void* extraLibHandle = nullptr, bool noRuntime = true) {
+         void* extraLibHandle = nullptr, bool noRuntime = true,
+         bool outOfProcess = false, int stdin_fd = 0, int stdout_fd = 1,
+         int stderr_fd = 2) {
     // Initialize all targets (required for device offloading)
     llvm::InitializeAllTargetInfos();
     llvm::InitializeAllTargets();
@@ -158,7 +162,8 @@ public:
     llvm::InitializeAllAsmPrinters();
 
     std::vector<const char*> vargs(argv + 1, argv + argc);
-    auto CI = compat::createClangInterpreter(vargs);
+    auto CI = compat::createClangInterpreter(vargs, outOfProcess, stdin_fd,
+                                             stdout_fd, stderr_fd);
     if (!CI) {
       llvm::errs() << "Interpreter creation failed\n";
       return nullptr;

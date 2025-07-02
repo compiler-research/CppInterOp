@@ -310,6 +310,9 @@ include_directories(SYSTEM ${LLVM_INCLUDE_DIRS})
 separate_arguments(LLVM_DEFINITIONS_LIST NATIVE_COMMAND ${LLVM_DEFINITIONS})
 add_definitions(${LLVM_DEFINITIONS_LIST})
 
+string(REGEX REPLACE "/build/lib/cmake/llvm$" "" LLVM_SOURCE_DIR "${LLVM_DIR}")
+add_definitions(-DLLVM_SOURCE_DIR="${LLVM_SOURCE_DIR}")
+
 # If the llvm sources are present add them with higher priority.
 if (LLVM_BUILD_MAIN_SRC_DIR)
   # LLVM_INCLUDE_DIRS contains the include paths to both LLVM's source and
@@ -391,9 +394,15 @@ string(REPLACE "-Wcovered-switch-default" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}
 
 file(STRINGS "VERSION" CPPINTEROP_VERSION)
 string(REPLACE "." ";" VERSION_LIST "${CPPINTEROP_VERSION}")
+string(REPLACE "\;" ";" VERSION_LIST "${VERSION_LIST}")
+
 list(GET VERSION_LIST 0 CPPINTEROP_VERSION_MAJOR)
 list(GET VERSION_LIST 1 CPPINTEROP_VERSION_MINOR)
 list(GET VERSION_LIST 2 CPPINTEROP_VERSION_PATCH)
+
+if(NOT CPPINTEROP_VERSION_PATCH STREQUAL "0")
+  add_definitions(-DCPPINTEROP_VERSION_PATCH)
+endif()
 
 configure_file(
   ${CMAKE_CURRENT_SOURCE_DIR}/cmake/CppInterOp/CppInterOpConfig.cmake.in
