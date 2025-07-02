@@ -1416,7 +1416,7 @@ TEST(FunctionReflectionTest, GetFunctionAddress) {
   testing::internal::CaptureStdout();
   Interp->declare("#include <iostream>");
   Interp->process("void * address = (void *) &f1; \n"
-                  "std::cout << address << std::endl; \n");
+                  "std::cout << address; \n");
 
   std::string output = testing::internal::GetCapturedStdout();
   std::stringstream address;
