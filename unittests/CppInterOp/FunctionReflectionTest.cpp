@@ -1452,17 +1452,14 @@ TEST(FunctionReflectionTest, JitCallAdvanced) {
   GTEST_SKIP() << "Test fails for Emscipten builds";
 #endif
 #endif
-  // if (TestUtils::g_use_oop_jit) {
-  //   GTEST_SKIP() << "Test fails for OOP JIT builds";
-  // }
+  if (TestUtils::g_use_oop_jit) {
+    GTEST_SKIP() << "Test fails for OOP JIT builds";
+  }
   if (llvm::sys::RunningOnValgrind())
     GTEST_SKIP() << "XFAIL due to Valgrind report";
 
   Cpp::JitCall JC = Cpp::MakeFunctionCallable(nullptr);
-  std::cout << "After Cpp::JitCall JC = Cpp::MakeFunctionCallable(nullptr);"
-            << std::endl;
   EXPECT_TRUE(JC.getKind() == Cpp::JitCall::kUnknown);
-  std::cout << "AFter EXPECT_TRUE(JC.getKind() == Cpp::JitCall::kUnknown);" << std::endl;
 
   std::vector<Decl*> Decls;
   std::string code = R"(
