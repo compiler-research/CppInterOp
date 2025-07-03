@@ -668,7 +668,7 @@ CPPINTEROP_API void GetOperator(TCppScope_t scope, Operator op,
 ///\returns nullptr on failure.
 CPPINTEROP_API TInterp_t
 CreateInterpreter(const std::vector<const char*>& Args = {},
-                  const std::vector<const char*>& GpuArgs = {});
+                  const std::vector<const char*>& GpuArgs = {}, bool outOfProcess = false);
 
 /// Deletes an instance of an interpreter.
 ///\param[in] I - the interpreter to be deleted, if nullptr, deletes the last.
@@ -906,6 +906,10 @@ CPPINTEROP_API void CodeComplete(std::vector<std::string>& Results,
 ///\param[in] N The number of operations to undo. Defaults to 1.
 ///\returns 0 on success, non-zero on failure.
 CPPINTEROP_API int Undo(unsigned N = 1);
+
+#ifdef CPPINTEROP_WITH_OOP_JIT
+CPPINTEROP_API pid_t GetExecutorPID();
+#endif // CPPINTEROP_WITH_OOP_JIT
 
 } // end namespace Cpp
 

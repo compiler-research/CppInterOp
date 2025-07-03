@@ -3060,7 +3060,7 @@ static std::string MakeResourcesPath() {
 } // namespace
 
 TInterp_t CreateInterpreter(const std::vector<const char*>& Args /*={}*/,
-                            const std::vector<const char*>& GpuArgs /*={}*/) {
+                            const std::vector<const char*>& GpuArgs /*={}*/, bool outOfProcess) {
   std::string MainExecutableName = sys::fs::getMainExecutable(nullptr, nullptr);
   std::string ResourceDir = MakeResourcesPath();
   std::vector<const char*> ClingArgv = {"-resource-dir", ResourceDir.c_str(),
@@ -3104,7 +3104,7 @@ TInterp_t CreateInterpreter(const std::vector<const char*>& Args /*={}*/,
   auto I = new compat::Interpreter(ClingArgv.size(), &ClingArgv[0]);
 #else
   auto Interp = compat::Interpreter::create(static_cast<int>(ClingArgv.size()),
-                                            ClingArgv.data());
+                                            ClingArgv.data(), nullptr, {}, nullptr, true, outOfProcess);
   if (!Interp)
     return nullptr;
   auto* I = Interp.release();
@@ -3943,5 +3943,11 @@ int Undo(unsigned N) {
   return getInterp().undo(N);
 #endif
 }
+
+#ifdef CPPINTEROP_WITH_OOP_JIT
+pid_t GetExecutorPID() {
+  return compat::getExecutorPID();
+}
+#endif // CPPINTEROP_WITH_OOP_JIT
 
 } // end namespace Cpp
