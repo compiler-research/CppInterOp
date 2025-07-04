@@ -2009,6 +2009,29 @@ TEST(FunctionReflectionTest, GetFunctionCallWrapper) {
 
   auto bar_callable = Cpp::MakeFunctionCallable(bar);
   EXPECT_EQ(bar_callable.getKind(), Cpp::JitCall::kGenericCall);
+
+  Interp->process(R"(
+  struct A {
+    A() {}
+    A(A&& other) {};
+  } consumable;
+
+  template<class T>
+  void consume(T t) {}
+  )");
+
+  unresolved_candidate_methods.clear();
+  Cpp::GetClassTemplatedMethods("consume", Cpp::GetGlobalScope(),
+                                unresolved_candidate_methods);
+  EXPECT_EQ(unresolved_candidate_methods.size(), 1);
+
+  Cpp::TCppScope_t consume = Cpp::BestOverloadFunctionMatch(
+      unresolved_candidate_methods, {},
+      {Cpp::GetVariableType(Cpp::GetNamed("consumable"))});
+  EXPECT_TRUE(consume);
+
+  auto consume_callable = Cpp::MakeFunctionCallable(consume);
+  EXPECT_EQ(consume_callable.getKind(), Cpp::JitCall::kGenericCall);
 }
 
 TEST(FunctionReflectionTest, IsConstMethod) {
