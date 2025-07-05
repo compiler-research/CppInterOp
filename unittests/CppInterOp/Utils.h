@@ -28,9 +28,7 @@ void GetAllTopLevelDecls(const std::string& code,
 void GetAllSubDecls(clang::Decl* D, std::vector<clang::Decl*>& SubDecls,
                     bool filter_implicitGenerated = false);
 TInterp_t CreateInterpreter(const std::vector<const char*>& Args = {},
-                            const std::vector<const char*>& GpuArgs = {},
-                            int stdin_fd = 0, int stdout_fd = 1,
-                            int stderr_fd = 2);
+                            const std::vector<const char*>& GpuArgs = {});
 } // end namespace TestUtils
 
 const char* get_c_string(CXString string);

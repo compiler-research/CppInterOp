@@ -40,9 +40,13 @@
 #include "llvm/TargetParser/Triple.h"
 
 #include <fcntl.h>
+#ifndef _WIN32
 #include <unistd.h>
+#endif
 #include <utility>
 #include <vector>
+#include <stdio.h>
+#include <iostream>
 
 namespace clang {
 class CompilerInstance;
@@ -148,12 +152,48 @@ private:
   Interpreter(std::unique_ptr<clang::Interpreter> CI) : inner(std::move(CI)) {}
 
 public:
+  struct FileDeleter {
+      void operator()(FILE* f) {
+          if (f) fclose(f);
+      }
+  };
+
+private:
+  static std::unique_ptr<FILE, FileDeleter>& getStdinFile() {
+    static std::unique_ptr<FILE, FileDeleter> stdin_file = nullptr;
+    return stdin_file;
+  }
+  
+  static std::unique_ptr<FILE, FileDeleter>& getStdoutFile() {
+    static std::unique_ptr<FILE, FileDeleter> stdout_file = nullptr;
+    return stdout_file;
+  }
+  
+  static std::unique_ptr<FILE, FileDeleter>& getStderrFile() {
+    static std::unique_ptr<FILE, FileDeleter> stderr_file = nullptr;
+    return stderr_file;
+  }
+  
+  static bool& getOutOfProcess() {
+    static bool outOfProcess = false;
+    return outOfProcess;
+  }
+
+  static bool initializeTempFiles() {
+    getStdinFile().reset(tmpfile());
+    getStdoutFile().reset(tmpfile());
+    getStderrFile().reset(tmpfile());
+    
+    return getStdinFile() && getStdoutFile() && getStderrFile();
+  }
+
+
+public:
   static std::unique_ptr<Interpreter>
   create(int argc, const char* const* argv, const char* llvmdir = nullptr,
          const std::vector<std::shared_ptr<clang::ModuleFileExtension>>&
              moduleExtensions = {},
-         void* extraLibHandle = nullptr, bool noRuntime = true,
-         int stdin_fd = 0, int stdout_fd = 1, int stderr_fd = 2) {
+         void* extraLibHandle = nullptr, bool noRuntime = true) {
     // Initialize all targets (required for device offloading)
     llvm::InitializeAllTargetInfos();
     llvm::InitializeAllTargets();
@@ -161,6 +201,30 @@ public:
     llvm::InitializeAllAsmPrinters();
 
     std::vector<const char*> vargs(argv + 1, argv + argc);
+
+#if defined(_WIN32)
+      getOutOfProcess() = false;
+#else
+      getOutOfProcess() =
+          std::any_of(vargs.begin(), vargs.end(), [](const char* arg) {
+            return llvm::StringRef(arg).trim() == "--use-oop-jit";
+          });
+      int stdin_fd = 0;
+      int stdout_fd = 1;
+      int stderr_fd = 2;
+      if(getOutOfProcess()) {
+        bool init = initializeTempFiles();
+        if(!init) {
+          llvm::errs() << "Can't start out-of-process JIT execution. Continuing with in-process JIT execution.\n";
+          getOutOfProcess() = false;
+        } else {
+          stdin_fd = fileno(getStdinFile().get());
+          stdout_fd = fileno(getStdoutFile().get());
+          stderr_fd = fileno(getStderrFile().get());
+        }
+      }
+#endif
+
     auto CI =
         compat::createClangInterpreter(vargs, stdin_fd, stdout_fd, stderr_fd);
     if (!CI) {
@@ -175,6 +239,24 @@ public:
 
   operator const clang::Interpreter&() const { return *inner; }
   operator clang::Interpreter&() { return *inner; }
+
+  static bool isOutOfProcess() {
+    return getOutOfProcess();
+  }
+
+  FILE* getTempFileForOOP(int FD) {
+    switch(FD) {
+      case(STDIN_FILENO):
+        return getStdinFile().get();
+      case(STDOUT_FILENO):
+        return getStdoutFile().get();
+      case(STDERR_FILENO):
+        return getStderrFile().get();
+      default:
+        llvm::errs() << "No temp file for the FD\n";
+        return nullptr;
+    }
+  }
 
   ///\brief Describes the return result of the different routines that do the
   /// incremental compilation.

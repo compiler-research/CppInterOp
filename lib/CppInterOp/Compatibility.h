@@ -438,8 +438,10 @@ inline void codeComplete(std::vector<std::string>& Results,
 #endif
 }
 
+#ifndef _WIN32
 #ifdef CPPINTEROP_VERSION_PATCH
 inline pid_t getExecutorPID() { return /*llvm*/ getLastLaunchedExecutorPID(); }
+#endif
 #endif
 
 } // namespace compat

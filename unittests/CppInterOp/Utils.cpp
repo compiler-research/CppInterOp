@@ -60,18 +60,12 @@ void TestUtils::GetAllSubDecls(Decl* D, std::vector<Decl*>& SubDecls,
 }
 
 TInterp_t TestUtils::CreateInterpreter(const std::vector<const char*>& Args,
-                                       const std::vector<const char*>& GpuArgs,
-                                       int stdin_fd, int stdout_fd,
-                                       int stderr_fd) {
+                                       const std::vector<const char*>& GpuArgs) {
+  auto mergedArgs = Args;
   if (TestUtils::g_use_oop_jit) {
-    auto mergedArgs = Args;
     mergedArgs.push_back("--use-oop-jit");
-    return Cpp::CreateInterpreter(mergedArgs, GpuArgs, stdin_fd, stdout_fd,
-                                  stderr_fd);
-  } else {
-    return Cpp::CreateInterpreter(Args, GpuArgs, stdin_fd, stdout_fd,
-                                  stderr_fd);
   }
+  return Cpp::CreateInterpreter(mergedArgs, GpuArgs);
 }
 
 const char* get_c_string(CXString string) {
