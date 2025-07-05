@@ -3854,6 +3854,7 @@ public:
 #else
   StreamCaptureInfo(int FD): mode(FD) {
 #endif
+#ifndef CPPINTEROP_USE_CLING
     auto& I = getInterp();
     if(I.isOutOfProcess() && FD == STDOUT_FILENO) {
       m_TempFile = I.getTempFileForOOP(FD);
@@ -3865,6 +3866,11 @@ public:
       m_FD = FD;
       m_OwnsFile = true;
     }
+#else 
+    m_TempFile = tmpfile();
+    m_FD = FD;
+    m_OwnsFile = true;
+#endif
     if (!m_TempFile) {
       perror("StreamCaptureInfo: Unable to create temp file");
       return;
@@ -3935,12 +3941,14 @@ public:
     close(m_DupFD);
     m_DupFD = -1;
     auto& I = getInterp();
+#ifndef CPPINTEROP_USE_CLING
     if (I.isOutOfProcess() && mode != STDERR_FILENO) {
       if (ftruncate(m_FD, 0) != 0)
         perror("ftruncate");
       if (lseek(m_FD, 0, SEEK_SET) == -1)
         perror("lseek");
     }
+#endif
     return result;
   }
 };

@@ -91,8 +91,9 @@ TEST(Streams, StreamRedirectJIT) {
   Cpp::BeginStdStreamCapture(Cpp::kStdOut);
   Cpp::BeginStdStreamCapture(Cpp::kStdErr);
   Interp->process(R"(
-    #include <iostream>
-    std::cout << "Hello World" << std::endl;
+    #include <stdio.h>
+    printf("%s\n", "Hello World");
+    fflush(stdout);
     )");
   std::string CapturedStringErr = Cpp::EndStdStreamCapture();
   std::string CapturedStringOut = Cpp::EndStdStreamCapture();
