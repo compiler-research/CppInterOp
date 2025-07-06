@@ -120,7 +120,7 @@ git apply -v clang{version}-*.patch
 
 on Windows.
 
-If you want to have out-of-process JIT execution enabled in CppInterOp, then apply this patch on Linux and MacOS environment. 
+If you want to have out-of-process JIT execution enabled in CppInterOp, then apply this patch on Linux and MacOS environment.
 > Note that this patch will not work for Windows because out-of-process JIT execution is currently implemented for Linux and MacOS only.
 
 ```bash

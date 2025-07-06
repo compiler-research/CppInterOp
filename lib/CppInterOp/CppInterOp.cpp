@@ -3106,9 +3106,9 @@ TInterp_t CreateInterpreter(const std::vector<const char*>& Args /*={}*/,
 #ifdef CPPINTEROP_USE_CLING
   auto I = new compat::Interpreter(ClingArgv.size(), &ClingArgv[0]);
 #else
-  auto Interp = compat::Interpreter::create(
-      static_cast<int>(ClingArgv.size()), ClingArgv.data(), nullptr, {},
-      nullptr, true);
+  auto Interp =
+      compat::Interpreter::create(static_cast<int>(ClingArgv.size()),
+                                  ClingArgv.data(), nullptr, {}, nullptr, true);
   if (!Interp)
     return nullptr;
   auto* I = Interp.release();
@@ -3852,11 +3852,11 @@ public:
         }()},
         m_FD(FD) {
 #else
-  StreamCaptureInfo(int FD): mode(FD) {
+  StreamCaptureInfo(int FD) : mode(FD) {
 #endif
 #if !defined(CPPINTEROP_USE_CLING) && !defined(_WIN32)
     auto& I = getInterp();
-    if(I.isOutOfProcess() && FD == STDOUT_FILENO) {
+    if (I.isOutOfProcess() && FD == STDOUT_FILENO) {
       m_TempFile = I.getTempFileForOOP(FD);
       ::fflush(m_TempFile);
       m_FD = fileno(m_TempFile);
@@ -3866,7 +3866,7 @@ public:
       m_FD = FD;
       m_OwnsFile = true;
     }
-#else 
+#else
     m_TempFile = tmpfile();
     m_FD = FD;
     m_OwnsFile = true;
@@ -3882,9 +3882,9 @@ public:
     // Flush now or can drop the buffer when dup2 is called with Fd later.
     // This seems only necessary when piping stdout or stderr, but do it
     // for ttys to avoid over complicated code for minimal benefit.
-    if(m_FD == STDOUT_FILENO) {
+    if (m_FD == STDOUT_FILENO) {
       ::fflush(stdout);
-    } else if(m_FD == STDERR_FILENO) {
+    } else if (m_FD == STDERR_FILENO) {
       ::fflush(stderr);
     } else {
 #ifndef _WIN32
@@ -3894,16 +3894,15 @@ public:
     // ::fflush(FD == STDOUT_FILENO ? stdout : stderr);
     if (dup2(fileno(m_TempFile), m_FD) < 0)
       perror("StreamCaptureInfo:");
-    
   }
   StreamCaptureInfo(const StreamCaptureInfo&) = delete;
   StreamCaptureInfo& operator=(const StreamCaptureInfo&) = delete;
   StreamCaptureInfo(StreamCaptureInfo&&) = delete;
   StreamCaptureInfo& operator=(StreamCaptureInfo&&) = delete;
 
-  ~StreamCaptureInfo() { 
-    assert(m_DupFD == -1 && "Captured output not used?"); 
-    if(m_TempFile && m_OwnsFile) {
+  ~StreamCaptureInfo() {
+    assert(m_DupFD == -1 && "Captured output not used?");
+    if (m_TempFile && m_OwnsFile) {
       fclose(m_TempFile);
     }
   }
@@ -3931,8 +3930,7 @@ public:
       perror("StreamCaptureInfo:");
 
     // Read the entire file into memory.
-    size_t newLen =
-        fread(content.get(), sizeof(char), bufsize, m_TempFile);
+    size_t newLen = fread(content.get(), sizeof(char), bufsize, m_TempFile);
     if (ferror(m_TempFile) != 0)
       fputs("Error reading file", stderr);
     else
@@ -3990,13 +3988,12 @@ int Undo(unsigned N) {
 }
 
 #ifndef _WIN32
-pid_t GetExecutorPID() { 
+pid_t GetExecutorPID() {
 #ifdef CPPINTEROP_VERSION_PATCH
   return compat::getExecutorPID();
 #endif
   return -1;
 }
 #endif
-
 
 } // end namespace Cpp

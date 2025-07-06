@@ -19,8 +19,8 @@
 #include <cstdint>
 #include <set>
 #include <string>
-#include <vector>
 #include <sys/types.h>
+#include <vector>
 
 // The cross-platform CPPINTEROP_API macro definition
 #if defined _WIN32 || defined __CYGWIN__

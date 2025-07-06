@@ -284,13 +284,13 @@ createClangInterpreter(std::vector<const char*>& args, int stdin_fd = 0,
                                      stdout_fd, stderr_fd));
 
 #ifdef __APPLE__
-    std::string OrcRuntimePath = std::string(LLVM_SOURCE_DIR) +
-                                 "/build/lib/clang/" + std::to_string(LLVM_VERSION_MAJOR) +
-                                 "/lib/darwin/liborc_rt_osx.a";
+    std::string OrcRuntimePath =
+        std::string(LLVM_SOURCE_DIR) + "/build/lib/clang/" +
+        std::to_string(LLVM_VERSION_MAJOR) + "/lib/darwin/liborc_rt_osx.a";
 #else
-    std::string OrcRuntimePath = std::string(LLVM_SOURCE_DIR) +
-                                 "/build/lib/clang/" + std::to_string(LLVM_VERSION_MAJOR) +
-                                 "/lib/linux/liborc_rt-x86_64.a";
+    std::string OrcRuntimePath =
+        std::string(LLVM_SOURCE_DIR) + "/build/lib/clang/" +
+        std::to_string(LLVM_VERSION_MAJOR) + "/lib/linux/liborc_rt-x86_64.a";
 #endif
     if (EPC) {
       CB.SetTargetTriple(EPC->getTargetTriple().getTriple());

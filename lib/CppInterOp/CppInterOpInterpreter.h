@@ -43,10 +43,10 @@
 #ifndef _WIN32
 #include <unistd.h>
 #endif
+#include <iostream>
+#include <stdio.h>
 #include <utility>
 #include <vector>
-#include <stdio.h>
-#include <iostream>
 
 namespace clang {
 class CompilerInstance;
@@ -153,9 +153,10 @@ private:
 
 public:
   struct FileDeleter {
-      void operator()(FILE* f) {
-          if (f) fclose(f);
-      }
+    void operator()(FILE* f) {
+      if (f)
+        fclose(f);
+    }
   };
 
 private:
@@ -163,17 +164,17 @@ private:
     static std::unique_ptr<FILE, FileDeleter> stdin_file = nullptr;
     return stdin_file;
   }
-  
+
   static std::unique_ptr<FILE, FileDeleter>& getStdoutFile() {
     static std::unique_ptr<FILE, FileDeleter> stdout_file = nullptr;
     return stdout_file;
   }
-  
+
   static std::unique_ptr<FILE, FileDeleter>& getStderrFile() {
     static std::unique_ptr<FILE, FileDeleter> stderr_file = nullptr;
     return stderr_file;
   }
-  
+
   static bool& getOutOfProcess() {
     static bool outOfProcess = false;
     return outOfProcess;
@@ -183,10 +184,9 @@ private:
     getStdinFile().reset(tmpfile());
     getStdoutFile().reset(tmpfile());
     getStderrFile().reset(tmpfile());
-    
+
     return getStdinFile() && getStdoutFile() && getStderrFile();
   }
-
 
 public:
   static std::unique_ptr<Interpreter>
@@ -207,23 +207,24 @@ public:
     int stderr_fd = 2;
 
 #if defined(_WIN32)
-      getOutOfProcess() = false;
+    getOutOfProcess() = false;
 #else
-      getOutOfProcess() =
-          std::any_of(vargs.begin(), vargs.end(), [](const char* arg) {
-            return llvm::StringRef(arg).trim() == "--use-oop-jit";
-          });
-      if(getOutOfProcess()) {
-        bool init = initializeTempFiles();
-        if(!init) {
-          llvm::errs() << "Can't start out-of-process JIT execution. Continuing with in-process JIT execution.\n";
-          getOutOfProcess() = false;
-        } else {
-          stdin_fd = fileno(getStdinFile().get());
-          stdout_fd = fileno(getStdoutFile().get());
-          stderr_fd = fileno(getStderrFile().get());
-        }
+    getOutOfProcess() =
+        std::any_of(vargs.begin(), vargs.end(), [](const char* arg) {
+          return llvm::StringRef(arg).trim() == "--use-oop-jit";
+        });
+    if (getOutOfProcess()) {
+      bool init = initializeTempFiles();
+      if (!init) {
+        llvm::errs() << "Can't start out-of-process JIT execution. Continuing "
+                        "with in-process JIT execution.\n";
+        getOutOfProcess() = false;
+      } else {
+        stdin_fd = fileno(getStdinFile().get());
+        stdout_fd = fileno(getStdoutFile().get());
+        stderr_fd = fileno(getStderrFile().get());
       }
+    }
 #endif
 
     auto CI =
@@ -241,22 +242,20 @@ public:
   operator const clang::Interpreter&() const { return *inner; }
   operator clang::Interpreter&() { return *inner; }
 
-  static bool isOutOfProcess() {
-    return getOutOfProcess();
-  }
+  static bool isOutOfProcess() { return getOutOfProcess(); }
 
 #ifndef _WIN32
   FILE* getTempFileForOOP(int FD) {
-    switch(FD) {
-      case(STDIN_FILENO):
-        return getStdinFile().get();
-      case(STDOUT_FILENO):
-        return getStdoutFile().get();
-      case(STDERR_FILENO):
-        return getStderrFile().get();
-      default:
-        llvm::errs() << "No temp file for the FD\n";
-        return nullptr;
+    switch (FD) {
+    case (STDIN_FILENO):
+      return getStdinFile().get();
+    case (STDOUT_FILENO):
+      return getStdoutFile().get();
+    case (STDERR_FILENO):
+      return getStderrFile().get();
+    default:
+      llvm::errs() << "No temp file for the FD\n";
+      return nullptr;
     }
   }
 #endif

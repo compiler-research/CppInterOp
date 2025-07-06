@@ -40,6 +40,15 @@ jobs:
             cppyy: Off
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
+          - name: ubu24-arm-gcc12-clang-repl-20-out-of-process
+            os: ubuntu-24.04-arm
+            compiler: gcc-12
+            clang-runtime: '20'
+            cling: Off
+            cppyy: Off
+            llvm_enable_projects: "clang;compiler-rt"
+            llvm_targets_to_build: "host;NVPTX"
+            oop-jit: On
           - name: ubu24-arm-gcc12-clang-repl-19-cppyy
             os: ubuntu-24.04-arm
             compiler: gcc-12
@@ -90,6 +99,15 @@ jobs:
             cppyy: Off
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
+          - name: ubu24-x86-gcc12-clang-repl-20-out-of-process
+            os: ubuntu-24.04
+            compiler: gcc-12
+            clang-runtime: '20'
+            cling: Off
+            cppyy: Off
+            llvm_enable_projects: "clang;compiler-rt"
+            llvm_targets_to_build: "host;NVPTX"
+            oop-jit: On
           - name: ubu24-x86-gcc12-clang-repl-19-cppyy
             os: ubuntu-24.04
             compiler: gcc-12
@@ -132,7 +150,7 @@ jobs:
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
           # MacOS Arm Jobs
-          - name: osx15-arm-clang-clang-repl-20-oop
+          - name: osx15-arm-clang-clang-repl-20-out-of-process
             os: macos-15
             compiler: clang
             clang-runtime: '20'
