@@ -71,7 +71,7 @@ runs:
           if [[ "${{ matrix.oop-jit }}" == "On" ]]; then
             if [[ "${{ matrix.os }}" == macos* ]]; then
               SUFFIX="_osx"
-            elif [[ "${{ matrix.os }}" == linux* ]]; then
+            elif [[ "${{ matrix.os }}" == ubuntu* ]]; then
               SUFFIX="-x86_64"
             fi
             ninja clang-repl llvm-jitlink-executor orc_rt${SUFFIX} -j ${{ env.ncpus }}       
