@@ -86,6 +86,9 @@ TEST(Streams, StreamRedirectJIT) {
 #ifdef _WIN32
   GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
 #endif
+#ifdef CPPINTEROP_USE_CLING
+  GTEST_SKIP() << "Test fails for cling builds";
+#endif
   TestUtils::CreateInterpreter();
 
   Cpp::BeginStdStreamCapture(Cpp::kStdOut);

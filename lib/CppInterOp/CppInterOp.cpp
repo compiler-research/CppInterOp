@@ -3854,7 +3854,7 @@ public:
 #else
   StreamCaptureInfo(int FD): mode(FD) {
 #endif
-#ifndef CPPINTEROP_USE_CLING
+#if !defined(CPPINTEROP_USE_CLING) && !defined(_WIN32)
     auto& I = getInterp();
     if(I.isOutOfProcess() && FD == STDOUT_FILENO) {
       m_TempFile = I.getTempFileForOOP(FD);
