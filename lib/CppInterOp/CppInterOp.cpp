@@ -3870,6 +3870,7 @@ public:
     m_TempFile = tmpfile();
     m_FD = FD;
     m_OwnsFile = true;
+    (void)mode;
 #endif
     if (!m_TempFile) {
       perror("StreamCaptureInfo: Unable to create temp file");

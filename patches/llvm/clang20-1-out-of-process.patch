@@ -73,7 +73,6 @@ index 000000000..825143f00
 +/// Get the PID of the last launched executor.
 +/// This is useful for debugging or for cleanup purposes.
 +pid_t getLastLaunchedExecutorPID();
-+
 +#endif // LLVM_CLANG_INTERPRETER_REMOTEJITUTILS_H
 diff --git a/clang/lib/Interpreter/CMakeLists.txt b/clang/lib/Interpreter/CMakeLists.txt
 index bf70cdfbe..38cf139fa 100644
