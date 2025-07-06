@@ -132,15 +132,15 @@ jobs:
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
           # MacOS Arm Jobs
-          # - name: osx15-arm-clang-clang-repl-20-oop
-          #   os: macos-15
-          #   compiler: clang
-          #   clang-runtime: '20'
-          #   cling: Off
-          #   cppyy: Off
-          #   llvm_enable_projects: "clang;compiler-rt"
-          #   llvm_targets_to_build: "host"
-          #   oop-jit: On
+          - name: osx15-arm-clang-clang-repl-20-oop
+            os: macos-15
+            compiler: clang
+            clang-runtime: '20'
+            cling: Off
+            cppyy: Off
+            llvm_enable_projects: "clang;compiler-rt"
+            llvm_targets_to_build: "host"
+            oop-jit: On
           - name: osx15-arm-clang-clang-repl-20
             os: macos-15
             compiler: clang
@@ -308,14 +308,14 @@ jobs:
       with:
         cache-hit: ${{ steps.cache.outputs.cache-hit }}
 
-    - name: Cache LLVM-${{ matrix.clang-runtime }} and ${{ matrix.cling == 'On' && 'Cling' || 'Clang-REPL' }} build
-      uses: actions/cache/save@v4
-      if: ${{ steps.cache.outputs.cache-hit != 'true' }}
-      with:
-        path: |
-          llvm-project
-          ${{ matrix.cling=='On' && 'cling' || '' }}
-        key: ${{ steps.cache.outputs.cache-primary-key }}
+    # - name: Cache LLVM-${{ matrix.clang-runtime }} and ${{ matrix.cling == 'On' && 'Cling' || 'Clang-REPL' }} build
+    #   uses: actions/cache/save@v4
+    #   if: ${{ steps.cache.outputs.cache-hit != 'true' }}
+    #   with:
+    #     path: |
+    #       llvm-project
+    #       ${{ matrix.cling=='On' && 'cling' || '' }}
+    #     key: ${{ steps.cache.outputs.cache-primary-key }}
 
     - name: Setup code coverage
       if: ${{ success() && (matrix.coverage == true) }}

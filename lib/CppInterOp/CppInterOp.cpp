@@ -3940,8 +3940,8 @@ public:
     std::string result = content.get();
     close(m_DupFD);
     m_DupFD = -1;
+#if !defined(_WIN32) && !defined(CPPINTEROP_USE_CLING)
     auto& I = getInterp();
-#ifndef CPPINTEROP_USE_CLING
     if (I.isOutOfProcess() && mode != STDERR_FILENO) {
       if (ftruncate(m_FD, 0) != 0)
         perror("ftruncate");

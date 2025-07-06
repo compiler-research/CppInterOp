@@ -202,6 +202,10 @@ public:
 
     std::vector<const char*> vargs(argv + 1, argv + argc);
 
+    int stdin_fd = 0;
+    int stdout_fd = 1;
+    int stderr_fd = 2;
+
 #if defined(_WIN32)
       getOutOfProcess() = false;
 #else
@@ -209,9 +213,6 @@ public:
           std::any_of(vargs.begin(), vargs.end(), [](const char* arg) {
             return llvm::StringRef(arg).trim() == "--use-oop-jit";
           });
-      int stdin_fd = 0;
-      int stdout_fd = 1;
-      int stderr_fd = 2;
       if(getOutOfProcess()) {
         bool init = initializeTempFiles();
         if(!init) {
@@ -244,6 +245,7 @@ public:
     return getOutOfProcess();
   }
 
+#ifndef _WIN32
   FILE* getTempFileForOOP(int FD) {
     switch(FD) {
       case(STDIN_FILENO):
@@ -257,6 +259,7 @@ public:
         return nullptr;
     }
   }
+#endif
 
   ///\brief Describes the return result of the different routines that do the
   /// incremental compilation.
