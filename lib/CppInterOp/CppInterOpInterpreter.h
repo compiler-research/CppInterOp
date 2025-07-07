@@ -43,8 +43,7 @@
 #ifndef _WIN32
 #include <unistd.h>
 #endif
-#include <iostream>
-#include <stdio.h>
+#include <cstdio>
 #include <utility>
 #include <vector>
 
@@ -245,7 +244,7 @@ public:
   static bool isOutOfProcess() { return getOutOfProcess(); }
 
 #ifndef _WIN32
-  FILE* getTempFileForOOP(int FD) {
+  static FILE* getTempFileForOOP(int FD) {
     switch (FD) {
     case (STDIN_FILENO):
       return getStdinFile().get();

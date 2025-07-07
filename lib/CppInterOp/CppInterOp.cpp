@@ -63,6 +63,7 @@
 #include <sstream>
 #include <stack>
 #include <string>
+#include <sys/types.h>
 #ifndef _WIN32
 #include <unistd.h>
 #endif
@@ -3855,9 +3856,8 @@ public:
   StreamCaptureInfo(int FD) : mode(FD) {
 #endif
 #if !defined(CPPINTEROP_USE_CLING) && !defined(_WIN32)
-    auto& I = getInterp();
-    if (I.isOutOfProcess() && FD == STDOUT_FILENO) {
-      m_TempFile = I.getTempFileForOOP(FD);
+    if (compat::Interpreter::isOutOfProcess() && FD == STDOUT_FILENO) {
+      m_TempFile = compat::Interpreter::getTempFileForOOP(FD);
       ::fflush(m_TempFile);
       m_FD = fileno(m_TempFile);
       m_OwnsFile = false;
@@ -3940,8 +3940,7 @@ public:
     close(m_DupFD);
     m_DupFD = -1;
 #if !defined(_WIN32) && !defined(CPPINTEROP_USE_CLING)
-    auto& I = getInterp();
-    if (I.isOutOfProcess() && mode != STDERR_FILENO) {
+    if (compat::Interpreter::isOutOfProcess() && mode != STDERR_FILENO) {
       if (ftruncate(m_FD, 0) != 0)
         perror("ftruncate");
       if (lseek(m_FD, 0, SEEK_SET) == -1)
