@@ -288,9 +288,10 @@ createClangInterpreter(std::vector<const char*>& args, int stdin_fd = 0,
         std::string(LLVM_SOURCE_DIR) + "/build/lib/clang/" +
         std::to_string(LLVM_VERSION_MAJOR) + "/lib/darwin/liborc_rt_osx.a";
 #else
-    std::string OrcRuntimePath =
-        std::string(LLVM_SOURCE_DIR) + "/build/lib/clang/" +
-        std::to_string(LLVM_VERSION_MAJOR) + "/lib/x86_64-unknown-linux-gnu/liborc_rt.a";
+    std::string OrcRuntimePath = std::string(LLVM_SOURCE_DIR) +
+                                 "/build/lib/clang/" +
+                                 std::to_string(LLVM_VERSION_MAJOR) +
+                                 "/lib/x86_64-unknown-linux-gnu/liborc_rt.a";
 #endif
     if (EPC) {
       CB.SetTargetTriple(EPC->getTargetTriple().getTriple());
