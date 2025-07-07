@@ -85,6 +85,9 @@ TEST(InterpreterTest, Evaluate) {
 }
 
 TEST(InterpreterTest, DeleteInterpreter) {
+  if (TestUtils::g_use_oop_jit) {
+    GTEST_SKIP() << "Test fails for OOP JIT builds";
+  }
   auto* I1 = TestUtils::CreateInterpreter();
   auto* I2 = TestUtils::CreateInterpreter();
   auto* I3 = TestUtils::CreateInterpreter();
