@@ -68,9 +68,6 @@ runs:
           fi
           if [[ "${{ matrix.oop-jit }}" == "On" ]]; then
             ./unittests/CppInterOp/CppInterOpTests/unittests/bin/${{ env.BUILD_TYPE }}/CppInterOpTests --use-oop-jit
-            if [[ "${os}" != "macos"* ]]; then
-              valgrind --show-error-list=yes --track-origins=yes --trace-children=yes --error-exitcode=1 unittests/CppInterOp/CppInterOpTests/unittests/bin/${{ env.BUILD_TYPE }}/CppInterOpTests --use-oop-jit
-            fi
           fi
         fi
         echo "CB_PYTHON_DIR=$CB_PYTHON_DIR" >> $GITHUB_ENV

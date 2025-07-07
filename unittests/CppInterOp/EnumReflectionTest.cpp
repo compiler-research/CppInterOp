@@ -13,9 +13,6 @@ using namespace llvm;
 using namespace clang;
 
 TEST(ScopeReflectionTest, IsEnumScope) {
-  if (TestUtils::g_use_oop_jit && llvm::sys::RunningOnValgrind()) {
-    GTEST_SKIP() << "XFAIL due to Valgrind report";
-  }
   std::vector<Decl *> Decls, SubDecls;
   std::string code = R"(
     enum Switch {
