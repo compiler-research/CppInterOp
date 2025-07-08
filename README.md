@@ -105,21 +105,6 @@ git clone --depth=1 --branch release/20.x https://github.com/llvm/llvm-project.g
 cd llvm-project
 ```
 
-For Clang 16 & 17, the following patches required for development work. To apply these patches on Linux and MacOS execute the following command(substitute `{version}` with your clang version):
-
-```bash
-git apply -v ../CppInterOp/patches/llvm/clang{version}-*.patch
-```
-
-and
-
-```powershell
-cp -r ..\CppInterOp\patches\llvm\clang{version}* .
-git apply -v clang{version}-*.patch
-```
-
-on Windows.
-
 ##### Build Clang-REPL
 
 Clang-REPL is an interpreter that CppInterOp works alongside. Build Clang (and
