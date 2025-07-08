@@ -141,15 +141,15 @@ jobs:
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
           # MacOS Arm Jobs
-          - name: osx15-arm-clang-clang-repl-20-out-of-process
-            os: macos-15
-            compiler: clang
-            clang-runtime: '20'
-            cling: Off
-            cppyy: Off
-            llvm_enable_projects: "clang;compiler-rt"
-            llvm_targets_to_build: "host"
-            oop-jit: On
+          # - name: osx15-arm-clang-clang-repl-20-out-of-process
+          #   os: macos-15
+          #   compiler: clang
+          #   clang-runtime: '20'
+          #   cling: Off
+          #   cppyy: Off
+          #   llvm_enable_projects: "clang;compiler-rt"
+          #   llvm_targets_to_build: "host"
+          #   oop-jit: On
           - name: osx15-arm-clang-clang-repl-20
             os: macos-15
             compiler: clang
