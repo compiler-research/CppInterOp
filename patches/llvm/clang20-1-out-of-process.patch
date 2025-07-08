@@ -31,7 +31,7 @@ new file mode 100644
 index 000000000..825143f00
 --- /dev/null
 +++ b/clang/include/clang/Interpreter/RemoteJITUtils.h
-@@ -0,0 +1,42 @@
+@@ -0,0 +1,48 @@
 +//===-- RemoteJITUtils.h - Utilities for remote-JITing ----------*- C++ -*-===//
 +//
 +// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
@@ -78,6 +78,7 @@ index 000000000..825143f00
 +/// Returns PID of nth launched executor.
 +/// 1-based indexing.
 +pid_t getNthLaunchedExecutorPID(int n);
++
 +#endif // LLVM_CLANG_INTERPRETER_REMOTEJITUTILS_H
 diff --git a/clang/lib/Interpreter/CMakeLists.txt b/clang/lib/Interpreter/CMakeLists.txt
 index bf70cdfbe..38cf139fa 100644
@@ -168,7 +169,7 @@ new file mode 100644
 index 000000000..8324aeaaf
 --- /dev/null
 +++ b/clang/lib/Interpreter/RemoteJITUtils.cpp
-@@ -0,0 +1,297 @@
+@@ -0,0 +1,305 @@
 +//===-- RemoteJITUtils.cpp - Utilities for remote-JITing --------*- C++ -*-===//
 +//
 +// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
