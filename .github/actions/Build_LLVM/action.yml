@@ -43,12 +43,6 @@ runs:
           ninja LLVMOrcDebugging -j ${{ env.ncpus }}
           ninja clingInterpreter -j ${{ env.ncpus }}
         else
-          # Apply patches
-          llvm_vers=$(echo "${{ matrix.clang-runtime }}" | tr '[:lower:]' '[:upper:]')
-          if [[ "${llvm_vers}" == "16" ]]||[[ "${llvm_vers}" == "17" ]]; then
-            git apply -v ../patches/llvm/clang${{ matrix.clang-runtime }}-*.patch
-            echo "Apply clang${{ matrix.clang-runtime }}-*.patch patches:"
-          fi
           cd build
           cmake -DLLVM_ENABLE_PROJECTS="${{ matrix.llvm_enable_projects}}" \
                 -DLLVM_TARGETS_TO_BUILD="${{ matrix.llvm_targets_to_build }}"  \
@@ -132,18 +126,6 @@ runs:
         }
         else
         {
-          cp -r ..\patches\llvm\clang${{ matrix.clang-runtime }}*
-          #FIXME: Apply patches without hardcoding
-          if ( "${{ matrix.clang-runtime }}" -imatch "16" )
-          {
-            git apply -v clang16-1-Value.patch
-            git apply -v clang16-2-CUDA.patch
-            git apply -v clang16-3-WeakRef.patch
-          }
-          elseif ( "${{ matrix.clang-runtime }}" -imatch "17" )
-          {
-            git apply -v clang17-1-NewOperator.patch
-          }
           cd build
           echo "Apply clang${{ matrix.clang-runtime }}-*.patch patches:"
           cmake -DLLVM_ENABLE_PROJECTS="${{ matrix.llvm_enable_projects}}"                   `
