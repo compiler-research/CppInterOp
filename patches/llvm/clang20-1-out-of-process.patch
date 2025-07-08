@@ -72,7 +72,12 @@ index 000000000..825143f00
 +
 +/// Get the PID of the last launched executor.
 +/// This is useful for debugging or for cleanup purposes.
++/// Returns PID of last launched executor.
 +pid_t getLastLaunchedExecutorPID();
++
++/// Returns PID of nth launched executor.
++/// 1-based indexing.
++pid_t getNthLaunchedExecutorPID(int n);
 +#endif // LLVM_CLANG_INTERPRETER_REMOTEJITUTILS_H
 diff --git a/clang/lib/Interpreter/CMakeLists.txt b/clang/lib/Interpreter/CMakeLists.txt
 index bf70cdfbe..38cf139fa 100644
@@ -199,7 +204,7 @@ index 000000000..8324aeaaf
 +using namespace llvm;
 +using namespace llvm::orc;
 +
-+static std::atomic<pid_t> LaunchedExecutorPID{-1};
++static std::vector<pid_t> LaunchedExecutorPID;
 +
 +Expected<uint64_t> getSlabAllocSize(StringRef SizeString) {
 +  SizeString = SizeString.trim();
@@ -346,7 +351,7 @@ index 000000000..8324aeaaf
 +      exit(1);
 +    }
 +  } else {
-+     LaunchedExecutorPID = ChildPID;
++     LaunchedExecutorPID.push_back(ChildPID);
 +  }
 +  // else we're the parent...
 +
@@ -459,7 +464,15 @@ index 000000000..8324aeaaf
 +}
 +
 +pid_t getLastLaunchedExecutorPID() {
-+  return LaunchedExecutorPID;
++  if (!LaunchedExecutorPID.size())
++    return -1;
++  return LaunchedExecutorPID.back();
++}
++
++pid_t getNthLaunchedExecutorPID(int n) {
++  if (n - 1 < 0 || n - 1 >= static_cast<int>(LaunchedExecutorPID.size()))
++    return -1;
++  return LaunchedExecutorPID.at(n - 1);
 +}
 diff --git a/clang/test/Interpreter/out-of-process.cpp b/clang/test/Interpreter/out-of-process.cpp
 new file mode 100644

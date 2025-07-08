@@ -43,6 +43,7 @@
 #ifndef _WIN32
 #include <unistd.h>
 #endif
+#include <algorithm>
 #include <cstdio>
 #include <utility>
 #include <vector>
