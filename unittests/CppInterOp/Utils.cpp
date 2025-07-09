@@ -8,6 +8,7 @@
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Sema/Lookup.h"
 #include "clang/Sema/Sema.h"
+#include "clang/Interpreter/PartialTranslationUnit.h"
 
 #include <algorithm>
 #include <string>

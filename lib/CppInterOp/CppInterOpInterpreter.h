@@ -44,7 +44,7 @@
 #endif
 #include <algorithm>
 #include <cstdio>
-#include <stdio.h>
+#include <memory>
 #include <utility>
 #include <vector>
 
@@ -160,9 +160,9 @@ private:
     bool outOfProcess = false;
 
     bool initializeTempFiles() {
-      stdin_file.reset(tmpfile());
-      stdout_file.reset(tmpfile());
-      stderr_file.reset(tmpfile());
+      stdin_file.reset(tmpfile());  // NOLINT(cppcoreguidelines-owning-memory)
+      stdout_file.reset(tmpfile()); // NOLINT(cppcoreguidelines-owning-memory)
+      stderr_file.reset(tmpfile()); // NOLINT(cppcoreguidelines-owning-memory)
       return stdin_file && stdout_file && stderr_file;
     }
   };

@@ -442,8 +442,8 @@ inline void codeComplete(std::vector<std::string>& Results,
 #if defined(LLVM_BUILT_WITH_OOP_JIT) && !defined(_WIN32)
 inline pid_t getExecutorPID() { return /*llvm*/ getLastLaunchedExecutorPID(); }
 
-inline pid_t getNthExecutorPID() {
-  return /*llvm*/ getNthLaunchedExecutorPID();
+inline pid_t getNthExecutorPID(int n) {
+  return /*llvm*/ getNthLaunchedExecutorPID(n);
 }
 #endif
 

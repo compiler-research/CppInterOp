@@ -314,6 +314,10 @@ add_definitions(${LLVM_DEFINITIONS_LIST})
 string(REGEX REPLACE "/build/lib/cmake/llvm$" "" LLVM_SOURCE_DIR "${LLVM_DIR}")
 add_definitions(-DLLVM_SOURCE_DIR="${LLVM_SOURCE_DIR}")
 
+if(DEFINED LLVM_BUILT_WITH_OOP_JIT)
+  add_definitions(-DLLVM_BUILT_WITH_OOP_JIT)
+endif()
+
 # If the llvm sources are present add them with higher priority.
 if (LLVM_BUILD_MAIN_SRC_DIR)
   # LLVM_INCLUDE_DIRS contains the include paths to both LLVM's source and

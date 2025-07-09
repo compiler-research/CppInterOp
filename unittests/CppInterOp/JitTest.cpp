@@ -98,8 +98,9 @@ TEST(Streams, StreamRedirectJIT) {
     printf("%s\n", "Hello World");
     fflush(stdout);
     )");
-  std::string _ = Cpp::EndStdStreamCapture();
+  std::string CapturedStringErr = Cpp::EndStdStreamCapture();
   std::string CapturedStringOut = Cpp::EndStdStreamCapture();
 
   EXPECT_STREQ(CapturedStringOut.c_str(), "Hello World\n");
+  EXPECT_STREQ(CapturedStringErr.c_str(), "");
 }
