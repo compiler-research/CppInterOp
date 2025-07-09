@@ -863,7 +863,7 @@ template<class T> constexpr T pi = T(3.1415926535897932385L);
   auto* VD = cast<VarTemplateSpecializationDecl>((Decl*)Instance1);
   VarTemplateDecl* VDTD1 = VD->getSpecializedTemplate();
   EXPECT_TRUE(VDTD1->isThisDeclarationADefinition());
-#if CLANG_VERSION_MAJOR <= 18
+#if CLANG_VERSION_MAJOR == 18
   TemplateArgument TA1 = (*VD->getTemplateArgsInfo())[0].getArgument();
 #else
   TemplateArgument TA1 = (*VD->getTemplateArgsAsWritten())[0].getArgument();

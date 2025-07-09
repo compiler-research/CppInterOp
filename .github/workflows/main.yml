@@ -47,22 +47,6 @@ jobs:
             cppyy: On
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
-          - name: ubu24-arm-gcc12-clang-repl-17-cppyy
-            os: ubuntu-24.04-arm
-            compiler: gcc-12
-            clang-runtime: '17'
-            cling: Off
-            cppyy: On
-            llvm_enable_projects: "clang"
-            llvm_targets_to_build: "host;NVPTX"
-          - name: ubu24-arm-gcc12-clang-repl-16
-            os: ubuntu-24.04-arm
-            compiler: gcc-12
-            clang-runtime: '16'
-            cling: Off
-            cppyy: Off
-            llvm_enable_projects: "clang"
-            llvm_targets_to_build: "host;NVPTX"
           - name: ubu24-arm-gcc9-clang18-cling-cppyy
             os: ubuntu-24.04-arm
             compiler: gcc-9
@@ -116,22 +100,6 @@ jobs:
             cppyy: On
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
-          - name: ubu24-x86-gcc12-clang-repl-17-cppyy
-            os: ubuntu-24.04
-            compiler: gcc-12
-            clang-runtime: '17'
-            cling: Off
-            cppyy: On
-            llvm_enable_projects: "clang"
-            llvm_targets_to_build: "host;NVPTX"
-          - name: ubu24-x86-gcc12-clang-repl-16
-            os: ubuntu-24.04
-            compiler: gcc-12
-            clang-runtime: '16'
-            cling: Off
-            cppyy: Off
-            llvm_enable_projects: "clang"
-            llvm_targets_to_build: "host;NVPTX"
           - name: ubu24-x86-gcc9-clang18-cling-cppyy
             os: ubuntu-24.04
             compiler: gcc-9
@@ -175,22 +143,6 @@ jobs:
             cppyy: On
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host"
-          - name: osx15-arm-clang-clang-repl-17-cppyy
-            os: macos-15
-            compiler: clang
-            clang-runtime: '17'
-            cling: Off
-            cppyy: On
-            llvm_enable_projects: "clang"
-            llvm_targets_to_build: "host"
-          - name: osx15-arm-clang-clang-repl-16
-            os: macos-15
-            compiler: clang
-            clang-runtime: '16'
-            cling: Off
-            cppyy: Off
-            llvm_enable_projects: "clang"
-            llvm_targets_to_build: "host"
           - name: osx15-arm-clang-clang18-cling-cppyy
             os: macos-15
             compiler: clang
@@ -223,21 +175,6 @@ jobs:
             clang-runtime: '18'
             cling: Off
             cppyy: On
-            llvm_enable_projects: "clang"
-            llvm_targets_to_build: "host"
-          - name: osx13-x86-clang-clang-repl-17-cppyy
-            os: macos-13
-            compiler: clang
-            clang-runtime: '17'
-            cling: Off
-            cppyy: On
-            llvm_enable_projects: "clang"
-            llvm_targets_to_build: "host"
-          - name: osx13-x86-clang-clang-repl-16
-            os: macos-13
-            compiler: clang
-            clang-runtime: '16'
-            cling: Off
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host"
           - name: osx13-x86-clang-clang18-cling-cppyy

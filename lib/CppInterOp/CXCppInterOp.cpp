@@ -90,7 +90,6 @@ CXCursorKind cxcursor_getCursorKindForDecl(const Decl* D) {
   default:
     if (const auto* TD = dyn_cast<TagDecl>(D)) {
       switch (TD->getTagKind()) {
-#if CLANG_VERSION_MAJOR >= 18
       case TagTypeKind::Interface: // fall through
       case TagTypeKind::Struct:
         return CXCursor_StructDecl;
@@ -100,17 +99,6 @@ CXCursorKind cxcursor_getCursorKindForDecl(const Decl* D) {
         return CXCursor_UnionDecl;
       case TagTypeKind::Enum:
         return CXCursor_EnumDecl;
-#else
-      case TagTypeKind::TTK_Interface: // fall through
-      case TagTypeKind::TTK_Struct:
-        return CXCursor_StructDecl;
-      case TagTypeKind::TTK_Class:
-        return CXCursor_ClassDecl;
-      case TagTypeKind::TTK_Union:
-        return CXCursor_UnionDecl;
-      case TagTypeKind::TTK_Enum:
-        return CXCursor_EnumDecl;
-#endif
       }
     }
   }

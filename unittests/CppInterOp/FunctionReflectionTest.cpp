@@ -1664,7 +1664,6 @@ TEST(FunctionReflectionTest, GetFunctionCallWrapper) {
   FCI4.Invoke(&ret4);
   EXPECT_EQ(ret4, 4);
 
-#if CLANG_VERSION_MAJOR > 16
   Cpp::JitCall FCI5 =
       Cpp::MakeFunctionCallable(Cpp::GetNamed("f5", Cpp::GetNamed("NS")));
   EXPECT_TRUE(FCI5.getKind() == Cpp::JitCall::kGenericCall);
@@ -1674,7 +1673,6 @@ TEST(FunctionReflectionTest, GetFunctionCallWrapper) {
   FCI5.Invoke((void*)&callback);
   EXPECT_TRUE(callback);
   EXPECT_EQ(callback(), 3);
-#endif
 
   // FIXME: Do we need to support private ctors?
   Interp->process(R"(
@@ -1751,9 +1749,6 @@ TEST(FunctionReflectionTest, GetFunctionCallWrapper) {
   set_5_f.Invoke(nullptr, {set_5_args, 1});
   EXPECT_EQ(b, 5);
 
-#if CLANG_VERSION_MAJOR > 16
-  // typedef resolution testing
-  // supported for clang version >16 only
   Interp->process(R"(
   class TypedefToPrivateClass {
   private:
@@ -1781,7 +1776,6 @@ TEST(FunctionReflectionTest, GetFunctionCallWrapper) {
   void* res = nullptr;
   FCI_f.Invoke(&res, {nullptr, 0});
   EXPECT_TRUE(res);
-#endif
 
   // templated operators
   Interp->process(R"(
@@ -2325,12 +2319,6 @@ TEST(FunctionReflectionTest, ConstructArray) {
 #ifdef _WIN32
   GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
 #endif
-#if defined(__APPLE__) && (CLANG_VERSION_MAJOR == 16)
-  GTEST_SKIP() << "Test fails on Clang16 OS X";
-#endif
-  if (TestUtils::use_oop_jit()) {
-    GTEST_SKIP() << "Test fails for OOP JIT builds";
-  }
 
   TestUtils::CreateInterpreter();
 
@@ -2458,13 +2446,7 @@ TEST(FunctionReflectionTest, DestructArray) {
 #ifdef _WIN32
   GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
 #endif
-#if defined(__APPLE__) && (CLANG_VERSION_MAJOR == 16)
-  GTEST_SKIP() << "Test fails on Clang16 OS X";
-#endif
-  if (TestUtils::use_oop_jit()) {
-    GTEST_SKIP() << "Test fails for OOP JIT builds";
-  }
-
+  
   std::vector<const char*> interpreter_args = {"-include", "new"};
   TestUtils::CreateInterpreter(interpreter_args);
 

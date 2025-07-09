@@ -59,14 +59,7 @@ static inline char* GetEnv(const char* Var_Name) {
   CXXSpecialMemberKind::MoveConstructor
 #endif
 
-#if LLVM_VERSION_MAJOR < 18
-#define starts_with startswith
-#define ends_with endswith
-#endif
-
-#if CLANG_VERSION_MAJOR >= 18
 #include "clang/Interpreter/CodeCompletion.h"
-#endif
 
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringRef.h"
@@ -427,7 +420,6 @@ inline void codeComplete(std::vector<std::string>& Results,
                          clang::Interpreter& I, const char* code,
                          unsigned complete_line = 1U,
                          unsigned complete_column = 1U) {
-#if CLANG_VERSION_MAJOR >= 18
   // FIXME: We should match the invocation arguments of the main interpreter.
   //        That can affect the returned completion results.
   auto CB = clang::IncrementalCompilerBuilder();
@@ -451,9 +443,6 @@ inline void codeComplete(std::vector<std::string>& Results,
   for (llvm::StringRef r : results)
     if (r.find(CC.Prefix) == 0)
       Results.push_back(r.str());
-#else
-  assert(false && "CodeCompletion API only available in Clang >= 18.");
-#endif
 }
 
 #if defined(LLVM_BUILT_WITH_OOP_JIT) && !defined(_WIN32)

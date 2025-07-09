@@ -46,6 +46,7 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Demangle/Demangle.h"
+#include "llvm/ExecutionEngine/Orc/Shared/ExecutorAddress.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
@@ -220,20 +221,10 @@ std::string GetVersion() {
 }
 
 std::string Demangle(const std::string& mangled_name) {
-#if CLANG_VERSION_MAJOR > 16
 #ifdef _WIN32
   std::string demangle = microsoftDemangle(mangled_name, nullptr, nullptr);
 #else
   std::string demangle = itaniumDemangle(mangled_name);
-#endif
-#else
-#ifdef _WIN32
-  std::string demangle = microsoftDemangle(mangled_name.c_str(), nullptr,
-                                           nullptr, nullptr, nullptr);
-#else
-  std::string demangle =
-      itaniumDemangle(mangled_name.c_str(), nullptr, nullptr, nullptr);
-#endif
 #endif
   return demangle;
 }
@@ -579,9 +570,7 @@ std::string GetQualifiedCompleteName(TCppType_t klass) {
       PrintingPolicy PP = C.getPrintingPolicy();
       PP.FullyQualifiedName = true;
       PP.SuppressUnwrittenScope = true;
-#if CLANG_VERSION_MAJOR > 16
       PP.SuppressElaboration = true;
-#endif
       QT.getAsStringInternal(type_name, PP);
 
       return type_name;
@@ -1694,9 +1683,7 @@ std::string GetTypeAsString(TCppType_t var) {
   PrintingPolicy Policy((LangOptions()));
   Policy.Bool = true;               // Print bool instead of _Bool.
   Policy.SuppressTagKeyword = true; // Do not print `class std::string`.
-#if CLANG_VERSION_MAJOR > 16
   Policy.SuppressElaboration = true;
-#endif
   Policy.FullyQualifiedName = true;
   return compat::FixTypeName(QT.getAsString(Policy));
 }
@@ -1839,9 +1826,7 @@ void get_type_as_string(QualType QT, std::string& type_name, ASTContext& C,
   //       cling::utils::Transform::GetPartiallyDesugaredType()
   if (!QT->isTypedefNameType() || QT->isBuiltinType())
     QT = QT.getDesugaredType(C);
-#if CLANG_VERSION_MAJOR > 16
   Policy.SuppressElaboration = true;
-#endif
   Policy.SuppressTagKeyword = !QT->isEnumeralType();
   Policy.FullyQualifiedName = true;
   QT.getAsStringInternal(type_name, Policy);
@@ -1881,9 +1866,7 @@ void collect_type_info(const FunctionDecl* FD, QualType& QT,
   //
   ASTContext& C = FD->getASTContext();
   PrintingPolicy Policy(C.getPrintingPolicy());
-#if CLANG_VERSION_MAJOR > 16
   Policy.SuppressElaboration = true;
-#endif
   refType = kNotReference;
   if (QT->isRecordType() && forArgument) {
     get_type_as_string(QT, type_name, C, Policy);
@@ -2097,9 +2080,7 @@ void make_narg_call(const FunctionDecl* FD, const std::string& return_type,
       PrintingPolicy PP = FD->getASTContext().getPrintingPolicy();
       PP.FullyQualifiedName = true;
       PP.SuppressUnwrittenScope = true;
-#if CLANG_VERSION_MAJOR > 16
       PP.SuppressElaboration = true;
-#endif
       FD->getNameForDiagnostic(stream, PP,
                                /*Qualified=*/false);
 
@@ -3359,11 +3340,7 @@ bool InsertOrReplaceJitSymbol(compat::Interpreter& I,
   auto Symbol = compat::getSymbolAddress(I, linker_mangled_name);
   llvm::orc::LLJIT& Jit = *compat::getExecutionEngine(I);
   llvm::orc::ExecutionSession& ES = Jit.getExecutionSession();
-#if CLANG_VERSION_MAJOR < 17
-  JITDylib& DyLib = Jit.getMainJITDylib();
-#else
   JITDylib& DyLib = *Jit.getProcessSymbolsJITDylib().get();
-#endif // CLANG_VERSION_MAJOR
 
   if (Error Err = Symbol.takeError()) {
     logAllUnhandledErrors(std::move(Err), errs(),
@@ -3391,12 +3368,7 @@ bool InsertOrReplaceJitSymbol(compat::Interpreter& I,
   }
   auto Name = ES.intern(tmp);
   InjectedSymbols[Name] =
-#if CLANG_VERSION_MAJOR < 17
-      JITEvaluatedSymbol(address,
-#else
-      ExecutorSymbolDef(ExecutorAddr(address),
-#endif // CLANG_VERSION_MAJOR < 17
-                         JITSymbolFlags::Exported);
+      ExecutorSymbolDef(ExecutorAddr(address), JITSymbolFlags::Exported);
 
   // We want to replace a symbol with a custom provided one.
   if (Symbol && address)
