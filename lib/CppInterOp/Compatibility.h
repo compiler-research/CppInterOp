@@ -205,7 +205,7 @@ inline void codeComplete(std::vector<std::string>& Results,
 
 #include "llvm/Support/Error.h"
 
-#ifdef CPPINTEROP_VERSION_PATCH
+#ifdef LLVM_BUILT_WITH_OOP_JIT
 #include "clang/Basic/Version.h"
 #include "clang/Interpreter/RemoteJITUtils.h"
 #include "llvm/TargetParser/Host.h"
@@ -269,7 +269,7 @@ createClangInterpreter(std::vector<const char*>& args, int stdin_fd = 0,
   if (CudaEnabled)
     DeviceCI->LoadRequestedPlugins();
 
-#ifdef CPPINTEROP_VERSION_PATCH
+#ifdef LLVM_BUILT_WITH_OOP_JIT
   std::unique_ptr<llvm::orc::LLJITBuilder> JB;
 
   if (outOfProcess) {
@@ -439,7 +439,7 @@ inline void codeComplete(std::vector<std::string>& Results,
 #endif
 }
 
-#if defined(CPPINTEROP_VERSION_PATCH) && !defined(_WIN32)
+#if defined(LLVM_BUILT_WITH_OOP_JIT) && !defined(_WIN32)
 inline pid_t getExecutorPID() { return /*llvm*/ getLastLaunchedExecutorPID(); }
 
 inline pid_t getNthExecutorPID() { return /*llvm*/ getNthLaunchedExecutorPID(); }

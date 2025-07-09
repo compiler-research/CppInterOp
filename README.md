@@ -355,7 +355,7 @@ cmake --build . --target install --parallel $(nproc --all)
 
 and
 
-> Do make sure to apply the patch and change VERSION file to ``1.8.1;dev``, if you want to have out-of-process JIT execution feature enabled.
+> Do make sure to pass ``DLLVM_BUILT_WITH_OOP_JIT=ON``, if you want to have out-of-process JIT execution feature enabled.
 
 ```powershell
 cmake -DLLVM_DIR=$env:LLVM_DIR\build\lib\cmake\llvm -DClang_DIR=$env:LLVM_DIR\build\lib\cmake\clang -DCMAKE_INSTALL_PREFIX=$env:CPPINTEROP_DIR ..

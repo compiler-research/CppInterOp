@@ -321,7 +321,7 @@ commands on Linux and MacOS
 
 .. note::
 
-   Do make sure to apply the patch and change VERSION file to ``1.8.1;dev``, if you want to have out-of-process JIT execution feature enabled.
+   Do make sure to pass ``DLLVM_BUILT_WITH_OOP_JIT=ON``, if you want to have out-of-process JIT execution feature enabled.
 
 and
 

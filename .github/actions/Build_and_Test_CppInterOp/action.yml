@@ -23,12 +23,6 @@ runs:
         export CPPINTEROP_DIR="$CB_PYTHON_DIR/cppyy_backend"
 
         # Build CppInterOp next to cling and llvm-project.
-        if [[ "${{ matrix.oop-jit }}" == "On" ]]; then
-          if [[ -f VERSION ]]; then
-            sed -i.bak 's/1\.8\.0;dev/1.8.1;dev/' VERSION
-            rm -f VERSION.bak
-          fi
-        fi
         mkdir build && cd build
         export CPPINTEROP_BUILD_DIR=$PWD
         cling_on=$(echo "${{ matrix.cling }}" | tr '[:lower:]' '[:upper:]')
@@ -54,6 +48,7 @@ runs:
                 -DCODE_COVERAGE=${{ env.CODE_COVERAGE }}     \
                 -DCMAKE_INSTALL_PREFIX=$CPPINTEROP_DIR       \
                 -DLLVM_ENABLE_WERROR=On                      \
+                -DLLVM_BUILT_WITH_OOP_JIT=${{ matrix.oop-jit }} \
                 ../
         fi
         docs_on=$(echo "${{ matrix.documentation }}" | tr '[:lower:]' '[:upper:]')

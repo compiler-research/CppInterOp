@@ -3991,7 +3991,7 @@ int Undo(unsigned N) {
 
 #ifndef _WIN32
 pid_t GetExecutorPID() {
-#ifdef CPPINTEROP_VERSION_PATCH
+#ifdef LLVM_BUILT_WITH_OOP_JIT
   return compat::getExecutorPID();
 #endif
   return -1;
