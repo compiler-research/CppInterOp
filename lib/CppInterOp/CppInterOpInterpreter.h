@@ -44,9 +44,9 @@
 #endif
 #include <algorithm>
 #include <cstdio>
+#include <stdio.h>
 #include <utility>
 #include <vector>
-#include <stdio.h> 
 
 namespace clang {
 class CompilerInstance;
