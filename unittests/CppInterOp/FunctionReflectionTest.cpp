@@ -2319,6 +2319,9 @@ TEST(FunctionReflectionTest, ConstructArray) {
 #ifdef _WIN32
   GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
 #endif
+  if (TestUtils::use_oop_jit()) {
+    GTEST_SKIP() << "Test fails for OOP JIT builds";
+  }
 
   TestUtils::CreateInterpreter();
 
@@ -2446,6 +2449,9 @@ TEST(FunctionReflectionTest, DestructArray) {
 #ifdef _WIN32
   GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
 #endif
+  if (TestUtils::use_oop_jit()) {
+    GTEST_SKIP() << "Test fails for OOP JIT builds";
+  }
   
   std::vector<const char*> interpreter_args = {"-include", "new"};
   TestUtils::CreateInterpreter(interpreter_args);

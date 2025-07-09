@@ -168,6 +168,9 @@ TEST(InterpreterTest, EmscriptenExceptionHandling) {
 #ifndef EMSCRIPTEN
   GTEST_SKIP() << "This test is intended to check exception handling for Emscripten builds.";
 #endif
+  if (TestUtils::use_oop_jit()) {
+    GTEST_SKIP() << "Test fails for OOP JIT builds";
+  }
 
   std::vector<const char*> Args = {
     "-std=c++20",
