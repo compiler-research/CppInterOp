@@ -2322,6 +2322,9 @@ TEST(FunctionReflectionTest, ConstructArray) {
   if (TestUtils::use_oop_jit()) {
     GTEST_SKIP() << "Test fails for OOP JIT builds";
   }
+  if (TestUtils::use_oop_jit()) {
+    GTEST_SKIP() << "Test fails for OOP JIT builds";
+  }
 
   TestUtils::CreateInterpreter();
 
