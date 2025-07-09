@@ -147,46 +147,32 @@ namespace Cpp {
 ///
 class Interpreter {
 private:
-  std::unique_ptr<clang::Interpreter> inner;
-
-  Interpreter(std::unique_ptr<clang::Interpreter> CI) : inner(std::move(CI)) {}
-
-public:
   struct FileDeleter {
     void operator()(FILE* f) {
       if (f)
         fclose(f);
     }
   };
+  struct IOContext {
+    std::unique_ptr<FILE, FileDeleter> stdin_file;
+    std::unique_ptr<FILE, FileDeleter> stdout_file;
+    std::unique_ptr<FILE, FileDeleter> stderr_file;
+    bool outOfProcess = false;
 
-private:
-  static std::unique_ptr<FILE, FileDeleter>& getStdinFile() {
-    static std::unique_ptr<FILE, FileDeleter> stdin_file = nullptr;
-    return stdin_file;
-  }
+    bool initializeTempFiles() {
+      stdin_file.reset(tmpfile());
+      stdout_file.reset(tmpfile());
+      stderr_file.reset(tmpfile());
+      return stdin_file && stdout_file && stderr_file;
+    }
+  };
 
-  static std::unique_ptr<FILE, FileDeleter>& getStdoutFile() {
-    static std::unique_ptr<FILE, FileDeleter> stdout_file = nullptr;
-    return stdout_file;
-  }
+  std::unique_ptr<clang::Interpreter> inner;
+  std::unique_ptr<IOContext> io_context;
 
-  static std::unique_ptr<FILE, FileDeleter>& getStderrFile() {
-    static std::unique_ptr<FILE, FileDeleter> stderr_file = nullptr;
-    return stderr_file;
-  }
-
-  static bool& getOutOfProcess() {
-    static bool outOfProcess = false;
-    return outOfProcess;
-  }
-
-  static bool initializeTempFiles() {
-    getStdinFile().reset(tmpfile());
-    getStdoutFile().reset(tmpfile());
-    getStderrFile().reset(tmpfile());
-
-    return getStdinFile() && getStdoutFile() && getStderrFile();
-  }
+  Interpreter(std::unique_ptr<clang::Interpreter> CI,
+              std::unique_ptr<IOContext> ctx = nullptr)
+      : inner(std::move(CI)), io_context(std::move(ctx)) {}
 
 public:
   static std::unique_ptr<Interpreter>
@@ -202,27 +188,30 @@ public:
 
     std::vector<const char*> vargs(argv + 1, argv + argc);
 
+    auto io_ctx = std::make_unique<IOContext>();
+
     int stdin_fd = 0;
     int stdout_fd = 1;
     int stderr_fd = 2;
 
 #if defined(_WIN32)
-    getOutOfProcess() = false;
+    io_ctx->outOfProcess = false;
 #else
-    getOutOfProcess() =
+    io_ctx->outOfProcess =
         std::any_of(vargs.begin(), vargs.end(), [](const char* arg) {
           return llvm::StringRef(arg).trim() == "--use-oop-jit";
         });
-    if (getOutOfProcess()) {
-      bool init = initializeTempFiles();
+
+    if (io_ctx->outOfProcess) {
+      bool init = io_ctx->initializeTempFiles();
       if (!init) {
         llvm::errs() << "Can't start out-of-process JIT execution. Continuing "
                         "with in-process JIT execution.\n";
-        getOutOfProcess() = false;
+        io_ctx->outOfProcess = false;
       } else {
-        stdin_fd = fileno(getStdinFile().get());
-        stdout_fd = fileno(getStdoutFile().get());
-        stderr_fd = fileno(getStderrFile().get());
+        stdin_fd = fileno(io_ctx->stdin_file.get());
+        stdout_fd = fileno(io_ctx->stdout_file.get());
+        stderr_fd = fileno(io_ctx->stderr_file.get());
       }
     }
 #endif
@@ -234,7 +223,8 @@ public:
       return nullptr;
     }
 
-    return std::unique_ptr<Interpreter>(new Interpreter(std::move(CI)));
+    return std::unique_ptr<Interpreter>(
+        new Interpreter(std::move(CI), std::move(io_ctx)));
   }
 
   ~Interpreter() {}
@@ -242,17 +232,21 @@ public:
   operator const clang::Interpreter&() const { return *inner; }
   operator clang::Interpreter&() { return *inner; }
 
-  static bool isOutOfProcess() { return getOutOfProcess(); }
+  bool isOutOfProcess() const {
+    return io_context ? io_context->outOfProcess : false;
+  }
 
 #ifndef _WIN32
-  static FILE* getTempFileForOOP(int FD) {
+  FILE* getTempFileForOOP(int FD) {
+    if (!io_context)
+      return nullptr;
     switch (FD) {
     case (STDIN_FILENO):
-      return getStdinFile().get();
+      return io_context->stdin_file.get();
     case (STDOUT_FILENO):
-      return getStdoutFile().get();
+      return io_context->stdout_file.get();
     case (STDERR_FILENO):
-      return getStderrFile().get();
+      return io_context->stderr_file.get();
     default:
       llvm::errs() << "No temp file for the FD\n";
       return nullptr;

@@ -3857,8 +3857,9 @@ public:
   StreamCaptureInfo(int FD) : mode(FD) {
 #endif
 #if !defined(CPPINTEROP_USE_CLING) && !defined(_WIN32)
-    if (compat::Interpreter::isOutOfProcess() && FD == STDOUT_FILENO) {
-      m_TempFile = compat::Interpreter::getTempFileForOOP(FD);
+    auto& I = getInterp();
+    if (I.isOutOfProcess() && FD == STDOUT_FILENO) {
+      m_TempFile = I.getTempFileForOOP(FD);
       ::fflush(m_TempFile);
       m_FD = fileno(m_TempFile);
       m_OwnsFile = false;
@@ -3941,7 +3942,8 @@ public:
     close(m_DupFD);
     m_DupFD = -1;
 #if !defined(_WIN32) && !defined(CPPINTEROP_USE_CLING)
-    if (compat::Interpreter::isOutOfProcess() && mode != STDERR_FILENO) {
+    auto& I = getInterp();
+    if (I.isOutOfProcess() && mode != STDERR_FILENO) {
       if (ftruncate(m_FD, 0) != 0)
         perror("ftruncate");
       if (lseek(m_FD, 0, SEEK_SET) == -1)

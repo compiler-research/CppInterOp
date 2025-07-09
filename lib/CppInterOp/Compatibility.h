@@ -439,10 +439,10 @@ inline void codeComplete(std::vector<std::string>& Results,
 #endif
 }
 
-#ifndef _WIN32
-#ifdef CPPINTEROP_VERSION_PATCH
+#if defined(CPPINTEROP_VERSION_PATCH) && !defined(_WIN32)
 inline pid_t getExecutorPID() { return /*llvm*/ getLastLaunchedExecutorPID(); }
-#endif
+
+inline pid_t getNthExecutorPID() { return /*llvm*/ getNthLaunchedExecutorPID(); }
 #endif
 
 } // namespace compat
