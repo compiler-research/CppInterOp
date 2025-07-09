@@ -23,15 +23,6 @@ jobs:
       matrix:
         include:
           # Ubuntu Arm Jobs
-          - name: ubu22-arm-gcc12-clang-repl-20-coverage
-            os: ubuntu-22.04-arm
-            compiler: gcc-12
-            clang-runtime: '20'
-            cling: Off
-            cppyy: Off
-            llvm_enable_projects: "clang"
-            llvm_targets_to_build: "host;NVPTX"
-            coverage: true
           - name: ubu24-arm-gcc12-clang-repl-20
             os: ubuntu-24.04-arm
             compiler: gcc-12
@@ -82,6 +73,15 @@ jobs:
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
           # Ubuntu X86 Jobs
+          - name: ubu24-x86-gcc12-clang-repl-20-coverage
+            os: ubuntu-24.04
+            compiler: gcc-12
+            clang-runtime: '20'
+            cling: Off
+            cppyy: Off
+            llvm_enable_projects: "clang"
+            llvm_targets_to_build: "host;NVPTX"
+            coverage: true
           - name: ubu24-x86-gcc12-clang-repl-20
             os: ubuntu-24.04
             compiler: gcc-12
