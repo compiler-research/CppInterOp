@@ -73,8 +73,8 @@ jobs:
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
           # Ubuntu X86 Jobs
-          - name: ubu24-x86-gcc12-clang-repl-20-coverage
-            os: ubuntu-24.04
+          - name: ubu22-x86-gcc12-clang-repl-20-coverage
+            os: ubuntu-22.04
             compiler: gcc-12
             clang-runtime: '20'
             cling: Off
@@ -324,7 +324,7 @@ jobs:
         # Create lcov report
         # capture coverage info
         vers="${CC#*-}"
-        lcov --directory build/ --capture --output-file coverage.info --gcov-tool /usr/bin/gcov-${vers} --ignore-errors mismatch
+        lcov --directory build/ --capture --output-file coverage.info --gcov-tool /usr/bin/gcov-${vers}
         lcov --remove coverage.info '/usr/*' "${HOME}"'/.cache/*' ${{ github.workspace }}'/llvm-project/*' ${{ github.workspace }}'/unittests/*' --output-file coverage.info
         # output coverage data for debugging (optional)
         lcov --list coverage.info
