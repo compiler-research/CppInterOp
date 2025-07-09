@@ -43,6 +43,7 @@ runs:
           ninja LLVMOrcDebugging -j ${{ env.ncpus }}
           ninja clingInterpreter -j ${{ env.ncpus }}
         else
+          llvm_vers=$(echo "${{ matrix.clang-runtime }}" | tr
           if [[ "${{ matrix.oop-jit }}" == "On" && "${llvm_vers}" == "20" ]]; then
             git apply -v ../patches/llvm/clang20-1-out-of-process.patch
             echo "Apply clang20-1-out-of-process.patch:"
