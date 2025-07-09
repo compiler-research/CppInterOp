@@ -169,7 +169,7 @@ new file mode 100644
 index 000000000..8324aeaaf
 --- /dev/null
 +++ b/clang/lib/Interpreter/RemoteJITUtils.cpp
-@@ -0,0 +1,305 @@
+@@ -0,0 +1,285 @@
 +//===-- RemoteJITUtils.cpp - Utilities for remote-JITing --------*- C++ -*-===//
 +//
 +// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
