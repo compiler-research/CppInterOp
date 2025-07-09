@@ -20,7 +20,7 @@ class Decl;
 }
 #define Interp (static_cast<compat::Interpreter*>(Cpp::GetInterpreter()))
 namespace TestUtils {
-extern bool g_use_oop_jit;
+bool& use_oop_jit();
 void GetAllTopLevelDecls(const std::string& code,
                          std::vector<clang::Decl*>& Decls,
                          bool filter_implicitGenerated = false,

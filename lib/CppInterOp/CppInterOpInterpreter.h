@@ -39,7 +39,6 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/TargetParser/Triple.h"
 
-#include <fcntl.h>
 #ifndef _WIN32
 #include <unistd.h>
 #endif
@@ -47,6 +46,7 @@
 #include <cstdio>
 #include <utility>
 #include <vector>
+#include <stdio.h> 
 
 namespace clang {
 class CompilerInstance;
@@ -148,7 +148,7 @@ namespace Cpp {
 class Interpreter {
 private:
   struct FileDeleter {
-    void operator()(FILE* f) {
+    void operator()(FILE* f /* owns */) {
       if (f)
         fclose(f);
     }

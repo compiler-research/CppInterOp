@@ -55,6 +55,7 @@
 #include <algorithm>
 #include <cassert>
 #include <cstddef>
+#include <cstdio>
 #include <deque>
 #include <iterator>
 #include <map>

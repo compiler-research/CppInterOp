@@ -65,7 +65,7 @@ TEST(InterpreterTest, Evaluate) {
 #ifdef _WIN32
   GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
 #endif
-  if (TestUtils::g_use_oop_jit) {
+  if (TestUtils::use_oop_jit()) {
     GTEST_SKIP() << "Test fails for OOP JIT builds";
   }
 
@@ -85,7 +85,7 @@ TEST(InterpreterTest, Evaluate) {
 }
 
 TEST(InterpreterTest, DeleteInterpreter) {
-  if (TestUtils::g_use_oop_jit) {
+  if (TestUtils::use_oop_jit()) {
     GTEST_SKIP() << "Test fails for OOP JIT builds";
   }
   auto* I1 = TestUtils::CreateInterpreter();
@@ -109,7 +109,7 @@ TEST(InterpreterTest, ActivateInterpreter) {
 #ifdef EMSCRIPTEN_STATIC_LIBRARY
   GTEST_SKIP() << "Test fails for Emscipten static library build";
 #endif
-  if (TestUtils::g_use_oop_jit) {
+  if (TestUtils::use_oop_jit()) {
     GTEST_SKIP() << "Test fails for OOP JIT builds";
   }
   EXPECT_FALSE(Cpp::ActivateInterpreter(nullptr));
@@ -152,7 +152,7 @@ TEST(InterpreterTest, Process) {
   EXPECT_FALSE(Cpp::Process("int f(); int res = f();") == 0);
 
   // C API
-  if (!TestUtils::g_use_oop_jit) {
+  if (!TestUtils::use_oop_jit()) {
     auto* CXI = clang_createInterpreterFromRawPtr(I);
     clang_Interpreter_declare(CXI, "#include <iostream>", false);
     clang_Interpreter_process(CXI, "int c = 42;");
@@ -281,7 +281,7 @@ TEST(InterpreterTest, DetectSystemCompilerIncludePaths) {
 }
 
 TEST(InterpreterTest, IncludePaths) {
-  if (TestUtils::g_use_oop_jit) {
+  if (TestUtils::use_oop_jit()) {
     GTEST_SKIP() << "Test fails for OOP JIT builds";
   }
   std::vector<std::string> includes;

@@ -16,7 +16,10 @@
 using namespace clang;
 using namespace llvm;
 
-bool TestUtils::g_use_oop_jit = false;
+bool& TestUtils::use_oop_jit() {
+  static bool flag = false;
+  return flag;
+}
 
 void TestUtils::GetAllTopLevelDecls(
     const std::string& code, std::vector<Decl*>& Decls,
@@ -62,7 +65,7 @@ void TestUtils::GetAllSubDecls(Decl* D, std::vector<Decl*>& SubDecls,
 TInterp_t TestUtils::CreateInterpreter(const std::vector<const char*>& Args,
                                        const std::vector<const char*>& GpuArgs) {
   auto mergedArgs = Args;
-  if (TestUtils::g_use_oop_jit) {
+  if (TestUtils::use_oop_jit()) {
     mergedArgs.push_back("--use-oop-jit");
   }
   return Cpp::CreateInterpreter(mergedArgs, GpuArgs);

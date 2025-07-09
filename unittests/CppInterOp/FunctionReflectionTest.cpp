@@ -1403,7 +1403,7 @@ TEST(FunctionReflectionTest, GetFunctionAddress) {
 #ifdef _WIN32
   GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
 #endif
-  if (TestUtils::g_use_oop_jit) {
+  if (TestUtils::use_oop_jit()) {
     GTEST_SKIP() << "Test fails for OOP JIT builds";
   }
   std::vector<Decl*> Decls, SubDecls;
@@ -1452,7 +1452,7 @@ TEST(FunctionReflectionTest, JitCallAdvanced) {
   GTEST_SKIP() << "Test fails for Emscipten builds";
 #endif
 #endif
-  if (TestUtils::g_use_oop_jit) {
+  if (TestUtils::use_oop_jit()) {
     GTEST_SKIP() << "Test fails for OOP JIT builds";
   }
   if (llvm::sys::RunningOnValgrind())
@@ -1503,7 +1503,7 @@ TEST(FunctionReflectionTest, JitCallDebug) {
   GTEST_SKIP() << "Test fails for Emscipten builds";
 #endif
 #endif
-  if (TestUtils::g_use_oop_jit) {
+  if (TestUtils::use_oop_jit()) {
     GTEST_SKIP() << "Test fails for OOP JIT builds";
   }
   if (llvm::sys::RunningOnValgrind())
@@ -1597,7 +1597,7 @@ TEST(FunctionReflectionTest, GetFunctionCallWrapper) {
 #ifdef EMSCRIPTEN
   GTEST_SKIP() << "Test fails for Emscipten builds";
 #endif
-  if (TestUtils::g_use_oop_jit) {
+  if (TestUtils::use_oop_jit()) {
     GTEST_SKIP() << "Test fails for OOP JIT builds";
   }
   if (llvm::sys::RunningOnValgrind())
@@ -2127,7 +2127,7 @@ TEST(FunctionReflectionTest, Construct) {
   GTEST_SKIP() << "Test fails for Emscipten builds";
 #endif
 #endif
-  if (TestUtils::g_use_oop_jit) {
+  if (TestUtils::use_oop_jit()) {
     GTEST_SKIP() << "Test fails for OOP JIT builds";
   }
   if (llvm::sys::RunningOnValgrind())
@@ -2211,7 +2211,7 @@ TEST(FunctionReflectionTest, ConstructPOD) {
   GTEST_SKIP() << "Test fails for Emscipten builds";
 #endif
 #endif
-  if (TestUtils::g_use_oop_jit) {
+  if (TestUtils::use_oop_jit()) {
     GTEST_SKIP() << "Test fails for OOP JIT builds";
   }
   if (llvm::sys::RunningOnValgrind())
@@ -2262,7 +2262,7 @@ TEST(FunctionReflectionTest, ConstructNested) {
 #ifdef _WIN32
   GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
 #endif
-  if (TestUtils::g_use_oop_jit) {
+  if (TestUtils::use_oop_jit()) {
     GTEST_SKIP() << "Test fails for OOP JIT builds";
   }
 
@@ -2328,7 +2328,7 @@ TEST(FunctionReflectionTest, ConstructArray) {
 #if defined(__APPLE__) && (CLANG_VERSION_MAJOR == 16)
   GTEST_SKIP() << "Test fails on Clang16 OS X";
 #endif
-  if (TestUtils::g_use_oop_jit) {
+  if (TestUtils::use_oop_jit()) {
     GTEST_SKIP() << "Test fails for OOP JIT builds";
   }
 
@@ -2384,7 +2384,7 @@ TEST(FunctionReflectionTest, Destruct) {
 #ifdef _WIN32
   GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
 #endif
-  if (TestUtils::g_use_oop_jit) {
+  if (TestUtils::use_oop_jit()) {
     GTEST_SKIP() << "Test fails for OOP JIT builds";
   }
 
@@ -2461,7 +2461,7 @@ TEST(FunctionReflectionTest, DestructArray) {
 #if defined(__APPLE__) && (CLANG_VERSION_MAJOR == 16)
   GTEST_SKIP() << "Test fails on Clang16 OS X";
 #endif
-  if (TestUtils::g_use_oop_jit) {
+  if (TestUtils::use_oop_jit()) {
     GTEST_SKIP() << "Test fails for OOP JIT builds";
   }
 
