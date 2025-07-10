@@ -107,7 +107,7 @@ To have `Out-of-Process JIT Execution` enabled, run following commands to build 
 
 .. note::
 
-   Only for Linux and Macos
+   Only for Linux x86_64 and Macos arm64
 
 .. code:: bash
 
@@ -123,10 +123,10 @@ To have `Out-of-Process JIT Execution` enabled, run following commands to build 
                   -DCLANG_ENABLE_BOOTSTRAP=OFF                        \
                   ../llvm
    
-   # For Linux
+   # For Linux x86_64
    cmake --build . --target clang clang-repl llvm-jitlink-executor orc_rt-x86_64 --parallel $(nproc --all)
 
-   # For MacOS
+   # For MacOS arm64
    cmake --build . --target clang clang-repl llvm-jitlink-executor orc_rt_osx --parallel $(sysctl -n hw.ncpu)
 
 **************************************

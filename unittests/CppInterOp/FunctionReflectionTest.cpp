@@ -2579,3 +2579,26 @@ TEST(FunctionReflectionTest, FailingTest1) {
   EXPECT_FALSE(Cpp::Declare("int x = 1;"));
   EXPECT_FALSE(Cpp::Declare("int y = x;"));
 }
+
+TEST(FunctionReflectionTest, GetExecutorPIDTest) {
+#ifdef _WIN32
+  GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
+#endif
+#ifdef EMSCRIPTEN
+  GTEST_SKIP() << "Test fails for Emscipten builds";
+#endif
+  TestUtils::CreateInterpreter();
+  pid_t pid = Cpp::GetExecutorPID();
+  if (TestUtils::use_oop_jit()) {
+    EXPECT_NE(pid, -1);
+  } else {
+    EXPECT_EQ(pid, -1);
+  }
+
+  pid = Cpp::GetNthExecutorPID(1);
+    if (TestUtils::use_oop_jit()) {
+    EXPECT_NE(pid, -1);
+  } else {
+    EXPECT_EQ(pid, -1);
+  }
+}

@@ -79,7 +79,6 @@ include(GNUInstallDirs)
 
   ## Set Cmake packages search order
 
-
   set(CMAKE_FIND_PACKAGE_SORT_ORDER NATURAL)
   set(CMAKE_FIND_PACKAGE_SORT_DIRECTION DEC)
 
@@ -303,7 +302,12 @@ string(REGEX REPLACE "/build/lib/cmake/llvm$" "" LLVM_SOURCE_DIR "${LLVM_DIR}")
 add_definitions(-DLLVM_SOURCE_DIR="${LLVM_SOURCE_DIR}")
 
 if(LLVM_BUILT_WITH_OOP_JIT)
-  add_definitions(-DLLVM_BUILT_WITH_OOP_JIT)
+  if((CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND CMAKE_SYSTEM_PROCESSOR MATCHES "arm64") OR
+     (CMAKE_SYSTEM_NAME STREQUAL "Linux" AND CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64"))
+    add_definitions(-DLLVM_BUILT_WITH_OOP_JIT)
+  else()
+    message(FATAL_ERROR "LLVM_BUILT_WITH_OOP_JIT is only supported on Darwin arm64 or Linux x86_64. Build aborted.")
+  endif()
 endif()
 
 # If the llvm sources are present add them with higher priority.

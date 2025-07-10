@@ -3969,6 +3969,13 @@ pid_t GetExecutorPID() {
 #endif
   return -1;
 }
+
+pid_t GetNthExecutorPID(int n) {
+#ifdef LLVM_BUILT_WITH_OOP_JIT
+  return compat::getNthExecutorPID(n);
+#endif
+  return -1;
+}
 #endif
 
 } // end namespace Cpp

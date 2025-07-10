@@ -912,6 +912,10 @@ CPPINTEROP_API int Undo(unsigned N = 1);
 /// Returns the process ID of the executor process.
 /// \returns the PID of the executor process.
 CPPINTEROP_API pid_t GetExecutorPID();
+
+/// Returns the process ID of the nth executor process.
+/// \returns the PID of the nth executor process.
+CPPINTEROP_API pid_t GetNthExecutorPID(int n);
 #endif
 
 } // end namespace Cpp

@@ -272,26 +272,23 @@ createClangInterpreter(std::vector<const char*>& args, int stdin_fd = 0,
     std::string SlabAllocateSizeString = "";
     std::unique_ptr<llvm::orc::ExecutorProcessControl> EPC;
 
-    auto DefaultForkRedirection = [=] {
-      auto redirect = [](int from, int to) {
-        if (from != to) {
-          dup2(from, to);
-          close(from);
-        }
-      };
-
-      // TODO: stdin and stderr redirection is not necessary.
-      redirect(0, STDIN_FILENO);
-      redirect(stdout_fd, STDOUT_FILENO);
-      redirect(2, STDERR_FILENO);
-
-      setvbuf(stdout, nullptr, _IONBF, 0);
-      setvbuf(stderr, nullptr, _IONBF, 0);
-    };
-
     EPC = ExitOnError(launchExecutor(OOPExecutor, UseSharedMemory,
                                      SlabAllocateSizeString,
-                                     DefaultForkRedirection));
+                                     [=] { // Lambda defined inline
+                                       auto redirect = [](int from, int to) {
+                                         if (from != to) {
+                                           dup2(from, to);
+                                           close(from);
+                                         }
+                                       };
+
+                                       redirect(0, STDIN_FILENO);
+                                       redirect(stdout_fd, STDOUT_FILENO);
+                                       redirect(2, STDERR_FILENO);
+
+                                       setvbuf(stdout, nullptr, _IONBF, 0);
+                                       setvbuf(stderr, nullptr, _IONBF, 0);
+                                     }));
 
 #ifdef __APPLE__
     std::string OrcRuntimePath =
