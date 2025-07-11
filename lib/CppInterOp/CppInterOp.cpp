@@ -517,17 +517,27 @@ std::string GetCompleteName(TCppType_t klass) {
   auto& C = getSema().getASTContext();
   auto* D = (Decl*)klass;
 
+  PrintingPolicy Policy = C.getPrintingPolicy();
+  Policy.SuppressUnwrittenScope = true;
+  Policy.SuppressScope = true;
+  Policy.AnonymousTagLocations = false;
+  Policy.SuppressTemplateArgsInCXXConstructors = false;
+  Policy.SuppressDefaultTemplateArgs = false;
+  Policy.AlwaysIncludeTypeForTemplateArgument = true;
+
   if (auto* ND = llvm::dyn_cast_or_null<NamedDecl>(D)) {
     if (auto* TD = llvm::dyn_cast<TagDecl>(ND)) {
       std::string type_name;
       QualType QT = C.getTagDeclType(TD);
-      PrintingPolicy Policy = C.getPrintingPolicy();
-      Policy.SuppressUnwrittenScope = true;
-      Policy.SuppressScope = true;
-      Policy.AnonymousTagLocations = false;
       QT.getAsStringInternal(type_name, Policy);
-
       return type_name;
+    }
+    if (auto* FD = llvm::dyn_cast<FunctionDecl>(ND)) {
+      std::string func_name;
+      llvm::raw_string_ostream name_stream(func_name);
+      FD->getNameForDiagnostic(name_stream, Policy, false);
+      name_stream.flush();
+      return func_name;
     }
 
     return ND->getNameAsString();
