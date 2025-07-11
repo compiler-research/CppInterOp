@@ -20,15 +20,14 @@
 #include "llvm/Support/Path.h"
 #include <llvm/Support/FileSystem.h>
 
-#include <gmock/gmock.h>
 #include "gtest/gtest.h"
 
 #include <algorithm>
-
-using ::testing::StartsWith;
+#include <string>
 
 TEST(InterpreterTest, Version) {
-  EXPECT_THAT(Cpp::GetVersion(), StartsWith("CppInterOp version"));
+  std::string version = Cpp::GetVersion();
+  EXPECT_TRUE(version.rfind("CppInterOp version", 0) == 0);
 }
 
 #ifdef NDEBUG
