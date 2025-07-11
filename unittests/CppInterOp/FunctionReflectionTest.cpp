@@ -2078,6 +2078,15 @@ TEST(FunctionReflectionTest, GetFunctionArgDefault) {
     template<class A>
     void get_size(long k, A, char ch = 'a', double l = 0.0) {}
 
+    template<typename T>
+    struct Other {};
+
+    template <typename T, typename S = Other<T>>
+    struct MyStruct {
+      T t;
+      S s;
+      void fn(T t, S s = S()) {}
+    };
     )";
 
   GetAllTopLevelDecls(code, Decls);
@@ -2102,6 +2111,20 @@ TEST(FunctionReflectionTest, GetFunctionArgDefault) {
   EXPECT_EQ(Cpp::GetFunctionArgDefault(Decls[4], 1), "");
   EXPECT_EQ(Cpp::GetFunctionArgDefault(Decls[4], 2), "\'a\'");
   EXPECT_EQ(Cpp::GetFunctionArgDefault(Decls[4], 3), "0.");
+
+  ASTContext& C = Interp->getCI()->getASTContext();
+  Cpp::TemplateArgInfo template_args[1] = {C.IntTy.getAsOpaquePtr()};
+  Cpp::TCppScope_t my_struct =
+      Cpp::InstantiateTemplate(Decls[6], template_args, 1);
+  EXPECT_TRUE(my_struct);
+
+  std::vector<Cpp::TCppFunction_t> fns =
+      Cpp::GetFunctionsUsingName(my_struct, "fn");
+  EXPECT_EQ(fns.size(), 1);
+
+  Cpp::TCppScope_t fn = fns[0];
+  EXPECT_EQ(Cpp::GetFunctionArgDefault(fn, 0), "");
+  EXPECT_EQ(Cpp::GetFunctionArgDefault(fn, 1), "S()");
 }
 
 TEST(FunctionReflectionTest, Construct) {

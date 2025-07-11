@@ -3645,7 +3645,11 @@ std::string GetFunctionArgDefault(TCppFunction_t func,
   if (PI->hasDefaultArg()) {
     std::string Result;
     llvm::raw_string_ostream OS(Result);
-    Expr* DefaultArgExpr = const_cast<Expr*>(PI->getDefaultArg());
+    Expr* DefaultArgExpr = nullptr;
+    if (PI->hasUninstantiatedDefaultArg())
+      DefaultArgExpr = PI->getUninstantiatedDefaultArg();
+    else
+      DefaultArgExpr = PI->getDefaultArg();
     DefaultArgExpr->printPretty(OS, nullptr, PrintingPolicy(LangOptions()));
 
     // FIXME: Floats are printed in clang with the precision of their underlying
