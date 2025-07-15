@@ -1307,16 +1307,16 @@ bool GetClassTemplatedMethods(const std::string& name, TCppScope_t parent,
   auto* DC = clang::Decl::castToDeclContext(D);
   Cpp_utils::Lookup::Named(&S, R, DC);
 
-  if (R.getResultKind() == clang::LookupResult::NotFound && funcs.empty())
+  if (R.getResultKind() == clang_LookupResult_Not_Found && funcs.empty())
     return false;
 
   // Distinct match, single Decl
-  else if (R.getResultKind() == clang::LookupResult::Found) {
+  else if (R.getResultKind() == clang_LookupResult_Found) {
     if (IsTemplatedFunction(R.getFoundDecl()))
       funcs.push_back(R.getFoundDecl());
   }
   // Loop over overload set
-  else if (R.getResultKind() == clang::LookupResult::FoundOverloaded) {
+  else if (R.getResultKind() == clang_LookupResult_Found_Overloaded) {
     for (auto* Found : R)
       if (IsTemplatedFunction(Found))
         funcs.push_back(Found);
