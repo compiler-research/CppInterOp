@@ -208,7 +208,7 @@ emcmake cmake -DCMAKE_BUILD_TYPE=Release    `
     emmake make -j $(nproc --all) check-cppinterop
 ```
 
-It is possible to run the Emscripten tests in a headless browser on Linux and osx (in future we plan to include instructions on how to run the tests in a browser on Windows too). To do this we will first move to the tests directory
+It is possible to run the Emscripten tests in a headless browser. To do this we will first move to the tests directory
 
 
 ```bash
@@ -281,6 +281,26 @@ echo "Running CppInterOpTests in Firefox"
 emrun --browser="firefox" --kill_exit --timeout 60 --browser-args="--headless"  CppInterOpTests.html
 echo "Running DynamicLibraryManagerTests in Firefox"
 emrun --browser="firefox" --kill_exit --timeout 60 --browser-args="--headless"  DynamicLibraryManagerTests.html
+```
+
+To do this on Windows x86 execute the following
+
+```powershell
+Invoke-WebRequest -Uri "https://commondatastorage.googleapis.com/chromium-browser-snapshots/Win/1411573/chrome-win.zip" -OutFile "$PWD\chrome-win.zip" -Verbose
+Expand-Archive -Path "$PWD\chrome-win.zip" -DestinationPath "$PWD" -Force -Verbose
+Invoke-WebRequest -Uri "https://download.mozilla.org/?product=firefox-latest-ssl&os=win64&lang=en-US" -OutFile "firefox-setup.exe" -Verbose
+& "C:\Program Files\7-Zip\7z.exe" x "firefox-setup.exe"
+$env:PATH="$PWD\core;$PWD\chrome-win;$env:PATH"
+echo "PATH=$env:PATH"
+echo "PATH=$env:PATH" >> $env:GITHUB_ENV
+echo "Running CppInterOpTests in Firefox"
+emrun.bat --browser="firefox.exe" --kill_exit --timeout 60 --browser-args="--headless"  CppInterOpTests.html
+echo "Running DynamicLibraryManagerTests in Firefox"
+emrun.bat --browser="firefox.exe" --kill_exit --timeout 60 --browser-args="--headless"  DynamicLibraryManagerTests.html
+echo "Running CppInterOpTests in Chromium"
+emrun.bat --browser="chrome.exe" --kill_exit --timeout 60 --browser-args="--headless --no-sandbox"  CppInterOpTests.html
+echo "Running DynamicLibraryManagerTests in Chromium"
+emrun.bat --browser="chrome.exe" --kill_exit --timeout 60 --browser-args="--headless --no-sandbox"  DynamicLibraryManagerTests.html
 ```
 
 Assuming it passes all test you can install by executing the following
