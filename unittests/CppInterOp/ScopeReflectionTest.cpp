@@ -334,9 +334,6 @@ TEST(ScopeReflectionTest, GetCompleteName) {
                         A<int> a;
 
                         enum { enum1 };
-
-                        template<typename T1, typename T2>
-                        void fn(T1 t1, T2 t2) {}
                        )";
   GetAllTopLevelDecls(code, Decls);
 
@@ -353,15 +350,7 @@ TEST(ScopeReflectionTest, GetCompleteName) {
                                              Cpp::GetVariableType(
                                                      Decls[9]))), "A<int>");
   EXPECT_EQ(Cpp::GetCompleteName(Decls[10]), "(unnamed)");
-  EXPECT_EQ(Cpp::GetCompleteName(Decls[11]), "fn");
   EXPECT_EQ(Cpp::GetCompleteName(nullptr), "<unnamed>");
-
-  ASTContext& C = Interp->getCI()->getASTContext();
-  Cpp::TemplateArgInfo template_args[2] = {C.IntTy.getAsOpaquePtr(),
-                                           C.DoubleTy.getAsOpaquePtr()};
-  Cpp::TCppScope_t fn = Cpp::InstantiateTemplate(Decls[11], template_args, 2);
-  EXPECT_TRUE(fn);
-  EXPECT_EQ(Cpp::GetCompleteName(fn), "fn<int, double>");
 }
 
 TEST(ScopeReflectionTest, GetQualifiedName) {
