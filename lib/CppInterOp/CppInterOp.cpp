@@ -2151,12 +2151,33 @@ void make_narg_call(const FunctionDecl* FD, const std::string& return_type,
       }
     }
 
+    CXXRecordDecl* rtdecl = QT->getAsCXXRecordDecl();
     if (refType != kNotReference) {
       callbuf << "(" << type_name.c_str()
               << (refType == kLValueReference ? "&" : "&&") << ")*("
               << type_name.c_str() << "*)args[" << i << "]";
     } else if (isPointer) {
       callbuf << "*(" << type_name.c_str() << "**)args[" << i << "]";
+    } else if (rtdecl &&
+               (rtdecl->hasTrivialCopyConstructor() &&
+                !rtdecl->hasSimpleCopyConstructor()) &&
+               rtdecl->hasMoveConstructor()) {
+      // By-value construction; this may either copy or move, but there is no
+      // information here in terms of intent. Thus, simply assume that the
+      // intent is to move if there is no viable copy constructor (ie. if the
+      // code would otherwise fail to even compile). There does not appear to be
+      // a simple way of determining whether a viable copy constructor exists,
+      // so check for the most common case: the trivial one, but not uniquely
+      // available, while there is a move constructor.
+
+      // include utility header if not already included for std::move
+      DeclarationName DMove = &getASTContext().Idents.get("move");
+      auto result = getSema().getStdNamespace()->lookup(DMove);
+      if (result.empty())
+        Cpp::Declare("#include <utility>");
+
+      // move construction as needed for classes (note that this is implicit)
+      callbuf << "std::move(*(" << type_name.c_str() << "*)args[" << i << "])";
     } else {
       // pointer falls back to non-pointer case; the argument preserves
       // the "pointerness" (i.e. doesn't reference the value).
