@@ -28,7 +28,7 @@
 using ::testing::StartsWith;
 
 TEST(InterpreterTest, Version) {
-  EXPECT_THAT(Cpp::GetVersion(), StartsWith("CppInterOp version"));
+  EXPECT_THAT(Cpp::GetVersion(), StartsWith("CppInterOp versiop"));
 }
 
 #ifdef NDEBUG
