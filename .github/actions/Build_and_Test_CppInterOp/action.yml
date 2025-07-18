@@ -48,6 +48,7 @@ runs:
                 -DCODE_COVERAGE=${{ env.CODE_COVERAGE }}     \
                 -DCMAKE_INSTALL_PREFIX=$CPPINTEROP_DIR       \
                 -DLLVM_ENABLE_WERROR=On                      \
+                -DLLVM_BUILT_WITH_OOP_JIT=${{ matrix.oop-jit }} \
                 ../
         fi
         docs_on=$(echo "${{ matrix.documentation }}" | tr '[:lower:]' '[:upper:]')
@@ -59,6 +60,9 @@ runs:
           os="${{ matrix.os }}"
           if [[ "${os}" != "macos"* ]]; then
             valgrind --show-error-list=yes --track-origins=yes --error-exitcode=1 unittests/CppInterOp/CppInterOpTests/unittests/bin/${{ env.BUILD_TYPE }}/CppInterOpTests
+          fi
+          if [[ "${{ matrix.oop-jit }}" == "On" ]]; then
+            ./unittests/CppInterOp/CppInterOpTests/unittests/bin/${{ env.BUILD_TYPE }}/CppInterOpTests --use-oop-jit
           fi
         fi
         echo "CB_PYTHON_DIR=$CB_PYTHON_DIR" >> $GITHUB_ENV

@@ -298,6 +298,18 @@ include_directories(SYSTEM ${LLVM_INCLUDE_DIRS})
 separate_arguments(LLVM_DEFINITIONS_LIST NATIVE_COMMAND ${LLVM_DEFINITIONS})
 add_definitions(${LLVM_DEFINITIONS_LIST})
 
+string(REGEX REPLACE "/build/lib/cmake/llvm$" "" LLVM_SOURCE_DIR "${LLVM_DIR}")
+add_definitions(-DLLVM_SOURCE_DIR="${LLVM_SOURCE_DIR}")
+
+if(LLVM_BUILT_WITH_OOP_JIT)
+  if((CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND CMAKE_SYSTEM_PROCESSOR MATCHES "arm64") OR
+     (CMAKE_SYSTEM_NAME STREQUAL "Linux" AND CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64"))
+    add_definitions(-DLLVM_BUILT_WITH_OOP_JIT)
+  else()
+    message(FATAL_ERROR "LLVM_BUILT_WITH_OOP_JIT is only supported on Darwin arm64 or Linux x86_64. Build aborted.")
+  endif()
+endif()
+
 # If the llvm sources are present add them with higher priority.
 if (LLVM_BUILD_MAIN_SRC_DIR)
   # LLVM_INCLUDE_DIRS contains the include paths to both LLVM's source and
@@ -379,6 +391,7 @@ string(REPLACE "-Wcovered-switch-default" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}
 
 file(STRINGS "VERSION" CPPINTEROP_VERSION)
 string(REPLACE "." ";" VERSION_LIST "${CPPINTEROP_VERSION}")
+
 list(GET VERSION_LIST 0 CPPINTEROP_VERSION_MAJOR)
 list(GET VERSION_LIST 1 CPPINTEROP_VERSION_MINOR)
 list(GET VERSION_LIST 2 CPPINTEROP_VERSION_PATCH)
