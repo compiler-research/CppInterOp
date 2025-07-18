@@ -1700,6 +1700,60 @@ TCppType_t GetCanonicalType(TCppType_t type) {
   return QT.getCanonicalType().getAsOpaquePtr();
 }
 
+bool HasTypeQualifier(TCppType_t type, QualKind qual) {
+  if (!type)
+    return false;
+
+  QualType QT = QualType::getFromOpaquePtr(type);
+  if (qual & QualKind::Const) {
+    if (!QT.isConstQualified())
+      return false;
+  }
+  if (qual & QualKind::Volatile) {
+    if (!QT.isVolatileQualified())
+      return false;
+  }
+  if (qual & QualKind::Restrict) {
+    if (!QT.isRestrictQualified())
+      return false;
+  }
+  return true;
+}
+
+TCppType_t RemoveTypeQualifier(TCppType_t type, QualKind qual) {
+  if (!type)
+    return type;
+
+  auto QT = QualType(QualType::getFromOpaquePtr(type));
+  if (qual & QualKind::Const)
+    QT.removeLocalConst();
+  if (qual & QualKind::Volatile)
+    QT.removeLocalVolatile();
+  if (qual & QualKind::Restrict)
+    QT.removeLocalRestrict();
+  return QT.getAsOpaquePtr();
+}
+
+TCppType_t AddTypeQualifier(TCppType_t type, QualKind qual) {
+  if (!type)
+    return type;
+
+  auto QT = QualType(QualType::getFromOpaquePtr(type));
+  if (qual & QualKind::Const) {
+    if (!QT.isConstQualified())
+      QT.addConst();
+  }
+  if (qual & QualKind::Volatile) {
+    if (!QT.isVolatileQualified())
+      QT.addVolatile();
+  }
+  if (qual & QualKind::Restrict) {
+    if (!QT.isRestrictQualified())
+      QT.addRestrict();
+  }
+  return QT.getAsOpaquePtr();
+}
+
 // Internal functions that are not needed outside the library are
 // encompassed in an anonymous namespace as follows. This function converts
 // from a string to the actual type. It is used in the GetType() function.
