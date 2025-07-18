@@ -234,6 +234,7 @@ TEST(VariableReflectionTest, GetVariableType) {
     E<int> e;
     E<int> *f;
     int g[4];
+    auto fn = []() { return 1; };
     )";
 
   GetAllTopLevelDecls(code, Decls);
@@ -245,6 +246,9 @@ TEST(VariableReflectionTest, GetVariableType) {
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetVariableType(Decls[6])), "E<int>");
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetVariableType(Decls[7])), "E<int> *");
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetVariableType(Decls[8])), "int[4]");
+
+  EXPECT_FALSE(Cpp::IsLambdaClass(Cpp::GetVariableType(Decls[8])));
+  EXPECT_TRUE(Cpp::IsLambdaClass(Cpp::GetVariableType(Decls[9])));
 }
 
 #define CODE                                                                   \
