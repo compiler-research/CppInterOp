@@ -355,25 +355,17 @@ build folder, you can build the wasm version of xeus-cpp by executing
            ..
    emmake make -j $(nproc --all) install
 
-To build Jupyter Lite website with this kernel locally that you can use
-for testing execute the following
+To build and test Jupyter Lite with this kernel locally you can execute the following
 
 .. code:: bash
 
    cd ../..
    micromamba create -n xeus-lite-host jupyterlite-core=0.6 jupyterlite-xeus jupyter_server jupyterlab notebook python-libarchive-c -c conda-forge
    micromamba activate xeus-lite-host
-   jupyter lite build --XeusAddon.prefix=$PREFIX \
+   jupyter lite serve --XeusAddon.prefix=$PREFIX \
                       --contents xeus-cpp/notebooks/xeus-cpp-lite-demo.ipynb \
                       --contents xeus-cpp/notebooks/smallpt.ipynb \
                       --contents xeus-cpp/notebooks/images/marie.png \ 
                       --contents xeus-cpp/notebooks/audio/audio.wav \
                       --XeusAddon.mounts="$PREFIX/share/xeus-cpp/tagfiles:/share/xeus-cpp/tagfiles" \
                       --XeusAddon.mounts="$PREFIX/etc/xeus-cpp/tags.d:/etc/xeus-cpp/tags.d"
-
-Once the Jupyter Lite site has built you can test the website locally by
-executing
-
-.. code:: bash
-
-   jupyter lite serve --XeusAddon.prefix=$PREFIX
