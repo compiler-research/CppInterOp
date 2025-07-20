@@ -534,9 +534,9 @@ jobs:
         os="${{ matrix.os }}"
         if [[ "${os}" != macos* ]] ; then
           actual_size=$(stat -c%s "./lib/libclangCppInterOp.so")
-          max_size=$((46 * 1024 * 1024))
+          max_size=$((40 * 1024 * 1024))
           if [[ "$actual_size" -gt "$max_size" ]]; then
-            echo "Error: libclangCppInterOp.so is larger than 46 MB."
+            echo "Error: libclangCppInterOp.so is larger than 40 MB."
             exit 1
           fi
         fi
