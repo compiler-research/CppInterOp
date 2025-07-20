@@ -1502,7 +1502,8 @@ intptr_t GetVariableOffset(compat::Interpreter& I, Decl* D,
 #ifdef CPPINTEROP_USE_CLING
         cling::Interpreter::PushTransactionRAII RAII(&getInterp());
 #endif // CPPINTEROP_USE_CLING
-        getSema().InstantiateVariableDefinition(SourceLocation(), VD);
+        getSema().InstantiateVariableDefinition(SourceLocation(), VD, true,
+                                                true);
       }
       if (VD->hasInit() &&
           (VD->isConstexpr() || VD->getType().isConstQualified())) {
