@@ -8,6 +8,7 @@
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Sema/Lookup.h"
 #include "clang/Sema/Sema.h"
+#include "clang/Interpreter/PartialTranslationUnit.h"
 
 #include <algorithm>
 #include <string>
@@ -16,28 +17,33 @@
 using namespace clang;
 using namespace llvm;
 
+bool& TestUtils::use_oop_jit() {
+  static bool flag = false;
+  return flag;
+}
+
 void TestUtils::GetAllTopLevelDecls(
     const std::string& code, std::vector<Decl*>& Decls,
     bool filter_implicitGenerated /* = false */,
     const std::vector<const char*>& interpreter_args /* = {} */) {
-  Cpp::CreateInterpreter(interpreter_args);
+  TestUtils::CreateInterpreter(interpreter_args);
 #ifdef CPPINTEROP_USE_CLING
-  cling::Transaction *T = nullptr;
+  cling::Transaction* T = nullptr;
   Interp->declare(code, &T);
 
   for (auto DCI = T->decls_begin(), E = T->decls_end(); DCI != E; ++DCI) {
     if (DCI->m_Call != cling::Transaction::kCCIHandleTopLevelDecl)
       continue;
-    for (Decl *D : DCI->m_DGR) {
+    for (Decl* D : DCI->m_DGR) {
       if (filter_implicitGenerated && D->isImplicit())
         continue;
       Decls.push_back(D);
     }
   }
 #else
-  PartialTranslationUnit *T = nullptr;
-  Interp->process(code, /*Value*/nullptr, &T);
-  for (auto *D : T->TUPart->decls()) {
+  PartialTranslationUnit* T = nullptr;
+  Interp->process(code, /*Value*/ nullptr, &T);
+  for (auto* D : T->TUPart->decls()) {
     if (filter_implicitGenerated && D->isImplicit())
       continue;
     Decls.push_back(D);
@@ -45,16 +51,25 @@ void TestUtils::GetAllTopLevelDecls(
 #endif
 }
 
-void TestUtils::GetAllSubDecls(Decl *D, std::vector<Decl*>& SubDecls,
+void TestUtils::GetAllSubDecls(Decl* D, std::vector<Decl*>& SubDecls,
                                bool filter_implicitGenerated /* = false */) {
   if (!isa_and_nonnull<DeclContext>(D))
     return;
-  DeclContext *DC = cast<DeclContext>(D);
-  for (auto *Di : DC->decls()) {
+  DeclContext* DC = cast<DeclContext>(D);
+  for (auto* Di : DC->decls()) {
     if (filter_implicitGenerated && Di->isImplicit())
       continue;
     SubDecls.push_back(Di);
   }
+}
+
+TInterp_t TestUtils::CreateInterpreter(const std::vector<const char*>& Args,
+                                       const std::vector<const char*>& GpuArgs) {
+  auto mergedArgs = Args;
+  if (TestUtils::use_oop_jit()) {
+    mergedArgs.push_back("--use-oop-jit");
+  }
+  return Cpp::CreateInterpreter(mergedArgs, GpuArgs);
 }
 
 const char* get_c_string(CXString string) {
