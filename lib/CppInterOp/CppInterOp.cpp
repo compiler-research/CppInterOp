@@ -718,6 +718,10 @@ TCppScope_t GetParentScope(TCppScope_t scope) {
 TCppIndex_t GetNumBases(TCppScope_t klass) {
   auto* D = (Decl*)klass;
 
+  if (auto* CTSD = llvm::dyn_cast_or_null<ClassTemplateSpecializationDecl>(D)) {
+    if (!CTSD->hasDefinition())
+      compat::InstantiateClassTemplateSpecialization(getInterp(), CTSD);
+  }
   if (auto* CXXRD = llvm::dyn_cast_or_null<CXXRecordDecl>(D)) {
     if (CXXRD->hasDefinition())
       return CXXRD->getNumBases();
