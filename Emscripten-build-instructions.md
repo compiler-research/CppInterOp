@@ -81,7 +81,6 @@ mkdir build
 cd build
 emcmake cmake -DCMAKE_BUILD_TYPE=Release \
                         -DLLVM_HOST_TRIPLE=wasm32-unknown-emscripten \
-                        -DLLVM_ENABLE_ASSERTIONS=OFF                        \
                         -DLLVM_TARGETS_TO_BUILD="WebAssembly" \
                         -DLLVM_ENABLE_LIBEDIT=OFF \
                         -DLLVM_ENABLE_PROJECTS="clang;lld" \
@@ -115,7 +114,6 @@ mkdir build
 cd build
 emcmake cmake -DCMAKE_BUILD_TYPE=Release `
                         -DLLVM_HOST_TRIPLE=wasm32-unknown-emscripten `
-                        -DLLVM_ENABLE_ASSERTIONS=OFF                        `
                         -DLLVM_TARGETS_TO_BUILD="WebAssembly" `
                         -DLLVM_ENABLE_LIBEDIT=OFF `
                         -DLLVM_ENABLE_PROJECTS="clang;lld" `

@@ -175,7 +175,6 @@ jobs:
                         -DLLVM_EXTERNAL_CLING_SOURCE_DIR=../../cling  \
                         -DCMAKE_BUILD_TYPE=Release \
                         -DLLVM_HOST_TRIPLE=wasm32-unknown-emscripten \
-                        -DLLVM_ENABLE_ASSERTIONS=OFF                        \
                         -DLLVM_TARGETS_TO_BUILD="${{ matrix.llvm_targets_to_build }}" \
                         -DLLVM_ENABLE_LIBEDIT=OFF \
                         -DLLVM_ENABLE_PROJECTS="${{ matrix.llvm_enable_projects }}" \
@@ -209,7 +208,6 @@ jobs:
           cd build
           emcmake cmake -DCMAKE_BUILD_TYPE=Release \
                         -DLLVM_HOST_TRIPLE=wasm32-unknown-emscripten \
-                        -DLLVM_ENABLE_ASSERTIONS=OFF                        \
                         -DLLVM_TARGETS_TO_BUILD="${{ matrix.llvm_targets_to_build }}" \
                         -DLLVM_ENABLE_LIBEDIT=OFF \
                         -DLLVM_ENABLE_PROJECTS="${{ matrix.llvm_enable_projects }}" \
@@ -283,7 +281,6 @@ jobs:
                         -DLLVM_EXTERNAL_CLING_SOURCE_DIR=../../cling  `
                         -DCMAKE_BUILD_TYPE=Release `
                         -DLLVM_HOST_TRIPLE=wasm32-unknown-emscripten `
-                        -DLLVM_ENABLE_ASSERTIONS=OFF                        `
                         -DLLVM_TARGETS_TO_BUILD="${{ matrix.llvm_targets_to_build }}" `
                         -DLLVM_ENABLE_LIBEDIT=OFF `
                         -DLLVM_ENABLE_PROJECTS="${{ matrix.llvm_enable_projects }}" `
@@ -327,7 +324,6 @@ jobs:
           echo "Apply clang${{ matrix.clang-runtime }}-*.patch patches:"
           emcmake cmake -DCMAKE_BUILD_TYPE=Release `
                         -DLLVM_HOST_TRIPLE=wasm32-unknown-emscripten `
-                        -DLLVM_ENABLE_ASSERTIONS=OFF                        `
                         -DLLVM_TARGETS_TO_BUILD="${{ matrix.llvm_targets_to_build }}" `
                         -DLLVM_ENABLE_LIBEDIT=OFF `
                         -DLLVM_ENABLE_PROJECTS="${{ matrix.llvm_enable_projects }}" `
