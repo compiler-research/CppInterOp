@@ -1399,6 +1399,14 @@ TCppScope_t LookupDatamember(const std::string& name, TCppScope_t parent) {
   return 0;
 }
 
+bool IsLambdaClass(TCppType_t type) {
+  QualType QT = QualType::getFromOpaquePtr(type);
+  if (auto* CXXRD = QT->getAsCXXRecordDecl()) {
+    return CXXRD->isLambda();
+  }
+  return false;
+}
+
 TCppType_t GetVariableType(TCppScope_t var) {
   auto* D = static_cast<Decl*>(var);
 
@@ -1927,9 +1935,27 @@ void collect_type_info(const FunctionDecl* FD, QualType& QT,
   PrintingPolicy Policy(C.getPrintingPolicy());
   Policy.SuppressElaboration = true;
   refType = kNotReference;
-  if (QT->isRecordType() && forArgument) {
-    get_type_as_string(QT, type_name, C, Policy);
-    return;
+  if (QT->isRecordType()) {
+    if (forArgument) {
+      get_type_as_string(QT, type_name, C, Policy);
+      return;
+    }
+    if (auto* CXXRD = QT->getAsCXXRecordDecl()) {
+      if (CXXRD->isLambda()) {
+        DeclarationName DFunction = &getASTContext().Idents.get("function");
+        auto result = getSema().getStdNamespace()->lookup(DFunction);
+        if (result.empty())
+          Cpp::Declare("#include <functional>");
+        std::string fn_name;
+        llvm::raw_string_ostream stream(fn_name);
+        Policy.FullyQualifiedName = true;
+        Policy.SuppressUnwrittenScope = true;
+        FD->getNameForDiagnostic(stream, Policy,
+                                 /*Qualified=*/false);
+        type_name = "std::function<decltype(" + fn_name + ")>::result_type";
+        return;
+      }
+    }
   }
   if (QT->isFunctionPointerType()) {
     std::string fp_typedef_name;
