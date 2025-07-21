@@ -222,7 +222,7 @@ It is possible to run the Emscripten tests in a headless browser. To do this we 
     cd ./unittests/CppInterOp/
 ```
 
-We will run our tests in a fresh installed browser. Installing the browsers, and running the tests within the installed browsers will be platform dependent. To do this on MacOS execute the following
+We will run our tests in a fresh installed browser. Installing the browsers, and running the tests within the installed browsers will be platform dependent. To do this for Chrome and Firefox on MacOS execute the following
 
 ```bash
 wget "https://download.mozilla.org/?product=firefox-latest&os=osx&lang=en-US" -O Firefox-latest.dmg
@@ -247,6 +247,19 @@ echo "Running CppInterOpTests in Google Chrome"
 emrun --browser="Google Chrome" --kill_exit --timeout 60 --browser-args="--headless --no-sandbox"  CppInterOpTests.html
 echo "Running DynamicLibraryManagerTests in Google Chrome"          
 emrun --browser="Google Chrome" --kill_exit --timeout 60 --browser-args="--headless --no-sandbox"  DynamicLibraryManagerTests.html
+```
+
+To run tests in Safari you can make use of safaridriver. How to enable this will depend on
+your MacOS operating system, and is best to consult [safaridriver](https://developer.apple.com/documentation/webkit/testing-with-webdriver-in-safari). You will also need to install the Selenium
+python package. This only needs to be enable once, and then you can execute the following to run the tests in Safari
+
+```bash
+echo "Running CppInterOpTests in Safari"
+emrun --no_browser --kill_exit --timeout 60 --browser-args="--headless --no-sandbox"  CppInterOpTests.html &
+python browser_tests_safari.py CppInterOpTests.html
+echo "Running DynamicLibraryManagerTests in Safari"          
+emrun --no_browser --kill_exit --timeout 60 --browser-args="--headless --no-sandbox"  DynamicLibraryManagerTests.html &
+python browser_tests_safari.py DynamicLibraryManagerTests.html
 ```
 
 To do this on Ubuntu x86 execute the following
