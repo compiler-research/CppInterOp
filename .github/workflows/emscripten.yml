@@ -269,6 +269,13 @@ jobs:
 
         cd llvm-project
         # Build
+        mkdir native_build
+        cd native_build
+        cmake -DLLVM_ENABLE_PROJECTS=clang -DLLVM_TARGETS_TO_BUILD=host -DCMAKE_BUILD_TYPE=Release -G Ninja ../llvm/
+        cmake --build . --target llvm-tblgen clang-tblgen --parallel $(nproc --all)
+        $env:PWD_DIR= $PWD.Path
+        $env:NATIVE_DIR="$env:PWD_DIR/bin/"
+        cd ..
         mkdir build
         if ( "${{ matrix.cling }}" -imatch "On" )
         {
@@ -295,23 +302,21 @@ jobs:
                         -DLLVM_BUILD_TOOLS=OFF                          `
                         -DLLVM_ENABLE_LIBPFM=OFF                        `
                         -DCLANG_BUILD_TOOLS=OFF                         `
+                        -DLLVM_NATIVE_TOOL_DIR="$env:NATIVE_DIR" 		    `
                 ..\llvm
           emmake make clang cling lld gtest_main
         }
         else
         {
           cp -r ..\patches\llvm\emscripten-clang${{ matrix.clang-runtime }}*
-          cp -r ..\patches\llvm\Windows-emscripten-clang${{ matrix.clang-runtime }}*
           #FIXME: Apply patches without hardcoding
           if ( "${{ matrix.clang-runtime }}" -imatch "19" )
           {
-            git apply -v Windows-emscripten-clang19-1-CrossCompile.patch
             git apply -v emscripten-clang19-2-shift-temporary-files-to-tmp-dir.patch
             git apply -v emscripten-clang19-3-remove-zdefs.patch
           }
           elseif ( "${{ matrix.clang-runtime }}" -imatch "20" )
           {
-            git apply -v Windows-emscripten-clang20-1-CrossCompile.patch
             git apply -v emscripten-clang20-2-shift-temporary-files-to-tmp-dir.patch
           }
           cd build
@@ -336,6 +341,7 @@ jobs:
                         -DLLVM_ENABLE_LIBPFM=OFF                        `
                         -DCLANG_BUILD_TOOLS=OFF                         `
                         -G Ninja `
+                        -DLLVM_NATIVE_TOOL_DIR="$env:NATIVE_DIR" 		          `
                         ..\llvm
           emmake ninja libclang clangInterpreter clangStaticAnalyzerCore lldWasm
         }
