@@ -37,3 +37,4 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           VALIDATE_MARKDOWN: true
           DEFAULT_BRANCH: ${{ github.base_ref }}
+          MARKDOWN_LINT_CONFIG_FILE: .markdownlint.json
