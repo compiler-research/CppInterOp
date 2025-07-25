@@ -82,8 +82,6 @@ On Windows execute the following
 
    cd .\llvm-project\
    cp -r ..\patches\llvm\emscripten-clang20*
-   cp -r ..\patches\llvm\Windows-emscripten-clang20*
-   git apply -v Windows-emscripten-clang20-1-CrossCompile.patch
    git apply -v emscripten-clang20-2-shift-temporary-files-to-tmp-dir.patch
 
 We are now in a position to build an emscripten build of llvm by executing the following on Linux
@@ -128,6 +126,13 @@ or executing
 
 .. code:: powershell
 
+   mkdir native_build
+   cd native_build
+   cmake -DLLVM_ENABLE_PROJECTS=clang -DLLVM_TARGETS_TO_BUILD=host -DCMAKE_BUILD_TYPE=Release -G Ninja ../llvm/
+   cmake --build . --target llvm-tblgen clang-tblgen --parallel $(nproc --all)
+   $env:PWD_DIR= $PWD.Path
+   $env:NATIVE_DIR="$env:PWD_DIR/bin/"
+   cd ..
    mkdir build
    cd build
    emcmake cmake -DCMAKE_BUILD_TYPE=Release `
@@ -149,6 +154,7 @@ or executing
                         -DLLVM_BUILD_TOOLS=OFF                          `
                         -DLLVM_ENABLE_LIBPFM=OFF                        `
                         -DCLANG_BUILD_TOOLS=OFF                         `
+                        -DLLVM_NATIVE_TOOL_DIR="$env:NATIVE_DIR" 		    `
                         -G Ninja `
                         ..\llvm
    emmake ninja libclang clangInterpreter clangStaticAnalyzerCore lldWasm
