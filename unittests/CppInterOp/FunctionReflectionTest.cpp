@@ -22,6 +22,8 @@ using namespace clang;
 TEST(FunctionReflectionTest, GetClassMethods) {
   std::vector<Decl*> Decls;
   std::string code = R"(
+    class A;
+
     class A {
     public:
       int f1(int a, int b) { return a + b; }
@@ -70,7 +72,7 @@ TEST(FunctionReflectionTest, GetClassMethods) {
   EXPECT_EQ(get_method_name(methods0[10]), "inline A::~A()");
 
   std::vector<Cpp::TCppFunction_t> methods1;
-  Cpp::GetClassMethods(Decls[1], methods1);
+  Cpp::GetClassMethods(Decls[2], methods1);
   EXPECT_EQ(methods0.size(), methods1.size());
   EXPECT_EQ(methods0[0], methods1[0]);
   EXPECT_EQ(methods0[1], methods1[1]);
@@ -79,7 +81,7 @@ TEST(FunctionReflectionTest, GetClassMethods) {
   EXPECT_EQ(methods0[4], methods1[4]);
 
   std::vector<Cpp::TCppFunction_t> methods2;
-  Cpp::GetClassMethods(Decls[2], methods2);
+  Cpp::GetClassMethods(Decls[3], methods2);
 
   EXPECT_EQ(methods2.size(), 6);
   EXPECT_EQ(get_method_name(methods2[0]), "B::B(int n)");
@@ -90,7 +92,7 @@ TEST(FunctionReflectionTest, GetClassMethods) {
   EXPECT_EQ(get_method_name(methods2[5]), "inline B &B::operator=(B &&)");
 
   std::vector<Cpp::TCppFunction_t> methods3;
-  Cpp::GetClassMethods(Decls[3], methods3);
+  Cpp::GetClassMethods(Decls[4], methods3);
 
   EXPECT_EQ(methods3.size(), 9);
   EXPECT_EQ(get_method_name(methods3[0]), "B::B(int n)");
@@ -104,7 +106,7 @@ TEST(FunctionReflectionTest, GetClassMethods) {
 
   // Should not crash.
   std::vector<Cpp::TCppFunction_t> methods4;
-  Cpp::GetClassMethods(Decls[4], methods4);
+  Cpp::GetClassMethods(Decls[5], methods4);
   EXPECT_EQ(methods4.size(), 0);
 
   std::vector<Cpp::TCppFunction_t> methods5;
