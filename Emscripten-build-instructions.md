@@ -81,7 +81,6 @@ mkdir build
 cd build
 emcmake cmake -DCMAKE_BUILD_TYPE=Release \
                         -DLLVM_HOST_TRIPLE=wasm32-unknown-emscripten \
-                        -DLLVM_ENABLE_ASSERTIONS=ON                        \
                         -DLLVM_TARGETS_TO_BUILD="WebAssembly" \
                         -DLLVM_ENABLE_LIBEDIT=OFF \
                         -DLLVM_ENABLE_PROJECTS="clang;lld" \
@@ -99,6 +98,9 @@ emcmake cmake -DCMAKE_BUILD_TYPE=Release \
                         -DLLVM_ENABLE_LIBPFM=OFF                        \
                         -DCLANG_BUILD_TOOLS=OFF                         \
                         -DLLVM_NATIVE_TOOL_DIR=$NATIVE_DIR              \
+                        -DCMAKE_C_FLAGS_RELEASE="-Oz -g0 -DNDEBUG" \
+                        -DCMAKE_CXX_FLAGS_RELEASE="-Oz -g0 -DNDEBUG" \
+                        -DLLVM_ENABLE_LTO=Full \
                         ../llvm
 emmake make libclang -j $(nproc --all)
 emmake make clangInterpreter clangStaticAnalyzerCore -j $(nproc --all)
@@ -112,7 +114,6 @@ mkdir build
 cd build
 emcmake cmake -DCMAKE_BUILD_TYPE=Release `
                         -DLLVM_HOST_TRIPLE=wasm32-unknown-emscripten `
-                        -DLLVM_ENABLE_ASSERTIONS=ON                        `
                         -DLLVM_TARGETS_TO_BUILD="WebAssembly" `
                         -DLLVM_ENABLE_LIBEDIT=OFF `
                         -DLLVM_ENABLE_PROJECTS="clang;lld" `
@@ -130,6 +131,9 @@ emcmake cmake -DCMAKE_BUILD_TYPE=Release `
                         -DLLVM_ENABLE_LIBPFM=OFF                        `
                         -DCLANG_BUILD_TOOLS=OFF                         `
                         -G Ninja `
+                        -DCMAKE_C_FLAGS_RELEASE="-Oz -g0 -DNDEBUG" `
+                        -DCMAKE_CXX_FLAGS_RELEASE="-Oz -g0 -DNDEBUG" `
+                        -DLLVM_ENABLE_LTO=Full `
                         ..\llvm
 emmake ninja libclang clangInterpreter clangStaticAnalyzerCore lldWasm
 ```
