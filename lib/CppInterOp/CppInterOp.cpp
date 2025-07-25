@@ -615,7 +615,9 @@ static Decl* GetScopeFromType(QualType QT) {
     Type = Type->getUnqualifiedDesugaredType();
     if (auto* ET = llvm::dyn_cast<EnumType>(Type))
       return ET->getDecl();
-    return Type->getAsCXXRecordDecl();
+    CXXRecordDecl* CXXRD = Type->getAsCXXRecordDecl();
+    if (CXXRD)
+      return CXXRD->getCanonicalDecl();
   }
   return 0;
 }
@@ -634,7 +636,7 @@ static clang::Decl* GetUnderlyingScope(clang::Decl* D) {
       D = Scope;
   }
 
-  return D;
+  return D->getCanonicalDecl();
 }
 
 TCppScope_t GetUnderlyingScope(TCppScope_t scope) {
@@ -843,6 +845,8 @@ static void GetClassDecls(TCppScope_t klass,
 #ifdef CPPINTEROP_USE_CLING
   cling::Interpreter::PushTransactionRAII RAII(&getInterp());
 #endif // CPPINTEROP_USE_CLING
+  if (CXXRD->hasDefinition())
+    CXXRD = CXXRD->getDefinition();
   getSema().ForceDeclarationOfImplicitMembers(CXXRD);
   for (Decl* DI : CXXRD->decls()) {
     if (auto* MD = dyn_cast<DeclType>(DI))
