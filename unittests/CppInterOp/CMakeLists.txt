@@ -1,3 +1,4 @@
+file(COPY ${CMAKE_SOURCE_DIR}/scripts/browser_tests_safari.py DESTINATION ${CMAKE_CURRENT_BINARY_DIR})
 if (EMSCRIPTEN)
   # So we create a html file, as well as the javascript file
   set(CMAKE_EXECUTABLE_SUFFIX ".html")
