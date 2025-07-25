@@ -319,12 +319,13 @@ emmake make -j $(nproc --all) install
 ## Xeus-cpp-lite Wasm Build Instructions
 
 A project which makes use of the wasm build of CppInterOp is xeus-cpp. xeus-cpp is a C++ Jupyter kernel. Assuming you are in  
-the CppInterOp build folder, you can build the wasm version of xeus-cpp by executing (replace $LLVM_VERSION with the version
+the CppInterOp build folder, you can build the wasm version of xeus-cpp by executing (replace LLVM_VERSION with the version
 of llvm you are building against)
 
 ```bash
 cd ../..
 git clone --depth=1 https://github.com/compiler-research/xeus-cpp.git
+export LLVM_VERSION=20
 cd ./xeus-cpp
 mkdir build
 cd build
@@ -334,7 +335,7 @@ emcmake cmake \
           -DCMAKE_INSTALL_PREFIX=$PREFIX                                 \
           -DXEUS_CPP_EMSCRIPTEN_WASM_BUILD=ON                            \
           -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON                         \
-          -DXEUS_CPP_RESOURCE_DIR=$LLVM_BUILD_DIR/lib/clang/$LLVM_VERSION \
+          -DXEUS_CPP_RESOURCE_DIR="$LLVM_BUILD_DIR/lib/clang/$LLVM_VERSION" \
           -DSYSROOT_PATH=$SYSROOT_PATH                                   \
           ..
  emmake make -j $(nproc --all) install
