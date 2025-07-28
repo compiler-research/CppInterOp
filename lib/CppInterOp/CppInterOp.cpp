@@ -2168,9 +2168,8 @@ void make_narg_call(const FunctionDecl* FD, const std::string& return_type,
           }
         }
       }
-      if (FD->isOverloadedOperator()) {
+      if (FD->isOverloadedOperator())
         name = simple_name;
-      }
     }
     if (op_flag || N <= 1)
       callbuf << name;
