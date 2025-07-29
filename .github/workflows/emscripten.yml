@@ -516,8 +516,6 @@ jobs:
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            \
                 -DLLVM_ENABLE_WERROR=On                      \
                 -DSYSROOT_PATH=$SYSROOT_PATH               \
-                -DCMAKE_C_FLAGS_RELEASE="-Oz -g0 -DNDEBUG" \
-                -DCMAKE_CXX_FLAGS_RELEASE="-Oz -g0 -DNDEBUG" \
                 ../
         else
           emcmake cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    \
@@ -531,8 +529,6 @@ jobs:
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            \
                 -DLLVM_ENABLE_WERROR=On                      \
                 -DSYSROOT_PATH=$SYSROOT_PATH                     \
-                -DCMAKE_C_FLAGS_RELEASE="-Oz -g0 -DNDEBUG" \
-                -DCMAKE_CXX_FLAGS_RELEASE="-Oz -g0 -DNDEBUG" \
                 ../
         fi
 
@@ -686,8 +682,6 @@ jobs:
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            \
                 -DLLVM_ENABLE_WERROR=On                      \
                 -DSYSROOT_PATH=$SYSROOT_PATH               \
-                -DCMAKE_C_FLAGS_RELEASE="-Oz -g0 -DNDEBUG" \
-                -DCMAKE_CXX_FLAGS_RELEASE="-Oz -g0 -DNDEBUG" \
                 ../
         else
           emcmake cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    \
@@ -700,8 +694,6 @@ jobs:
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            \
                 -DLLVM_ENABLE_WERROR=On                      \
                 -DSYSROOT_PATH=$SYSROOT_PATH                     \
-                -DCMAKE_C_FLAGS_RELEASE="-Oz -g0 -DNDEBUG" \
-                -DCMAKE_CXX_FLAGS_RELEASE="-Oz -g0 -DNDEBUG" \
                 ../
         fi
         os="${{ matrix.os }}"
@@ -834,8 +826,6 @@ jobs:
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            `
                 -DLLVM_ENABLE_WERROR=On                      `
                 -DSYSROOT_PATH="$env:SYSROOT_PATH"              `
-                -DCMAKE_C_FLAGS_RELEASE="-Oz -g0 -DNDEBUG" `
-                -DCMAKE_CXX_FLAGS_RELEASE="-Oz -g0 -DNDEBUG" `
                 ..\
         }
         else
@@ -851,8 +841,6 @@ jobs:
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            `
                 -DLLVM_ENABLE_WERROR=On                      `
                 -DSYSROOT_PATH="$env:SYSROOT_PATH"                     `
-                -DCMAKE_C_FLAGS_RELEASE="-Oz -g0 -DNDEBUG" `
-                -DCMAKE_CXX_FLAGS_RELEASE="-Oz -g0 -DNDEBUG" `
                 ..\
         }
         function Error-OnFailure {
@@ -961,8 +949,6 @@ jobs:
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            `
                 -DLLVM_ENABLE_WERROR=On                      `
                 -DSYSROOT_PATH="$env:SYSROOT_PATH"              `
-                -DCMAKE_C_FLAGS_RELEASE="-Oz -g0 -DNDEBUG" `
-                -DCMAKE_CXX_FLAGS_RELEASE="-Oz -g0 -DNDEBUG" `
                 ..\
         }
         else
@@ -977,8 +963,6 @@ jobs:
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            `
                 -DLLVM_ENABLE_WERROR=On                      `
                 -DSYSROOT_PATH="$env:SYSROOT_PATH"                     `
-                -DCMAKE_C_FLAGS_RELEASE="-Oz -g0 -DNDEBUG" `
-                -DCMAKE_CXX_FLAGS_RELEASE="-Oz -g0 -DNDEBUG" `
                 ..\
         }
         Error-OnFailure { emmake make -j ${{ env.ncpus }} check-cppinterop }
