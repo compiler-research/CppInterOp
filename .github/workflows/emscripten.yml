@@ -273,6 +273,13 @@ jobs:
 
         cd llvm-project
         # Build
+        mkdir native_build
+        cd native_build
+        cmake -DLLVM_ENABLE_PROJECTS=clang -DLLVM_TARGETS_TO_BUILD=host -DCMAKE_BUILD_TYPE=Release -G Ninja ../llvm/
+        cmake --build . --target llvm-tblgen clang-tblgen --parallel $(nproc --all)
+        $env:PWD_DIR= $PWD.Path
+        $env:NATIVE_DIR="$env:PWD_DIR/bin/"
+        cd ..
         mkdir build
         if ( "${{ matrix.cling }}" -imatch "On" )
         {
@@ -301,23 +308,21 @@ jobs:
                         -DCMAKE_C_FLAGS_RELEASE="-Oz -g0 -DNDEBUG" `
                         -DCMAKE_CXX_FLAGS_RELEASE="-Oz -g0 -DNDEBUG" `
                         -DLLVM_ENABLE_LTO=Full `
+                        -DLLVM_NATIVE_TOOL_DIR="$env:NATIVE_DIR" 		    `
                 ..\llvm
           emmake make clang cling lld gtest_main
         }
         else
         {
           cp -r ..\patches\llvm\emscripten-clang${{ matrix.clang-runtime }}*
-          cp -r ..\patches\llvm\Windows-emscripten-clang${{ matrix.clang-runtime }}*
           #FIXME: Apply patches without hardcoding
           if ( "${{ matrix.clang-runtime }}" -imatch "19" )
           {
-            git apply -v Windows-emscripten-clang19-1-CrossCompile.patch
             git apply -v emscripten-clang19-2-shift-temporary-files-to-tmp-dir.patch
             git apply -v emscripten-clang19-3-remove-zdefs.patch
           }
           elseif ( "${{ matrix.clang-runtime }}" -imatch "20" )
           {
-            git apply -v Windows-emscripten-clang20-1-CrossCompile.patch
             git apply -v emscripten-clang20-2-shift-temporary-files-to-tmp-dir.patch
           }
           cd build
@@ -344,6 +349,7 @@ jobs:
                         -DCMAKE_CXX_FLAGS_RELEASE="-Oz -g0 -DNDEBUG" `
                         -DLLVM_ENABLE_LTO=Full `
                         -G Ninja `
+                        -DLLVM_NATIVE_TOOL_DIR="$env:NATIVE_DIR" 		          `
                         ..\llvm
           emmake ninja libclang clangInterpreter clangStaticAnalyzerCore lldWasm
         }
@@ -510,6 +516,8 @@ jobs:
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            \
                 -DLLVM_ENABLE_WERROR=On                      \
                 -DSYSROOT_PATH=$SYSROOT_PATH               \
+                -DCMAKE_C_FLAGS_RELEASE="-Oz -g0 -DNDEBUG" \
+                -DCMAKE_CXX_FLAGS_RELEASE="-Oz -g0 -DNDEBUG" \
                 ../
         else
           emcmake cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    \
@@ -523,6 +531,8 @@ jobs:
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            \
                 -DLLVM_ENABLE_WERROR=On                      \
                 -DSYSROOT_PATH=$SYSROOT_PATH                     \
+                -DCMAKE_C_FLAGS_RELEASE="-Oz -g0 -DNDEBUG" \
+                -DCMAKE_CXX_FLAGS_RELEASE="-Oz -g0 -DNDEBUG" \
                 ../
         fi
 
@@ -676,6 +686,8 @@ jobs:
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            \
                 -DLLVM_ENABLE_WERROR=On                      \
                 -DSYSROOT_PATH=$SYSROOT_PATH               \
+                -DCMAKE_C_FLAGS_RELEASE="-Oz -g0 -DNDEBUG" \
+                -DCMAKE_CXX_FLAGS_RELEASE="-Oz -g0 -DNDEBUG" \
                 ../
         else
           emcmake cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    \
@@ -688,6 +700,8 @@ jobs:
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            \
                 -DLLVM_ENABLE_WERROR=On                      \
                 -DSYSROOT_PATH=$SYSROOT_PATH                     \
+                -DCMAKE_C_FLAGS_RELEASE="-Oz -g0 -DNDEBUG" \
+                -DCMAKE_CXX_FLAGS_RELEASE="-Oz -g0 -DNDEBUG" \
                 ../
         fi
         os="${{ matrix.os }}"
@@ -760,7 +774,6 @@ jobs:
       if: ${{ runner.os == 'windows' }}
       shell: powershell
       run: |
-        $ErrorActionPreference = "Stop"
         micromamba create -f environment-wasm.yml --platform=emscripten-wasm32
         .\emsdk\emsdk activate ${{matrix.emsdk_ver}}
         .\emsdk\emsdk_env.ps1
@@ -821,6 +834,8 @@ jobs:
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            `
                 -DLLVM_ENABLE_WERROR=On                      `
                 -DSYSROOT_PATH="$env:SYSROOT_PATH"              `
+                -DCMAKE_C_FLAGS_RELEASE="-Oz -g0 -DNDEBUG" `
+                -DCMAKE_CXX_FLAGS_RELEASE="-Oz -g0 -DNDEBUG" `
                 ..\
         }
         else
@@ -836,9 +851,23 @@ jobs:
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            `
                 -DLLVM_ENABLE_WERROR=On                      `
                 -DSYSROOT_PATH="$env:SYSROOT_PATH"                     `
+                -DCMAKE_C_FLAGS_RELEASE="-Oz -g0 -DNDEBUG" `
+                -DCMAKE_CXX_FLAGS_RELEASE="-Oz -g0 -DNDEBUG" `
                 ..\
         }
-        emmake make -j ${{ env.ncpus }} check-cppinterop
+        function Error-OnFailure {
+          param (
+              [Parameter(Mandatory)]
+              [ScriptBlock]$Command
+          )
+
+         & $Command
+
+         if ($LASTEXITCODE -ne 0) {
+            exit $LASTEXITCODE
+         }
+        }
+        Error-OnFailure{ emmake make -j ${{ env.ncpus }} check-cppinterop }
         cd .\unittests\CppInterOp\
         Invoke-WebRequest -Uri "https://commondatastorage.googleapis.com/chromium-browser-snapshots/Win/1411573/chrome-win.zip" -OutFile "$PWD\chrome-win.zip" -Verbose
         Expand-Archive -Path "$PWD\chrome-win.zip" -DestinationPath "$PWD" -Force -Verbose
@@ -848,23 +877,34 @@ jobs:
         echo "PATH=$env:PATH"
         echo "PATH=$env:PATH" >> $env:GITHUB_ENV
         echo "Running CppInterOpTests in Firefox"
-        emrun.bat --browser="firefox.exe" --kill_exit --timeout 60 --browser-args="--headless"  CppInterOpTests.html
+        Error-OnFailure { emrun.bat --browser="firefox.exe" --kill_exit --timeout 60 --browser-args="--headless"  CppInterOpTests.html }
         echo "Running DynamicLibraryManagerTests in Firefox"
-        emrun.bat --browser="firefox.exe" --kill_exit --timeout 60 --browser-args="--headless"  DynamicLibraryManagerTests.html
+        Error-OnFailure { emrun.bat --browser="firefox.exe" --kill_exit --timeout 60 --browser-args="--headless"  DynamicLibraryManagerTests.html }
         echo "Running CppInterOpTests in Chromium"
-        emrun.bat --browser="chrome.exe" --kill_exit --timeout 60 --browser-args="--headless --no-sandbox"  CppInterOpTests.html
+        Error-OnFailure { emrun.bat --browser="chrome.exe" --kill_exit --timeout 60 --browser-args="--headless --no-sandbox"  CppInterOpTests.html }
         echo "Running DynamicLibraryManagerTests in Chromium"
-        emrun.bat --browser="chrome.exe" --kill_exit --timeout 60 --browser-args="--headless --no-sandbox"  DynamicLibraryManagerTests.html
+        Error-OnFailure { emrun.bat --browser="chrome.exe" --kill_exit --timeout 60 --browser-args="--headless --no-sandbox"  DynamicLibraryManagerTests.html }
         cd ..\..
-        emmake make -j ${{ env.ncpus }} install
+        Error-OnFailure { emmake make -j ${{ env.ncpus }} install }
 
     - name: Build and Test/Install CppInterOp on Windows systems (static library)
       if: ${{ runner.os == 'windows' }}
       shell: powershell
       run: |
-        $ErrorActionPreference = "Stop"
         .\emsdk\emsdk activate ${{matrix.emsdk_ver}}
         .\emsdk\emsdk_env.ps1
+        function Error-OnFailure {
+          param (
+              [Parameter(Mandatory)]
+              [ScriptBlock]$Command
+          )
+
+         & $Command
+
+         if ($LASTEXITCODE -ne 0) {
+            exit $LASTEXITCODE
+         }
+        }
         $env:PWD_DIR= $PWD.Path
         $env:SYSROOT_PATH="$env:EMSDK/upstream/emscripten/cache/sysroot"
         $env:PREFIX="%CONDA_PREFIX%/envs/CppInterOp-wasm"
@@ -921,6 +961,8 @@ jobs:
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            `
                 -DLLVM_ENABLE_WERROR=On                      `
                 -DSYSROOT_PATH="$env:SYSROOT_PATH"              `
+                -DCMAKE_C_FLAGS_RELEASE="-Oz -g0 -DNDEBUG" `
+                -DCMAKE_CXX_FLAGS_RELEASE="-Oz -g0 -DNDEBUG" `
                 ..\
         }
         else
@@ -935,18 +977,20 @@ jobs:
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            `
                 -DLLVM_ENABLE_WERROR=On                      `
                 -DSYSROOT_PATH="$env:SYSROOT_PATH"                     `
+                -DCMAKE_C_FLAGS_RELEASE="-Oz -g0 -DNDEBUG" `
+                -DCMAKE_CXX_FLAGS_RELEASE="-Oz -g0 -DNDEBUG" `
                 ..\
         }
-        emmake make -j ${{ env.ncpus }} check-cppinterop
+        Error-OnFailure { emmake make -j ${{ env.ncpus }} check-cppinterop }
         cd .\unittests\CppInterOp\
         echo "Running CppInterOpTests in Firefox"
-        emrun.bat --browser="firefox.exe" --kill_exit --timeout 60 --browser-args="--headless"  CppInterOpTests.html
+        Error-OnFailure { emrun.bat --browser="firefox.exe" --kill_exit --timeout 60 --browser-args="--headless"  CppInterOpTests.html }
         echo "Running DynamicLibraryManagerTests in Firefox"
-        emrun.bat --browser="firefox.exe" --kill_exit --timeout 60 --browser-args="--headless"  DynamicLibraryManagerTests.html
+        Error-OnFailure { emrun.bat --browser="firefox.exe" --kill_exit --timeout 60 --browser-args="--headless"  DynamicLibraryManagerTests.html }
         echo "Running CppInterOpTests in Chromium"
-        emrun.bat --browser="chrome.exe" --kill_exit --timeout 60 --browser-args="--headless --no-sandbox"  CppInterOpTests.html
+        Error-OnFailure { emrun.bat --browser="chrome.exe" --kill_exit --timeout 60 --browser-args="--headless --no-sandbox"  CppInterOpTests.html }
         echo "Running DynamicLibraryManagerTests in Chromium"
-        emrun.bat --browser="chrome.exe" --kill_exit --timeout 60 --browser-args="--headless --no-sandbox"  DynamicLibraryManagerTests.html
+        Error-OnFailure{ emrun.bat --browser="chrome.exe" --kill_exit --timeout 60 --browser-args="--headless --no-sandbox"  DynamicLibraryManagerTests.html }
 
     - name: Build xeus-cpp
       if: ${{ runner.os != 'windows' }}

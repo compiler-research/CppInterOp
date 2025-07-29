@@ -641,6 +641,13 @@ TEST(ScopeReflectionTest, GetNumBases) {
     class D : public B, public C {};
     class E : public D {};
     class NoDef;
+
+    template<typename T, int N>
+    struct Klass : public A {
+        T t{N};
+    };
+
+    typedef Klass<int, 1> TKlass;
   )";
 
   GetAllTopLevelDecls(code, Decls);
@@ -653,6 +660,7 @@ TEST(ScopeReflectionTest, GetNumBases) {
   // FIXME: Perhaps we should have a special number or error out as this
   // operation is not well defined if a class has no definition.
   EXPECT_EQ(Cpp::GetNumBases(Decls[5]), 0);
+  EXPECT_EQ(Cpp::GetNumBases(Cpp::GetUnderlyingScope(Decls[7])), 1);
 }
 
 TEST(ScopeReflectionTest, GetBaseClass) {
