@@ -95,14 +95,14 @@ TEST(FunctionReflectionTest, GetClassMethods) {
   Cpp::GetClassMethods(Decls[4], methods3);
 
   EXPECT_EQ(methods3.size(), 9);
-  EXPECT_EQ(get_method_name(methods3[0]), "B::B(int n)");
-  EXPECT_EQ(get_method_name(methods3[1]), "inline constexpr B::B(const B &)");
-  EXPECT_EQ(get_method_name(methods3[3]), "inline C::C()");
-  EXPECT_EQ(get_method_name(methods3[4]), "inline constexpr C::C(const C &)");
-  EXPECT_EQ(get_method_name(methods3[5]), "inline constexpr C::C(C &&)");
-  EXPECT_EQ(get_method_name(methods3[6]), "inline C &C::operator=(const C &)");
-  EXPECT_EQ(get_method_name(methods3[7]), "inline C &C::operator=(C &&)");
-  EXPECT_EQ(get_method_name(methods3[8]), "inline C::~C()");
+  EXPECT_EQ(get_method_name(methods3[0]), "inline C::C()");
+  EXPECT_EQ(get_method_name(methods3[1]), "inline constexpr C::C(const C &)");
+  EXPECT_EQ(get_method_name(methods3[2]), "inline constexpr C::C(C &&)");
+  EXPECT_EQ(get_method_name(methods3[3]), "inline C &C::operator=(const C &)");
+  EXPECT_EQ(get_method_name(methods3[4]), "inline C &C::operator=(C &&)");
+  EXPECT_EQ(get_method_name(methods3[5]), "inline C::~C()");
+  EXPECT_EQ(get_method_name(methods3[6]), "inline C::B(int)");
+  EXPECT_EQ(get_method_name(methods3[7]), "inline constexpr C::B(const B &)");
 
   // Should not crash.
   std::vector<Cpp::TCppFunction_t> methods4;
@@ -112,6 +112,49 @@ TEST(FunctionReflectionTest, GetClassMethods) {
   std::vector<Cpp::TCppFunction_t> methods5;
   Cpp::GetClassMethods(nullptr, methods5);
   EXPECT_EQ(methods5.size(), 0);
+
+  Decls.clear();
+  code = R"(
+    struct T {
+    template<typename Tmpl>
+    T(Tmpl x) : n(x) {}
+    T(const T&) = delete;
+    T(T&&) = delete;
+    void fn() {}
+    int n;
+    };
+
+    struct TT: public T {
+      using T::T;
+      using T::fn;
+    };
+    )";
+
+  GetAllTopLevelDecls(code, Decls);
+  EXPECT_EQ(Decls.size(), 2);
+
+  std::vector<Cpp::TCppFunction_t> templ_methods1;
+  Cpp::GetClassMethods(Decls[0], templ_methods1);
+  EXPECT_EQ(templ_methods1.size(), 5);
+  EXPECT_EQ(get_method_name(templ_methods1[0]), "T::T(const T &) = delete");
+  EXPECT_EQ(get_method_name(templ_methods1[1]), "T::T(T &&) = delete");
+  EXPECT_EQ(get_method_name(templ_methods1[2]), "void T::fn()");
+  EXPECT_EQ(get_method_name(templ_methods1[3]),
+            "inline T &T::operator=(const T &)");
+  EXPECT_EQ(get_method_name(templ_methods1[4]), "inline T::~T()");
+
+  std::vector<Cpp::TCppFunction_t> templ_methods2;
+  Cpp::GetClassMethods(Decls[1], templ_methods2);
+  EXPECT_EQ(templ_methods2.size(), 7);
+  EXPECT_EQ(get_method_name(templ_methods2[0]), "void T::fn()");
+  EXPECT_EQ(get_method_name(templ_methods2[1]), "inline TT::TT()");
+  EXPECT_EQ(get_method_name(templ_methods2[2]), "inline TT::TT(const TT &)");
+  EXPECT_EQ(get_method_name(templ_methods2[3]), "inline TT::TT(TT &&)");
+  EXPECT_EQ(get_method_name(templ_methods2[4]),
+            "inline TT &TT::operator=(const TT &)");
+  EXPECT_EQ(get_method_name(templ_methods2[5]),
+            "inline TT &TT::operator=(TT &&)");
+  EXPECT_EQ(get_method_name(templ_methods2[6]), "inline TT::~TT()");
 
   // C API
   auto* I = clang_createInterpreterFromRawPtr(Cpp::GetInterpreter());
