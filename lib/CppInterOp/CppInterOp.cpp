@@ -1406,6 +1406,14 @@ TCppScope_t LookupDatamember(const std::string& name, TCppScope_t parent) {
   return 0;
 }
 
+bool IsLambdaClass(TCppType_t type) {
+  QualType QT = QualType::getFromOpaquePtr(type);
+  if (auto* CXXRD = QT->getAsCXXRecordDecl()) {
+    return CXXRD->isLambda();
+  }
+  return false;
+}
+
 TCppType_t GetVariableType(TCppScope_t var) {
   auto* D = static_cast<Decl*>(var);
 
