@@ -873,12 +873,10 @@ static void GetClassDecls(TCppScope_t klass,
       if (CXXCD->isDeleted())
         continue;
 
-      CXXConstructorDecl* Result =
-          getSema().findInheritingConstructor(SourceLocation(), CXXCD, CUSD);
       // Result is appended to the decls, i.e. CXXRD, iterator
       // non-shadowed decl will be push_back later
       // methods.push_back(Result);
-      (void)Result;
+      getSema().findInheritingConstructor(SourceLocation(), CXXCD, CUSD);
     }
   }
 }
