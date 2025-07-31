@@ -280,10 +280,10 @@ python package. This only needs to be enable once, and then you can execute the 
 
    echo "Running CppInterOpTests in Safari"
    emrun --no_browser --kill_exit --timeout 60 --browser-args="--headless --no-sandbox"  CppInterOpTests.html &
-   python browser_tests_safari.py CppInterOpTests.html
+   python ../../../scripts/browser_tests_safari.py CppInterOpTests.html
    echo "Running DynamicLibraryManagerTests in Safari"          
    emrun --no_browser --kill_exit --timeout 60 --browser-args="--headless --no-sandbox"  DynamicLibraryManagerTests.html &
-   python browser_tests_safari.py DynamicLibraryManagerTests.html
+   python ../../../scripts/browser_tests_safari.py DynamicLibraryManagerTests.html
 
 To do this on Ubuntu x86 execute the following
 
