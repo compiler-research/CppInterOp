@@ -322,6 +322,28 @@ TEST(VariableReflectionTest, GetVariableOffset) {
   EXPECT_EQ(Cpp::GetVariableOffset(datamembers[0]), offsetof(K, x));
   EXPECT_EQ(Cpp::GetVariableOffset(datamembers[1]), offsetof(K, y));
   EXPECT_EQ(Cpp::GetVariableOffset(datamembers[2]), offsetof(K, z));
+
+  Cpp::Declare(R"(
+    template <typename T> struct ClassWithStatic {
+      static T const ref_value;
+    };
+    template <typename T> T constexpr ClassWithStatic<T>::ref_value = 42;
+  )");
+
+  Cpp::TCppScope_t klass = Cpp::GetNamed("ClassWithStatic");
+  EXPECT_TRUE(klass);
+
+  ASTContext& C = Interp->getCI()->getASTContext();
+  std::vector<Cpp::TemplateArgInfo> template_args = {
+      {C.IntTy.getAsOpaquePtr()}};
+  Cpp::TCppScope_t klass_instantiated = Cpp::InstantiateTemplate(
+      klass, template_args.data(), template_args.size());
+  EXPECT_TRUE(klass_instantiated);
+
+  Cpp::TCppScope_t var = Cpp::GetNamed("ref_value", klass_instantiated);
+  EXPECT_TRUE(var);
+
+  EXPECT_TRUE(Cpp::GetVariableOffset(var));
 }
 
 #define CODE                                                                   \
