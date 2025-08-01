@@ -314,6 +314,7 @@ jobs:
           {
             git apply -v emscripten-clang19-2-shift-temporary-files-to-tmp-dir.patch
             git apply -v emscripten-clang19-3-remove-zdefs.patch
+            git apply -v emscripten-clang19-4-enable_exception_handling.patch
           }
           elseif ( "${{ matrix.clang-runtime }}" -imatch "20" )
           {
