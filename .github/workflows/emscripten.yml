@@ -14,18 +14,12 @@ concurrency:
 
 jobs:
   build:
-    name: ${{ matrix.name }}
+    name: ${{ matrix.os }}
     runs-on: ${{ matrix.os }}
     strategy:
       fail-fast: false
       matrix:
-        include:
-          - name: Ubuntu-arm-Emscripten
-            os: ubuntu-24.04-arm
-          - name: MacOS-15-Emscripten
-            os: macos-15
-          - name: Windows-2025-Emscripten
-            os: windows-2025
+        os: [ubuntu-24.04-arm, macos-15, windows-2025]
 
     steps:
     - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
