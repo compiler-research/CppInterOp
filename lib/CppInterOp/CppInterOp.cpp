@@ -854,9 +854,30 @@ static void GetClassDecls(TCppScope_t klass,
   for (Decl* DI : CXXRD->decls()) {
     if (auto* MD = dyn_cast<DeclType>(DI))
       methods.push_back(MD);
-    else if (auto* USD = dyn_cast<UsingShadowDecl>(DI))
-      if (auto* MD = dyn_cast<DeclType>(USD->getTargetDecl()))
+    else if (auto* USD = dyn_cast<UsingShadowDecl>(DI)) {
+      auto* MD = dyn_cast<DeclType>(USD->getTargetDecl());
+      if (!MD)
+        continue;
+
+      auto* CUSD = dyn_cast<ConstructorUsingShadowDecl>(DI);
+      if (!CUSD) {
         methods.push_back(MD);
+        continue;
+      }
+
+      auto* CXXCD = dyn_cast_or_null<CXXConstructorDecl>(CUSD->getTargetDecl());
+      if (!CXXCD) {
+        methods.push_back(MD);
+        continue;
+      }
+      if (CXXCD->isDeleted())
+        continue;
+
+      // Result is appended to the decls, i.e. CXXRD, iterator
+      // non-shadowed decl will be push_back later
+      // methods.push_back(Result);
+      getSema().findInheritingConstructor(SourceLocation(), CXXCD, CUSD);
+    }
   }
 }
 
