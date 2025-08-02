@@ -2111,6 +2111,19 @@ TEST(FunctionReflectionTest, GetFunctionCallWrapper) {
 
   auto op_callable = Cpp::MakeFunctionCallable(op);
   EXPECT_EQ(op_callable.getKind(), Cpp::JitCall::kGenericCall);
+
+  Cpp::Declare(R"(
+    auto get_fn(int x) { return [x](int y){ return x + y; }; }
+  )");
+
+  Cpp::TCppScope_t get_fn = Cpp::GetNamed("get_fn");
+  EXPECT_TRUE(get_fn);
+
+  auto get_fn_callable = Cpp::MakeFunctionCallable(get_fn);
+  EXPECT_EQ(get_fn_callable.getKind(), Cpp::JitCall::kGenericCall);
+
+  EXPECT_TRUE(Cpp::IsLambdaClass(Cpp::GetFunctionReturnType(get_fn)));
+  EXPECT_FALSE(Cpp::IsLambdaClass(Cpp::GetFunctionReturnType(bar)));
 }
 
 TEST(FunctionReflectionTest, IsConstMethod) {
