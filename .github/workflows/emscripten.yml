@@ -40,11 +40,6 @@ jobs:
       run: |
         choco install ninja
 
-    - name: Install deps on MacOS
-      if: ${{ runner.os == 'macOS'  }}
-      run: |
-        brew install ninja
-
     - name: Install deps on Linux
       if: ${{ runner.os == 'Linux' }}
       run: |
