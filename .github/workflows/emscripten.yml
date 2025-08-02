@@ -20,11 +20,11 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: ubu24-arm-clang-repl-19-emscripten
+          - name: Ubuntu-arm-Emscripten
             os: ubuntu-24.04-arm
-          - name: osx15-arm-clang-repl-19-emscripten
+          - name: MacOS-15-Emscripten
             os: macos-15
-          - name: win2025-x86-clang-repl-19-emscripten
+          - name: Windows-2025-Emscripten
             os: windows-2025
 
     steps:
