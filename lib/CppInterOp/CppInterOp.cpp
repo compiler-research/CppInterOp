@@ -615,7 +615,9 @@ static Decl* GetScopeFromType(QualType QT) {
     Type = Type->getUnqualifiedDesugaredType();
     if (auto* ET = llvm::dyn_cast<EnumType>(Type))
       return ET->getDecl();
-    return Type->getAsCXXRecordDecl();
+    CXXRecordDecl* CXXRD = Type->getAsCXXRecordDecl();
+    if (CXXRD)
+      return CXXRD->getCanonicalDecl();
   }
   return 0;
 }
@@ -634,7 +636,7 @@ static clang::Decl* GetUnderlyingScope(clang::Decl* D) {
       D = Scope;
   }
 
-  return D;
+  return D->getCanonicalDecl();
 }
 
 TCppScope_t GetUnderlyingScope(TCppScope_t scope) {
@@ -716,6 +718,9 @@ TCppScope_t GetParentScope(TCppScope_t scope) {
 TCppIndex_t GetNumBases(TCppScope_t klass) {
   auto* D = (Decl*)klass;
 
+  if (auto* CTSD = llvm::dyn_cast_or_null<ClassTemplateSpecializationDecl>(D))
+    if (!CTSD->hasDefinition())
+      compat::InstantiateClassTemplateSpecialization(getInterp(), CTSD);
   if (auto* CXXRD = llvm::dyn_cast_or_null<CXXRecordDecl>(D)) {
     if (CXXRD->hasDefinition())
       return CXXRD->getNumBases();
@@ -843,13 +848,36 @@ static void GetClassDecls(TCppScope_t klass,
 #ifdef CPPINTEROP_USE_CLING
   cling::Interpreter::PushTransactionRAII RAII(&getInterp());
 #endif // CPPINTEROP_USE_CLING
+  if (CXXRD->hasDefinition())
+    CXXRD = CXXRD->getDefinition();
   getSema().ForceDeclarationOfImplicitMembers(CXXRD);
   for (Decl* DI : CXXRD->decls()) {
     if (auto* MD = dyn_cast<DeclType>(DI))
       methods.push_back(MD);
-    else if (auto* USD = dyn_cast<UsingShadowDecl>(DI))
-      if (auto* MD = dyn_cast<DeclType>(USD->getTargetDecl()))
+    else if (auto* USD = dyn_cast<UsingShadowDecl>(DI)) {
+      auto* MD = dyn_cast<DeclType>(USD->getTargetDecl());
+      if (!MD)
+        continue;
+
+      auto* CUSD = dyn_cast<ConstructorUsingShadowDecl>(DI);
+      if (!CUSD) {
         methods.push_back(MD);
+        continue;
+      }
+
+      auto* CXXCD = dyn_cast_or_null<CXXConstructorDecl>(CUSD->getTargetDecl());
+      if (!CXXCD) {
+        methods.push_back(MD);
+        continue;
+      }
+      if (CXXCD->isDeleted())
+        continue;
+
+      // Result is appended to the decls, i.e. CXXRD, iterator
+      // non-shadowed decl will be push_back later
+      // methods.push_back(Result);
+      getSema().findInheritingConstructor(SourceLocation(), CXXCD, CUSD);
+    }
   }
 }
 
@@ -1399,6 +1427,14 @@ TCppScope_t LookupDatamember(const std::string& name, TCppScope_t parent) {
   return 0;
 }
 
+bool IsLambdaClass(TCppType_t type) {
+  QualType QT = QualType::getFromOpaquePtr(type);
+  if (auto* CXXRD = QT->getAsCXXRecordDecl()) {
+    return CXXRD->isLambda();
+  }
+  return false;
+}
+
 TCppType_t GetVariableType(TCppScope_t var) {
   auto* D = static_cast<Decl*>(var);
 
@@ -1503,6 +1539,7 @@ intptr_t GetVariableOffset(compat::Interpreter& I, Decl* D,
         cling::Interpreter::PushTransactionRAII RAII(&getInterp());
 #endif // CPPINTEROP_USE_CLING
         getSema().InstantiateVariableDefinition(SourceLocation(), VD);
+        VD = VD->getDefinition();
       }
       if (VD->hasInit() &&
           (VD->isConstexpr() || VD->getType().isConstQualified())) {
@@ -1698,6 +1735,60 @@ TCppType_t GetCanonicalType(TCppType_t type) {
     return 0;
   QualType QT = QualType::getFromOpaquePtr(type);
   return QT.getCanonicalType().getAsOpaquePtr();
+}
+
+bool HasTypeQualifier(TCppType_t type, QualKind qual) {
+  if (!type)
+    return false;
+
+  QualType QT = QualType::getFromOpaquePtr(type);
+  if (qual & QualKind::Const) {
+    if (!QT.isConstQualified())
+      return false;
+  }
+  if (qual & QualKind::Volatile) {
+    if (!QT.isVolatileQualified())
+      return false;
+  }
+  if (qual & QualKind::Restrict) {
+    if (!QT.isRestrictQualified())
+      return false;
+  }
+  return true;
+}
+
+TCppType_t RemoveTypeQualifier(TCppType_t type, QualKind qual) {
+  if (!type)
+    return type;
+
+  auto QT = QualType(QualType::getFromOpaquePtr(type));
+  if (qual & QualKind::Const)
+    QT.removeLocalConst();
+  if (qual & QualKind::Volatile)
+    QT.removeLocalVolatile();
+  if (qual & QualKind::Restrict)
+    QT.removeLocalRestrict();
+  return QT.getAsOpaquePtr();
+}
+
+TCppType_t AddTypeQualifier(TCppType_t type, QualKind qual) {
+  if (!type)
+    return type;
+
+  auto QT = QualType(QualType::getFromOpaquePtr(type));
+  if (qual & QualKind::Const) {
+    if (!QT.isConstQualified())
+      QT.addConst();
+  }
+  if (qual & QualKind::Volatile) {
+    if (!QT.isVolatileQualified())
+      QT.addVolatile();
+  }
+  if (qual & QualKind::Restrict) {
+    if (!QT.isRestrictQualified())
+      QT.addRestrict();
+  }
+  return QT.getAsOpaquePtr();
 }
 
 // Internal functions that are not needed outside the library are
@@ -2088,23 +2179,14 @@ void make_narg_call(const FunctionDecl* FD, const std::string& return_type,
       PP.SuppressElaboration = true;
       FD->getNameForDiagnostic(stream, PP,
                                /*Qualified=*/false);
-
-      // insert space between template argument list and the function name
-      // this is require if the function is `operator<`
-      // `operator<<type1, type2, ...>` is invalid syntax
-      // whereas `operator< <type1, type2, ...>` is valid
-      std::string simple_name = FD->getNameAsString();
-      size_t idx = complete_name.find(simple_name, 0) + simple_name.size();
-      std::string name_without_template_args = complete_name.substr(0, idx);
-      std::string template_args = complete_name.substr(idx);
-      name = name_without_template_args +
-             (template_args.empty() ? "" : " " + template_args);
+      name = complete_name;
 
       // If a template has consecutive parameter packs, then it is impossible to
       // use the explicit name in the wrapper, since the type deduction is what
       // determines the split of the packs. Instead, we'll revert to the
       // non-templated function name and hope that the type casts in the wrapper
       // will suffice.
+      std::string simple_name = FD->getNameAsString();
       if (FD->isTemplateInstantiation() && FD->getPrimaryTemplate()) {
         const FunctionTemplateDecl* FTDecl =
             llvm::dyn_cast<FunctionTemplateDecl>(FD->getPrimaryTemplate());
@@ -2119,10 +2201,12 @@ void make_narg_call(const FunctionDecl* FD, const std::string& return_type,
               numPacks = 0;
           }
           if (numPacks > 1) {
-            name = name_without_template_args;
+            name = simple_name;
           }
         }
       }
+      if (FD->isOverloadedOperator())
+        name = simple_name;
     }
     if (op_flag || N <= 1)
       callbuf << name;
