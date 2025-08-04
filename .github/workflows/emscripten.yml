@@ -73,7 +73,6 @@ jobs:
                       -DCMAKE_CXX_FLAGS="-Dwait4=__syscall_wait4" \
                       -DLLVM_INCLUDE_BENCHMARKS=OFF                   \
                       -DLLVM_INCLUDE_EXAMPLES=OFF                     \
-                      -DLLVM_INCLUDE_TESTS=OFF                        \
                       -DLLVM_ENABLE_THREADS=OFF                       \
                       -DLLVM_BUILD_TOOLS=OFF                          \
                       -DLLVM_ENABLE_LIBPFM=OFF                        \
@@ -111,7 +110,6 @@ jobs:
                       -DCMAKE_CXX_FLAGS="-Dwait4=__syscall_wait4" `
                       -DLLVM_INCLUDE_BENCHMARKS=OFF                   `
                       -DLLVM_INCLUDE_EXAMPLES=OFF                     `
-                      -DLLVM_INCLUDE_TESTS=OFF                        `
                       -DLLVM_ENABLE_THREADS=OFF                       `
                       -DLLVM_BUILD_TOOLS=OFF                          `
                       -DLLVM_ENABLE_LIBPFM=OFF                        `
