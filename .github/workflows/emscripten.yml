@@ -80,7 +80,10 @@ jobs:
                       -G Ninja                                         \
                       -DLLVM_NATIVE_TOOL_DIR=$NATIVE_DIR 		\
                       ../llvm
-        emmake ninja
+        emmake ninja ClangReplInterpreterTests ClangReplInterpreterExceptionTests
+        node ./tools/clang/unittests/Interpreter/ClangReplInterpreterTests.js
+        node ./tools/clang/unittests/Interpreter/ExceptionTests/ClangReplInterpreterExceptionTests.js
+
 
     - name: Build Emscripten LLVM on Windows systems
       if: ${{ runner.os == 'windows' }}
@@ -117,4 +120,6 @@ jobs:
                       -G Ninja `
                       -DLLVM_NATIVE_TOOL_DIR="$env:NATIVE_DIR" 		          `
                       ..\llvm
-        emmake ninja
+        emmake ninja ClangReplInterpreterTests ClangReplInterpreterExceptionTests
+        node ./tools/clang/unittests/Interpreter/ClangReplInterpreterTests.js
+        node ./tools/clang/unittests/Interpreter/ExceptionTests/ClangReplInterpreterExceptionTests.js
