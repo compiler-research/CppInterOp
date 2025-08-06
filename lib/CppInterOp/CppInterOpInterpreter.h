@@ -448,12 +448,6 @@ public:
     return kMoreInputExpected;
   }
 
-  std::string toString(const char* type, void* obj) {
-    assert(0 && "toString is not implemented!");
-    std::string ret;
-    return ret; // TODO: Implement
-  }
-
   CompilationResult undo(unsigned N = 1) {
     if (llvm::Error Err = Undo(N)) {
       llvm::logAllUnhandledErrors(std::move(Err), llvm::errs(),
