@@ -354,7 +354,6 @@ inline void codeComplete(std::vector<std::string>& Results,
   }
 
   std::vector<std::string> results;
-  std::vector<std::string> Comps;
   clang::CompilerInstance* MainCI = (*Interp)->getCompilerInstance();
   auto CC = clang::ReplCodeCompleter();
   CC.codeComplete(MainCI, code, complete_line, complete_column,

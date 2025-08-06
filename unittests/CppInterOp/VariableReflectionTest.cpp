@@ -534,7 +534,7 @@ TEST(VariableReflectionTest, IsConstVariable) {
 }
 
 TEST(VariableReflectionTest, DISABLED_GetArrayDimensions) {
-  std::vector<Decl *> Decls, SubDecls;
+  std::vector<Decl *> Decls;
   std::string code =  R"(
     int a;
     int b[1];
