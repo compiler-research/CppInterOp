@@ -562,7 +562,7 @@ TEST(FunctionReflectionTest, GetFunctionRequiredArgs) {
 }
 
 TEST(FunctionReflectionTest, GetFunctionArgType) {
-  std::vector<Decl*> Decls, SubDecls;
+  std::vector<Decl*> Decls;
   std::string code = R"(
     void f1(int i, double d, long l, char ch) {}
     void f2(const int i, double d[], long *l, char ch[4]) {}
@@ -582,7 +582,7 @@ TEST(FunctionReflectionTest, GetFunctionArgType) {
 }
 
 TEST(FunctionReflectionTest, GetFunctionSignature) {
-  std::vector<Decl*> Decls, SubDecls;
+  std::vector<Decl*> Decls;
   std::string code = R"(
     class C {
       void f(int i, double d, long l = 0, char ch = 'a') {}
@@ -626,7 +626,8 @@ TEST(FunctionReflectionTest, GetFunctionSignature) {
 }
 
 TEST(FunctionReflectionTest, IsTemplatedFunction) {
-  std::vector<Decl*> Decls, SubDeclsC1, SubDeclsC2;
+  std::vector<Decl*> Decls;
+  std::vector<Decl*> SubDeclsC1;
   std::string code = R"(
     void f1(int a) {}
 
@@ -1448,7 +1449,7 @@ TEST(FunctionReflectionTest, GetFunctionAddress) {
 #ifdef _WIN32
   GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
 #endif
-  std::vector<Decl*> Decls, SubDecls;
+  std::vector<Decl*> Decls;
   std::string code = "int f1(int i) { return i * i; }";
   std::vector<const char*> interpreter_args = {"-include", "new"};
 
@@ -2132,7 +2133,7 @@ TEST(FunctionReflectionTest, IsConstMethod) {
 }
 
 TEST(FunctionReflectionTest, GetFunctionArgName) {
-  std::vector<Decl*> Decls, SubDecls;
+  std::vector<Decl*> Decls;
   std::string code = R"(
     void f1(int i, double d, long l, char ch) {}
     void f2(const int i, double d[], long *l, char ch[4]) {}
@@ -2172,7 +2173,7 @@ TEST(FunctionReflectionTest, GetFunctionArgName) {
 }
 
 TEST(FunctionReflectionTest, GetFunctionArgDefault) {
-  std::vector<Decl*> Decls, SubDecls;
+  std::vector<Decl*> Decls;
   std::string code = R"(
     void f1(int i, double d = 4.0, const char *s = "default", char ch = 'c') {}
     void f2(float i = 0.0, double d = 3.123, long m = 34126) {}
