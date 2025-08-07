@@ -320,10 +320,12 @@ jobs:
           {
             git apply -v emscripten-clang19-2-shift-temporary-files-to-tmp-dir.patch
             git apply -v emscripten-clang19-3-remove-zdefs.patch
+            git apply -v emscripten-clang19-4-enable_exception_handling.patch
           }
           elseif ( "${{ matrix.clang-runtime }}" -imatch "20" )
           {
             git apply -v emscripten-clang20-2-shift-temporary-files-to-tmp-dir.patch
+            git apply -v emscripten-clang20-3-enable_exception_handling.patch
           }
           cd build
           echo "Apply clang${{ matrix.clang-runtime }}-*.patch patches:"
@@ -587,6 +589,14 @@ jobs:
           emrun --browser="Google Chrome" --kill_exit --timeout 60 --browser-args="--headless --no-sandbox"  CppInterOpTests.html
           echo "Running DynamicLibraryManagerTests in Google Chrome"          
           emrun --browser="Google Chrome" --kill_exit --timeout 60 --browser-args="--headless --no-sandbox"  DynamicLibraryManagerTests.html
+          sudo safaridriver --enable
+          python -m pip install selenium
+          echo "Running CppInterOpTests in Safari"
+          emrun --no_browser --kill_exit --timeout 60 --browser-args="--headless --no-sandbox"  CppInterOpTests.html &
+          python ../../../scripts/browser_tests_safari.py CppInterOpTests.html
+          echo "Running DynamicLibraryManagerTests in Safari"          
+          emrun --no_browser --kill_exit --timeout 60 --browser-args="--headless --no-sandbox"  DynamicLibraryManagerTests.html &
+          python ../../../scripts/browser_tests_safari.py DynamicLibraryManagerTests.html
         else
           export ARCHITECHURE=$(uname -m)
           if [[ "$ARCHITECHURE" != "aarch64" ]]; then
@@ -727,6 +737,12 @@ jobs:
           emrun --browser="Google Chrome" --kill_exit --timeout 60 --browser-args="--headless --no-sandbox"  CppInterOpTests.html
           echo "Running DynamicLibraryManagerTests in Google Chrome"          
           emrun --browser="Google Chrome" --kill_exit --timeout 60 --browser-args="--headless --no-sandbox"  DynamicLibraryManagerTests.html
+          echo "Running CppInterOpTests in Safari"
+          emrun --no_browser --kill_exit --timeout 60 --browser-args="--headless --no-sandbox"  CppInterOpTests.html &
+          python ../../../scripts/browser_tests_safari.py CppInterOpTests.html
+          echo "Running DynamicLibraryManagerTests in Safari"          
+          emrun --no_browser --kill_exit --timeout 60 --browser-args="--headless --no-sandbox"  DynamicLibraryManagerTests.html &
+          python ../../../scripts/browser_tests_safari.py DynamicLibraryManagerTests.html
         else
           export ARCHITECHURE=$(uname -m)
           if [[ "$ARCHITECHURE" != "aarch64" ]]; then

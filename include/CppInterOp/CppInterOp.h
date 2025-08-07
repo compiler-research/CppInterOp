@@ -573,6 +573,9 @@ void GetEnumConstantDatamembers(TCppScope_t scope,
 CPPINTEROP_API TCppScope_t LookupDatamember(const std::string& name,
                                             TCppScope_t parent);
 
+/// Check if the given type is a lamda class
+CPPINTEROP_API bool IsLambdaClass(TCppType_t type);
+
 /// Gets the type of the variable that is passed as a parameter.
 CPPINTEROP_API TCppType_t GetVariableType(TCppScope_t var);
 

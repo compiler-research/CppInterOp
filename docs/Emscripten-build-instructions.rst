@@ -83,6 +83,7 @@ On Windows execute the following
    cd .\llvm-project\
    cp -r ..\patches\llvm\emscripten-clang20*
    git apply -v emscripten-clang20-2-shift-temporary-files-to-tmp-dir.patch
+   git apply -v emscripten-clang20-3-enable_exception_handling.patch
 
 We are now in a position to build an emscripten build of llvm by executing the following on Linux
 and osx
@@ -248,7 +249,7 @@ It is possible to run the Emscripten tests in a headless browser. To do this we 
 
    cd ./unittests/CppInterOp/
 
-We will run our tests in a fresh installed browser. Installing the browsers, and running the tests within the installed browsers will be platform dependent. To do this on MacOS execute the following
+We will run our tests in a fresh installed browser. Installing the browsers, and running the tests within the installed browsers will be platform dependent. To do this for Chrome and Firefox on MacOS execute the following
 
 .. code:: bash
 
@@ -274,6 +275,19 @@ We will run our tests in a fresh installed browser. Installing the browsers, and
    emrun --browser="Google Chrome" --kill_exit --timeout 60 --browser-args="--headless --no-sandbox"  CppInterOpTests.html
    echo "Running DynamicLibraryManagerTests in Google Chrome"          
    emrun --browser="Google Chrome" --kill_exit --timeout 60 --browser-args="--headless --no-sandbox"  DynamicLibraryManagerTests.html
+
+To run tests in Safari you can make use of safaridriver. How to enable this will depend on
+your MacOS operating system, and is best to consult `safaridriver <https://developer.apple.com/documentation/webkit/testing-with-webdriver-in-safari>`_. You will also need to install the Selenium
+python package. This only needs to be enable once, and then you can execute the following to run the tests in Safari
+
+.. code:: bash
+
+   echo "Running CppInterOpTests in Safari"
+   emrun --no_browser --kill_exit --timeout 60 --browser-args="--headless --no-sandbox"  CppInterOpTests.html &
+   python ../../../scripts/browser_tests_safari.py CppInterOpTests.html
+   echo "Running DynamicLibraryManagerTests in Safari"          
+   emrun --no_browser --kill_exit --timeout 60 --browser-args="--headless --no-sandbox"  DynamicLibraryManagerTests.html &
+   python ../../../scripts/browser_tests_safari.py DynamicLibraryManagerTests.html
 
 To do this on Ubuntu x86 execute the following
 
@@ -345,12 +359,13 @@ Assuming it passes all test you can install by executing the following.
 A project which makes use of the wasm build of CppInterOp is xeus-cpp.
 xeus-cpp is a C++ Jupyter kernel. Assuming you are in the CppInterOp
 build folder, you can build the wasm version of xeus-cpp by executing
-(replace $LLVM_VERSION with the version of llvm you are building against)
+(replace LLVM_VERSION with the version of llvm you are building against)
 
 .. code:: bash
 
    cd ../..
    git clone --depth=1 https://github.com/compiler-research/xeus-cpp.git
+   export LLVM_VERSION=20
    cd ./xeus-cpp
    mkdir build
    cd build
@@ -360,7 +375,7 @@ build folder, you can build the wasm version of xeus-cpp by executing
            -DCMAKE_INSTALL_PREFIX=$PREFIX                                 \
            -DXEUS_CPP_EMSCRIPTEN_WASM_BUILD=ON                            \
            -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON                         \
-	   -DXEUS_CPP_RESOURCE_DIR=$LLVM_BUILD_DIR/lib/clang/$LLVM_VERSION \
+	   -DXEUS_CPP_RESOURCE_DIR="$LLVM_BUILD_DIR/lib/clang/$LLVM_VERSION" \
            -DSYSROOT_PATH=$SYSROOT_PATH                                   \
            ..
    emmake make -j $(nproc --all) install

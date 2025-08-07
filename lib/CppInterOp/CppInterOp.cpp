@@ -854,9 +854,30 @@ static void GetClassDecls(TCppScope_t klass,
   for (Decl* DI : CXXRD->decls()) {
     if (auto* MD = dyn_cast<DeclType>(DI))
       methods.push_back(MD);
-    else if (auto* USD = dyn_cast<UsingShadowDecl>(DI))
-      if (auto* MD = dyn_cast<DeclType>(USD->getTargetDecl()))
+    else if (auto* USD = dyn_cast<UsingShadowDecl>(DI)) {
+      auto* MD = dyn_cast<DeclType>(USD->getTargetDecl());
+      if (!MD)
+        continue;
+
+      auto* CUSD = dyn_cast<ConstructorUsingShadowDecl>(DI);
+      if (!CUSD) {
         methods.push_back(MD);
+        continue;
+      }
+
+      auto* CXXCD = dyn_cast_or_null<CXXConstructorDecl>(CUSD->getTargetDecl());
+      if (!CXXCD) {
+        methods.push_back(MD);
+        continue;
+      }
+      if (CXXCD->isDeleted())
+        continue;
+
+      // Result is appended to the decls, i.e. CXXRD, iterator
+      // non-shadowed decl will be push_back later
+      // methods.push_back(Result);
+      getSema().findInheritingConstructor(SourceLocation(), CXXCD, CUSD);
+    }
   }
 }
 
@@ -1406,6 +1427,14 @@ TCppScope_t LookupDatamember(const std::string& name, TCppScope_t parent) {
   return 0;
 }
 
+bool IsLambdaClass(TCppType_t type) {
+  QualType QT = QualType::getFromOpaquePtr(type);
+  if (auto* CXXRD = QT->getAsCXXRecordDecl()) {
+    return CXXRD->isLambda();
+  }
+  return false;
+}
+
 TCppType_t GetVariableType(TCppScope_t var) {
   auto* D = static_cast<Decl*>(var);
 
@@ -1510,6 +1539,7 @@ intptr_t GetVariableOffset(compat::Interpreter& I, Decl* D,
         cling::Interpreter::PushTransactionRAII RAII(&getInterp());
 #endif // CPPINTEROP_USE_CLING
         getSema().InstantiateVariableDefinition(SourceLocation(), VD);
+        VD = VD->getDefinition();
       }
       if (VD->hasInit() &&
           (VD->isConstexpr() || VD->getType().isConstQualified())) {
