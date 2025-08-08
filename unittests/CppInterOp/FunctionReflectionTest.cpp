@@ -2112,6 +2112,48 @@ TEST(FunctionReflectionTest, GetFunctionCallWrapper) {
 
   auto op_callable = Cpp::MakeFunctionCallable(op);
   EXPECT_EQ(op_callable.getKind(), Cpp::JitCall::kGenericCall);
+
+  Cpp::Declare(R"(
+    enum class MyEnum { A, B, C };
+    template <MyEnum E>
+    class TemplatedEnum {};
+
+    namespace MyNameSpace {
+    enum class MyEnum { A, B, C };
+    template <MyEnum E>
+    class TemplatedEnum {};
+    }
+  )");
+
+  Cpp::TCppScope_t TemplatedEnum = Cpp::GetScope("TemplatedEnum");
+  EXPECT_TRUE(TemplatedEnum);
+
+  auto TAI_enum =
+      Cpp::TemplateArgInfo(Cpp::GetTypeFromScope(Cpp::GetNamed("MyEnum")), "1");
+  Cpp::TCppScope_t TemplatedEnum_instantiated =
+      Cpp::InstantiateTemplate(TemplatedEnum, &TAI_enum, 1);
+  EXPECT_TRUE(TemplatedEnum_instantiated);
+
+  Cpp::TCppObject_t obj = Cpp::Construct(TemplatedEnum_instantiated);
+  EXPECT_TRUE(obj);
+  Cpp::Destruct(obj, TemplatedEnum_instantiated);
+  obj = nullptr;
+
+  Cpp::TCppScope_t MyNameSpace_TemplatedEnum =
+      Cpp::GetScope("TemplatedEnum", Cpp::GetScope("MyNameSpace"));
+  EXPECT_TRUE(TemplatedEnum);
+
+  TAI_enum = Cpp::TemplateArgInfo(Cpp::GetTypeFromScope(Cpp::GetNamed(
+                                      "MyEnum", Cpp::GetScope("MyNameSpace"))),
+                                  "1");
+  Cpp::TCppScope_t MyNameSpace_TemplatedEnum_instantiated =
+      Cpp::InstantiateTemplate(MyNameSpace_TemplatedEnum, &TAI_enum, 1);
+  EXPECT_TRUE(TemplatedEnum_instantiated);
+
+  obj = Cpp::Construct(MyNameSpace_TemplatedEnum_instantiated);
+  EXPECT_TRUE(obj);
+  Cpp::Destruct(obj, MyNameSpace_TemplatedEnum_instantiated);
+  obj = nullptr;
 }
 
 TEST(FunctionReflectionTest, IsConstMethod) {

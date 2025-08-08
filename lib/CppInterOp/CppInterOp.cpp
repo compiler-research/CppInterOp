@@ -1925,6 +1925,7 @@ void get_type_as_string(QualType QT, std::string& type_name, ASTContext& C,
   Policy.SuppressElaboration = true;
   Policy.SuppressTagKeyword = !QT->isEnumeralType();
   Policy.FullyQualifiedName = true;
+  Policy.UsePreferredNames = false;
   QT.getAsStringInternal(type_name, Policy);
 }
 
@@ -1934,6 +1935,7 @@ static void GetDeclName(const clang::Decl* D, ASTContext& Context,
   PrintingPolicy Policy(Context.getPrintingPolicy());
   Policy.SuppressTagKeyword = true;
   Policy.SuppressUnwrittenScope = true;
+  Policy.PrintCanonicalTypes = true;
   if (const TypeDecl* TD = dyn_cast<TypeDecl>(D)) {
     // This is a class, struct, or union member.
     QualType QT;
