@@ -2154,6 +2154,19 @@ TEST(FunctionReflectionTest, GetFunctionCallWrapper) {
   EXPECT_TRUE(obj);
   Cpp::Destruct(obj, MyNameSpace_TemplatedEnum_instantiated);
   obj = nullptr;
+
+  Cpp::Declare(R"(
+    auto get_fn(int x) { return [x](int y){ return x + y; }; }
+  )");
+
+  Cpp::TCppScope_t get_fn = Cpp::GetNamed("get_fn");
+  EXPECT_TRUE(get_fn);
+
+  auto get_fn_callable = Cpp::MakeFunctionCallable(get_fn);
+  EXPECT_EQ(get_fn_callable.getKind(), Cpp::JitCall::kGenericCall);
+
+  EXPECT_TRUE(Cpp::IsLambdaClass(Cpp::GetFunctionReturnType(get_fn)));
+  EXPECT_FALSE(Cpp::IsLambdaClass(Cpp::GetFunctionReturnType(bar)));
 }
 
 TEST(FunctionReflectionTest, IsConstMethod) {

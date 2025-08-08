@@ -1966,9 +1966,24 @@ void collect_type_info(const FunctionDecl* FD, QualType& QT,
   PrintingPolicy Policy(C.getPrintingPolicy());
   Policy.SuppressElaboration = true;
   refType = kNotReference;
-  if (QT->isRecordType() && forArgument) {
-    get_type_as_string(QT, type_name, C, Policy);
-    return;
+  if (QT->isRecordType()) {
+    if (forArgument) {
+      get_type_as_string(QT, type_name, C, Policy);
+      return;
+    }
+    if (auto* CXXRD = QT->getAsCXXRecordDecl()) {
+      if (CXXRD->isLambda()) {
+        std::string fn_name;
+        llvm::raw_string_ostream stream(fn_name);
+        Policy.FullyQualifiedName = true;
+        Policy.SuppressUnwrittenScope = true;
+        FD->getNameForDiagnostic(stream, Policy,
+                                 /*Qualified=*/false);
+        type_name = "__internal_CppInterOp::function<decltype(" + fn_name +
+                    ")>::result_type";
+        return;
+      }
+    }
   }
   if (QT->isFunctionPointerType()) {
     std::string fp_typedef_name;
@@ -3222,6 +3237,17 @@ TInterp_t CreateInterpreter(const std::vector<const char*>& Args /*={}*/,
     Args[NumArgs + 1] = nullptr;
     llvm::cl::ParseCommandLineOptions(NumArgs + 1, Args.get());
   }
+
+  I->declare(R"(
+    namespace __internal_CppInterOp {
+    template <typename Signature>
+    struct function;
+    template <typename Res, typename... ArgTypes>
+    struct function<Res(ArgTypes...)> {
+      typedef Res result_type;
+    };
+    }  // namespace __internal_CppInterOp
+  )");
 
   sInterpreters->emplace_back(I, /*Owned=*/true);
 
