@@ -562,7 +562,7 @@ TEST(FunctionReflectionTest, GetFunctionRequiredArgs) {
 }
 
 TEST(FunctionReflectionTest, GetFunctionArgType) {
-  std::vector<Decl*> Decls, SubDecls;
+  std::vector<Decl*> Decls;
   std::string code = R"(
     void f1(int i, double d, long l, char ch) {}
     void f2(const int i, double d[], long *l, char ch[4]) {}
@@ -582,7 +582,7 @@ TEST(FunctionReflectionTest, GetFunctionArgType) {
 }
 
 TEST(FunctionReflectionTest, GetFunctionSignature) {
-  std::vector<Decl*> Decls, SubDecls;
+  std::vector<Decl*> Decls;
   std::string code = R"(
     class C {
       void f(int i, double d, long l = 0, char ch = 'a') {}
@@ -626,7 +626,8 @@ TEST(FunctionReflectionTest, GetFunctionSignature) {
 }
 
 TEST(FunctionReflectionTest, IsTemplatedFunction) {
-  std::vector<Decl*> Decls, SubDeclsC1, SubDeclsC2;
+  std::vector<Decl*> Decls;
+  std::vector<Decl*> SubDeclsC1;
   std::string code = R"(
     void f1(int a) {}
 
@@ -1448,7 +1449,7 @@ TEST(FunctionReflectionTest, GetFunctionAddress) {
 #ifdef _WIN32
   GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
 #endif
-  std::vector<Decl*> Decls, SubDecls;
+  std::vector<Decl*> Decls;
   std::string code = "int f1(int i) { return i * i; }";
   std::vector<const char*> interpreter_args = {"-include", "new"};
 
@@ -2111,6 +2112,61 @@ TEST(FunctionReflectionTest, GetFunctionCallWrapper) {
 
   auto op_callable = Cpp::MakeFunctionCallable(op);
   EXPECT_EQ(op_callable.getKind(), Cpp::JitCall::kGenericCall);
+
+  Cpp::Declare(R"(
+    enum class MyEnum { A, B, C };
+    template <MyEnum E>
+    class TemplatedEnum {};
+
+    namespace MyNameSpace {
+    enum class MyEnum { A, B, C };
+    template <MyEnum E>
+    class TemplatedEnum {};
+    }
+  )");
+
+  Cpp::TCppScope_t TemplatedEnum = Cpp::GetScope("TemplatedEnum");
+  EXPECT_TRUE(TemplatedEnum);
+
+  auto TAI_enum =
+      Cpp::TemplateArgInfo(Cpp::GetTypeFromScope(Cpp::GetNamed("MyEnum")), "1");
+  Cpp::TCppScope_t TemplatedEnum_instantiated =
+      Cpp::InstantiateTemplate(TemplatedEnum, &TAI_enum, 1);
+  EXPECT_TRUE(TemplatedEnum_instantiated);
+
+  Cpp::TCppObject_t obj = Cpp::Construct(TemplatedEnum_instantiated);
+  EXPECT_TRUE(obj);
+  Cpp::Destruct(obj, TemplatedEnum_instantiated);
+  obj = nullptr;
+
+  Cpp::TCppScope_t MyNameSpace_TemplatedEnum =
+      Cpp::GetScope("TemplatedEnum", Cpp::GetScope("MyNameSpace"));
+  EXPECT_TRUE(TemplatedEnum);
+
+  TAI_enum = Cpp::TemplateArgInfo(Cpp::GetTypeFromScope(Cpp::GetNamed(
+                                      "MyEnum", Cpp::GetScope("MyNameSpace"))),
+                                  "1");
+  Cpp::TCppScope_t MyNameSpace_TemplatedEnum_instantiated =
+      Cpp::InstantiateTemplate(MyNameSpace_TemplatedEnum, &TAI_enum, 1);
+  EXPECT_TRUE(TemplatedEnum_instantiated);
+
+  obj = Cpp::Construct(MyNameSpace_TemplatedEnum_instantiated);
+  EXPECT_TRUE(obj);
+  Cpp::Destruct(obj, MyNameSpace_TemplatedEnum_instantiated);
+  obj = nullptr;
+
+  Cpp::Declare(R"(
+    auto get_fn(int x) { return [x](int y){ return x + y; }; }
+  )");
+
+  Cpp::TCppScope_t get_fn = Cpp::GetNamed("get_fn");
+  EXPECT_TRUE(get_fn);
+
+  auto get_fn_callable = Cpp::MakeFunctionCallable(get_fn);
+  EXPECT_EQ(get_fn_callable.getKind(), Cpp::JitCall::kGenericCall);
+
+  EXPECT_TRUE(Cpp::IsLambdaClass(Cpp::GetFunctionReturnType(get_fn)));
+  EXPECT_FALSE(Cpp::IsLambdaClass(Cpp::GetFunctionReturnType(bar)));
 }
 
 TEST(FunctionReflectionTest, IsConstMethod) {
@@ -2132,7 +2188,7 @@ TEST(FunctionReflectionTest, IsConstMethod) {
 }
 
 TEST(FunctionReflectionTest, GetFunctionArgName) {
-  std::vector<Decl*> Decls, SubDecls;
+  std::vector<Decl*> Decls;
   std::string code = R"(
     void f1(int i, double d, long l, char ch) {}
     void f2(const int i, double d[], long *l, char ch[4]) {}
@@ -2172,7 +2228,7 @@ TEST(FunctionReflectionTest, GetFunctionArgName) {
 }
 
 TEST(FunctionReflectionTest, GetFunctionArgDefault) {
-  std::vector<Decl*> Decls, SubDecls;
+  std::vector<Decl*> Decls;
   std::string code = R"(
     void f1(int i, double d = 4.0, const char *s = "default", char ch = 'c') {}
     void f2(float i = 0.0, double d = 3.123, long m = 34126) {}
