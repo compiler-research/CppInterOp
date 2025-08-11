@@ -116,10 +116,6 @@ public:
   DynamicLibraryManager(const DynamicLibraryManager&) = delete;
   DynamicLibraryManager& operator=(const DynamicLibraryManager&) = delete;
 
-  InterpreterCallbacks* getCallbacks() { return m_Callbacks; }
-  const InterpreterCallbacks* getCallbacks() const { return m_Callbacks; }
-  void setCallbacks(InterpreterCallbacks* C) { m_Callbacks = C; }
-
   ///\brief Returns the system include paths.
   ///
   ///\returns System include paths.
