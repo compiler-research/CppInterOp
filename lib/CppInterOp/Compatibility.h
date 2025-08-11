@@ -398,13 +398,6 @@ inline std::string FixTypeName(const std::string type_name) {
   return type_name;
 }
 
-inline std::string MakeResourceDir(llvm::StringRef Dir) {
-  llvm::SmallString<128> P(Dir);
-  llvm::sys::path::append(P, CLANG_INSTALL_LIBDIR_BASENAME, "clang",
-                          CLANG_VERSION_MAJOR_STRING);
-  return std::string(P.str());
-}
-
 // Clang >= 16 (=16 with Value patch) change castAs to convertTo
 #ifdef CPPINTEROP_USE_CLING
 template <typename T> inline T convertTo(cling::Value V) {

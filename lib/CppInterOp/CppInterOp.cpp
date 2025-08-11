@@ -43,6 +43,7 @@
 #endif
 #include "clang/Sema/TemplateDeduction.h"
 
+#include <llvm/ADT/SmallString.h>
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Demangle/Demangle.h"
@@ -51,6 +52,7 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ManagedStatic.h"
+#include <llvm/Support/Path.h>
 #include "llvm/Support/raw_os_ostream.h"
 
 #include <algorithm>
@@ -3168,7 +3170,10 @@ static std::string MakeResourcesPath() {
   Dir = sys::path::parent_path(Dir);
   // Dir = sys::path::parent_path(Dir);
 #endif // LLVM_BINARY_DIR
-  return compat::MakeResourceDir(Dir);
+  llvm::SmallString<128> P(Dir);
+  llvm::sys::path::append(P, CLANG_INSTALL_LIBDIR_BASENAME, "clang",
+                          CLANG_VERSION_MAJOR_STRING);
+  return std::string(P.str());
 }
 } // namespace
 
