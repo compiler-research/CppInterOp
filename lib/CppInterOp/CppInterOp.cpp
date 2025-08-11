@@ -43,7 +43,7 @@
 #endif
 #include "clang/Sema/TemplateDeduction.h"
 
-#include <llvm/ADT/SmallString.h>
+#include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Demangle/Demangle.h"
@@ -52,7 +52,7 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/ManagedStatic.h"
-#include <llvm/Support/Path.h>
+#include "llvm/Support/Path.h"
 #include "llvm/Support/raw_os_ostream.h"
 
 #include <algorithm>
