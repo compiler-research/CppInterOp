@@ -1729,7 +1729,7 @@ std::string GetTypeAsString(TCppType_t var) {
   Policy.SuppressTagKeyword = true; // Do not print `class std::string`.
   Policy.SuppressElaboration = true;
   Policy.FullyQualifiedName = true;
-  return compat::FixTypeName(QT.getAsString(Policy));
+  return QT.getAsString(Policy);
 }
 
 TCppType_t GetCanonicalType(TCppType_t type) {

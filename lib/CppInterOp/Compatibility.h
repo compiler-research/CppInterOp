@@ -393,11 +393,6 @@ public:
 
 namespace compat {
 
-// Clang >= 14 change type name to string (spaces formatting problem)
-inline std::string FixTypeName(const std::string type_name) {
-  return type_name;
-}
-
 // Clang >= 16 (=16 with Value patch) change castAs to convertTo
 #ifdef CPPINTEROP_USE_CLING
 template <typename T> inline T convertTo(cling::Value V) {
