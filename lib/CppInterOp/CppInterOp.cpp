@@ -91,74 +91,13 @@ using namespace llvm;
 using namespace std;
 
 #define LOCK(InterpInfo)                                                       \
-  LockRAII interop_lock =                                                      \
-      LockRAII((InterpInfo).InterpreterLock, (InterpInfo).ThreadIdLock,        \
-               (InterpInfo).CurrentThreadId)
-
-namespace {
-struct LockRAII {
-  LockRAII(std::mutex& resource_lock, std::mutex& thread_id_lock,
-           std::optional<std::thread::id>& current_thread_id)
-      : ResourceLock(resource_lock), ThreadIdLock(thread_id_lock),
-        CurrentThreadId(current_thread_id) {
-    ThreadIdLock.lock();
-    if (!ResourceLock.try_lock()) {
-      if (CurrentThreadId) {
-        if ((*CurrentThreadId) != std::this_thread::get_id()) {
-          ThreadIdLock.unlock();
-          ResourceLock.lock();                // blocking
-          bool res = ThreadIdLock.try_lock(); // should be free
-          assert(res && "Internal Error: Interpreter lock not held, but "
-                        "ThreadId lock held.\nPlease report this as a bug.\n");
-          ThreadIdLock.unlock();
-          return;
-        }
-        owned = false;
-        ThreadIdLock.unlock();
-        return;
-      }
-      assert(false &&
-             "Internal Error: A thread holds lock for the current "
-             "interpreter, but no information available on which thread "
-             "holds the lock.\nPlease report this as a bug.\n");
-    }
-    assert(!CurrentThreadId &&
-           "Internal Error: Lock released but thread id not cleared.\nPlease "
-           "report this as a bug.\n");
-    CurrentThreadId = std::this_thread::get_id();
-    ThreadIdLock.unlock();
-  }
-
-  ~LockRAII() {
-    assert(!ResourceLock.try_lock() &&
-           "Internal Error: Resource lock not held");
-    if (!owned)
-      return;
-    ThreadIdLock.lock();
-    CurrentThreadId = std::nullopt;
-    ThreadIdLock.unlock();
-    ResourceLock.unlock();
-  }
-
-  LockRAII(LockRAII&&) = delete;
-  LockRAII(const LockRAII&) = delete;
-  LockRAII& operator=(const LockRAII&) = delete;
-  LockRAII& operator=(LockRAII&&) = delete;
-
-private:
-  bool owned = true;
-  std::mutex& ResourceLock;
-  std::mutex& ThreadIdLock;
-  std::optional<std::thread::id>& CurrentThreadId;
-};
-} // namespace
+  std::lock_guard<std::recursive_mutex> interop_lock(                          \
+      (InterpInfo).InterpreterLock)
 
 struct InterpreterInfo {
   compat::Interpreter* Interpreter = nullptr;
   bool isOwned = true;
-  std::mutex InterpreterLock;
-  std::mutex ThreadIdLock;
-  std::optional<std::thread::id> CurrentThreadId = std::nullopt;
+  std::recursive_mutex InterpreterLock;
 
   InterpreterInfo(compat::Interpreter* I, bool Owned)
       : Interpreter(I), isOwned(Owned) {}
