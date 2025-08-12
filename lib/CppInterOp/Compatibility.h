@@ -393,11 +393,6 @@ public:
 
 namespace compat {
 
-// Clang >= 14 change type name to string (spaces formatting problem)
-inline std::string FixTypeName(const std::string type_name) {
-  return type_name;
-}
-
 inline std::string MakeResourceDir(llvm::StringRef Dir) {
   llvm::SmallString<128> P(Dir);
   llvm::sys::path::append(P, CLANG_INSTALL_LIBDIR_BASENAME, "clang",
