@@ -134,24 +134,60 @@ struct InterpreterInfo {
 };
 
 // std::deque avoids relocations and calling the dtor of InterpreterInfo.
-static llvm::ManagedStatic<std::deque<InterpreterInfo>> sInterpreters;
+static llvm::ManagedStatic<std::deque<std::shared_ptr<InterpreterInfo>>>
+    sInterpreters;
+static llvm::ManagedStatic<
+    std::unordered_map<clang::ASTContext*, std::weak_ptr<InterpreterInfo>>>
+    sInterpreterASTMap;
 static std::mutex InterpreterStackLock;
 
 static InterpreterInfo& getInterpInfo() {
   std::unique_lock<std::mutex> Lock(InterpreterStackLock);
   assert(!sInterpreters->empty() &&
          "Interpreter instance must be set before calling this!");
-  return sInterpreters->back();
+  return *sInterpreters->back();
+}
+static InterpreterInfo& getInterpInfo(const void* D) {
+  if (!D)
+    return getInterpInfo();
+  for (auto& item : *sInterpreterASTMap) {
+    if (item.first->getAllocator().identifyObject(D))
+      return *item.second.lock();
+  }
+  llvm_unreachable(
+      "This pointer does not belong to any interpreter instance.\n");
 }
 
 static compat::Interpreter& getInterp() {
   std::unique_lock<std::mutex> Lock(InterpreterStackLock);
   assert(!sInterpreters->empty() &&
          "Interpreter instance must be set before calling this!");
-  return *sInterpreters->back().Interpreter;
+  return *sInterpreters->back()->Interpreter;
 }
+static compat::Interpreter& getInterp(const void* D) {
+  if (!D)
+    return getInterp();
+  for (auto& item : *sInterpreterASTMap) {
+    if (item.first->getAllocator().identifyObject(D))
+      return *item.second.lock()->Interpreter;
+  }
+  llvm_unreachable(
+      "This pointer does not belong to any interpreter instance.\n");
+}
+
 static clang::Sema& getSema() { return getInterp().getCI()->getSema(); }
+static clang::Sema& getSema(const void* D) {
+  if (!D)
+    return getSema();
+  return getInterpInfo(D).Interpreter->getSema();
+}
+
 static clang::ASTContext& getASTContext() { return getSema().getASTContext(); }
+static clang::ASTContext& getASTContext(const void* D) {
+  if (!D)
+    return getASTContext();
+  return getSema(D).getASTContext();
+}
 
 #define DEBUG_TYPE "jitcall"
 bool JitCall::AreArgumentsValid(void* result, ArgList args, void* self,
@@ -244,28 +280,30 @@ std::string Demangle(const std::string& mangled_name) {
 }
 
 void EnableDebugOutput(bool value /* =true*/) {
+  // TODO: This should be locked under a global LLVM lock
   LOCK(getInterpInfo());
   llvm::DebugFlag = value;
 }
 
 bool IsDebugOutputEnabled() {
+  // TODO: This should be locked under a global LLVM lock
   LOCK(getInterpInfo());
   return llvm::DebugFlag;
 }
 
 static void InstantiateFunctionDefinition(Decl* D) {
-  LOCK(getInterpInfo());
-  compat::SynthesizingCodeRAII RAII(&getInterp());
   if (auto* FD = llvm::dyn_cast_or_null<FunctionDecl>(D)) {
-    getSema().InstantiateFunctionDefinition(SourceLocation(), FD,
-                                            /*Recursive=*/true,
-                                            /*DefinitionRequired=*/true);
+    LOCK(getInterpInfo(FD));
+    compat::SynthesizingCodeRAII RAII(&getInterp(FD));
+    getSema(FD).InstantiateFunctionDefinition(SourceLocation(), FD,
+                                              /*Recursive=*/true,
+                                              /*DefinitionRequired=*/true);
   }
 }
 
 bool IsAggregate(TCppScope_t scope) {
-  LOCK(getInterpInfo());
   Decl* D = static_cast<Decl*>(scope);
+  LOCK(getInterpInfo(D));
 
   // Aggregates are only arrays or tag decls.
   if (ValueDecl* ValD = dyn_cast<ValueDecl>(D))
@@ -300,16 +338,16 @@ bool IsFunctionPointerType(TCppType_t type) {
 }
 
 bool IsClassPolymorphic(TCppScope_t klass) {
-  LOCK(getInterpInfo());
   Decl* D = static_cast<Decl*>(klass);
-  if (auto* CXXRD = llvm::dyn_cast<CXXRecordDecl>(D))
+  if (auto* CXXRD = llvm::dyn_cast<CXXRecordDecl>(D)) {
+    LOCK(getInterpInfo(CXXRD));
     if (auto* CXXRDD = CXXRD->getDefinition())
       return CXXRDD->isPolymorphic();
+  }
   return false;
 }
 
 static SourceLocation GetValidSLoc(Sema& semaRef) {
-  LOCK(getInterpInfo());
   auto& SM = semaRef.getSourceManager();
   return SM.getLocForStartOfFile(SM.getMainFileID());
 }
@@ -321,13 +359,13 @@ bool IsComplete(TCppScope_t scope) {
 
   Decl* D = static_cast<Decl*>(scope);
 
-  LOCK(getInterpInfo());
+  LOCK(getInterpInfo(D));
   if (isa<ClassTemplateSpecializationDecl>(D)) {
     QualType QT = QualType::getFromOpaquePtr(GetTypeFromScope(scope));
-    clang::Sema& S = getSema();
+    clang::Sema& S = getSema(D);
     SourceLocation fakeLoc = GetValidSLoc(S);
 #ifdef CPPINTEROP_USE_CLING
-    cling::Interpreter::PushTransactionRAII RAII(&getInterp());
+    cling::Interpreter::PushTransactionRAII RAII(&getInterp(D));
 #endif // CPPINTEROP_USE_CLING
     return S.isCompleteType(fakeLoc, QT);
   }
@@ -346,8 +384,8 @@ size_t SizeOf(TCppScope_t scope) {
   if (!IsComplete(scope))
     return 0;
 
-  LOCK(getInterpInfo());
   if (auto* RD = dyn_cast<RecordDecl>(static_cast<Decl*>(scope))) {
+    LOCK(getInterpInfo(RD));
     ASTContext& Context = RD->getASTContext();
     const ASTRecordLayout& Layout = Context.getASTRecordLayout(RD);
     return Layout.getSize().getQuantity();
@@ -382,7 +420,7 @@ bool IsTypedefed(TCppScope_t handle) {
 bool IsAbstract(TCppType_t klass) {
   auto* D = (clang::Decl*)klass;
   if (auto* CXXRD = llvm::dyn_cast_or_null<clang::CXXRecordDecl>(D)) {
-    LOCK(getInterpInfo());
+    LOCK(getInterpInfo(CXXRD));
     return CXXRD->isAbstract();
   }
 
@@ -405,7 +443,6 @@ bool IsEnumType(TCppType_t type) {
 }
 
 static bool isSmartPointer(const RecordType* RT) {
-  LOCK(getInterpInfo());
   auto IsUseCountPresent = [](const RecordDecl* Record) {
     ASTContext& C = Record->getASTContext();
     return !Record->lookup(&C.Idents.get("use_count")).empty();
@@ -419,6 +456,7 @@ static bool isSmartPointer(const RecordType* RT) {
   };
 
   const RecordDecl* Record = RT->getDecl();
+  LOCK(getInterpInfo(Record));
   if (IsUseCountPresent(Record))
     return true;
 
@@ -485,8 +523,8 @@ TCppType_t GetIntegerTypeFromEnumType(TCppType_t enum_type) {
 std::vector<TCppScope_t> GetEnumConstants(TCppScope_t handle) {
   auto* D = (clang::Decl*)handle;
 
-  LOCK(getInterpInfo());
   if (auto* ED = llvm::dyn_cast_or_null<clang::EnumDecl>(D)) {
+    LOCK(getInterpInfo(ED));
     std::vector<TCppScope_t> enum_constants;
     for (auto* ECD : ED->enumerators()) {
       enum_constants.push_back((TCppScope_t)ECD);
@@ -519,13 +557,13 @@ TCppIndex_t GetEnumConstantValue(TCppScope_t handle) {
 }
 
 size_t GetSizeOfType(TCppType_t type) {
-  LOCK(getInterpInfo());
   QualType QT = QualType::getFromOpaquePtr(type);
   if (const TagType* TT = QT->getAs<TagType>())
     return SizeOf(TT->getDecl());
 
   // FIXME: Can we get the size of a non-tag type?
-  auto TI = getSema().getASTContext().getTypeInfo(QT);
+  auto TI = getSema().getASTContext().getTypeInfo(
+      QT); // FIXME: is this the corrent sema?
   size_t TypeSize = TI.Width;
   return TypeSize / 8;
 }
@@ -550,8 +588,8 @@ std::string GetName(TCppType_t klass) {
 }
 
 std::string GetCompleteName(TCppType_t klass) {
-  auto& C = getSema().getASTContext();
   auto* D = (Decl*)klass;
+  auto& C = getSema(D).getASTContext();
 
   PrintingPolicy Policy = C.getPrintingPolicy();
   Policy.SuppressUnwrittenScope = true;
@@ -601,8 +639,8 @@ std::string GetQualifiedName(TCppType_t klass) {
 
 // FIXME: Figure out how to merge with GetCompleteName.
 std::string GetQualifiedCompleteName(TCppType_t klass) {
-  auto& C = getSema().getASTContext();
   auto* D = (Decl*)klass;
+  auto& C = getSema(D).getASTContext();
 
   if (auto* ND = llvm::dyn_cast_or_null<NamedDecl>(D)) {
     if (auto* TD = llvm::dyn_cast<TagDecl>(ND)) {
@@ -628,10 +666,10 @@ std::string GetQualifiedCompleteName(TCppType_t klass) {
 }
 
 std::vector<TCppScope_t> GetUsingNamespaces(TCppScope_t scope) {
-  LOCK(getInterpInfo());
   auto* D = (clang::Decl*)scope;
 
   if (auto* DC = llvm::dyn_cast_or_null<clang::DeclContext>(D)) {
+    LOCK(getInterpInfo(D));
     std::vector<TCppScope_t> namespaces;
     for (auto UD : DC->using_directives()) {
       namespaces.push_back((TCppScope_t)UD->getNominatedNamespace());
@@ -718,15 +756,15 @@ TCppScope_t GetScopeFromCompleteName(const std::string& name) {
 
 TCppScope_t GetNamed(const std::string& name,
                      TCppScope_t parent /*= nullptr*/) {
-  LOCK(getInterpInfo());
   clang::DeclContext* Within = 0;
+  auto* D = (clang::Decl*)parent;
+  LOCK(getInterpInfo(D));
   if (parent) {
-    auto* D = (clang::Decl*)parent;
     D = GetUnderlyingScope(D);
     Within = llvm::dyn_cast<clang::DeclContext>(D);
   }
 
-  auto* ND = Cpp_utils::Lookup::Named(&getSema(), name, Within);
+  auto* ND = Cpp_utils::Lookup::Named(&getSema(D), name, Within);
   if (ND && ND != (clang::NamedDecl*)-1) {
     return (TCppScope_t)(ND->getCanonicalDecl());
   }
@@ -754,13 +792,15 @@ TCppScope_t GetParentScope(TCppScope_t scope) {
 }
 
 TCppIndex_t GetNumBases(TCppScope_t klass) {
-  LOCK(getInterpInfo());
   auto* D = (Decl*)klass;
 
-  if (auto* CTSD = llvm::dyn_cast_or_null<ClassTemplateSpecializationDecl>(D))
+  if (auto* CTSD = llvm::dyn_cast_or_null<ClassTemplateSpecializationDecl>(D)) {
+    LOCK(getInterpInfo(CTSD));
     if (!CTSD->hasDefinition())
-      compat::InstantiateClassTemplateSpecialization(getInterp(), CTSD);
+      compat::InstantiateClassTemplateSpecialization(getInterp(CTSD), CTSD);
+  }
   if (auto* CXXRD = llvm::dyn_cast_or_null<CXXRecordDecl>(D)) {
+    LOCK(getInterpInfo(CXXRD));
     if (CXXRD->hasDefinition())
       return CXXRD->getNumBases();
   }
@@ -769,10 +809,13 @@ TCppIndex_t GetNumBases(TCppScope_t klass) {
 }
 
 TCppScope_t GetBaseClass(TCppScope_t klass, TCppIndex_t ibase) {
-  LOCK(getInterpInfo());
   auto* D = (Decl*)klass;
   auto* CXXRD = llvm::dyn_cast_or_null<CXXRecordDecl>(D);
-  if (!CXXRD || CXXRD->getNumBases() <= ibase)
+  if (!CXXRD)
+    return 0;
+
+  LOCK(getInterpInfo(CXXRD));
+  if (CXXRD->getNumBases() <= ibase)
     return 0;
 
   auto type = (CXXRD->bases_begin() + ibase)->getType();
@@ -809,7 +852,6 @@ bool IsSubclass(TCppScope_t derived, TCppScope_t base) {
 static unsigned ComputeBaseOffset(const ASTContext& Context,
                                   const CXXRecordDecl* DerivedRD,
                                   const CXXBasePath& Path) {
-  LOCK(getInterpInfo());
   CharUnits NonVirtualOffset = CharUnits::Zero();
 
   unsigned NonVirtualStart = 0;
@@ -864,14 +906,14 @@ int64_t GetBaseClassOffset(TCppScope_t derived, TCppScope_t base) {
   CXXRecordDecl* DCXXRD = cast<CXXRecordDecl>(DD);
   CXXRecordDecl* BCXXRD = cast<CXXRecordDecl>(BD);
 
-  LOCK(getInterpInfo());
+  LOCK(getInterpInfo(DD));
 
   CXXBasePaths Paths(/*FindAmbiguities=*/false, /*RecordPaths=*/true,
                      /*DetectVirtual=*/false);
   DCXXRD->isDerivedFrom(BCXXRD, Paths);
 
   // FIXME: We might want to cache these requests as they seem expensive.
-  return ComputeBaseOffset(getSema().getASTContext(), DCXXRD, Paths.front());
+  return ComputeBaseOffset(getSema(DD).getASTContext(), DCXXRD, Paths.front());
 }
 
 template <typename DeclType>
@@ -880,8 +922,8 @@ static void GetClassDecls(TCppScope_t klass,
   if (!klass)
     return;
 
-  LOCK(getInterpInfo());
   auto* D = (clang::Decl*)klass;
+  LOCK(getInterpInfo(D));
 
   if (auto* TD = dyn_cast<TypedefNameDecl>(D))
     D = GetScopeFromType(TD->getUnderlyingType());
@@ -891,11 +933,11 @@ static void GetClassDecls(TCppScope_t klass,
 
   auto* CXXRD = dyn_cast<CXXRecordDecl>(D);
 #ifdef CPPINTEROP_USE_CLING
-  cling::Interpreter::PushTransactionRAII RAII(&getInterp());
+  cling::Interpreter::PushTransactionRAII RAII(&getInterp(CXXRD));
 #endif // CPPINTEROP_USE_CLING
   if (CXXRD->hasDefinition())
     CXXRD = CXXRD->getDefinition();
-  getSema().ForceDeclarationOfImplicitMembers(CXXRD);
+  getSema(CXXRD).ForceDeclarationOfImplicitMembers(CXXRD);
   for (Decl* DI : CXXRD->decls()) {
     if (auto* MD = dyn_cast<DeclType>(DI))
       methods.push_back(MD);
@@ -921,7 +963,7 @@ static void GetClassDecls(TCppScope_t klass,
       // Result is appended to the decls, i.e. CXXRD, iterator
       // non-shadowed decl will be push_back later
       // methods.push_back(Result);
-      getSema().findInheritingConstructor(SourceLocation(), CXXCD, CUSD);
+      getSema(CXXRD).findInheritingConstructor(SourceLocation(), CXXCD, CUSD);
     }
   }
 }
@@ -938,9 +980,10 @@ void GetFunctionTemplatedDecls(TCppScope_t klass,
 bool HasDefaultConstructor(TCppScope_t scope) {
   auto* D = (clang::Decl*)scope;
 
-  LOCK(getInterpInfo());
-  if (auto* CXXRD = llvm::dyn_cast_or_null<CXXRecordDecl>(D))
+  if (auto* CXXRD = llvm::dyn_cast_or_null<CXXRecordDecl>(D)) {
+    LOCK(getInterpInfo(CXXRD));
     return CXXRD->hasDefaultConstructor();
+  }
 
   return false;
 }
@@ -950,21 +993,22 @@ TCppFunction_t GetDefaultConstructor(compat::Interpreter& interp,
   if (!HasDefaultConstructor(scope))
     return nullptr;
 
-  LOCK(getInterpInfo());
   auto* CXXRD = (clang::CXXRecordDecl*)scope;
+  LOCK(getInterpInfo(CXXRD));
   return interp.getCI()->getSema().LookupDefaultConstructor(CXXRD);
 }
 
 TCppFunction_t GetDefaultConstructor(TCppScope_t scope) {
-  return GetDefaultConstructor(getInterp(), scope);
+  auto* CXXRD = (clang::CXXRecordDecl*)scope;
+  return GetDefaultConstructor(getInterp(CXXRD), scope);
 }
 
 TCppFunction_t GetDestructor(TCppScope_t scope) {
   auto* D = (clang::Decl*)scope;
 
   if (auto* CXXRD = llvm::dyn_cast_or_null<CXXRecordDecl>(D)) {
-    LOCK(getInterpInfo());
-    getSema().ForceDeclarationOfImplicitMembers(CXXRD);
+    LOCK(getInterpInfo(CXXRD));
+    getSema(CXXRD).ForceDeclarationOfImplicitMembers(CXXRD);
     return CXXRD->getDestructor();
   }
 
@@ -983,14 +1027,14 @@ std::vector<TCppFunction_t> GetFunctionsUsingName(TCppScope_t scope,
   if (!scope || name.empty())
     return {};
 
-  LOCK(getInterpInfo());
+  LOCK(getInterpInfo(D));
 
   D = GetUnderlyingScope(D);
 
   std::vector<TCppFunction_t> funcs;
   llvm::StringRef Name(name);
-  auto& S = getSema();
-  DeclarationName DName = &getASTContext().Idents.get(name);
+  auto& S = getSema(D);
+  DeclarationName DName = &S.getASTContext().Idents.get(name);
   clang::LookupResult R(S, DName, SourceLocation(), Sema::LookupOrdinaryName,
                         For_Visible_Redeclaration);
 
@@ -1009,10 +1053,10 @@ std::vector<TCppFunction_t> GetFunctionsUsingName(TCppScope_t scope,
 }
 
 TCppType_t GetFunctionReturnType(TCppFunction_t func) {
-  LOCK(getInterpInfo());
 
   auto* D = (clang::Decl*)func;
   if (auto* FD = llvm::dyn_cast_or_null<clang::FunctionDecl>(D)) {
+    LOCK(getInterpInfo(FD));
     QualType Type = FD->getReturnType();
     if (Type->isUndeducedAutoType()) {
       bool needInstantiation = false;
@@ -1031,8 +1075,10 @@ TCppType_t GetFunctionReturnType(TCppFunction_t func) {
     return Type.getAsOpaquePtr();
   }
 
-  if (auto* FD = llvm::dyn_cast_or_null<clang::FunctionTemplateDecl>(D))
+  if (auto* FD = llvm::dyn_cast_or_null<clang::FunctionTemplateDecl>(D)) {
+    LOCK(getInterpInfo(FD));
     return (FD->getTemplatedDecl())->getReturnType().getAsOpaquePtr();
+  }
 
   return 0;
 }
@@ -1060,10 +1106,10 @@ TCppIndex_t GetFunctionRequiredArgs(TCppConstFunction_t func) {
 }
 
 TCppType_t GetFunctionArgType(TCppFunction_t func, TCppIndex_t iarg) {
-  LOCK(getInterpInfo());
 
   auto* D = (clang::Decl*)func;
   if (auto* FD = llvm::dyn_cast_or_null<clang::FunctionDecl>(D)) {
+    LOCK(getInterpInfo(FD));
     if (iarg < FD->getNumParams()) {
       auto* PVD = FD->getParamDecl(iarg);
       return PVD->getOriginalType().getAsOpaquePtr();
@@ -1089,7 +1135,7 @@ std::string GetFunctionSignature(TCppFunction_t func) {
 
   std::string Signature;
   raw_string_ostream SS(Signature);
-  PrintingPolicy Policy = getASTContext().getPrintingPolicy();
+  PrintingPolicy Policy = getASTContext(D).getPrintingPolicy();
   // Skip printing the body
   Policy.TerseOutput = true;
   Policy.FullyQualifiedName = true;
@@ -1136,14 +1182,14 @@ bool IsTemplatedFunction(TCppFunction_t func) {
 // the template function exists and >1 means overloads
 bool ExistsFunctionTemplate(const std::string& name, TCppScope_t parent) {
   DeclContext* Within = 0;
+  auto* D = (Decl*)parent;
   if (parent) {
-    auto* D = (Decl*)parent;
     Within = llvm::dyn_cast<DeclContext>(D);
   }
 
-  LOCK(getInterpInfo());
+  LOCK(getInterpInfo(D));
 
-  auto* ND = Cpp_utils::Lookup::Named(&getSema(), name, Within);
+  auto* ND = Cpp_utils::Lookup::Named(&getSema(D), name, Within);
 
   if ((intptr_t)ND == (intptr_t)0)
     return false;
@@ -1162,10 +1208,10 @@ void LookupConstructors(const std::string& name, TCppScope_t parent,
   auto* D = (Decl*)parent;
 
   if (auto* CXXRD = llvm::dyn_cast_or_null<CXXRecordDecl>(D)) {
-    LOCK(getInterpInfo());
+    LOCK(getInterpInfo(CXXRD));
 
-    getSema().ForceDeclarationOfImplicitMembers(CXXRD);
-    DeclContextLookupResult Result = getSema().LookupConstructors(CXXRD);
+    getSema(CXXRD).ForceDeclarationOfImplicitMembers(CXXRD);
+    DeclContextLookupResult Result = getSema(CXXRD).LookupConstructors(CXXRD);
     // Obtaining all constructors when we intend to lookup a method under a
     // scope can lead to crashes. We avoid that by accumulating constructors
     // only if the Decl matches the lookup name.
@@ -1181,14 +1227,14 @@ bool GetClassTemplatedMethods(const std::string& name, TCppScope_t parent,
   if (!D && name.empty())
     return false;
 
-  LOCK(getInterpInfo());
+  LOCK(getInterpInfo(D));
 
   // Accumulate constructors
   LookupConstructors(name, parent, funcs);
-  auto& S = getSema();
+  auto& S = getSema(D);
   D = GetUnderlyingScope(D);
   llvm::StringRef Name(name);
-  DeclarationName DName = &getASTContext().Idents.get(name);
+  DeclarationName DName = &S.getASTContext().Idents.get(name);
   clang::LookupResult R(S, DName, SourceLocation(), Sema::LookupOrdinaryName,
                         For_Visible_Redeclaration);
   auto* DC = clang::Decl::castToDeclContext(D);
@@ -1224,13 +1270,16 @@ TCppFunction_t
 BestOverloadFunctionMatch(const std::vector<TCppFunction_t>& candidates,
                           const std::vector<TemplateArgInfo>& explicit_types,
                           const std::vector<TemplateArgInfo>& arg_types) {
-  LOCK(getInterpInfo());
+  if (candidates.empty())
+    return nullptr;
+  InterpreterInfo& II = getInterpInfo((clang::Decl*)candidates[0]);
+  LOCK(II);
 
-  auto& S = getSema();
+  auto& S = II.Interpreter->getSema();
   auto& C = S.getASTContext();
 
 #ifdef CPPINTEROP_USE_CLING
-  cling::Interpreter::PushTransactionRAII RAII(&getInterp());
+  cling::Interpreter::PushTransactionRAII RAII(II.Interpreter);
 #endif
 
   // The overload resolution interfaces in Sema require a list of expressions.
@@ -1347,10 +1396,9 @@ bool IsDestructor(TCppConstFunction_t method) {
 }
 
 bool IsStaticMethod(TCppConstFunction_t method) {
-  LOCK(getInterpInfo());
-
   const auto* D = static_cast<const Decl*>(method);
   if (auto* CXXMD = llvm::dyn_cast_or_null<CXXMethodDecl>(D)) {
+    LOCK(getInterpInfo(D));
     return CXXMD->isStatic();
   }
 
@@ -1370,7 +1418,7 @@ TCppFuncAddr_t GetFunctionAddress(const char* mangled_name) {
 
 static TCppFuncAddr_t GetFunctionAddress(const FunctionDecl* FD) {
   const auto get_mangled_name = [](const FunctionDecl* FD) {
-    auto MangleCtxt = getASTContext().createMangleContext();
+    auto MangleCtxt = getASTContext(FD).createMangleContext();
 
     if (!MangleCtxt->shouldMangleDeclName(FD)) {
       return FD->getNameInfo().getName().getAsString();
@@ -1402,9 +1450,9 @@ TCppFuncAddr_t GetFunctionAddress(TCppFunction_t method) {
 }
 
 bool IsVirtualMethod(TCppFunction_t method) {
-  LOCK(getInterpInfo());
   auto* D = (Decl*)method;
   if (auto* CXXMD = llvm::dyn_cast_or_null<CXXMethodDecl>(D)) {
+    LOCK(getInterpInfo(CXXMD));
     return CXXMD->isVirtual();
   }
 
@@ -1415,9 +1463,9 @@ void GetDatamembers(TCppScope_t scope, std::vector<TCppScope_t>& datamembers) {
   auto* D = (Decl*)scope;
 
   if (auto* CXXRD = llvm::dyn_cast_or_null<CXXRecordDecl>(D)) {
-    LOCK(getInterpInfo());
+    LOCK(getInterpInfo(CXXRD));
 
-    getSema().ForceDeclarationOfImplicitMembers(CXXRD);
+    getSema(CXXRD).ForceDeclarationOfImplicitMembers(CXXRD);
     if (CXXRD->hasDefinition())
       CXXRD = CXXRD->getDefinition();
 
@@ -1462,10 +1510,13 @@ void GetStaticDatamembers(TCppScope_t scope,
 void GetEnumConstantDatamembers(TCppScope_t scope,
                                 std::vector<TCppScope_t>& datamembers,
                                 bool include_enum_class) {
-  LOCK(getInterpInfo());
-
   std::vector<TCppScope_t> EDs;
   GetClassDecls<EnumDecl>(scope, EDs);
+  if (EDs.empty())
+    return;
+
+  LOCK(getInterpInfo((clang::Decl*)EDs[0]));
+
   for (TCppScope_t i : EDs) {
     auto* ED = static_cast<EnumDecl*>(i);
 
@@ -1480,13 +1531,13 @@ void GetEnumConstantDatamembers(TCppScope_t scope,
 
 TCppScope_t LookupDatamember(const std::string& name, TCppScope_t parent) {
   clang::DeclContext* Within = 0;
+  auto* D = (clang::Decl*)parent;
   if (parent) {
-    auto* D = (clang::Decl*)parent;
     Within = llvm::dyn_cast<clang::DeclContext>(D);
   }
 
-  LOCK(getInterpInfo());
-  auto* ND = Cpp_utils::Lookup::Named(&getSema(), name, Within);
+  LOCK(getInterpInfo(D));
+  auto* ND = Cpp_utils::Lookup::Named(&getSema(D), name, Within);
   if (ND && ND != (clang::NamedDecl*)-1) {
     if (llvm::isa_and_nonnull<clang::FieldDecl>(ND)) {
       return (TCppScope_t)ND;
@@ -1528,11 +1579,6 @@ TCppType_t GetVariableType(TCppScope_t var) {
 
 intptr_t GetVariableOffset(compat::Interpreter& I, Decl* D,
                            CXXRecordDecl* BaseCXXRD) {
-  if (!D)
-    return 0;
-
-  LOCK(getInterpInfo());
-
   auto& C = I.getSema().getASTContext();
 
   if (auto* FD = llvm::dyn_cast<FieldDecl>(D)) {
@@ -1607,9 +1653,9 @@ intptr_t GetVariableOffset(compat::Interpreter& I, Decl* D,
     if (!address) {
       if (!VD->hasInit()) {
 #ifdef CPPINTEROP_USE_CLING
-        cling::Interpreter::PushTransactionRAII RAII(&getInterp());
+        cling::Interpreter::PushTransactionRAII RAII(&getInterp(VD));
 #endif // CPPINTEROP_USE_CLING
-        getSema().InstantiateVariableDefinition(SourceLocation(), VD);
+        getSema(VD).InstantiateVariableDefinition(SourceLocation(), VD);
         VD = VD->getDefinition();
       }
       if (VD->hasInit() &&
@@ -1671,8 +1717,11 @@ intptr_t GetVariableOffset(compat::Interpreter& I, Decl* D,
 
 intptr_t GetVariableOffset(TCppScope_t var, TCppScope_t parent) {
   auto* D = static_cast<Decl*>(var);
+  if (!D)
+    return 0;
+  LOCK(getInterpInfo(D));
   auto* RD = llvm::dyn_cast_or_null<CXXRecordDecl>(static_cast<Decl*>(parent));
-  return GetVariableOffset(getInterp(), D, RD);
+  return GetVariableOffset(getInterp(D), D, RD);
 }
 
 // Check if the Access Specifier of the variable matches the provided value.
@@ -1719,7 +1768,7 @@ bool IsPODType(TCppType_t type) {
   if (QT.isNull())
     return false;
 
-  return QT.isPODType(getASTContext());
+  return QT.isPODType(getASTContext()); // FIXME: which ASTContext?
 }
 
 bool IsPointerType(TCppType_t type) {
@@ -1751,13 +1800,17 @@ bool IsRValueReferenceType(TCppType_t type) {
 
 TCppType_t GetPointerType(TCppType_t type) {
   QualType QT = QualType::getFromOpaquePtr(type);
-  return getASTContext().getPointerType(QT).getAsOpaquePtr();
+  return getASTContext()
+      .getPointerType(QT)
+      .getAsOpaquePtr(); // FIXME: which ASTContext?
 }
 
 TCppType_t GetReferencedType(TCppType_t type, bool rvalue) {
   QualType QT = QualType::getFromOpaquePtr(type);
   if (rvalue)
-    return getASTContext().getRValueReferenceType(QT).getAsOpaquePtr();
+    return getASTContext()
+        .getRValueReferenceType(QT)
+        .getAsOpaquePtr(); // FIXME: which ASTContext?
   return getASTContext().getLValueReferenceType(QT).getAsOpaquePtr();
 }
 
@@ -1941,8 +1994,10 @@ TCppType_t GetType(const std::string& name) {
 TCppType_t GetComplexType(TCppType_t type) {
   QualType QT = QualType::getFromOpaquePtr(type);
 
-  LOCK(getInterpInfo());
-  return getASTContext().getComplexType(QT).getAsOpaquePtr();
+  LOCK(getInterpInfo()); // FIXME: Which interpreter to lock?
+  return getASTContext()
+      .getComplexType(QT)
+      .getAsOpaquePtr(); // FIXME: which ASTContext?
 }
 
 TCppType_t GetTypeFromScope(TCppScope_t klass) {
@@ -1950,7 +2005,7 @@ TCppType_t GetTypeFromScope(TCppScope_t klass) {
     return 0;
 
   auto* D = (Decl*)klass;
-  ASTContext& C = getASTContext();
+  ASTContext& C = getASTContext(D);
 
   if (ValueDecl* VD = dyn_cast<ValueDecl>(D))
     return VD->getType().getAsOpaquePtr();
@@ -1981,7 +2036,6 @@ void* compile_wrapper(compat::Interpreter& I, const std::string& wrapper_name,
                       const std::string& wrapper,
                       bool withAccessControl = true) {
   LLVM_DEBUG(dbgs() << "Compiling '" << wrapper_name << "'\n");
-  LOCK(getInterpInfo());
   return I.compileFunction(wrapper_name, wrapper, false /*ifUnique*/,
                            withAccessControl);
 }
@@ -1990,10 +2044,8 @@ void get_type_as_string(QualType QT, std::string& type_name, ASTContext& C,
                         PrintingPolicy Policy) {
   // TODO: Implement cling desugaring from utils::AST
   //       cling::utils::Transform::GetPartiallyDesugaredType()
-  if (!QT->isTypedefNameType() || QT->isBuiltinType()) {
-    LOCK(getInterpInfo());
+  if (!QT->isTypedefNameType() || QT->isBuiltinType())
     QT = QT.getDesugaredType(C);
-  }
   Policy.SuppressElaboration = true;
   Policy.SuppressTagKeyword = !QT->isEnumeralType();
   Policy.FullyQualifiedName = true;
@@ -2342,14 +2394,12 @@ void make_narg_call(const FunctionDecl* FD, const std::string& return_type,
       // a simple way of determining whether a viable copy constructor exists,
       // so check for the most common case: the trivial one, but not uniquely
       // available, while there is a move constructor.
-      {
-        LOCK(getInterpInfo());
-        // include utility header if not already included for std::move
-        DeclarationName DMove = &getASTContext().Idents.get("move");
-        auto result = getSema().getStdNamespace()->lookup(DMove);
-        if (result.empty())
-          Cpp::Declare("#include <utility>");
-      }
+
+      // include utility header if not already included for std::move
+      DeclarationName DMove = &getASTContext(FD).Idents.get("move");
+      auto result = getSema(FD).getStdNamespace()->lookup(DMove);
+      if (result.empty())
+        Cpp::Declare("#include <utility>");
 
       // move construction as needed for classes (note that this is implicit)
       callbuf << "std::move(*(" << type_name.c_str() << "*)args[" << i << "])";
@@ -2560,7 +2610,7 @@ void make_narg_call_with_return(compat::Interpreter& I, const FunctionDecl* FD,
 int get_wrapper_code(compat::Interpreter& I, const FunctionDecl* FD,
                      std::string& wrapper_name, std::string& wrapper) {
   assert(FD && "generate_wrapper called without a function decl!");
-  LOCK(getInterpInfo());
+  LOCK(getInterpInfo(FD));
 
   ASTContext& Context = FD->getASTContext();
   //
@@ -2982,7 +3032,7 @@ JitCall::GenericCall make_wrapper(compat::Interpreter& I,
                                   const FunctionDecl* FD) {
   static std::map<const FunctionDecl*, void*> gWrapperStore;
 
-  LOCK(getInterpInfo());
+  LOCK(getInterpInfo(FD));
 
   auto R = gWrapperStore.find(FD);
   if (R != gWrapperStore.end())
@@ -3076,7 +3126,7 @@ static JitCall::DestructorCall make_dtor_wrapper(compat::Interpreter& interp,
 
   static map<const Decl*, void*> gDtorWrapperStore;
 
-  LOCK(getInterpInfo());
+  LOCK(getInterpInfo(D));
 
   auto I = gDtorWrapperStore.find(D);
   if (I != gDtorWrapperStore.end())
@@ -3226,7 +3276,8 @@ CPPINTEROP_API JitCall MakeFunctionCallable(TInterp_t I,
 }
 
 CPPINTEROP_API JitCall MakeFunctionCallable(TCppConstFunction_t func) {
-  return MakeFunctionCallable(&getInterp(), func);
+  auto* D = (clang::Decl*)func;
+  return MakeFunctionCallable(&getInterp(D), func);
 }
 
 namespace {
@@ -3333,7 +3384,11 @@ TInterp_t CreateInterpreter(const std::vector<const char*>& Args /*={}*/,
     }  // namespace __internal_CppInterOp
   )");
 
-  sInterpreters->emplace_back(I, /*Owned=*/true);
+  sInterpreters->emplace_back(
+      std::make_shared<InterpreterInfo>(I, /*Owned=*/true));
+  sInterpreterASTMap->insert(
+      {&sInterpreters->back()->Interpreter->getSema().getASTContext(),
+       sInterpreters->back()});
 
   return I;
 }
@@ -3342,17 +3397,29 @@ bool DeleteInterpreter(TInterp_t I /*=nullptr*/) {
   std::unique_lock<std::mutex> Lock(InterpreterStackLock);
 
   if (!I) {
+    auto foundAST =
+        std::find_if(sInterpreterASTMap->begin(), sInterpreterASTMap->end(),
+                     [](const auto& Item) {
+                       return Item.second.lock() == sInterpreters->back();
+                     });
+    assert(foundAST != sInterpreterASTMap->end());
+    sInterpreterASTMap->erase(foundAST);
     sInterpreters->pop_back();
     return true;
   }
 
   auto found =
       std::find_if(sInterpreters->begin(), sInterpreters->end(),
-                   [&I](const auto& Info) { return Info.Interpreter == I; });
+                   [&I](const auto& Info) { return Info->Interpreter == I; });
   if (found == sInterpreters->end())
     return false; // failure
 
-  LOCK(*found);
+  LOCK(**found);
+  auto foundAST = std::find_if(
+      sInterpreterASTMap->begin(), sInterpreterASTMap->end(),
+      [&found](const auto& Item) { return Item.second.lock() == *found; });
+  assert(foundAST != sInterpreterASTMap->end());
+  sInterpreterASTMap->erase(foundAST);
   sInterpreters->erase(found);
   return true;
 }
@@ -3365,7 +3432,7 @@ bool ActivateInterpreter(TInterp_t I) {
 
   auto found =
       std::find_if(sInterpreters->begin(), sInterpreters->end(),
-                   [&I](const auto& Info) { return Info.Interpreter == I; });
+                   [&I](const auto& Info) { return Info->Interpreter == I; });
   if (found == sInterpreters->end())
     return false;
 
@@ -3379,14 +3446,18 @@ TInterp_t GetInterpreter() {
   std::unique_lock<std::mutex> Lock(InterpreterStackLock);
   if (sInterpreters->empty())
     return nullptr;
-  return sInterpreters->back().Interpreter;
+  return sInterpreters->back()->Interpreter;
 }
 
 void UseExternalInterpreter(TInterp_t I) {
   std::unique_lock<std::mutex> Lock(InterpreterStackLock);
   assert(sInterpreters->empty() && "sInterpreter already in use!");
-  sInterpreters->emplace_back(static_cast<compat::Interpreter*>(I),
-                              /*isOwned=*/false);
+  sInterpreters->emplace_back(
+      std::make_shared<InterpreterInfo>(static_cast<compat::Interpreter*>(I),
+                                        /*isOwned=*/false));
+  sInterpreterASTMap->insert(
+      {&sInterpreters->back()->Interpreter->getSema().getASTContext(),
+       sInterpreters->back()});
 }
 
 void AddSearchPath(const char* dir, bool isUser, bool prepend) {
@@ -3635,7 +3706,8 @@ bool InsertOrReplaceJitSymbol(const char* linker_mangled_name,
 }
 
 std::string ObjToString(const char* type, void* obj) {
-  LOCK(getInterpInfo());
+  LOCK(getInterpInfo()); // FIXME: not enough information to lock the corrent
+                         // interpreter
   return getInterp().toString(type, obj);
 }
 
@@ -3693,7 +3765,6 @@ Decl* InstantiateTemplate(TemplateDecl* TemplateD,
 Decl* InstantiateTemplate(TemplateDecl* TemplateD,
                           ArrayRef<TemplateArgument> TemplateArgs, Sema& S,
                           bool instantiate_body) {
-  LOCK(getInterpInfo());
   // Create a list of template arguments.
   TemplateArgumentListInfo TLI{};
   for (auto TA : TemplateArgs)
@@ -3738,15 +3809,16 @@ TCppScope_t InstantiateTemplate(TCppScope_t tmpl,
                                 const TemplateArgInfo* template_args,
                                 size_t template_args_size,
                                 bool instantiate_body) {
-  LOCK(getInterpInfo());
-  return InstantiateTemplate(getInterp(), tmpl, template_args,
+  auto* D = static_cast<Decl*>(tmpl);
+  LOCK(getInterpInfo(D));
+  return InstantiateTemplate(getInterp(D), tmpl, template_args,
                              template_args_size, instantiate_body);
 }
 
 void GetClassTemplateInstantiationArgs(TCppScope_t templ_instance,
                                        std::vector<TemplateArgInfo>& args) {
-  LOCK(getInterpInfo());
   auto* CTSD = static_cast<ClassTemplateSpecializationDecl*>(templ_instance);
+  LOCK(getInterpInfo(CTSD));
   for (const auto& TA : CTSD->getTemplateInstantiationArgs().asArray()) {
     switch (TA.getKind()) {
     default:
@@ -3792,7 +3864,7 @@ void GetAllCppNames(TCppScope_t scope, std::set<std::string>& names) {
   clang::DeclContext* DC;
   clang::DeclContext::decl_iterator decl;
 
-  LOCK(getInterpInfo());
+  LOCK(getInterpInfo(D));
   if (auto* TD = dyn_cast_or_null<TagDecl>(D)) {
     DC = clang::TagDecl::castToDeclContext(TD);
     decl = DC->decls_begin();
@@ -3822,7 +3894,7 @@ void GetEnums(TCppScope_t scope, std::vector<std::string>& Result) {
 
   auto* DC = llvm::dyn_cast<clang::DeclContext>(D);
 
-  LOCK(getInterpInfo());
+  LOCK(getInterpInfo(D));
   llvm::SmallVector<clang::DeclContext*, 4> DCs;
   DC->collectAllContexts(DCs);
 
@@ -3839,7 +3911,6 @@ void GetEnums(TCppScope_t scope, std::vector<std::string>& Result) {
 // FIXME: On the CPyCppyy side the receiver is of type
 //        vector<long int> instead of vector<TCppIndex_t>
 std::vector<long int> GetDimensions(TCppType_t type) {
-  LOCK(getInterpInfo());
   QualType Qual = QualType::getFromOpaquePtr(type);
   if (Qual.isNull())
     return {};
@@ -3866,24 +3937,25 @@ std::vector<long int> GetDimensions(TCppType_t type) {
 }
 
 bool IsTypeDerivedFrom(TCppType_t derived, TCppType_t base) {
-  LOCK(getInterpInfo());
-  auto& S = getSema();
-  auto fakeLoc = GetValidSLoc(S);
   auto derivedType = clang::QualType::getFromOpaquePtr(derived);
   auto baseType = clang::QualType::getFromOpaquePtr(base);
+  auto* CXXRD = baseType->getAsRecordDecl();
+  LOCK(getInterpInfo(CXXRD));
+  auto& S = getSema(CXXRD);
+  auto fakeLoc = GetValidSLoc(S);
 
 #ifdef CPPINTEROP_USE_CLING
-  cling::Interpreter::PushTransactionRAII RAII(&getInterp());
+  cling::Interpreter::PushTransactionRAII RAII(&getInterp(CXXRD));
 #endif
   return S.IsDerivedFrom(fakeLoc, derivedType, baseType);
 }
 
 std::string GetFunctionArgDefault(TCppFunction_t func,
                                   TCppIndex_t param_index) {
-  LOCK(getInterpInfo());
   auto* D = (clang::Decl*)func;
   clang::ParmVarDecl* PI = nullptr;
 
+  LOCK(getInterpInfo(D));
   if (auto* FD = llvm::dyn_cast_or_null<clang::FunctionDecl>(D))
     PI = FD->getParamDecl(param_index);
 
@@ -3978,8 +4050,8 @@ OperatorArity GetOperatorArity(TCppFunction_t op) {
 
 void GetOperator(TCppScope_t scope, Operator op,
                  std::vector<TCppFunction_t>& operators, OperatorArity kind) {
-  LOCK(getInterpInfo());
   Decl* D = static_cast<Decl*>(scope);
+  LOCK(getInterpInfo(D));
   if (auto* CXXRD = llvm::dyn_cast_or_null<CXXRecordDecl>(D)) {
     auto fn = [&operators, kind, op](const RecordDecl* RD) {
       ASTContext& C = RD->getASTContext();
@@ -3995,7 +4067,7 @@ void GetOperator(TCppScope_t scope, Operator op,
     fn(CXXRD);
     CXXRD->forallBases(fn);
   } else if (auto* DC = llvm::dyn_cast_or_null<DeclContext>(D)) {
-    ASTContext& C = getSema().getASTContext();
+    ASTContext& C = getSema(D).getASTContext();
     DeclContextLookupResult Result =
         DC->lookup(C.DeclarationNames.getCXXOperatorName(
             (clang::OverloadedOperatorKind)op));
@@ -4044,7 +4116,8 @@ TCppObject_t Construct(compat::Interpreter& interp, TCppScope_t scope,
 
 TCppObject_t Construct(TCppScope_t scope, void* arena /*=nullptr*/,
                        TCppIndex_t count /*=1UL*/) {
-  return Construct(getInterp(), scope, arena, count);
+  auto* D = (clang::Decl*)scope;
+  return Construct(getInterp(D), scope, arena, count);
 }
 
 bool Destruct(compat::Interpreter& interp, TCppObject_t This, const Decl* Class,
@@ -4060,7 +4133,7 @@ bool Destruct(compat::Interpreter& interp, TCppObject_t This, const Decl* Class,
 bool Destruct(TCppObject_t This, TCppConstScope_t scope,
               bool withFree /*=true*/, TCppIndex_t count /*=0UL*/) {
   const auto* Class = static_cast<const Decl*>(scope);
-  return Destruct(getInterp(), This, Class, withFree, count);
+  return Destruct(getInterp(Class), This, Class, withFree, count);
 }
 
 class StreamCaptureInfo {
@@ -4164,7 +4237,8 @@ std::string EndStdStreamCapture() {
 void CodeComplete(std::vector<std::string>& Results, const char* code,
                   unsigned complete_line /* = 1U */,
                   unsigned complete_column /* = 1U */) {
-  LOCK(getInterpInfo());
+  LOCK(getInterpInfo()); // FIXME: Not enough info to lock the corrent
+                         // interpreter
   compat::codeComplete(Results, getInterp(), code, complete_line,
                        complete_column);
 }
