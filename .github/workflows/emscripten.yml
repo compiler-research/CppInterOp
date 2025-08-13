@@ -79,7 +79,7 @@ jobs:
             emsdk_ver: "3.1.73"
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         fetch-depth: 0
 
@@ -441,7 +441,7 @@ jobs:
             emsdk_ver: "3.1.73"
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         fetch-depth: 0
 
