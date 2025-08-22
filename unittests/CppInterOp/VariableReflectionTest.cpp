@@ -287,6 +287,8 @@ TEST(VariableReflectionTest, GetVariableOffset) {
   std::vector<Cpp::TCppScope_t> datamembers;
   Cpp::GetDatamembers(Decls[4], datamembers);
 
+  EXPECT_FALSE((bool)Cpp::GetVariableOffset(nullptr));
+
   EXPECT_TRUE((bool) Cpp::GetVariableOffset(Decls[0])); // a
   EXPECT_TRUE((bool) Cpp::GetVariableOffset(Decls[1])); // N
   EXPECT_TRUE((bool)Cpp::GetVariableOffset(Decls[2]));  // S
