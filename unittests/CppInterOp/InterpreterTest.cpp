@@ -17,13 +17,16 @@
 #include "clang-c/CXCppInterOp.h"
 
 #include "llvm/ADT/SmallString.h"
+#include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Path.h"
-#include <llvm/Support/FileSystem.h>
+#include "llvm/Support/raw_ostream.h"
 
 #include <gmock/gmock.h>
 #include "gtest/gtest.h"
 
 #include <algorithm>
+#include <cstdint>
+#include <thread>
 #include <utility>
 
 using ::testing::StartsWith;
@@ -247,7 +250,7 @@ TEST(InterpreterTest, DISABLED_DetectResourceDir) {
 #ifdef _WIN32
   GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
 #endif
-  Cpp::CreateInterpreter();
+  auto* I = Cpp::CreateInterpreter();
   EXPECT_STRNE(Cpp::DetectResourceDir().c_str(), Cpp::GetResourceDir());
   llvm::SmallString<256> Clang(LLVM_BINARY_DIR);
   llvm::sys::path::append(Clang, "bin", "clang");
@@ -256,7 +259,7 @@ TEST(InterpreterTest, DISABLED_DetectResourceDir) {
     GTEST_SKIP() << "Test not run (Clang binary does not exist)";
 
   std::string DetectedPath = Cpp::DetectResourceDir(Clang.str().str().c_str());
-  EXPECT_STREQ(DetectedPath.c_str(), Cpp::GetResourceDir());
+  EXPECT_STREQ(DetectedPath.c_str(), Cpp::GetResourceDir(I));
 }
 
 TEST(InterpreterTest, DetectSystemCompilerIncludePaths) {
@@ -364,26 +367,83 @@ if (llvm::sys::RunningOnValgrind())
 #endif
 }
 
+static int printf_jit(const char* format, ...) {
+  llvm::errs() << "printf_jit called!\n";
+  return 0;
+}
+
 TEST(InterpreterTest, MultipleInterpreter) {
-#if CLANG_VERSION_MAJOR < 20 && defined(EMSCRIPTEN)
-  GTEST_SKIP() << "Test fails for Emscipten LLVM 20 builds";
+#ifdef EMSCRIPTEN
+  GTEST_SKIP() << "Test fails for Emscipten builds";
 #endif
-  auto* I = Cpp::CreateInterpreter();
-  EXPECT_TRUE(I);
-  Cpp::Declare(R"(
-  void f() {}
-  )");
-  Cpp::TCppScope_t f = Cpp::GetNamed("f");
+#ifdef _WIN32
+  GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
+#endif
+  // delete all old interpreters
+  while (Cpp::DeleteInterpreter())
+    ;
+  std::vector<const char*> interpreter_args = {"-include", "new"};
+  auto* I1 = Cpp::CreateInterpreter(interpreter_args);
+  EXPECT_TRUE(I1);
 
-  auto* I2 = Cpp::CreateInterpreter();
+  auto F = [](Cpp::TInterp_t I) {
+    bool hasError = true;
+    EXPECT_TRUE(Cpp::Evaluate("__cplusplus", &hasError, I) == 201402);
+    EXPECT_FALSE(hasError);
+
+    Cpp::Declare(R"(
+    #include <new>
+    extern "C" int printf(const char*,...);
+    class MyKlass {};
+    )",
+                 false, I);
+    Cpp::TCppScope_t f = Cpp::GetNamed("printf", Cpp::GetGlobalScope(I));
+    EXPECT_TRUE(f);
+    EXPECT_TRUE(Cpp::GetComplexType(Cpp::GetType("int", I)));
+    Cpp::TCppType_t MyKlass = Cpp::GetType("MyKlass", I);
+    EXPECT_EQ(Cpp::GetTypeAsString(MyKlass), "MyKlass");
+    EXPECT_EQ(Cpp::GetNumBases(MyKlass), 0);
+    EXPECT_FALSE(Cpp::GetBaseClass(MyKlass, 3));
+    std::vector<Cpp::TCppScope_t> members;
+    Cpp::GetEnumConstantDatamembers(Cpp::GetScopeFromType(MyKlass), members);
+    EXPECT_EQ(members.size(), 0);
+
+    EXPECT_FALSE(
+        Cpp::InsertOrReplaceJitSymbol("printf", (uint64_t)&printf_jit, I));
+
+    auto f_callable = Cpp::MakeFunctionCallable(f);
+    EXPECT_EQ(f_callable.getKind(), Cpp::JitCall::Kind::kGenericCall);
+
+    EXPECT_FALSE(
+        Cpp::TakeInterpreter((TInterp_t)1)); // try to take ownership of an
+                                             // interpreter that does not exist
+
+    std::vector<std::string> includes;
+    Cpp::AddIncludePath("/non/existent/", I);
+    Cpp::GetIncludePaths(includes, false, false, I);
+    EXPECT_NE(std::find(includes.begin(), includes.end(), "/non/existent/"),
+              std::end(includes));
+
+    EXPECT_TRUE(Cpp::InsertOrReplaceJitSymbol("non_existent", (uint64_t)&f, I));
+  };
+  F(I1);
+
+  auto* I2 = Cpp::CreateInterpreter(interpreter_args);
+  auto* I3 = Cpp::CreateInterpreter(interpreter_args);
+  auto* I4 = Cpp::CreateInterpreter(interpreter_args);
   EXPECT_TRUE(I2);
-  Cpp::Declare(R"(
-  void ff() {}
-  )");
-  Cpp::TCppScope_t ff = Cpp::GetNamed("ff");
+  EXPECT_TRUE(I3);
+  EXPECT_TRUE(I4);
 
-  auto f_callable = Cpp::MakeFunctionCallable(f);
-  EXPECT_EQ(f_callable.getKind(), Cpp::JitCall::Kind::kGenericCall);
-  auto ff_callable = Cpp::MakeFunctionCallable(ff);
-  EXPECT_EQ(ff_callable.getKind(), Cpp::JitCall::Kind::kGenericCall);
+  std::thread t2(F, I2);
+  std::thread t3(F, I3);
+  std::thread t4(F, I4);
+  t2.join();
+  t3.join();
+  t4.join();
+
+  testing::internal::CaptureStderr();
+  Cpp::Process("printf(\"Blah\");", I2);
+  std::string cerrs = testing::internal::GetCapturedStderr();
+  EXPECT_STREQ(cerrs.c_str(), "printf_jit called!\n");
 }
