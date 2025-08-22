@@ -361,3 +361,26 @@ if (llvm::sys::RunningOnValgrind())
   delete ExtInterp;
 #endif
 }
+
+TEST(InterpreterTest, MultipleInterpreter) {
+#if CLANG_VERSION_MAJOR < 20 && defined(EMSCRIPTEN)
+  GTEST_SKIP() << "Test fails for Emscipten LLVM 20 builds";
+#endif
+
+  EXPECT_TRUE(Cpp::CreateInterpreter());
+  Cpp::Declare(R"(
+  void f() {}
+  )");
+  Cpp::TCppScope_t f = Cpp::GetNamed("f");
+
+  EXPECT_TRUE(Cpp::CreateInterpreter());
+  Cpp::Declare(R"(
+  void ff() {}
+  )");
+  Cpp::TCppScope_t ff = Cpp::GetNamed("ff");
+
+  auto f_callable = Cpp::MakeFunctionCallable(f);
+  EXPECT_EQ(f_callable.getKind(), Cpp::JitCall::Kind::kGenericCall);
+  auto ff_callable = Cpp::MakeFunctionCallable(ff);
+  EXPECT_EQ(ff_callable.getKind(), Cpp::JitCall::Kind::kGenericCall);
+}
