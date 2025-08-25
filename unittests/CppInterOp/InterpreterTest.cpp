@@ -24,6 +24,7 @@
 #include "gtest/gtest.h"
 
 #include <algorithm>
+#include <utility>
 
 using ::testing::StartsWith;
 
@@ -150,6 +151,8 @@ TEST(InterpreterTest, Process) {
   EXPECT_EQ(Res, CXError_Success);
   clang_Value_dispose(CXV);
   clang_Interpreter_dispose(CXI);
+  auto* OldI = Cpp::TakeInterpreter();
+  EXPECT_EQ(OldI, I);
 }
 
 TEST(InterpreterTest, EmscriptenExceptionHandling) {
@@ -329,7 +332,9 @@ if (llvm::sys::RunningOnValgrind())
   // Create the interpreter instance.
   std::unique_ptr<clang::Interpreter> I =
       ExitOnErr(clang::Interpreter::create(std::move(CI)));
-  auto ExtInterp = I.get();
+
+  auto CPPI = Cpp::Interpreter(std::move(I));
+  auto* ExtInterp = &CPPI;
 #endif // CPPINTEROP_USE_REPL
 
 #ifdef CPPINTEROP_USE_CLING
@@ -346,12 +351,9 @@ if (llvm::sys::RunningOnValgrind())
 
   EXPECT_NE(ExtInterp, nullptr);
 
-#if !defined(NDEBUG) && GTEST_HAS_DEATH_TEST
-#ifndef _WIN32 // Windows seems to fail to die...
-    EXPECT_DEATH(Cpp::UseExternalInterpreter(ExtInterp), "sInterpreter already in use!");
-#endif // _WIN32
-#endif
-  EXPECT_TRUE(Cpp::GetInterpreter()) << "External Interpreter not set";
+  Cpp::UseExternalInterpreter(ExtInterp);
+  EXPECT_EQ(ExtInterp, Cpp::GetInterpreter());
+  EXPECT_EQ(ExtInterp, Cpp::TakeInterpreter(ExtInterp));
 
 #ifndef CPPINTEROP_USE_CLING
   I.release();
@@ -366,14 +368,15 @@ TEST(InterpreterTest, MultipleInterpreter) {
 #if CLANG_VERSION_MAJOR < 20 && defined(EMSCRIPTEN)
   GTEST_SKIP() << "Test fails for Emscipten LLVM 20 builds";
 #endif
-
-  EXPECT_TRUE(Cpp::CreateInterpreter());
+  auto* I = Cpp::CreateInterpreter();
+  EXPECT_TRUE(I);
   Cpp::Declare(R"(
   void f() {}
   )");
   Cpp::TCppScope_t f = Cpp::GetNamed("f");
 
-  EXPECT_TRUE(Cpp::CreateInterpreter());
+  auto* I2 = Cpp::CreateInterpreter();
+  EXPECT_TRUE(I2);
   Cpp::Declare(R"(
   void ff() {}
   )");
