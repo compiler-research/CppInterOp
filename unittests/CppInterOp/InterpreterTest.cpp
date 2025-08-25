@@ -88,8 +88,18 @@ TEST(InterpreterTest, DeleteInterpreter) {
 
   EXPECT_EQ(I3, Cpp::GetInterpreter()) << "I3 is not active";
 
+  auto* D1 = Cpp::TakeInterpreter();
+  EXPECT_EQ(D1, I3);
+
+  Cpp::UseExternalInterpreter(D1);
+
   EXPECT_TRUE(Cpp::DeleteInterpreter(nullptr));
   EXPECT_EQ(I2, Cpp::GetInterpreter());
+
+  auto* D2 = Cpp::TakeInterpreter(I2);
+  EXPECT_EQ(I2, D2);
+
+  Cpp::UseExternalInterpreter(D2);
 
   auto* I4 = reinterpret_cast<void*>(static_cast<std::uintptr_t>(~0U));
   EXPECT_FALSE(Cpp::DeleteInterpreter(I4));
@@ -150,6 +160,8 @@ TEST(InterpreterTest, Process) {
   EXPECT_EQ(Res, CXError_Success);
   clang_Value_dispose(CXV);
   clang_Interpreter_dispose(CXI);
+  auto* OldI = Cpp::TakeInterpreter();
+  EXPECT_EQ(OldI, I);
 }
 
 TEST(InterpreterTest, EmscriptenExceptionHandling) {
