@@ -3445,6 +3445,7 @@ bool DeleteInterpreter(TInterp_t I /*=nullptr*/) {
 
   if (!I) {
     auto foundAST = find_interpreter_in_map(sInterpreters->back().get());
+    assert(foundAST != sInterpreterASTMap->end());
     sInterpreterASTMap->erase(foundAST);
     sInterpreters->pop_back();
     return true;
@@ -3455,6 +3456,7 @@ bool DeleteInterpreter(TInterp_t I /*=nullptr*/) {
     return false; // failure
 
   auto foundAST = find_interpreter_in_map((*found).get());
+  assert(foundAST != sInterpreterASTMap->end());
   sInterpreterASTMap->erase(foundAST);
   sInterpreters->erase(found);
   return true;
