@@ -191,7 +191,6 @@ TEST(ScopeReflectionTest, IsBuiltin) {
   EXPECT_TRUE(Cpp::IsBuiltin(C.getComplexType(C.Float128Ty).getAsOpaquePtr()));
 
   // std::complex
-  std::vector<Decl*> Decls;
   Interp->declare("#include <complex>");
   Sema &S = Interp->getCI()->getSema();
   auto lookup = S.getStdNamespace()->lookup(&C.Idents.get("complex"));

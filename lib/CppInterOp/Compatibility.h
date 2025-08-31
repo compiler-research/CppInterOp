@@ -365,7 +365,6 @@ inline void codeComplete(std::vector<std::string>& Results,
   }
 
   std::vector<std::string> results;
-  std::vector<std::string> Comps;
   clang::CompilerInstance* MainCI = (*Interp)->getCompilerInstance();
   auto CC = clang::ReplCodeCompleter();
   CC.codeComplete(MainCI, code, complete_line, complete_column,
@@ -404,18 +403,6 @@ public:
 #endif // CPPINTEROP_USE_REPL
 
 namespace compat {
-
-// Clang >= 14 change type name to string (spaces formatting problem)
-inline std::string FixTypeName(const std::string type_name) {
-  return type_name;
-}
-
-inline std::string MakeResourceDir(llvm::StringRef Dir) {
-  llvm::SmallString<128> P(Dir);
-  llvm::sys::path::append(P, CLANG_INSTALL_LIBDIR_BASENAME, "clang",
-                          CLANG_VERSION_MAJOR_STRING);
-  return std::string(P.str());
-}
 
 // Clang >= 16 (=16 with Value patch) change castAs to convertTo
 #ifdef CPPINTEROP_USE_CLING

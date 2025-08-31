@@ -437,7 +437,7 @@ CXString clang_getTypeAsString(CXQualType type) {
   clang::PrintingPolicy Policy = C.getPrintingPolicy();
   Policy.Bool = true;               // Print bool instead of _Bool.
   Policy.SuppressTagKeyword = true; // Do not print `class std::string`.
-  return makeCXString(compat::FixTypeName(QT.getAsString(Policy)));
+  return makeCXString(QT.getAsString(Policy));
 }
 
 CXQualType clang_getComplexType(CXQualType eltype) {
