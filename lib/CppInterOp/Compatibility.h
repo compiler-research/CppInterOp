@@ -61,6 +61,7 @@ static inline char* GetEnv(const char* Var_Name) {
 
 #include "clang/Interpreter/CodeCompletion.h"
 
+#include "clang/Interpreter/OutOfProcessJITConfig.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/Twine.h"
@@ -207,6 +208,7 @@ inline void codeComplete(std::vector<std::string>& Results,
 #endif
 
 #include <algorithm>
+#include <unistd.h>
 
 static const llvm::ExitOnError ExitOnError;
 
@@ -263,54 +265,35 @@ createClangInterpreter(std::vector<const char*>& args, int stdin_fd = 0,
     DeviceCI->LoadRequestedPlugins();
 
 #ifdef LLVM_BUILT_WITH_OOP_JIT
-  std::unique_ptr<llvm::orc::LLJITBuilder> JB;
 
+  clang::OutOfProcessJITConfig OutOfProcessConfig;
   if (outOfProcess) {
-    std::string OOPExecutor =
+    OutOfProcessConfig.IsOutOfProcess = true;
+    OutOfProcessConfig.OOPExecutor =
         std::string(LLVM_SOURCE_DIR) + "/build/bin/llvm-jitlink-executor";
-    bool UseSharedMemory = false;
-    std::string SlabAllocateSizeString = "";
-    std::unique_ptr<llvm::orc::ExecutorProcessControl> EPC;
+    OutOfProcessConfig.UseSharedMemory = false;
+    OutOfProcessConfig.SlabAllocateSizeString = "";
+    OutOfProcessConfig.CustomizeFork = [=] { // Lambda defined inline
+      auto redirect = [](int from, int to) {
+        if (from != to) {
+          dup2(from, to);
+          close(from);
+        }
+      };
 
-    EPC = ExitOnError(launchExecutor(OOPExecutor, UseSharedMemory,
-                                     SlabAllocateSizeString,
-                                     [=] { // Lambda defined inline
-                                       auto redirect = [](int from, int to) {
-                                         if (from != to) {
-                                           dup2(from, to);
-                                           close(from);
-                                         }
-                                       };
+      redirect(stdin_fd, STDIN_FILENO);
+      redirect(stdout_fd, STDOUT_FILENO);
+      redirect(stderr_fd, STDERR_FILENO);
 
-                                       redirect(0, STDIN_FILENO);
-                                       redirect(stdout_fd, STDOUT_FILENO);
-                                       redirect(2, STDERR_FILENO);
-
-                                       setvbuf(stdout, nullptr, _IONBF, 0);
-                                       setvbuf(stderr, nullptr, _IONBF, 0);
-                                     }));
-
-#ifdef __APPLE__
-    std::string OrcRuntimePath =
-        std::string(LLVM_SOURCE_DIR) + "/build/lib/clang/" +
-        std::to_string(LLVM_VERSION_MAJOR) + "/lib/darwin/liborc_rt_osx.a";
-#else
-    std::string OrcRuntimePath = std::string(LLVM_SOURCE_DIR) +
-                                 "/build/lib/clang/" +
-                                 std::to_string(LLVM_VERSION_MAJOR) +
-                                 "/lib/x86_64-unknown-linux-gnu/liborc_rt.a";
-#endif
-    if (EPC) {
-      CB.SetTargetTriple(EPC->getTargetTriple().getTriple());
-      JB = ExitOnError(clang::Interpreter::createLLJITBuilder(std::move(EPC),
-                                                              OrcRuntimePath));
-    }
+      setvbuf(stdout, nullptr, _IONBF, 0);
+      setvbuf(stderr, nullptr, _IONBF, 0);
+    };
   }
   auto innerOrErr =
       CudaEnabled
           ? clang::Interpreter::createWithCUDA(std::move(*ciOrErr),
                                                std::move(DeviceCI))
-          : clang::Interpreter::create(std::move(*ciOrErr), std::move(JB));
+          : clang::Interpreter::create(std::move(*ciOrErr), OutOfProcessConfig);
 #else
   if (outOfProcess) {
     llvm::errs()

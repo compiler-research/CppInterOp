@@ -312,6 +312,13 @@ public:
     return llvm::orc::ExecutorAddr(*AddrOrErr);
   }
 
+  pid_t getOutOfProcessExecutorPID() const {
+#ifndef _WIN32
+    return inner->getOutOfProcessExecutorPID();
+#endif
+    return -1;
+  }
+
   /// \returns the \c ExecutorAddr of a given name as written in the object
   /// file.
   llvm::Expected<llvm::orc::ExecutorAddr>

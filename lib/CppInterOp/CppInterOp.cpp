@@ -1102,16 +1102,16 @@ bool GetClassTemplatedMethods(const std::string& name, TCppScope_t parent,
   auto* DC = clang::Decl::castToDeclContext(D);
   Cpp_utils::Lookup::Named(&S, R, DC);
 
-  if (R.getResultKind() == clang::LookupResult::NotFound && funcs.empty())
+  if (R.getResultKind() == clang::LookupResultKind::NotFound && funcs.empty())
     return false;
 
   // Distinct match, single Decl
-  else if (R.getResultKind() == clang::LookupResult::Found) {
+  else if (R.getResultKind() == clang::LookupResultKind::Found) {
     if (IsTemplatedFunction(R.getFoundDecl()))
       funcs.push_back(R.getFoundDecl());
   }
   // Loop over overload set
-  else if (R.getResultKind() == clang::LookupResult::FoundOverloaded) {
+  else if (R.getResultKind() == clang::LookupResultKind::FoundOverloaded) {
     for (auto* Found : R)
       if (IsTemplatedFunction(Found))
         funcs.push_back(Found);
@@ -3965,17 +3965,12 @@ int Undo(unsigned N) {
 #ifndef _WIN32
 pid_t GetExecutorPID() {
 #ifdef LLVM_BUILT_WITH_OOP_JIT
-  return compat::getExecutorPID();
+  auto& I = getInterp();
+  return I.getOutOfProcessExecutorPID();
 #endif
   return -1;
 }
 
-pid_t GetNthExecutorPID(int n) {
-#ifdef LLVM_BUILT_WITH_OOP_JIT
-  return compat::getNthExecutorPID(n);
-#endif
-  return -1;
-}
 #endif
 
 } // end namespace Cpp
