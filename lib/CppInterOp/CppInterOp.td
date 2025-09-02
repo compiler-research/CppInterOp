@@ -492,6 +492,15 @@ def GetParentScope : CppInterOpAPI {
 }
 
 def IsTemplate : CppInterOpAPI {
+  let Doc = "Checks if it is a templated.";
+
+  let ReturnType = "bool";
+  let Args = [
+    Arg<"TCppScope_t", "handle">
+  ];
+}
+
+def IsTemplateClass : CppInterOpAPI {
   let Doc = "Checks if it is a templated class.";
 
   let ReturnType = "bool";
@@ -740,6 +749,56 @@ used to get to the Base Class fields.}];
   ];
 }
 
+def GetDatamembersInNamespace : CppInterOpAPI {
+  let Doc = "Sets a list of all the datamembers that are in the given namespace";
+
+  let ReturnType = "void";
+  let Args = [
+    Arg<"TCppScope_t", "ns">,
+    OutArg<"std::vector<TCppScope_t>&", "members">
+  ];
+}
+
+def GetFunctionsInNamespace : CppInterOpAPI {
+  let Doc = "Sets a list of all the functions that are in the given namespace";
+
+  let ReturnType = "void";
+  let Args = [
+    Arg<"TCppScope_t", "ns">,
+    OutArg<"std::vector<TCppScope_t>&", "members">
+  ];
+}
+
+def GetClassInNamespace : CppInterOpAPI {
+  let Doc = "Sets a list of all the classes that are in the given namespace";
+
+  let ReturnType = "void";
+  let Args = [
+    Arg<"TCppScope_t", "ns">,
+    OutArg<"std::vector<TCppScope_t>&", "members">
+  ];
+}
+
+def GetTemplatedClassInNamespace : CppInterOpAPI {
+  let Doc = "Sets a list of all the templated classes that are in the given namespace";
+
+  let ReturnType = "void";
+  let Args = [
+    Arg<"TCppScope_t", "ns">,
+    OutArg<"std::vector<TCppScope_t>&", "members">
+  ];
+}
+
+def GetTemplatedFunctionsInNamespace : CppInterOpAPI {
+  let Doc = "Sets a list of all the templated functions that are in the given namespace";
+
+  let ReturnType = "void";
+  let Args = [
+    Arg<"TCppScope_t", "ns">,
+    OutArg<"std::vector<TCppScope_t>&", "members">
+  ];
+}
+
 def GetClassMethods : CppInterOpAPI {
   let Doc = [{Sets a list of all the Methods that are in the Class that is
 supplied as a parameter.
@@ -814,7 +873,33 @@ def IsConstMethod : CppInterOpAPI {
   ];
 }
 
+def GetTemplateNumArgs : CppInterOpAPI {
+  let Doc = "Get number of template arguments.";
+
+  let ReturnType = "TCppIndex_t";
+  let Args = [
+    Arg<"TCppFunction_t", "method">
+  ];
+}
+
+def GetTemplateArgName : CppInterOpAPI {
+  let Doc = "Get the name of nth template argument.";
+
+  let ReturnType = "std::string";
+  let Args = [
+    Arg<"TCppFunction_t", "method">,
+    Arg<"TCppIndex_t", "param_index">
+  ];
+}
+
 def IsTemplatedFunction : CppInterOpAPI {
+  let ReturnType = "bool";
+  let Args = [
+    Arg<"TCppFunction_t", "func">
+  ];
+}
+
+def IsTemplateInstantiationOrSpecialization : CppInterOpAPI {
   let ReturnType = "bool";
   let Args = [
     Arg<"TCppFunction_t", "func">

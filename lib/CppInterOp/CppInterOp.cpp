@@ -30,6 +30,7 @@
 #endif
 
 #include "clang/AST/Attrs.inc"
+#include "clang/AST/Comment.h"
 #include "clang/AST/CXXInheritance.h"
 #include "clang/AST/Comment.h"
 #include "clang/AST/Decl.h"
@@ -713,6 +714,11 @@ bool IsBuiltin(TCppConstType_t type) {
   return INTEROP_RETURN(false);
 }
 
+bool IsTemplateClass(TCppScope_t handle) {
+  auto* D = (clang::Decl*)handle;
+  return llvm::isa_and_nonnull<clang::ClassTemplateDecl>(D);
+}
+
 bool IsTemplate(TCppScope_t handle) {
   INTEROP_TRACE(handle);
   auto* D = (clang::Decl*)handle;
@@ -1394,6 +1400,51 @@ int64_t GetBaseClassOffset(TCppScope_t derived, TCppScope_t base) {
 }
 
 template <typename DeclType>
+static void GetNamespaceDecls(TCppScope_t ns,
+                          std::vector<TCppScope_t>& members) {
+  if (!ns)
+    return;
+
+  auto* D = (clang::Decl*)ns;
+
+  if (!D || !isa<NamespaceDecl>(D))
+    return;
+
+  auto* NSD = dyn_cast<NamespaceDecl>(D)->getMostRecentDecl();
+  while (NSD) {
+    for (Decl* DI : NSD->decls()) {
+      if (auto* MD = dyn_cast<DeclType>(DI))
+        members.push_back(MD);
+      else if (auto* USD = dyn_cast<UsingShadowDecl>(DI)) {
+        if (auto *MD = dyn_cast<DeclType>(USD->getTargetDecl()))
+          members.push_back(MD);
+      }
+    }
+    NSD = NSD->getPreviousDecl();
+  }
+}
+
+void GetDatamembersInNamespace(TCppScope_t ns, std::vector<TCppScope_t>& members) {
+  GetNamespaceDecls<VarDecl>(ns, members);
+}
+
+void GetFunctionsInNamespace(TCppScope_t ns, std::vector<TCppScope_t>& members) {
+  GetNamespaceDecls<FunctionDecl>(ns, members);
+}
+
+void GetClassInNamespace(TCppScope_t ns, std::vector<TCppScope_t>& members) {
+  GetNamespaceDecls<RecordDecl>(ns, members);
+}
+
+void GetTemplatedClassInNamespace(TCppScope_t ns, std::vector<TCppScope_t>& members) {
+  GetNamespaceDecls<ClassTemplateDecl>(ns, members);
+}
+
+void GetTemplatedFunctionsInNamespace(TCppScope_t ns, std::vector<TCppScope_t>& members) {
+  GetNamespaceDecls<FunctionTemplateDecl>(ns, members);
+}
+
+template <typename DeclType>
 static void GetClassDecls(TCppScope_t klass,
                           std::vector<TCppFunction_t>& methods) {
   if (!klass)
@@ -1403,6 +1454,10 @@ static void GetClassDecls(TCppScope_t klass,
 
   if (auto* TD = dyn_cast<TypedefNameDecl>(D))
     D = GetScopeFromType(TD->getUnderlyingType());
+
+  if (auto *CTD = llvm::dyn_cast_or_null<ClassTemplateDecl>(D)) {
+    D = CTD->getTemplatedDecl();
+  }
 
   if (!D || !isa<CXXRecordDecl>(D))
     return;
@@ -1546,6 +1601,32 @@ std::vector<TCppFunction_t> GetFunctionsUsingName(TCppScope_t scope,
   return INTEROP_RETURN(funcs);
 }
 
+// Internal functions that are not needed outside the library are
+// encompassed in an anonymous namespace as follows.
+namespace {
+bool IsTemplatedFunction(Decl* D) {
+  return llvm::isa_and_nonnull<FunctionTemplateDecl>(D);
+}
+
+bool IsTemplateInstantiationOrSpecialization(Decl* D) {
+  if (auto* FD = llvm::dyn_cast_or_null<FunctionDecl>(D)) {
+    auto TK = FD->getTemplatedKind();
+    return TK ==
+               FunctionDecl::TemplatedKind::TK_FunctionTemplateSpecialization ||
+           TK == FunctionDecl::TemplatedKind::
+                     TK_DependentFunctionTemplateSpecialization ||
+           TK == FunctionDecl::TemplatedKind::TK_FunctionTemplate;
+  }
+
+  return false;
+}
+} // namespace
+
+bool IsTemplateInstantiationOrSpecialization(TCppFunction_t func) {
+  auto* D = static_cast<clang::Decl*>(func);
+  return IsTemplateInstantiationOrSpecialization(D);
+}
+
 TCppType_t GetFunctionReturnType(TCppFunction_t func) {
   INTEROP_TRACE(func);
   auto* D = (clang::Decl*)func;
@@ -1553,7 +1634,7 @@ TCppType_t GetFunctionReturnType(TCppFunction_t func) {
     QualType Type = FD->getReturnType();
     if (Type->isUndeducedAutoType()) {
       bool needInstantiation = false;
-      if (IsTemplatedFunction(FD) && !FD->isDefined())
+      if (IsTemplateInstantiationOrSpecialization(FD) && !FD->isDefined())
         needInstantiation = true;
       if (auto* MD = llvm::dyn_cast<clang::CXXMethodDecl>(FD)) {
         if (IsTemplateSpecialization(MD->getParent()))
@@ -1667,27 +1748,6 @@ std::string GetFunctionSignature(TCppFunction_t func) {
   SS.flush();
   return INTEROP_RETURN(Signature);
 }
-
-// Internal functions that are not needed outside the library are
-// encompassed in an anonymous namespace as follows.
-namespace {
-bool IsTemplatedFunction(Decl* D) {
-  return llvm::isa_and_nonnull<FunctionTemplateDecl>(D);
-}
-
-bool IsTemplateInstantiationOrSpecialization(Decl* D) {
-  if (auto* FD = llvm::dyn_cast_or_null<FunctionDecl>(D)) {
-    auto TK = FD->getTemplatedKind();
-    return TK ==
-               FunctionDecl::TemplatedKind::TK_FunctionTemplateSpecialization ||
-           TK == FunctionDecl::TemplatedKind::
-                     TK_DependentFunctionTemplateSpecialization ||
-           TK == FunctionDecl::TemplatedKind::TK_FunctionTemplate;
-  }
-
-  return false;
-}
-} // namespace
 
 bool IsFunctionDeleted(TCppConstFunction_t function) {
   INTEROP_TRACE(function);
@@ -2316,6 +2376,9 @@ void DestroyVTableOverlay(VTableOverlay* overlay) {
 void GetDatamembers(TCppScope_t scope, std::vector<TCppScope_t>& datamembers) {
   INTEROP_TRACE(scope, INTEROP_OUT(datamembers));
   auto* D = (Decl*)scope;
+  if (auto *CTD = llvm::dyn_cast_or_null<ClassTemplateDecl>(D)) {
+    D = CTD->getTemplatedDecl();
+  }
 
   if (auto* CXXRD = llvm::dyn_cast_or_null<CXXRecordDecl>(D)) {
     getSema().ForceDeclarationOfImplicitMembers(CXXRD);
@@ -5208,6 +5271,25 @@ bool IsConstMethod(TCppFunction_t method) {
     return INTEROP_RETURN(func->getMethodQualifiers().hasConst());
 
   return INTEROP_RETURN(false);
+}
+
+TCppIndex_t GetTemplateNumArgs(TCppScope_t scope) {
+  auto *D = static_cast<Decl*>(scope);
+  if (auto *TD = llvm::dyn_cast<TemplateDecl>(D)) {
+    auto *TPL = TD->getTemplateParameters();
+    return TPL->size();
+  }
+  return -1;
+}
+
+std::string GetTemplateArgName(TCppScope_t scope, TCppIndex_t param_index) {
+  auto *D = static_cast<Decl*>(scope);
+  if (auto *TD = llvm::dyn_cast<TemplateDecl>(D)) {
+    auto *TPL = TD->getTemplateParameters();
+    NamedDecl *ND = TPL->getParam(param_index);
+    return ND->getNameAsString();
+  }
+  return "";
 }
 
 std::string GetFunctionArgName(TCppFunction_t func, TCppIndex_t param_index) {
