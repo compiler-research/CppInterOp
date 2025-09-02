@@ -437,6 +437,11 @@ bool IsBuiltin(TCppType_t type) {
   return llvm::StringRef(Ty.getAsString()).contains("complex");
 }
 
+bool IsTemplateClass(TCppScope_t handle) {
+  auto* D = (clang::Decl*)handle;
+  return llvm::isa_and_nonnull<clang::ClassTemplateDecl>(D);
+}
+
 bool IsTemplate(TCppScope_t handle) {
   auto* D = (clang::Decl*)handle;
   return llvm::isa_and_nonnull<clang::TemplateDecl>(D);
@@ -952,6 +957,52 @@ int64_t GetBaseClassOffset(TCppScope_t derived, TCppScope_t base) {
 }
 
 template <typename DeclType>
+static void GetNamespaceDecls(TCppScope_t ns,
+                          std::vector<TCppScope_t>& members) {
+  if (!ns)
+    return;
+
+  auto* D = (clang::Decl*)ns;
+  LOCK(getInterpInfo(D));
+
+  if (!D || !isa<NamespaceDecl>(D))
+    return;
+
+  auto* NSD = dyn_cast<NamespaceDecl>(D)->getMostRecentDecl();
+  while (NSD) {
+    for (Decl* DI : NSD->decls()) {
+      if (auto* MD = dyn_cast<DeclType>(DI))
+        members.push_back(MD);
+      else if (auto* USD = dyn_cast<UsingShadowDecl>(DI)) {
+        if (auto *MD = dyn_cast<DeclType>(USD->getTargetDecl()))
+          members.push_back(MD);
+      }
+    }
+    NSD = NSD->getPreviousDecl();
+  }
+}
+
+void GetDatamembersInNamespace(TCppScope_t ns, std::vector<TCppScope_t>& members) {
+  GetNamespaceDecls<VarDecl>(ns, members);
+}
+
+void GetFunctionsInNamespace(TCppScope_t ns, std::vector<TCppScope_t>& members) {
+  GetNamespaceDecls<FunctionDecl>(ns, members);
+}
+
+void GetClassInNamespace(TCppScope_t ns, std::vector<TCppScope_t>& members) {
+  GetNamespaceDecls<RecordDecl>(ns, members);
+}
+
+void GetTemplatedClassInNamespace(TCppScope_t ns, std::vector<TCppScope_t>& members) {
+  GetNamespaceDecls<ClassTemplateDecl>(ns, members);
+}
+
+void GetTemplatedFunctionsInNamespace(TCppScope_t ns, std::vector<TCppScope_t>& members) {
+  GetNamespaceDecls<FunctionTemplateDecl>(ns, members);
+}
+
+template <typename DeclType>
 static void GetClassDecls(TCppScope_t klass,
                           std::vector<TCppFunction_t>& methods) {
   if (!klass)
@@ -962,6 +1013,10 @@ static void GetClassDecls(TCppScope_t klass,
 
   if (auto* TD = dyn_cast<TypedefNameDecl>(D))
     D = GetScopeFromType(TD->getUnderlyingType());
+
+  if (auto *CTD = llvm::dyn_cast_or_null<ClassTemplateDecl>(D)) {
+    D = CTD->getTemplatedDecl();
+  }
 
   if (!D || !isa<CXXRecordDecl>(D))
     return;
@@ -1094,7 +1149,7 @@ TCppType_t GetFunctionReturnType(TCppFunction_t func) {
     QualType Type = FD->getReturnType();
     if (Type->isUndeducedAutoType()) {
       bool needInstantiation = false;
-      if (IsTemplatedFunction(FD) && !FD->isDefined())
+      if (IsTemplateInstantiationOrSpecialization(FD) && !FD->isDefined())
         needInstantiation = true;
       if (auto* MD = llvm::dyn_cast<clang::CXXMethodDecl>(FD)) {
         if (IsTemplateSpecialization(MD->getParent()))
@@ -1141,6 +1196,9 @@ TCppIndex_t GetFunctionRequiredArgs(TCppConstFunction_t func) {
 
 TCppType_t GetFunctionArgType(TCppFunction_t func, TCppIndex_t iarg) {
   auto* D = static_cast<clang::Decl*>(func);
+  if (auto *FTD = llvm::dyn_cast_or_null<FunctionTemplateDecl>(D)) {
+    D = FTD->getTemplatedDecl();
+  }
   if (auto* FD = llvm::dyn_cast_or_null<clang::FunctionDecl>(D)) {
     LOCK(getInterpInfo(FD));
     if (iarg < FD->getNumParams()) {
@@ -1207,7 +1265,12 @@ bool IsFunctionDeleted(TCppConstFunction_t function) {
 
 bool IsTemplatedFunction(TCppFunction_t func) {
   auto* D = (Decl*)func;
-  return IsTemplatedFunction(D) || IsTemplateInstantiationOrSpecialization(D);
+  return IsTemplatedFunction(D) /*|| IsTemplateInstantiationOrSpecialization(D)*/;
+}
+
+bool IsTemplateInstantiationOrSpecialization(TCppScope_t scope) {
+  auto *D = static_cast<Decl*>(scope);
+  return IsTemplateInstantiationOrSpecialization(D);
 }
 
 // FIXME: This lookup is broken, and should no longer be used in favour of
@@ -1430,6 +1493,9 @@ bool IsDestructor(TCppConstFunction_t method) {
 
 bool IsStaticMethod(TCppConstFunction_t method) {
   const auto* D = static_cast<const Decl*>(method);
+  if (auto *FTD = llvm::dyn_cast_or_null<FunctionTemplateDecl>(D)) {
+    D = FTD->getTemplatedDecl();
+  }
   if (auto* CXXMD = llvm::dyn_cast_or_null<CXXMethodDecl>(D)) {
     LOCK(getInterpInfo(D));
     return CXXMD->isStatic();
@@ -1503,6 +1569,9 @@ bool IsVirtualMethod(TCppFunction_t method) {
 
 void GetDatamembers(TCppScope_t scope, std::vector<TCppScope_t>& datamembers) {
   auto* D = (Decl*)scope;
+  if (auto *CTD = llvm::dyn_cast_or_null<ClassTemplateDecl>(D)) {
+    D = CTD->getTemplatedDecl();
+  }
 
   if (auto* CXXRD = llvm::dyn_cast_or_null<CXXRecordDecl>(D)) {
     LOCK(getInterpInfo(CXXRD));
@@ -1604,7 +1673,7 @@ TCppType_t GetVariableType(TCppScope_t var) {
     QualType QT = DD->getType();
 
     // Check if the type is a typedef type
-    if (QT->isTypedefNameType()) {
+    if (QT->isTypedefNameType() || QT->getAs<clang::TemplateTypeParmType>()) {
       return QT.getAsOpaquePtr();
     }
 
@@ -1865,6 +1934,8 @@ TCppType_t GetCanonicalType(TCppType_t type) {
   if (!type)
     return 0;
   QualType QT = QualType::getFromOpaquePtr(type);
+  if (QT->getAs<clang::TemplateTypeParmType>())
+    return type;
   return QT.getCanonicalType().getAsOpaquePtr();
 }
 
@@ -3994,6 +4065,25 @@ bool IsConstMethod(TCppFunction_t method) {
     return func->getMethodQualifiers().hasConst();
 
   return false;
+}
+
+TCppIndex_t GetTemplateNumArgs(TCppScope_t scope) {
+  auto *D = static_cast<Decl*>(scope);
+  if (auto *TD = llvm::dyn_cast<TemplateDecl>(D)) {
+    auto *TPL = TD->getTemplateParameters();
+    return TPL->size();
+  }
+  return -1;
+}
+
+std::string GetTemplateArgName(TCppScope_t scope, TCppIndex_t param_index) {
+  auto *D = static_cast<Decl*>(scope);
+  if (auto *TD = llvm::dyn_cast<TemplateDecl>(D)) {
+    auto *TPL = TD->getTemplateParameters();
+    NamedDecl *ND = TPL->getParam(param_index);
+    return ND->getNameAsString();
+  }
+  return "";
 }
 
 std::string GetFunctionArgName(TCppFunction_t func, TCppIndex_t param_index) {

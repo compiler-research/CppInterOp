@@ -300,7 +300,10 @@ CPPINTEROP_API size_t SizeOf(TCppScope_t scope);
 /// Checks if it is a "built-in" or a "complex" type.
 CPPINTEROP_API bool IsBuiltin(TCppType_t type);
 
-/// Checks if it is a templated class.
+/// Checks if it is a template class.
+CPPINTEROP_API bool IsTemplateClass(TCppScope_t handle);
+
+/// Checks if it is a template.
 CPPINTEROP_API bool IsTemplate(TCppScope_t handle);
 
 /// Checks if it is a class template specialization class.
@@ -436,6 +439,12 @@ CPPINTEROP_API bool IsSubclass(TCppScope_t derived, TCppScope_t base);
 CPPINTEROP_API int64_t GetBaseClassOffset(TCppScope_t derived,
                                           TCppScope_t base);
 
+CPPINTEROP_API void GetDatamembersInNamespace(TCppScope_t ns, std::vector<TCppScope_t>& members);
+CPPINTEROP_API void GetFunctionsInNamespace(TCppScope_t ns, std::vector<TCppScope_t>& members);
+CPPINTEROP_API void GetClassInNamespace(TCppScope_t ns, std::vector<TCppScope_t>& members);
+CPPINTEROP_API void GetTemplatedClassInNamespace(TCppScope_t ns, std::vector<TCppScope_t>& members);
+CPPINTEROP_API void GetTemplatedFunctionsInNamespace(TCppScope_t ns, std::vector<TCppScope_t>& members);
+
 /// Sets a list of all the Methods that are in the Class that is
 /// supplied as a parameter.
 ///\param[in] klass - Pointer to the scope/class under which the methods have
@@ -488,6 +497,8 @@ CPPINTEROP_API std::string GetFunctionSignature(TCppFunction_t func);
 
 ///\returns if a function was marked as \c =delete.
 CPPINTEROP_API bool IsFunctionDeleted(TCppConstFunction_t function);
+
+CPPINTEROP_API bool IsTemplateInstantiationOrSpecialization(TCppScope_t scope);
 
 CPPINTEROP_API bool IsTemplatedFunction(TCppFunction_t func);
 
@@ -668,6 +679,12 @@ CPPINTEROP_API bool IsConstMethod(TCppFunction_t method);
 ///\returns the default argument value as string.
 CPPINTEROP_API std::string GetFunctionArgDefault(TCppFunction_t func,
                                                  TCppIndex_t param_index);
+
+///\returns the size of template arguments
+CPPINTEROP_API TCppIndex_t GetTemplateNumArgs(TCppScope_t scope);
+
+///\returns the template argument name of template as string.
+CPPINTEROP_API std::string GetTemplateArgName(TCppScope_t scope, TCppIndex_t param_index);
 
 ///\returns the argument name of function as string.
 CPPINTEROP_API std::string GetFunctionArgName(TCppFunction_t func,
