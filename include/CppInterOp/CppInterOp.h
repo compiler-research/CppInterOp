@@ -375,6 +375,8 @@ CPPINTEROP_API bool IsVariable(TCppScope_t scope);
 /// namespace, variable, or a function).
 CPPINTEROP_API std::string GetName(TCppScope_t klass);
 
+CPPINTEROP_API std::string GetDocString(TCppScope_t scope);
+
 /// This is similar to GetName() function, but besides
 /// the name, it also gets the template arguments.
 CPPINTEROP_API std::string GetCompleteName(TCppScope_t klass);

@@ -12,6 +12,7 @@
 #include "Compatibility.h"
 
 #include "clang/AST/Attrs.inc"
+#include "clang/AST/Comment.h"
 #include "clang/AST/CXXInheritance.h"
 #include "clang/AST/Decl.h"
 #include "clang/AST/DeclAccessPair.h"
@@ -611,6 +612,15 @@ size_t GetSizeOfType(TCppType_t type) {
 bool IsVariable(TCppScope_t scope) {
   auto* D = (clang::Decl*)scope;
   return llvm::isa_and_nonnull<clang::VarDecl>(D);
+}
+
+std::string GetDocString(TCppScope_t scope) {
+  auto *D = static_cast<Decl*>(scope);
+  auto &AST = getASTContext(D);
+  const clang::RawComment *Comment = AST.getRawCommentForAnyRedecl(D);
+  if (!Comment)
+    return "";
+  return Comment->getFormattedText(AST.getSourceManager(), AST.getDiagnostics());
 }
 
 std::string GetName(TCppType_t klass) {
