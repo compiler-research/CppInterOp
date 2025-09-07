@@ -11,6 +11,7 @@
 
 #include "Compatibility.h"
 
+#include "clang/AST/Attrs.inc"
 #include "clang/AST/CXXInheritance.h"
 #include "clang/AST/Decl.h"
 #include "clang/AST/DeclAccessPair.h"
@@ -43,15 +44,19 @@
 #endif
 #include "clang/Sema/TemplateDeduction.h"
 
+#include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Demangle/Demangle.h"
 #include "llvm/ExecutionEngine/Orc/Shared/ExecutorAddress.h"
+#include "llvm/IR/GlobalValue.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/Support/Error.h"
 #include "llvm/Support/ManagedStatic.h"
-#include "llvm/Support/raw_os_ostream.h"
+#include "llvm/Support/Path.h"
+#include "llvm/Support/raw_ostream.h"
 
 #include <algorithm>
 #include <cassert>
@@ -69,6 +74,7 @@
 #ifndef _WIN32
 #include <unistd.h>
 #endif
+#include <utility>
 
 // Stream redirect.
 #ifdef _WIN32
@@ -138,6 +144,42 @@ static compat::Interpreter& getInterp() {
 }
 static clang::Sema& getSema() { return getInterp().getCI()->getSema(); }
 static clang::ASTContext& getASTContext() { return getSema().getASTContext(); }
+
+static void ForceCodeGen(Decl* D, compat::Interpreter& I) {
+  // The decl was deferred by CodeGen. Force its emission.
+  // FIXME: In ASTContext::DeclMustBeEmitted we should check if the
+  // Decl::isUsed is set or we should be able to access CodeGen's
+  // addCompilerUsedGlobal.
+  ASTContext& C = I.getSema().getASTContext();
+
+  D->addAttr(UsedAttr::CreateImplicit(C));
+#ifdef CPPINTEROP_USE_CLING
+  cling::Interpreter::PushTransactionRAII RAII(&I);
+  I.getCI()->getASTConsumer().HandleTopLevelDecl(DeclGroupRef(D));
+#else // CLANG_REPL
+  I.getCI()->getASTConsumer().HandleTopLevelDecl(DeclGroupRef(D));
+  // Take the newest llvm::Module produced by CodeGen and send it to JIT.
+  auto GeneratedPTU = I.Parse("");
+  if (!GeneratedPTU)
+    llvm::logAllUnhandledErrors(GeneratedPTU.takeError(), llvm::errs(),
+                                "[ForceCodeGen] Failed to generate PTU:");
+
+  // From cling's BackendPasses.cpp
+  // FIXME: We need to upstream this code in IncrementalExecutor::addModule
+  for (auto& GV : GeneratedPTU->TheModule->globals()) {
+    llvm::GlobalValue::LinkageTypes LT = GV.getLinkage();
+    if (GV.isDeclaration() || !GV.hasName() ||
+        GV.getName().starts_with(".str") ||
+        !llvm::GlobalVariable::isDiscardableIfUnused(LT) ||
+        LT != llvm::GlobalValue::InternalLinkage)
+      continue; // nothing to do
+    GV.setLinkage(llvm::GlobalValue::WeakAnyLinkage);
+  }
+  if (auto Err = I.Execute(*GeneratedPTU))
+    llvm::logAllUnhandledErrors(std::move(Err), llvm::errs(),
+                                "[ForceCodeGen] Failed to execute PTU:");
+#endif
+}
 
 #define DEBUG_TYPE "jitcall"
 bool JitCall::AreArgumentsValid(void* result, ArgList args, void* self,
@@ -522,17 +564,27 @@ std::string GetCompleteName(TCppType_t klass) {
   auto& C = getSema().getASTContext();
   auto* D = (Decl*)klass;
 
+  PrintingPolicy Policy = C.getPrintingPolicy();
+  Policy.SuppressUnwrittenScope = true;
+  Policy.SuppressScope = true;
+  Policy.AnonymousTagLocations = false;
+  Policy.SuppressTemplateArgsInCXXConstructors = false;
+  Policy.SuppressDefaultTemplateArgs = false;
+  Policy.AlwaysIncludeTypeForTemplateArgument = true;
+
   if (auto* ND = llvm::dyn_cast_or_null<NamedDecl>(D)) {
     if (auto* TD = llvm::dyn_cast<TagDecl>(ND)) {
       std::string type_name;
       QualType QT = C.getTagDeclType(TD);
-      PrintingPolicy Policy = C.getPrintingPolicy();
-      Policy.SuppressUnwrittenScope = true;
-      Policy.SuppressScope = true;
-      Policy.AnonymousTagLocations = false;
       QT.getAsStringInternal(type_name, Policy);
-
       return type_name;
+    }
+    if (auto* FD = llvm::dyn_cast<FunctionDecl>(ND)) {
+      std::string func_name;
+      llvm::raw_string_ostream name_stream(func_name);
+      FD->getNameForDiagnostic(name_stream, Policy, false);
+      name_stream.flush();
+      return func_name;
     }
 
     return ND->getNameAsString();
@@ -610,7 +662,9 @@ static Decl* GetScopeFromType(QualType QT) {
     Type = Type->getUnqualifiedDesugaredType();
     if (auto* ET = llvm::dyn_cast<EnumType>(Type))
       return ET->getDecl();
-    return Type->getAsCXXRecordDecl();
+    CXXRecordDecl* CXXRD = Type->getAsCXXRecordDecl();
+    if (CXXRD)
+      return CXXRD->getCanonicalDecl();
   }
   return 0;
 }
@@ -629,7 +683,7 @@ static clang::Decl* GetUnderlyingScope(clang::Decl* D) {
       D = Scope;
   }
 
-  return D;
+  return D->getCanonicalDecl();
 }
 
 TCppScope_t GetUnderlyingScope(TCppScope_t scope) {
@@ -711,6 +765,9 @@ TCppScope_t GetParentScope(TCppScope_t scope) {
 TCppIndex_t GetNumBases(TCppScope_t klass) {
   auto* D = (Decl*)klass;
 
+  if (auto* CTSD = llvm::dyn_cast_or_null<ClassTemplateSpecializationDecl>(D))
+    if (!CTSD->hasDefinition())
+      compat::InstantiateClassTemplateSpecialization(getInterp(), CTSD);
   if (auto* CXXRD = llvm::dyn_cast_or_null<CXXRecordDecl>(D)) {
     if (CXXRD->hasDefinition())
       return CXXRD->getNumBases();
@@ -838,13 +895,36 @@ static void GetClassDecls(TCppScope_t klass,
 #ifdef CPPINTEROP_USE_CLING
   cling::Interpreter::PushTransactionRAII RAII(&getInterp());
 #endif // CPPINTEROP_USE_CLING
+  if (CXXRD->hasDefinition())
+    CXXRD = CXXRD->getDefinition();
   getSema().ForceDeclarationOfImplicitMembers(CXXRD);
   for (Decl* DI : CXXRD->decls()) {
     if (auto* MD = dyn_cast<DeclType>(DI))
       methods.push_back(MD);
-    else if (auto* USD = dyn_cast<UsingShadowDecl>(DI))
-      if (auto* MD = dyn_cast<DeclType>(USD->getTargetDecl()))
+    else if (auto* USD = dyn_cast<UsingShadowDecl>(DI)) {
+      auto* MD = dyn_cast<DeclType>(USD->getTargetDecl());
+      if (!MD)
+        continue;
+
+      auto* CUSD = dyn_cast<ConstructorUsingShadowDecl>(DI);
+      if (!CUSD) {
         methods.push_back(MD);
+        continue;
+      }
+
+      auto* CXXCD = dyn_cast_or_null<CXXConstructorDecl>(CUSD->getTargetDecl());
+      if (!CXXCD) {
+        methods.push_back(MD);
+        continue;
+      }
+      if (CXXCD->isDeleted())
+        continue;
+
+      // Result is appended to the decls, i.e. CXXRD, iterator
+      // non-shadowed decl will be push_back later
+      // methods.push_back(Result);
+      getSema().findInheritingConstructor(SourceLocation(), CXXCD, CUSD);
+    }
   }
 }
 
@@ -1300,8 +1380,16 @@ static TCppFuncAddr_t GetFunctionAddress(const FunctionDecl* FD) {
 
 TCppFuncAddr_t GetFunctionAddress(TCppFunction_t method) {
   auto* D = static_cast<Decl*>(method);
-  if (auto* FD = llvm::dyn_cast_or_null<FunctionDecl>(D))
+  if (auto* FD = llvm::dyn_cast_or_null<FunctionDecl>(D)) {
+    if ((IsTemplateInstantiationOrSpecialization(FD) ||
+         FD->getTemplatedKind() == FunctionDecl::TK_MemberSpecialization) &&
+        !FD->getDefinition())
+      InstantiateFunctionDefinition(D);
+    ASTContext& C = getASTContext();
+    if (isDiscardableGVALinkage(C.GetGVALinkageForFunction(FD)))
+      ForceCodeGen(FD, getInterp());
     return GetFunctionAddress(FD);
+  }
   return nullptr;
 }
 
@@ -1392,6 +1480,14 @@ TCppScope_t LookupDatamember(const std::string& name, TCppScope_t parent) {
   }
 
   return 0;
+}
+
+bool IsLambdaClass(TCppType_t type) {
+  QualType QT = QualType::getFromOpaquePtr(type);
+  if (auto* CXXRD = QT->getAsCXXRecordDecl()) {
+    return CXXRD->isLambda();
+  }
+  return false;
 }
 
 TCppType_t GetVariableType(TCppScope_t var) {
@@ -1498,6 +1594,7 @@ intptr_t GetVariableOffset(compat::Interpreter& I, Decl* D,
         cling::Interpreter::PushTransactionRAII RAII(&getInterp());
 #endif // CPPINTEROP_USE_CLING
         getSema().InstantiateVariableDefinition(SourceLocation(), VD);
+        VD = VD->getDefinition();
       }
       if (VD->hasInit() &&
           (VD->isConstexpr() || VD->getType().isConstQualified())) {
@@ -1510,39 +1607,8 @@ intptr_t GetVariableOffset(compat::Interpreter& I, Decl* D,
     }
     if (!address) {
       auto Linkage = C.GetGVALinkageForVariable(VD);
-      // The decl was deferred by CodeGen. Force its emission.
-      // FIXME: In ASTContext::DeclMustBeEmitted we should check if the
-      // Decl::isUsed is set or we should be able to access CodeGen's
-      // addCompilerUsedGlobal.
       if (isDiscardableGVALinkage(Linkage))
-        VD->addAttr(UsedAttr::CreateImplicit(C));
-#ifdef CPPINTEROP_USE_CLING
-      cling::Interpreter::PushTransactionRAII RAII(&I);
-      I.getCI()->getASTConsumer().HandleTopLevelDecl(DeclGroupRef(VD));
-#else // CLANG_REPL
-      I.getCI()->getASTConsumer().HandleTopLevelDecl(DeclGroupRef(VD));
-      // Take the newest llvm::Module produced by CodeGen and send it to JIT.
-      auto GeneratedPTU = I.Parse("");
-      if (!GeneratedPTU)
-        llvm::logAllUnhandledErrors(
-            GeneratedPTU.takeError(), llvm::errs(),
-            "[GetVariableOffset] Failed to generate PTU:");
-
-      // From cling's BackendPasses.cpp
-      // FIXME: We need to upstream this code in IncrementalExecutor::addModule
-      for (auto& GV : GeneratedPTU->TheModule->globals()) {
-        llvm::GlobalValue::LinkageTypes LT = GV.getLinkage();
-        if (GV.isDeclaration() || !GV.hasName() ||
-            GV.getName().starts_with(".str") || !GV.isDiscardableIfUnused(LT) ||
-            LT != llvm::GlobalValue::InternalLinkage)
-          continue; // nothing to do
-        GV.setLinkage(llvm::GlobalValue::WeakAnyLinkage);
-      }
-      if (auto Err = I.Execute(*GeneratedPTU))
-        llvm::logAllUnhandledErrors(
-            std::move(Err), llvm::errs(),
-            "[GetVariableOffset] Failed to execute PTU:");
-#endif
+        ForceCodeGen(VD, I);
     }
     auto VDAorErr = compat::getSymbolAddress(I, StringRef(mangledName));
     if (!VDAorErr) {
@@ -1685,7 +1751,7 @@ std::string GetTypeAsString(TCppType_t var) {
   Policy.SuppressTagKeyword = true; // Do not print `class std::string`.
   Policy.SuppressElaboration = true;
   Policy.FullyQualifiedName = true;
-  return compat::FixTypeName(QT.getAsString(Policy));
+  return QT.getAsString(Policy);
 }
 
 TCppType_t GetCanonicalType(TCppType_t type) {
@@ -1693,6 +1759,60 @@ TCppType_t GetCanonicalType(TCppType_t type) {
     return 0;
   QualType QT = QualType::getFromOpaquePtr(type);
   return QT.getCanonicalType().getAsOpaquePtr();
+}
+
+bool HasTypeQualifier(TCppType_t type, QualKind qual) {
+  if (!type)
+    return false;
+
+  QualType QT = QualType::getFromOpaquePtr(type);
+  if (qual & QualKind::Const) {
+    if (!QT.isConstQualified())
+      return false;
+  }
+  if (qual & QualKind::Volatile) {
+    if (!QT.isVolatileQualified())
+      return false;
+  }
+  if (qual & QualKind::Restrict) {
+    if (!QT.isRestrictQualified())
+      return false;
+  }
+  return true;
+}
+
+TCppType_t RemoveTypeQualifier(TCppType_t type, QualKind qual) {
+  if (!type)
+    return type;
+
+  auto QT = QualType(QualType::getFromOpaquePtr(type));
+  if (qual & QualKind::Const)
+    QT.removeLocalConst();
+  if (qual & QualKind::Volatile)
+    QT.removeLocalVolatile();
+  if (qual & QualKind::Restrict)
+    QT.removeLocalRestrict();
+  return QT.getAsOpaquePtr();
+}
+
+TCppType_t AddTypeQualifier(TCppType_t type, QualKind qual) {
+  if (!type)
+    return type;
+
+  auto QT = QualType(QualType::getFromOpaquePtr(type));
+  if (qual & QualKind::Const) {
+    if (!QT.isConstQualified())
+      QT.addConst();
+  }
+  if (qual & QualKind::Volatile) {
+    if (!QT.isVolatileQualified())
+      QT.addVolatile();
+  }
+  if (qual & QualKind::Restrict) {
+    if (!QT.isRestrictQualified())
+      QT.addRestrict();
+  }
+  return QT.getAsOpaquePtr();
 }
 
 // Internal functions that are not needed outside the library are
@@ -1829,6 +1949,7 @@ void get_type_as_string(QualType QT, std::string& type_name, ASTContext& C,
   Policy.SuppressElaboration = true;
   Policy.SuppressTagKeyword = !QT->isEnumeralType();
   Policy.FullyQualifiedName = true;
+  Policy.UsePreferredNames = false;
   QT.getAsStringInternal(type_name, Policy);
 }
 
@@ -1838,6 +1959,7 @@ static void GetDeclName(const clang::Decl* D, ASTContext& Context,
   PrintingPolicy Policy(Context.getPrintingPolicy());
   Policy.SuppressTagKeyword = true;
   Policy.SuppressUnwrittenScope = true;
+  Policy.PrintCanonicalTypes = true;
   if (const TypeDecl* TD = dyn_cast<TypeDecl>(D)) {
     // This is a class, struct, or union member.
     QualType QT;
@@ -1868,9 +1990,24 @@ void collect_type_info(const FunctionDecl* FD, QualType& QT,
   PrintingPolicy Policy(C.getPrintingPolicy());
   Policy.SuppressElaboration = true;
   refType = kNotReference;
-  if (QT->isRecordType() && forArgument) {
-    get_type_as_string(QT, type_name, C, Policy);
-    return;
+  if (QT->isRecordType()) {
+    if (forArgument) {
+      get_type_as_string(QT, type_name, C, Policy);
+      return;
+    }
+    if (auto* CXXRD = QT->getAsCXXRecordDecl()) {
+      if (CXXRD->isLambda()) {
+        std::string fn_name;
+        llvm::raw_string_ostream stream(fn_name);
+        Policy.FullyQualifiedName = true;
+        Policy.SuppressUnwrittenScope = true;
+        FD->getNameForDiagnostic(stream, Policy,
+                                 /*Qualified=*/false);
+        type_name = "__internal_CppInterOp::function<decltype(" + fn_name +
+                    ")>::result_type";
+        return;
+      }
+    }
   }
   if (QT->isFunctionPointerType()) {
     std::string fp_typedef_name;
@@ -2083,23 +2220,14 @@ void make_narg_call(const FunctionDecl* FD, const std::string& return_type,
       PP.SuppressElaboration = true;
       FD->getNameForDiagnostic(stream, PP,
                                /*Qualified=*/false);
-
-      // insert space between template argument list and the function name
-      // this is require if the function is `operator<`
-      // `operator<<type1, type2, ...>` is invalid syntax
-      // whereas `operator< <type1, type2, ...>` is valid
-      std::string simple_name = FD->getNameAsString();
-      size_t idx = complete_name.find(simple_name, 0) + simple_name.size();
-      std::string name_without_template_args = complete_name.substr(0, idx);
-      std::string template_args = complete_name.substr(idx);
-      name = name_without_template_args +
-             (template_args.empty() ? "" : " " + template_args);
+      name = complete_name;
 
       // If a template has consecutive parameter packs, then it is impossible to
       // use the explicit name in the wrapper, since the type deduction is what
       // determines the split of the packs. Instead, we'll revert to the
       // non-templated function name and hope that the type casts in the wrapper
       // will suffice.
+      std::string simple_name = FD->getNameAsString();
       if (FD->isTemplateInstantiation() && FD->getPrimaryTemplate()) {
         const FunctionTemplateDecl* FTDecl =
             llvm::dyn_cast<FunctionTemplateDecl>(FD->getPrimaryTemplate());
@@ -2114,10 +2242,12 @@ void make_narg_call(const FunctionDecl* FD, const std::string& return_type,
               numPacks = 0;
           }
           if (numPacks > 1) {
-            name = name_without_template_args;
+            name = simple_name;
           }
         }
       }
+      if (FD->isOverloadedOperator())
+        name = simple_name;
     }
     if (op_flag || N <= 1)
       callbuf << name;
@@ -2146,12 +2276,33 @@ void make_narg_call(const FunctionDecl* FD, const std::string& return_type,
       }
     }
 
+    CXXRecordDecl* rtdecl = QT->getAsCXXRecordDecl();
     if (refType != kNotReference) {
       callbuf << "(" << type_name.c_str()
               << (refType == kLValueReference ? "&" : "&&") << ")*("
               << type_name.c_str() << "*)args[" << i << "]";
     } else if (isPointer) {
       callbuf << "*(" << type_name.c_str() << "**)args[" << i << "]";
+    } else if (rtdecl &&
+               (rtdecl->hasTrivialCopyConstructor() &&
+                !rtdecl->hasSimpleCopyConstructor()) &&
+               rtdecl->hasMoveConstructor()) {
+      // By-value construction; this may either copy or move, but there is no
+      // information here in terms of intent. Thus, simply assume that the
+      // intent is to move if there is no viable copy constructor (ie. if the
+      // code would otherwise fail to even compile). There does not appear to be
+      // a simple way of determining whether a viable copy constructor exists,
+      // so check for the most common case: the trivial one, but not uniquely
+      // available, while there is a move constructor.
+
+      // include utility header if not already included for std::move
+      DeclarationName DMove = &getASTContext().Idents.get("move");
+      auto result = getSema().getStdNamespace()->lookup(DMove);
+      if (result.empty())
+        Cpp::Declare("#include <utility>");
+
+      // move construction as needed for classes (note that this is implicit)
+      callbuf << "std::move(*(" << type_name.c_str() << "*)args[" << i << "])";
     } else {
       // pointer falls back to non-pointer case; the argument preserves
       // the "pointerness" (i.e. doesn't reference the value).
@@ -3041,7 +3192,10 @@ static std::string MakeResourcesPath() {
   Dir = sys::path::parent_path(Dir);
   // Dir = sys::path::parent_path(Dir);
 #endif // LLVM_BINARY_DIR
-  return compat::MakeResourceDir(Dir);
+  llvm::SmallString<128> P(Dir);
+  llvm::sys::path::append(P, CLANG_INSTALL_LIBDIR_BASENAME, "clang",
+                          CLANG_VERSION_MAJOR_STRING);
+  return std::string(P.str());
 }
 } // namespace
 
@@ -3111,6 +3265,17 @@ TInterp_t CreateInterpreter(const std::vector<const char*>& Args /*={}*/,
     Args[NumArgs + 1] = nullptr;
     llvm::cl::ParseCommandLineOptions(NumArgs + 1, Args.get());
   }
+
+  I->declare(R"(
+    namespace __internal_CppInterOp {
+    template <typename Signature>
+    struct function;
+    template <typename Res, typename... ArgTypes>
+    struct function<Res(ArgTypes...)> {
+      typedef Res result_type;
+    };
+    }  // namespace __internal_CppInterOp
+  )");
 
   sInterpreters->emplace_back(I, /*Owned=*/true);
 
@@ -3641,7 +3806,11 @@ std::string GetFunctionArgDefault(TCppFunction_t func,
   if (PI->hasDefaultArg()) {
     std::string Result;
     llvm::raw_string_ostream OS(Result);
-    Expr* DefaultArgExpr = const_cast<Expr*>(PI->getDefaultArg());
+    Expr* DefaultArgExpr = nullptr;
+    if (PI->hasUninstantiatedDefaultArg())
+      DefaultArgExpr = PI->getUninstantiatedDefaultArg();
+    else
+      DefaultArgExpr = PI->getDefaultArg();
     DefaultArgExpr->printPretty(OS, nullptr, PrintingPolicy(LangOptions()));
 
     // FIXME: Floats are printed in clang with the precision of their underlying

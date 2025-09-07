@@ -274,10 +274,10 @@ endif()
   set(LLVM_LIBRARY_OUTPUT_INTDIR ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}/lib${LLVM_LIBDIR_SUFFIX})
 
   set( CPPINTEROP_BUILT_STANDALONE 1 )
-endif()
 
-include(AddLLVM)
-include(HandleLLVMOptions)
+  include(AddLLVM)
+  include(HandleLLVMOptions)
+endif()
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 

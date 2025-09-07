@@ -5,9 +5,13 @@
 #ifndef CPPINTEROP_COMPATIBILITY_H
 #define CPPINTEROP_COMPATIBILITY_H
 
+#include "clang/AST/DeclTemplate.h"
 #include "clang/AST/GlobalDecl.h"
+#include "clang/Basic/SourceLocation.h"
+#include "clang/Basic/Specifiers.h"
 #include "clang/Basic/Version.h"
 #include "clang/Config/config.h"
+#include "clang/Sema/Sema.h"
 
 #ifdef _MSC_VER
 #define dup _dup
@@ -415,7 +419,6 @@ inline void codeComplete(std::vector<std::string>& Results,
   }
 
   std::vector<std::string> results;
-  std::vector<std::string> Comps;
   clang::CompilerInstance* MainCI = (*Interp)->getCompilerInstance();
   auto CC = clang::ReplCodeCompleter();
   CC.codeComplete(MainCI, code, complete_line, complete_column,
@@ -463,18 +466,6 @@ public:
 
 namespace compat {
 
-// Clang >= 14 change type name to string (spaces formatting problem)
-inline std::string FixTypeName(const std::string type_name) {
-  return type_name;
-}
-
-inline std::string MakeResourceDir(llvm::StringRef Dir) {
-  llvm::SmallString<128> P(Dir);
-  llvm::sys::path::append(P, CLANG_INSTALL_LIBDIR_BASENAME, "clang",
-                          CLANG_VERSION_MAJOR_STRING);
-  return std::string(P.str());
-}
-
 // Clang >= 16 (=16 with Value patch) change castAs to convertTo
 #ifdef CPPINTEROP_USE_CLING
 template <typename T> inline T convertTo(cling::Value V) {
@@ -486,6 +477,22 @@ template <typename T> inline T convertTo(clang::Value V) {
 }
 #endif // CPPINTEROP_USE_CLING
 
+inline void InstantiateClassTemplateSpecialization(
+    Interpreter& interp, clang::ClassTemplateSpecializationDecl* CTSD) {
+#ifdef CPPINTEROP_USE_CLING
+  cling::Interpreter::PushTransactionRAII RAII(&interp);
+#endif
+#if CLANG_VERSION_MAJOR < 20
+  interp.getSema().InstantiateClassTemplateSpecialization(
+      clang::SourceLocation::getFromRawEncoding(1), CTSD,
+      clang::TemplateSpecializationKind::TSK_Undeclared, /*Complain=*/true);
+#else
+  interp.getSema().InstantiateClassTemplateSpecialization(
+      clang::SourceLocation::getFromRawEncoding(1), CTSD,
+      clang::TemplateSpecializationKind::TSK_Undeclared, /*Complain=*/true,
+      /*PrimaryHasMatchedPackOnParmToNonPackOnArg=*/false);
+#endif
+}
 } // namespace compat
 
 #endif // CPPINTEROP_COMPATIBILITY_H
