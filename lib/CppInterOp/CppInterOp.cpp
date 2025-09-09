@@ -2108,7 +2108,7 @@ static void GetDeclName(const clang::Decl* D, ASTContext& Context,
   PrintingPolicy Policy(Context.getPrintingPolicy());
   Policy.SuppressTagKeyword = true;
   Policy.SuppressUnwrittenScope = true;
-  Policy.PrintCanonicalTypes = true;
+  Policy.Print_Canonical_Types = true;
   if (const TypeDecl* TD = dyn_cast<TypeDecl>(D)) {
     // This is a class, struct, or union member.
     QualType QT;
