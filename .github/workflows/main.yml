@@ -201,7 +201,7 @@ jobs:
             llvm_targets_to_build: "host;NVPTX"
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
       with:
         fetch-depth: 0
 

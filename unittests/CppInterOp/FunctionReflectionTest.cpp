@@ -1469,6 +1469,23 @@ TEST(FunctionReflectionTest, GetFunctionAddress) {
   EXPECT_EQ(address.str(), output);
 
   EXPECT_FALSE(Cpp::GetFunctionAddress(Cpp::GetGlobalScope()));
+
+  Interp->declare(R"(
+    template <typename T>
+    T add1(T t) { return t + 1; }
+  )");
+
+  std::vector<Cpp::TCppFunction_t> funcs;
+  Cpp::GetClassTemplatedMethods("add1", Cpp::GetGlobalScope(), funcs);
+  EXPECT_EQ(funcs.size(), 1);
+
+  ASTContext& C = Interp->getCI()->getASTContext();
+  std::vector<Cpp::TemplateArgInfo> argument = {C.DoubleTy.getAsOpaquePtr()};
+  Cpp::TCppScope_t add1_double =
+      Cpp::InstantiateTemplate(funcs[0], argument.data(), argument.size());
+  EXPECT_TRUE(add1_double);
+
+  EXPECT_TRUE(Cpp::GetFunctionAddress(add1_double));
 }
 
 TEST(FunctionReflectionTest, IsVirtualMethod) {

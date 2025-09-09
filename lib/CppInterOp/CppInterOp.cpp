@@ -11,6 +11,7 @@
 
 #include "Compatibility.h"
 
+#include "clang/AST/Attrs.inc"
 #include "clang/AST/CXXInheritance.h"
 #include "clang/AST/Decl.h"
 #include "clang/AST/DeclAccessPair.h"
@@ -43,15 +44,19 @@
 #endif
 #include "clang/Sema/TemplateDeduction.h"
 
+#include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Demangle/Demangle.h"
 #include "llvm/ExecutionEngine/Orc/Shared/ExecutorAddress.h"
+#include "llvm/IR/GlobalValue.h"
 #include "llvm/Support/Casting.h"
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
+#include "llvm/Support/Error.h"
 #include "llvm/Support/ManagedStatic.h"
-#include "llvm/Support/raw_os_ostream.h"
+#include "llvm/Support/Path.h"
+#include "llvm/Support/raw_ostream.h"
 
 #include <algorithm>
 #include <cassert>
@@ -64,6 +69,7 @@
 #include <sstream>
 #include <stack>
 #include <string>
+#include <utility>
 
 // Stream redirect.
 #ifdef _WIN32
@@ -133,6 +139,42 @@ static compat::Interpreter& getInterp() {
 }
 static clang::Sema& getSema() { return getInterp().getCI()->getSema(); }
 static clang::ASTContext& getASTContext() { return getSema().getASTContext(); }
+
+static void ForceCodeGen(Decl* D, compat::Interpreter& I) {
+  // The decl was deferred by CodeGen. Force its emission.
+  // FIXME: In ASTContext::DeclMustBeEmitted we should check if the
+  // Decl::isUsed is set or we should be able to access CodeGen's
+  // addCompilerUsedGlobal.
+  ASTContext& C = I.getSema().getASTContext();
+
+  D->addAttr(UsedAttr::CreateImplicit(C));
+#ifdef CPPINTEROP_USE_CLING
+  cling::Interpreter::PushTransactionRAII RAII(&I);
+  I.getCI()->getASTConsumer().HandleTopLevelDecl(DeclGroupRef(D));
+#else // CLANG_REPL
+  I.getCI()->getASTConsumer().HandleTopLevelDecl(DeclGroupRef(D));
+  // Take the newest llvm::Module produced by CodeGen and send it to JIT.
+  auto GeneratedPTU = I.Parse("");
+  if (!GeneratedPTU)
+    llvm::logAllUnhandledErrors(GeneratedPTU.takeError(), llvm::errs(),
+                                "[ForceCodeGen] Failed to generate PTU:");
+
+  // From cling's BackendPasses.cpp
+  // FIXME: We need to upstream this code in IncrementalExecutor::addModule
+  for (auto& GV : GeneratedPTU->TheModule->globals()) {
+    llvm::GlobalValue::LinkageTypes LT = GV.getLinkage();
+    if (GV.isDeclaration() || !GV.hasName() ||
+        GV.getName().starts_with(".str") ||
+        !llvm::GlobalVariable::isDiscardableIfUnused(LT) ||
+        LT != llvm::GlobalValue::InternalLinkage)
+      continue; // nothing to do
+    GV.setLinkage(llvm::GlobalValue::WeakAnyLinkage);
+  }
+  if (auto Err = I.Execute(*GeneratedPTU))
+    llvm::logAllUnhandledErrors(std::move(Err), llvm::errs(),
+                                "[ForceCodeGen] Failed to execute PTU:");
+#endif
+}
 
 #define DEBUG_TYPE "jitcall"
 bool JitCall::AreArgumentsValid(void* result, ArgList args, void* self,
@@ -1333,8 +1375,16 @@ static TCppFuncAddr_t GetFunctionAddress(const FunctionDecl* FD) {
 
 TCppFuncAddr_t GetFunctionAddress(TCppFunction_t method) {
   auto* D = static_cast<Decl*>(method);
-  if (auto* FD = llvm::dyn_cast_or_null<FunctionDecl>(D))
+  if (auto* FD = llvm::dyn_cast_or_null<FunctionDecl>(D)) {
+    if ((IsTemplateInstantiationOrSpecialization(FD) ||
+         FD->getTemplatedKind() == FunctionDecl::TK_MemberSpecialization) &&
+        !FD->getDefinition())
+      InstantiateFunctionDefinition(D);
+    ASTContext& C = getASTContext();
+    if (isDiscardableGVALinkage(C.GetGVALinkageForFunction(FD)))
+      ForceCodeGen(FD, getInterp());
     return GetFunctionAddress(FD);
+  }
   return nullptr;
 }
 
@@ -1552,39 +1602,8 @@ intptr_t GetVariableOffset(compat::Interpreter& I, Decl* D,
     }
     if (!address) {
       auto Linkage = C.GetGVALinkageForVariable(VD);
-      // The decl was deferred by CodeGen. Force its emission.
-      // FIXME: In ASTContext::DeclMustBeEmitted we should check if the
-      // Decl::isUsed is set or we should be able to access CodeGen's
-      // addCompilerUsedGlobal.
       if (isDiscardableGVALinkage(Linkage))
-        VD->addAttr(UsedAttr::CreateImplicit(C));
-#ifdef CPPINTEROP_USE_CLING
-      cling::Interpreter::PushTransactionRAII RAII(&I);
-      I.getCI()->getASTConsumer().HandleTopLevelDecl(DeclGroupRef(VD));
-#else // CLANG_REPL
-      I.getCI()->getASTConsumer().HandleTopLevelDecl(DeclGroupRef(VD));
-      // Take the newest llvm::Module produced by CodeGen and send it to JIT.
-      auto GeneratedPTU = I.Parse("");
-      if (!GeneratedPTU)
-        llvm::logAllUnhandledErrors(
-            GeneratedPTU.takeError(), llvm::errs(),
-            "[GetVariableOffset] Failed to generate PTU:");
-
-      // From cling's BackendPasses.cpp
-      // FIXME: We need to upstream this code in IncrementalExecutor::addModule
-      for (auto& GV : GeneratedPTU->TheModule->globals()) {
-        llvm::GlobalValue::LinkageTypes LT = GV.getLinkage();
-        if (GV.isDeclaration() || !GV.hasName() ||
-            GV.getName().starts_with(".str") || !GV.isDiscardableIfUnused(LT) ||
-            LT != llvm::GlobalValue::InternalLinkage)
-          continue; // nothing to do
-        GV.setLinkage(llvm::GlobalValue::WeakAnyLinkage);
-      }
-      if (auto Err = I.Execute(*GeneratedPTU))
-        llvm::logAllUnhandledErrors(
-            std::move(Err), llvm::errs(),
-            "[GetVariableOffset] Failed to execute PTU:");
-#endif
+        ForceCodeGen(VD, I);
     }
     auto VDAorErr = compat::getSymbolAddress(I, StringRef(mangledName));
     if (!VDAorErr) {
@@ -1727,7 +1746,7 @@ std::string GetTypeAsString(TCppType_t var) {
   Policy.SuppressTagKeyword = true; // Do not print `class std::string`.
   Policy.SuppressElaboration = true;
   Policy.FullyQualifiedName = true;
-  return compat::FixTypeName(QT.getAsString(Policy));
+  return QT.getAsString(Policy);
 }
 
 TCppType_t GetCanonicalType(TCppType_t type) {
@@ -3168,7 +3187,10 @@ static std::string MakeResourcesPath() {
   Dir = sys::path::parent_path(Dir);
   // Dir = sys::path::parent_path(Dir);
 #endif // LLVM_BINARY_DIR
-  return compat::MakeResourceDir(Dir);
+  llvm::SmallString<128> P(Dir);
+  llvm::sys::path::append(P, CLANG_INSTALL_LIBDIR_BASENAME, "clang",
+                          CLANG_VERSION_MAJOR_STRING);
+  return std::string(P.str());
 }
 } // namespace
 
