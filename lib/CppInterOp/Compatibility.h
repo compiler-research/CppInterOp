@@ -20,17 +20,6 @@
 #define fileno _fileno
 #endif
 
-static inline char* GetEnv(const char* Var_Name) {
-#ifdef _MSC_VER
-  char* Env = nullptr;
-  size_t sz = 0;
-  getenv_s(&sz, Env, sz, Var_Name);
-  return Env;
-#else
-  return getenv(Var_Name);
-#endif
-}
-
 #if CLANG_VERSION_MAJOR < 19
 #define Template_Deduction_Result Sema::TemplateDeductionResult
 #define Template_Deduction_Result_Success                                      \
