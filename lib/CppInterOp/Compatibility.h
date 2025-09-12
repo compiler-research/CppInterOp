@@ -31,6 +31,23 @@ static inline char* GetEnv(const char* Var_Name) {
 #endif
 }
 
+#if CLANG_VERSION_MAJOR < 21
+#define Print_Canonical_Types PrintCanonicalTypes
+#else
+#define Print_Canonical_Types PrintAsCanonical
+#endif
+
+#if CLANG_VERSION_MAJOR < 21
+#define clang_LookupResult_Found clang::LookupResult::Found
+#define clang_LookupResult_Not_Found clang::LookupResult::NotFound
+#define clang_LookupResult_Found_Overloaded clang::LookupResult::FoundOverloaded
+#else
+#define clang_LookupResult_Found clang::LookupResultKind::Found
+#define clang_LookupResult_Not_Found clang::LookupResultKind::NotFound
+#define clang_LookupResult_Found_Overloaded                                    \
+  clang::LookupResultKind::FoundOverloaded
+#endif
+
 #if CLANG_VERSION_MAJOR < 19
 #define Template_Deduction_Result Sema::TemplateDeductionResult
 #define Template_Deduction_Result_Success                                      \

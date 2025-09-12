@@ -23,6 +23,14 @@ jobs:
       matrix:
         include:
           # Ubuntu Arm Jobs
+          - name: ubu24-arm-gcc12-clang-repl-21
+            os: ubuntu-24.04-arm
+            compiler: gcc-12
+            clang-runtime: '21'
+            cling: Off
+            cppyy: Off
+            llvm_enable_projects: "clang"
+            llvm_targets_to_build: "host;NVPTX"
           - name: ubu22-arm-gcc12-clang-repl-20-coverage
             os: ubuntu-22.04-arm
             compiler: gcc-12
@@ -66,6 +74,14 @@ jobs:
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
           # Ubuntu X86 Jobs
+          - name: ubu24-x86-gcc12-clang-repl-21
+            os: ubuntu-24.04
+            compiler: gcc-12
+            clang-runtime: '21'
+            cling: Off
+            cppyy: Off
+            llvm_enable_projects: "clang"
+            llvm_targets_to_build: "host;NVPTX"
           - name: ubu24-x86-gcc12-clang-repl-20
             os: ubuntu-24.04
             compiler: gcc-12
@@ -100,6 +116,14 @@ jobs:
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
           # MacOS Arm Jobs
+          - name: osx15-arm-clang-clang-repl-21
+            os: macos-15
+            compiler: clang
+            clang-runtime: '21'
+            cling: Off
+            cppyy: Off
+            llvm_enable_projects: "clang"
+            llvm_targets_to_build: "host"
           - name: osx15-arm-clang-clang-repl-20
             os: macos-15
             compiler: clang
@@ -134,6 +158,14 @@ jobs:
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
           # MacOS X86 Jobs
+          - name: osx13-x86-clang-clang-repl-21
+            os: macos-13
+            compiler: clang
+            clang-runtime: '21'
+            cling: Off
+            cppyy: Off
+            llvm_enable_projects: "clang"
+            llvm_targets_to_build: "host"
           - name: osx13-x86-clang-clang-repl-20
             os: macos-13
             compiler: clang
@@ -168,6 +200,13 @@ jobs:
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
           # Windows Arm Jobs
+          - name: win11-msvc-clang-repl-21
+            os: windows-11-arm
+            compiler: msvc
+            clang-runtime: '21'
+            cling: Off
+            llvm_enable_projects: "clang"
+            llvm_targets_to_build: "host;NVPTX"
           - name: win11-msvc-clang-repl-20
             os: windows-11-arm
             compiler: msvc
@@ -184,6 +223,13 @@ jobs:
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
           # Windows X86 Jobs
+          - name: win2025-msvc-clang-repl-21
+            os: windows-2025
+            compiler: msvc
+            clang-runtime: '21'
+            cling: Off
+            llvm_enable_projects: "clang"
+            llvm_targets_to_build: "host;NVPTX"
           - name: win2025-msvc-clang-repl-20
             os: windows-2025
             compiler: msvc
