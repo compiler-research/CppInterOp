@@ -175,7 +175,6 @@ private:
               std::unique_ptr<IOContext> ctx = nullptr)
       : inner(std::move(CI)), io_context(std::move(ctx)) {}
 
-
   static std::unique_ptr<Interpreter>
   create(int argc, const char* const* argv, const char* llvmdir = nullptr,
          const std::vector<std::shared_ptr<clang::ModuleFileExtension>>&
