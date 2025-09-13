@@ -1,199 +1,133 @@
 diff --git a/clang/include/clang/Interpreter/Interpreter.h b/clang/include/clang/Interpreter/Interpreter.h
-index f8663e319..78dff1165 100644
+index f8663e3193a1..1f9553e6809a 100644
 --- a/clang/include/clang/Interpreter/Interpreter.h
 +++ b/clang/include/clang/Interpreter/Interpreter.h
-@@ -20,6 +20,7 @@
+@@ -20,8 +20,10 @@
  
  #include "llvm/ADT/DenseMap.h"
  #include "llvm/ExecutionEngine/JITSymbol.h"
 +#include "llvm/ExecutionEngine/Orc/ExecutorProcessControl.h"
  #include "llvm/ExecutionEngine/Orc/Shared/ExecutorAddress.h"
  #include "llvm/Support/Error.h"
++#include <cstdint>
  #include <memory>
-@@ -136,10 +137,14 @@ protected:
+ #include <vector>
+ 
+@@ -35,6 +37,10 @@ class ThreadSafeContext;
+ 
+ namespace clang {
+ 
++namespace driver {
++class ToolChain;
++} // namespace driver
++
+ class CompilerInstance;
+ class CodeGenerator;
+ class CXXRecordDecl;
+@@ -119,15 +125,40 @@ class Interpreter {
+   /// An optional compiler instance for CUDA offloading
+   std::unique_ptr<CompilerInstance> DeviceCI;
+ 
++public:
++  struct JITConfig {
++    /// Indicates whether out-of-process JIT execution is enabled.
++    bool IsOutOfProcess = false;
++    /// Path to the out-of-process JIT executor.
++    std::string OOPExecutor = "";
++    std::string OOPExecutorConnect = "";
++    /// Indicates whether to use shared memory for communication.
++    bool UseSharedMemory = false;
++    /// Representing the slab allocation size for memory management in kb.
++    unsigned SlabAllocateSize = 0;
++    /// Path to the ORC runtime library.
++    std::string OrcRuntimePath = "";
++    /// PID of the out-of-process JIT executor.
++    uint32_t ExecutorPID = 0;
++    /// Custom lambda to be executed inside child process/executor
++    std::function<void()> CustomizeFork = nullptr;
++
++    JITConfig()
++        : IsOutOfProcess(false), OOPExecutor(""), OOPExecutorConnect(""),
++          UseSharedMemory(false), SlabAllocateSize(0), OrcRuntimePath(""),
++          ExecutorPID(0), CustomizeFork(nullptr) {}
++  };
++
+ protected:
+   // Derived classes can use an extended interface of the Interpreter.
+   Interpreter(std::unique_ptr<CompilerInstance> Instance, llvm::Error &Err,
+               std::unique_ptr<llvm::orc::LLJITBuilder> JITBuilder = nullptr,
+-              std::unique_ptr<clang::ASTConsumer> Consumer = nullptr);
++              std::unique_ptr<clang::ASTConsumer> Consumer = nullptr,
++              JITConfig Config = JITConfig());
+ 
+   // Create the internal IncrementalExecutor, or re-create it after calling
+   // ResetExecutor().
+-  llvm::Error CreateExecutor();
++  llvm::Error CreateExecutor(JITConfig Config = JITConfig());
+ 
+   // Delete the internal IncrementalExecutor. This causes a hard shutdown of the
+   // JIT engine. In particular, it doesn't run cleanup or destructors.
+@@ -136,10 +167,19 @@ protected:
  public:
    virtual ~Interpreter();
    static llvm::Expected<std::unique_ptr<Interpreter>>
 -  create(std::unique_ptr<CompilerInstance> CI);
-+  create(std::unique_ptr<CompilerInstance> CI,
-+         std::unique_ptr<llvm::orc::LLJITBuilder> JITBuilder = nullptr);
++  create(std::unique_ptr<CompilerInstance> CI, JITConfig Config = {});
    static llvm::Expected<std::unique_ptr<Interpreter>>
    createWithCUDA(std::unique_ptr<CompilerInstance> CI,
                   std::unique_ptr<CompilerInstance> DCI);
 +  static llvm::Expected<std::unique_ptr<llvm::orc::LLJITBuilder>>
 +  createLLJITBuilder(std::unique_ptr<llvm::orc::ExecutorProcessControl> EPC,
 +                     llvm::StringRef OrcRuntimePath);
++  static llvm::Expected<
++      std::pair<std::unique_ptr<llvm::orc::LLJITBuilder>, uint32_t>>
++  outOfProcessJITBuilder(JITConfig Config);
++  static llvm::Expected<std::string>
++  getOrcRuntimePath(const driver::ToolChain &TC);
++
    const ASTContext &getASTContext() const;
    ASTContext &getASTContext();
    const CompilerInstance *getCompilerInstance() const;
-diff --git a/clang/include/clang/Interpreter/RemoteJITUtils.h b/clang/include/clang/Interpreter/RemoteJITUtils.h
-new file mode 100644
-index 000000000..825143f00
---- /dev/null
-+++ b/clang/include/clang/Interpreter/RemoteJITUtils.h
-@@ -0,0 +1,48 @@
-+//===-- RemoteJITUtils.h - Utilities for remote-JITing ----------*- C++ -*-===//
-+//
-+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
-+// See https://llvm.org/LICENSE.txt for license information.
-+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
-+//
-+//===----------------------------------------------------------------------===//
-+//
-+// Utilities for ExecutorProcessControl-based remote JITing with Orc and
-+// JITLink.
-+//
-+//===----------------------------------------------------------------------===//
-+
-+#ifndef LLVM_CLANG_INTERPRETER_REMOTEJITUTILS_H
-+#define LLVM_CLANG_INTERPRETER_REMOTEJITUTILS_H
-+
-+#include "llvm/ADT/StringRef.h"
-+#include "llvm/ExecutionEngine/Orc/Core.h"
-+#include "llvm/ExecutionEngine/Orc/Layer.h"
-+#include "llvm/ExecutionEngine/Orc/SimpleRemoteEPC.h"
-+#include "llvm/Support/Error.h"
-+
-+#include <cstdint>
-+#include <memory>
-+#include <string>
-+#include <unistd.h>
-+
-+llvm::Expected<std::unique_ptr<llvm::orc::SimpleRemoteEPC>>
-+launchExecutor(llvm::StringRef ExecutablePath, bool UseSharedMemory,
-+               llvm::StringRef SlabAllocateSizeString, std::function<void()> CustomizeFork = nullptr);
-+
-+/// Create a JITLinkExecutor that connects to the given network address
-+/// through a TCP socket. A valid NetworkAddress provides hostname and port,
-+/// e.g. localhost:20000.
-+llvm::Expected<std::unique_ptr<llvm::orc::SimpleRemoteEPC>>
-+connectTCPSocket(llvm::StringRef NetworkAddress, bool UseSharedMemory,
-+                 llvm::StringRef SlabAllocateSizeString);
-+
-+/// Get the PID of the last launched executor.
-+/// This is useful for debugging or for cleanup purposes.
-+/// Returns PID of last launched executor.
-+pid_t getLastLaunchedExecutorPID();
-+
-+/// Returns PID of nth launched executor.
-+/// 1-based indexing.
-+pid_t getNthLaunchedExecutorPID(int n);
-+
-+#endif // LLVM_CLANG_INTERPRETER_REMOTEJITUTILS_H
-diff --git a/clang/lib/Interpreter/CMakeLists.txt b/clang/lib/Interpreter/CMakeLists.txt
-index bf70cdfbe..38cf139fa 100644
---- a/clang/lib/Interpreter/CMakeLists.txt
-+++ b/clang/lib/Interpreter/CMakeLists.txt
-@@ -27,6 +27,7 @@ add_clang_library(clangInterpreter
-   Interpreter.cpp
-   InterpreterValuePrinter.cpp
-   InterpreterUtils.cpp
-+  RemoteJITUtils.cpp
-   Value.cpp
-   ${WASM_SRC}
-   PARTIAL_SOURCES_INTENDED
-diff --git a/clang/lib/Interpreter/Interpreter.cpp b/clang/lib/Interpreter/Interpreter.cpp
-index 3b81f9d70..f0a6c75d0 100644
---- a/clang/lib/Interpreter/Interpreter.cpp
-+++ b/clang/lib/Interpreter/Interpreter.cpp
-@@ -46,6 +46,7 @@
- #include "clang/Sema/Lookup.h"
- #include "clang/Serialization/ObjectFilePCHContainerReader.h"
- #include "llvm/ExecutionEngine/JITSymbol.h"
-+#include "llvm/ExecutionEngine/Orc/EPCDynamicLibrarySearchGenerator.h"
- #include "llvm/ExecutionEngine/Orc/LLJIT.h"
- #include "llvm/IR/Module.h"
- #include "llvm/Support/Errc.h"
-@@ -455,10 +456,11 @@ const char *const Runtimes = R"(
- )";
+@@ -170,6 +210,8 @@ public:
+   llvm::Expected<llvm::orc::ExecutorAddr>
+   getSymbolAddressFromLinkerName(llvm::StringRef LinkerName) const;
  
- llvm::Expected<std::unique_ptr<Interpreter>>
--Interpreter::create(std::unique_ptr<CompilerInstance> CI) {
-+Interpreter::create(std::unique_ptr<CompilerInstance> CI,
-+                    std::unique_ptr<llvm::orc::LLJITBuilder> JB) {
-   llvm::Error Err = llvm::Error::success();
--  auto Interp =
--      std::unique_ptr<Interpreter>(new Interpreter(std::move(CI), Err));
-+  auto Interp = std::unique_ptr<Interpreter>(
-+      new Interpreter(std::move(CI), Err, JB ? std::move(JB) : nullptr));
-   if (Err)
-     return std::move(Err);
- 
-@@ -617,6 +619,25 @@ createJITTargetMachineBuilder(const std::string &TT) {
-   return llvm::orc::JITTargetMachineBuilder(llvm::Triple(TT));
- }
- 
-+llvm::Expected<std::unique_ptr<llvm::orc::LLJITBuilder>>
-+Interpreter::createLLJITBuilder(
-+    std::unique_ptr<llvm::orc::ExecutorProcessControl> EPC,
-+    llvm::StringRef OrcRuntimePath) {
-+  const std::string &TT = EPC->getTargetTriple().getTriple();
-+  auto JTMB = createJITTargetMachineBuilder(TT);
-+  if (!JTMB)
-+    return JTMB.takeError();
-+  auto JB = IncrementalExecutor::createDefaultJITBuilder(std::move(*JTMB));
-+  if (!JB)
-+    return JB.takeError();
++  uint32_t getOutOfProcessExecutorPID() const;
 +
-+  (*JB)->setExecutorProcessControl(std::move(EPC));
-+  (*JB)->setPlatformSetUp(
-+      llvm::orc::ExecutorNativePlatform(OrcRuntimePath.str()));
-+
-+  return std::move(*JB);
-+}
-+
- llvm::Error Interpreter::CreateExecutor() {
-   if (IncrExecutor)
-     return llvm::make_error<llvm::StringError>("Operation failed. "
-@@ -757,11 +778,13 @@ llvm::Error Interpreter::LoadDynamicLibrary(const char *name) {
-   if (!EE)
-     return EE.takeError();
- 
--  auto &DL = EE->getDataLayout();
--
--  if (auto DLSG = llvm::orc::DynamicLibrarySearchGenerator::Load(
--          name, DL.getGlobalPrefix()))
--    EE->getMainJITDylib().addGenerator(std::move(*DLSG));
-+  if (llvm::Expected<
-+          std::unique_ptr<llvm::orc::EPCDynamicLibrarySearchGenerator>>
-+          DLSG = llvm::orc::EPCDynamicLibrarySearchGenerator::Load(
-+              EE->getExecutionSession(), name))
-+    // FIXME: Eventually we should put each library in its own JITDylib and
-+    //        turn off process symbols by default.
-+    EE->getProcessSymbolsJITDylib()->addGenerator(std::move(*DLSG));
-   else
-     return DLSG.takeError();
- #endif
-diff --git a/clang/lib/Interpreter/RemoteJITUtils.cpp b/clang/lib/Interpreter/RemoteJITUtils.cpp
-new file mode 100644
-index 000000000..8324aeaaf
---- /dev/null
-+++ b/clang/lib/Interpreter/RemoteJITUtils.cpp
-@@ -0,0 +1,285 @@
-+//===-- RemoteJITUtils.cpp - Utilities for remote-JITing --------*- C++ -*-===//
-+//
-+// Part of the LLVM Project, under the Apache License v2.0 with LLVM Exceptions.
-+// See https://llvm.org/LICENSE.txt for license information.
-+// SPDX-License-Identifier: Apache-2.0 WITH LLVM-exception
-+//
-+//===----------------------------------------------------------------------===//
-+//
-+// FIXME: Unify this code with similar functionality in llvm-jitlink.
-+//
-+//===----------------------------------------------------------------------===//
-+
-+#include "clang/Interpreter/RemoteJITUtils.h"
-+
+   const llvm::SmallVectorImpl<Expr *> &getValuePrintingInfo() const {
+     return ValuePrintingInfo;
+   }
+diff --git a/clang/lib/Interpreter/IncrementalExecutor.cpp b/clang/lib/Interpreter/IncrementalExecutor.cpp
+index 4d2adecaafce..45620fcd358c 100644
+--- a/clang/lib/Interpreter/IncrementalExecutor.cpp
++++ b/clang/lib/Interpreter/IncrementalExecutor.cpp
+@@ -15,19 +15,36 @@
+ #include "clang/Basic/TargetInfo.h"
+ #include "clang/Basic/TargetOptions.h"
+ #include "clang/Interpreter/PartialTranslationUnit.h"
 +#include "llvm/ADT/StringExtras.h"
+ #include "llvm/ExecutionEngine/ExecutionEngine.h"
+ #include "llvm/ExecutionEngine/Orc/CompileUtils.h"
 +#include "llvm/ExecutionEngine/Orc/DebugObjectManagerPlugin.h"
+ #include "llvm/ExecutionEngine/Orc/Debugging/DebuggerSupport.h"
 +#include "llvm/ExecutionEngine/Orc/EPCDebugObjectRegistrar.h"
 +#include "llvm/ExecutionEngine/Orc/EPCDynamicLibrarySearchGenerator.h"
+ #include "llvm/ExecutionEngine/Orc/ExecutionUtils.h"
+ #include "llvm/ExecutionEngine/Orc/IRCompileLayer.h"
+ #include "llvm/ExecutionEngine/Orc/JITTargetMachineBuilder.h"
+ #include "llvm/ExecutionEngine/Orc/LLJIT.h"
 +#include "llvm/ExecutionEngine/Orc/MapperJITLinkMemoryManager.h"
+ #include "llvm/ExecutionEngine/Orc/RTDyldObjectLinkingLayer.h"
 +#include "llvm/ExecutionEngine/Orc/Shared/OrcRTBridge.h"
 +#include "llvm/ExecutionEngine/Orc/Shared/SimpleRemoteEPCUtils.h"
-+#include "llvm/ExecutionEngine/Orc/TargetProcess/JITLoaderGDB.h"
+ #include "llvm/ExecutionEngine/Orc/TargetProcess/JITLoaderGDB.h"
+ #include "llvm/ExecutionEngine/SectionMemoryManager.h"
+ #include "llvm/IR/Module.h"
 +#include "llvm/Support/FileSystem.h"
+ #include "llvm/Support/ManagedStatic.h"
 +#include "llvm/Support/Path.h"
+ #include "llvm/Support/TargetSelect.h"
++#include "llvm/TargetParser/Host.h"
 +
 +#ifdef LLVM_ON_UNIX
 +#include <netdb.h>
@@ -201,89 +135,80 @@ index 000000000..8324aeaaf
 +#include <sys/socket.h>
 +#include <unistd.h>
 +#endif // LLVM_ON_UNIX
-+
-+using namespace llvm;
-+using namespace llvm::orc;
-+
-+static std::vector<pid_t> LaunchedExecutorPID;
-+
-+Expected<uint64_t> getSlabAllocSize(StringRef SizeString) {
-+  SizeString = SizeString.trim();
-+
-+  uint64_t Units = 1024;
-+
-+  if (SizeString.ends_with_insensitive("kb"))
-+    SizeString = SizeString.drop_back(2).rtrim();
-+  else if (SizeString.ends_with_insensitive("mb")) {
-+    Units = 1024 * 1024;
-+    SizeString = SizeString.drop_back(2).rtrim();
-+  } else if (SizeString.ends_with_insensitive("gb")) {
-+    Units = 1024 * 1024 * 1024;
-+    SizeString = SizeString.drop_back(2).rtrim();
-+  }
-+
-+  uint64_t SlabSize = 0;
-+  if (SizeString.getAsInteger(10, SlabSize))
-+    return make_error<StringError>("Invalid numeric format for slab size",
-+                                   inconvertibleErrorCode());
-+
-+  return SlabSize * Units;
-+}
-+
-+Expected<std::unique_ptr<jitlink::JITLinkMemoryManager>>
-+createSharedMemoryManager(SimpleRemoteEPC &SREPC,
-+                          StringRef SlabAllocateSizeString) {
-+  SharedMemoryMapper::SymbolAddrs SAs;
+ 
+ // Force linking some of the runtimes that helps attaching to a debugger.
+ LLVM_ATTRIBUTE_USED void linkComponents() {
+@@ -55,8 +72,9 @@ IncrementalExecutor::createDefaultJITBuilder(
+ 
+ IncrementalExecutor::IncrementalExecutor(llvm::orc::ThreadSafeContext &TSC,
+                                          llvm::orc::LLJITBuilder &JITBuilder,
++                                         Interpreter::JITConfig Config,
+                                          llvm::Error &Err)
+-    : TSCtx(TSC) {
++    : TSCtx(TSC), OutOfProcessChildPid(Config.ExecutorPID) {
+   using namespace llvm::orc;
+   llvm::ErrorAsOutParameter EAO(&Err);
+ 
+@@ -118,4 +136,229 @@ IncrementalExecutor::getSymbolAddress(llvm::StringRef Name,
+   return SymOrErr->getAddress();
+ }
+ 
++Expected<std::unique_ptr<llvm::jitlink::JITLinkMemoryManager>>
++createSharedMemoryManager(llvm::orc::SimpleRemoteEPC &SREPC,
++                          unsigned SlabAllocateSize) {
++  llvm::orc::SharedMemoryMapper::SymbolAddrs SAs;
 +  if (auto Err = SREPC.getBootstrapSymbols(
-+          {{SAs.Instance, rt::ExecutorSharedMemoryMapperServiceInstanceName},
++          {{SAs.Instance,
++            llvm::orc::rt::ExecutorSharedMemoryMapperServiceInstanceName},
 +           {SAs.Reserve,
-+            rt::ExecutorSharedMemoryMapperServiceReserveWrapperName},
++            llvm::orc::rt::ExecutorSharedMemoryMapperServiceReserveWrapperName},
 +           {SAs.Initialize,
-+            rt::ExecutorSharedMemoryMapperServiceInitializeWrapperName},
++            llvm::orc::rt::
++                ExecutorSharedMemoryMapperServiceInitializeWrapperName},
 +           {SAs.Deinitialize,
-+            rt::ExecutorSharedMemoryMapperServiceDeinitializeWrapperName},
++            llvm::orc::rt::
++                ExecutorSharedMemoryMapperServiceDeinitializeWrapperName},
 +           {SAs.Release,
-+            rt::ExecutorSharedMemoryMapperServiceReleaseWrapperName}}))
++            llvm::orc::rt::
++                ExecutorSharedMemoryMapperServiceReleaseWrapperName}}))
 +    return std::move(Err);
 +
-+#ifdef _WIN32
-+  size_t SlabSize = 1024 * 1024;
-+#else
-+  size_t SlabSize = 1024 * 1024 * 1024;
-+#endif
++  size_t SlabSize;
++  if (llvm::Triple(llvm::sys::getProcessTriple()).isOSWindows())
++    SlabSize = 1024 * 1024;
++  else
++    SlabSize = 1024 * 1024 * 1024;
 +
-+  if (!SlabAllocateSizeString.empty()) {
-+    if (Expected<uint64_t> S = getSlabAllocSize(SlabAllocateSizeString))
-+      SlabSize = *S;
-+    else
-+      return S.takeError();
-+  }
++  if (SlabAllocateSize > 0)
++    SlabSize = SlabAllocateSize;
 +
-+  return MapperJITLinkMemoryManager::CreateWithMapper<SharedMemoryMapper>(
-+      SlabSize, SREPC, SAs);
++  return llvm::orc::MapperJITLinkMemoryManager::CreateWithMapper<
++      llvm::orc::SharedMemoryMapper>(SlabSize, SREPC, SAs);
 +}
 +
-+Expected<std::unique_ptr<SimpleRemoteEPC>>
-+launchExecutor(StringRef ExecutablePath, bool UseSharedMemory,
-+               llvm::StringRef SlabAllocateSizeString, std::function<void()> CustomizeFork) {
++llvm::Expected<std::pair<std::unique_ptr<llvm::orc::SimpleRemoteEPC>, uint32_t>>
++IncrementalExecutor::launchExecutor(llvm::StringRef ExecutablePath,
++                                    bool UseSharedMemory,
++                                    unsigned SlabAllocateSize,
++                                    std::function<void()> CustomizeFork) {
 +#ifndef LLVM_ON_UNIX
 +  // FIXME: Add support for Windows.
-+  return make_error<StringError>("-" + ExecutablePath +
-+                                     " not supported on non-unix platforms",
-+                                 inconvertibleErrorCode());
++  return llvm::make_error<llvm::StringError>(
++      "-" + ExecutablePath + " not supported on non-unix platforms",
++      llvm::inconvertibleErrorCode());
 +#elif !LLVM_ENABLE_THREADS
 +  // Out of process mode using SimpleRemoteEPC depends on threads.
-+  return make_error<StringError>(
++  return llvm::make_error<llvm::StringError>(
 +      "-" + ExecutablePath +
 +          " requires threads, but LLVM was built with "
 +          "LLVM_ENABLE_THREADS=Off",
-+      inconvertibleErrorCode());
++      llvm::inconvertibleErrorCode());
 +#else
 +
-+  if (!sys::fs::can_execute(ExecutablePath))
-+    return make_error<StringError>(
-+        formatv("Specified executor invalid: {0}", ExecutablePath),
-+        inconvertibleErrorCode());
++  if (!llvm::sys::fs::can_execute(ExecutablePath))
++    return llvm::make_error<llvm::StringError>(
++        llvm::formatv("Specified executor invalid: {0}", ExecutablePath),
++        llvm::inconvertibleErrorCode());
 +
 +  constexpr int ReadEnd = 0;
 +  constexpr int WriteEnd = 1;
@@ -292,12 +217,12 @@ index 000000000..8324aeaaf
 +  int ToExecutor[2];
 +  int FromExecutor[2];
 +
-+  pid_t ChildPID;
++  uint32_t ChildPID;
 +
 +  // Create pipes to/from the executor..
 +  if (pipe(ToExecutor) != 0 || pipe(FromExecutor) != 0)
-+    return make_error<StringError>("Unable to create pipe for executor",
-+                                   inconvertibleErrorCode());
++    return llvm::make_error<llvm::StringError>(
++        "Unable to create pipe for executor", llvm::inconvertibleErrorCode());
 +
 +  ChildPID = fork();
 +
@@ -307,6 +232,7 @@ index 000000000..8324aeaaf
 +    // Close the parent ends of the pipes
 +    close(ToExecutor[WriteEnd]);
 +    close(FromExecutor[ReadEnd]);
++
 +    if (CustomizeFork)
 +      CustomizeFork();
 +
@@ -317,9 +243,9 @@ index 000000000..8324aeaaf
 +      strcpy(ExecutorPath.get(), ExecutablePath.data());
 +
 +      std::string FDSpecifierStr("filedescs=");
-+      FDSpecifierStr += utostr(ToExecutor[ReadEnd]);
++      FDSpecifierStr += llvm::utostr(ToExecutor[ReadEnd]);
 +      FDSpecifierStr += ',';
-+      FDSpecifierStr += utostr(FromExecutor[WriteEnd]);
++      FDSpecifierStr += llvm::utostr(FromExecutor[WriteEnd]);
 +      FDSpecifier = std::make_unique<char[]>(FDSpecifierStr.size() + 1);
 +      strcpy(FDSpecifier.get(), FDSpecifierStr.c_str());
 +    }
@@ -327,12 +253,10 @@ index 000000000..8324aeaaf
 +    char *const Args[] = {ExecutorPath.get(), FDSpecifier.get(), nullptr};
 +    int RC = execvp(ExecutorPath.get(), Args);
 +    if (RC != 0) {
-+      errs() << "unable to launch out-of-process executor \""
-+             << ExecutorPath.get() << "\"\n";
++      llvm::errs() << "unable to launch out-of-process executor \""
++                   << ExecutorPath.get() << "\"\n";
 +      exit(1);
 +    }
-+  } else {
-+     LaunchedExecutorPID.push_back(ChildPID);
 +  }
 +  // else we're the parent...
 +
@@ -340,15 +264,21 @@ index 000000000..8324aeaaf
 +  close(ToExecutor[ReadEnd]);
 +  close(FromExecutor[WriteEnd]);
 +
-+  SimpleRemoteEPC::Setup S = SimpleRemoteEPC::Setup();
++  llvm::orc::SimpleRemoteEPC::Setup S = llvm::orc::SimpleRemoteEPC::Setup();
 +  if (UseSharedMemory)
-+    S.CreateMemoryManager = [SlabAllocateSizeString](SimpleRemoteEPC &EPC) {
-+      return createSharedMemoryManager(EPC, SlabAllocateSizeString);
-+    };
++    S.CreateMemoryManager =
++        [SlabAllocateSize](llvm::orc::SimpleRemoteEPC &EPC) {
++          return createSharedMemoryManager(EPC, SlabAllocateSize);
++        };
 +
-+  return SimpleRemoteEPC::Create<FDSimpleRemoteEPCTransport>(
-+      std::make_unique<DynamicThreadPoolTaskDispatcher>(std::nullopt),
-+      std::move(S), FromExecutor[ReadEnd], ToExecutor[WriteEnd]);
++  auto EPCOrErr =
++      llvm::orc::SimpleRemoteEPC::Create<llvm::orc::FDSimpleRemoteEPCTransport>(
++          std::make_unique<llvm::orc::DynamicThreadPoolTaskDispatcher>(
++              std::nullopt),
++          std::move(S), FromExecutor[ReadEnd], ToExecutor[WriteEnd]);
++  if (!EPCOrErr)
++    return EPCOrErr.takeError();
++  return std::make_pair(std::move(*EPCOrErr), ChildPID);
 +#endif
 +}
 +
@@ -363,9 +293,9 @@ index 000000000..8324aeaaf
 +  Hints.ai_flags = AI_NUMERICSERV;
 +
 +  if (int EC = getaddrinfo(Host.c_str(), PortStr.c_str(), &Hints, &AI))
-+    return make_error<StringError>(
-+        formatv("address resolution failed ({0})", gai_strerror(EC)),
-+        inconvertibleErrorCode());
++    return llvm::make_error<llvm::StringError>(
++        llvm::formatv("address resolution failed ({0})", strerror(EC)),
++        llvm::inconvertibleErrorCode());
 +  // Cycle through the returned addrinfo structures and connect to the first
 +  // reachable endpoint.
 +  int SockFD;
@@ -387,35 +317,35 @@ index 000000000..8324aeaaf
 +  // If we reached the end of the loop without connecting to a valid endpoint,
 +  // dump the last error that was logged in socket() or connect().
 +  if (Server == nullptr)
-+    return make_error<StringError>("invalid hostname",
-+                                   inconvertibleErrorCode());
++    return llvm::make_error<llvm::StringError>("invalid hostname",
++                                               llvm::inconvertibleErrorCode());
 +
 +  return SockFD;
 +}
-+#endif
 +
-+Expected<std::unique_ptr<SimpleRemoteEPC>>
-+connectTCPSocket(StringRef NetworkAddress, bool UseSharedMemory,
-+                 llvm::StringRef SlabAllocateSizeString) {
++llvm::Expected<std::unique_ptr<llvm::orc::SimpleRemoteEPC>>
++IncrementalExecutor::connectTCPSocket(llvm::StringRef NetworkAddress,
++                                      bool UseSharedMemory,
++                                      unsigned SlabAllocateSize) {
 +#ifndef LLVM_ON_UNIX
 +  // FIXME: Add TCP support for Windows.
-+  return make_error<StringError>("-" + NetworkAddress +
-+                                     " not supported on non-unix platforms",
-+                                 inconvertibleErrorCode());
++  return llvm::make_error<llvm::StringError>(
++      "-" + NetworkAddress + " not supported on non-unix platforms",
++      llvm::inconvertibleErrorCode());
 +#elif !LLVM_ENABLE_THREADS
 +  // Out of process mode using SimpleRemoteEPC depends on threads.
-+  return make_error<StringError>(
++  return llvm::make_error<llvm::StringError>(
 +      "-" + NetworkAddress +
 +          " requires threads, but LLVM was built with "
 +          "LLVM_ENABLE_THREADS=Off",
-+      inconvertibleErrorCode());
++      llvm::inconvertibleErrorCode());
 +#else
 +
 +  auto CreateErr = [NetworkAddress](Twine Details) {
-+    return make_error<StringError>(
++    return llvm::make_error<llvm::StringError>(
 +        formatv("Failed to connect TCP socket '{0}': {1}", NetworkAddress,
 +                Details),
-+        inconvertibleErrorCode());
++        llvm::inconvertibleErrorCode());
 +  };
 +
 +  StringRef Host, PortStr;
@@ -432,211 +362,381 @@ index 000000000..8324aeaaf
 +  if (!SockFD)
 +    return SockFD.takeError();
 +
-+  SimpleRemoteEPC::Setup S = SimpleRemoteEPC::Setup();
++  llvm::orc::SimpleRemoteEPC::Setup S = llvm::orc::SimpleRemoteEPC::Setup();
 +  if (UseSharedMemory)
-+    S.CreateMemoryManager = [SlabAllocateSizeString](SimpleRemoteEPC &EPC) {
-+      return createSharedMemoryManager(EPC, SlabAllocateSizeString);
-+    };
++    S.CreateMemoryManager =
++        [SlabAllocateSize](llvm::orc::SimpleRemoteEPC &EPC) {
++          return createSharedMemoryManager(EPC, SlabAllocateSize);
++        };
 +
-+  return SimpleRemoteEPC::Create<FDSimpleRemoteEPCTransport>(
-+      std::make_unique<DynamicThreadPoolTaskDispatcher>(std::nullopt),
++  return llvm::orc::SimpleRemoteEPC::Create<
++      llvm::orc::FDSimpleRemoteEPCTransport>(
++      std::make_unique<llvm::orc::DynamicThreadPoolTaskDispatcher>(
++          std::nullopt),
 +      std::move(S), *SockFD, *SockFD);
 +#endif
 +}
++#endif // _WIN32
 +
-+pid_t getLastLaunchedExecutorPID() {
-+  if (!LaunchedExecutorPID.size())
-+    return -1;
-+  return LaunchedExecutorPID.back();
+ } // namespace clang
+diff --git a/clang/lib/Interpreter/IncrementalExecutor.h b/clang/lib/Interpreter/IncrementalExecutor.h
+index 71d71bc3883e..56e83378f004 100644
+--- a/clang/lib/Interpreter/IncrementalExecutor.h
++++ b/clang/lib/Interpreter/IncrementalExecutor.h
+@@ -13,13 +13,20 @@
+ #ifndef LLVM_CLANG_LIB_INTERPRETER_INCREMENTALEXECUTOR_H
+ #define LLVM_CLANG_LIB_INTERPRETER_INCREMENTALEXECUTOR_H
+ 
++#include "clang/Interpreter/Interpreter.h"
+ #include "llvm/ADT/DenseMap.h"
+ #include "llvm/ADT/StringRef.h"
++#include "llvm/ExecutionEngine/Orc/Core.h"
++#include "llvm/ExecutionEngine/Orc/Core.h"
+ #include "llvm/ExecutionEngine/Orc/ExecutionUtils.h"
++#include "llvm/ExecutionEngine/Orc/Layer.h"
+ #include "llvm/ExecutionEngine/Orc/Shared/ExecutorAddress.h"
++#include "llvm/ExecutionEngine/Orc/SimpleRemoteEPC.h"
++#include "llvm/Support/Error.h"
+ 
++#include <cstdint>
+ #include <memory>
+-
++#include <string>
+ namespace llvm {
+ class Error;
+ namespace orc {
+@@ -39,6 +46,7 @@ class IncrementalExecutor {
+   using CtorDtorIterator = llvm::orc::CtorDtorIterator;
+   std::unique_ptr<llvm::orc::LLJIT> Jit;
+   llvm::orc::ThreadSafeContext &TSCtx;
++  uint32_t OutOfProcessChildPid = -1;
+ 
+   llvm::DenseMap<const PartialTranslationUnit *, llvm::orc::ResourceTrackerSP>
+       ResourceTrackers;
+@@ -50,7 +58,8 @@ public:
+   enum SymbolNameKind { IRName, LinkerName };
+ 
+   IncrementalExecutor(llvm::orc::ThreadSafeContext &TSC,
+-                      llvm::orc::LLJITBuilder &JITBuilder, llvm::Error &Err);
++                      llvm::orc::LLJITBuilder &JITBuilder,
++                      Interpreter::JITConfig Config, llvm::Error &Err);
+   virtual ~IncrementalExecutor();
+ 
+   virtual llvm::Error addModule(PartialTranslationUnit &PTU);
+@@ -62,8 +71,22 @@ public:
+ 
+   llvm::orc::LLJIT &GetExecutionEngine() { return *Jit; }
+ 
++  uint32_t getOutOfProcessChildPid() const { return OutOfProcessChildPid; }
++
+   static llvm::Expected<std::unique_ptr<llvm::orc::LLJITBuilder>>
+   createDefaultJITBuilder(llvm::orc::JITTargetMachineBuilder JTMB);
++
++  static llvm::Expected<
++      std::pair<std::unique_ptr<llvm::orc::SimpleRemoteEPC>, uint32_t>>
++  launchExecutor(llvm::StringRef ExecutablePath, bool UseSharedMemory,
++                 unsigned SlabAllocateSize,
++                 std::function<void()> CustomizeFork = nullptr);
++
++#if LLVM_ON_UNIX && LLVM_ENABLE_THREADS
++  static llvm::Expected<std::unique_ptr<llvm::orc::SimpleRemoteEPC>>
++  connectTCPSocket(llvm::StringRef NetworkAddress, bool UseSharedMemory,
++                   unsigned SlabAllocateSize);
++#endif
+ };
+ 
+ } // end namespace clang
+diff --git a/clang/lib/Interpreter/Interpreter.cpp b/clang/lib/Interpreter/Interpreter.cpp
+index 3b81f9d701b4..63fb0e175ac8 100644
+--- a/clang/lib/Interpreter/Interpreter.cpp
++++ b/clang/lib/Interpreter/Interpreter.cpp
+@@ -46,6 +46,7 @@
+ #include "clang/Sema/Lookup.h"
+ #include "clang/Serialization/ObjectFilePCHContainerReader.h"
+ #include "llvm/ExecutionEngine/JITSymbol.h"
++#include "llvm/ExecutionEngine/Orc/EPCDynamicLibrarySearchGenerator.h"
+ #include "llvm/ExecutionEngine/Orc/LLJIT.h"
+ #include "llvm/IR/Module.h"
+ #include "llvm/Support/Errc.h"
+@@ -365,7 +366,8 @@ public:
+ Interpreter::Interpreter(std::unique_ptr<CompilerInstance> Instance,
+                          llvm::Error &ErrOut,
+                          std::unique_ptr<llvm::orc::LLJITBuilder> JITBuilder,
+-                         std::unique_ptr<clang::ASTConsumer> Consumer)
++                         std::unique_ptr<clang::ASTConsumer> Consumer,
++                         JITConfig Config)
+     : JITBuilder(std::move(JITBuilder)) {
+   CI = std::move(Instance);
+   llvm::ErrorAsOutParameter EAO(&ErrOut);
+@@ -395,7 +397,7 @@ Interpreter::Interpreter(std::unique_ptr<CompilerInstance> Instance,
+       ASTContext &C = CI->getASTContext();
+       RegisterPTU(C.getTranslationUnitDecl(), std::move(M));
+     }
+-    if (llvm::Error Err = CreateExecutor()) {
++    if (llvm::Error Err = CreateExecutor(Config)) {
+       ErrOut = joinErrors(std::move(ErrOut), std::move(Err));
+       return;
+     }
+@@ -454,22 +456,120 @@ const char *const Runtimes = R"(
+   EXTERN_C void __clang_Interpreter_SetValueNoAlloc(void *This, void *OutVal, void *OpaqueType, ...);
+ )";
+ 
++llvm::Expected<std::pair<std::unique_ptr<llvm::orc::LLJITBuilder>, uint32_t>>
++Interpreter::outOfProcessJITBuilder(JITConfig Config) {
++  std::unique_ptr<llvm::orc::ExecutorProcessControl> EPC;
++  uint32_t childPid = -1;
++  if (!Config.OOPExecutor.empty()) {
++    // Launch an out-of-process executor locally in a child process.
++    auto ResultOrErr = IncrementalExecutor::launchExecutor(
++        Config.OOPExecutor, Config.UseSharedMemory, Config.SlabAllocateSize,
++        Config.CustomizeFork);
++    if (!ResultOrErr)
++      return ResultOrErr.takeError();
++    childPid = ResultOrErr->second;
++    auto EPCOrErr = std::move(ResultOrErr->first);
++    EPC = std::move(EPCOrErr);
++  } else if (Config.OOPExecutorConnect != "") {
++#if LLVM_ON_UNIX && LLVM_ENABLE_THREADS
++    auto EPCOrErr = IncrementalExecutor::connectTCPSocket(
++        Config.OOPExecutorConnect, Config.UseSharedMemory,
++        Config.SlabAllocateSize);
++    if (!EPCOrErr)
++      return EPCOrErr.takeError();
++    EPC = std::move(*EPCOrErr);
++#else
++    return llvm::make_error<llvm::StringError>(
++        "Out-of-process JIT over TCP is not supported on this platform",
++        std::error_code());
++#endif
++  }
++
++  std::unique_ptr<llvm::orc::LLJITBuilder> JB;
++  if (EPC) {
++    auto JBOrErr = clang::Interpreter::createLLJITBuilder(
++        std::move(EPC), Config.OrcRuntimePath);
++    if (!JBOrErr)
++      return JBOrErr.takeError();
++    JB = std::move(*JBOrErr);
++  }
++
++  return std::make_pair(std::move(JB), childPid);
 +}
 +
-+pid_t getNthLaunchedExecutorPID(int n) {
-+  if (n - 1 < 0 || n - 1 >= static_cast<int>(LaunchedExecutorPID.size()))
-+    return -1;
-+  return LaunchedExecutorPID.at(n - 1);
-+}
-diff --git a/clang/test/Interpreter/out-of-process.cpp b/clang/test/Interpreter/out-of-process.cpp
-new file mode 100644
-index 000000000..6922ca6e8
---- /dev/null
-+++ b/clang/test/Interpreter/out-of-process.cpp
-@@ -0,0 +1,88 @@
-+// REQUIRES: host-supports-jit,  host-supports-out-of-process-jit, x86_64-linux
++llvm::Expected<std::string>
++Interpreter::getOrcRuntimePath(const driver::ToolChain &TC) {
++  std::optional<std::string> CompilerRTPath = TC.getCompilerRTPath();
++  std::optional<std::string> ResourceDir = TC.getRuntimePath();
 +
-+// RUN: cat %s | clang-repl -oop-executor -orc-runtime | FileCheck %s
++  if (!CompilerRTPath) {
++    return llvm::make_error<llvm::StringError>("CompilerRT path not found",
++                                               std::error_code());
++  }
 +
-+extern "C" int printf(const char *, ...);
++  const std::array<const char *, 3> OrcRTLibNames = {
++      "liborc_rt.a", "liborc_rt_osx.a", "liborc_rt-x86_64.a"};
 +
-+int intVar = 0;
-+double doubleVar = 3.14;
-+%undo
-+double doubleVar = 2.71;
++  for (const char *LibName : OrcRTLibNames) {
++    llvm::SmallString<256> CandidatePath((*CompilerRTPath).c_str());
++    llvm::sys::path::append(CandidatePath, LibName);
 +
-+auto r1 = printf("intVar = %d\n", intVar);
-+// CHECK: intVar = 0
-+auto r2 = printf("doubleVar = %.2f\n", doubleVar);
-+// CHECK: doubleVar = 2.71
++    if (llvm::sys::fs::exists(CandidatePath)) {
++      return CandidatePath.str().str();
++    }
++  }
 +
-+// Test redefinition with inline and static functions.
-+int add(int a, int b, int c) { return a + b + c; }
-+%undo  // Revert to the initial version of add
-+inline int add(int a, int b) { return a + b; }
-+
-+auto r3 = printf("add(1, 2) = %d\n", add(1, 2));
-+// CHECK-NEXT: add(1, 2) = 3
-+
-+// Test inline and lambda functions with variations.
-+inline int square(int x) { return x * x; }
-+auto lambdaSquare = [](int x) { return x * x; };
-+auto lambdaMult = [](int a, int b) { return a * b; };
-+
-+auto r4 = printf("square(4) = %d\n", square(4));
-+// CHECK-NEXT: square(4) = 16
-+auto lambda_r1 = printf("lambdaSquare(5) = %d\n", lambdaSquare(5));
-+// CHECK-NEXT: lambdaSquare(5) = 25
-+auto lambda_r2 = printf("lambdaMult(2, 3) = %d\n", lambdaMult(2, 3));
-+// CHECK-NEXT: lambdaMult(2, 3) = 6
-+
-+%undo  // Undo previous lambda assignments
-+auto lambda_r3 = lambdaMult(3, 4);  // Should fail or revert to the original lambda
-+
-+// Test weak and strong symbol linkage.
-+int __attribute__((weak)) weakFunc() { return 42; }
-+int strongFunc() { return 100; }
-+%undo  // Revert the weak function
-+
-+auto r5 = printf("weakFunc() = %d\n", weakFunc());
-+// CHECK: weakFunc() = 42
-+auto r6 = printf("strongFunc() = %d\n", strongFunc());
-+// CHECK-NEXT: strongFunc() = 100
-+
-+// Weak variable linkage with different types.
-+int varA = 20;
-+static __typeof(varA) weakVarA __attribute__((__weakref__("varA")));
-+char charVar = 'c';
-+static __typeof(charVar) weakCharVar __attribute__((__weakref__("charVar")));
-+auto r7 = printf("weakVarA = %d\n", weakVarA);
-+// CHECK: weakVarA = 20
-+auto r8 = printf("weakCharVar = %c\n", weakCharVar);
-+// CHECK-NEXT: weakCharVar = c
-+
-+// Test complex lambdas with captures.
-+int captureVar = 5;
-+auto captureLambda = [](int x) { return x + captureVar; };
-+int result1 = captureLambda(10);
-+%undo  // Undo capture lambda
-+
-+auto r9 = printf("captureLambda(10) = %d\n", result1);
-+// CHECK: captureLambda(10) = 15
-+
-+// Multiline statement test with arithmetic operations.
-+int sum = \
-+  5 + \
-+  10;
-+int prod = sum * 2;
-+auto r10 = printf("sum = %d, prod = %d\n", sum, prod);
-+// CHECK: sum = 15, prod = 30
-+
-+// Test multiline functions and macro behavior.
-+#define MULTIPLY(a, b) ((a) * (b))
-+
-+int complexFunc(int x) \
-+{ \
-+  return MULTIPLY(x, 2) + x; \
++  return llvm::make_error<llvm::StringError>(
++      llvm::Twine("OrcRuntime library not found in: ") + (*CompilerRTPath),
++      std::error_code());
 +}
 +
-+auto r11 = printf("complexFunc(5) = %d\n", complexFunc(5));
-+// CHECK: complexFunc(5) = 15
+ llvm::Expected<std::unique_ptr<Interpreter>>
+-Interpreter::create(std::unique_ptr<CompilerInstance> CI) {
++Interpreter::create(std::unique_ptr<CompilerInstance> CI, JITConfig Config) {
+   llvm::Error Err = llvm::Error::success();
+-  auto Interp =
+-      std::unique_ptr<Interpreter>(new Interpreter(std::move(CI), Err));
+-  if (Err)
+-    return std::move(Err);
 +
-+%quit
-\ No newline at end of file
-diff --git a/clang/test/lit.cfg.py b/clang/test/lit.cfg.py
-index e4b39c4f7..e3bc17e76 100644
---- a/clang/test/lit.cfg.py
-+++ b/clang/test/lit.cfg.py
-@@ -113,6 +113,29 @@ if config.clang_examples:
-     config.available_features.add("examples")
++  std::unique_ptr<llvm::orc::LLJITBuilder> JB;
++
++  if (Config.IsOutOfProcess) {
++    const TargetInfo &TI = CI->getTarget();
++    const llvm::Triple &Triple = TI.getTriple();
++
++    DiagnosticsEngine &Diags = CI->getDiagnostics();
++    std::string BinaryName = llvm::sys::fs::getMainExecutable(nullptr, nullptr);
++    driver::Driver Driver(BinaryName, Triple.str(), Diags);
++    // Need fake args to get the driver to create a compilation.
++    std::vector<const char *> Args = {"clang", "--version"};
++    std::unique_ptr<clang::driver::Compilation> C(
++        Driver.BuildCompilation(Args));
++    if (!C) {
++      return llvm::make_error<llvm::StringError>(
++          "Failed to create driver compilation for out-of-process JIT",
++          std::error_code());
++    }
++    if (Config.OrcRuntimePath == "") {
++      const clang::driver::ToolChain &TC = C->getDefaultToolChain();
++
++      auto OrcRuntimePathOrErr = getOrcRuntimePath(TC);
++      if (!OrcRuntimePathOrErr) {
++        return OrcRuntimePathOrErr.takeError();
++      }
++
++      Config.OrcRuntimePath = *OrcRuntimePathOrErr;
++    }
++  }
++
++  auto Interp = std::unique_ptr<Interpreter>(new Interpreter(
++      std::move(CI), Err, std::move(JB), /*Consumer=*/nullptr, Config));
++  if (auto E = std::move(Err))
++    return std::move(E);
  
+   // Add runtime code and set a marker to hide it from user code. Undo will not
+   // go through that.
+-  auto PTU = Interp->Parse(Runtimes);
+-  if (!PTU)
+-    return PTU.takeError();
++  if (auto E = Interp->ParseAndExecute(Runtimes))
++    return std::move(E);
++
+   Interp->markUserCodeStart();
  
-+def have_host_out_of_process_jit_feature_support():
-+    clang_repl_exe = lit.util.which("clang-repl", config.clang_tools_dir)
-+
-+    if not clang_repl_exe:
-+        return False
-+
-+    testcode = b"\n".join([b"int i = 0;", b"%quit"])
-+
-+    try:
-+        clang_repl_cmd = subprocess.run(
-+            [clang_repl_exe, "-orc-runtime", "-oop-executor"],
-+            stdout=subprocess.PIPE,
-+            stderr=subprocess.PIPE,
-+            input=testcode,
-+        )
-+    except OSError:
-+        return False
-+
-+    if clang_repl_cmd.returncode == 0:
-+        return True
-+
-+    return False
-+
- def have_host_jit_feature_support(feature_name):
-     clang_repl_exe = lit.util.which("clang-repl", config.clang_tools_dir)
+-  Interp->ValuePrintingInfo.resize(4);
+   return std::move(Interp);
+ }
  
-@@ -165,6 +188,9 @@ if have_host_jit_feature_support('jit'):
-     if have_host_clang_repl_cuda():
-         config.available_features.add('host-supports-cuda')
+@@ -551,6 +651,12 @@ size_t Interpreter::getEffectivePTUSize() const {
+   return PTUs.size() - InitPTUSize;
+ }
  
-+    if have_host_out_of_process_jit_feature_support():
-+        config.available_features.add("host-supports-out-of-process-jit")
++uint32_t Interpreter::getOutOfProcessExecutorPID() const {
++  if (IncrExecutor)
++    return IncrExecutor->getOutOfProcessChildPid();
++  return -1;
++}
 +
- if config.clang_staticanalyzer:
-     config.available_features.add("staticanalyzer")
-     tools.append("clang-check")
-diff --git a/clang/tools/clang-repl/CMakeLists.txt b/clang/tools/clang-repl/CMakeLists.txt
-index f9a911b0a..68d86dd98 100644
---- a/clang/tools/clang-repl/CMakeLists.txt
-+++ b/clang/tools/clang-repl/CMakeLists.txt
-@@ -4,7 +4,9 @@ set( LLVM_LINK_COMPONENTS
-   LineEditor
-   Option
-   OrcJIT
-+  OrcShared
-   Support
-+  TargetParser
-   )
+ PartialTranslationUnit &
+ Interpreter::RegisterPTU(TranslationUnitDecl *TU,
+                          std::unique_ptr<llvm::Module> M /*={}*/,
+@@ -617,7 +723,26 @@ createJITTargetMachineBuilder(const std::string &TT) {
+   return llvm::orc::JITTargetMachineBuilder(llvm::Triple(TT));
+ }
  
- add_clang_tool(clang-repl
+-llvm::Error Interpreter::CreateExecutor() {
++llvm::Expected<std::unique_ptr<llvm::orc::LLJITBuilder>>
++Interpreter::createLLJITBuilder(
++    std::unique_ptr<llvm::orc::ExecutorProcessControl> EPC,
++    llvm::StringRef OrcRuntimePath) {
++  const std::string &TT = EPC->getTargetTriple().getTriple();
++  auto JTMB = createJITTargetMachineBuilder(TT);
++  if (!JTMB)
++    return JTMB.takeError();
++  auto JB = IncrementalExecutor::createDefaultJITBuilder(std::move(*JTMB));
++  if (!JB)
++    return JB.takeError();
++
++  (*JB)->setExecutorProcessControl(std::move(EPC));
++  (*JB)->setPlatformSetUp(
++      llvm::orc::ExecutorNativePlatform(OrcRuntimePath.str()));
++
++  return std::move(*JB);
++}
++
++llvm::Error Interpreter::CreateExecutor(JITConfig Config) {
+   if (IncrExecutor)
+     return llvm::make_error<llvm::StringError>("Operation failed. "
+                                                "Execution engine exists",
+@@ -626,8 +751,26 @@ llvm::Error Interpreter::CreateExecutor() {
+     return llvm::make_error<llvm::StringError>("Operation failed. "
+                                                "No code generator available",
+                                                std::error_code());
++
++  const std::string &TT = getCompilerInstance()->getTargetOpts().Triple;
++  llvm::Triple TargetTriple(TT);
++  bool IsWindowsTarget = TargetTriple.isOSWindows();
++
++  if (!IsWindowsTarget && Config.IsOutOfProcess) {
++    if (!JITBuilder) {
++      auto ResOrErr = outOfProcessJITBuilder(Config);
++      if (!ResOrErr)
++        return ResOrErr.takeError();
++      JITBuilder = std::move(ResOrErr->first);
++      Config.ExecutorPID = ResOrErr->second;
++    }
++    if (!JITBuilder)
++      return llvm::make_error<llvm::StringError>(
++          "Operation failed. No LLJITBuilder for out-of-process JIT",
++          std::error_code());
++  }
++
+   if (!JITBuilder) {
+-    const std::string &TT = getCompilerInstance()->getTargetOpts().Triple;
+     auto JTMB = createJITTargetMachineBuilder(TT);
+     if (!JTMB)
+       return JTMB.takeError();
+@@ -638,11 +781,15 @@ llvm::Error Interpreter::CreateExecutor() {
+   }
+ 
+   llvm::Error Err = llvm::Error::success();
++
++  // Fix: Declare Executor as the appropriate unique_ptr type
++  std::unique_ptr<IncrementalExecutor> Executor;
++
+ #ifdef __EMSCRIPTEN__
+-  auto Executor = std::make_unique<WasmIncrementalExecutor>(*TSCtx);
++  Executor = std::make_unique<WasmIncrementalExecutor>(*TSCtx);
+ #else
+-  auto Executor =
+-      std::make_unique<IncrementalExecutor>(*TSCtx, *JITBuilder, Err);
++  Executor =
++      std::make_unique<IncrementalExecutor>(*TSCtx, *JITBuilder, Config, Err);
+ #endif
+   if (!Err)
+     IncrExecutor = std::move(Executor);
 diff --git a/clang/tools/clang-repl/ClangRepl.cpp b/clang/tools/clang-repl/ClangRepl.cpp
-index 7af8e4f25..54b27782d 100644
+index 7af8e4f25d99..c1a7ec397917 100644
 --- a/clang/tools/clang-repl/ClangRepl.cpp
 +++ b/clang/tools/clang-repl/ClangRepl.cpp
-@@ -10,7 +10,11 @@
- //
+@@ -11,6 +11,8 @@
  //===----------------------------------------------------------------------===//
  
-+#include "clang/Interpreter/RemoteJITUtils.h"
-+
  #include "clang/Basic/Diagnostic.h"
 +#include "clang/Basic/Version.h"
 +#include "clang/Config/config.h"
  #include "clang/Frontend/CompilerInstance.h"
  #include "clang/Frontend/FrontendDiagnostic.h"
  #include "clang/Interpreter/CodeCompletion.h"
-@@ -24,8 +28,11 @@
+@@ -18,14 +20,27 @@
+ #include "clang/Lex/Preprocessor.h"
+ #include "clang/Sema/Sema.h"
+ 
++#include "llvm/ADT/SmallString.h"
++#include "llvm/ADT/StringRef.h"
+ #include "llvm/ExecutionEngine/Orc/LLJIT.h"
+ #include "llvm/LineEditor/LineEditor.h"
+ #include "llvm/Support/CommandLine.h"
++#include "llvm/Support/FileSystem.h"
  #include "llvm/Support/ManagedStatic.h" // llvm_shutdown
++#include "llvm/Support/Path.h"
  #include "llvm/Support/Signals.h"
  #include "llvm/Support/TargetSelect.h"
++#include "llvm/Support/VirtualFileSystem.h"
++#include "llvm/Support/raw_ostream.h"
 +#include "llvm/TargetParser/Host.h"
++#include "llvm/TargetParser/Triple.h"
  #include <optional>
  
++#include <string>
++#include <vector>
++
 +#include "llvm/ExecutionEngine/Orc/Debugging/DebuggerSupport.h"
 +
  // Disable LSan for this test.
  // FIXME: Re-enable once we can assume GCC 13.2 or higher.
  // https://llvm.org/github.com/llvm/llvm-project/issues/67586.
-@@ -34,10 +41,36 @@
+@@ -34,10 +49,36 @@
  LLVM_ATTRIBUTE_USED int __lsan_is_turned_off() { return 1; }
  #endif
  
@@ -674,7 +774,7 @@ index 7af8e4f25..54b27782d 100644
  static llvm::cl::list<std::string>
      ClangArgs("Xcc",
                llvm::cl::desc("Argument to pass to the CompilerInvocation"),
-@@ -47,6 +80,72 @@ static llvm::cl::opt<bool> OptHostSupportsJit("host-supports-jit",
+@@ -47,6 +88,79 @@ static llvm::cl::opt<bool> OptHostSupportsJit("host-supports-jit",
  static llvm::cl::list<std::string> OptInputs(llvm::cl::Positional,
                                               llvm::cl::desc("[code to run]"));
  
@@ -711,25 +811,8 @@ index 7af8e4f25..54b27782d 100644
 +          llvm::inconvertibleErrorCode());
 +  }
 +
-+  // Out-of-process executors require the ORC runtime.
-+  if (OrcRuntimePath.empty() && (OOPExecutor.getNumOccurrences() ||
-+                                 OOPExecutorConnect.getNumOccurrences())) {
-+    llvm::SmallString<256> BasePath(llvm::sys::fs::getMainExecutable(
-+        ArgV0, reinterpret_cast<void *>(&sanitizeOopArguments)));
-+    llvm::sys::path::remove_filename(BasePath); // Remove clang-repl filename.
-+    llvm::sys::path::remove_filename(BasePath); // Remove ./bin directory.
-+    llvm::sys::path::append(BasePath, CLANG_INSTALL_LIBDIR_BASENAME, "clang",
-+                            CLANG_VERSION_MAJOR_STRING);
-+    if (SystemTriple.isOSBinFormatELF())
-+      OrcRuntimePath =
-+          BasePath.str().str() + "/lib/x86_64-unknown-linux-gnu/liborc_rt.a";
-+    else if (SystemTriple.isOSBinFormatMachO())
-+      OrcRuntimePath = BasePath.str().str() + "/lib/darwin/liborc_rt_osx.a";
-+    else
-+      return llvm::make_error<llvm::StringError>(
-+          "Out-of-process execution is not supported on non-unix platforms",
-+          llvm::inconvertibleErrorCode());
-+  }
++  // Out-of-process executors require the ORC runtime. ORC Runtime Path
++  // resolution is done in Interpreter.cpp.
 +
 +  // If -oop-executor was used but no value was specified then use a sensible
 +  // default.
@@ -744,73 +827,113 @@ index 7af8e4f25..54b27782d 100644
 +  return llvm::Error::success();
 +}
 +
++static llvm::Expected<unsigned> getSlabAllocSize(llvm::StringRef SizeString) {
++  SizeString = SizeString.trim();
++
++  uint64_t Units = 1024;
++
++  if (SizeString.ends_with_insensitive("kb"))
++    SizeString = SizeString.drop_back(2).rtrim();
++  else if (SizeString.ends_with_insensitive("mb")) {
++    Units = 1024 * 1024;
++    SizeString = SizeString.drop_back(2).rtrim();
++  } else if (SizeString.ends_with_insensitive("gb")) {
++    Units = 1024 * 1024 * 1024;
++    SizeString = SizeString.drop_back(2).rtrim();
++  } else if (SizeString.empty())
++    return 0;
++
++  uint64_t SlabSize = 0;
++  if (SizeString.getAsInteger(10, SlabSize))
++    return llvm::make_error<llvm::StringError>(
++        "Invalid numeric format for slab size", llvm::inconvertibleErrorCode());
++
++  return SlabSize * Units;
++}
++
  static void LLVMErrorHandler(void *UserData, const char *Message,
                               bool GenCrashDiag) {
    auto &Diags = *static_cast<clang::DiagnosticsEngine *>(UserData);
-@@ -183,6 +282,25 @@ int main(int argc, const char **argv) {
+@@ -86,7 +200,7 @@ struct ReplListCompleter {
+   clang::Interpreter &MainInterp;
+   ReplListCompleter(clang::IncrementalCompilerBuilder &CB,
+                     clang::Interpreter &Interp)
+-      : CB(CB), MainInterp(Interp){};
++      : CB(CB), MainInterp(Interp) {};
+ 
+   std::vector<llvm::LineEditor::Completion> operator()(llvm::StringRef Buffer,
+                                                        size_t Pos) const;
+@@ -183,6 +297,19 @@ int main(int argc, const char **argv) {
      DeviceCI = ExitOnErr(CB.CreateCudaDevice());
    }
  
 +  ExitOnErr(sanitizeOopArguments(argv[0]));
 +
-+  std::unique_ptr<llvm::orc::ExecutorProcessControl> EPC;
-+  if (OOPExecutor.getNumOccurrences()) {
-+    // Launch an out-of-process executor locally in a child process.
-+    EPC = ExitOnErr(
-+        launchExecutor(OOPExecutor, UseSharedMemory, SlabAllocateSizeString));
-+  } else if (OOPExecutorConnect.getNumOccurrences()) {
-+    EPC = ExitOnErr(connectTCPSocket(OOPExecutorConnect, UseSharedMemory,
-+                                     SlabAllocateSizeString));
++  clang::Interpreter::JITConfig Config;
++  Config.IsOutOfProcess = !OOPExecutor.empty() || !OOPExecutorConnect.empty();
++  Config.OOPExecutor = OOPExecutor;
++  auto SizeOrErr = getSlabAllocSize(SlabAllocateSizeString);
++  if (!SizeOrErr) {
++    llvm::logAllUnhandledErrors(SizeOrErr.takeError(), llvm::errs(), "error: ");
++    return EXIT_FAILURE;
 +  }
-+
-+  std::unique_ptr<llvm::orc::LLJITBuilder> JB;
-+  if (EPC) {
-+    CB.SetTargetTriple(EPC->getTargetTriple().getTriple());
-+    JB = ExitOnErr(
-+        clang::Interpreter::createLLJITBuilder(std::move(EPC), OrcRuntimePath));
-+  }
++  Config.SlabAllocateSize = *SizeOrErr;
++  Config.UseSharedMemory = UseSharedMemory;
 +
    // FIXME: Investigate if we could use runToolOnCodeWithArgs from tooling. It
    // can replace the boilerplate code for creation of the compiler instance.
    std::unique_ptr<clang::CompilerInstance> CI;
-@@ -214,6 +332,9 @@ int main(int argc, const char **argv) {
+@@ -214,8 +341,9 @@ int main(int argc, const char **argv) {
        auto CudaRuntimeLibPath = CudaPath + "/lib/libcudart.so";
        ExitOnErr(Interp->LoadDynamicLibrary(CudaRuntimeLibPath.c_str()));
      }
-+  } else if (JB) {
-+    Interp =
-+        ExitOnErr(clang::Interpreter::create(std::move(CI), std::move(JB)));
-   } else
-     Interp = ExitOnErr(clang::Interpreter::create(std::move(CI)));
+-  } else
+-    Interp = ExitOnErr(clang::Interpreter::create(std::move(CI)));
++  } else {
++    Interp = ExitOnErr(clang::Interpreter::create(std::move(CI), Config));
++  }
  
-diff --git a/llvm/lib/ExecutionEngine/Orc/LLJIT.cpp b/llvm/lib/ExecutionEngine/Orc/LLJIT.cpp
-index 972c24abc..a75a0afa7 100644
---- a/llvm/lib/ExecutionEngine/Orc/LLJIT.cpp
-+++ b/llvm/lib/ExecutionEngine/Orc/LLJIT.cpp
-@@ -635,16 +635,19 @@ Error ORCPlatformSupport::initialize(orc::JITDylib &JD) {
-       int32_t result;
-       auto E = ES.callSPSWrapper<SPSDLUpdateSig>(WrapperAddr->getAddress(),
-                                                  result, DSOHandles[&JD]);
--      if (result)
-+      if (E)
-+        return E;
-+      else if (result)
-         return make_error<StringError>("dlupdate failed",
-                                        inconvertibleErrorCode());
--      return E;
--    }
--    return ES.callSPSWrapper<SPSDLOpenSig>(WrapperAddr->getAddress(),
--                                           DSOHandles[&JD], JD.getName(),
--                                           int32_t(ORC_RT_RTLD_LAZY));
-+    } else
-+      return ES.callSPSWrapper<SPSDLOpenSig>(WrapperAddr->getAddress(),
-+                                             DSOHandles[&JD], JD.getName(),
-+                                             int32_t(ORC_RT_RTLD_LAZY));
-   } else
-     return WrapperAddr.takeError();
-+
-+  return Error::success();
- }
+   bool HasError = false;
  
- Error ORCPlatformSupport::deinitialize(orc::JITDylib &JD) {
-
+@@ -243,15 +371,34 @@ int main(int argc, const char **argv) {
+       }
+ 
+       Input += L;
++      // If we add more % commands, there should be better architecture than
++      // this.
+       if (Input == R"(%quit)") {
+         break;
+       }
+       if (Input == R"(%undo)") {
+         if (auto Err = Interp->Undo())
+           llvm::logAllUnhandledErrors(std::move(Err), llvm::errs(), "error: ");
++      } else if (Input == R"(%help)") {
++        llvm::outs() << "%help\t\tlist clang-repl %commands\n"
++                     << "%undo\t\tundo the previous input\n"
++                     << "%lib\t<path>\tlink a dynamic library\n"
++                     << "%quit\t\texit clang-repl\n";
++      } else if (Input == R"(%lib)") {
++        auto Err = llvm::make_error<llvm::StringError>(
++            "%lib expects 1 argument: the path to a dynamic library\n",
++            std::error_code());
++        llvm::logAllUnhandledErrors(std::move(Err), llvm::errs(), "error: ");
+       } else if (Input.rfind("%lib ", 0) == 0) {
+         if (auto Err = Interp->LoadDynamicLibrary(Input.data() + 5))
+           llvm::logAllUnhandledErrors(std::move(Err), llvm::errs(), "error: ");
++      } else if (Input[0] == '%') {
++        auto Err = llvm::make_error<llvm::StringError>(
++            llvm::formatv(
++                "Invalid % command \"{0}\", use \"%help\" to list commands\n",
++                Input),
++            std::error_code());
++        llvm::logAllUnhandledErrors(std::move(Err), llvm::errs(), "error: ");
+       } else if (auto Err = Interp->ParseAndExecute(Input)) {
+         llvm::logAllUnhandledErrors(std::move(Err), llvm::errs(), "error: ");
+       }
+@@ -267,4 +414,4 @@ int main(int argc, const char **argv) {
+   llvm::remove_fatal_error_handler();
+ 
+   return checkDiagErrors(Interp->getCompilerInstance(), HasError);
+-}
++}
+\ No newline at end of file

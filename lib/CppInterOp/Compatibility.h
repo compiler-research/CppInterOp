@@ -65,7 +65,6 @@ static inline char* GetEnv(const char* Var_Name) {
 
 #include "clang/Interpreter/CodeCompletion.h"
 
-#include "clang/Interpreter/OutOfProcessJITConfig.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/ADT/Twine.h"
@@ -205,7 +204,6 @@ inline void codeComplete(std::vector<std::string>& Results,
 
 #ifdef LLVM_BUILT_WITH_OOP_JIT
 #include "clang/Basic/Version.h"
-#include "clang/Interpreter/RemoteJITUtils.h"
 #include "llvm/TargetParser/Host.h"
 
 #include "llvm/ExecutionEngine/Orc/Debugging/DebuggerSupport.h"
@@ -270,13 +268,13 @@ createClangInterpreter(std::vector<const char*>& args, int stdin_fd = 0,
 
 #ifdef LLVM_BUILT_WITH_OOP_JIT
 
-  clang::OutOfProcessJITConfig OutOfProcessConfig;
+  clang::Interpreter::JITConfig OutOfProcessConfig;
   if (outOfProcess) {
     OutOfProcessConfig.IsOutOfProcess = true;
     OutOfProcessConfig.OOPExecutor =
         std::string(LLVM_SOURCE_DIR) + "/build/bin/llvm-jitlink-executor";
     OutOfProcessConfig.UseSharedMemory = false;
-    OutOfProcessConfig.SlabAllocateSizeString = "";
+    OutOfProcessConfig.SlabAllocateSize = 0;
     OutOfProcessConfig.CustomizeFork = [=] { // Lambda defined inline
       auto redirect = [](int from, int to) {
         if (from != to) {
@@ -292,6 +290,9 @@ createClangInterpreter(std::vector<const char*>& args, int stdin_fd = 0,
       setvbuf(stdout, nullptr, _IONBF, 0);
       setvbuf(stderr, nullptr, _IONBF, 0);
     };
+    OutOfProcessConfig.OrcRuntimePath =
+        std::string(LLVM_SOURCE_DIR) +
+        "/lib/clang/20/lib/darwin/liborc_rt_osx.a";
   }
   auto innerOrErr =
       CudaEnabled
@@ -427,15 +428,6 @@ inline void codeComplete(std::vector<std::string>& Results,
     if (r.find(CC.Prefix) == 0)
       Results.push_back(r.str());
 }
-
-#if defined(LLVM_BUILT_WITH_OOP_JIT) && !defined(_WIN32)
-inline pid_t getExecutorPID() { return /*llvm*/ getLastLaunchedExecutorPID(); }
-
-inline pid_t getNthExecutorPID(int n) {
-  return /*llvm*/ getNthLaunchedExecutorPID(n);
-}
-#endif
-
 } // namespace compat
 
 #include "CppInterOpInterpreter.h"
