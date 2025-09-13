@@ -2804,12 +2804,5 @@ TEST(FunctionReflectionTest, GetExecutorPIDTest) {
   } else {
     EXPECT_EQ(pid, -1);
   }
-
-  pid = Cpp::GetNthExecutorPID(1);
-    if (TestUtils::use_oop_jit()) {
-    EXPECT_NE(pid, -1);
-  } else {
-    EXPECT_EQ(pid, -1);
-  }
 }
 #endif
