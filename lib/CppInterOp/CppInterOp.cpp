@@ -4298,7 +4298,7 @@ public:
   StreamCaptureInfo(int FD) : mode(FD) {
 #endif
 #if !defined(CPPINTEROP_USE_CLING) && !defined(_WIN32)
-    auto& I = getInterp();
+    auto& I = getInterp(NULLPTR);
     if (I.isOutOfProcess() && FD == STDOUT_FILENO) {
       m_TempFile = I.getTempFileForOOP(FD);
       ::fflush(m_TempFile);
@@ -4383,7 +4383,7 @@ public:
     close(m_DupFD);
     m_DupFD = -1;
 #if !defined(_WIN32) && !defined(CPPINTEROP_USE_CLING)
-    auto& I = getInterp();
+    auto& I = getInterp(NULLPTR);
     if (I.isOutOfProcess() && mode != STDERR_FILENO) {
       if (ftruncate(m_FD, 0) != 0)
         perror("ftruncate");
@@ -4437,7 +4437,7 @@ int Undo(unsigned N, TInterp_t interp) {
 #ifndef _WIN32
 pid_t GetExecutorPID() {
 #ifdef LLVM_BUILT_WITH_OOP_JIT
-  auto& I = getInterp();
+  auto& I = getInterp(NULLPTR);
   return I.getOutOfProcessExecutorPID();
 #endif
   return -1;

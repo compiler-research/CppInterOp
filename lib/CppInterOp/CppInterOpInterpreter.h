@@ -171,6 +171,7 @@ private:
   std::unique_ptr<clang::Interpreter> inner;
   std::unique_ptr<IOContext> io_context;
 
+public:
   Interpreter(std::unique_ptr<clang::Interpreter> CI,
               std::unique_ptr<IOContext> ctx = nullptr)
       : inner(std::move(CI)), io_context(std::move(ctx)) {}
