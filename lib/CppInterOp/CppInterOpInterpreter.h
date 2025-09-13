@@ -315,7 +315,9 @@ public:
 
   pid_t getOutOfProcessExecutorPID() const {
 #ifndef _WIN32
+#ifdef LLVM_BUILT_WITH_OOP_JIT
     return inner->getOutOfProcessExecutorPID();
+#endif
 #endif
     return -1;
   }
