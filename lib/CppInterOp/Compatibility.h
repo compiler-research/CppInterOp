@@ -207,10 +207,11 @@ inline void codeComplete(std::vector<std::string>& Results,
 #include "llvm/TargetParser/Host.h"
 
 #include "llvm/ExecutionEngine/Orc/Debugging/DebuggerSupport.h"
+
+#include <unistd.h>
 #endif
 
 #include <algorithm>
-#include <unistd.h>
 
 static const llvm::ExitOnError ExitOnError;
 
@@ -292,7 +293,7 @@ createClangInterpreter(std::vector<const char*>& args, int stdin_fd = 0,
     };
     OutOfProcessConfig.OrcRuntimePath =
         std::string(LLVM_SOURCE_DIR) +
-        "/lib/clang/20/lib/darwin/liborc_rt_osx.a";
+        "/build/lib/clang/20/lib/darwin/liborc_rt_osx.a";
   }
   auto innerOrErr =
       CudaEnabled

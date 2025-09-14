@@ -319,7 +319,7 @@ public:
     return inner->getOutOfProcessExecutorPID();
 #endif
 #endif
-    return -1;
+    return 0;
   }
 
   /// \returns the \c ExecutorAddr of a given name as written in the object

@@ -2800,9 +2800,9 @@ TEST(FunctionReflectionTest, GetExecutorPIDTest) {
   TestUtils::CreateInterpreter();
   pid_t pid = Cpp::GetExecutorPID();
   if (TestUtils::use_oop_jit()) {
-    EXPECT_NE(pid, -1);
+    EXPECT_NE(pid, 0);
   } else {
-    EXPECT_EQ(pid, -1);
+    EXPECT_EQ(pid, 0);
   }
 }
 #endif
