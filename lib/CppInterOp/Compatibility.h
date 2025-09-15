@@ -429,11 +429,11 @@ inline void InstantiateClassTemplateSpecialization(
 #if CLANG_VERSION_MAJOR < 20
   interp.getSema().InstantiateClassTemplateSpecialization(
       clang::SourceLocation::getFromRawEncoding(1), CTSD,
-      clang::TemplateSpecializationKind::TSK_Undeclared, /*Complain=*/true);
+      clang::TemplateSpecializationKind::TSK_ExplicitInstantiationDefinition, /*Complain=*/true);
 #else
   interp.getSema().InstantiateClassTemplateSpecialization(
       clang::SourceLocation::getFromRawEncoding(1), CTSD,
-      clang::TemplateSpecializationKind::TSK_Undeclared, /*Complain=*/true,
+      clang::TemplateSpecializationKind::TSK_ExplicitInstantiationDefinition, /*Complain=*/true,
       /*PrimaryHasMatchedPackOnParmToNonPackOnArg=*/false);
 #endif
 }
