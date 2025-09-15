@@ -20,8 +20,6 @@ runs:
           brew unlink "$pkg"
           brew link --overwrite "$pkg"
         done
-        brew upgrade openssl >/dev/null 2>&1
-        brew upgrade --force
         brew install ninja
         brew install eigen
         brew install boost

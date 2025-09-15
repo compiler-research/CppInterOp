@@ -131,9 +131,7 @@ jobs:
           brew unlink "$pkg"
           brew link --overwrite "$pkg"
         done
-        brew upgrade openssl >/dev/null 2>&1
         brew install ninja
-        brew upgrade
 
     - name: Install deps on Linux
       if: ${{ runner.os == 'Linux' && steps.cache.outputs.cache-hit != 'true' }}
