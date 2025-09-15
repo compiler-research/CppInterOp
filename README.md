@@ -104,7 +104,7 @@ git clone --depth=1 https://github.com/compiler-research/cppyy-backend.git
 
 #### Setup Clang-REPL
 
-Clone the 1.x release of the LLVM project repository.
+Clone the 21.x release of the LLVM project repository.
 
 ```bash
 git clone --depth=1 --branch release/21.x https://github.com/llvm/llvm-project.git
