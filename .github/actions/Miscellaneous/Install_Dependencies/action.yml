@@ -15,6 +15,7 @@ runs:
         else
           brew remove unxip
         fi
+        brew remove kotlin
         # workaround for https://github.com/actions/setup-python/issues/577
         for pkg in $(brew list | grep '^python@'); do
           brew unlink "$pkg"
