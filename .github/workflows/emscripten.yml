@@ -355,8 +355,8 @@ jobs:
           }
           elseif ( "${{ matrix.clang-runtime }}" -imatch "21" )
           {
-            git apply -v Windows-emscripten-clang21-1-CrossCompile.patch
-            git apply -v emscripten-clang21-2-shift-temporary-files-to-tmp-dir.patch
+            git apply -v emscripten-clang21-1-shift-temporary-files-to-tmp-dir.patch
+            git apply -v emscripten-clang21-2-enable_exception_handling.patch
           }
           cd build
           echo "Apply clang${{ matrix.clang-runtime }}-*.patch patches:"
