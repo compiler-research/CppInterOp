@@ -2681,17 +2681,18 @@ TEST(FunctionReflectionTest, DestructArray) {
   output.clear();
 
   // deallocate since we call the destructor withFree = false
-  Cpp::Deallocate(scope, where, 5);
+  Cpp::Deallocate(scope, where, a);
 
   // perform the same withFree=true
-  where = Cpp::Allocate(scope, a);
-  EXPECT_TRUE(where == Cpp::Construct(scope, where, a));
+  where = nullptr;
+  where = Cpp::Construct(scope, nullptr, a);
+  EXPECT_TRUE(where);
   testing::internal::CaptureStdout();
-  // FIXME : This should work with the array of objects as well
-  // Cpp::Destruct(where, scope, true, 5);
-  EXPECT_TRUE(Cpp::Destruct(where, scope, true));
+  EXPECT_TRUE(Cpp::Destruct(where, scope, true, a));
   output = testing::internal::GetCapturedStdout();
-  EXPECT_EQ(output, "\nDestructor Executed\n");
+  EXPECT_EQ(output,
+            "\nDestructor Executed\n\nDestructor Executed\n\nDestructor "
+            "Executed\n\nDestructor Executed\n\nDestructor Executed\n");
   output.clear();
 }
 
