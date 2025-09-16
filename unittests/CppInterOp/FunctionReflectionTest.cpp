@@ -2623,8 +2623,6 @@ TEST(FunctionReflectionTest, DestructArray) {
 #ifdef EMSCRIPTEN
   GTEST_SKIP() << "Test fails for Emscipten builds";
 #endif
-  if (llvm::sys::RunningOnValgrind())
-    GTEST_SKIP() << "XFAIL due to Valgrind report";
 
 #ifdef _WIN32
   GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
