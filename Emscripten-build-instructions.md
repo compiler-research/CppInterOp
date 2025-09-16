@@ -359,7 +359,7 @@ emcmake cmake \
  emmake make -j $(nproc --all) install
 ```
 
-and on Windows by executing 
+and on Windows by executing
 
 ```powershell
 cd ..\..
