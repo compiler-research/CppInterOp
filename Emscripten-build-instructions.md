@@ -370,8 +370,8 @@ mkdir build
 cd build
 emcmake cmake `
           -DCMAKE_BUILD_TYPE=Release                                     `
-          -DCMAKE_PREFIX_PATH="$PREFIX"                                    `
-          -DCMAKE_INSTALL_PREFIX="$PREFIX"                                 `
+          -DCMAKE_PREFIX_PATH="$env:PREFIX"                                    `
+          -DCMAKE_INSTALL_PREFIX="$env:PREFIX"                                 `
           -DXEUS_CPP_EMSCRIPTEN_WASM_BUILD=ON                            `
           -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON                         `
           -DXEUS_CPP_RESOURCE_DIR="$env:LLVM_BUILD_DIR/lib/clang/$env:LLVM_VERSION" `
