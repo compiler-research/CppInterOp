@@ -3080,12 +3080,16 @@ int get_wrapper_code(compat::Interpreter& I, const FunctionDecl* FD,
 JitCall::GenericCall make_wrapper(compat::Interpreter& I,
                                   const FunctionDecl* FD) {
   static std::map<const FunctionDecl*, void*> gWrapperStore;
+  static std::recursive_mutex gWrapperStoreMutex;
 
   LOCK(getInterpInfo(FD));
 
-  auto R = gWrapperStore.find(FD);
-  if (R != gWrapperStore.end())
-    return (JitCall::GenericCall)R->second;
+  {
+    std::lock_guard<std::recursive_mutex> Lock(gWrapperStoreMutex);
+    auto R = gWrapperStore.find(FD);
+    if (R != gWrapperStore.end())
+      return (JitCall::GenericCall)R->second;
+  }
 
   std::string wrapper_name;
   std::string wrapper_code;
@@ -3103,6 +3107,7 @@ JitCall::GenericCall make_wrapper(compat::Interpreter& I,
   void* wrapper =
       compile_wrapper(I, wrapper_name, wrapper_code, withAccessControl);
   if (wrapper) {
+    std::lock_guard<std::recursive_mutex> Lock(gWrapperStoreMutex);
     gWrapperStore.insert(std::make_pair(FD, wrapper));
   } else {
     llvm::errs() << "TClingCallFunc::make_wrapper"
@@ -3174,12 +3179,16 @@ static JitCall::DestructorCall make_dtor_wrapper(compat::Interpreter& interp,
   //--
 
   static map<const Decl*, void*> gDtorWrapperStore;
+  static std::recursive_mutex gDtorWrapperStoreMutex;
 
   LOCK(getInterpInfo(D));
 
-  auto I = gDtorWrapperStore.find(D);
-  if (I != gDtorWrapperStore.end())
-    return (JitCall::DestructorCall)I->second;
+  {
+    std::lock_guard<std::recursive_mutex> Lock(gDtorWrapperStoreMutex);
+    auto I = gDtorWrapperStore.find(D);
+    if (I != gDtorWrapperStore.end())
+      return (JitCall::DestructorCall)I->second;
+  }
 
   //
   //  Make the wrapper name.
@@ -3279,6 +3288,7 @@ static JitCall::DestructorCall make_dtor_wrapper(compat::Interpreter& interp,
   void* F = compile_wrapper(interp, wrapper_name, wrapper,
                             /*withAccessControl=*/false);
   if (F) {
+    std::lock_guard<std::recursive_mutex> Lock(gDtorWrapperStoreMutex);
     gDtorWrapperStore.insert(make_pair(D, F));
   } else {
     llvm::errs() << "make_dtor_wrapper"
@@ -3974,14 +3984,14 @@ InstantiateTemplateFunctionFromString(const char* function_template,
                                       TInterp_t interp /*=nullptr*/) {
   // FIXME: Drop this interface and replace it with the proper overload
   // resolution handling and template instantiation selection.
+  auto* I = static_cast<compat::Interpreter*>(interp);
+  LOCK(getInterpInfo(I));
 
   // Try to force template instantiation and overload resolution.
   static unsigned long long var_count = 0;
   std::string id = "__Cppyy_GetMethTmpl_" + std::to_string(var_count++);
   std::string instance = "auto " + id + " = " + function_template + ";\n";
 
-  auto* I = static_cast<compat::Interpreter*>(interp);
-  LOCK(getInterpInfo(I));
   if (!Cpp::Declare(instance.c_str(), /*silent=*/false, interp)) {
     auto* VD = static_cast<VarDecl*>(Cpp::GetNamed(id, nullptr, interp));
     Expr* E = VD->getInit()->IgnoreImpCasts();
