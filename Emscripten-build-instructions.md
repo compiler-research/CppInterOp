@@ -178,7 +178,7 @@ export CMAKE_SYSTEM_PREFIX_PATH=$PREFIX
 and
 
 ```powershell
-$env:PREFIX="%CONDA_PREFIX%/envs/CppInterOp-wasm"
+$env:PREFIX="$env:MAMBA_ROOT_PREFIX/envs/CppInterOp-wasm"
 $env:CMAKE_PREFIX_PATH=$env:PREFIX
 $env:CMAKE_SYSTEM_PREFIX_PATH=$env:PREFIX
 ```
@@ -337,7 +337,7 @@ emmake make -j $(nproc --all) install
 ## Xeus-cpp-lite Wasm Build Instructions
 
 A project which makes use of the wasm build of CppInterOp is xeus-cpp. xeus-cpp is a C++ Jupyter kernel. Assuming you are in  
-the CppInterOp build folder, you can build the wasm version of xeus-cpp by executing (replace LLVM_VERSION with the version
+the CppInterOp build folder, you can build the wasm version of xeus-cpp on Linux/MacOS by executing (replace LLVM_VERSION with the version
 of llvm you are building against)
 
 ```bash
@@ -359,7 +359,28 @@ emcmake cmake \
  emmake make -j $(nproc --all) install
 ```
 
-To build and test Jupyter Lite with this kernel locally you can execute the following
+and on Windows by executing 
+
+```powershell
+cd ..\..
+git clone --depth=1 https://github.com/compiler-research/xeus-cpp.git
+$env:LLVM_VERSION=20
+cd .\xeus-cpp
+mkdir build
+cd build
+emcmake cmake `
+          -DCMAKE_BUILD_TYPE=Release                                     `
+          -DCMAKE_PREFIX_PATH="$PREFIX"                                    `
+          -DCMAKE_INSTALL_PREFIX="$PREFIX"                                 `
+          -DXEUS_CPP_EMSCRIPTEN_WASM_BUILD=ON                            `
+          -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON                         `
+          -DXEUS_CPP_RESOURCE_DIR="$env:LLVM_BUILD_DIR/lib/clang/$env:LLVM_VERSION" `
+          -DSYSROOT_PATH="$env:SYSROOT_PATH"                                   `
+          ..
+ emmake make -j $(nproc --all) install
+```
+
+To build and test Jupyter Lite with this kernel locally on Linux/MacOS you can execute the following
 
 ```bash
 cd ../..
@@ -372,4 +393,19 @@ jupyter lite serve --XeusAddon.prefix=$PREFIX \
                    --contents xeus-cpp/notebooks/audio/audio.wav \
                    --XeusAddon.mounts="$PREFIX/share/xeus-cpp/tagfiles:/share/xeus-cpp/tagfiles" \
                    --XeusAddon.mounts="$PREFIX/etc/xeus-cpp/tags.d:/etc/xeus-cpp/tags.d"
+```
+
+and on Windows execute
+
+```powershell
+cd ..\..
+micromamba create -n xeus-lite-host jupyterlite-core=0.6 jupyterlite-xeus jupyter_server jupyterlab notebook python-libarchive-c -c conda-forge
+micromamba activate xeus-lite-host
+jupyter lite serve --XeusAddon.prefix="$env:PREFIX" `
+                   --contents xeus-cpp/notebooks/xeus-cpp-lite-demo.ipynb `
+                   --contents xeus-cpp/notebooks/smallpt.ipynb `
+                   --contents xeus-cpp/notebooks/images/marie.png `
+                   --contents xeus-cpp/notebooks/audio/audio.wav `
+                   --XeusAddon.mounts="$env:PREFIX/share/xeus-cpp/tagfiles:/share/xeus-cpp/tagfiles" `
+                   --XeusAddon.mounts="$env:PREFIX/etc/xeus-cpp/tags.d:/etc/xeus-cpp/tags.d"
 ```
