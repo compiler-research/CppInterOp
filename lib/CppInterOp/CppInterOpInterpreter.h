@@ -39,6 +39,7 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/TargetParser/Triple.h"
 
+#include <mutex>
 #include <utility>
 #include <vector>
 
@@ -151,11 +152,14 @@ public:
              moduleExtensions = {},
          void* extraLibHandle = nullptr, bool noRuntime = true) {
     // Initialize all targets (required for device offloading)
-    llvm::InitializeAllTargetInfos();
-    llvm::InitializeAllTargets();
-    llvm::InitializeAllTargetMCs();
-    llvm::InitializeAllAsmParsers();
-    llvm::InitializeAllAsmPrinters();
+    static std::once_flag call_once_flag;
+    std::call_once(call_once_flag, []() {
+      llvm::InitializeAllTargetInfos();
+      llvm::InitializeAllTargets();
+      llvm::InitializeAllTargetMCs();
+      llvm::InitializeAllAsmPrinters();
+      llvm::InitializeAllAsmParsers();
+    });
 
     std::vector<const char*> vargs(argv + 1, argv + argc);
     auto CI = compat::createClangInterpreter(vargs);
@@ -340,7 +344,10 @@ public:
 
   const clang::CompilerInstance* getCI() const { return getCompilerInstance(); }
 
-  clang::Sema& getSema() const { return getCI()->getSema(); }
+  [[nodiscard]] clang::Sema& getSema() const { return getCI()->getSema(); }
+  [[nodiscard]] clang::ASTContext& getASTContext() const {
+    return getSema().getASTContext();
+  }
 
   const DynamicLibraryManager* getDynamicLibraryManager() const {
     assert(compat::getExecutionEngine(*inner) && "We must have an executor");

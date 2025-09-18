@@ -8,11 +8,13 @@
 
 #include "gtest/gtest.h"
 
+#include <utility>
+
 using namespace TestUtils;
 using namespace llvm;
 using namespace clang;
 
-TEST(ScopeReflectionTest, IsEnumScope) {
+static void EnumReflectionTest_IsEnumScope() {
   std::vector<Decl *> Decls, SubDecls;
   std::string code = R"(
     enum Switch {
@@ -34,7 +36,7 @@ TEST(ScopeReflectionTest, IsEnumScope) {
   EXPECT_FALSE(Cpp::IsEnumScope(SubDecls[1]));
 }
 
-TEST(ScopeReflectionTest, IsEnumConstant) {
+static void EnumReflectionTest_IsEnumConstant() {
   std::vector<Decl *> Decls, SubDecls;
   std::string code = R"(
     enum Switch {
@@ -56,7 +58,7 @@ TEST(ScopeReflectionTest, IsEnumConstant) {
   EXPECT_TRUE(Cpp::IsEnumConstant(SubDecls[1]));
 }
 
-TEST(EnumReflectionTest, IsEnumType) {
+static void EnumReflectionTest_IsEnumType() {
   std::vector<Decl *> Decls;
   std::string code =  R"(
     enum class E {
@@ -84,7 +86,7 @@ TEST(EnumReflectionTest, IsEnumType) {
   EXPECT_TRUE(Cpp::IsEnumType(Cpp::GetVariableType(Decls[5])));
 }
 
-TEST(EnumReflectionTest, GetIntegerTypeFromEnumScope) {
+static void EnumReflectionTest_GetIntegerTypeFromEnumScope() {
   std::vector<Decl *> Decls;
   std::string code = R"(
     enum Switch : bool {
@@ -134,7 +136,7 @@ TEST(EnumReflectionTest, GetIntegerTypeFromEnumScope) {
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetIntegerTypeFromEnumScope(Decls[5])),"NULL TYPE");
 }
 
-TEST(EnumReflectionTest, GetIntegerTypeFromEnumType) {
+static void EnumReflectionTest_GetIntegerTypeFromEnumType() {
   std::vector<Decl *> Decls;
   std::string code = R"(
     enum Switch : bool {
@@ -194,7 +196,7 @@ TEST(EnumReflectionTest, GetIntegerTypeFromEnumType) {
   EXPECT_EQ(get_int_type_from_enum_var(Decls[11]), "NULL TYPE"); // When a non Enum Type variable is used
 }
 
-TEST(EnumReflectionTest, GetEnumConstants) {
+static void EnumReflectionTest_GetEnumConstants() {
   std::vector<Decl *> Decls;
   std::string code = R"(
     enum ZeroEnum {
@@ -238,7 +240,7 @@ TEST(EnumReflectionTest, GetEnumConstants) {
   EXPECT_EQ(Cpp::GetEnumConstants(Decls[5]).size(), 0);
 }
 
-TEST(EnumReflectionTest, GetEnumConstantType) {
+static void EnumReflectionTest_GetEnumConstantType() {
   std::vector<Decl *> Decls;
   std::string code = R"(
     enum Enum0 {
@@ -269,7 +271,7 @@ TEST(EnumReflectionTest, GetEnumConstantType) {
   EXPECT_EQ(get_enum_constant_type_as_str(nullptr), "NULL TYPE");
 }
 
-TEST(EnumReflectionTest, GetEnumConstantValue) {
+static void EnumReflectionTest_GetEnumConstantValue() {
   std::vector<Decl *> Decls;
   std::string code = R"(
     enum Counter {
@@ -297,7 +299,7 @@ TEST(EnumReflectionTest, GetEnumConstantValue) {
   EXPECT_EQ(Cpp::GetEnumConstantValue(Decls[1]), 0); // Checking value of non enum constant
 }
 
-TEST(EnumReflectionTest, GetEnums) {
+static void EnumReflectionTest_GetEnums() {
   std::string code = R"(
     enum Color {
       Red,
@@ -338,13 +340,13 @@ TEST(EnumReflectionTest, GetEnums) {
     int myVariable;
     )";
 
-  Cpp::CreateInterpreter();
-  Interp->declare(code);
+  Cpp::TInterp_t I = Cpp::CreateInterpreter();
+  Cpp::Declare(code.c_str(), false, I);
   std::vector<std::string> enumNames1, enumNames2, enumNames3, enumNames4;
-  Cpp::TCppScope_t globalscope = Cpp::GetScope("", 0);
-  Cpp::TCppScope_t Animals_scope = Cpp::GetScope("Animals", 0);
-  Cpp::TCppScope_t myClass_scope = Cpp::GetScope("myClass", 0);
-  Cpp::TCppScope_t unsupported_scope = Cpp::GetScope("myVariable", 0);
+  Cpp::TCppScope_t globalscope = Cpp::GetScope("", nullptr, I);
+  Cpp::TCppScope_t Animals_scope = Cpp::GetScope("Animals", nullptr, I);
+  Cpp::TCppScope_t myClass_scope = Cpp::GetScope("myClass", nullptr, I);
+  Cpp::TCppScope_t unsupported_scope = Cpp::GetScope("myVariable", nullptr, I);
 
   Cpp::GetEnums(globalscope,enumNames1);
   Cpp::GetEnums(Animals_scope,enumNames2);
@@ -358,4 +360,24 @@ TEST(EnumReflectionTest, GetEnums) {
   EXPECT_TRUE(std::find(enumNames2.begin(), enumNames2.end(), "Months") != enumNames2.end());
   EXPECT_TRUE(std::find(enumNames3.begin(), enumNames3.end(), "Color") != enumNames3.end());
   EXPECT_TRUE(enumNames4.empty());
+}
+
+TEST(EnumReflectionTest, EnumReflectionTest) {
+  std::vector<std::pair<const char*, void (*)()>> fns = {
+      {"EnumReflectionTest_IsEnumScope", EnumReflectionTest_IsEnumScope},
+      {"EnumReflectionTest_IsEnumConstant", EnumReflectionTest_IsEnumConstant},
+      {"EnumReflectionTest_IsEnumType", EnumReflectionTest_IsEnumType},
+      {"EnumReflectionTest_GetIntegerTypeFromEnumScope",
+       EnumReflectionTest_GetIntegerTypeFromEnumScope},
+      {"EnumReflectionTest_GetIntegerTypeFromEnumType",
+       EnumReflectionTest_GetIntegerTypeFromEnumType},
+      {"EnumReflectionTest_GetEnumConstants",
+       EnumReflectionTest_GetEnumConstants},
+      {"EnumReflectionTest_GetEnumConstantType",
+       EnumReflectionTest_GetEnumConstantType},
+      {"EnumReflectionTest_GetEnumConstantValue",
+       EnumReflectionTest_GetEnumConstantValue},
+      {"EnumReflectionTest_GetEnums", EnumReflectionTest_GetEnums},
+  };
+  ThreadPoolExecutor::run(fns);
 }
