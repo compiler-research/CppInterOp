@@ -11,12 +11,16 @@
 #include <string>
 
 #include <cstddef>
+#include <utility>
 
 using namespace TestUtils;
 using namespace llvm;
 using namespace clang;
 
-TEST(VariableReflectionTest, GetDatamembers) {
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
+static Cpp::TInterp_t I = nullptr;
+
+static void VariableReflectionTest_GetDatamembers() {
   std::vector<Decl*> Decls;
   std::string code = R"(
     class C {
@@ -113,7 +117,8 @@ TEST(VariableReflectionTest, GetDatamembers) {
 
 CODE
 
-TEST(VariableReflectionTest, DatamembersWithAnonymousStructOrUnion) {
+    static void
+    VariableReflectionTest_DatamembersWithAnonymousStructOrUnion() {
   if (llvm::sys::RunningOnValgrind())
     GTEST_SKIP() << "XFAIL due to Valgrind report";
 
@@ -162,7 +167,7 @@ TEST(VariableReflectionTest, DatamembersWithAnonymousStructOrUnion) {
 #endif
 }
 
-TEST(VariableReflectionTest, GetTypeAsString) {
+static void VariableReflectionTest_GetTypeAsString() {
   if (llvm::sys::RunningOnValgrind())
     GTEST_SKIP() << "XFAIL due to Valgrind report";
 
@@ -180,11 +185,10 @@ TEST(VariableReflectionTest, GetTypeAsString) {
   }
   )";
 
-  Cpp::CreateInterpreter();
-  EXPECT_EQ(Cpp::Declare(code.c_str()), 0);
+  EXPECT_EQ(Cpp::Declare(code.c_str(), false, I), 0);
 
   Cpp::TCppScope_t wrapper =
-      Cpp::GetScopeFromCompleteName("my_namespace::Wrapper");
+      Cpp::GetScopeFromCompleteName("my_namespace::Wrapper", I);
   EXPECT_TRUE(wrapper);
 
   std::vector<Cpp::TCppScope_t> datamembers;
@@ -195,7 +199,7 @@ TEST(VariableReflectionTest, GetTypeAsString) {
             "my_namespace::Container");
 }
 
-TEST(VariableReflectionTest, LookupDatamember) {
+static void VariableReflectionTest_LookupDatamember() {
   std::vector<Decl*> Decls;
   std::string code = R"(
     class C {
@@ -219,7 +223,7 @@ TEST(VariableReflectionTest, LookupDatamember) {
   EXPECT_EQ(Cpp::GetQualifiedName(Cpp::LookupDatamember("k", Decls[0])), "<unnamed>");
 }
 
-TEST(VariableReflectionTest, GetVariableType) {
+static void VariableReflectionTest_GetVariableType() {
   std::vector<Decl*> Decls;
   std::string code = R"(
     class C {};
@@ -268,7 +272,8 @@ TEST(VariableReflectionTest, GetVariableType) {
 
 CODE
 
-TEST(VariableReflectionTest, GetVariableOffset) {
+    static void
+    VariableReflectionTest_GetVariableOffset() {
 #ifdef EMSCRIPTEN
 #if CLANG_VERSION_MAJOR < 20
   GTEST_SKIP() << "Test fails for Emscipten builds";
@@ -277,7 +282,8 @@ TEST(VariableReflectionTest, GetVariableOffset) {
   std::vector<Decl *> Decls;
 #define Stringify(s) Stringifyx(s)
 #define Stringifyx(...) #__VA_ARGS__
-  GetAllTopLevelDecls(Stringify(CODE), Decls);
+  Cpp::TInterp_t I = GetAllTopLevelDecls(Stringify(CODE), Decls);
+  EXPECT_TRUE(I);
 #undef Stringifyx
 #undef Stringify
 #undef CODE
@@ -311,11 +317,11 @@ TEST(VariableReflectionTest, GetVariableOffset) {
     int y;
     int z;
   };
-  Cpp::Declare("struct K;");
-  Cpp::TCppScope_t k = Cpp::GetNamed("K");
+  EXPECT_FALSE(Cpp::Declare("struct K;", false, I));
+  Cpp::TCppScope_t k = Cpp::GetNamed("K", Cpp::GetGlobalScope(I));
   EXPECT_TRUE(k);
 
-  Cpp::Declare("struct K { int x; int y; int z; };");
+  EXPECT_FALSE(Cpp::Declare("struct K { int x; int y; int z; };", false, I));
 
   datamembers.clear();
   Cpp::GetDatamembers(k, datamembers);
@@ -325,17 +331,19 @@ TEST(VariableReflectionTest, GetVariableOffset) {
   EXPECT_EQ(Cpp::GetVariableOffset(datamembers[1]), offsetof(K, y));
   EXPECT_EQ(Cpp::GetVariableOffset(datamembers[2]), offsetof(K, z));
 
-  Cpp::Declare(R"(
+  EXPECT_FALSE(Cpp::Declare(R"(
     template <typename T> struct ClassWithStatic {
       static T const ref_value;
     };
     template <typename T> T constexpr ClassWithStatic<T>::ref_value = 42;
-  )");
+  )",
+                            false, I));
 
-  Cpp::TCppScope_t klass = Cpp::GetNamed("ClassWithStatic");
+  Cpp::TCppScope_t klass =
+      Cpp::GetNamed("ClassWithStatic", Cpp::GetGlobalScope(I));
   EXPECT_TRUE(klass);
 
-  ASTContext& C = Interp->getCI()->getASTContext();
+  ASTContext& C = TU_getASTContext(I);
   std::vector<Cpp::TemplateArgInfo> template_args = {
       {C.IntTy.getAsOpaquePtr()}};
   Cpp::TCppScope_t klass_instantiated = Cpp::InstantiateTemplate(
@@ -381,7 +389,8 @@ TEST(VariableReflectionTest, GetVariableOffset) {
 
 CODE
 
-TEST(VariableReflectionTest, VariableOffsetsWithInheritance) {
+    static void
+    VariableReflectionTest_VariableOffsetsWithInheritance() {
 #if CLANG_VERSION_MAJOR == 18 && defined(CPPINTEROP_USE_CLING) &&              \
     defined(_WIN32) && (defined(_M_ARM) || defined(_M_ARM64))
   GTEST_SKIP() << "Test fails with Cling on Windows on ARM";
@@ -389,19 +398,16 @@ TEST(VariableReflectionTest, VariableOffsetsWithInheritance) {
   if (llvm::sys::RunningOnValgrind())
     GTEST_SKIP() << "XFAIL due to Valgrind report";
 
-  std::vector<const char*> interpreter_args = {"-include", "new"};
-  Cpp::CreateInterpreter(interpreter_args);
-
-  Cpp::Declare("#include<string>");
+  EXPECT_FALSE(Cpp::Declare("#include<string>", false, I));
 
 #define Stringify(s) Stringifyx(s)
 #define Stringifyx(...) #__VA_ARGS__
-  Cpp::Declare(Stringify(CODE));
+  EXPECT_FALSE(Cpp::Declare(Stringify(CODE), false, I));
 #undef Stringifyx
 #undef Stringify
 #undef CODE
 
-  Cpp::TCppScope_t myklass = Cpp::GetNamed("MyKlass");
+  Cpp::TCppScope_t myklass = Cpp::GetNamed("MyKlass", Cpp::GetGlobalScope(I));
   EXPECT_TRUE(myklass);
 
   size_t num_bases = Cpp::GetNumBases(myklass);
@@ -437,7 +443,7 @@ TEST(VariableReflectionTest, VariableOffsetsWithInheritance) {
             ((intptr_t)&(my_k.s)) - ((intptr_t)&(my_k)));
 }
 
-TEST(VariableReflectionTest, IsPublicVariable) {
+static void VariableReflectionTest_IsPublicVariable() {
   std::vector<Decl *> Decls, SubDecls;
   std::string code = R"(
     class C {
@@ -460,7 +466,7 @@ TEST(VariableReflectionTest, IsPublicVariable) {
   EXPECT_FALSE(Cpp::IsPublicVariable(SubDecls[7]));
 }
 
-TEST(VariableReflectionTest, IsProtectedVariable) {
+static void VariableReflectionTest_IsProtectedVariable() {
   std::vector<Decl *> Decls, SubDecls;
   std::string code = R"(
     class C {
@@ -481,7 +487,7 @@ TEST(VariableReflectionTest, IsProtectedVariable) {
   EXPECT_TRUE(Cpp::IsProtectedVariable(SubDecls[6]));
 }
 
-TEST(VariableReflectionTest, IsPrivateVariable) {
+static void VariableReflectionTest_IsPrivateVariable() {
   std::vector<Decl *> Decls, SubDecls;
   std::string code = R"(
     class C {
@@ -502,7 +508,7 @@ TEST(VariableReflectionTest, IsPrivateVariable) {
   EXPECT_FALSE(Cpp::IsPrivateVariable(SubDecls[6]));
 }
 
-TEST(VariableReflectionTest, IsStaticVariable) {
+static void VariableReflectionTest_IsStaticVariable() {
   std::vector<Decl *> Decls, SubDecls;
   std::string code =  R"(
     class C {
@@ -518,7 +524,7 @@ TEST(VariableReflectionTest, IsStaticVariable) {
   EXPECT_TRUE(Cpp::IsStaticVariable(SubDecls[2]));
 }
 
-TEST(VariableReflectionTest, IsConstVariable) {
+static void VariableReflectionTest_IsConstVariable() {
   std::vector<Decl *> Decls, SubDecls;
   std::string code =  R"(
     class C {
@@ -535,7 +541,7 @@ TEST(VariableReflectionTest, IsConstVariable) {
   EXPECT_TRUE(Cpp::IsConstVariable(SubDecls[2]));
 }
 
-TEST(VariableReflectionTest, DISABLED_GetArrayDimensions) {
+static void VariableReflectionTest_DISABLED_GetArrayDimensions() {
   std::vector<Decl *> Decls;
   std::string code =  R"(
     int a;
@@ -559,7 +565,7 @@ TEST(VariableReflectionTest, DISABLED_GetArrayDimensions) {
   // EXPECT_TRUE(is_vec_eq(Cpp::GetArrayDimensions(Decls[2]), {1,2}));
 }
 
-TEST(VariableReflectionTest, StaticConstExprDatamember) {
+static void VariableReflectionTest_StaticConstExprDatamember() {
   if (llvm::sys::RunningOnValgrind())
     GTEST_SKIP() << "XFAIL due to Valgrind report";
 
@@ -567,9 +573,7 @@ TEST(VariableReflectionTest, StaticConstExprDatamember) {
   GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
 #endif
 
-  Cpp::CreateInterpreter();
-
-  Cpp::Declare(R"(
+  EXPECT_FALSE(Cpp::Declare(R"(
   class MyClass {
   public:
     static constexpr int x = 3;
@@ -590,9 +594,10 @@ TEST(VariableReflectionTest, StaticConstExprDatamember) {
   template<typename... Eles>
   struct Elements
   : public integral_constant<int, sizeof...(Eles)> {};
-  )");
+  )",
+                            false, I));
 
-  Cpp::TCppScope_t MyClass = Cpp::GetNamed("MyClass");
+  Cpp::TCppScope_t MyClass = Cpp::GetNamed("MyClass", Cpp::GetGlobalScope(I));
   EXPECT_TRUE(MyClass);
 
   std::vector<Cpp::TCppScope_t> datamembers;
@@ -602,13 +607,13 @@ TEST(VariableReflectionTest, StaticConstExprDatamember) {
   intptr_t offset = Cpp::GetVariableOffset(datamembers[0]);
   EXPECT_EQ(3, *(size_t*)offset);
 
-  ASTContext& C = Interp->getCI()->getASTContext();
+  ASTContext& C = TU_getASTContext(I);
   std::vector<Cpp::TemplateArgInfo> template_args = {
       {C.IntTy.getAsOpaquePtr(), "5"}};
 
-  Cpp::TCppFunction_t MyTemplatedClass =
-      Cpp::InstantiateTemplate(Cpp::GetNamed("MyTemplatedClass"),
-                               template_args.data(), template_args.size());
+  Cpp::TCppFunction_t MyTemplatedClass = Cpp::InstantiateTemplate(
+      Cpp::GetNamed("MyTemplatedClass", Cpp::GetGlobalScope(I)),
+      template_args.data(), template_args.size());
   EXPECT_TRUE(MyTemplatedClass);
 
   datamembers.clear();
@@ -622,8 +627,8 @@ TEST(VariableReflectionTest, StaticConstExprDatamember) {
       {C.IntTy.getAsOpaquePtr()}, {C.FloatTy.getAsOpaquePtr()}};
 
   Cpp::TCppFunction_t Elements = Cpp::InstantiateTemplate(
-      Cpp::GetNamed("Elements"), ele_template_args.data(),
-      ele_template_args.size());
+      Cpp::GetNamed("Elements", Cpp::GetGlobalScope(I)),
+      ele_template_args.data(), ele_template_args.size());
   EXPECT_TRUE(Elements);
 
   EXPECT_EQ(1, Cpp::GetNumBases(Elements));
@@ -638,18 +643,18 @@ TEST(VariableReflectionTest, StaticConstExprDatamember) {
   EXPECT_EQ(2, *(size_t*)offset);
 }
 
-TEST(VariableReflectionTest, GetEnumConstantDatamembers) {
-  Cpp::CreateInterpreter();
-
-  Cpp::Declare(R"(
+static void VariableReflectionTest_GetEnumConstantDatamembers() {
+  EXPECT_FALSE(Cpp::Declare(R"(
   class MyEnumClass {
     enum { FOUR, FIVE, SIX };
     enum A { ONE, TWO, THREE };
     enum class B { SEVEN, EIGHT, NINE };
   };
-  )");
+  )",
+                            false, I));
 
-  Cpp::TCppScope_t MyEnumClass = Cpp::GetNamed("MyEnumClass");
+  Cpp::TCppScope_t MyEnumClass =
+      Cpp::GetNamed("MyEnumClass", Cpp::GetGlobalScope(I));
   EXPECT_TRUE(MyEnumClass);
 
   std::vector<Cpp::TCppScope_t> datamembers;
@@ -662,8 +667,7 @@ TEST(VariableReflectionTest, GetEnumConstantDatamembers) {
   EXPECT_EQ(datamembers2.size(), 6);
 }
 
-TEST(VariableReflectionTest, Is_Get_Pointer) {
-  Cpp::CreateInterpreter();
+static void VariableReflectionTest_Is_Get_Pointer() {
   std::vector<Decl*> Decls;
   std::string code = R"(
   class A {};
@@ -694,8 +698,7 @@ TEST(VariableReflectionTest, Is_Get_Pointer) {
   EXPECT_FALSE(Cpp::GetPointeeType(Cpp::GetVariableType(Decls[5])));
 }
 
-TEST(VariableReflectionTest, Is_Get_Reference) {
-  Cpp::CreateInterpreter();
+static void VariableReflectionTest_Is_Get_Reference() {
   std::vector<Decl*> Decls;
   std::string code = R"(
   class A {};
@@ -732,8 +735,7 @@ TEST(VariableReflectionTest, Is_Get_Reference) {
       Cpp::GetReferencedType(Cpp::GetVariableType(Decls[1]), true)));
 }
 
-TEST(VariableReflectionTest, GetPointerType) {
-  Cpp::CreateInterpreter();
+static void VariableReflectionTest_GetPointerType() {
   std::vector<Decl*> Decls;
   std::string code = R"(
   class A {};
@@ -753,4 +755,49 @@ TEST(VariableReflectionTest, GetPointerType) {
             Cpp::GetVariableType(Decls[4]));
   EXPECT_EQ(Cpp::GetPointerType(Cpp::GetVariableType(Decls[5])),
             Cpp::GetVariableType(Decls[6]));
+}
+
+TEST(VariableReflectionTest, VariableReflectionTest) {
+  I = Cpp::CreateInterpreter({"-include", "new"});
+  EXPECT_TRUE(I);
+
+  std::vector<std::pair<const char*, void (*)()>> fns = {
+      {"VariableReflectionTest_GetDatamembers",
+       VariableReflectionTest_GetDatamembers},
+      {"VariableReflectionTest_DatamembersWithAnonymousStructOrUnion",
+       VariableReflectionTest_DatamembersWithAnonymousStructOrUnion},
+      {"VariableReflectionTest_GetTypeAsString",
+       VariableReflectionTest_GetTypeAsString},
+      {"VariableReflectionTest_LookupDatamember",
+       VariableReflectionTest_LookupDatamember},
+      {"VariableReflectionTest_GetVariableType",
+       VariableReflectionTest_GetVariableType},
+      {"VariableReflectionTest_GetVariableOffset",
+       VariableReflectionTest_GetVariableOffset},
+      {"VariableReflectionTest_VariableOffsetsWithInheritance",
+       VariableReflectionTest_VariableOffsetsWithInheritance},
+      {"VariableReflectionTest_IsPublicVariable",
+       VariableReflectionTest_IsPublicVariable},
+      {"VariableReflectionTest_IsProtectedVariable",
+       VariableReflectionTest_IsProtectedVariable},
+      {"VariableReflectionTest_IsPrivateVariable",
+       VariableReflectionTest_IsPrivateVariable},
+      {"VariableReflectionTest_IsStaticVariable",
+       VariableReflectionTest_IsStaticVariable},
+      {"VariableReflectionTest_IsConstVariable",
+       VariableReflectionTest_IsConstVariable},
+      {"VariableReflectionTest_DISABLED_GetArrayDimensions",
+       VariableReflectionTest_DISABLED_GetArrayDimensions},
+      {"VariableReflectionTest_StaticConstExprDatamember",
+       VariableReflectionTest_StaticConstExprDatamember},
+      {"VariableReflectionTest_GetEnumConstantDatamembers",
+       VariableReflectionTest_GetEnumConstantDatamembers},
+      {"VariableReflectionTest_Is_Get_Pointer",
+       VariableReflectionTest_Is_Get_Pointer},
+      {"VariableReflectionTest_Is_Get_Reference",
+       VariableReflectionTest_Is_Get_Reference},
+      {"VariableReflectionTest_GetPointerType",
+       VariableReflectionTest_GetPointerType},
+  };
+  ThreadPoolExecutor::run(fns);
 }

@@ -12,17 +12,25 @@
 #include "llvm/TargetParser/Triple.h"
 
 #include <algorithm>
+#include <cassert>
+#include <chrono>
+#include <cstddef>
+#include <future>
+#include <iostream>
 #include <string>
+#include <utility>
 #include <vector>
 
 using namespace clang;
 using namespace llvm;
+using namespace std::chrono_literals;
 
-void TestUtils::GetAllTopLevelDecls(
+Cpp::TInterp_t TestUtils::GetAllTopLevelDecls(
     const std::string& code, std::vector<Decl*>& Decls,
     bool filter_implicitGenerated /* = false */,
     const std::vector<const char*>& interpreter_args /* = {} */) {
-  Cpp::CreateInterpreter(interpreter_args);
+  Cpp::TInterp_t I = Cpp::CreateInterpreter(interpreter_args);
+  auto* Interp = static_cast<compat::Interpreter*>(I);
 #ifdef CPPINTEROP_USE_CLING
   cling::Transaction *T = nullptr;
   Interp->declare(code, &T);
@@ -45,6 +53,7 @@ void TestUtils::GetAllTopLevelDecls(
     Decls.push_back(D);
   }
 #endif
+  return I;
 }
 
 void TestUtils::GetAllSubDecls(Decl *D, std::vector<Decl*>& SubDecls,
@@ -59,7 +68,8 @@ void TestUtils::GetAllSubDecls(Decl *D, std::vector<Decl*>& SubDecls,
   }
 }
 
-bool IsTargetX86() {
+bool IsTargetX86(Cpp::TInterp_t I) {
+  auto* Interp = static_cast<compat::Interpreter*>(I);
 #ifndef CPPINTEROP_USE_CLING
   llvm::Triple triple(Interp->getCompilerInstance()->getTargetOpts().Triple);
 #else
@@ -79,4 +89,43 @@ void dispose_string(CXString string) {
 
 CXScope make_scope(const clang::Decl* D, const CXInterpreter I) {
   return {CXCursor_UnexposedDecl, 0, {D, nullptr, I}};
+}
+
+void ThreadPoolExecutor::run(
+    std::vector<std::pair<const char*, void (*)()>>& fns, unsigned runners) {
+#ifndef EMSCRIPTEN
+  std::vector<std::future<void>> futures;
+  std::vector<const char*> names;
+  for (size_t i = 0, size = fns.size(); i < size;) {
+    if (futures.size() != runners) {
+      std::cout << "Running: " << std::get<0>(fns[i]) << "\n";
+      futures.emplace_back(std::async(std::launch::async, std::get<1>(fns[i])));
+      names.emplace_back(std::get<0>(fns[i]));
+      i++;
+      continue;
+    }
+    assert(futures.size() == names.size());
+    for (size_t i = 0, size = futures.size(); i < size; i++) {
+      if (futures[0].wait_for(0ms) == std::future_status::ready) {
+        std::cout << "Finished: " << names[0] << "\n";
+        futures.erase(futures.begin());
+        names.erase(names.begin());
+      }
+    }
+  }
+  assert(futures.size() == names.size());
+  for (size_t i = 0, size = futures.size(); i < size; i++) {
+    futures[0].wait();
+    std::cout << "Finished: " << names[0] << "\n";
+    futures.erase(futures.begin());
+    names.erase(names.begin());
+  }
+#else
+  // emscripten does not support threads
+  for (auto& i : fns) {
+    std::cout << "Running: " << std::get<0>(i) << "\n";
+    std::get<1>(i)();
+    std::cout << "Finished: " << std::get<0>(i) << "\n";
+  }
+#endif
 }
