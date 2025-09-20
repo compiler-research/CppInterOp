@@ -52,7 +52,7 @@ TEST(InterpreterTest, DebugFlag) {
   testing::internal::CaptureStderr();
   Cpp::Process("int b = 12;");
   cerrs = testing::internal::GetCapturedStderr();
-  EXPECT_STREQ(cerrs.c_str(), "");
+  EXPECT_STRNE(cerrs.c_str(), "");
 
   Cpp::EnableDebugOutput(false);
   EXPECT_FALSE(Cpp::IsDebugOutputEnabled());
