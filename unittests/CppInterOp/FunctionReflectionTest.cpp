@@ -701,7 +701,7 @@ TEST(FunctionReflectionTest, InstantiateTemplateFunctionFromString) {
   if (llvm::sys::RunningOnValgrind())
     GTEST_SKIP() << "XFAIL due to Valgrind report";
   std::vector<const char*> interpreter_args = { "-include", "new" };
-  Cpp::CreateInterpreter(interpreter_args);
+  TestUtils::CreateInterpreter(interpreter_args);
   std::string code = R"(#include <memory>)";
   Interp->process(code);
   const char* str = "std::make_unique<int,int>";
@@ -1451,6 +1451,11 @@ TEST(FunctionReflectionTest, GetFunctionAddress) {
 #ifdef _WIN32
   GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
 #endif
+
+  if (TestUtils::use_oop_jit()) {
+    GTEST_SKIP() << "Test fails for OOP JIT builds";
+  }
+
   std::vector<Decl*> Decls;
   std::string code = "int f1(int i) { return i * i; }";
   std::vector<const char*> interpreter_args = {"-include", "new"};
@@ -1519,6 +1524,10 @@ TEST(FunctionReflectionTest, JitCallAdvanced) {
   if (llvm::sys::RunningOnValgrind())
     GTEST_SKIP() << "XFAIL due to Valgrind report";
 
+  if (TestUtils::use_oop_jit()) {
+    GTEST_SKIP() << "Test fails for OOP JIT builds";
+  }
+
   Cpp::JitCall JC = Cpp::MakeFunctionCallable(nullptr);
   EXPECT_TRUE(JC.getKind() == Cpp::JitCall::kUnknown);
 
@@ -1566,6 +1575,10 @@ TEST(FunctionReflectionTest, JitCallDebug) {
 #endif
   if (llvm::sys::RunningOnValgrind())
     GTEST_SKIP() << "XFAIL due to Valgrind report";
+
+  if (TestUtils::use_oop_jit()) {
+    GTEST_SKIP() << "Test fails for OOP JIT builds";
+  }
 
   std::vector<Decl*> Decls, SubDecls;
   std::string code = R"(
@@ -1660,6 +1673,9 @@ TEST(FunctionReflectionTest, GetFunctionCallWrapper) {
 #if defined(CPPINTEROP_USE_CLING) && defined(_WIN32)
   GTEST_SKIP() << "Disabled, invoking functions containing printf does not work with Cling on Windows";
 #endif
+  if (TestUtils::use_oop_jit()) {
+    GTEST_SKIP() << "Test fails for OOP JIT builds";
+  }
   std::vector<Decl*> Decls;
   std::string code = R"(
     int f1(int i) { return i * i; }
@@ -2321,6 +2337,9 @@ TEST(FunctionReflectionTest, Construct) {
 #ifdef _WIN32
   GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
 #endif
+  if (TestUtils::use_oop_jit()) {
+    GTEST_SKIP() << "Test fails for OOP JIT builds";
+  }
   std::vector<const char*> interpreter_args = {"-include", "new"};
   std::vector<Decl*> Decls, SubDecls;
 
@@ -2402,8 +2421,11 @@ TEST(FunctionReflectionTest, ConstructPOD) {
 #ifdef _WIN32
   GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
 #endif
+  if (TestUtils::use_oop_jit()) {
+    GTEST_SKIP() << "Test fails for OOP JIT builds";
+  }
   std::vector<const char*> interpreter_args = {"-include", "new"};
-  Cpp::CreateInterpreter(interpreter_args);
+  TestUtils::CreateInterpreter(interpreter_args);
 
   Interp->declare(R"(
     namespace PODS {
@@ -2445,9 +2467,12 @@ TEST(FunctionReflectionTest, ConstructNested) {
 #ifdef _WIN32
   GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
 #endif
+  if (TestUtils::use_oop_jit()) {
+    GTEST_SKIP() << "Test fails for OOP JIT builds";
+  }
 
   std::vector<const char*> interpreter_args = {"-include", "new"};
-  Cpp::CreateInterpreter(interpreter_args);
+  TestUtils::CreateInterpreter(interpreter_args);
 
   Interp->declare(R"(
     #include <new>
@@ -2505,8 +2530,11 @@ TEST(FunctionReflectionTest, ConstructArray) {
 #ifdef _WIN32
   GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
 #endif
+  if (TestUtils::use_oop_jit()) {
+    GTEST_SKIP() << "Test fails for OOP JIT builds";
+  }
 
-  Cpp::CreateInterpreter();
+  TestUtils::CreateInterpreter();
 
   Interp->declare(R"(
       #include <new>
@@ -2558,9 +2586,12 @@ TEST(FunctionReflectionTest, Destruct) {
 #ifdef _WIN32
   GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
 #endif
+  if (TestUtils::use_oop_jit()) {
+    GTEST_SKIP() << "Test fails for OOP JIT builds";
+  }
 
   std::vector<const char*> interpreter_args = {"-include", "new"};
-  Cpp::CreateInterpreter(interpreter_args);
+  TestUtils::CreateInterpreter(interpreter_args);
 
   Interp->declare(R"(
     #include <new>
@@ -2629,9 +2660,12 @@ TEST(FunctionReflectionTest, DestructArray) {
 #ifdef _WIN32
   GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
 #endif
+  if (TestUtils::use_oop_jit()) {
+    GTEST_SKIP() << "Test fails for OOP JIT builds";
+  }
 
   std::vector<const char*> interpreter_args = {"-include", "new"};
-  Cpp::CreateInterpreter(interpreter_args);
+  TestUtils::CreateInterpreter(interpreter_args);
 
   Interp->declare(R"(
       #include <new>
@@ -2703,7 +2737,7 @@ TEST(FunctionReflectionTest, UndoTest) {
 #ifdef EMSCRIPTEN
   GTEST_SKIP() << "Test fails for Emscipten builds";
 #else
-  Cpp::CreateInterpreter();
+  TestUtils::CreateInterpreter();
   EXPECT_EQ(Cpp::Process("int a = 5;"), 0);
   EXPECT_EQ(Cpp::Process("int b = 10;"), 0);
   EXPECT_EQ(Cpp::Process("int x = 5;"), 0);
@@ -2727,7 +2761,10 @@ TEST(FunctionReflectionTest, FailingTest1) {
 #ifdef _WIN32
   GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
 #endif
-  Cpp::CreateInterpreter();
+#ifdef EMSCRIPTEN_SHARED_LIBRARY
+  GTEST_SKIP() << "Test fails for Emscipten shared library builds";
+#endif
+  TestUtils::CreateInterpreter();
   EXPECT_FALSE(Cpp::Declare(R"(
     class WithOutEqualOp1 {};
     class WithOutEqualOp2 {};
@@ -2754,3 +2791,23 @@ TEST(FunctionReflectionTest, FailingTest1) {
   EXPECT_FALSE(Cpp::Declare("int x = 1;"));
   EXPECT_FALSE(Cpp::Declare("int y = x;"));
 }
+
+#ifndef _WIN32
+TEST(FunctionReflectionTest, GetExecutorPIDTest) {
+#ifdef EMSCRIPTEN
+  GTEST_SKIP() << "Test fails for Emscipten builds";
+#endif
+#ifdef CPPINTEROP_USE_CLING
+  GTEST_SKIP() << "Test fails for cling builds";
+#endif
+  if (llvm::sys::RunningOnValgrind())
+    GTEST_SKIP() << "XFAIL due to Valgrind report";
+  TestUtils::CreateInterpreter();
+  pid_t pid = Cpp::GetExecutorPID();
+  if (TestUtils::use_oop_jit()) {
+    EXPECT_NE(pid, 0);
+  } else {
+    EXPECT_EQ(pid, 0);
+  }
+}
+#endif

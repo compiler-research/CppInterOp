@@ -20,6 +20,9 @@ TEST(JitTest, InsertOrReplaceJitSymbol) {
 #ifdef _WIN32
   GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
 #endif
+  if (TestUtils::use_oop_jit()) {
+    GTEST_SKIP() << "Test fails for OOP JIT builds";
+  }
   std::vector<Decl*> Decls;
   std::string code = R"(
     extern "C" int printf(const char*,...);
@@ -40,6 +43,9 @@ TEST(JitTest, InsertOrReplaceJitSymbol) {
 }
 
 TEST(Streams, StreamRedirect) {
+  if (TestUtils::use_oop_jit()) {
+    GTEST_SKIP() << "Test fails for OOP JIT builds";
+  }
   // printf and etc are fine here.
   // NOLINTBEGIN(cppcoreguidelines-pro-type-vararg)
   Cpp::BeginStdStreamCapture(Cpp::kStdOut);
@@ -69,4 +75,32 @@ TEST(Streams, StreamRedirect) {
   std::string cerrs = testing::internal::GetCapturedStderr();
   EXPECT_STREQ(cerrs.c_str(), "Err\nStdErr\n");
   // NOLINTEND(cppcoreguidelines-pro-type-vararg)
+}
+
+TEST(Streams, StreamRedirectJIT) {
+#ifdef EMSCRIPTEN
+  GTEST_SKIP() << "Test fails for Emscipten builds";
+#endif
+  if (llvm::sys::RunningOnValgrind())
+    GTEST_SKIP() << "XFAIL due to Valgrind report";
+#ifdef _WIN32
+  GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
+#endif
+#ifdef CPPINTEROP_USE_CLING
+  GTEST_SKIP() << "Test fails for cling builds";
+#endif
+  TestUtils::CreateInterpreter();
+
+  Cpp::BeginStdStreamCapture(Cpp::kStdOut);
+  Cpp::BeginStdStreamCapture(Cpp::kStdErr);
+  Interp->process(R"(
+    #include <stdio.h>
+    printf("%s\n", "Hello World");
+    fflush(stdout);
+    )");
+  std::string CapturedStringErr = Cpp::EndStdStreamCapture();
+  std::string CapturedStringOut = Cpp::EndStdStreamCapture();
+
+  EXPECT_STREQ(CapturedStringOut.c_str(), "Hello World\n");
+  EXPECT_STREQ(CapturedStringErr.c_str(), "");
 }

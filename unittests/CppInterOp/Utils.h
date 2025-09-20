@@ -20,12 +20,15 @@ namespace clang {
 }
 #define Interp (static_cast<compat::Interpreter*>(Cpp::GetInterpreter()))
 namespace TestUtils {
+bool& use_oop_jit();
 void GetAllTopLevelDecls(const std::string& code,
                          std::vector<clang::Decl*>& Decls,
                          bool filter_implicitGenerated = false,
                          const std::vector<const char*>& interpreter_args = {});
 void GetAllSubDecls(clang::Decl* D, std::vector<clang::Decl*>& SubDecls,
                     bool filter_implicitGenerated = false);
+TInterp_t CreateInterpreter(const std::vector<const char*>& Args = {},
+                            const std::vector<const char*>& GpuArgs = {});
 } // end namespace TestUtils
 
 const char* get_c_string(CXString string);

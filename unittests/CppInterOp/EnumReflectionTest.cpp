@@ -338,7 +338,7 @@ TEST(EnumReflectionTest, GetEnums) {
     int myVariable;
     )";
 
-  Cpp::CreateInterpreter();
+  TestUtils::CreateInterpreter();
   Interp->declare(code);
   std::vector<std::string> enumNames1, enumNames2, enumNames3, enumNames4;
   Cpp::TCppScope_t globalscope = Cpp::GetScope("", 0);

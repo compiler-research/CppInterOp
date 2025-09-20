@@ -19,6 +19,7 @@
 #include <cstdint>
 #include <set>
 #include <string>
+#include <sys/types.h>
 #include <vector>
 
 // The cross-platform CPPINTEROP_API macro definition
@@ -963,6 +964,12 @@ CPPINTEROP_API void CodeComplete(std::vector<std::string>& Results,
 ///\param[in] N The number of operations to undo. Defaults to 1.
 ///\returns 0 on success, non-zero on failure.
 CPPINTEROP_API int Undo(unsigned N = 1, TInterp_t interp = nullptr);
+
+#ifndef _WIN32
+/// Returns the process ID of the executor process.
+/// \returns the PID of the executor process.
+CPPINTEROP_API pid_t GetExecutorPID();
+#endif
 
 } // end namespace Cpp
 
