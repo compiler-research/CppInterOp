@@ -1,4 +1,5 @@
 # CppInterOp
+
 <div align="center">
 
 [![Build Status](https://github.com/compiler-research/CppInterOp/actions/workflows/main.yml/badge.svg)](https://github.com/compiler-research/CppInterOp/actions/workflows/main.yml)
@@ -213,6 +214,7 @@ git clone --depth=1 https://github.com/compiler-research/cppyy-backend.git
 
 To have ``Out-of-Process JIT Execution`` enabled, run following commands to build clang and clang-repl to support this feature:
 > Only for Linux x86_64 and Macos amr64
+
 ```bash
 mkdir build 
 cd build 
@@ -228,10 +230,13 @@ cmake -DLLVM_ENABLE_PROJECTS="clang;compiler-rt"                   \
 ```
 
 ## For Linux x86_64
+
 ```bash
 cmake --build . --target clang clang-repl llvm-jitlink-executor orc_rt-x86_64 --parallel $(nproc --all)
 ```
+
 ## For MacOS arm64
+
 ```bash
 cmake --build . --target clang clang-repl llvm-jitlink-executor orc_rt_osx --parallel $(sysctl -n hw.ncpu)
 ```
