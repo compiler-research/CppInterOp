@@ -83,7 +83,7 @@ TEST(InterpreterTest, Evaluate) {
   // this needs to be added because TestUtils::CreateInterpreter creates
   // Cpp::CreateInterpreter. But, the later goes out of scope(destroyed) at the
   // end of every test due to TestUtils::CreateInterpreter. 
-  TestUtils::CreateInterpreter();
+  Cpp::CreateInterpreter();
   EXPECT_TRUE(Cpp::Evaluate("__cplusplus") == 201402);
 
   bool HadError;
