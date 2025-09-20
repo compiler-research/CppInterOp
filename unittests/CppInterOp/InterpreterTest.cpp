@@ -76,16 +76,21 @@ TEST(InterpreterTest, Evaluate) {
     GTEST_SKIP() << "Test fails for OOP JIT builds";
   }
   //  EXPECT_TRUE(Cpp::Evaluate(I, "") == 0);
-  //EXPECT_TRUE(Cpp::Evaluate(I, "__cplusplus;") == 201402);
+  // EXPECT_TRUE(Cpp::Evaluate(I, "__cplusplus;") == 201402);
   // Due to a deficiency in the clang-repl implementation to get the value we
   // always must omit the ;
+
+  // this needs to be added because TestUtils::CreateInterpreter creates
+  // Cpp::CreateInterpreter. But, the later goes out of scope(destroyed) at the
+  // end of every test due to TestUtils::CreateInterpreter. 
+  TestUtils::CreateInterpreter();
   EXPECT_TRUE(Cpp::Evaluate("__cplusplus") == 201402);
 
   bool HadError;
   EXPECT_TRUE(Cpp::Evaluate("#error", &HadError) == (intptr_t)~0UL);
   EXPECT_TRUE(HadError);
   EXPECT_EQ(Cpp::Evaluate("int i = 11; ++i", &HadError), 12);
-  EXPECT_FALSE(HadError) ;
+  EXPECT_FALSE(HadError);
 }
 
 TEST(InterpreterTest, DeleteInterpreter) {
@@ -147,7 +152,7 @@ TEST(InterpreterTest, Process) {
 #endif
   if (llvm::sys::RunningOnValgrind())
     GTEST_SKIP() << "XFAIL due to Valgrind report";
-  std::vector<const char*> interpreter_args = { "-include", "new" };
+  std::vector<const char*> interpreter_args = {"-include", "new"};
   auto* I = TestUtils::CreateInterpreter(interpreter_args);
   EXPECT_TRUE(Cpp::Process("") == 0);
   EXPECT_TRUE(Cpp::Process("int a = 12;") == 0);
@@ -172,20 +177,18 @@ TEST(InterpreterTest, Process) {
 
 TEST(InterpreterTest, EmscriptenExceptionHandling) {
 #ifndef EMSCRIPTEN
-  GTEST_SKIP() << "This test is intended to check exception handling for Emscripten builds.";
+  GTEST_SKIP() << "This test is intended to check exception handling for "
+                  "Emscripten builds.";
 #endif
   if (TestUtils::use_oop_jit()) {
     GTEST_SKIP() << "Test fails for OOP JIT builds";
   }
 
   std::vector<const char*> Args = {
-    "-std=c++20",
-    "-v",
-    "-fexceptions",
-    "-fcxx-exceptions",
-    "-mllvm", "-enable-emscripten-cxx-exceptions",
-    "-mllvm", "-enable-emscripten-sjlj"
-  };
+      "-std=c++20",   "-v",
+      "-fexceptions", "-fcxx-exceptions",
+      "-mllvm",       "-enable-emscripten-cxx-exceptions",
+      "-mllvm",       "-enable-emscripten-sjlj"};
 
   TestUtils::CreateInterpreter(Args);
 
@@ -206,22 +209,21 @@ TEST(InterpreterTest, CreateInterpreter) {
   // Check if the default standard is c++14
 
   Cpp::Declare("#if __cplusplus==201402L\n"
-                   "int cpp14() { return 2014; }\n"
-                   "#else\n"
-                   "void cppUnknown() {}\n"
-                   "#endif");
+               "int cpp14() { return 2014; }\n"
+               "#else\n"
+               "void cppUnknown() {}\n"
+               "#endif");
   EXPECT_TRUE(Cpp::GetNamed("cpp14"));
   EXPECT_FALSE(Cpp::GetNamed("cppUnknown"));
 
   I = TestUtils::CreateInterpreter({"-std=c++17"});
   Cpp::Declare("#if __cplusplus==201703L\n"
-                   "int cpp17() { return 2017; }\n"
-                   "#else\n"
-                   "void cppUnknown() {}\n"
-                   "#endif");
+               "int cpp17() { return 2017; }\n"
+               "#else\n"
+               "void cppUnknown() {}\n"
+               "#endif");
   EXPECT_TRUE(Cpp::GetNamed("cpp17"));
   EXPECT_FALSE(Cpp::GetNamed("cppUnknown"));
-
 
 #ifndef CPPINTEROP_USE_CLING
   // C API
@@ -238,7 +240,7 @@ TEST(InterpreterTest, CreateInterpreter) {
 #ifndef CPPINTEROP_USE_CLING
 TEST(InterpreterTest, CreateInterpreterCAPI) {
   const char* argv[] = {"-std=c++17"};
-  auto *CXI = clang_createInterpreter(argv, 1);
+  auto* CXI = clang_createInterpreter(argv, 1);
   auto CLI = clang_Interpreter_getClangInterpreter(CXI);
   EXPECT_TRUE(CLI);
   clang_Interpreter_dispose(CXI);
@@ -249,7 +251,7 @@ TEST(InterpreterTest, CreateInterpreterCAPIFailure) {
   GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
 #endif
   const char* argv[] = {"-fsyntax-only", "-Xclang", "-invalid-plugin"};
-  auto *CXI = clang_createInterpreter(argv, 3);
+  auto* CXI = clang_createInterpreter(argv, 3);
   EXPECT_EQ(CXI, nullptr);
 }
 #endif
@@ -313,7 +315,7 @@ TEST(InterpreterTest, IncludePaths) {
   Cpp::AddIncludePath("/non/existent/");
   Cpp::GetIncludePaths(includes);
   EXPECT_NE(std::find(includes.begin(), includes.end(), "/non/existent/"),
-             std::end(includes));
+            std::end(includes));
 }
 
 TEST(InterpreterTest, CodeCompletion) {
@@ -338,8 +340,8 @@ TEST(InterpreterTest, CodeCompletion) {
 
 TEST(InterpreterTest, ExternalInterpreterTest) {
 
-if (llvm::sys::RunningOnValgrind())
-  GTEST_SKIP() << "XFAIL due to Valgrind report";
+  if (llvm::sys::RunningOnValgrind())
+    GTEST_SKIP() << "XFAIL due to Valgrind report";
 
 #ifndef CPPINTEROP_USE_CLING
   llvm::ExitOnError ExitOnErr;
@@ -359,15 +361,15 @@ if (llvm::sys::RunningOnValgrind())
 #endif // CPPINTEROP_USE_REPL
 
 #ifdef CPPINTEROP_USE_CLING
-    std::string MainExecutableName = sys::fs::getMainExecutable(nullptr, nullptr);
-    llvm::SmallString<128> P(LLVM_BINARY_DIR);
-    llvm::sys::path::append(P, CLANG_INSTALL_LIBDIR_BASENAME, "clang",
-                            CLANG_VERSION_MAJOR_STRING);
-    std::string ResourceDir = std::string(P.str());
-    std::vector<const char *> ClingArgv = {"-resource-dir", ResourceDir.c_str(),
-                                           "-std=c++14"};
-    ClingArgv.insert(ClingArgv.begin(), MainExecutableName.c_str());
-    auto *ExtInterp = new compat::Interpreter(ClingArgv.size(), &ClingArgv[0]);
+  std::string MainExecutableName = sys::fs::getMainExecutable(nullptr, nullptr);
+  llvm::SmallString<128> P(LLVM_BINARY_DIR);
+  llvm::sys::path::append(P, CLANG_INSTALL_LIBDIR_BASENAME, "clang",
+                          CLANG_VERSION_MAJOR_STRING);
+  std::string ResourceDir = std::string(P.str());
+  std::vector<const char*> ClingArgv = {"-resource-dir", ResourceDir.c_str(),
+                                        "-std=c++14"};
+  ClingArgv.insert(ClingArgv.begin(), MainExecutableName.c_str());
+  auto* ExtInterp = new compat::Interpreter(ClingArgv.size(), &ClingArgv[0]);
 #endif
 
   EXPECT_NE(ExtInterp, nullptr);
