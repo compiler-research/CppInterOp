@@ -202,10 +202,24 @@ inline void codeComplete(std::vector<std::string>& Results,
 
 #include "llvm/Support/Error.h"
 
+#ifdef LLVM_BUILT_WITH_OOP_JIT
+#include "clang/Basic/Version.h"
+#include "llvm/TargetParser/Host.h"
+
+#include "llvm/ExecutionEngine/Orc/Debugging/DebuggerSupport.h"
+
+#include <unistd.h>
+#endif
+
+#include <algorithm>
+
+static const llvm::ExitOnError ExitOnError;
+
 namespace compat {
 
 inline std::unique_ptr<clang::Interpreter>
-createClangInterpreter(std::vector<const char*>& args) {
+createClangInterpreter(std::vector<const char*>& args, int stdin_fd = 0,
+                       int stdout_fd = 1, int stderr_fd = 2) {
   auto has_arg = [](const char* x, llvm::StringRef match = "cuda") {
     llvm::StringRef Arg = x;
     Arg = Arg.trim().ltrim('-');
@@ -217,6 +231,15 @@ createClangInterpreter(std::vector<const char*>& args) {
   bool CudaEnabled = false;
 #else
   bool CudaEnabled = !gpu_args.empty();
+#endif
+
+#if defined(_WIN32)
+  bool outOfProcess = false;
+#else
+  bool outOfProcess =
+      std::any_of(args.begin(), args.end(), [](const char* arg) {
+        return llvm::StringRef(arg).trim() == "--use-oop-jit";
+      });
 #endif
 
   clang::IncrementalCompilerBuilder CB;
@@ -243,11 +266,54 @@ createClangInterpreter(std::vector<const char*>& args) {
   (*ciOrErr)->LoadRequestedPlugins();
   if (CudaEnabled)
     DeviceCI->LoadRequestedPlugins();
+
+#ifdef LLVM_BUILT_WITH_OOP_JIT
+
+  clang::Interpreter::JITConfig OutOfProcessConfig;
+  if (outOfProcess) {
+    OutOfProcessConfig.IsOutOfProcess = true;
+    OutOfProcessConfig.OOPExecutor =
+        std::string(LLVM_SOURCE_DIR) + "/build/bin/llvm-jitlink-executor";
+    OutOfProcessConfig.UseSharedMemory = false;
+    OutOfProcessConfig.SlabAllocateSize = 0;
+    OutOfProcessConfig.CustomizeFork = [=] { // Lambda defined inline
+      auto redirect = [](int from, int to) {
+        if (from != to) {
+          dup2(from, to);
+          close(from);
+        }
+      };
+
+      redirect(stdin_fd, STDIN_FILENO);
+      redirect(stdout_fd, STDOUT_FILENO);
+      redirect(stderr_fd, STDERR_FILENO);
+
+      setvbuf(stdout, nullptr, _IONBF, 0);
+      setvbuf(stderr, nullptr, _IONBF, 0);
+    };
+    OutOfProcessConfig.OrcRuntimePath =
+        std::string(LLVM_SOURCE_DIR) +
+        "/build/lib/clang/20/lib/darwin/liborc_rt_osx.a";
+  }
+  auto innerOrErr =
+      CudaEnabled
+          ? clang::Interpreter::createWithCUDA(std::move(*ciOrErr),
+                                               std::move(DeviceCI))
+          : clang::Interpreter::create(std::move(*ciOrErr), OutOfProcessConfig);
+#else
+  if (outOfProcess) {
+    llvm::errs()
+        << "[CreateClangInterpreter]: No compatibility with out-of-process "
+           "JIT. Running in-process JIT execution."
+        << "(To enable recompile CppInterOp with patch applied and change "
+           "VERSION file to 1.8.1;dev."
+        << "\n";
+  }
   auto innerOrErr =
       CudaEnabled ? clang::Interpreter::createWithCUDA(std::move(*ciOrErr),
                                                        std::move(DeviceCI))
                   : clang::Interpreter::create(std::move(*ciOrErr));
-
+#endif
   if (!innerOrErr) {
     llvm::logAllUnhandledErrors(innerOrErr.takeError(), llvm::errs(),
                                 "Failed to build Interpreter:");

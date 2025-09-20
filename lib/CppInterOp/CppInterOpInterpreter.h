@@ -39,6 +39,12 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/TargetParser/Triple.h"
 
+#ifndef _WIN32
+#include <unistd.h>
+#endif
+#include <algorithm>
+#include <cstdio>
+#include <memory>
 #include <utility>
 #include <vector>
 
@@ -140,10 +146,35 @@ namespace Cpp {
 /// CppInterOp Interpreter
 ///
 class Interpreter {
+
+private:
+  struct FileDeleter {
+    void operator()(FILE* f /* owns */) {
+      if (f)
+        fclose(f);
+    }
+  };
+  struct IOContext {
+    std::unique_ptr<FILE, FileDeleter> stdin_file;
+    std::unique_ptr<FILE, FileDeleter> stdout_file;
+    std::unique_ptr<FILE, FileDeleter> stderr_file;
+    bool outOfProcess = false;
+
+    bool initializeTempFiles() {
+      stdin_file.reset(tmpfile());  // NOLINT(cppcoreguidelines-owning-memory)
+      stdout_file.reset(tmpfile()); // NOLINT(cppcoreguidelines-owning-memory)
+      stderr_file.reset(tmpfile()); // NOLINT(cppcoreguidelines-owning-memory)
+      return stdin_file && stdout_file && stderr_file;
+    }
+  };
+
   std::unique_ptr<clang::Interpreter> inner;
+  std::unique_ptr<IOContext> io_context;
 
 public:
-  Interpreter(std::unique_ptr<clang::Interpreter> CI) : inner(std::move(CI)) {}
+  Interpreter(std::unique_ptr<clang::Interpreter> CI,
+              std::unique_ptr<IOContext> ctx = nullptr)
+      : inner(std::move(CI)), io_context(std::move(ctx)) {}
 
   static std::unique_ptr<Interpreter>
   create(int argc, const char* const* argv, const char* llvmdir = nullptr,
@@ -157,19 +188,72 @@ public:
     llvm::InitializeAllAsmPrinters();
 
     std::vector<const char*> vargs(argv + 1, argv + argc);
-    auto CI = compat::createClangInterpreter(vargs);
+
+    auto io_ctx = std::make_unique<IOContext>();
+
+    int stdin_fd = 0;
+    int stdout_fd = 1;
+    int stderr_fd = 2;
+
+#if defined(_WIN32)
+    io_ctx->outOfProcess = false;
+#else
+    io_ctx->outOfProcess =
+        std::any_of(vargs.begin(), vargs.end(), [](const char* arg) {
+          return llvm::StringRef(arg).trim() == "--use-oop-jit";
+        });
+
+    if (io_ctx->outOfProcess) {
+      bool init = io_ctx->initializeTempFiles();
+      if (!init) {
+        llvm::errs() << "Can't start out-of-process JIT execution. Continuing "
+                        "with in-process JIT execution.\n";
+        io_ctx->outOfProcess = false;
+      } else {
+        stdin_fd = fileno(io_ctx->stdin_file.get());
+        stdout_fd = fileno(io_ctx->stdout_file.get());
+        stderr_fd = fileno(io_ctx->stderr_file.get());
+      }
+    }
+#endif
+
+    auto CI =
+        compat::createClangInterpreter(vargs, stdin_fd, stdout_fd, stderr_fd);
     if (!CI) {
       llvm::errs() << "Interpreter creation failed\n";
       return nullptr;
     }
 
-    return std::unique_ptr<Interpreter>(new Interpreter(std::move(CI)));
+    return std::unique_ptr<Interpreter>(
+        new Interpreter(std::move(CI), std::move(io_ctx)));
   }
 
   ~Interpreter() {}
 
   operator const clang::Interpreter&() const { return *inner; }
   operator clang::Interpreter&() { return *inner; }
+
+  bool isOutOfProcess() const {
+    return io_context ? io_context->outOfProcess : false;
+  }
+
+#ifndef _WIN32
+  FILE* getTempFileForOOP(int FD) {
+    if (!io_context)
+      return nullptr;
+    switch (FD) {
+    case (STDIN_FILENO):
+      return io_context->stdin_file.get();
+    case (STDOUT_FILENO):
+      return io_context->stdout_file.get();
+    case (STDERR_FILENO):
+      return io_context->stderr_file.get();
+    default:
+      llvm::errs() << "No temp file for the FD\n";
+      return nullptr;
+    }
+  }
+#endif
 
   ///\brief Describes the return result of the different routines that do the
   /// incremental compilation.
@@ -227,6 +311,15 @@ public:
     if (llvm::Error Err = AddrOrErr.takeError())
       return std::move(Err);
     return llvm::orc::ExecutorAddr(*AddrOrErr);
+  }
+
+  pid_t getOutOfProcessExecutorPID() const {
+#ifndef _WIN32
+#ifdef LLVM_BUILT_WITH_OOP_JIT
+    return inner->getOutOfProcessExecutorPID();
+#endif
+#endif
+    return 0;
   }
 
   /// \returns the \c ExecutorAddr of a given name as written in the object
