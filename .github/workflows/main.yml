@@ -134,32 +134,32 @@ jobs:
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
           # MacOS X86 Jobs
-          - name: osx13-x86-clang-clang-repl-20
-            os: macos-13
+          - name: osx15-x86-clang-clang-repl-20
+            os: macos-15-intel
             compiler: clang
             clang-runtime: '20'
             cling: Off
             cppyy: Off
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host"
-          - name: osx13-x86-clang-clang-repl-19-cppyy
-            os: macos-13
+          - name: osx15-x86-clang-clang-repl-19-cppyy
+            os: macos-15-intel
             compiler: clang
             clang-runtime: '19'
             cling: Off
             cppyy: On
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host"
-          - name: osx13-x86-clang-clang-repl-18-cppyy
-            os: macos-13
+          - name: osx15-x86-clang-clang-repl-18-cppyy
+            os: macos-15-intel
             compiler: clang
             clang-runtime: '18'
             cling: Off
             cppyy: On
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host"
-          - name: osx13-x86-clang-clang18-cling-cppyy
-            os: macos-13
+          - name: osx15-x86-clang-clang18-cling-cppyy
+            os: macos-15-intel
             compiler: clang
             clang-runtime: '18'
             cling: On
@@ -289,3 +289,4 @@ jobs:
       uses: mxschmitt/action-tmate@v3
       # When debugging increase to a suitable value!
       timeout-minutes: 30
+
