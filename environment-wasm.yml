@@ -1,7 +1,7 @@
 name: CppInterOp-wasm
 channels:
-  - https://repo.prefix.dev/emscripten-forge-dev
-  - conda-forge
+  - https://prefix.dev/emscripten-forge-dev
+  - https://prefix.dev/conda-forge
 dependencies:
   - emscripten-abi==3.1.73
   - nlohmann_json
