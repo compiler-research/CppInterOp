@@ -63,35 +63,35 @@ TEST(InterpreterTest, DebugFlag) {
   EXPECT_STREQ(cerrs.c_str(), "");
 }
 
-// TEST(InterpreterTest, Evaluate) {
-// #ifdef EMSCRIPTEN
-//   GTEST_SKIP() << "Test fails for Emscipten builds";
-// #endif
-// #ifdef _WIN32
-//   GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
-// #endif
-//   if (llvm::sys::RunningOnValgrind())
-//     GTEST_SKIP() << "XFAIL due to Valgrind report";
-//   if (TestUtils::use_oop_jit()) {
-//     GTEST_SKIP() << "Test fails for OOP JIT builds";
-//   }
-//   //  EXPECT_TRUE(Cpp::Evaluate(I, "") == 0);
-//   // EXPECT_TRUE(Cpp::Evaluate(I, "__cplusplus;") == 201402);
-//   // Due to a deficiency in the clang-repl implementation to get the value we
-//   // always must omit the ;
+TEST(InterpreterTest, Evaluate) {
+#ifdef EMSCRIPTEN
+  GTEST_SKIP() << "Test fails for Emscipten builds";
+#endif
+#ifdef _WIN32
+  GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
+#endif
+  if (llvm::sys::RunningOnValgrind())
+    GTEST_SKIP() << "XFAIL due to Valgrind report";
+  if (TestUtils::use_oop_jit()) {
+    GTEST_SKIP() << "Test fails for OOP JIT builds";
+  }
+  //  EXPECT_TRUE(Cpp::Evaluate(I, "") == 0);
+  // EXPECT_TRUE(Cpp::Evaluate(I, "__cplusplus;") == 201402);
+  // Due to a deficiency in the clang-repl implementation to get the value we
+  // always must omit the ;
 
-//   // this needs to be added because TestUtils::CreateInterpreter creates
-//   // Cpp::CreateInterpreter. But, the later goes out of scope(destroyed) at the
-//   // end of every test due to TestUtils::CreateInterpreter. 
-//   Cpp::CreateInterpreter();
-//   EXPECT_TRUE(Cpp::Evaluate("__cplusplus") == 201402);
+  // this needs to be added because TestUtils::CreateInterpreter creates
+  // Cpp::CreateInterpreter. But, the later goes out of scope(destroyed) at the
+  // end of every test due to TestUtils::CreateInterpreter. 
+  Cpp::CreateInterpreter();
+  EXPECT_TRUE(Cpp::Evaluate("__cplusplus") == 201402);
 
-//   bool HadError;
-//   EXPECT_TRUE(Cpp::Evaluate("#error", &HadError) == (intptr_t)~0UL);
-//   EXPECT_TRUE(HadError);
-//   EXPECT_EQ(Cpp::Evaluate("int i = 11; ++i", &HadError), 12);
-//   EXPECT_FALSE(HadError);
-// }
+  bool HadError;
+  EXPECT_TRUE(Cpp::Evaluate("#error", &HadError) == (intptr_t)~0UL);
+  EXPECT_TRUE(HadError);
+  EXPECT_EQ(Cpp::Evaluate("int i = 11; ++i", &HadError), 12);
+  EXPECT_FALSE(HadError);
+}
 
 TEST(InterpreterTest, DeleteInterpreter) {
   if (TestUtils::use_oop_jit()) {

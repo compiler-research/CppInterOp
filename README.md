@@ -113,7 +113,7 @@ cd llvm-project
 ```
 
 If you want to have out-of-process JIT execution enabled in CppInterOp, then apply this patch on Linux and MacOS environment.
-> Note that this patch will not work for Windows because out-of-process JIT execution is currently implemented for Linux and MacOS only.
+> Note that this patch will not work for Windows because out-of-process JIT execution is currently implemented for Linux-x86_64 and MacOS-Darwin only.
 
 ```bash
 git apply -v ../CppInterOp/patches/llvm/clang20-2-out-of-process.patch
@@ -306,13 +306,6 @@ mkdir CppInterOp/build/
 cd CppInterOp/build/
 ```
 
-On Windows execute
-
-```powershell
-mkdir CppInterOp\build\
-cd CppInterOp\build\
-```
-
 Now if you want to build CppInterOp with Clang-REPL then execute the following commands on Linux and MacOS
 
 ```bash
@@ -323,6 +316,13 @@ cmake --build . --target install --parallel $(nproc --all)
 and
 
 > Do make sure to pass ``DLLVM_BUILT_WITH_OOP_JIT=ON``, if you want to have out-of-process JIT execution feature enabled.
+
+On Windows execute
+
+```powershell
+mkdir CppInterOp\build\
+cd CppInterOp\build\
+```
 
 ```powershell
 cmake -DLLVM_DIR=$env:LLVM_DIR\build\lib\cmake\llvm -DClang_DIR=$env:LLVM_DIR\build\lib\cmake\clang -DCMAKE_INSTALL_PREFIX=$env:CPPINTEROP_DIR ..

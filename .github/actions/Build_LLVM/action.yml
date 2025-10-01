@@ -68,7 +68,7 @@ runs:
             elif [[ "${{ matrix.os }}" == ubuntu* ]]; then
               SUFFIX="-x86_64"
             fi
-            ninja clang-repl llvm-jitlink-executor orc_rt${SUFFIX} -j ${{ env.ncpus }}       
+            ninja llvm-jitlink-executor orc_rt${SUFFIX} -j ${{ env.ncpus }}       
           fi
           cd ./tools/
           rm -rf $(find . -maxdepth 1 ! -name "clang" ! -name ".")

@@ -1,5 +1,5 @@
 diff --git a/clang/include/clang/Interpreter/Interpreter.h b/clang/include/clang/Interpreter/Interpreter.h
-index f8663e3193a1..1f9553e6809a 100644
+index f8663e319..1f9553e68 100644
 --- a/clang/include/clang/Interpreter/Interpreter.h
 +++ b/clang/include/clang/Interpreter/Interpreter.h
 @@ -20,8 +20,10 @@
@@ -98,7 +98,7 @@ index f8663e3193a1..1f9553e6809a 100644
      return ValuePrintingInfo;
    }
 diff --git a/clang/lib/Interpreter/IncrementalExecutor.cpp b/clang/lib/Interpreter/IncrementalExecutor.cpp
-index 4d2adecaafce..45620fcd358c 100644
+index 4d2adecaa..45620fcd3 100644
 --- a/clang/lib/Interpreter/IncrementalExecutor.cpp
 +++ b/clang/lib/Interpreter/IncrementalExecutor.cpp
 @@ -15,19 +15,36 @@
@@ -380,7 +380,7 @@ index 4d2adecaafce..45620fcd358c 100644
 +
  } // namespace clang
 diff --git a/clang/lib/Interpreter/IncrementalExecutor.h b/clang/lib/Interpreter/IncrementalExecutor.h
-index 71d71bc3883e..56e83378f004 100644
+index 71d71bc38..56e83378f 100644
 --- a/clang/lib/Interpreter/IncrementalExecutor.h
 +++ b/clang/lib/Interpreter/IncrementalExecutor.h
 @@ -13,13 +13,20 @@
@@ -447,7 +447,7 @@ index 71d71bc3883e..56e83378f004 100644
  
  } // end namespace clang
 diff --git a/clang/lib/Interpreter/Interpreter.cpp b/clang/lib/Interpreter/Interpreter.cpp
-index 3b81f9d701b4..63fb0e175ac8 100644
+index 3b81f9d70..6ef46a942 100644
 --- a/clang/lib/Interpreter/Interpreter.cpp
 +++ b/clang/lib/Interpreter/Interpreter.cpp
 @@ -46,6 +46,7 @@
@@ -477,7 +477,7 @@ index 3b81f9d701b4..63fb0e175ac8 100644
        ErrOut = joinErrors(std::move(ErrOut), std::move(Err));
        return;
      }
-@@ -454,22 +456,120 @@ const char *const Runtimes = R"(
+@@ -454,19 +456,118 @@ const char *const Runtimes = R"(
    EXTERN_C void __clang_Interpreter_SetValueNoAlloc(void *This, void *OutVal, void *OpaqueType, ...);
  )";
  
@@ -603,11 +603,8 @@ index 3b81f9d701b4..63fb0e175ac8 100644
 +
    Interp->markUserCodeStart();
  
--  Interp->ValuePrintingInfo.resize(4);
-   return std::move(Interp);
- }
- 
-@@ -551,6 +651,12 @@ size_t Interpreter::getEffectivePTUSize() const {
+   Interp->ValuePrintingInfo.resize(4);
+@@ -551,6 +652,12 @@ size_t Interpreter::getEffectivePTUSize() const {
    return PTUs.size() - InitPTUSize;
  }
  
@@ -620,7 +617,7 @@ index 3b81f9d701b4..63fb0e175ac8 100644
  PartialTranslationUnit &
  Interpreter::RegisterPTU(TranslationUnitDecl *TU,
                           std::unique_ptr<llvm::Module> M /*={}*/,
-@@ -617,7 +723,26 @@ createJITTargetMachineBuilder(const std::string &TT) {
+@@ -617,7 +724,26 @@ createJITTargetMachineBuilder(const std::string &TT) {
    return llvm::orc::JITTargetMachineBuilder(llvm::Triple(TT));
  }
  
@@ -648,7 +645,7 @@ index 3b81f9d701b4..63fb0e175ac8 100644
    if (IncrExecutor)
      return llvm::make_error<llvm::StringError>("Operation failed. "
                                                 "Execution engine exists",
-@@ -626,8 +751,26 @@ llvm::Error Interpreter::CreateExecutor() {
+@@ -626,8 +752,26 @@ llvm::Error Interpreter::CreateExecutor() {
      return llvm::make_error<llvm::StringError>("Operation failed. "
                                                 "No code generator available",
                                                 std::error_code());
@@ -676,7 +673,7 @@ index 3b81f9d701b4..63fb0e175ac8 100644
      auto JTMB = createJITTargetMachineBuilder(TT);
      if (!JTMB)
        return JTMB.takeError();
-@@ -638,11 +781,15 @@ llvm::Error Interpreter::CreateExecutor() {
+@@ -638,11 +782,15 @@ llvm::Error Interpreter::CreateExecutor() {
    }
  
    llvm::Error Err = llvm::Error::success();
@@ -696,7 +693,7 @@ index 3b81f9d701b4..63fb0e175ac8 100644
    if (!Err)
      IncrExecutor = std::move(Executor);
 diff --git a/clang/tools/clang-repl/ClangRepl.cpp b/clang/tools/clang-repl/ClangRepl.cpp
-index 7af8e4f25d99..c1a7ec397917 100644
+index 7af8e4f25..c1a7ec397 100644
 --- a/clang/tools/clang-repl/ClangRepl.cpp
 +++ b/clang/tools/clang-repl/ClangRepl.cpp
 @@ -11,6 +11,8 @@
@@ -937,4 +934,3 @@ index 7af8e4f25d99..c1a7ec397917 100644
 -}
 +}
 \ No newline at end of file
-
