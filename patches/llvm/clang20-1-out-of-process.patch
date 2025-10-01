@@ -934,3 +934,33 @@ index 7af8e4f25..c1a7ec397 100644
 -}
 +}
 \ No newline at end of file
+diff --git a/llvm/lib/ExecutionEngine/Orc/LLJIT.cpp b/llvm/lib/ExecutionEngine/Orc/LLJIT.cpp
+index 972c24abc..a75a0afa7 100644
+--- a/llvm/lib/ExecutionEngine/Orc/LLJIT.cpp
++++ b/llvm/lib/ExecutionEngine/Orc/LLJIT.cpp
+@@ -635,16 +635,19 @@ Error ORCPlatformSupport::initialize(orc::JITDylib &JD) {
+       int32_t result;
+       auto E = ES.callSPSWrapper<SPSDLUpdateSig>(WrapperAddr->getAddress(),
+                                                  result, DSOHandles[&JD]);
+-      if (result)
++      if (E)
++        return E;
++      else if (result)
+         return make_error<StringError>("dlupdate failed",
+                                        inconvertibleErrorCode());
+-      return E;
+-    }
+-    return ES.callSPSWrapper<SPSDLOpenSig>(WrapperAddr->getAddress(),
+-                                           DSOHandles[&JD], JD.getName(),
+-                                           int32_t(ORC_RT_RTLD_LAZY));
++    } else
++      return ES.callSPSWrapper<SPSDLOpenSig>(WrapperAddr->getAddress(),
++                                             DSOHandles[&JD], JD.getName(),
++                                             int32_t(ORC_RT_RTLD_LAZY));
+   } else
+     return WrapperAddr.takeError();
++
++  return Error::success();
+ }
+ 
+ Error ORCPlatformSupport::deinitialize(orc::JITDylib &JD) {
