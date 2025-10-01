@@ -44,8 +44,8 @@ runs:
           ninja clingInterpreter -j ${{ env.ncpus }}
         else
           if [[ "${{ matrix.oop-jit }}" == "On" ]]; then
-            git apply -v ../patches/llvm/clang20-2-out-of-process.patch
-            echo "Apply clang20-2-out-of-process.patch:"
+            git apply -v ../patches/llvm/clang20-1-out-of-process.patch
+            echo "Apply clang20-1-out-of-process.patch:"
           fi
           cd build
           cmake -DLLVM_ENABLE_PROJECTS="${{ matrix.llvm_enable_projects}}" \
