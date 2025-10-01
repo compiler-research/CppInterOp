@@ -90,8 +90,17 @@
 #include <unistd.h>
 #endif // WIN32
 
-extern "C" void __clang_Interpreter_SetValueNoAlloc(void* This, void* OutVal,
-                                                    void* OpaqueType, ...);
+#if CLANG_VERSION_MAJOR > 22
+extern "C" void* __clang_Interpreter_SetValueWithAlloc(void* This, void* OutVal,
+                                                       void* OpaqueType)
+#else
+void* __clang_Interpreter_SetValueWithAlloc(void* This, void* OutVal,
+                                            void* OpaqueType);
+#endif
+
+    extern "C" void __clang_Interpreter_SetValueNoAlloc(void* This,
+                                                        void* OutVal,
+                                                        void* OpaqueType, ...);
 
 namespace Cpp {
 
@@ -3476,8 +3485,23 @@ TInterp_t CreateInterpreter(const std::vector<const char*>& Args /*={}*/,
        sInterpreters->back().get()});
 
   assert(sInterpreters->size() == sInterpreterASTMap->size());
-// define __clang_Interpreter_SetValueNoAlloc in the JIT dylib for clang-repl
+
+// Define runtime symbols in the JIT dylib for clang-repl
 #ifndef CPPINTEROP_USE_CLING
+#if CLANG_VERSION_MAJOR > 22
+  DefineAbsoluteSymbol(*I, "__clang_Interpreter_SetValueWithAlloc",
+                       (uint64_t)&__clang_Interpreter_SetValueNoAlloc);
+#else
+  auto* D = static_cast<clang::Decl*>(
+      Cpp::GetNamed("__clang_Interpreter_SetValueWithAlloc"));
+  if (auto* FD = llvm::dyn_cast<FunctionDecl>(D)) {
+    auto GD = GlobalDecl(FD);
+    std::string mangledName;
+    compat::maybeMangleDeclName(GD, mangledName);
+    DefineAbsoluteSymbol(*I, mangledName.c_str(),
+                         (uint64_t)&__clang_Interpreter_SetValueWithAlloc);
+  }
+#endif
   DefineAbsoluteSymbol(*I, "__clang_Interpreter_SetValueNoAlloc",
                        (uint64_t)&__clang_Interpreter_SetValueNoAlloc);
 #endif
