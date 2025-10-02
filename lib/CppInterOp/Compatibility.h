@@ -291,9 +291,17 @@ createClangInterpreter(std::vector<const char*>& args, int stdin_fd = 0,
       setvbuf(stdout, nullptr, _IONBF, 0);
       setvbuf(stderr, nullptr, _IONBF, 0);
     };
-    OutOfProcessConfig.OrcRuntimePath =
-        std::string(LLVM_SOURCE_DIR) +
-        "/build/lib/clang/20/lib/darwin/liborc_rt_osx.a";
+#ifdef __APPLE__
+    std::string OrcRuntimePath =
+        std::string(LLVM_SOURCE_DIR) + "/build/lib/clang/" +
+        std::to_string(LLVM_VERSION_MAJOR) + "/lib/darwin/liborc_rt_osx.a";
+#else
+    std::string OrcRuntimePath = std::string(LLVM_SOURCE_DIR) +
+                                 "/build/lib/clang/" +
+                                 std::to_string(LLVM_VERSION_MAJOR) +
+                                 "/lib/x86_64-unknown-linux-gnu/liborc_rt.a";
+#endif
+    OutOfProcessConfig.OrcRuntimePath = OrcRuntimePath;
   }
   auto innerOrErr =
       CudaEnabled
