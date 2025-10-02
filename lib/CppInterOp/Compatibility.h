@@ -291,14 +291,13 @@ createClangInterpreter(std::vector<const char*>& args, int stdin_fd = 0,
       setvbuf(stdout, nullptr, _IONBF, 0);
       setvbuf(stderr, nullptr, _IONBF, 0);
     };
-    
+
 #ifdef __APPLE__
-    std::string OrcRuntimePath =
-        std::string(LLVM_BUILD_DIR) + "/lib/clang/" +
-        std::to_string(LLVM_VERSION_MAJOR) + "/lib/darwin/liborc_rt_osx.a";
+    std::string OrcRuntimePath = std::string(LLVM_BUILD_DIR) + "/lib/clang/" +
+                                 std::to_string(LLVM_VERSION_MAJOR) +
+                                 "/lib/darwin/liborc_rt_osx.a";
 #else
-    std::string OrcRuntimePath = std::string(LLVM_BUILD_DIR) +
-                                 "/lib/clang/" +
+    std::string OrcRuntimePath = std::string(LLVM_BUILD_DIR) + "/lib/clang/" +
                                  std::to_string(LLVM_VERSION_MAJOR) +
                                  "/lib/x86_64-unknown-linux-gnu/liborc_rt.a";
 #endif
@@ -462,7 +461,7 @@ public:
                                   "Failed to generate PTU:");
   }
 };
-}
+} // namespace compat
 
 #endif // CPPINTEROP_USE_REPL
 
