@@ -46,12 +46,22 @@ if(EMSCRIPTEN)
   add_test(NAME cppinterop-${name} COMMAND $ENV{EMSDK_NODE} ${name}.js)
 else()
   add_test(NAME cppinterop-${name} COMMAND ${name})
+  if (LLVM_BUILT_WITH_OOP_JIT)
+    add_test(NAME cppinterop-oop-${name} COMMAND ${name} --use-oop-jit)
+  endif()
 endif()
   set_tests_properties(cppinterop-${name} PROPERTIES
                        TIMEOUT "${TIMEOUT_VALUE}"
                        ENVIRONMENT "CPLUS_INCLUDE_PATH=${CMAKE_BINARY_DIR}/etc"
                        LABELS
                        DEPENDS)
+  if (LLVM_BUILT_WITH_OOP_JIT)
+    set_tests_properties(cppinterop-oop-${name} PROPERTIES
+                       TIMEOUT "${TIMEOUT_VALUE}"
+                       ENVIRONMENT "CPLUS_INCLUDE_PATH=${CMAKE_BINARY_DIR}/etc"
+                       LABELS
+                       DEPENDS)
+  endif()
   # FIXME: Just call gtest_add_tests this function is available.
   #gtest_add_tests(${name} "${Arguments}" AUTO)
 endfunction()

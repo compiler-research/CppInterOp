@@ -298,8 +298,8 @@ include_directories(SYSTEM ${LLVM_INCLUDE_DIRS})
 separate_arguments(LLVM_DEFINITIONS_LIST NATIVE_COMMAND ${LLVM_DEFINITIONS})
 add_definitions(${LLVM_DEFINITIONS_LIST})
 
-string(REGEX REPLACE "/build/lib/cmake/llvm$" "" LLVM_SOURCE_DIR "${LLVM_DIR}")
-add_definitions(-DLLVM_SOURCE_DIR="${LLVM_SOURCE_DIR}")
+string(REGEX REPLACE "/lib/cmake/llvm$" "" LLVM_BUILD_DIR "${LLVM_DIR}")
+add_definitions(-DLLVM_BUILD_DIR="${LLVM_BUILD_DIR}")
 
 if(LLVM_BUILT_WITH_OOP_JIT)
   if((CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND CMAKE_SYSTEM_PROCESSOR MATCHES "arm64") OR

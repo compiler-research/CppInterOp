@@ -61,9 +61,6 @@ runs:
           if [[ "${os}" != "macos"* ]]; then
             valgrind --show-error-list=yes --track-origins=yes --error-exitcode=1 unittests/CppInterOp/CppInterOpTests/unittests/bin/${{ env.BUILD_TYPE }}/CppInterOpTests
           fi
-          if [[ "${{ matrix.oop-jit }}" == "On" ]]; then
-            ./unittests/CppInterOp/CppInterOpTests/unittests/bin/${{ env.BUILD_TYPE }}/CppInterOpTests --use-oop-jit
-          fi
         fi
         echo "CB_PYTHON_DIR=$CB_PYTHON_DIR" >> $GITHUB_ENV
         echo "CPPINTEROP_BUILD_DIR=$CPPINTEROP_BUILD_DIR" >> $GITHUB_ENV

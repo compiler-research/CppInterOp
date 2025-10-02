@@ -20,7 +20,6 @@ cd ./CppInterOp-wasm
 
 To create a wasm build of CppInterOp we make use of the emsdk toolchain. This can be installed by executing (we only currently  
 support version 3.1.73)
-
 ```bash
 git clone https://github.com/emscripten-core/emsdk.git
 ./emsdk/emsdk install  3.1.73
@@ -70,7 +69,6 @@ git apply -v emscripten-clang20-3-enable_exception_handling.patch
 
 We are now in a position to build an emscripten build of llvm by executing the following on Linux
 and osx
-
 ```bash
 mkdir native_build
 cd native_build
@@ -222,6 +220,7 @@ emcmake cmake -DCMAKE_BUILD_TYPE=Release    `
 ```
 
 It is possible to run the Emscripten tests in a headless browser. To do this we will first move to the tests directory
+
 
 ```bash
     cd ./unittests/CppInterOp/

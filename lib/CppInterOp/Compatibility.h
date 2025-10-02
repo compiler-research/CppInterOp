@@ -273,7 +273,7 @@ createClangInterpreter(std::vector<const char*>& args, int stdin_fd = 0,
   if (outOfProcess) {
     OutOfProcessConfig.IsOutOfProcess = true;
     OutOfProcessConfig.OOPExecutor =
-        std::string(LLVM_SOURCE_DIR) + "/build/bin/llvm-jitlink-executor";
+        std::string(LLVM_BUILD_DIR) + "/bin/llvm-jitlink-executor";
     OutOfProcessConfig.UseSharedMemory = false;
     OutOfProcessConfig.SlabAllocateSize = 0;
     OutOfProcessConfig.CustomizeFork = [=] { // Lambda defined inline
@@ -293,11 +293,11 @@ createClangInterpreter(std::vector<const char*>& args, int stdin_fd = 0,
     };
 #ifdef __APPLE__
     std::string OrcRuntimePath =
-        std::string(LLVM_SOURCE_DIR) + "/build/lib/clang/" +
+        std::string(LLVM_BUILD_DIR) + "/lib/clang/" +
         std::to_string(LLVM_VERSION_MAJOR) + "/lib/darwin/liborc_rt_osx.a";
 #else
-    std::string OrcRuntimePath = std::string(LLVM_SOURCE_DIR) +
-                                 "/build/lib/clang/" +
+    std::string OrcRuntimePath = std::string(LLVM_BUILD_DIR) +
+                                 "/lib/clang/" +
                                  std::to_string(LLVM_VERSION_MAJOR) +
                                  "/lib/x86_64-unknown-linux-gnu/liborc_rt.a";
 #endif

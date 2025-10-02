@@ -76,14 +76,10 @@ TEST(InterpreterTest, Evaluate) {
     GTEST_SKIP() << "Test fails for OOP JIT builds";
   }
   //  EXPECT_TRUE(Cpp::Evaluate(I, "") == 0);
-  // EXPECT_TRUE(Cpp::Evaluate(I, "__cplusplus;") == 201402);
+  //EXPECT_TRUE(Cpp::Evaluate(I, "__cplusplus;") == 201402);
   // Due to a deficiency in the clang-repl implementation to get the value we
   // always must omit the ;
-
-  // this needs to be added because TestUtils::CreateInterpreter creates
-  // Cpp::CreateInterpreter. But, the later goes out of scope(destroyed) at the
-  // end of every test due to TestUtils::CreateInterpreter. 
-  Cpp::CreateInterpreter();
+  TestUtils::CreateInterpreter();
   EXPECT_TRUE(Cpp::Evaluate("__cplusplus") == 201402);
 
   bool HadError;

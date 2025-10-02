@@ -10,7 +10,7 @@ else()
   set(EXTRA_PATH_TEST_BINARIES /CppInterOpTests/unittests/bin/$<CONFIG>/)
 endif()
 
-set(EXTRA_TEST_SOURCE_FILES main.cpp)
+set(EXTRA_TEST_SOURCE_FILES Utils.cpp main.cpp)
 
 add_cppinterop_unittest(CppInterOpTests
   EnumReflectionTest.cpp
@@ -19,7 +19,6 @@ add_cppinterop_unittest(CppInterOpTests
   JitTest.cpp
   ScopeReflectionTest.cpp
   TypeReflectionTest.cpp
-  Utils.cpp
   VariableReflectionTest.cpp
   ${EXTRA_TEST_SOURCE_FILES}
 )
@@ -86,11 +85,11 @@ export_executable_symbols(CppInterOpTests)
 unset(LLVM_LINK_COMPONENTS)
 
 if (NOT EMSCRIPTEN)
-  set(EXTRA_TEST_SOURCE_FILES "")
+  set(EXTRA_TEST_SOURCE_FILES Utils.cpp)
   set(EXTRA_PATH_TEST_BINARIES /TestSharedLib/unittests/bin/$<CONFIG>/)
 endif()
 
-add_cppinterop_unittest(DynamicLibraryManagerTests DynamicLibraryManagerTest.cpp ${EXTRA_TEST_SOURCE_FILES} Utils.cpp)
+add_cppinterop_unittest(DynamicLibraryManagerTests DynamicLibraryManagerTest.cpp ${EXTRA_TEST_SOURCE_FILES})
 
 target_link_libraries(DynamicLibraryManagerTests
   PRIVATE
