@@ -448,3 +448,31 @@ TEST(InterpreterTest, MultipleInterpreter) {
   std::string cerrs = testing::internal::GetCapturedStderr();
   EXPECT_STREQ(cerrs.c_str(), "printf_jit called!\n");
 }
+
+TEST(InterpreterTest, ASMParsing) {
+#ifdef EMSCRIPTEN
+  GTEST_SKIP() << "Test fails for Emscipten builds";
+#endif
+#ifdef _WIN32
+  GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
+#endif
+  if (llvm::sys::RunningOnValgrind())
+    GTEST_SKIP() << "XFAIL due to Valgrind report";
+  if (!IsTargetX86())
+    GTEST_SKIP() << "Skipped on ARM, we test ASM for x86_64";
+  std::vector<const char*> interpreter_args = {"-include", "new"};
+  auto* I = Cpp::CreateInterpreter(interpreter_args);
+  EXPECT_TRUE(I);
+
+  EXPECT_TRUE(Cpp::Declare(R"(
+    void foo(int &input) {
+    __asm__ volatile ("addl $10, %0" : "+r"(input));
+    }
+  )",
+                           I) == 0);
+
+  bool hasError;
+  EXPECT_TRUE(Cpp::Process("int b = 42; foo(b);") == 0);
+  EXPECT_TRUE(Cpp::Evaluate("b", &hasError) == 52);
+  EXPECT_FALSE(hasError);
+}
