@@ -9,6 +9,8 @@
 #include "clang/Sema/Lookup.h"
 #include "clang/Sema/Sema.h"
 
+#include "llvm/TargetParser/Triple.h"
+
 #include <algorithm>
 #include <string>
 #include <vector>
@@ -55,6 +57,15 @@ void TestUtils::GetAllSubDecls(Decl *D, std::vector<Decl*>& SubDecls,
       continue;
     SubDecls.push_back(Di);
   }
+}
+
+bool IsTargetX86() {
+#ifndef CPPINTEROP_USE_CLING
+  llvm::Triple triple(Interp->getCompilerInstance()->getTargetOpts().Triple);
+#else
+  llvm::Triple triple(Interp->getCI()->getTargetOpts().Triple);
+#endif
+  return triple.isX86();
 }
 
 const char* get_c_string(CXString string) {

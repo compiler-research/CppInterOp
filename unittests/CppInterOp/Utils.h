@@ -34,4 +34,6 @@ void dispose_string(CXString string);
 
 CXScope make_scope(const clang::Decl* D, const CXInterpreter I);
 
+bool IsTargetX86();
+
 #endif // CPPINTEROP_UNITTESTS_LIBCPPINTEROP_UTILS_H
