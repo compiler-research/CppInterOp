@@ -10,6 +10,8 @@
 #include "clang/Sema/Lookup.h"
 #include "clang/Sema/Sema.h"
 
+#include "llvm/TargetParser/Triple.h"
+
 #include <algorithm>
 #include <string>
 #include <vector>
@@ -71,6 +73,15 @@ TestUtils::CreateInterpreter(const std::vector<const char*>& Args,
     mergedArgs.push_back("--use-oop-jit");
   }
   return Cpp::CreateInterpreter(mergedArgs, GpuArgs);
+}
+
+bool IsTargetX86() {
+#ifndef CPPINTEROP_USE_CLING
+  llvm::Triple triple(Interp->getCompilerInstance()->getTargetOpts().Triple);
+#else
+  llvm::Triple triple(Interp->getCI()->getTargetOpts().Triple);
+#endif
+  return triple.isX86();
 }
 
 const char* get_c_string(CXString string) {

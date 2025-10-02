@@ -922,12 +922,13 @@ CPPINTEROP_API TCppObject_t Construct(TCppScope_t scope, void* arena = nullptr,
 /// Destroys one or more objects of a class
 /// \param[in] This this pointer of the object to destruct. Can also be the
 /// starting address of an array of objects
+/// \param[in] scope Class to destruct
 /// \param[in] withFree if true, we call operator delete/free, else just the
 /// destructor
 /// \param[in] count indicate the number of objects to destruct, if \c This
 /// points to an array of objects
 /// \returns true if wrapper generation and invocation succeeded.
-CPPINTEROP_API bool Destruct(TCppObject_t This, TCppConstScope_t type,
+CPPINTEROP_API bool Destruct(TCppObject_t This, TCppConstScope_t scope,
                              bool withFree = true, TCppIndex_t count = 0UL);
 
 /// @name Stream Redirection
