@@ -92,7 +92,7 @@
 
 //  Runtime symbols required if the library using JIT (Cpp::Evaluate) does not
 //  link to llvm
-#ifndef CPPINTEROP_USE_CLING
+#if !defined(CPPINTEROP_USE_CLING) && !defined(EMSCRIPTEN)
 #if CLANG_VERSION_MAJOR >= 22
 extern "C" void* __clang_Interpreter_SetValueWithAlloc(void* This, void* OutVal,
                                                        void* OpaqueType)
@@ -3356,7 +3356,7 @@ CPPINTEROP_API JitCall MakeFunctionCallable(TCppConstFunction_t func) {
 }
 
 namespace {
-#ifndef CPPINTEROP_USE_CLING
+#if !defined(CPPINTEROP_USE_CLING) && !defined(EMSCRIPTEN)
 static bool DefineAbsoluteSymbol(compat::Interpreter& I,
                                  const char* linker_mangled_name,
                                  uint64_t address) {
@@ -3501,7 +3501,7 @@ TInterp_t CreateInterpreter(const std::vector<const char*>& Args /*={}*/,
   assert(sInterpreters->size() == sInterpreterASTMap->size());
 
 // Define runtime symbols in the JIT dylib for clang-repl
-#ifndef CPPINTEROP_USE_CLING
+#if !defined(CPPINTEROP_USE_CLING) && !defined(EMSCRIPTEN)
 // llvm > 22 has this defined as a C symbol that does not require mangling
 #if CLANG_VERSION_MAJOR >= 22
   DefineAbsoluteSymbol(*I, "__clang_Interpreter_SetValueWithAlloc",
