@@ -86,7 +86,10 @@
 #include <unistd.h>
 #endif // WIN32
 
-#if CLANG_VERSION_MAJOR > 22
+//  Runtime symbols required if the library using JIT (Cpp::Evaluate) does not
+//  link to llvm
+#ifndef CPPINTEROP_USE_CLING
+#if CLANG_VERSION_MAJOR >= 22
 extern "C" void* __clang_Interpreter_SetValueWithAlloc(void* This, void* OutVal,
                                                        void* OpaqueType)
 #else
@@ -94,9 +97,20 @@ void* __clang_Interpreter_SetValueWithAlloc(void* This, void* OutVal,
                                             void* OpaqueType);
 #endif
 
+#if CLANG_VERSION_MAJOR >= 19
     extern "C" void __clang_Interpreter_SetValueNoAlloc(void* This,
                                                         void* OutVal,
                                                         void* OpaqueType, ...);
+#elif CLANG_VERSION_MAJOR == 18
+void __clang_Interpreter_SetValueNoAlloc(void*, void*, void*);
+void __clang_Interpreter_SetValueNoAlloc(void*, void*, void*, void*);
+void __clang_Interpreter_SetValueNoAlloc(void*, void*, void*, float);
+void __clang_Interpreter_SetValueNoAlloc(void*, void*, void*, double);
+void __clang_Interpreter_SetValueNoAlloc(void*, void*, void*, long double);
+void __clang_Interpreter_SetValueNoAlloc(void*, void*, void*,
+                                         unsigned long long);
+#endif
+#endif // CPPINTEROP_USE_CLING
 
 namespace Cpp {
 
@@ -3318,10 +3332,12 @@ TInterp_t CreateInterpreter(const std::vector<const char*>& Args /*={}*/,
 
 // Define runtime symbols in the JIT dylib for clang-repl
 #ifndef CPPINTEROP_USE_CLING
-#if CLANG_VERSION_MAJOR > 22
+// llvm > 22 has this defined as a C symbol that does not require mangling
+#if CLANG_VERSION_MAJOR >= 22
   DefineAbsoluteSymbol(*I, "__clang_Interpreter_SetValueWithAlloc",
-                       (uint64_t)&__clang_Interpreter_SetValueNoAlloc);
+                       (uint64_t)&__clang_Interpreter_SetValueWithAlloc);
 #else
+  // obtain mangled name
   auto* D = static_cast<clang::Decl*>(
       Cpp::GetNamed("__clang_Interpreter_SetValueWithAlloc"));
   if (auto* FD = llvm::dyn_cast<FunctionDecl>(D)) {
@@ -3332,10 +3348,65 @@ TInterp_t CreateInterpreter(const std::vector<const char*>& Args /*={}*/,
                          (uint64_t)&__clang_Interpreter_SetValueWithAlloc);
   }
 #endif
+// llvm < 19 has multiple overloads of __clang_Interpreter_SetValueNoAlloc
+#if CLANG_VERSION_MAJOR < 19
+  // obtain all 6 candidates, and obtain the correct Decl for each overload
+  // using BestOverloadFunctionMatch. We then map the decl to the correct
+  // function pointer (force the compiler to find the right declarion by casting
+  // to the corresponding function pointer signature) and then register it.
+  const std::vector<TCppFunction_t> Methods = Cpp::GetFunctionsUsingName(
+      Cpp::GetGlobalScope(), "__clang_Interpreter_SetValueNoAlloc");
+  std::string mangledName;
+  ASTContext& Ctxt = I->getSema().getASTContext();
+  auto* TAI = Ctxt.VoidPtrTy.getAsOpaquePtr();
+
+  // possible parameter lists for __clang_Interpreter_SetValueNoAlloc overloads
+  // in LLVM 18
+  const std::vector<std::vector<Cpp::TemplateArgInfo>> a_params = {
+      {TAI, TAI, TAI},
+      {TAI, TAI, TAI, TAI},
+      {TAI, TAI, TAI, Ctxt.FloatTy.getAsOpaquePtr()},
+      {TAI, TAI, TAI, Ctxt.DoubleTy.getAsOpaquePtr()},
+      {TAI, TAI, TAI, Ctxt.LongDoubleTy.getAsOpaquePtr()},
+      {TAI, TAI, TAI, Ctxt.UnsignedLongLongTy.getAsOpaquePtr()}};
+
+  using FP0 = void (*)(void*, void*, void*);
+  using FP1 = void (*)(void*, void*, void*, void*);
+  using FP2 = void (*)(void*, void*, void*, float);
+  using FP3 = void (*)(void*, void*, void*, double);
+  using FP4 = void (*)(void*, void*, void*, long double);
+  using FP5 = void (*)(void*, void*, void*, unsigned long long);
+
+  const std::vector<void*> func_pointers = {
+      reinterpret_cast<void*>(
+          static_cast<FP0>(&__clang_Interpreter_SetValueNoAlloc)),
+      reinterpret_cast<void*>(
+          static_cast<FP1>(&__clang_Interpreter_SetValueNoAlloc)),
+      reinterpret_cast<void*>(
+          static_cast<FP2>(&__clang_Interpreter_SetValueNoAlloc)),
+      reinterpret_cast<void*>(
+          static_cast<FP3>(&__clang_Interpreter_SetValueNoAlloc)),
+      reinterpret_cast<void*>(
+          static_cast<FP4>(&__clang_Interpreter_SetValueNoAlloc)),
+      reinterpret_cast<void*>(
+          static_cast<FP5>(&__clang_Interpreter_SetValueNoAlloc))};
+
+  // these symbols are not externed, so we need to mangle their names
+  for (size_t i = 0; i < a_params.size(); ++i) {
+    auto* decl = static_cast<clang::Decl*>(
+        Cpp::BestOverloadFunctionMatch(Methods, {}, a_params[i]));
+    if (auto* fd = llvm::dyn_cast<clang::FunctionDecl>(decl)) {
+      auto gd = clang::GlobalDecl(fd);
+      compat::maybeMangleDeclName(gd, mangledName);
+      DefineAbsoluteSymbol(*I, mangledName.c_str(),
+                           reinterpret_cast<uint64_t>(func_pointers[i]));
+    }
+  }
+#else
   DefineAbsoluteSymbol(*I, "__clang_Interpreter_SetValueNoAlloc",
                        (uint64_t)&__clang_Interpreter_SetValueNoAlloc);
 #endif
-
+#endif
   return I;
 }
 
