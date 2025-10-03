@@ -93,6 +93,8 @@
 //  Runtime symbols required if the library using JIT (Cpp::Evaluate) does not
 //  link to llvm
 #if !defined(CPPINTEROP_USE_CLING) && !defined(EMSCRIPTEN)
+struct __clang_Interpreter_NewTag {
+} __ci_newtag;
 #if CLANG_VERSION_MAJOR >= 22
 extern "C" void* __clang_Interpreter_SetValueWithAlloc(void* This, void* OutVal,
                                                        void* OpaqueType)
@@ -3502,6 +3504,7 @@ TInterp_t CreateInterpreter(const std::vector<const char*>& Args /*={}*/,
 
 // Define runtime symbols in the JIT dylib for clang-repl
 #if !defined(CPPINTEROP_USE_CLING) && !defined(EMSCRIPTEN)
+  DefineAbsoluteSymbol(*I, "__ci_newtag", (uint64_t)&__ci_newtag);
 // llvm > 22 has this defined as a C symbol that does not require mangling
 #if CLANG_VERSION_MAJOR >= 22
   DefineAbsoluteSymbol(*I, "__clang_Interpreter_SetValueWithAlloc",
