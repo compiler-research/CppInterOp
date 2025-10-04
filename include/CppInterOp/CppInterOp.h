@@ -733,7 +733,7 @@ CPPINTEROP_API bool ActivateInterpreter(TInterp_t I);
 /// Clang-REPL, etcetera). In practice, the selected interpreter should not
 /// matter, since the library will function in the same way.
 ///\returns the current interpreter instance, if any.
-CPPINTEROP_API TInterp_t GetInterpreter();
+CPPINTEROP_API TInterp_t GetInterpreter(TInterp_t I = nullptr);
 
 /// Sets the Interpreter instance with an external interpreter, meant to
 /// be called by an external library that manages it's own interpreter.
