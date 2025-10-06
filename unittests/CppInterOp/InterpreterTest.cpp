@@ -379,7 +379,6 @@ TEST(InterpreterTest, MultipleInterpreter) {
 #ifdef _WIN32
   GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
 #endif
-  GTEST_SKIP() << "Test does not consistently pass so skipping for now";
   // delete all old interpreters
   while (Cpp::DeleteInterpreter())
     ;
@@ -401,12 +400,12 @@ TEST(InterpreterTest, MultipleInterpreter) {
     Cpp::TCppScope_t f = Cpp::GetNamed("printf", Cpp::GetGlobalScope(I));
     EXPECT_TRUE(f);
     EXPECT_TRUE(Cpp::GetComplexType(Cpp::GetType("int", I)));
-    Cpp::TCppType_t MyKlass = Cpp::GetType("MyKlass", I);
-    EXPECT_EQ(Cpp::GetTypeAsString(MyKlass), "MyKlass");
+    Cpp::TCppScope_t MyKlass = Cpp::GetNamed("MyKlass", nullptr, I);
+    EXPECT_EQ(Cpp::GetName(MyKlass), "MyKlass");
     EXPECT_EQ(Cpp::GetNumBases(MyKlass), 0);
     EXPECT_FALSE(Cpp::GetBaseClass(MyKlass, 3));
     std::vector<Cpp::TCppScope_t> members;
-    Cpp::GetEnumConstantDatamembers(Cpp::GetScopeFromType(MyKlass), members);
+    Cpp::GetEnumConstantDatamembers(MyKlass, members);
     EXPECT_EQ(members.size(), 0);
 
     EXPECT_FALSE(
@@ -458,11 +457,13 @@ TEST(InterpreterTest, ASMParsing) {
 #endif
   if (llvm::sys::RunningOnValgrind())
     GTEST_SKIP() << "XFAIL due to Valgrind report";
-  if (!IsTargetX86())
-    GTEST_SKIP() << "Skipped on ARM, we test ASM for x86_64";
+
   std::vector<const char*> interpreter_args = {"-include", "new"};
   auto* I = Cpp::CreateInterpreter(interpreter_args);
   EXPECT_TRUE(I);
+
+  if (!IsTargetX86(I))
+    GTEST_SKIP() << "Skipped on ARM, we test ASM for x86_64";
 
   EXPECT_TRUE(Cpp::Declare(R"(
     void foo(int &input) {
