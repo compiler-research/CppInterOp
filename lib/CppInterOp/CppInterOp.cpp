@@ -91,7 +91,7 @@
 #if !defined(CPPINTEROP_USE_CLING) && !defined(EMSCRIPTEN)
 struct __clang_Interpreter_NewTag {
 } __ci_newtag;
-#if CLANG_VERSION_MAJOR >= 22
+#if CLANG_VERSION_MAJOR > 21
 extern "C" void* __clang_Interpreter_SetValueWithAlloc(void* This, void* OutVal,
                                                        void* OpaqueType)
 #else
@@ -99,11 +99,11 @@ void* __clang_Interpreter_SetValueWithAlloc(void* This, void* OutVal,
                                             void* OpaqueType);
 #endif
 
-#if CLANG_VERSION_MAJOR >= 19
+#if CLANG_VERSION_MAJOR > 18
     extern "C" void __clang_Interpreter_SetValueNoAlloc(void* This,
                                                         void* OutVal,
                                                         void* OpaqueType, ...);
-#elif CLANG_VERSION_MAJOR == 18
+#else
 void __clang_Interpreter_SetValueNoAlloc(void*, void*, void*);
 void __clang_Interpreter_SetValueNoAlloc(void*, void*, void*, void*);
 void __clang_Interpreter_SetValueNoAlloc(void*, void*, void*, float);
@@ -3198,9 +3198,8 @@ CPPINTEROP_API JitCall MakeFunctionCallable(TCppConstFunction_t func) {
 
 namespace {
 #if !defined(CPPINTEROP_USE_CLING) && !defined(EMSCRIPTEN)
-static bool DefineAbsoluteSymbol(compat::Interpreter& I,
-                                 const char* linker_mangled_name,
-                                 uint64_t address) {
+bool DefineAbsoluteSymbol(compat::Interpreter& I,
+                          const char* linker_mangled_name, uint64_t address) {
   using namespace llvm;
   using namespace llvm::orc;
 
@@ -3208,16 +3207,10 @@ static bool DefineAbsoluteSymbol(compat::Interpreter& I,
   llvm::orc::ExecutionSession& ES = Jit.getExecutionSession();
   JITDylib& DyLib = *Jit.getProcessSymbolsJITDylib().get();
 
-  llvm::orc::SymbolMap InjectedSymbols;
-  auto& DL = compat::getExecutionEngine(I)->getDataLayout();
-  char GlobalPrefix = DL.getGlobalPrefix();
-  std::string tmp(linker_mangled_name);
-  if (GlobalPrefix != '\0') {
-    tmp = std::string(1, GlobalPrefix) + tmp;
-  }
-  auto Name = ES.intern(tmp);
-  InjectedSymbols[Name] =
-      ExecutorSymbolDef(ExecutorAddr(address), JITSymbolFlags::Exported);
+  llvm::orc::SymbolMap InjectedSymbols{
+      {ES.intern(linker_mangled_name), ExecutorSymbolDef(ExecutorAddr(address),
+                               JITSymbolFlags::Exported)}
+  };
 
   if (Error Err = DyLib.define(absoluteSymbols(InjectedSymbols))) {
     logAllUnhandledErrors(std::move(Err), errs(),
