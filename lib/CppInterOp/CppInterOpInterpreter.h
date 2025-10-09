@@ -146,19 +146,20 @@ namespace Cpp {
 /// CppInterOp Interpreter
 ///
 class Interpreter {
-
-private:
+public:
   struct FileDeleter {
+    // LCOV_EXCL_START
     void operator()(FILE* f /* owns */) {
       if (f)
         fclose(f);
     }
+    // LCOV_EXCL_STOP
   };
+
   struct IOContext {
     std::unique_ptr<FILE, FileDeleter> stdin_file;
     std::unique_ptr<FILE, FileDeleter> stdout_file;
     std::unique_ptr<FILE, FileDeleter> stderr_file;
-    bool outOfProcess = false;
 
     bool initializeTempFiles() {
       stdin_file.reset(tmpfile());  // NOLINT(cppcoreguidelines-owning-memory)
@@ -168,13 +169,51 @@ private:
     }
   };
 
+private:
+  static std::tuple<int, int, int, bool>
+  getFileDescriptorsForOutOfProcess(std::vector<const char*>& vargs,
+                                    std::unique_ptr<IOContext>& io_ctx) {
+    int stdin_fd = 0;
+    int stdout_fd = 1;
+    int stderr_fd = 2;
+    bool outOfProcess = false;
+
+#if defined(_WIN32)
+    outOfProcess = false;
+#else
+    outOfProcess = std::any_of(vargs.begin(), vargs.end(), [](const char* arg) {
+      return llvm::StringRef(arg).trim() == "--use-oop-jit";
+    });
+
+    if (outOfProcess) {
+      bool init = io_ctx->initializeTempFiles();
+      if (!init) {
+        llvm::errs() << "Can't start out-of-process JIT execution. Continuing "
+                        "with in-process JIT execution.\n";
+        outOfProcess = false;
+      } else {
+        stdin_fd = fileno(io_ctx->stdin_file.get());
+        stdout_fd = fileno(io_ctx->stdout_file.get());
+        stderr_fd = fileno(io_ctx->stderr_file.get());
+      }
+    }
+#endif
+
+    return std::make_tuple(stdin_fd, stdout_fd, stderr_fd, outOfProcess);
+  }
+
   std::unique_ptr<clang::Interpreter> inner;
   std::unique_ptr<IOContext> io_context;
+  bool outOfProcess;
 
 public:
   Interpreter(std::unique_ptr<clang::Interpreter> CI,
               std::unique_ptr<IOContext> ctx = nullptr)
       : inner(std::move(CI)), io_context(std::move(ctx)) {}
+
+  Interpreter(std::unique_ptr<clang::Interpreter> CI,
+              std::unique_ptr<IOContext> ctx, bool oop)
+      : inner(std::move(CI)), io_context(std::move(ctx)), outOfProcess(oop) {}
 
   static std::unique_ptr<Interpreter>
   create(int argc, const char* const* argv, const char* llvmdir = nullptr,
@@ -190,33 +229,11 @@ public:
 
     std::vector<const char*> vargs(argv + 1, argv + argc);
 
+    int stdin_fd, stdout_fd, stderr_fd;
+    bool outOfProcess;
     auto io_ctx = std::make_unique<IOContext>();
-
-    int stdin_fd = 0;
-    int stdout_fd = 1;
-    int stderr_fd = 2;
-
-#if defined(_WIN32)
-    io_ctx->outOfProcess = false;
-#else
-    io_ctx->outOfProcess =
-        std::any_of(vargs.begin(), vargs.end(), [](const char* arg) {
-          return llvm::StringRef(arg).trim() == "--use-oop-jit";
-        });
-
-    if (io_ctx->outOfProcess) {
-      bool init = io_ctx->initializeTempFiles();
-      if (!init) {
-        llvm::errs() << "Can't start out-of-process JIT execution. Continuing "
-                        "with in-process JIT execution.\n";
-        io_ctx->outOfProcess = false;
-      } else {
-        stdin_fd = fileno(io_ctx->stdin_file.get());
-        stdout_fd = fileno(io_ctx->stdout_file.get());
-        stderr_fd = fileno(io_ctx->stderr_file.get());
-      }
-    }
-#endif
+    std::tie(stdin_fd, stdout_fd, stderr_fd, outOfProcess) =
+        getFileDescriptorsForOutOfProcess(vargs, io_ctx);
 
     auto CI =
         compat::createClangInterpreter(vargs, stdin_fd, stdout_fd, stderr_fd);
@@ -226,7 +243,7 @@ public:
     }
 
     return std::unique_ptr<Interpreter>(
-        new Interpreter(std::move(CI), std::move(io_ctx)));
+        new Interpreter(std::move(CI), std::move(io_ctx), outOfProcess));
   }
 
   ~Interpreter() {}
@@ -234,12 +251,10 @@ public:
   operator const clang::Interpreter&() const { return *inner; }
   operator clang::Interpreter&() { return *inner; }
 
-  bool isOutOfProcess() const {
-    return io_context ? io_context->outOfProcess : false;
-  }
+  bool isOutOfProcess() const { return outOfProcess; }
 
 #ifndef _WIN32
-  FILE* getTempFileForOOP(int FD) {
+  FILE* getRedirectionFileForOutOfProcess(int FD) {
     if (!io_context)
       return nullptr;
     switch (FD) {

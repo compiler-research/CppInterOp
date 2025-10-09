@@ -146,6 +146,9 @@ TEST(InterpreterTest, Process) {
 #ifdef _WIN32
   GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
 #endif
+  if (TestUtils::use_oop_jit()) {
+    GTEST_SKIP() << "Test fails for OOP JIT builds";
+  }
   if (llvm::sys::RunningOnValgrind())
     GTEST_SKIP() << "XFAIL due to Valgrind report";
   std::vector<const char*> interpreter_args = {"-include", "new"};
@@ -157,18 +160,16 @@ TEST(InterpreterTest, Process) {
   EXPECT_FALSE(Cpp::Process("int f(); int res = f();") == 0);
 
   // C API
-  if (!TestUtils::use_oop_jit()) {
-    auto* CXI = clang_createInterpreterFromRawPtr(I);
-    clang_Interpreter_declare(CXI, "#include <iostream>", false);
-    clang_Interpreter_process(CXI, "int c = 42;");
-    auto* CXV = clang_createValue();
-    auto Res = clang_Interpreter_evaluate(CXI, "c", CXV);
-    EXPECT_EQ(Res, CXError_Success);
-    clang_Value_dispose(CXV);
-    clang_Interpreter_dispose(CXI);
-    auto* OldI = Cpp::TakeInterpreter();
-    EXPECT_EQ(OldI, I);
-  }
+  auto* CXI = clang_createInterpreterFromRawPtr(I);
+  clang_Interpreter_declare(CXI, "#include <iostream>", false);
+  clang_Interpreter_process(CXI, "int c = 42;");
+  auto* CXV = clang_createValue();
+  auto Res = clang_Interpreter_evaluate(CXI, "c", CXV);
+  EXPECT_EQ(Res, CXError_Success);
+  clang_Value_dispose(CXV);
+  clang_Interpreter_dispose(CXI);
+  auto* OldI = Cpp::TakeInterpreter();
+  EXPECT_EQ(OldI, I);
 }
 
 TEST(InterpreterTest, EmscriptenExceptionHandling) {

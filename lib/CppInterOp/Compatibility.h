@@ -273,10 +273,12 @@ createClangInterpreter(std::vector<const char*>& args, int stdin_fd = 0,
   if (outOfProcess) {
     OutOfProcessConfig.IsOutOfProcess = true;
     OutOfProcessConfig.OOPExecutor =
-        std::string(LLVM_BUILD_DIR) + "/bin/llvm-jitlink-executor";
+        std::string(LLVM_BUILD_LIB_DIR) + "/bin/llvm-jitlink-executor";
     OutOfProcessConfig.UseSharedMemory = false;
     OutOfProcessConfig.SlabAllocateSize = 0;
-    OutOfProcessConfig.CustomizeFork = [=] { // Lambda defined inline
+    // LCOV_EXCL_STOP
+    OutOfProcessConfig.CustomizeFork = [&stdin_fd, &stdout_fd,
+                                        &stderr_fd]() { // Lambda defined inline
       auto redirect = [](int from, int to) {
         if (from != to) {
           dup2(from, to);
@@ -291,13 +293,15 @@ createClangInterpreter(std::vector<const char*>& args, int stdin_fd = 0,
       setvbuf(stdout, nullptr, _IONBF, 0);
       setvbuf(stderr, nullptr, _IONBF, 0);
     };
+    // LCOV_EXCL_STOP
 
 #ifdef __APPLE__
-    std::string OrcRuntimePath = std::string(LLVM_BUILD_DIR) + "/lib/clang/" +
-                                 std::to_string(LLVM_VERSION_MAJOR) +
-                                 "/lib/darwin/liborc_rt_osx.a";
+    std::string OrcRuntimePath =
+        std::string(LLVM_BUILD_LIB_DIR) + "/lib/clang/" +
+        std::to_string(LLVM_VERSION_MAJOR) + "/lib/darwin/liborc_rt_osx.a";
 #else
-    std::string OrcRuntimePath = std::string(LLVM_BUILD_DIR) + "/lib/clang/" +
+    std::string OrcRuntimePath = std::string(LLVM_BUILD_LIB_DIR) +
+                                 "/lib/clang/" +
                                  std::to_string(LLVM_VERSION_MAJOR) +
                                  "/lib/x86_64-unknown-linux-gnu/liborc_rt.a";
 #endif

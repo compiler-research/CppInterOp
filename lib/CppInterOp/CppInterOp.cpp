@@ -4300,7 +4300,7 @@ public:
 #if !defined(CPPINTEROP_USE_CLING) && !defined(_WIN32)
     auto& I = getInterp(NULLPTR);
     if (I.isOutOfProcess() && FD == STDOUT_FILENO) {
-      m_TempFile = I.getTempFileForOOP(FD);
+      m_TempFile = I.getRedirectionFileForOutOfProcess(FD);
       ::fflush(m_TempFile);
       m_FD = fileno(m_TempFile);
       m_OwnsFile = false;
