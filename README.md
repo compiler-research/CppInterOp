@@ -316,23 +316,6 @@ Now CppInterOp can be built. This can be done by executing
 ```bash
 mkdir CppInterOp/build/
 cd CppInterOp/build/
-```
-
-On Windows execute
-
-```powershell
-mkdir CppInterOp\build\
-cd CppInterOp\build\
-```
-
-```powershell
-cmake -DLLVM_DIR=$env:LLVM_DIR\build\lib\cmake\llvm -DClang_DIR=$env:LLVM_DIR\build\lib\cmake\clang -DCMAKE_INSTALL_PREFIX=$env:CPPINTEROP_DIR ..
-cmake --build . --target install --parallel $env:ncpus
-```
-
-on Windows. If alternatively you would like to install CppInterOp with Cling then execute the following commands on Linux and MacOS.
-
-```bash
 cmake -DBUILD_SHARED_LIBS=ON -DCPPINTEROP_USE_CLING=ON -DCPPINTEROP_USE_REPL=Off -DCling_DIR=$LLVM_DIR/build/tools/cling -DLLVM_DIR=$LLVM_DIR/build/lib/cmake/llvm -DClang_DIR=$LLVM_DIR/build/lib/cmake/clang -DCMAKE_INSTALL_PREFIX=$CPPINTEROP_DIR ..
 cmake --build . --target install --parallel $(nproc --all)
 ```
