@@ -85,7 +85,7 @@ TEST(InterpreterTest, Evaluate) {
   EXPECT_TRUE(Cpp::Evaluate("#error", &HadError) == (intptr_t)~0UL);
   EXPECT_TRUE(HadError);
   EXPECT_EQ(Cpp::Evaluate("int i = 11; ++i", &HadError), 12);
-  EXPECT_FALSE(HadError);
+  EXPECT_FALSE(HadError) ;
 }
 
 TEST(InterpreterTest, DeleteInterpreter) {
@@ -220,6 +220,7 @@ TEST(InterpreterTest, CreateInterpreter) {
                    "#endif");
   EXPECT_TRUE(Cpp::GetNamed("cpp17"));
   EXPECT_FALSE(Cpp::GetNamed("cppUnknown"));
+
 
 #ifndef CPPINTEROP_USE_CLING
   // C API
@@ -357,15 +358,15 @@ if (llvm::sys::RunningOnValgrind())
 #endif // CPPINTEROP_USE_REPL
 
 #ifdef CPPINTEROP_USE_CLING
-  std::string MainExecutableName = sys::fs::getMainExecutable(nullptr, nullptr);
-  llvm::SmallString<128> P(LLVM_BINARY_DIR);
-  llvm::sys::path::append(P, CLANG_INSTALL_LIBDIR_BASENAME, "clang",
-                          CLANG_VERSION_MAJOR_STRING);
-  std::string ResourceDir = std::string(P.str());
-  std::vector<const char*> ClingArgv = {"-resource-dir", ResourceDir.c_str(),
-                                        "-std=c++14"};
-  ClingArgv.insert(ClingArgv.begin(), MainExecutableName.c_str());
-  auto* ExtInterp = new compat::Interpreter(ClingArgv.size(), &ClingArgv[0]);
+    std::string MainExecutableName = sys::fs::getMainExecutable(nullptr, nullptr);
+    llvm::SmallString<128> P(LLVM_BINARY_DIR);
+    llvm::sys::path::append(P, CLANG_INSTALL_LIBDIR_BASENAME, "clang",
+                            CLANG_VERSION_MAJOR_STRING);
+    std::string ResourceDir = std::string(P.str());
+    std::vector<const char *> ClingArgv = {"-resource-dir", ResourceDir.c_str(),
+                                           "-std=c++14"};
+    ClingArgv.insert(ClingArgv.begin(), MainExecutableName.c_str());
+    auto *ExtInterp = new compat::Interpreter(ClingArgv.size(), &ClingArgv[0]);
 #endif
 
   EXPECT_NE(ExtInterp, nullptr);
