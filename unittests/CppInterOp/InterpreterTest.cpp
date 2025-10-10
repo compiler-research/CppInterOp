@@ -59,7 +59,6 @@ TEST(InterpreterTest, DebugFlag) {
   testing::internal::CaptureStderr();
   Cpp::Process("int c = 12;");
   cerrs = testing::internal::GetCapturedStderr();
-  std::cout << cerrs << std::endl;
   EXPECT_STREQ(cerrs.c_str(), "");
 }
 

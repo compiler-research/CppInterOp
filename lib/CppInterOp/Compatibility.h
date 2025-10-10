@@ -276,7 +276,7 @@ createClangInterpreter(std::vector<const char*>& args, int stdin_fd = 0,
         std::string(LLVM_BUILD_LIB_DIR) + "/bin/llvm-jitlink-executor";
     OutOfProcessConfig.UseSharedMemory = false;
     OutOfProcessConfig.SlabAllocateSize = 0;
-    // LCOV_EXCL_STOP
+    // LCOV_EXCL_START
     OutOfProcessConfig.CustomizeFork = [&stdin_fd, &stdout_fd,
                                         &stderr_fd]() { // Lambda defined inline
       auto redirect = [](int from, int to) {
