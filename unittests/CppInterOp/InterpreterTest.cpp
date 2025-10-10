@@ -75,7 +75,7 @@ TEST(InterpreterTest, Evaluate) {
     GTEST_SKIP() << "Test fails for OOP JIT builds";
   }
   //  EXPECT_TRUE(Cpp::Evaluate(I, "") == 0);
-  // EXPECT_TRUE(Cpp::Evaluate(I, "__cplusplus;") == 201402);
+  //EXPECT_TRUE(Cpp::Evaluate(I, "__cplusplus;") == 201402);
   // Due to a deficiency in the clang-repl implementation to get the value we
   // always must omit the ;
   TestUtils::CreateInterpreter();
@@ -176,17 +176,17 @@ TEST(InterpreterTest, EmscriptenExceptionHandling) {
   GTEST_SKIP() << "This test is intended to check exception handling for "
                   "Emscripten builds.";
 #endif
-  if (TestUtils::use_oop_jit()) {
-    GTEST_SKIP() << "Test fails for OOP JIT builds";
-  }
 
   std::vector<const char*> Args = {
-      "-std=c++20",   "-v",
-      "-fexceptions", "-fcxx-exceptions",
-      "-mllvm",       "-enable-emscripten-cxx-exceptions",
-      "-mllvm",       "-enable-emscripten-sjlj"};
+    "-std=c++20",
+    "-v",
+    "-fexceptions",
+    "-fcxx-exceptions",
+    "-mllvm", "-enable-emscripten-cxx-exceptions",
+    "-mllvm", "-enable-emscripten-sjlj"
+  };
 
-  TestUtils::CreateInterpreter(Args);
+  Cpp::CreateInterpreter(Args);
 
   const char* tryCatchCode = R"(
     try {
@@ -205,19 +205,19 @@ TEST(InterpreterTest, CreateInterpreter) {
   // Check if the default standard is c++14
 
   Cpp::Declare("#if __cplusplus==201402L\n"
-               "int cpp14() { return 2014; }\n"
-               "#else\n"
-               "void cppUnknown() {}\n"
-               "#endif");
+                   "int cpp14() { return 2014; }\n"
+                   "#else\n"
+                   "void cppUnknown() {}\n"
+                   "#endif");
   EXPECT_TRUE(Cpp::GetNamed("cpp14"));
   EXPECT_FALSE(Cpp::GetNamed("cppUnknown"));
 
   I = TestUtils::CreateInterpreter({"-std=c++17"});
   Cpp::Declare("#if __cplusplus==201703L\n"
-               "int cpp17() { return 2017; }\n"
-               "#else\n"
-               "void cppUnknown() {}\n"
-               "#endif");
+                   "int cpp17() { return 2017; }\n"
+                   "#else\n"
+                   "void cppUnknown() {}\n"
+                   "#endif");
   EXPECT_TRUE(Cpp::GetNamed("cpp17"));
   EXPECT_FALSE(Cpp::GetNamed("cppUnknown"));
 
@@ -311,7 +311,7 @@ TEST(InterpreterTest, IncludePaths) {
   Cpp::AddIncludePath("/non/existent/");
   Cpp::GetIncludePaths(includes);
   EXPECT_NE(std::find(includes.begin(), includes.end(), "/non/existent/"),
-            std::end(includes));
+             std::end(includes));
 }
 
 TEST(InterpreterTest, CodeCompletion) {
@@ -336,8 +336,8 @@ TEST(InterpreterTest, CodeCompletion) {
 
 TEST(InterpreterTest, ExternalInterpreterTest) {
 
-  if (llvm::sys::RunningOnValgrind())
-    GTEST_SKIP() << "XFAIL due to Valgrind report";
+if (llvm::sys::RunningOnValgrind())
+  GTEST_SKIP() << "XFAIL due to Valgrind report";
 
 #ifndef CPPINTEROP_USE_CLING
   llvm::ExitOnError ExitOnErr;

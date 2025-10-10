@@ -1,3 +1,5 @@
+set(EXTRA_TEST_SOURCE_FILES Utils.cpp main.cpp)
+
 if (EMSCRIPTEN)
   # So we create a html file, as well as the javascript file
   set(CMAKE_EXECUTABLE_SUFFIX ".html")
@@ -6,11 +8,11 @@ if (EMSCRIPTEN)
   # the tests and an explicitly main.cpp is needed
 else()
   # Do not need main.cpp for native builds, but we do have GPU support for native builds
-  set(EXTRA_TEST_SOURCE_FILES CUDATest.cpp)
+  list(APPEND EXTRA_TEST_SOURCE_FILES CUDATest.cpp)
   set(EXTRA_PATH_TEST_BINARIES /CppInterOpTests/unittests/bin/$<CONFIG>/)
 endif()
 
-set(EXTRA_TEST_SOURCE_FILES Utils.cpp main.cpp)
+
 
 add_cppinterop_unittest(CppInterOpTests
   EnumReflectionTest.cpp

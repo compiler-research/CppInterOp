@@ -1,5 +1,4 @@
 # CppInterOp
-
 <div align="center">
 
 [![Build Status](https://github.com/compiler-research/CppInterOp/actions/workflows/main.yml/badge.svg)](https://github.com/compiler-research/CppInterOp/actions/workflows/main.yml)
@@ -112,7 +111,7 @@ git clone --depth=1 --branch release/20.x https://github.com/llvm/llvm-project.g
 cd llvm-project
 ```
 
-If you want to have out-of-process JIT execution enabled in CppInterOp, then apply this patch on Linux and MacOS environment.
+If you want to have out-of-process JIT execution enabled in CppInterOp, then apply this patch on Linux-x86_64 and MacOS-Darwin environment.
 > Note that this patch will not work for Windows because out-of-process JIT execution is currently implemented for Linux-x86_64 and MacOS-Darwin only.
 
 ```bash
@@ -253,7 +252,7 @@ and clone cppyy-backend repository where we will be installing the CppInterOp li
 git clone --depth=1 https://github.com/compiler-research/cppyy-backend.git
 ```
 
-### Build Cling and related dependencies
+#### Build Cling and related dependencies
 
 The Cling interpreter and depends on its own customised version of `llvm-project`,
 hosted under the `root-project` (see the git path below).
