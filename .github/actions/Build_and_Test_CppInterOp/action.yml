@@ -48,6 +48,7 @@ runs:
                 -DCODE_COVERAGE=${{ env.CODE_COVERAGE }}     \
                 -DCMAKE_INSTALL_PREFIX=$CPPINTEROP_DIR       \
                 -DLLVM_ENABLE_WERROR=On                      \
+                -DLLVM_BUILT_WITH_OOP_JIT=${{ matrix.oop-jit }} \
                 ../
         fi
         docs_on=$(echo "${{ matrix.documentation }}" | tr '[:lower:]' '[:upper:]')
