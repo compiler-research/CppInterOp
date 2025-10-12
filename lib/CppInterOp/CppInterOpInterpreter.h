@@ -244,8 +244,8 @@ public:
       return nullptr;
     }
 
-    return std::make_unique<Interpreter>(
-	        std::move(CI), std::move(io_ctx), outOfProcess);
+    return std::make_unique<Interpreter>(std::move(CI), std::move(io_ctx),
+                                         outOfProcess);
   }
 
   ~Interpreter() {}
