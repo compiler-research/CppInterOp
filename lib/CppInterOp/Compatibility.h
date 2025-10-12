@@ -87,6 +87,7 @@ static inline char* GetEnv(const char* Var_Name) {
 #include "cling/Utils/AST.h"
 
 #include <regex>
+#include <vector>
 
 namespace Cpp {
 namespace Cpp_utils = cling::utils;
@@ -276,7 +277,6 @@ createClangInterpreter(std::vector<const char*>& args, int stdin_fd = 0,
         std::string(LLVM_BUILD_LIB_DIR) + "/bin/llvm-jitlink-executor";
     OutOfProcessConfig.UseSharedMemory = false;
     OutOfProcessConfig.SlabAllocateSize = 0;
-    // LCOV_EXCL_START
     OutOfProcessConfig.CustomizeFork = [&stdin_fd, &stdout_fd,
                                         &stderr_fd]() { // Lambda defined inline
       auto redirect = [](int from, int to) {
@@ -293,7 +293,6 @@ createClangInterpreter(std::vector<const char*>& args, int stdin_fd = 0,
       setvbuf(stdout, nullptr, _IONBF, 0);
       setvbuf(stderr, nullptr, _IONBF, 0);
     };
-    // LCOV_EXCL_STOP
 
 #ifdef __APPLE__
     std::string OrcRuntimePath =

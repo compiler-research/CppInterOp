@@ -149,12 +149,11 @@ namespace Cpp {
 class Interpreter {
 public:
   struct FileDeleter {
-    // LCOV_EXCL_START
     void operator()(FILE* f /* owns */) {
       if (f)
+        // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
         fclose(f);
     }
-    // LCOV_EXCL_STOP
   };
 
   struct IOContext {
@@ -210,7 +209,7 @@ private:
 public:
   Interpreter(std::unique_ptr<clang::Interpreter> CI,
               std::unique_ptr<IOContext> ctx = nullptr)
-      : inner(std::move(CI)), io_context(std::move(ctx)) {}
+      : inner(std::move(CI)), io_context(std::move(ctx)), outOfProcess(false) {}
 
   Interpreter(std::unique_ptr<clang::Interpreter> CI,
               std::unique_ptr<IOContext> ctx, bool oop)
@@ -230,7 +229,9 @@ public:
 
     std::vector<const char*> vargs(argv + 1, argv + argc);
 
-    int stdin_fd, stdout_fd, stderr_fd;
+    int stdin_fd;
+    int stdout_fd;
+    int stderr_fd;
     bool outOfProcess;
     auto io_ctx = std::make_unique<IOContext>();
     std::tie(stdin_fd, stdout_fd, stderr_fd, outOfProcess) =
@@ -243,8 +244,8 @@ public:
       return nullptr;
     }
 
-    return std::unique_ptr<Interpreter>(
-        new Interpreter(std::move(CI), std::move(io_ctx), outOfProcess));
+    return std::make_unique<Interpreter>(
+	        std::move(CI), std::move(io_ctx), outOfProcess);
   }
 
   ~Interpreter() {}

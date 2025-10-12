@@ -4276,11 +4276,13 @@ bool Destruct(TCppObject_t This, TCppConstScope_t scope,
 }
 
 class StreamCaptureInfo {
-  FILE* m_TempFile;
+  struct file_deleter {
+    void operator()(FILE* fp) { pclose(fp); }
+  };
+  std::unique_ptr<FILE, file_deleter> m_TempFile;
   int m_FD = -1;
   int m_DupFD = -1;
-  int mode = -1;
-  bool m_OwnsFile = false;
+  bool m_OwnsFile = true;
 
 public:
 #ifdef _MSC_VER
@@ -4295,47 +4297,37 @@ public:
         }()},
         m_FD(FD) {
 #else
-  StreamCaptureInfo(int FD) : mode(FD) {
-#endif
+  StreamCaptureInfo(int FD) : m_FD(FD) {
 #if !defined(CPPINTEROP_USE_CLING) && !defined(_WIN32)
     auto& I = getInterp(NULLPTR);
     if (I.isOutOfProcess() && FD == STDOUT_FILENO) {
-      m_TempFile = I.getRedirectionFileForOutOfProcess(FD);
-      ::fflush(m_TempFile);
-      m_FD = fileno(m_TempFile);
-      m_OwnsFile = false;
+      // Use interpreter-managed redirection file for out-of-process stdout
+      FILE* redirected = I.getRedirectionFileForOutOfProcess(FD);
+      if (redirected) {
+        m_TempFile.release(); // release ownership of current tmpfile
+        m_TempFile.reset(redirected);
+        m_OwnsFile = false;
+      }
     } else {
-      m_TempFile = tmpfile();
-      m_FD = FD;
-      m_OwnsFile = true;
+      m_TempFile.reset(tmpfile());
     }
 #else
-    m_TempFile = tmpfile();
-    m_FD = FD;
-    m_OwnsFile = true;
-    (void)mode;
+    m_TempFile.reset(tmpfile());
 #endif
+#endif
+
     if (!m_TempFile) {
       perror("StreamCaptureInfo: Unable to create temp file");
       return;
     }
 
-    m_DupFD = dup(m_FD);
+    m_DupFD = dup(FD);
 
     // Flush now or can drop the buffer when dup2 is called with Fd later.
     // This seems only necessary when piping stdout or stderr, but do it
     // for ttys to avoid over complicated code for minimal benefit.
-    if (m_FD == STDOUT_FILENO) {
-      ::fflush(stdout);
-    } else if (m_FD == STDERR_FILENO) {
-      ::fflush(stderr);
-    } else {
-#ifndef _WIN32
-      fsync(m_FD);
-#endif
-    }
-    // ::fflush(FD == STDOUT_FILENO ? stdout : stderr);
-    if (dup2(fileno(m_TempFile), m_FD) < 0)
+    ::fflush(FD == STDOUT_FILENO ? stdout : stderr);
+    if (dup2(fileno(m_TempFile.get()), FD) < 0)
       perror("StreamCaptureInfo:");
   }
   StreamCaptureInfo(const StreamCaptureInfo&) = delete;
@@ -4345,9 +4337,9 @@ public:
 
   ~StreamCaptureInfo() {
     assert(m_DupFD == -1 && "Captured output not used?");
-    if (m_TempFile && m_OwnsFile) {
-      fclose(m_TempFile);
-    }
+    // Only close the temp file if we own it
+    if (m_OwnsFile && m_TempFile)
+      fclose(m_TempFile.release());
   }
 
   std::string GetCapturedString() {
@@ -4357,11 +4349,11 @@ public:
     if (dup2(m_DupFD, m_FD) < 0)
       perror("StreamCaptureInfo:");
     // Go to the end of the file.
-    if (fseek(m_TempFile, 0L, SEEK_END) != 0)
+    if (fseek(m_TempFile.get(), 0L, SEEK_END) != 0)
       perror("StreamCaptureInfo:");
 
     // Get the size of the file.
-    long bufsize = ftell(m_TempFile);
+    long bufsize = ftell(m_TempFile.get());
     if (bufsize == -1)
       perror("StreamCaptureInfo:");
 
@@ -4369,12 +4361,13 @@ public:
     std::unique_ptr<char[]> content(new char[bufsize + 1]);
 
     // Go back to the start of the file.
-    if (fseek(m_TempFile, 0L, SEEK_SET) != 0)
+    if (fseek(m_TempFile.get(), 0L, SEEK_SET) != 0)
       perror("StreamCaptureInfo:");
 
     // Read the entire file into memory.
-    size_t newLen = fread(content.get(), sizeof(char), bufsize, m_TempFile);
-    if (ferror(m_TempFile) != 0)
+    size_t newLen =
+        fread(content.get(), sizeof(char), bufsize, m_TempFile.get());
+    if (ferror(m_TempFile.get()) != 0)
       fputs("Error reading file", stderr);
     else
       content[newLen++] = '\0'; // Just to be safe.
@@ -4384,10 +4377,11 @@ public:
     m_DupFD = -1;
 #if !defined(_WIN32) && !defined(CPPINTEROP_USE_CLING)
     auto& I = getInterp(NULLPTR);
-    if (I.isOutOfProcess() && mode != STDERR_FILENO) {
-      if (ftruncate(m_FD, 0) != 0)
+    if (I.isOutOfProcess() && m_FD == STDOUT_FILENO) {
+      int fd = fileno(m_TempFile.get());
+      if (ftruncate(fd, 0) != 0)
         perror("ftruncate");
-      if (lseek(m_FD, 0, SEEK_SET) == -1)
+      if (lseek(fd, 0, SEEK_SET) == -1)
         perror("lseek");
     }
 #endif
