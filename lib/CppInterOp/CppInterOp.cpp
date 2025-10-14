@@ -3459,8 +3459,6 @@ static inline auto find_interpreter_in_map(InterpreterInfo* I) {
 bool DeleteInterpreter(TInterp_t I /*=nullptr*/) {
   std::lock_guard<std::recursive_mutex> Lock(InterpreterStackLock);
   assert(sInterpreters->size() == sInterpreterASTMap->size());
-  if (sInterpreters->empty())
-    return false;
 
   if (!I) {
     auto foundAST = find_interpreter_in_map(sInterpreters->back().get());
