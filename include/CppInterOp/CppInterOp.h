@@ -702,11 +702,6 @@ CreateInterpreter(const std::vector<const char*>& Args = {},
 ///\returns false on failure or if \c I is not tracked in the stack.
 CPPINTEROP_API bool DeleteInterpreter(TInterp_t I = nullptr);
 
-/// Take ownership of an interpreter instance.
-///\param[in] I - the interpreter to be taken, if nullptr, returns the last.
-///\returns nullptr on failure or if \c I is not tracked in the stack.
-CPPINTEROP_API TInterp_t TakeInterpreter(TInterp_t I = nullptr);
-
 /// Activates an instance of an interpreter to handle subsequent API requests
 ///\param[in] I - the interpreter to be activated.
 ///\returns false on failure.

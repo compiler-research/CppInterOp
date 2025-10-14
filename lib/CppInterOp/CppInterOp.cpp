@@ -54,7 +54,6 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/Error.h"
-#include "llvm/Support/ErrorHandling.h"
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/raw_ostream.h"
@@ -139,16 +138,16 @@ struct InterpreterInfo {
   InterpreterInfo& operator=(const InterpreterInfo&) = delete;
 };
 
-// NOLINTBEGIN(cppcoreguidelines-avoid-non-const-global-variables)
+// NOLINTBEGIN
 // std::deque avoids relocations and calling the dtor of InterpreterInfo.
-static llvm::ManagedStatic<std::deque<std::unique_ptr<InterpreterInfo>>>
+static llvm::ManagedStatic<std::deque<std::shared_ptr<InterpreterInfo>>>
     sInterpreters;
 static llvm::ManagedStatic<
-    std::unordered_map<clang::ASTContext*, InterpreterInfo*>>
+    std::unordered_map<clang::ASTContext*, std::weak_ptr<InterpreterInfo>>>
     sInterpreterASTMap;
 static std::recursive_mutex InterpreterStackLock;
 static std::recursive_mutex LLVMLock;
-// NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables)
+// NOLINTEND
 
 static InterpreterInfo& getInterpInfo() {
   std::lock_guard<std::recursive_mutex> Lock(InterpreterStackLock);
@@ -162,20 +161,17 @@ static InterpreterInfo& getInterpInfo(const clang::Decl* D) {
     return getInterpInfo();
   if (sInterpreters->size() == 1)
     return *sInterpreters->back();
-  return *(*sInterpreterASTMap)[&D->getASTContext()];
+  return *(*sInterpreterASTMap)[&D->getASTContext()].lock();
 }
 static InterpreterInfo& getInterpInfo(const void* D) {
   std::lock_guard<std::recursive_mutex> Lock(InterpreterStackLock);
-  QualType QT = QualType::getFromOpaquePtr(D);
-  if (auto* D = QT->getAsTagDecl())
-    return getInterpInfo(D);
   if (!D)
     return getInterpInfo();
   if (sInterpreters->size() == 1)
     return *sInterpreters->back();
   for (auto& item : *sInterpreterASTMap) {
     if (item.first->getAllocator().identifyObject(D))
-      return *item.second;
+      return *item.second.lock();
   }
   llvm_unreachable(
       "This pointer does not belong to any interpreter instance.\n");
@@ -193,7 +189,7 @@ static compat::Interpreter& getInterp(const clang::Decl* D) {
     return getInterp();
   if (sInterpreters->size() == 1)
     return *sInterpreters->back()->Interpreter;
-  return *(*sInterpreterASTMap)[&D->getASTContext()]->Interpreter;
+  return *(*sInterpreterASTMap)[&D->getASTContext()].lock()->Interpreter;
 }
 static compat::Interpreter& getInterp(const void* D) {
   return *getInterpInfo(D).Interpreter;
@@ -3342,8 +3338,6 @@ static std::string MakeResourcesPath() {
 TInterp_t CreateInterpreter(const std::vector<const char*>& Args /*={}*/,
                             const std::vector<const char*>& GpuArgs /*={}*/) {
   std::lock_guard<std::recursive_mutex> Lock(InterpreterStackLock);
-  assert(sInterpreters->size() == sInterpreterASTMap->size());
-
   std::string MainExecutableName = sys::fs::getMainExecutable(nullptr, nullptr);
   std::string ResourceDir = MakeResourcesPath();
   std::vector<const char*> ClingArgv = {"-resource-dir", ResourceDir.c_str(),
@@ -3420,71 +3414,40 @@ TInterp_t CreateInterpreter(const std::vector<const char*>& Args /*={}*/,
   )");
 
   sInterpreters->emplace_back(
-      std::make_unique<InterpreterInfo>(I, /*Owned=*/true));
+      std::make_shared<InterpreterInfo>(I, /*Owned=*/true));
   sInterpreterASTMap->insert(
       {&sInterpreters->back()->Interpreter->getSema().getASTContext(),
-       sInterpreters->back().get()});
+       sInterpreters->back()});
 
-  assert(sInterpreters->size() == sInterpreterASTMap->size());
   return I;
-}
-
-static inline auto find_interpreter_in_stack(TInterp_t I) {
-  return std::find_if(
-      sInterpreters->begin(), sInterpreters->end(),
-      [&I](const auto& Info) { return Info->Interpreter == I; });
-}
-
-static inline auto find_interpreter_in_map(InterpreterInfo* I) {
-  return std::find_if(sInterpreterASTMap->begin(), sInterpreterASTMap->end(),
-                      [&](const auto& Item) { return Item.second == I; });
 }
 
 bool DeleteInterpreter(TInterp_t I /*=nullptr*/) {
   std::lock_guard<std::recursive_mutex> Lock(InterpreterStackLock);
-  assert(sInterpreters->size() == sInterpreterASTMap->size());
 
   if (!I) {
-    auto foundAST = find_interpreter_in_map(sInterpreters->back().get());
-    assert(foundAST != sInterpreterASTMap->end());
+    auto foundAST =
+        std::find_if(sInterpreterASTMap->begin(), sInterpreterASTMap->end(),
+                     [](const auto& Item) {
+                       return Item.second.lock() == sInterpreters->back();
+                     });
     sInterpreterASTMap->erase(foundAST);
     sInterpreters->pop_back();
     return true;
   }
 
-  auto found = find_interpreter_in_stack(I);
+  auto found =
+      std::find_if(sInterpreters->begin(), sInterpreters->end(),
+                   [&I](const auto& Info) { return Info->Interpreter == I; });
   if (found == sInterpreters->end())
     return false; // failure
 
-  auto foundAST = find_interpreter_in_map((*found).get());
-  assert(foundAST != sInterpreterASTMap->end());
+  auto foundAST = std::find_if(
+      sInterpreterASTMap->begin(), sInterpreterASTMap->end(),
+      [&found](const auto& Item) { return Item.second.lock() == *found; });
   sInterpreterASTMap->erase(foundAST);
   sInterpreters->erase(found);
   return true;
-}
-
-TInterp_t TakeInterpreter(TInterp_t I /*=nullptr*/) {
-  std::lock_guard<std::recursive_mutex> Lock(InterpreterStackLock);
-  assert(sInterpreters->size() == sInterpreterASTMap->size());
-
-  if (!I) {
-    auto foundAST = find_interpreter_in_map(sInterpreters->back().get());
-    sInterpreterASTMap->erase(foundAST);
-    InterpreterInfo* res = sInterpreters->back().release();
-    sInterpreters->pop_back();
-    return res->Interpreter;
-  }
-
-  auto found = find_interpreter_in_stack(I);
-  if (found == sInterpreters->end())
-    return nullptr; // failure
-
-  auto foundAST = find_interpreter_in_map((*found).get());
-  sInterpreterASTMap->erase(foundAST);
-  InterpreterInfo* res = (*found).release();
-  sInterpreters->erase(found);
-  assert(sInterpreters->size() == sInterpreterASTMap->size());
-  return res->Interpreter;
 }
 
 bool ActivateInterpreter(TInterp_t I) {
@@ -3514,13 +3477,10 @@ TInterp_t GetInterpreter() {
 
 void UseExternalInterpreter(TInterp_t I) {
   std::lock_guard<std::recursive_mutex> Lock(InterpreterStackLock);
+  assert(sInterpreters->empty() && "sInterpreter already in use!");
   sInterpreters->emplace_back(
-      std::make_unique<InterpreterInfo>(static_cast<compat::Interpreter*>(I),
+      std::make_shared<InterpreterInfo>(static_cast<compat::Interpreter*>(I),
                                         /*isOwned=*/false));
-  sInterpreterASTMap->insert(
-      {&sInterpreters->back()->Interpreter->getSema().getASTContext(),
-       sInterpreters->back().get()});
-  assert(sInterpreters->size() == sInterpreterASTMap->size());
 }
 
 void AddSearchPath(const char* dir, bool isUser, bool prepend) {
@@ -3774,9 +3734,9 @@ std::string ObjToString(const char* type, void* obj) {
   return getInterp(NULLPTR).toString(type, obj);
 }
 
-static Decl* InstantiateTemplate(TemplateDecl* TemplateD,
-                                 TemplateArgumentListInfo& TLI, Sema& S,
-                                 bool instantiate_body) {
+Decl* InstantiateTemplate(TemplateDecl* TemplateD,
+                          TemplateArgumentListInfo& TLI, Sema& S,
+                          bool instantiate_body) {
   LOCK(getInterpInfo());
   // This is not right but we don't have a lot of options to choose from as a
   // template instantiation requires a valid source location.
