@@ -100,8 +100,6 @@ using namespace std;
   std::lock_guard<std::recursive_mutex> interop_lock(                          \
       (InterpInfo).InterpreterLock)
 
-#define NULLPTR (static_cast<void*>(nullptr))
-
 struct InterpreterInfo {
   compat::Interpreter* Interpreter = nullptr;
   bool isOwned = true;
@@ -152,21 +150,27 @@ static std::recursive_mutex InterpreterStackLock;
 static std::recursive_mutex LLVMLock;
 // NOLINTEND(cppcoreguidelines-avoid-non-const-global-variables)
 
+static InterpreterInfo& getInterpInfo() {
+  std::lock_guard<std::recursive_mutex> Lock(InterpreterStackLock);
+  assert(!sInterpreters->empty() &&
+         "Interpreter instance must be set before calling this!");
+  return *sInterpreters->back();
+}
 static InterpreterInfo& getInterpInfo(const clang::Decl* D) {
   std::lock_guard<std::recursive_mutex> Lock(InterpreterStackLock);
   if (!D)
-    return *sInterpreters->back();
+    return getInterpInfo();
   if (sInterpreters->size() == 1)
     return *sInterpreters->back();
   return *(*sInterpreterASTMap)[&D->getASTContext()];
 }
 static InterpreterInfo& getInterpInfo(const void* D) {
   std::lock_guard<std::recursive_mutex> Lock(InterpreterStackLock);
-  if (!D)
-    return *sInterpreters->back();
   QualType QT = QualType::getFromOpaquePtr(D);
   if (auto* D = QT->getAsTagDecl())
     return getInterpInfo(D);
+  if (!D)
+    return getInterpInfo();
   if (sInterpreters->size() == 1)
     return *sInterpreters->back();
   for (auto& item : *sInterpreterASTMap) {
@@ -176,22 +180,17 @@ static InterpreterInfo& getInterpInfo(const void* D) {
   llvm_unreachable(
       "This pointer does not belong to any interpreter instance.\n");
 }
-static InterpreterInfo& getInterpInfo(compat::Interpreter* I) {
-  std::lock_guard<std::recursive_mutex> Lock(InterpreterStackLock);
-  if (!I)
-    return *sInterpreters->back();
-  auto res =
-      std::find_if(sInterpreters->begin(), sInterpreters->end(),
-                   [&](const auto& item) { return item->Interpreter == I; });
-  if (res != sInterpreters->end())
-    return **res;
-  llvm_unreachable("Invalid State");
-}
 
+static compat::Interpreter& getInterp() {
+  std::lock_guard<std::recursive_mutex> Lock(InterpreterStackLock);
+  assert(!sInterpreters->empty() &&
+         "Interpreter instance must be set before calling this!");
+  return *sInterpreters->back()->Interpreter;
+}
 static compat::Interpreter& getInterp(const clang::Decl* D) {
   std::lock_guard<std::recursive_mutex> Lock(InterpreterStackLock);
   if (!D)
-    return *getInterpInfo(NULLPTR).Interpreter;
+    return getInterp();
   if (sInterpreters->size() == 1)
     return *sInterpreters->back()->Interpreter;
   return *(*sInterpreterASTMap)[&D->getASTContext()]->Interpreter;
@@ -200,12 +199,18 @@ static compat::Interpreter& getInterp(const void* D) {
   return *getInterpInfo(D).Interpreter;
 }
 
+static clang::Sema& getSema() { return getInterp().getCI()->getSema(); }
 static clang::Sema& getSema(const clang::Decl* D) {
+  if (!D)
+    return getSema();
   return getInterpInfo(D).Interpreter->getSema();
 }
 static clang::Sema& getSema(const void* D) { return getInterp(D).getSema(); }
 
+static clang::ASTContext& getASTContext() { return getSema().getASTContext(); }
 static clang::ASTContext& getASTContext(const clang::Decl* D) {
+  if (!D)
+    return getASTContext();
   return getSema(D).getASTContext();
 }
 static clang::ASTContext& getASTContext(const void* D) {
@@ -736,18 +741,8 @@ std::vector<TCppScope_t> GetUsingNamespaces(TCppScope_t scope) {
   return {};
 }
 
-TCppScope_t GetGlobalScope(TInterp_t interp) {
-  if (interp) {
-    auto* I = static_cast<compat::Interpreter*>(interp);
-    return I->getSema()
-        .getASTContext()
-        .getTranslationUnitDecl()
-        ->getFirstDecl();
-  }
-  return getSema(NULLPTR)
-      .getASTContext()
-      .getTranslationUnitDecl()
-      ->getFirstDecl();
+TCppScope_t GetGlobalScope() {
+  return getSema().getASTContext().getTranslationUnitDecl()->getFirstDecl();
 }
 
 static Decl* GetScopeFromType(QualType QT) {
@@ -786,16 +781,15 @@ TCppScope_t GetUnderlyingScope(TCppScope_t scope) {
   return GetUnderlyingScope((clang::Decl*)scope);
 }
 
-TCppScope_t GetScope(const std::string& name, TCppScope_t parent,
-                     TInterp_t interp) {
+TCppScope_t GetScope(const std::string& name, TCppScope_t parent) {
   // FIXME: GetScope should be replaced by a general purpose lookup
   // and filter function. The function should be like GetNamed but
   // also take in a filter parameter which determines which results
   // to pass back
   if (name == "")
-    return GetGlobalScope(interp);
+    return GetGlobalScope();
 
-  auto* ND = static_cast<NamedDecl*>(GetNamed(name, parent, interp));
+  auto* ND = (NamedDecl*)GetNamed(name, parent);
 
   if (!ND || ND == (NamedDecl*)-1)
     return 0;
@@ -808,30 +802,28 @@ TCppScope_t GetScope(const std::string& name, TCppScope_t parent,
   return 0;
 }
 
-TCppScope_t GetScopeFromCompleteName(const std::string& name,
-                                     TInterp_t interp) {
+TCppScope_t GetScopeFromCompleteName(const std::string& name) {
   std::string delim = "::";
   size_t start = 0;
   size_t end = name.find(delim);
   TCppScope_t curr_scope = 0;
   while (end != std::string::npos) {
-    curr_scope = GetScope(name.substr(start, end - start), curr_scope, interp);
+    curr_scope = GetScope(name.substr(start, end - start), curr_scope);
     start = end + delim.length();
     end = name.find(delim, start);
   }
-  return GetScope(name.substr(start, end), curr_scope, interp);
+  return GetScope(name.substr(start, end), curr_scope);
 }
 
-TCppScope_t GetNamed(const std::string& name, TCppScope_t parent /*= nullptr*/,
-                     TInterp_t interp /*= nullptr*/) {
-  if (!parent)
-    parent = GetGlobalScope(interp);
-
+TCppScope_t GetNamed(const std::string& name,
+                     TCppScope_t parent /*= nullptr*/) {
+  clang::DeclContext* Within = 0;
   auto* D = static_cast<clang::Decl*>(parent);
   LOCK(getInterpInfo(D));
-
-  D = GetUnderlyingScope(D);
-  auto* Within = llvm::dyn_cast<clang::DeclContext>(D);
+  if (parent) {
+    D = GetUnderlyingScope(D);
+    Within = llvm::dyn_cast<clang::DeclContext>(D);
+  }
 
   auto* ND = Cpp_utils::Lookup::Named(&getSema(D), name, Within);
   if (ND && ND != (clang::NamedDecl*)-1) {
@@ -1247,13 +1239,13 @@ bool IsTemplatedFunction(TCppFunction_t func) {
 // FIXME: This lookup is broken, and should no longer be used in favour of
 // `GetClassTemplatedMethods` If the candidate set returned is =1, that means
 // the template function exists and >1 means overloads
-bool ExistsFunctionTemplate(const std::string& name, TCppScope_t parent,
-                            TInterp_t interp) {
-  if (!parent)
-    parent = GetGlobalScope(interp);
-
+bool ExistsFunctionTemplate(const std::string& name, TCppScope_t parent) {
+  DeclContext* Within = 0;
   auto* D = static_cast<Decl*>(parent);
-  auto* Within = llvm::dyn_cast<DeclContext>(D);
+  if (parent) {
+    Within = llvm::dyn_cast<DeclContext>(D);
+  }
+
   LOCK(getInterpInfo(D));
 
   auto* ND = Cpp_utils::Lookup::Named(&getSema(D), name, Within);
@@ -1472,12 +1464,9 @@ bool IsStaticMethod(TCppConstFunction_t method) {
   return false;
 }
 
-TCppFuncAddr_t GetFunctionAddress(const char* mangled_name,
-                                  TInterp_t interp /*=nullptr*/) {
-  auto* I = static_cast<compat::Interpreter*>(interp);
-  if (!I)
-    I = &getInterp(NULLPTR);
-  auto FDAorErr = compat::getSymbolAddress(*I, mangled_name);
+TCppFuncAddr_t GetFunctionAddress(const char* mangled_name) {
+  auto& I = getInterp();
+  auto FDAorErr = compat::getSymbolAddress(I, mangled_name);
   if (llvm::Error Err = FDAorErr.takeError())
     llvm::consumeError(std::move(Err)); // nullptr if missing
   else
@@ -1520,9 +1509,9 @@ TCppFuncAddr_t GetFunctionAddress(TCppFunction_t method) {
          FD->getTemplatedKind() == FunctionDecl::TK_MemberSpecialization) &&
         !FD->getDefinition())
       InstantiateFunctionDefinition(D);
-    ASTContext& C = getASTContext(FD);
+    ASTContext& C = getASTContext();
     if (isDiscardableGVALinkage(C.GetGVALinkageForFunction(FD)))
-      ForceCodeGen(FD, getInterp(FD));
+      ForceCodeGen(FD, getInterp());
     return GetFunctionAddress(FD);
   }
   return nullptr;
@@ -1848,7 +1837,7 @@ bool IsRValueReferenceType(TCppType_t type) {
 
 TCppType_t GetPointerType(TCppType_t type) {
   QualType QT = QualType::getFromOpaquePtr(type);
-  return getASTContext(type)
+  return getASTContext()
       .getPointerType(QT)
       .getAsOpaquePtr(); // FIXME: which ASTContext?
 }
@@ -2023,18 +2012,13 @@ static QualType findBuiltinType(llvm::StringRef typeName, ASTContext& Context) {
 }
 } // namespace
 
-TCppType_t GetType(const std::string& name, TInterp_t interp) {
-  auto* I = static_cast<compat::Interpreter*>(interp);
-  QualType builtin;
-  if (I)
-    builtin = findBuiltinType(name, I->getSema().getASTContext());
-  else
-    builtin =
-        findBuiltinType(name, getInterp(NULLPTR).getSema().getASTContext());
+TCppType_t GetType(const std::string& name) {
+  QualType builtin = findBuiltinType(name, getASTContext());
   if (!builtin.isNull())
     return builtin.getAsOpaquePtr();
 
-  auto* D = static_cast<Decl*>(GetNamed(name, /*parent=*/nullptr, interp));
+  LOCK(getInterpInfo());
+  auto* D = (Decl*)GetNamed(name, /* Within= */ 0);
   if (auto* TD = llvm::dyn_cast_or_null<TypeDecl>(D)) {
     return QualType(TD->getTypeForDecl(), 0).getAsOpaquePtr();
   }
@@ -3539,22 +3523,13 @@ void UseExternalInterpreter(TInterp_t I) {
   assert(sInterpreters->size() == sInterpreterASTMap->size());
 }
 
-void AddSearchPath(const char* dir, bool isUser, bool prepend,
-                   TInterp_t I /*=nullptr*/) {
-  auto* interp = static_cast<compat::Interpreter*>(I);
-  LOCK(getInterpInfo(interp));
-  if (interp)
-    interp->getDynamicLibraryManager()->addSearchPath(dir, isUser, prepend);
-  else
-    getInterp(NULLPTR).getDynamicLibraryManager()->addSearchPath(dir, isUser,
-                                                                 prepend);
+void AddSearchPath(const char* dir, bool isUser, bool prepend) {
+  LOCK(getInterpInfo());
+  getInterp().getDynamicLibraryManager()->addSearchPath(dir, isUser, prepend);
 }
 
-const char* GetResourceDir(TInterp_t I /*=nullptr*/) {
-  auto* interp = static_cast<compat::Interpreter*>(I);
-  if (interp)
-    return interp->getCI()->getHeaderSearchOpts().ResourceDir.c_str();
-  return getInterp(NULLPTR).getCI()->getHeaderSearchOpts().ResourceDir.c_str();
+const char* GetResourceDir() {
+  return getInterp().getCI()->getHeaderSearchOpts().ResourceDir.c_str();
 }
 
 ///\returns 0 on success.
@@ -3613,23 +3588,15 @@ void DetectSystemCompilerIncludePaths(std::vector<std::string>& Paths,
   exec(cmd.c_str(), Paths);
 }
 
-void AddIncludePath(const char* dir, TInterp_t I /*=nullptr*/) {
-  auto* interp = static_cast<compat::Interpreter*>(I);
-  LOCK(getInterpInfo(interp));
-  if (interp)
-    interp->AddIncludePath(dir);
-  else
-    getInterp(NULLPTR).AddIncludePath(dir);
+void AddIncludePath(const char* dir) {
+  LOCK(getInterpInfo());
+  getInterp().AddIncludePath(dir);
 }
 
 void GetIncludePaths(std::vector<std::string>& IncludePaths, bool withSystem,
-                     bool withFlags, TInterp_t I /*=nullptr*/) {
+                     bool withFlags) {
   llvm::SmallVector<std::string> paths(1);
-  auto* interp = static_cast<compat::Interpreter*>(I);
-  if (interp)
-    interp->GetIncludePaths(paths, withSystem, withFlags);
-  else
-    getInterp(NULLPTR).GetIncludePaths(paths, withSystem, withFlags);
+  getInterp().GetIncludePaths(paths, withSystem, withFlags);
   for (auto& i : paths)
     IncludePaths.push_back(i);
 }
@@ -3660,24 +3627,17 @@ int Declare(compat::Interpreter& I, const char* code, bool silent) {
   return I.declare(code);
 }
 
-int Declare(const char* code, bool silent, TInterp_t I /*=nullptr*/) {
-  auto* interp = static_cast<compat::Interpreter*>(I);
-  LOCK(getInterpInfo(interp));
-  if (interp)
-    return Declare(*interp, code, silent);
-  return Declare(getInterp(NULLPTR), code, silent);
+int Declare(const char* code, bool silent) {
+  LOCK(getInterpInfo());
+  return Declare(getInterp(), code, silent);
 }
 
-int Process(const char* code, TInterp_t I /*=nullptr*/) {
-  auto* interp = static_cast<compat::Interpreter*>(I);
-  LOCK(getInterpInfo(interp));
-  if (interp)
-    return interp->process(code);
-  return getInterp(NULLPTR).process(code);
+int Process(const char* code) {
+  LOCK(getInterpInfo());
+  return getInterp().process(code);
 }
 
-intptr_t Evaluate(const char* code, bool* HadError /*=nullptr*/,
-                  TInterp_t I /*=nullptr*/) {
+intptr_t Evaluate(const char* code, bool* HadError /*=nullptr*/) {
 #ifdef CPPINTEROP_USE_CLING
   cling::Value V;
 #else
@@ -3687,14 +3647,8 @@ intptr_t Evaluate(const char* code, bool* HadError /*=nullptr*/,
   if (HadError)
     *HadError = false;
 
-  auto* interp = static_cast<compat::Interpreter*>(I);
-  compat::Interpreter::CompilationResult res;
-  LOCK(getInterpInfo(interp));
-  if (interp)
-    res = interp->evaluate(code, V);
-  else
-    res = getInterp(NULLPTR).evaluate(code, V);
-
+  LOCK(getInterpInfo());
+  auto res = getInterp().evaluate(code, V);
   if (res != 0) { // 0 is success
     if (HadError)
       *HadError = true;
@@ -3705,42 +3659,27 @@ intptr_t Evaluate(const char* code, bool* HadError /*=nullptr*/,
   return compat::convertTo<intptr_t>(V);
 }
 
-std::string LookupLibrary(const char* lib_name, TInterp_t I /*=nullptr*/) {
-  auto* interp = static_cast<compat::Interpreter*>(I);
-  if (interp)
-    return interp->getDynamicLibraryManager()->lookupLibrary(lib_name);
-  return getInterp(NULLPTR).getDynamicLibraryManager()->lookupLibrary(lib_name);
+std::string LookupLibrary(const char* lib_name) {
+  return getInterp().getDynamicLibraryManager()->lookupLibrary(lib_name);
 }
 
-bool LoadLibrary(const char* lib_stem, bool lookup, TInterp_t I /*=nullptr*/) {
-  auto* interp = static_cast<compat::Interpreter*>(I);
-  LOCK(getInterpInfo(interp));
-  compat::Interpreter::CompilationResult res;
-  if (interp)
-    res = interp->loadLibrary(lib_stem, lookup);
-  else
-    res = getInterp(NULLPTR).loadLibrary(lib_stem, lookup);
+bool LoadLibrary(const char* lib_stem, bool lookup) {
+  LOCK(getInterpInfo());
+  compat::Interpreter::CompilationResult res =
+      getInterp().loadLibrary(lib_stem, lookup);
 
   return res == compat::Interpreter::kSuccess;
 }
 
-void UnloadLibrary(const char* lib_stem, TInterp_t I /*=nullptr*/) {
-  auto* interp = static_cast<compat::Interpreter*>(I);
-  LOCK(getInterpInfo(interp));
-  if (interp)
-    interp->getDynamicLibraryManager()->unloadLibrary(lib_stem);
-  else
-    getInterp(NULLPTR).getDynamicLibraryManager()->unloadLibrary(lib_stem);
+void UnloadLibrary(const char* lib_stem) {
+  LOCK(getInterpInfo());
+  getInterp().getDynamicLibraryManager()->unloadLibrary(lib_stem);
 }
 
 std::string SearchLibrariesForSymbol(const char* mangled_name,
-                                     bool search_system /*true*/,
-                                     TInterp_t I /*=nullptr*/) {
-  auto* interp = static_cast<compat::Interpreter*>(I);
-  LOCK(getInterpInfo(interp));
-  if (!interp)
-    interp = &getInterp(NULLPTR);
-  auto* DLM = interp->getDynamicLibraryManager();
+                                     bool search_system /*true*/) {
+  LOCK(getInterpInfo());
+  auto* DLM = getInterp().getDynamicLibraryManager();
   return DLM->searchLibrariesForSymbol(mangled_name, search_system);
 }
 
@@ -3823,14 +3762,10 @@ bool InsertOrReplaceJitSymbol(compat::Interpreter& I,
   return false;
 }
 
-bool InsertOrReplaceJitSymbol(const char* linker_mangled_name, uint64_t address,
-                              TInterp_t I /*=nullptr*/) {
-  auto* interp = static_cast<compat::Interpreter*>(I);
-  LOCK(getInterpInfo(interp));
-  if (interp)
-    return InsertOrReplaceJitSymbol(*interp, linker_mangled_name, address);
-  return InsertOrReplaceJitSymbol(getInterp(NULLPTR), linker_mangled_name,
-                                  address);
+bool InsertOrReplaceJitSymbol(const char* linker_mangled_name,
+                              uint64_t address) {
+  LOCK(getInterpInfo());
+  return InsertOrReplaceJitSymbol(getInterp(), linker_mangled_name, address);
 }
 
 std::string ObjToString(const char* type, void* obj) {
@@ -3842,6 +3777,7 @@ std::string ObjToString(const char* type, void* obj) {
 static Decl* InstantiateTemplate(TemplateDecl* TemplateD,
                                  TemplateArgumentListInfo& TLI, Sema& S,
                                  bool instantiate_body) {
+  LOCK(getInterpInfo());
   // This is not right but we don't have a lot of options to choose from as a
   // template instantiation requires a valid source location.
   SourceLocation fakeLoc = GetValidSLoc(S);
@@ -3968,8 +3904,7 @@ void GetClassTemplateInstantiationArgs(TCppScope_t templ_instance,
 }
 
 TCppFunction_t
-InstantiateTemplateFunctionFromString(const char* function_template,
-                                      TInterp_t interp /*=nullptr*/) {
+InstantiateTemplateFunctionFromString(const char* function_template) {
   // FIXME: Drop this interface and replace it with the proper overload
   // resolution handling and template instantiation selection.
 
@@ -3978,13 +3913,11 @@ InstantiateTemplateFunctionFromString(const char* function_template,
   std::string id = "__Cppyy_GetMethTmpl_" + std::to_string(var_count++);
   std::string instance = "auto " + id + " = " + function_template + ";\n";
 
-  auto* I = static_cast<compat::Interpreter*>(interp);
-  LOCK(getInterpInfo(I));
-  if (!Cpp::Declare(instance.c_str(), /*silent=*/false, interp)) {
-    auto* VD = static_cast<VarDecl*>(Cpp::GetNamed(id, nullptr, interp));
-    Expr* E = VD->getInit()->IgnoreImpCasts();
-    if (auto* DRE = llvm::dyn_cast<DeclRefExpr>(E))
-      return DRE->getDecl();
+  LOCK(getInterpInfo());
+  if (!Cpp::Declare(instance.c_str(), /*silent=*/false)) {
+    VarDecl* VD = (VarDecl*)Cpp::GetNamed(id, 0);
+    DeclRefExpr* DRE = (DeclRefExpr*)VD->getInit()->IgnoreImpCasts();
+    return DRE->getDecl();
   }
   return nullptr;
 }
@@ -4373,16 +4306,14 @@ void CodeComplete(std::vector<std::string>& Results, const char* code,
                        complete_column);
 }
 
-int Undo(unsigned N, TInterp_t interp) {
-  auto* I = static_cast<compat::Interpreter*>(interp);
-  if (!I)
-    I = &getInterp(NULLPTR);
+int Undo(unsigned N) {
 #ifdef CPPINTEROP_USE_CLING
-  cling::Interpreter::PushTransactionRAII RAII(I);
-  I->unload(N);
+  auto& I = getInterp();
+  cling::Interpreter::PushTransactionRAII RAII(&I);
+  I.unload(N);
   return compat::Interpreter::kSuccess;
 #else
-  return I->undo(N);
+  return getInterp().undo(N);
 #endif
 }
 

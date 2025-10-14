@@ -389,7 +389,7 @@ CPPINTEROP_API std::string GetQualifiedCompleteName(TCppScope_t klass);
 CPPINTEROP_API std::vector<TCppScope_t> GetUsingNamespaces(TCppScope_t scope);
 
 /// Gets the global scope of the whole C++  instance.
-CPPINTEROP_API TCppScope_t GetGlobalScope(TInterp_t interp = nullptr);
+CPPINTEROP_API TCppScope_t GetGlobalScope();
 
 /// Strips the typedef and returns the underlying class, and if the
 /// underlying decl is not a class it returns the input unchanged.
@@ -398,28 +398,18 @@ CPPINTEROP_API TCppScope_t GetUnderlyingScope(TCppScope_t scope);
 /// Gets the namespace or class (by stripping typedefs) for the name
 /// passed as a parameter, and if the parent is not passed,
 /// then global scope will be assumed.
-/// Looks up the name in parent, if parent is nullptr,
-/// interp is used to select the interpreter if multiple in-use.
-/// interp is ignored if parent is non-null.
 CPPINTEROP_API TCppScope_t GetScope(const std::string& name,
-                                    TCppScope_t parent = nullptr,
-                                    TInterp_t interp = nullptr);
+                                    TCppScope_t parent = nullptr);
 
 /// When the namespace is known, then the parent doesn't need
 /// to be specified. This will probably be phased-out in
 /// future versions of the interop library.
-/// interp is used to select the interpreter if multiple in-use.
-CPPINTEROP_API TCppScope_t GetScopeFromCompleteName(const std::string& name,
-                                                    TInterp_t interp = nullptr);
+CPPINTEROP_API TCppScope_t GetScopeFromCompleteName(const std::string& name);
 
 /// This function performs a lookup within the specified parent,
 /// a specific named entity (functions, enums, etcetera).
-/// Looks up the name in parent, if parent is nullptr,
-/// interp is used to select the interpreter if multiple in-use.
-/// interp is ignored if parent is non-null.
 CPPINTEROP_API TCppScope_t GetNamed(const std::string& name,
-                                    TCppScope_t parent = nullptr,
-                                    TInterp_t interp = nullptr);
+                                    TCppScope_t parent = nullptr);
 
 /// Gets the parent of the scope that is passed as a parameter.
 CPPINTEROP_API TCppScope_t GetParentScope(TCppScope_t scope);
@@ -503,12 +493,8 @@ CPPINTEROP_API bool IsTemplatedFunction(TCppFunction_t func);
 
 /// This function performs a lookup to check if there is a
 /// templated function of that type.
-/// Looks up the name in parent, if parent is nullptr,
-/// interp is used to select the interpreter if multiple in-use.
-/// interp is ignored if parent is non-null.
 CPPINTEROP_API bool ExistsFunctionTemplate(const std::string& name,
-                                           TCppScope_t parent = nullptr,
-                                           TInterp_t interp = nullptr);
+                                           TCppScope_t parent = nullptr);
 
 /// Sets a list of all the constructor for a scope/class that is
 /// supplied as a parameter.
@@ -556,8 +542,7 @@ CPPINTEROP_API bool IsDestructor(TCppConstFunction_t method);
 CPPINTEROP_API bool IsStaticMethod(TCppConstFunction_t method);
 
 ///\returns the address of the function given its potentially mangled name.
-CPPINTEROP_API TCppFuncAddr_t GetFunctionAddress(const char* mangled_name,
-                                                 TInterp_t interp = nullptr);
+CPPINTEROP_API TCppFuncAddr_t GetFunctionAddress(const char* mangled_name);
 
 ///\returns the address of the function given its function declaration.
 CPPINTEROP_API TCppFuncAddr_t GetFunctionAddress(TCppFunction_t method);
@@ -658,9 +643,7 @@ CPPINTEROP_API TCppType_t GetCanonicalType(TCppType_t type);
 
 /// Used to either get the built-in type of the provided string, or
 /// use the name to lookup the actual type.
-/// interp is used to select the interpreter if multiple in-use.
-CPPINTEROP_API TCppType_t GetType(const std::string& type,
-                                  TInterp_t interp = nullptr);
+CPPINTEROP_API TCppType_t GetType(const std::string& type);
 
 ///\returns the complex of the provided type.
 CPPINTEROP_API TCppType_t GetComplexType(TCppType_t element_type);
@@ -744,10 +727,10 @@ CPPINTEROP_API void UseExternalInterpreter(TInterp_t I);
 
 /// Adds a Search Path for the Interpreter to get the libraries.
 CPPINTEROP_API void AddSearchPath(const char* dir, bool isUser = true,
-                                  bool prepend = false, TInterp_t I = nullptr);
+                                  bool prepend = false);
 
 /// Returns the resource-dir path (for headers).
-CPPINTEROP_API const char* GetResourceDir(TInterp_t I = nullptr);
+CPPINTEROP_API const char* GetResourceDir();
 
 /// Uses the underlying clang compiler to detect the resource directory.
 /// In essence calling clang -print-resource-dir and checks if it ends with
@@ -768,52 +751,46 @@ DetectSystemCompilerIncludePaths(std::vector<std::string>& Paths,
 
 /// Secondary search path for headers, if not found using the
 /// GetResourceDir() function.
-CPPINTEROP_API void AddIncludePath(const char* dir, TInterp_t I = nullptr);
+CPPINTEROP_API void AddIncludePath(const char* dir);
 
 // Gets the currently used include paths
 ///\param[out] IncludePaths - the list of include paths
 ///
 CPPINTEROP_API void GetIncludePaths(std::vector<std::string>& IncludePaths,
                                     bool withSystem = false,
-                                    bool withFlags = false,
-                                    TInterp_t I = nullptr);
+                                    bool withFlags = false);
 
 /// Only Declares a code snippet in \c code and does not execute it.
 ///\returns 0 on success
-CPPINTEROP_API int Declare(const char* code, bool silent = false,
-                           TInterp_t I = nullptr);
+CPPINTEROP_API int Declare(const char* code, bool silent = false);
 
 /// Declares and executes a code snippet in \c code.
 ///\returns 0 on success
-CPPINTEROP_API int Process(const char* code, TInterp_t I = nullptr);
+CPPINTEROP_API int Process(const char* code);
 
 /// Declares, executes and returns the execution result as a intptr_t.
 ///\returns the expression results as a intptr_t.
-CPPINTEROP_API intptr_t Evaluate(const char* code, bool* HadError = nullptr,
-                                 TInterp_t I = nullptr);
+CPPINTEROP_API intptr_t Evaluate(const char* code, bool* HadError = nullptr);
 
 /// Looks up the library if access is enabled.
 ///\returns the path to the library.
-CPPINTEROP_API std::string LookupLibrary(const char* lib_name,
-                                         TInterp_t I = nullptr);
+CPPINTEROP_API std::string LookupLibrary(const char* lib_name);
 
 /// Finds \c lib_stem considering the list of search paths and loads it by
 /// calling dlopen.
 /// \returns true on success.
-CPPINTEROP_API bool LoadLibrary(const char* lib_stem, bool lookup = true,
-                                TInterp_t I = nullptr);
+CPPINTEROP_API bool LoadLibrary(const char* lib_stem, bool lookup = true);
 
 /// Finds \c lib_stem considering the list of search paths and unloads it by
 /// calling dlclose.
 /// function.
-CPPINTEROP_API void UnloadLibrary(const char* lib_stem, TInterp_t I = nullptr);
+CPPINTEROP_API void UnloadLibrary(const char* lib_stem);
 
 /// Scans all libraries on the library search path for a given potentially
 /// mangled symbol name.
 ///\returns the path to the first library that contains the symbol definition.
-CPPINTEROP_API std::string SearchLibrariesForSymbol(const char* mangled_name,
-                                                    bool search_system /*true*/,
-                                                    TInterp_t I = nullptr);
+CPPINTEROP_API std::string
+SearchLibrariesForSymbol(const char* mangled_name, bool search_system /*true*/);
 
 /// Inserts or replaces a symbol in the JIT with the one provided. This is
 /// useful for providing our own implementations of facilities such as printf.
@@ -824,8 +801,7 @@ CPPINTEROP_API std::string SearchLibrariesForSymbol(const char* mangled_name,
 ///
 ///\returns true on failure.
 CPPINTEROP_API bool InsertOrReplaceJitSymbol(const char* linker_mangled_name,
-                                             uint64_t address,
-                                             TInterp_t I = nullptr);
+                                             uint64_t address);
 
 /// Tries to load provided objects in a string format (prettyprint).
 CPPINTEROP_API std::string ObjToString(const char* type, void* obj);
@@ -862,10 +838,9 @@ GetClassTemplateInstantiationArgs(TCppScope_t templ_instance,
 
 /// Instantiates a function template from a given string representation. This
 /// function also does overload resolution.
-///\param[in] interp - is used to select the interpreter if multiple in-use.
 ///\returns the instantiated function template declaration.
-CPPINTEROP_API TCppFunction_t InstantiateTemplateFunctionFromString(
-    const char* function_template, TInterp_t interp = nullptr);
+CPPINTEROP_API TCppFunction_t
+InstantiateTemplateFunctionFromString(const char* function_template);
 
 /// Finds best overload match based on explicit template parameters (if any)
 /// and argument types.
@@ -963,7 +938,7 @@ CPPINTEROP_API void CodeComplete(std::vector<std::string>& Results,
 /// Reverts the last N operations performed by the interpreter.
 ///\param[in] N The number of operations to undo. Defaults to 1.
 ///\returns 0 on success, non-zero on failure.
-CPPINTEROP_API int Undo(unsigned N = 1, TInterp_t interp = nullptr);
+CPPINTEROP_API int Undo(unsigned N = 1);
 
 } // end namespace Cpp
 
