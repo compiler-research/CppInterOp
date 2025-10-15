@@ -258,7 +258,7 @@ TEST(InterpreterTest, DISABLED_DetectResourceDir) {
 #ifdef _WIN32
   GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
 #endif
-  auto* I = TestUtils::CreateInterpreter();
+  TestUtils::CreateInterpreter();
   EXPECT_STRNE(Cpp::DetectResourceDir().c_str(), Cpp::GetResourceDir());
   llvm::SmallString<256> Clang(LLVM_BINARY_DIR);
   llvm::sys::path::append(Clang, "bin", "clang");
