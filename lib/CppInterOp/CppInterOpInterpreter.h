@@ -220,6 +220,7 @@ public:
               std::unique_ptr<IOContext> ctx, bool oop)
       : inner(std::move(CI)), io_context(std::move(ctx)), outOfProcess(oop) {}
 
+public:
   static std::unique_ptr<Interpreter>
   create(int argc, const char* const* argv, const char* llvmdir = nullptr,
          const std::vector<std::shared_ptr<clang::ModuleFileExtension>>&

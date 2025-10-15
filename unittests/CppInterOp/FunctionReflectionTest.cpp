@@ -1014,8 +1014,6 @@ TEST(FunctionReflectionTest, BestOverloadFunctionMatch1) {
   GetAllTopLevelDecls(code, Decls);
   std::vector<Cpp::TCppFunction_t> candidates;
 
-  EXPECT_FALSE(Cpp::BestOverloadFunctionMatch({}, {}, {}));
-
   for (auto decl : Decls)
     if (Cpp::IsTemplatedFunction(decl)) candidates.push_back((Cpp::TCppFunction_t)decl);
 

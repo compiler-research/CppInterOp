@@ -20,7 +20,7 @@ std::string GetExecutablePath(const char* Argv0) {
   return llvm::sys::fs::getMainExecutable(Argv0, MainAddr);
 }
 
-TEST(DynamicLibraryManagerTest, Sanity1) {
+TEST(DynamicLibraryManagerTest, Sanity) {
 #ifdef EMSCRIPTEN
   GTEST_SKIP() << "Test fails for Emscipten builds";
 #endif
@@ -61,55 +61,6 @@ TEST(DynamicLibraryManagerTest, Sanity1) {
 #endif //__APPLE__
 
   Cpp::UnloadLibrary("TestSharedLib");
-  // We have no reliable way to check if it was unloaded because posix does not
-  // require the library to be actually unloaded but just the handle to be
-  // invalidated...
-  // EXPECT_FALSE(Cpp::GetFunctionAddress("ret_zero"));
-}
-
-TEST(DynamicLibraryManagerTest, Sanity2) {
-#ifdef EMSCRIPTEN
-  GTEST_SKIP() << "Test fails for Emscipten builds";
-#endif
-
-#if CLANG_VERSION_MAJOR == 18 && defined(CPPINTEROP_USE_CLING) &&              \
-    defined(_WIN32)
-  GTEST_SKIP() << "Test fails with Cling on Windows";
-#endif
-
-  auto* I = TestUtils::CreateInterpreter();
-  EXPECT_TRUE(I);
-  EXPECT_FALSE(Cpp::GetFunctionAddress("ret_one", I));
-
-  std::string BinaryPath = GetExecutablePath(/*Argv0=*/nullptr);
-  llvm::StringRef Dir = llvm::sys::path::parent_path(BinaryPath);
-  Cpp::AddSearchPath(Dir.str().c_str(), true, false, I);
-
-  // FIXME: dlsym on mach-o takes the C-level name, however, the macho-o format
-  // adds an additional underscore (_) prefix to the lowered names. Figure out
-  // how to harmonize that API.
-#ifdef __APPLE__
-  std::string PathToTestSharedLib =
-      Cpp::SearchLibrariesForSymbol("_ret_one", /*system_search=*/false, I);
-#else
-  std::string PathToTestSharedLib =
-      Cpp::SearchLibrariesForSymbol("ret_one", /*system_search=*/false, I);
-#endif // __APPLE__
-
-  EXPECT_STRNE("", PathToTestSharedLib.c_str())
-      << "Cannot find: '" << PathToTestSharedLib << "' in '" << Dir.str()
-      << "'";
-
-  EXPECT_TRUE(Cpp::LoadLibrary(PathToTestSharedLib.c_str(), true, I));
-  // Force ExecutionEngine to be created.
-  Cpp::Process("", I);
-  Cpp::Declare("", I);
-  // FIXME: Conda returns false to run this code on osx.
-#ifndef __APPLE__
-  EXPECT_TRUE(Cpp::GetFunctionAddress("ret_one", I));
-#endif //__APPLE__
-
-  Cpp::UnloadLibrary("TestSharedLib2", I);
   // We have no reliable way to check if it was unloaded because posix does not
   // require the library to be actually unloaded but just the handle to be
   // invalidated...

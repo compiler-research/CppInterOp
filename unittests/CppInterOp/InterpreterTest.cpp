@@ -17,17 +17,13 @@
 #include "clang-c/CXCppInterOp.h"
 
 #include "llvm/ADT/SmallString.h"
-#include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Path.h"
-#include "llvm/Support/raw_ostream.h"
+#include <llvm/Support/FileSystem.h>
 
 #include <gmock/gmock.h>
 #include "gtest/gtest.h"
 
 #include <algorithm>
-#include <cstdint>
-#include <thread>
-#include <utility>
 
 using ::testing::StartsWith;
 
@@ -167,8 +163,6 @@ TEST(InterpreterTest, Process) {
   EXPECT_EQ(Res, CXError_Success);
   clang_Value_dispose(CXV);
   clang_Interpreter_dispose(CXI);
-  auto* OldI = Cpp::TakeInterpreter();
-  EXPECT_EQ(OldI, I);
 }
 
 TEST(InterpreterTest, EmscriptenExceptionHandling) {
@@ -273,7 +267,7 @@ TEST(InterpreterTest, DISABLED_DetectResourceDir) {
     GTEST_SKIP() << "Test not run (Clang binary does not exist)";
 
   std::string DetectedPath = Cpp::DetectResourceDir(Clang.str().str().c_str());
-  EXPECT_STREQ(DetectedPath.c_str(), Cpp::GetResourceDir(I));
+  EXPECT_STREQ(DetectedPath.c_str(), Cpp::GetResourceDir());
 }
 
 TEST(InterpreterTest, DetectSystemCompilerIncludePaths) {
@@ -352,9 +346,7 @@ if (llvm::sys::RunningOnValgrind())
   // Create the interpreter instance.
   std::unique_ptr<clang::Interpreter> I =
       ExitOnErr(clang::Interpreter::create(std::move(CI)));
-
-  auto CPPI = Cpp::Interpreter(std::move(I));
-  auto* ExtInterp = &CPPI;
+  auto ExtInterp = I.get();
 #endif // CPPINTEROP_USE_REPL
 
 #ifdef CPPINTEROP_USE_CLING
@@ -371,9 +363,12 @@ if (llvm::sys::RunningOnValgrind())
 
   EXPECT_NE(ExtInterp, nullptr);
 
-  Cpp::UseExternalInterpreter(ExtInterp);
-  EXPECT_EQ(ExtInterp, Cpp::GetInterpreter());
-  EXPECT_EQ(ExtInterp, Cpp::TakeInterpreter(ExtInterp));
+#if !defined(NDEBUG) && GTEST_HAS_DEATH_TEST
+#ifndef _WIN32 // Windows seems to fail to die...
+    EXPECT_DEATH(Cpp::UseExternalInterpreter(ExtInterp), "sInterpreter already in use!");
+#endif // _WIN32
+#endif
+  EXPECT_TRUE(Cpp::GetInterpreter()) << "External Interpreter not set";
 
 #ifndef CPPINTEROP_USE_CLING
   I.release();
@@ -382,117 +377,4 @@ if (llvm::sys::RunningOnValgrind())
 #ifdef CPPINTEROP_USE_CLING
   delete ExtInterp;
 #endif
-}
-
-static int printf_jit(const char* format, ...) {
-  llvm::errs() << "printf_jit called!\n";
-  return 0;
-}
-
-TEST(InterpreterTest, MultipleInterpreter) {
-#ifdef EMSCRIPTEN
-  GTEST_SKIP() << "Test fails for Emscipten builds";
-#endif
-#ifdef _WIN32
-  GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
-#endif
-  GTEST_SKIP() << "Test does not consistently pass so skipping for now";
-  if (TestUtils::use_oop_jit()) {
-    GTEST_SKIP() << "Test fails for OOP JIT builds";
-  }
-  // delete all old interpreters
-  while (Cpp::DeleteInterpreter())
-    ;
-  std::vector<const char*> interpreter_args = {"-include", "new"};
-  auto* I1 = TestUtils::CreateInterpreter(interpreter_args);
-  EXPECT_TRUE(I1);
-
-  auto F = [](Cpp::TInterp_t I) {
-    bool hasError = true;
-    EXPECT_TRUE(Cpp::Evaluate("__cplusplus", &hasError, I) == 201402);
-    EXPECT_FALSE(hasError);
-
-    Cpp::Declare(R"(
-    #include <new>
-    extern "C" int printf(const char*,...);
-    class MyKlass {};
-    )",
-                 false, I);
-    Cpp::TCppScope_t f = Cpp::GetNamed("printf", Cpp::GetGlobalScope(I));
-    EXPECT_TRUE(f);
-    EXPECT_TRUE(Cpp::GetComplexType(Cpp::GetType("int", I)));
-    Cpp::TCppType_t MyKlass = Cpp::GetType("MyKlass", I);
-    EXPECT_EQ(Cpp::GetTypeAsString(MyKlass), "MyKlass");
-    EXPECT_EQ(Cpp::GetNumBases(MyKlass), 0);
-    EXPECT_FALSE(Cpp::GetBaseClass(MyKlass, 3));
-    std::vector<Cpp::TCppScope_t> members;
-    Cpp::GetEnumConstantDatamembers(Cpp::GetScopeFromType(MyKlass), members);
-    EXPECT_EQ(members.size(), 0);
-
-    EXPECT_FALSE(
-        Cpp::InsertOrReplaceJitSymbol("printf", (uint64_t)&printf_jit, I));
-
-    auto f_callable = Cpp::MakeFunctionCallable(f);
-    EXPECT_EQ(f_callable.getKind(), Cpp::JitCall::Kind::kGenericCall);
-
-    EXPECT_FALSE(
-        Cpp::TakeInterpreter((TInterp_t)1)); // try to take ownership of an
-                                             // interpreter that does not exist
-
-    std::vector<std::string> includes;
-    Cpp::AddIncludePath("/non/existent/", I);
-    Cpp::GetIncludePaths(includes, false, false, I);
-    EXPECT_NE(std::find(includes.begin(), includes.end(), "/non/existent/"),
-              std::end(includes));
-
-    EXPECT_TRUE(Cpp::InsertOrReplaceJitSymbol("non_existent", (uint64_t)&f, I));
-  };
-  F(I1);
-
-  auto* I2 = TestUtils::CreateInterpreter(interpreter_args);
-  auto* I3 = TestUtils::CreateInterpreter(interpreter_args);
-  auto* I4 = TestUtils::CreateInterpreter(interpreter_args);
-  EXPECT_TRUE(I2);
-  EXPECT_TRUE(I3);
-  EXPECT_TRUE(I4);
-
-  std::thread t2(F, I2);
-  std::thread t3(F, I3);
-  std::thread t4(F, I4);
-  t2.join();
-  t3.join();
-  t4.join();
-
-  testing::internal::CaptureStderr();
-  Cpp::Process("printf(\"Blah\");", I2);
-  std::string cerrs = testing::internal::GetCapturedStderr();
-  EXPECT_STREQ(cerrs.c_str(), "printf_jit called!\n");
-}
-
-TEST(InterpreterTest, ASMParsing) {
-#ifdef EMSCRIPTEN
-  GTEST_SKIP() << "Test fails for Emscipten builds";
-#endif
-#ifdef _WIN32
-  GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
-#endif
-  if (llvm::sys::RunningOnValgrind())
-    GTEST_SKIP() << "XFAIL due to Valgrind report";
-  if (!IsTargetX86())
-    GTEST_SKIP() << "Skipped on ARM, we test ASM for x86_64";
-  std::vector<const char*> interpreter_args = {"-include", "new"};
-  auto* I = Cpp::CreateInterpreter(interpreter_args);
-  EXPECT_TRUE(I);
-
-  EXPECT_TRUE(Cpp::Declare(R"(
-    void foo(int &input) {
-    __asm__ volatile ("addl $10, %0" : "+r"(input));
-    }
-  )",
-                           I) == 0);
-
-  bool hasError;
-  EXPECT_TRUE(Cpp::Process("int b = 42; foo(b);") == 0);
-  EXPECT_TRUE(Cpp::Evaluate("b", &hasError) == 52);
-  EXPECT_FALSE(hasError);
 }
