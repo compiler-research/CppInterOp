@@ -10,6 +10,14 @@ else()
   set(EXTRA_TEST_SOURCE_FILES CUDATest.cpp)
 endif()
 
+# Add the DispatchAPITest only when building shared libraries
+if (BUILD_SHARED_LIBS)
+  set_source_files_properties(DispatchAPITest.cpp PROPERTIES COMPILE_DEFINITIONS
+    "CPPINTEROP_LIB_DIR=\"${CMAKE_BINARY_DIR}/lib/libclangCppInterOp${CMAKE_SHARED_LIBRARY_SUFFIX}\""
+  )
+  list(APPEND EXTRA_TEST_SOURCE_FILES DispatchAPITest.cpp)
+endif()
+
 add_cppinterop_unittest(CppInterOpTests
   EnumReflectionTest.cpp
   FunctionReflectionTest.cpp
