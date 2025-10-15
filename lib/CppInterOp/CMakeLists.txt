@@ -109,6 +109,7 @@ endif()
   add_llvm_library(clangCppInterOp
     DISABLE_LLVM_LINK_LLVM_DYLIB
     CppInterOp.cpp
+    CppInterOpDispatch.cpp
     CXCppInterOp.cpp
     ${DLM}
     LINK_LIBS
