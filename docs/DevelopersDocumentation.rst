@@ -423,54 +423,12 @@ library files and run pytest:
    python -m pip install pytest
    python -m pytest -sv
 
-###################################
+***********************************
  CppInterOp Internal Documentation
-###################################
+***********************************
 
 CppInterOp maintains an internal Doxygen documentation of its components.
 Internal documentation aims to capture intrinsic details and overall usage of
 code components. The goal of internal documentation is to make the codebase
 easier to understand for the new developers. Internal documentation can be
 visited : `here <build/html/index.html>`_
-
-**************************************
- Multiple Interpreter & Thread-Safety
-**************************************
-
-CppInterOp allows the user to create multiple interpreters at a time and
-use those interpreters. The interpreters that are created are stored in a
-stack and a map. The stack is used to enable the model where the user
-wants to create a temporary interpreter and destroy it after performing a
-few operations. In such a use case, the top of the stack is the only
-interpreter in use at any given point in time.
-
-The map is used to store the mapping from :code:`clang::ASTContext` to
-:code:`Cpp::InterpreterInfo`. This is required to figure out which
-interpreter an object belongs to. Say the library user performs the
-following operations:
-
-1. Create an Interpreter
-2. Compile some code with variable :code:`a`
-3. Create another Interpreter
-4. Performs :code:`Cpp::GetVariableOffset(a)`
-
-In step 4, the top of the stack is an interpreter without the definition of
-:code:`a`. And we cannot use it to figure out the address of :code:`a`.
-The :code:`clang::Decl` passed to :code:`Cpp::GetVariableOffset` is used to
-retrieve the :code:`clang::ASTContext`, using
-:code:`clang::Decl::getASTContext`. We then use the map to figure out the
-exact Interpreter Instance this :code:`clang::Decl` belongs to and perform
-the operation.
-
-A shortcoming of this is that if the CppInterOp accepts a
-:code:`clang::QualType` instead of :code:`clang::Decl`, then it is not
-possible to get the :code:`clang::ASTContext` from the :code:`clang::QualType`.
-In such cases, we iterate over the Allocator of all the Interpreters in our
-stack and figure out which :code:`clang::ASTContext` allocated this
-:code:`clang::QualType`. This is a very expensive operation. But there is no
-alternative to this.
-
-For **thread-safety**, we introduce a lock for each of the interpreters we
-create. And lock only that one specific interpreter when required. We also
-have 2 global locks, one for LLVM, and another is used to lock operations
-performed on the interpreter stack and the map itself.
