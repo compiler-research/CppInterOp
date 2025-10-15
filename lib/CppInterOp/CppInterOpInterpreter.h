@@ -186,12 +186,17 @@ private:
     });
 
     if (outOfProcess) {
-      bool init = io_ctx->initializeTempFiles();
-      if (!init) {
-        llvm::errs() << "Can't start out-of-process JIT execution. Continuing "
-                        "with in-process JIT execution.\n";
-        outOfProcess = false;
-      } else {
+      // Only initialize temp files if not already initialized
+      if (!io_ctx->stdin_file || !io_ctx->stdout_file || !io_ctx->stderr_file) {
+        bool init = io_ctx->initializeTempFiles();
+        if (!init) {
+          llvm::errs()
+              << "Can't start out-of-process JIT execution. Continuing "
+                 "with in-process JIT execution.\n";
+          outOfProcess = false;
+        }
+      }
+      if (outOfProcess) {
         stdin_fd = fileno(io_ctx->stdin_file.get());
         stdout_fd = fileno(io_ctx->stdout_file.get());
         stderr_fd = fileno(io_ctx->stderr_file.get());
