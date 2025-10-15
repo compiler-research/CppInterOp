@@ -4001,7 +4001,7 @@ public:
 #else
   StreamCaptureInfo(int FD) : m_FD(FD) {
 #if !defined(CPPINTEROP_USE_CLING) && !defined(_WIN32)
-    auto& I = getInterp(NULLPTR);
+    auto& I = getInterp();
     if (I.isOutOfProcess() && FD == STDOUT_FILENO) {
       // Use interpreter-managed redirection file for out-of-process stdout
       FILE* redirected = I.getRedirectionFileForOutOfProcess(FD);
@@ -4078,7 +4078,7 @@ public:
     close(m_DupFD);
     m_DupFD = -1;
 #if !defined(_WIN32) && !defined(CPPINTEROP_USE_CLING)
-    auto& I = getInterp(NULLPTR);
+    auto& I = getInterp();
     if (I.isOutOfProcess() && m_FD == STDOUT_FILENO) {
       int fd = fileno(m_TempFile.get());
       if (ftruncate(fd, 0) != 0)
@@ -4129,7 +4129,7 @@ int Undo(unsigned N) {
 #ifndef _WIN32
 pid_t GetExecutorPID() {
 #ifdef LLVM_BUILT_WITH_OOP_JIT
-  auto& I = getInterp(NULLPTR);
+  auto& I = getInterp();
   return I.getOutOfProcessExecutorPID();
 #endif
   return 0;
