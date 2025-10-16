@@ -80,6 +80,9 @@ endif()
 set_source_files_properties(InterpreterTest.cpp PROPERTIES COMPILE_DEFINITIONS
   "LLVM_BINARY_DIR=\"${LLVM_BINARY_DIR}\""
 )
+set_source_files_properties(DispatchAPITest.cpp PROPERTIES COMPILE_DEFINITIONS
+  "CPPINTEROP_LIB_DIR=\"${CMAKE_BINARY_DIR}/lib/libclangCppInterOp.so\""
+)
 export_executable_symbols(CppInterOpTests)
 
 unset(LLVM_LINK_COMPONENTS)
