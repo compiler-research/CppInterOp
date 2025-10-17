@@ -6,6 +6,7 @@
 #include "clang/AST/DeclCXX.h"
 #include "clang/Basic/Version.h"
 #include "clang/Frontend/CompilerInstance.h"
+#include "clang/Interpreter/PartialTranslationUnit.h"
 #include "clang/Sema/Lookup.h"
 #include "clang/Sema/Sema.h"
 
@@ -18,11 +19,15 @@
 using namespace clang;
 using namespace llvm;
 
+namespace TestUtils {
+bool use_oop_jit = false;
+}
+
 void TestUtils::GetAllTopLevelDecls(
     const std::string& code, std::vector<Decl*>& Decls,
     bool filter_implicitGenerated /* = false */,
     const std::vector<const char*>& interpreter_args /* = {} */) {
-  Cpp::CreateInterpreter(interpreter_args);
+  TestUtils::CreateInterpreter(interpreter_args);
 #ifdef CPPINTEROP_USE_CLING
   cling::Transaction *T = nullptr;
   Interp->declare(code, &T);
@@ -57,6 +62,16 @@ void TestUtils::GetAllSubDecls(Decl *D, std::vector<Decl*>& SubDecls,
       continue;
     SubDecls.push_back(Di);
   }
+}
+
+TInterp_t
+TestUtils::CreateInterpreter(const std::vector<const char*>& Args,
+                             const std::vector<const char*>& GpuArgs) {
+  auto mergedArgs = Args;
+  if (TestUtils::use_oop_jit) {
+    mergedArgs.push_back("--use-oop-jit");
+  }
+  return Cpp::CreateInterpreter(mergedArgs, GpuArgs);
 }
 
 bool IsTargetX86() {

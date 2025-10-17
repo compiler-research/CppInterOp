@@ -39,6 +39,13 @@
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/TargetParser/Triple.h"
 
+#ifndef _WIN32
+#include <unistd.h>
+#endif
+#include <algorithm>
+#include <cstdio>
+#include <memory>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -140,10 +147,77 @@ namespace Cpp {
 /// CppInterOp Interpreter
 ///
 class Interpreter {
-private:
-  std::unique_ptr<clang::Interpreter> inner;
+public:
+  struct FileDeleter {
+    void operator()(FILE* f /* owns */) {
+      if (f)
+        // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
+        fclose(f);
+    }
+  };
 
-  Interpreter(std::unique_ptr<clang::Interpreter> CI) : inner(std::move(CI)) {}
+  struct IOContext {
+    std::unique_ptr<FILE, FileDeleter> stdin_file;
+    std::unique_ptr<FILE, FileDeleter> stdout_file;
+    std::unique_ptr<FILE, FileDeleter> stderr_file;
+
+    bool initializeTempFiles() {
+      stdin_file.reset(tmpfile());  // NOLINT(cppcoreguidelines-owning-memory)
+      stdout_file.reset(tmpfile()); // NOLINT(cppcoreguidelines-owning-memory)
+      stderr_file.reset(tmpfile()); // NOLINT(cppcoreguidelines-owning-memory)
+      return stdin_file && stdout_file && stderr_file;
+    }
+  };
+
+private:
+  static std::tuple<int, int, int>
+  initAndGetFileDescriptors(std::vector<const char*>& vargs,
+                            std::unique_ptr<IOContext>& io_ctx) {
+    int stdin_fd = 0;
+    int stdout_fd = 1;
+    int stderr_fd = 2;
+    bool outOfProcess = false;
+
+#if defined(_WIN32)
+    outOfProcess = false;
+#else
+    outOfProcess = std::any_of(vargs.begin(), vargs.end(), [](const char* arg) {
+      return llvm::StringRef(arg).trim() == "--use-oop-jit";
+    });
+
+    if (outOfProcess) {
+      // Only initialize temp files if not already initialized
+      if (!io_ctx->stdin_file || !io_ctx->stdout_file || !io_ctx->stderr_file) {
+        bool init = io_ctx->initializeTempFiles();
+        if (!init) {
+          llvm::errs()
+              << "Can't start out-of-process JIT execution. Continuing "
+                 "with in-process JIT execution.\n";
+          outOfProcess = false;
+          stdin_fd = 0;
+          stdout_fd = 1;
+          stderr_fd = 2;
+        }
+      }
+      if (outOfProcess) {
+        stdin_fd = fileno(io_ctx->stdin_file.get());
+        stdout_fd = fileno(io_ctx->stdout_file.get());
+        stderr_fd = fileno(io_ctx->stderr_file.get());
+      }
+    }
+#endif
+
+    return std::make_tuple(stdin_fd, stdout_fd, stderr_fd);
+  }
+
+  std::unique_ptr<clang::Interpreter> inner;
+  std::unique_ptr<IOContext> io_context;
+  bool outOfProcess;
+
+public:
+  Interpreter(std::unique_ptr<clang::Interpreter> CI,
+              std::unique_ptr<IOContext> ctx = nullptr, bool oop = false)
+      : inner(std::move(CI)), io_context(std::move(ctx)), outOfProcess(oop) {}
 
 public:
   static std::unique_ptr<Interpreter>
@@ -159,19 +233,57 @@ public:
     llvm::InitializeAllAsmPrinters();
 
     std::vector<const char*> vargs(argv + 1, argv + argc);
-    auto CI = compat::createClangInterpreter(vargs);
+
+    int stdin_fd;
+    int stdout_fd;
+    int stderr_fd;
+    bool outOfProcess;
+    auto io_ctx = std::make_unique<IOContext>();
+    std::tie(stdin_fd, stdout_fd, stderr_fd) =
+        initAndGetFileDescriptors(vargs, io_ctx);
+
+    if (stdin_fd == 0 && stdout_fd == 1 && stderr_fd == 2) {
+      io_ctx = nullptr; // No redirection
+      outOfProcess = false;
+    } else {
+      outOfProcess = true;
+    }
+
+    auto CI =
+        compat::createClangInterpreter(vargs, stdin_fd, stdout_fd, stderr_fd);
     if (!CI) {
       llvm::errs() << "Interpreter creation failed\n";
       return nullptr;
     }
 
-    return std::unique_ptr<Interpreter>(new Interpreter(std::move(CI)));
+    return std::make_unique<Interpreter>(std::move(CI), std::move(io_ctx),
+                                         outOfProcess);
   }
 
   ~Interpreter() {}
 
   operator const clang::Interpreter&() const { return *inner; }
   operator clang::Interpreter&() { return *inner; }
+
+  [[nodiscard]] bool isOutOfProcess() const { return outOfProcess; }
+
+#ifndef _WIN32
+  FILE* getRedirectionFileForOutOfProcess(int FD) {
+    if (!io_context)
+      return nullptr;
+    switch (FD) {
+    case (STDIN_FILENO):
+      return io_context->stdin_file.get();
+    case (STDOUT_FILENO):
+      return io_context->stdout_file.get();
+    case (STDERR_FILENO):
+      return io_context->stderr_file.get();
+    default:
+      llvm::errs() << "No temp file for the FD\n";
+      return nullptr;
+    }
+  }
+#endif
 
   ///\brief Describes the return result of the different routines that do the
   /// incremental compilation.
@@ -230,6 +342,15 @@ public:
       return std::move(Err);
     return llvm::orc::ExecutorAddr(*AddrOrErr);
   }
+
+#ifndef _WIN32
+  [[nodiscard]] pid_t getOutOfProcessExecutorPID() const {
+#ifdef LLVM_BUILT_WITH_OOP_JIT
+    return inner->getOutOfProcessExecutorPID();
+#endif
+    return 0;
+  }
+#endif
 
   /// \returns the \c ExecutorAddr of a given name as written in the object
   /// file.
