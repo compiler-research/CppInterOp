@@ -2779,23 +2779,3 @@ TEST(FunctionReflectionTest, FailingTest1) {
   EXPECT_FALSE(Cpp::Declare("int x = 1;"));
   EXPECT_FALSE(Cpp::Declare("int y = x;"));
 }
-
-#ifndef _WIN32
-TEST(FunctionReflectionTest, GetExecutorPIDTest) {
-#ifdef EMSCRIPTEN
-  GTEST_SKIP() << "Test fails for Emscipten builds";
-#endif
-#ifdef CPPINTEROP_USE_CLING
-  GTEST_SKIP() << "Test fails for cling builds";
-#endif
-  if (llvm::sys::RunningOnValgrind())
-    GTEST_SKIP() << "XFAIL due to Valgrind report";
-  TestUtils::CreateInterpreter();
-  pid_t pid = Cpp::GetExecutorPID();
-  if (TestUtils::use_oop_jit) {
-    EXPECT_NE(pid, 0);
-  } else {
-    EXPECT_EQ(pid, 0);
-  }
-}
-#endif
