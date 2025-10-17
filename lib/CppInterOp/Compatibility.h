@@ -280,8 +280,8 @@ createClangInterpreter(std::vector<const char*>& args, int stdin_fd = 0,
         LLVM_BUILD_LIB_DIR "/bin/llvm-jitlink-executor";
     OutOfProcessConfig.UseSharedMemory = false;
     OutOfProcessConfig.SlabAllocateSize = 0;
-    OutOfProcessConfig.CustomizeFork = [&stdin_fd, &stdout_fd,
-                                        &stderr_fd]() { // Lambda defined inline
+    OutOfProcessConfig.CustomizeFork = [stdin_fd, stdout_fd,
+                                        stderr_fd]() { // Lambda defined inline
       dup2(stdin_fd, STDIN_FILENO);
       dup2(stdout_fd, STDOUT_FILENO);
       dup2(stderr_fd, STDERR_FILENO);
