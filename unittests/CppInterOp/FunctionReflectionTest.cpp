@@ -1450,9 +1450,8 @@ TEST(FunctionReflectionTest, GetFunctionAddress) {
   GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
 #endif
 
-  if (TestUtils::use_oop_jit()) {
+  if (TestUtils::use_oop_jit)
     GTEST_SKIP() << "Test fails for OOP JIT builds";
-  }
 
   std::vector<Decl*> Decls;
   std::string code = "int f1(int i) { return i * i; }";
@@ -1522,9 +1521,8 @@ TEST(FunctionReflectionTest, JitCallAdvanced) {
   if (llvm::sys::RunningOnValgrind())
     GTEST_SKIP() << "XFAIL due to Valgrind report";
 
-  if (TestUtils::use_oop_jit()) {
+  if (TestUtils::use_oop_jit)
     GTEST_SKIP() << "Test fails for OOP JIT builds";
-  }
 
   Cpp::JitCall JC = Cpp::MakeFunctionCallable(nullptr);
   EXPECT_TRUE(JC.getKind() == Cpp::JitCall::kUnknown);
@@ -1574,9 +1572,8 @@ TEST(FunctionReflectionTest, JitCallDebug) {
   if (llvm::sys::RunningOnValgrind())
     GTEST_SKIP() << "XFAIL due to Valgrind report";
 
-  if (TestUtils::use_oop_jit()) {
+  if (TestUtils::use_oop_jit)
     GTEST_SKIP() << "Test fails for OOP JIT builds";
-  }
 
   std::vector<Decl*> Decls, SubDecls;
   std::string code = R"(
@@ -1671,9 +1668,8 @@ TEST(FunctionReflectionTest, GetFunctionCallWrapper) {
 #if defined(CPPINTEROP_USE_CLING) && defined(_WIN32)
   GTEST_SKIP() << "Disabled, invoking functions containing printf does not work with Cling on Windows";
 #endif
-  if (TestUtils::use_oop_jit()) {
+  if (TestUtils::use_oop_jit)
     GTEST_SKIP() << "Test fails for OOP JIT builds";
-  }
   std::vector<Decl*> Decls;
   std::string code = R"(
     int f1(int i) { return i * i; }
@@ -2335,9 +2331,8 @@ TEST(FunctionReflectionTest, Construct) {
 #ifdef _WIN32
   GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
 #endif
-  if (TestUtils::use_oop_jit()) {
+  if (TestUtils::use_oop_jit)
     GTEST_SKIP() << "Test fails for OOP JIT builds";
-  }
   std::vector<const char*> interpreter_args = {"-include", "new"};
   std::vector<Decl*> Decls, SubDecls;
 
@@ -2419,9 +2414,8 @@ TEST(FunctionReflectionTest, ConstructPOD) {
 #ifdef _WIN32
   GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
 #endif
-  if (TestUtils::use_oop_jit()) {
+  if (TestUtils::use_oop_jit)
     GTEST_SKIP() << "Test fails for OOP JIT builds";
-  }
   std::vector<const char*> interpreter_args = {"-include", "new"};
   TestUtils::CreateInterpreter(interpreter_args);
 
@@ -2465,9 +2459,8 @@ TEST(FunctionReflectionTest, ConstructNested) {
 #ifdef _WIN32
   GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
 #endif
-  if (TestUtils::use_oop_jit()) {
+  if (TestUtils::use_oop_jit)
     GTEST_SKIP() << "Test fails for OOP JIT builds";
-  }
 
   std::vector<const char*> interpreter_args = {"-include", "new"};
   TestUtils::CreateInterpreter(interpreter_args);
@@ -2528,9 +2521,8 @@ TEST(FunctionReflectionTest, ConstructArray) {
 #ifdef _WIN32
   GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
 #endif
-  if (TestUtils::use_oop_jit()) {
+  if (TestUtils::use_oop_jit)
     GTEST_SKIP() << "Test fails for OOP JIT builds";
-  }
 
   TestUtils::CreateInterpreter();
 
@@ -2584,9 +2576,8 @@ TEST(FunctionReflectionTest, Destruct) {
 #ifdef _WIN32
   GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
 #endif
-  if (TestUtils::use_oop_jit()) {
+  if (TestUtils::use_oop_jit)
     GTEST_SKIP() << "Test fails for OOP JIT builds";
-  }
 
   std::vector<const char*> interpreter_args = {"-include", "new"};
   TestUtils::CreateInterpreter(interpreter_args);
@@ -2658,9 +2649,8 @@ TEST(FunctionReflectionTest, DestructArray) {
 #ifdef _WIN32
   GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
 #endif
-  if (TestUtils::use_oop_jit()) {
+  if (TestUtils::use_oop_jit)
     GTEST_SKIP() << "Test fails for OOP JIT builds";
-  }
 
   std::vector<const char*> interpreter_args = {"-include", "new"};
   TestUtils::CreateInterpreter(interpreter_args);
@@ -2802,7 +2792,7 @@ TEST(FunctionReflectionTest, GetExecutorPIDTest) {
     GTEST_SKIP() << "XFAIL due to Valgrind report";
   TestUtils::CreateInterpreter();
   pid_t pid = Cpp::GetExecutorPID();
-  if (TestUtils::use_oop_jit()) {
+  if (TestUtils::use_oop_jit) {
     EXPECT_NE(pid, 0);
   } else {
     EXPECT_EQ(pid, 0);

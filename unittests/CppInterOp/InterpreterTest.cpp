@@ -67,9 +67,8 @@ TEST(InterpreterTest, Evaluate) {
 #endif
   if (llvm::sys::RunningOnValgrind())
     GTEST_SKIP() << "XFAIL due to Valgrind report";
-  if (TestUtils::use_oop_jit()) {
+  if (TestUtils::use_oop_jit)
     GTEST_SKIP() << "Test fails for OOP JIT builds";
-  }
   //  EXPECT_TRUE(Cpp::Evaluate(I, "") == 0);
   //EXPECT_TRUE(Cpp::Evaluate(I, "__cplusplus;") == 201402);
   // Due to a deficiency in the clang-repl implementation to get the value we
@@ -85,9 +84,8 @@ TEST(InterpreterTest, Evaluate) {
 }
 
 TEST(InterpreterTest, DeleteInterpreter) {
-  if (TestUtils::use_oop_jit()) {
+  if (TestUtils::use_oop_jit)
     GTEST_SKIP() << "Test fails for OOP JIT builds";
-  }
   auto* I1 = TestUtils::CreateInterpreter();
   auto* I2 = TestUtils::CreateInterpreter();
   auto* I3 = TestUtils::CreateInterpreter();
@@ -109,9 +107,8 @@ TEST(InterpreterTest, ActivateInterpreter) {
 #ifdef EMSCRIPTEN_STATIC_LIBRARY
   GTEST_SKIP() << "Test fails for Emscipten static library build";
 #endif
-  if (TestUtils::use_oop_jit()) {
+  if (TestUtils::use_oop_jit)
     GTEST_SKIP() << "Test fails for OOP JIT builds";
-  }
   EXPECT_FALSE(Cpp::ActivateInterpreter(nullptr));
   auto* Cpp14 = TestUtils::CreateInterpreter({"-std=c++14"});
   auto* Cpp17 = TestUtils::CreateInterpreter({"-std=c++17"});
@@ -141,9 +138,8 @@ TEST(InterpreterTest, Process) {
 #ifdef _WIN32
   GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
 #endif
-  if (TestUtils::use_oop_jit()) {
+  if (TestUtils::use_oop_jit)
     GTEST_SKIP() << "Test fails for OOP JIT builds";
-  }
   if (llvm::sys::RunningOnValgrind())
     GTEST_SKIP() << "XFAIL due to Valgrind report";
   std::vector<const char*> interpreter_args = { "-include", "new" };
@@ -283,9 +279,8 @@ TEST(InterpreterTest, DetectSystemCompilerIncludePaths) {
 }
 
 TEST(InterpreterTest, IncludePaths) {
-  if (TestUtils::use_oop_jit()) {
+  if (TestUtils::use_oop_jit)
     GTEST_SKIP() << "Test fails for OOP JIT builds";
-  }
   std::vector<std::string> includes;
   Cpp::GetIncludePaths(includes);
   EXPECT_FALSE(includes.empty());

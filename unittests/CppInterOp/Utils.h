@@ -16,11 +16,11 @@ using namespace clang;
 using namespace llvm;
 
 namespace clang {
-  class Decl;
+class Decl;
 }
 #define Interp (static_cast<compat::Interpreter*>(Cpp::GetInterpreter()))
 namespace TestUtils {
-bool& use_oop_jit();
+extern bool use_oop_jit;
 void GetAllTopLevelDecls(const std::string& code,
                          std::vector<clang::Decl*>& Decls,
                          bool filter_implicitGenerated = false,

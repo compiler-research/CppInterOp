@@ -19,9 +19,8 @@
 using namespace clang;
 using namespace llvm;
 
-bool& TestUtils::use_oop_jit() {
-  static bool flag = false;
-  return flag;
+namespace TestUtils {
+bool use_oop_jit = false;
 }
 
 void TestUtils::GetAllTopLevelDecls(
@@ -69,7 +68,7 @@ TInterp_t
 TestUtils::CreateInterpreter(const std::vector<const char*>& Args,
                              const std::vector<const char*>& GpuArgs) {
   auto mergedArgs = Args;
-  if (TestUtils::use_oop_jit()) {
+  if (TestUtils::use_oop_jit) {
     mergedArgs.push_back("--use-oop-jit");
   }
   return Cpp::CreateInterpreter(mergedArgs, GpuArgs);

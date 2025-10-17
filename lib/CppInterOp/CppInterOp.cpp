@@ -3978,10 +3978,7 @@ bool Destruct(TCppObject_t This, TCppConstScope_t scope,
 }
 
 class StreamCaptureInfo {
-  struct file_deleter {
-    void operator()(FILE* fp) { pclose(fp); }
-  };
-  std::unique_ptr<FILE, file_deleter> m_TempFile;
+  FILE* m_TempFile = nullptr;
   int m_FD = -1;
   int m_DupFD = -1;
   bool m_OwnsFile = true;
@@ -4006,19 +4003,18 @@ public:
       // Use interpreter-managed redirection file for out-of-process stdout
       FILE* redirected = I.getRedirectionFileForOutOfProcess(FD);
       if (redirected) {
-        m_TempFile.release(); // release ownership of current tmpfile
-        m_TempFile.reset(redirected);
+        m_TempFile = redirected;
         m_OwnsFile = false;
-        if (ftruncate(fileno(m_TempFile.get()), 0) != 0)
+        if (ftruncate(fileno(m_TempFile), 0) != 0)
           perror("ftruncate");
-        if (lseek(fileno(m_TempFile.get()), 0, SEEK_SET) == -1)
+        if (lseek(fileno(m_TempFile), 0, SEEK_SET) == -1)
           perror("lseek");
       }
     } else {
-      m_TempFile.reset(tmpfile());
+      m_TempFile = tmpfile();
     }
 #else
-    m_TempFile.reset(tmpfile());
+    m_TempFile = tmpfile();
 #endif
 #endif
 
@@ -4033,7 +4029,7 @@ public:
     // This seems only necessary when piping stdout or stderr, but do it
     // for ttys to avoid over complicated code for minimal benefit.
     ::fflush(FD == STDOUT_FILENO ? stdout : stderr);
-    if (dup2(fileno(m_TempFile.get()), FD) < 0)
+    if (dup2(fileno(m_TempFile), FD) < 0)
       perror("StreamCaptureInfo:");
   }
   StreamCaptureInfo(const StreamCaptureInfo&) = delete;
@@ -4045,7 +4041,7 @@ public:
     assert(m_DupFD == -1 && "Captured output not used?");
     // Only close the temp file if we own it
     if (m_OwnsFile && m_TempFile)
-      fclose(m_TempFile.release());
+      fclose(m_TempFile);
   }
 
   std::string GetCapturedString() {
@@ -4055,11 +4051,11 @@ public:
     if (dup2(m_DupFD, m_FD) < 0)
       perror("StreamCaptureInfo:");
     // Go to the end of the file.
-    if (fseek(m_TempFile.get(), 0L, SEEK_END) != 0)
+    if (fseek(m_TempFile, 0L, SEEK_END) != 0)
       perror("StreamCaptureInfo:");
 
     // Get the size of the file.
-    long bufsize = ftell(m_TempFile.get());
+    long bufsize = ftell(m_TempFile);
     if (bufsize == -1)
       perror("StreamCaptureInfo:");
 
@@ -4067,13 +4063,12 @@ public:
     std::unique_ptr<char[]> content(new char[bufsize + 1]);
 
     // Go back to the start of the file.
-    if (fseek(m_TempFile.get(), 0L, SEEK_SET) != 0)
+    if (fseek(m_TempFile, 0L, SEEK_SET) != 0)
       perror("StreamCaptureInfo:");
 
     // Read the entire file into memory.
-    size_t newLen =
-        fread(content.get(), sizeof(char), bufsize, m_TempFile.get());
-    if (ferror(m_TempFile.get()) != 0)
+    size_t newLen = fread(content.get(), sizeof(char), bufsize, m_TempFile);
+    if (ferror(m_TempFile) != 0)
       fputs("Error reading file", stderr);
     else
       content[newLen++] = '\0'; // Just to be safe.
@@ -4084,7 +4079,7 @@ public:
 #if !defined(_WIN32) && !defined(CPPINTEROP_USE_CLING)
     auto& I = getInterp();
     if (I.isOutOfProcess()) {
-      int fd = fileno(m_TempFile.get());
+      int fd = fileno(m_TempFile);
       if (ftruncate(fd, 0) != 0)
         perror("ftruncate");
       if (lseek(fd, 0, SEEK_SET) == -1)

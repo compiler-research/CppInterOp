@@ -170,9 +170,9 @@ public:
   };
 
 private:
-  static std::tuple<int, int, int, bool>
-  getFileDescriptorsForOutOfProcess(std::vector<const char*>& vargs,
-                                    std::unique_ptr<IOContext>& io_ctx) {
+  static std::tuple<int, int, int>
+  initAndGetFileDescriptors(std::vector<const char*>& vargs,
+                            std::unique_ptr<IOContext>& io_ctx) {
     int stdin_fd = 0;
     int stdout_fd = 1;
     int stderr_fd = 2;
@@ -194,6 +194,9 @@ private:
               << "Can't start out-of-process JIT execution. Continuing "
                  "with in-process JIT execution.\n";
           outOfProcess = false;
+          stdin_fd = 0;
+          stdout_fd = 1;
+          stderr_fd = 2;
         }
       }
       if (outOfProcess) {
@@ -204,7 +207,7 @@ private:
     }
 #endif
 
-    return std::make_tuple(stdin_fd, stdout_fd, stderr_fd, outOfProcess);
+    return std::make_tuple(stdin_fd, stdout_fd, stderr_fd);
   }
 
   std::unique_ptr<clang::Interpreter> inner;
@@ -213,11 +216,7 @@ private:
 
 public:
   Interpreter(std::unique_ptr<clang::Interpreter> CI,
-              std::unique_ptr<IOContext> ctx = nullptr)
-      : inner(std::move(CI)), io_context(std::move(ctx)), outOfProcess(false) {}
-
-  Interpreter(std::unique_ptr<clang::Interpreter> CI,
-              std::unique_ptr<IOContext> ctx, bool oop)
+              std::unique_ptr<IOContext> ctx = nullptr, bool oop = false)
       : inner(std::move(CI)), io_context(std::move(ctx)), outOfProcess(oop) {}
 
 public:
@@ -240,8 +239,15 @@ public:
     int stderr_fd;
     bool outOfProcess;
     auto io_ctx = std::make_unique<IOContext>();
-    std::tie(stdin_fd, stdout_fd, stderr_fd, outOfProcess) =
-        getFileDescriptorsForOutOfProcess(vargs, io_ctx);
+    std::tie(stdin_fd, stdout_fd, stderr_fd) =
+        initAndGetFileDescriptors(vargs, io_ctx);
+
+    if (stdin_fd == 0 && stdout_fd == 1 && stderr_fd == 2) {
+      io_ctx = nullptr; // No redirection
+      outOfProcess = false;
+    } else {
+      outOfProcess = true;
+    }
 
     auto CI =
         compat::createClangInterpreter(vargs, stdin_fd, stdout_fd, stderr_fd);
@@ -259,7 +265,7 @@ public:
   operator const clang::Interpreter&() const { return *inner; }
   operator clang::Interpreter&() { return *inner; }
 
-  bool isOutOfProcess() const { return outOfProcess; }
+  [[nodiscard]] bool isOutOfProcess() const { return outOfProcess; }
 
 #ifndef _WIN32
   FILE* getRedirectionFileForOutOfProcess(int FD) {
@@ -338,7 +344,7 @@ public:
   }
 
 #ifndef _WIN32
-  pid_t getOutOfProcessExecutorPID() const {
+  [[nodiscard]] pid_t getOutOfProcessExecutorPID() const {
 #ifdef LLVM_BUILT_WITH_OOP_JIT
     return inner->getOutOfProcessExecutorPID();
 #endif

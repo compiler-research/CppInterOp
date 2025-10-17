@@ -20,9 +20,8 @@ TEST(JitTest, InsertOrReplaceJitSymbol) {
 #ifdef _WIN32
   GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
 #endif
-  if (TestUtils::use_oop_jit()) {
+  if (TestUtils::use_oop_jit)
     GTEST_SKIP() << "Test fails for OOP JIT builds";
-  }
   std::vector<Decl*> Decls;
   std::string code = R"(
     extern "C" int printf(const char*,...);
@@ -43,9 +42,8 @@ TEST(JitTest, InsertOrReplaceJitSymbol) {
 }
 
 TEST(Streams, StreamRedirect) {
-  if (TestUtils::use_oop_jit()) {
+  if (TestUtils::use_oop_jit)
     GTEST_SKIP() << "Test fails for OOP JIT builds";
-  }
   // printf and etc are fine here.
   // NOLINTBEGIN(cppcoreguidelines-pro-type-vararg)
   Cpp::BeginStdStreamCapture(Cpp::kStdOut);

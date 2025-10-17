@@ -2,17 +2,15 @@
 #include <gtest/gtest.h>
 #include <string>
 
-static void parseCustomArguments(int argc, char** argv) {
-  for (int i = 1; i < argc; ++i) {
-    std::string arg(argv[i]);
-    if (arg == "--use-oop-jit") {
-      TestUtils::use_oop_jit() = true;
-    }
-  }
-}
-
 int main(int argc, char** argv) {
   ::testing::InitGoogleTest(&argc, argv);
-  parseCustomArguments(argc, argv);
-  return RUN_ALL_TESTS();
+  int result = RUN_ALL_TESTS();
+  if (result != 0) {
+    return result;
+  }
+#ifdef LLVM_BUILT_WITH_OOP_JIT
+  TestUtils::use_oop_jit = true;
+  result = RUN_ALL_TESTS();
+#endif
+  return result;
 }
