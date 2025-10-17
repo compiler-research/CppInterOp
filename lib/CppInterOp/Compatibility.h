@@ -309,8 +309,7 @@ createClangInterpreter(std::vector<const char*>& args, int stdin_fd = 0,
     llvm::errs()
         << "[CreateClangInterpreter]: No compatibility with out-of-process "
            "JIT. Running in-process JIT execution."
-        << "(To enable recompile CppInterOp with patch applied and change "
-           "VERSION file to 1.8.1;dev."
+        << "(To enable recompile CppInterOp with -DLLVM_BUILT_WITH_OOP_JIT=ON)"
         << "\n";
   }
   auto innerOrErr =
