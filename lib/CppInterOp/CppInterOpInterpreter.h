@@ -266,14 +266,12 @@ public:
     if (!io_context)
       return nullptr;
     switch (FD) {
-    // TODO: Implement these as well
-    // case (STDIN_FILENO):
-    //   return io_context->stdin_file.get();
+    case (STDIN_FILENO):
+      return io_context->stdin_file.get();
     case (STDOUT_FILENO):
       return io_context->stdout_file.get();
-    // TODO: Implement these as well
-    // case (STDERR_FILENO):
-    //   return io_context->stderr_file.get();
+    case (STDERR_FILENO):
+      return io_context->stderr_file.get();
     default:
       llvm::errs() << "No temp file for the FD\n";
       return nullptr;

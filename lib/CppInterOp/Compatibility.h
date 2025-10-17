@@ -282,19 +282,12 @@ createClangInterpreter(std::vector<const char*>& args, int stdin_fd = 0,
     OutOfProcessConfig.SlabAllocateSize = 0;
     OutOfProcessConfig.CustomizeFork = [&stdin_fd, &stdout_fd,
                                         &stderr_fd]() { // Lambda defined inline
-      auto redirect = [](int from, int to) {
-        if (from != to) {
-          dup2(from, to);
-          close(from);
-        }
-      };
+      dup2(stdin_fd, STDIN_FILENO);
+      dup2(stdout_fd, STDOUT_FILENO);
+      dup2(stderr_fd, STDERR_FILENO);
 
-      redirect(stdin_fd, STDIN_FILENO);
-      redirect(stdout_fd, STDOUT_FILENO);
-      redirect(stderr_fd, STDERR_FILENO);
-
-      setvbuf(stdout, nullptr, _IONBF, 0);
-      setvbuf(stderr, nullptr, _IONBF, 0);
+      setvbuf(fdopen(stdout_fd, "w+"), nullptr, _IONBF, 0);
+      setvbuf(fdopen(stderr_fd, "w+"), nullptr, _IONBF, 0);
     };
 
 #ifdef __APPLE__

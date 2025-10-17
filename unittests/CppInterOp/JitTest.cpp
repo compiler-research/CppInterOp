@@ -90,17 +90,24 @@ TEST(Streams, StreamRedirectJIT) {
   GTEST_SKIP() << "Test fails for cling builds";
 #endif
   TestUtils::CreateInterpreter();
+  Interp->process(R"(
+    #include <stdio.h>
+    printf("%s\n", "Hello World");
+    fprintf(stderr, "%s\n", "Hello Err");
+    fflush(nullptr);
+  )");
 
   Cpp::BeginStdStreamCapture(Cpp::kStdOut);
   Cpp::BeginStdStreamCapture(Cpp::kStdErr);
   Interp->process(R"(
     #include <stdio.h>
     printf("%s\n", "Hello World");
-    fflush(stdout);
+    fprintf(stderr, "%s\n", "Hello Err");
+    fflush(nullptr);
     )");
   std::string CapturedStringErr = Cpp::EndStdStreamCapture();
   std::string CapturedStringOut = Cpp::EndStdStreamCapture();
 
   EXPECT_STREQ(CapturedStringOut.c_str(), "Hello World\n");
-  EXPECT_STREQ(CapturedStringErr.c_str(), "");
+  EXPECT_STREQ(CapturedStringErr.c_str(), "Hello Err\n");
 }

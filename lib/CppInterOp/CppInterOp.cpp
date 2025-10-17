@@ -4002,13 +4002,17 @@ public:
   StreamCaptureInfo(int FD) : m_FD(FD) {
 #if !defined(CPPINTEROP_USE_CLING) && !defined(_WIN32)
     auto& I = getInterp();
-    if (I.isOutOfProcess() && FD == STDOUT_FILENO) {
+    if (I.isOutOfProcess()) {
       // Use interpreter-managed redirection file for out-of-process stdout
       FILE* redirected = I.getRedirectionFileForOutOfProcess(FD);
       if (redirected) {
         m_TempFile.release(); // release ownership of current tmpfile
         m_TempFile.reset(redirected);
         m_OwnsFile = false;
+        if (ftruncate(fileno(m_TempFile.get()), 0) != 0)
+          perror("ftruncate");
+        if (lseek(fileno(m_TempFile.get()), 0, SEEK_SET) == -1)
+          perror("lseek");
       }
     } else {
       m_TempFile.reset(tmpfile());
@@ -4079,7 +4083,7 @@ public:
     m_DupFD = -1;
 #if !defined(_WIN32) && !defined(CPPINTEROP_USE_CLING)
     auto& I = getInterp();
-    if (I.isOutOfProcess() && m_FD == STDOUT_FILENO) {
+    if (I.isOutOfProcess()) {
       int fd = fileno(m_TempFile.get());
       if (ftruncate(fd, 0) != 0)
         perror("ftruncate");
