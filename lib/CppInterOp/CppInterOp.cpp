@@ -4131,7 +4131,7 @@ pid_t GetExecutorPID() {
   auto& I = getInterp();
   return I.getOutOfProcessExecutorPID();
 #endif
-  return 0;
+  return getpid();
 }
 
 #endif
