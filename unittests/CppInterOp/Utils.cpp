@@ -20,7 +20,18 @@ using namespace clang;
 using namespace llvm;
 
 namespace TestUtils {
-bool use_oop_jit = false;
+
+TestConfig current_config = {false, "InProcessJIT"};
+
+std::vector<const char*> GetInterpreterArgs(
+    const std::vector<const char*>& base_args) {
+  auto args = base_args;
+  if (current_config.use_oop_jit) {
+    args.push_back("--use-oop-jit");
+  }
+  return args;
+}
+
 }
 
 void TestUtils::GetAllTopLevelDecls(
@@ -67,10 +78,7 @@ void TestUtils::GetAllSubDecls(Decl *D, std::vector<Decl*>& SubDecls,
 TInterp_t
 TestUtils::CreateInterpreter(const std::vector<const char*>& Args,
                              const std::vector<const char*>& GpuArgs) {
-  auto mergedArgs = Args;
-  if (TestUtils::use_oop_jit) {
-    mergedArgs.push_back("--use-oop-jit");
-  }
+  auto mergedArgs = GetInterpreterArgs(Args);
   return Cpp::CreateInterpreter(mergedArgs, GpuArgs);
 }
 

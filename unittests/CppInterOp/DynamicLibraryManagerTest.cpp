@@ -20,7 +20,14 @@ std::string GetExecutablePath(const char* Argv0) {
   return llvm::sys::fs::getMainExecutable(Argv0, MainAddr);
 }
 
-TEST(DynamicLibraryManagerTest, Sanity) {
+class DynamicLibraryManagerTest : public ::testing::TestWithParam<TestUtils::TestConfig> {
+protected:
+  void SetUp() override {
+    TestUtils::current_config = GetParam();
+  }
+};
+
+TEST_P(DynamicLibraryManagerTest, Sanity) {
 #ifdef EMSCRIPTEN
   GTEST_SKIP() << "Test fails for Emscipten builds";
 #endif
@@ -67,7 +74,7 @@ TEST(DynamicLibraryManagerTest, Sanity) {
   // EXPECT_FALSE(Cpp::GetFunctionAddress("ret_zero"));
 }
 
-TEST(DynamicLibraryManagerTest, BasicSymbolLookup) {
+TEST_P(DynamicLibraryManagerTest, BasicSymbolLookup) {
 #ifndef EMSCRIPTEN
   GTEST_SKIP() << "This test is only intended for Emscripten builds.";
 #else
@@ -92,3 +99,26 @@ TEST(DynamicLibraryManagerTest, BasicSymbolLookup) {
   auto Fn = reinterpret_cast<RetZeroFn>(Addr);
   EXPECT_EQ(Fn(), 0);
 }
+
+#ifdef LLVM_BUILT_WITH_OOP_JIT
+INSTANTIATE_TEST_SUITE_P(
+    AllJITModes,
+    DynamicLibraryManagerTest,
+    ::testing::Values(
+        TestUtils::TestConfig{false, "InProcessJIT"},
+        TestUtils::TestConfig{true, "OutOfProcessJIT"}
+    ),
+    [](const ::testing::TestParamInfo<TestUtils::TestConfig>& info) {
+      return info.param.name;
+    }
+);
+#else
+INSTANTIATE_TEST_SUITE_P(
+    AllJITModes,
+    DynamicLibraryManagerTest,
+    ::testing::Values(TestUtils::TestConfig{false, "InProcessJIT"}),
+    [](const ::testing::TestParamInfo<TestUtils::TestConfig>& info) {
+      return info.param.name;
+    }
+);
+#endif

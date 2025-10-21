@@ -6,12 +6,19 @@
 
 using namespace TestUtils;
 
+class JitTest : public ::testing::TestWithParam<TestUtils::TestConfig> {
+protected:
+  void SetUp() override {
+    TestUtils::current_config = GetParam();
+  }
+};
+
 static int printf_jit(const char* format, ...) {
   llvm::errs() << "printf_jit called!\n";
   return 0;
 }
 
-TEST(JitTest, InsertOrReplaceJitSymbol) {
+TEST_P(JitTest, InsertOrReplaceJitSymbol) {
 #ifdef EMSCRIPTEN
   GTEST_SKIP() << "Test fails for Emscipten builds";
 #endif
@@ -20,7 +27,7 @@ TEST(JitTest, InsertOrReplaceJitSymbol) {
 #ifdef _WIN32
   GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
 #endif
-  if (TestUtils::use_oop_jit)
+  if (GetParam().use_oop_jit)
     GTEST_SKIP() << "Test fails for OOP JIT builds";
   std::vector<Decl*> Decls;
   std::string code = R"(
@@ -41,8 +48,8 @@ TEST(JitTest, InsertOrReplaceJitSymbol) {
   EXPECT_TRUE(Cpp::InsertOrReplaceJitSymbol("non_existent", 0));
 }
 
-TEST(Streams, StreamRedirect) {
-  if (TestUtils::use_oop_jit)
+TEST_P(JitTest, StreamRedirect) {
+  if (GetParam().use_oop_jit)
     GTEST_SKIP() << "Test fails for OOP JIT builds";
   // printf and etc are fine here.
   // NOLINTBEGIN(cppcoreguidelines-pro-type-vararg)
@@ -75,7 +82,7 @@ TEST(Streams, StreamRedirect) {
   // NOLINTEND(cppcoreguidelines-pro-type-vararg)
 }
 
-TEST(Streams, StreamRedirectJIT) {
+TEST_P(JitTest, StreamRedirectJIT) {
 #ifdef EMSCRIPTEN
   GTEST_SKIP() << "Test fails for Emscipten builds";
 #endif
@@ -109,3 +116,26 @@ TEST(Streams, StreamRedirectJIT) {
   EXPECT_STREQ(CapturedStringOut.c_str(), "Hello World\n");
   EXPECT_STREQ(CapturedStringErr.c_str(), "Hello Err\n");
 }
+
+#ifdef LLVM_BUILT_WITH_OOP_JIT
+INSTANTIATE_TEST_SUITE_P(
+    AllJITModes,
+    JitTest,
+    ::testing::Values(
+        TestUtils::TestConfig{false, "InProcessJIT"},
+        TestUtils::TestConfig{true, "OutOfProcessJIT"}
+    ),
+    [](const ::testing::TestParamInfo<TestUtils::TestConfig>& info) {
+      return info.param.name;
+    }
+);
+#else
+INSTANTIATE_TEST_SUITE_P(
+    AllJITModes,
+    JitTest,
+    ::testing::Values(TestUtils::TestConfig{false, "InProcessJIT"}),
+    [](const ::testing::TestParamInfo<TestUtils::TestConfig>& info) {
+      return info.param.name;
+    }
+);
+#endif

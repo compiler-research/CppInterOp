@@ -27,14 +27,21 @@
 
 using ::testing::StartsWith;
 
-TEST(InterpreterTest, Version) {
+class InterpreterTest : public ::testing::TestWithParam<TestUtils::TestConfig> {
+protected:
+  void SetUp() override {
+    TestUtils::current_config = GetParam();
+  }
+};
+
+TEST_P(InterpreterTest, Version) {
   EXPECT_THAT(Cpp::GetVersion(), StartsWith("CppInterOp version"));
 }
 
 #ifdef NDEBUG
-TEST(InterpreterTest, DISABLED_DebugFlag) {
+TEST_P(InterpreterTest, DISABLED_DebugFlag) {
 #else
-TEST(InterpreterTest, DebugFlag) {
+TEST_P(InterpreterTest, DebugFlag) {
 #endif // NDEBUG
   TestUtils::CreateInterpreter();
   EXPECT_FALSE(Cpp::IsDebugOutputEnabled());
@@ -58,7 +65,7 @@ TEST(InterpreterTest, DebugFlag) {
   EXPECT_STREQ(cerrs.c_str(), "");
 }
 
-TEST(InterpreterTest, Evaluate) {
+TEST_P(InterpreterTest, Evaluate) {
 #ifdef EMSCRIPTEN
   GTEST_SKIP() << "Test fails for Emscipten builds";
 #endif
@@ -67,7 +74,7 @@ TEST(InterpreterTest, Evaluate) {
 #endif
   if (llvm::sys::RunningOnValgrind())
     GTEST_SKIP() << "XFAIL due to Valgrind report";
-  if (TestUtils::use_oop_jit)
+  if (GetParam().use_oop_jit)
     GTEST_SKIP() << "Test fails for OOP JIT builds";
   //  EXPECT_TRUE(Cpp::Evaluate(I, "") == 0);
   //EXPECT_TRUE(Cpp::Evaluate(I, "__cplusplus;") == 201402);
@@ -83,8 +90,8 @@ TEST(InterpreterTest, Evaluate) {
   EXPECT_FALSE(HadError) ;
 }
 
-TEST(InterpreterTest, DeleteInterpreter) {
-  if (TestUtils::use_oop_jit)
+TEST_P(InterpreterTest, DeleteInterpreter) {
+  if (GetParam().use_oop_jit)
     GTEST_SKIP() << "Test fails for OOP JIT builds";
   auto* I1 = TestUtils::CreateInterpreter();
   auto* I2 = TestUtils::CreateInterpreter();
@@ -103,11 +110,11 @@ TEST(InterpreterTest, DeleteInterpreter) {
   EXPECT_EQ(I2, Cpp::GetInterpreter()) << "I2 is not active";
 }
 
-TEST(InterpreterTest, ActivateInterpreter) {
+TEST_P(InterpreterTest, ActivateInterpreter) {
 #ifdef EMSCRIPTEN_STATIC_LIBRARY
   GTEST_SKIP() << "Test fails for Emscipten static library build";
 #endif
-  if (TestUtils::use_oop_jit)
+  if (GetParam().use_oop_jit)
     GTEST_SKIP() << "Test fails for OOP JIT builds";
   EXPECT_FALSE(Cpp::ActivateInterpreter(nullptr));
   auto* Cpp14 = TestUtils::CreateInterpreter({"-std=c++14"});
@@ -131,14 +138,14 @@ TEST(InterpreterTest, ActivateInterpreter) {
   EXPECT_TRUE(Cpp::Evaluate("__cplusplus") == 201703L);
 }
 
-TEST(InterpreterTest, Process) {
+TEST_P(InterpreterTest, Process) {
 #ifdef EMSCRIPTEN_STATIC_LIBRARY
   GTEST_SKIP() << "Test fails for Emscipten static library build";
 #endif
 #ifdef _WIN32
   GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
 #endif
-  if (TestUtils::use_oop_jit)
+  if (GetParam().use_oop_jit)
     GTEST_SKIP() << "Test fails for OOP JIT builds";
   if (llvm::sys::RunningOnValgrind())
     GTEST_SKIP() << "XFAIL due to Valgrind report";
@@ -161,7 +168,7 @@ TEST(InterpreterTest, Process) {
   clang_Interpreter_dispose(CXI);
 }
 
-TEST(InterpreterTest, EmscriptenExceptionHandling) {
+TEST_P(InterpreterTest, EmscriptenExceptionHandling) {
 #ifndef EMSCRIPTEN
   GTEST_SKIP() << "This test is intended to check exception handling for "
                   "Emscripten builds.";
@@ -189,7 +196,7 @@ TEST(InterpreterTest, EmscriptenExceptionHandling) {
   EXPECT_TRUE(Cpp::Process(tryCatchCode) == 0);
 }
 
-TEST(InterpreterTest, CreateInterpreter) {
+TEST_P(InterpreterTest, CreateInterpreter) {
   auto* I = TestUtils::CreateInterpreter();
   EXPECT_TRUE(I);
   // Check if the default standard is c++14
@@ -225,7 +232,7 @@ TEST(InterpreterTest, CreateInterpreter) {
 }
 
 #ifndef CPPINTEROP_USE_CLING
-TEST(InterpreterTest, CreateInterpreterCAPI) {
+TEST_P(InterpreterTest, CreateInterpreterCAPI) {
   const char* argv[] = {"-std=c++17"};
   auto *CXI = clang_createInterpreter(argv, 1);
   auto CLI = clang_Interpreter_getClangInterpreter(CXI);
@@ -233,7 +240,7 @@ TEST(InterpreterTest, CreateInterpreterCAPI) {
   clang_Interpreter_dispose(CXI);
 }
 
-TEST(InterpreterTest, CreateInterpreterCAPIFailure) {
+TEST_P(InterpreterTest, CreateInterpreterCAPIFailure) {
 #ifdef _WIN32
   GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
 #endif
@@ -244,12 +251,12 @@ TEST(InterpreterTest, CreateInterpreterCAPIFailure) {
 #endif
 
 #ifdef LLVM_BINARY_DIR
-TEST(InterpreterTest, DetectResourceDir) {
+TEST_P(InterpreterTest, DetectResourceDir) {
 #ifdef EMSCRIPTEN
   GTEST_SKIP() << "Test fails for Emscipten builds";
 #endif
 #else
-TEST(InterpreterTest, DISABLED_DetectResourceDir) {
+TEST_P(InterpreterTest, DISABLED_DetectResourceDir) {
 #endif // LLVM_BINARY_DIR
 #ifdef _WIN32
   GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
@@ -266,7 +273,7 @@ TEST(InterpreterTest, DISABLED_DetectResourceDir) {
   EXPECT_STREQ(DetectedPath.c_str(), Cpp::GetResourceDir());
 }
 
-TEST(InterpreterTest, DetectSystemCompilerIncludePaths) {
+TEST_P(InterpreterTest, DetectSystemCompilerIncludePaths) {
 #ifdef EMSCRIPTEN
   GTEST_SKIP() << "Test fails for Emscipten builds";
 #endif
@@ -278,8 +285,8 @@ TEST(InterpreterTest, DetectSystemCompilerIncludePaths) {
   EXPECT_FALSE(includes.empty());
 }
 
-TEST(InterpreterTest, IncludePaths) {
-  if (TestUtils::use_oop_jit)
+TEST_P(InterpreterTest, IncludePaths) {
+  if (GetParam().use_oop_jit)
     GTEST_SKIP() << "Test fails for OOP JIT builds";
   std::vector<std::string> includes;
   Cpp::GetIncludePaths(includes);
@@ -304,7 +311,7 @@ TEST(InterpreterTest, IncludePaths) {
              std::end(includes));
 }
 
-TEST(InterpreterTest, CodeCompletion) {
+TEST_P(InterpreterTest, CodeCompletion) {
 #if CLANG_VERSION_MAJOR >= 18 || defined(CPPINTEROP_USE_CLING)
   TestUtils::CreateInterpreter();
   std::vector<std::string> cc;
@@ -324,7 +331,7 @@ TEST(InterpreterTest, CodeCompletion) {
 #endif
 }
 
-TEST(InterpreterTest, ExternalInterpreterTest) {
+TEST_P(InterpreterTest, ExternalInterpreterTest) {
 
 if (llvm::sys::RunningOnValgrind())
   GTEST_SKIP() << "XFAIL due to Valgrind report";
@@ -373,3 +380,26 @@ if (llvm::sys::RunningOnValgrind())
   delete ExtInterp;
 #endif
 }
+
+#ifdef LLVM_BUILT_WITH_OOP_JIT
+INSTANTIATE_TEST_SUITE_P(
+    AllJITModes,
+    InterpreterTest,
+    ::testing::Values(
+        TestUtils::TestConfig{false, "InProcessJIT"},
+        TestUtils::TestConfig{true, "OutOfProcessJIT"}
+    ),
+    [](const ::testing::TestParamInfo<TestUtils::TestConfig>& info) {
+      return info.param.name;
+    }
+);
+#else
+INSTANTIATE_TEST_SUITE_P(
+    AllJITModes,
+    InterpreterTest,
+    ::testing::Values(TestUtils::TestConfig{false, "InProcessJIT"}),
+    [](const ::testing::TestParamInfo<TestUtils::TestConfig>& info) {
+      return info.param.name;
+    }
+);
+#endif

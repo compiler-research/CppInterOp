@@ -1,4 +1,4 @@
-set(EXTRA_TEST_SOURCE_FILES Utils.cpp main.cpp)
+set(EXTRA_TEST_SOURCE_FILES Utils.cpp)
 
 if (EMSCRIPTEN)
   # So we create a html file, as well as the javascript file

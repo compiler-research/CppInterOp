@@ -12,51 +12,14 @@ using namespace TestUtils;
 using namespace llvm;
 using namespace clang;
 
-TEST(ScopeReflectionTest, IsEnumScope) {
-  std::vector<Decl *> Decls, SubDecls;
-  std::string code = R"(
-    enum Switch {
-      OFF,
-      ON
-    };
+class EnumReflectionTest : public ::testing::TestWithParam<TestUtils::TestConfig> {
+protected:
+  void SetUp() override {
+    TestUtils::current_config = GetParam();
+  }
+};
 
-    Switch s = Switch::OFF;
-
-    int i = Switch::ON;
-  )";
-
-  GetAllTopLevelDecls(code, Decls);
-  GetAllSubDecls(Decls[0], SubDecls);
-  EXPECT_TRUE(Cpp::IsEnumScope(Decls[0]));
-  EXPECT_FALSE(Cpp::IsEnumScope(Decls[1]));
-  EXPECT_FALSE(Cpp::IsEnumScope(Decls[2]));
-  EXPECT_FALSE(Cpp::IsEnumScope(SubDecls[0]));
-  EXPECT_FALSE(Cpp::IsEnumScope(SubDecls[1]));
-}
-
-TEST(ScopeReflectionTest, IsEnumConstant) {
-  std::vector<Decl *> Decls, SubDecls;
-  std::string code = R"(
-    enum Switch {
-      OFF,
-      ON
-    };
-
-    Switch s = Switch::OFF;
-
-    int i = Switch::ON;
-  )";
-
-  GetAllTopLevelDecls(code, Decls);
-  GetAllSubDecls(Decls[0], SubDecls);
-  EXPECT_FALSE(Cpp::IsEnumConstant(Decls[0]));
-  EXPECT_FALSE(Cpp::IsEnumConstant(Decls[1]));
-  EXPECT_FALSE(Cpp::IsEnumConstant(Decls[2]));
-  EXPECT_TRUE(Cpp::IsEnumConstant(SubDecls[0]));
-  EXPECT_TRUE(Cpp::IsEnumConstant(SubDecls[1]));
-}
-
-TEST(EnumReflectionTest, IsEnumType) {
+TEST_P(EnumReflectionTest, IsEnumType) {
   std::vector<Decl *> Decls;
   std::string code =  R"(
     enum class E {
@@ -84,7 +47,7 @@ TEST(EnumReflectionTest, IsEnumType) {
   EXPECT_TRUE(Cpp::IsEnumType(Cpp::GetVariableType(Decls[5])));
 }
 
-TEST(EnumReflectionTest, GetIntegerTypeFromEnumScope) {
+TEST_P(EnumReflectionTest, GetIntegerTypeFromEnumScope) {
   std::vector<Decl *> Decls;
   std::string code = R"(
     enum Switch : bool {
@@ -134,7 +97,7 @@ TEST(EnumReflectionTest, GetIntegerTypeFromEnumScope) {
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetIntegerTypeFromEnumScope(Decls[5])),"NULL TYPE");
 }
 
-TEST(EnumReflectionTest, GetIntegerTypeFromEnumType) {
+TEST_P(EnumReflectionTest, GetIntegerTypeFromEnumType) {
   std::vector<Decl *> Decls;
   std::string code = R"(
     enum Switch : bool {
@@ -194,7 +157,7 @@ TEST(EnumReflectionTest, GetIntegerTypeFromEnumType) {
   EXPECT_EQ(get_int_type_from_enum_var(Decls[11]), "NULL TYPE"); // When a non Enum Type variable is used
 }
 
-TEST(EnumReflectionTest, GetEnumConstants) {
+TEST_P(EnumReflectionTest, GetEnumConstants) {
   std::vector<Decl *> Decls;
   std::string code = R"(
     enum ZeroEnum {
@@ -238,7 +201,7 @@ TEST(EnumReflectionTest, GetEnumConstants) {
   EXPECT_EQ(Cpp::GetEnumConstants(Decls[5]).size(), 0);
 }
 
-TEST(EnumReflectionTest, GetEnumConstantType) {
+TEST_P(EnumReflectionTest, GetEnumConstantType) {
   std::vector<Decl *> Decls;
   std::string code = R"(
     enum Enum0 {
@@ -269,7 +232,7 @@ TEST(EnumReflectionTest, GetEnumConstantType) {
   EXPECT_EQ(get_enum_constant_type_as_str(nullptr), "NULL TYPE");
 }
 
-TEST(EnumReflectionTest, GetEnumConstantValue) {
+TEST_P(EnumReflectionTest, GetEnumConstantValue) {
   std::vector<Decl *> Decls;
   std::string code = R"(
     enum Counter {
@@ -297,7 +260,7 @@ TEST(EnumReflectionTest, GetEnumConstantValue) {
   EXPECT_EQ(Cpp::GetEnumConstantValue(Decls[1]), 0); // Checking value of non enum constant
 }
 
-TEST(EnumReflectionTest, GetEnums) {
+TEST_P(EnumReflectionTest, GetEnums) {
   std::string code = R"(
     enum Color {
       Red,
@@ -359,3 +322,26 @@ TEST(EnumReflectionTest, GetEnums) {
   EXPECT_TRUE(std::find(enumNames3.begin(), enumNames3.end(), "Color") != enumNames3.end());
   EXPECT_TRUE(enumNames4.empty());
 }
+
+#ifdef LLVM_BUILT_WITH_OOP_JIT
+INSTANTIATE_TEST_SUITE_P(
+    AllJITModes,
+    EnumReflectionTest,
+    ::testing::Values(
+        TestUtils::TestConfig{false, "InProcessJIT"},
+        TestUtils::TestConfig{true, "OutOfProcessJIT"}
+    ),
+    [](const ::testing::TestParamInfo<TestUtils::TestConfig>& info) {
+      return info.param.name;
+    }
+);
+#else
+INSTANTIATE_TEST_SUITE_P(
+    AllJITModes,
+    EnumReflectionTest,
+    ::testing::Values(TestUtils::TestConfig{false, "InProcessJIT"}),
+    [](const ::testing::TestParamInfo<TestUtils::TestConfig>& info) {
+      return info.param.name;
+    }
+);
+#endif

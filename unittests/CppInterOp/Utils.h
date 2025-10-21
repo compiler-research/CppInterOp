@@ -20,7 +20,18 @@ class Decl;
 }
 #define Interp (static_cast<compat::Interpreter*>(Cpp::GetInterpreter()))
 namespace TestUtils {
-extern bool use_oop_jit;
+
+struct TestConfig {
+    bool use_oop_jit;
+    std::string name; 
+};
+
+extern TestConfig current_config;
+
+// Helper to get interpreter args with current config
+std::vector<const char*> GetInterpreterArgs(
+const std::vector<const char*>& base_args = {});
+
 void GetAllTopLevelDecls(const std::string& code,
                          std::vector<clang::Decl*>& Decls,
                          bool filter_implicitGenerated = false,
