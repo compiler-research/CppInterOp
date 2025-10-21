@@ -20,7 +20,7 @@ std::string GetExecutablePath(const char* Argv0) {
   return llvm::sys::fs::getMainExecutable(Argv0, MainAddr);
 }
 
-TEST_P(CppInterOpTest, DynamicLibraryManagerTestSanity) {
+TYPED_TEST(CppInterOpTest, DynamicLibraryManagerTestSanity) {
 #ifdef EMSCRIPTEN
   GTEST_SKIP() << "Test fails for Emscipten builds";
 #endif
@@ -30,7 +30,7 @@ TEST_P(CppInterOpTest, DynamicLibraryManagerTestSanity) {
   GTEST_SKIP() << "Test fails with Cling on Windows";
 #endif
 
-  EXPECT_TRUE(CppInterOpTest::CreateInterpreter());
+  EXPECT_TRUE(TestFixture::CreateInterpreter());
   EXPECT_FALSE(Cpp::GetFunctionAddress("ret_zero"));
 
   std::string BinaryPath = GetExecutablePath(/*Argv0=*/nullptr);
@@ -67,7 +67,7 @@ TEST_P(CppInterOpTest, DynamicLibraryManagerTestSanity) {
   // EXPECT_FALSE(Cpp::GetFunctionAddress("ret_zero"));
 }
 
-TEST_P(CppInterOpTest, DynamicLibraryManagerTestBasicSymbolLookup) {
+TYPED_TEST(CppInterOpTest, DynamicLibraryManagerTestBasicSymbolLookup) {
 #ifndef EMSCRIPTEN
   GTEST_SKIP() << "This test is only intended for Emscripten builds.";
 #else
@@ -76,7 +76,7 @@ TEST_P(CppInterOpTest, DynamicLibraryManagerTestBasicSymbolLookup) {
   #endif
 #endif
 
-  ASSERT_TRUE(CppInterOpTest::CreateInterpreter());
+  ASSERT_TRUE(TestFixture::CreateInterpreter());
   EXPECT_FALSE(Cpp::GetFunctionAddress("ret_zero"));
 
   // Load the library manually. Use known preload path (MEMFS path)

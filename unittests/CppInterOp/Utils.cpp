@@ -36,7 +36,7 @@ void TestUtils::GetAllTopLevelDecls(
     const std::string& code, std::vector<Decl*>& Decls,
     bool filter_implicitGenerated /* = false */,
     const std::vector<const char*>& interpreter_args /* = {} */) {
-  CppInterOpTest::CreateInterpreter(interpreter_args);
+  Cpp::CreateInterpreter(interpreter_args);
 #ifdef CPPINTEROP_USE_CLING
   cling::Transaction *T = nullptr;
   Interp->declare(code, &T);
@@ -94,32 +94,3 @@ void dispose_string(CXString string) {
 CXScope make_scope(const clang::Decl* D, const CXInterpreter I) {
   return {CXCursor_UnexposedDecl, 0, {D, nullptr, I}};
 }
-
-#ifdef LLVM_BUILT_WITH_OOP_JIT
-INSTANTIATE_TEST_SUITE_P(
-    InProcessJIT,
-    CppInterOpTest,
-    ::testing::Values(TestUtils::TestConfig{false, "InProcessJIT"}),
-    [](const ::testing::TestParamInfo<TestUtils::TestConfig>& info) {
-      return info.param.name;
-    }
-);
-
-INSTANTIATE_TEST_SUITE_P(
-    OutOfProcessJIT,
-    CppInterOpTest,
-    ::testing::Values(TestUtils::TestConfig{true, "OutOfProcessJIT"}),
-    [](const ::testing::TestParamInfo<TestUtils::TestConfig>& info) {
-      return info.param.name;
-    }
-);
-#else
-INSTANTIATE_TEST_SUITE_P(
-    InProcessJIT,
-    CppInterOpTest,
-    ::testing::Values(TestUtils::TestConfig{false, "InProcessJIT"}),
-    [](const ::testing::TestParamInfo<TestUtils::TestConfig>& info) {
-      return info.param.name;
-    }
-);
-#endif

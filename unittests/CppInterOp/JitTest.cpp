@@ -11,7 +11,7 @@ static int printf_jit(const char* format, ...) {
   return 0;
 }
 
-TEST_P(CppInterOpTest, JitTestInsertOrReplaceJitSymbol) {
+TYPED_TEST(CppInterOpTest, JitTestInsertOrReplaceJitSymbol) {
 #ifdef EMSCRIPTEN
   GTEST_SKIP() << "Test fails for Emscipten builds";
 #endif
@@ -20,7 +20,7 @@ TEST_P(CppInterOpTest, JitTestInsertOrReplaceJitSymbol) {
 #ifdef _WIN32
   GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
 #endif
-  if (GetParam().use_oop_jit)
+  if (TypeParam::isOutOfProcess)
     GTEST_SKIP() << "Test fails for OOP JIT builds";
   std::vector<Decl*> Decls;
   std::string code = R"(
@@ -41,8 +41,8 @@ TEST_P(CppInterOpTest, JitTestInsertOrReplaceJitSymbol) {
   EXPECT_TRUE(Cpp::InsertOrReplaceJitSymbol("non_existent", 0));
 }
 
-TEST_P(CppInterOpTest, JitTestStreamRedirect) {
-  if (GetParam().use_oop_jit)
+TYPED_TEST(CppInterOpTest, JitTestStreamRedirect) {
+  if (TypeParam::isOutOfProcess)
     GTEST_SKIP() << "Test fails for OOP JIT builds";
   // printf and etc are fine here.
   // NOLINTBEGIN(cppcoreguidelines-pro-type-vararg)
@@ -75,7 +75,7 @@ TEST_P(CppInterOpTest, JitTestStreamRedirect) {
   // NOLINTEND(cppcoreguidelines-pro-type-vararg)
 }
 
-TEST_P(CppInterOpTest, JitTestStreamRedirectJIT) {
+TYPED_TEST(CppInterOpTest, JitTestStreamRedirectJIT) {
 #ifdef EMSCRIPTEN
   GTEST_SKIP() << "Test fails for Emscipten builds";
 #endif
@@ -87,7 +87,7 @@ TEST_P(CppInterOpTest, JitTestStreamRedirectJIT) {
 #ifdef CPPINTEROP_USE_CLING
   GTEST_SKIP() << "Test fails for cling builds";
 #endif
-  CppInterOpTest::CreateInterpreter();
+  TestFixture::CreateInterpreter();
   Interp->process(R"(
     #include <stdio.h>
     printf("%s\n", "Hello World");

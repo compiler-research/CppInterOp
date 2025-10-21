@@ -24,15 +24,14 @@ class Decl;
 namespace TestUtils {
 
 struct TestConfig {
-    bool use_oop_jit;
     std::string name;
+    bool use_oop_jit;
 
-    // Constructor ensures proper initialization
     TestConfig(bool oop_jit, const std::string& n) 
-        : use_oop_jit(oop_jit), name(n) {}
+        : name(n), use_oop_jit(oop_jit) {}
 
-    // Default constructor
-    TestConfig() : use_oop_jit(false), name("InProcessJIT") {}
+    TestConfig() 
+        : name("InProcessJIT"), use_oop_jit(false) {}
 };
 
 extern TestConfig current_config;
@@ -57,9 +56,39 @@ CXScope make_scope(const clang::Decl* D, const CXInterpreter I);
 
 bool IsTargetX86();
 
-class CppInterOpTest : public ::testing::TestWithParam<TestUtils::TestConfig> {
+// class CppInterOpTest : public ::testing::TestWithParam<TestUtils::TestConfig> {
+// protected:
+//   void SetUp() override { TestUtils::current_config = GetParam(); }
+
+// public:
+//   static TInterp_t CreateInterpreter(const std::vector<const char*>& Args = {},
+//                               const std::vector<const char*>& GpuArgs = {}) {
+//     auto mergedArgs = TestUtils::GetInterpreterArgs(Args);
+//     return Cpp::CreateInterpreter(mergedArgs, GpuArgs);
+//   }
+// };
+
+// Define type tags for each configuration
+struct InProcessJITConfig {
+  static constexpr bool isOutOfProcess = false;
+  static constexpr const char* name = "InProcessJIT";
+};
+
+#ifdef LLVM_BUILT_WITH_OOP_JIT
+struct OutOfProcessJITConfig {
+  static constexpr bool isOutOfProcess = true;
+  static constexpr const char* name = "OutOfProcessJIT";
+};
+#endif
+
+// Define typed test fixture
+template <typename Config>
+class CppInterOpTest : public ::testing::Test {
 protected:
-  void SetUp() override { TestUtils::current_config = GetParam(); }
+  void SetUp() override {
+    TestUtils::current_config =
+        TestUtils::TestConfig{Config::isOutOfProcess, Config::name};
+  }
 
 public:
   static TInterp_t CreateInterpreter(const std::vector<const char*>& Args = {},
@@ -67,6 +96,26 @@ public:
     auto mergedArgs = TestUtils::GetInterpreterArgs(Args);
     return Cpp::CreateInterpreter(mergedArgs, GpuArgs);
   }
+
+  bool IsOutOfProcess() {
+    return Config::isOutOfProcess;
+  }
 };
+
+struct JITConfigNameGenerator {
+  template <typename T>
+  static std::string GetName(int) {
+    return T::name;
+  }
+};
+
+#ifdef LLVM_BUILT_WITH_OOP_JIT
+using CppInterOpTestTypes = ::testing::Types<InProcessJITConfig, OutOfProcessJITConfig>;
+#else
+using CppInterOpTestTypes = ::testing::Types<InProcessJITConfig>;
+#endif
+
+TYPED_TEST_SUITE(CppInterOpTest, CppInterOpTestTypes, JITConfigNameGenerator);
+
 
 #endif // CPPINTEROP_UNITTESTS_LIBCPPINTEROP_UTILS_H

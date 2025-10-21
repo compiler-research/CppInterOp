@@ -25,7 +25,7 @@ using namespace TestUtils;
 using namespace llvm;
 using namespace clang;
 
-TEST_P(CppInterOpTest, ScopeReflectionTestIsEnumScope) {
+TYPED_TEST(CppInterOpTest, ScopeReflectionTestIsEnumScope) {
   std::vector<Decl *> Decls, SubDecls;
   std::string code = R"(
     enum Switch {
@@ -47,7 +47,7 @@ TEST_P(CppInterOpTest, ScopeReflectionTestIsEnumScope) {
   EXPECT_FALSE(Cpp::IsEnumScope(SubDecls[1]));
 }
 
-TEST_P(CppInterOpTest, ScopeReflectionTestIsEnumConstant) {
+TYPED_TEST(CppInterOpTest, ScopeReflectionTestIsEnumConstant) {
   std::vector<Decl *> Decls, SubDecls;
   std::string code = R"(
     enum Switch {
@@ -69,7 +69,7 @@ TEST_P(CppInterOpTest, ScopeReflectionTestIsEnumConstant) {
   EXPECT_TRUE(Cpp::IsEnumConstant(SubDecls[1]));
 }
 
-TEST_P(CppInterOpTest, ScopeReflectionTestDemangle) {
+TYPED_TEST(CppInterOpTest, ScopeReflectionTestDemangle) {
   if (llvm::sys::RunningOnValgrind())
     GTEST_SKIP() << "XFAIL due to Valgrind report";
 
@@ -99,7 +99,7 @@ TEST_P(CppInterOpTest, ScopeReflectionTestDemangle) {
             std::string::npos);
 }
 
-TEST_P(CppInterOpTest, ScopeReflectionTestIsAggregate) {
+TYPED_TEST(CppInterOpTest, ScopeReflectionTestIsAggregate) {
   std::vector<Decl *> Decls;
   std::string code = R"(
     char cv[4] = {};
@@ -125,7 +125,7 @@ TEST_P(CppInterOpTest, ScopeReflectionTestIsAggregate) {
 }
 
 // Check that the CharInfo table has been constructed reasonably.
-TEST_P(CppInterOpTest, ScopeReflectionTestIsNamespace) {
+TYPED_TEST(CppInterOpTest, ScopeReflectionTestIsNamespace) {
   std::vector<Decl*> Decls;
   GetAllTopLevelDecls("namespace N {} class C{}; int I;", Decls);
   EXPECT_TRUE(Cpp::IsNamespace(Decls[0]));
@@ -133,7 +133,7 @@ TEST_P(CppInterOpTest, ScopeReflectionTestIsNamespace) {
   EXPECT_FALSE(Cpp::IsNamespace(Decls[2]));
 }
 
-TEST_P(CppInterOpTest, ScopeReflectionTestIsClass) {
+TYPED_TEST(CppInterOpTest, ScopeReflectionTestIsClass) {
   std::vector<Decl*> Decls;
   GetAllTopLevelDecls("namespace N {} class C{}; int I;", Decls);
   EXPECT_FALSE(Cpp::IsClass(Decls[0]));
@@ -141,7 +141,7 @@ TEST_P(CppInterOpTest, ScopeReflectionTestIsClass) {
   EXPECT_FALSE(Cpp::IsClass(Decls[2]));
 }
 
-TEST_P(CppInterOpTest, ScopeReflectionTestIsClassPolymorphic) {
+TYPED_TEST(CppInterOpTest, ScopeReflectionTestIsClassPolymorphic) {
   std::vector<Decl*> Decls;
   GetAllTopLevelDecls(R"(
     namespace N {}
@@ -163,7 +163,7 @@ TEST_P(CppInterOpTest, ScopeReflectionTestIsClassPolymorphic) {
   EXPECT_FALSE(Cpp::IsClassPolymorphic(Decls[3]));
 }
 
-TEST_P(CppInterOpTest, ScopeReflectionTestIsComplete) {
+TYPED_TEST(CppInterOpTest, ScopeReflectionTestIsComplete) {
   std::vector<Decl*> Decls;
   std::string code = R"(
     namespace N {}
@@ -188,7 +188,7 @@ TEST_P(CppInterOpTest, ScopeReflectionTestIsComplete) {
   EXPECT_FALSE(Cpp::IsComplete(nullptr));
 }
 
-TEST_P(CppInterOpTest, ScopeReflectionTestSizeOf) {
+TYPED_TEST(CppInterOpTest, ScopeReflectionTestSizeOf) {
   std::vector<Decl*> Decls;
   std::string code = R"(namespace N {} class C{}; int I; struct S;
                         enum E : int; union U{}; class Size4{int i;};
@@ -207,7 +207,7 @@ TEST_P(CppInterOpTest, ScopeReflectionTestSizeOf) {
 }
 
 
-TEST_P(CppInterOpTest, ScopeReflectionTestIsBuiltin) {
+TYPED_TEST(CppInterOpTest, ScopeReflectionTestIsBuiltin) {
 #if CLANG_VERSION_MAJOR == 18 && defined(CPPINTEROP_USE_CLING) &&              \
     defined(_WIN32) && (defined(_M_ARM) || defined(_M_ARM64))
   GTEST_SKIP() << "Test fails with Cling on Windows on ARM";
@@ -220,7 +220,7 @@ TEST_P(CppInterOpTest, ScopeReflectionTestIsBuiltin) {
 
   std::vector<const char*> interpreter_args = { "-include", "new" };
 
-  CppInterOpTest::CreateInterpreter(interpreter_args);
+  TestFixture::CreateInterpreter(interpreter_args);
   ASTContext &C = Interp->getCI()->getASTContext();
   EXPECT_TRUE(Cpp::IsBuiltin(C.BoolTy.getAsOpaquePtr()));
   EXPECT_TRUE(Cpp::IsBuiltin(C.CharTy.getAsOpaquePtr()));
@@ -243,7 +243,7 @@ TEST_P(CppInterOpTest, ScopeReflectionTestIsBuiltin) {
     EXPECT_TRUE(Cpp::IsBuiltin(C.getTypeDeclType(CTSD).getAsOpaquePtr()));
 }
 
-TEST_P(CppInterOpTest, ScopeReflectionTestIsTemplate) {
+TYPED_TEST(CppInterOpTest, ScopeReflectionTestIsTemplate) {
   std::vector<Decl *> Decls;
   std::string code = R"(template<typename T>
                         class A{};
@@ -269,7 +269,7 @@ TEST_P(CppInterOpTest, ScopeReflectionTestIsTemplate) {
   EXPECT_FALSE(Cpp::IsTemplate(Decls[3]));
 }
 
-TEST_P(CppInterOpTest, ScopeReflectionTestIsTemplateSpecialization) {
+TYPED_TEST(CppInterOpTest, ScopeReflectionTestIsTemplateSpecialization) {
   std::vector<Decl *> Decls;
   std::string code = R"(
     template<typename T>
@@ -285,7 +285,7 @@ TEST_P(CppInterOpTest, ScopeReflectionTestIsTemplateSpecialization) {
           Cpp::GetScopeFromType(Cpp::GetVariableType(Decls[1]))));
 }
 
-TEST_P(CppInterOpTest, ScopeReflectionTestIsTypedefed) {
+TYPED_TEST(CppInterOpTest, ScopeReflectionTestIsTypedefed) {
   std::vector<Decl *> Decls;
   std::string code = R"(
     typedef int I;
@@ -299,7 +299,7 @@ TEST_P(CppInterOpTest, ScopeReflectionTestIsTypedefed) {
   EXPECT_FALSE(Cpp::IsTypedefed(Decls[2]));
 }
 
-TEST_P(CppInterOpTest, ScopeReflectionTestIsAbstract) {
+TYPED_TEST(CppInterOpTest, ScopeReflectionTestIsAbstract) {
   std::vector<Decl *> Decls;
   std::string code = R"(
     class A {};
@@ -319,7 +319,7 @@ TEST_P(CppInterOpTest, ScopeReflectionTestIsAbstract) {
   EXPECT_FALSE(Cpp::IsAbstract(Decls[2]));
 }
 
-TEST_P(CppInterOpTest, ScopeReflectionTestIsVariable) {
+TYPED_TEST(CppInterOpTest, ScopeReflectionTestIsVariable) {
   std::vector<Decl *> Decls;
   std::string code = R"(
     int i;
@@ -343,7 +343,7 @@ TEST_P(CppInterOpTest, ScopeReflectionTestIsVariable) {
   EXPECT_TRUE(Cpp::IsVariable(SubDecls[3]));
 }
 
-TEST_P(CppInterOpTest, ScopeReflectionTestGetName) {
+TYPED_TEST(CppInterOpTest, ScopeReflectionTestGetName) {
   std::vector<Decl*> Decls;
   std::string code = R"(namespace N {} class C{}; int I; struct S;
                         enum E : int; union U{}; class Size4{int i;};
@@ -361,7 +361,7 @@ TEST_P(CppInterOpTest, ScopeReflectionTestGetName) {
   EXPECT_EQ(Cpp::GetName(nullptr), "<unnamed>");
 }
 
-TEST_P(CppInterOpTest, ScopeReflectionTestGetCompleteName) {
+TYPED_TEST(CppInterOpTest, ScopeReflectionTestGetCompleteName) {
   std::vector<Decl *> Decls;
   std::string code = R"(namespace N {}
                         class C{};
@@ -407,7 +407,7 @@ TEST_P(CppInterOpTest, ScopeReflectionTestGetCompleteName) {
   EXPECT_EQ(Cpp::GetCompleteName(fn), "fn<int, double>");
 }
 
-TEST_P(CppInterOpTest, ScopeReflectionTestGetQualifiedName) {
+TYPED_TEST(CppInterOpTest, ScopeReflectionTestGetQualifiedName) {
   std::vector<Decl*> Decls;
   std::string code = R"(namespace N {
                         class C {
@@ -427,7 +427,7 @@ TEST_P(CppInterOpTest, ScopeReflectionTestGetQualifiedName) {
   EXPECT_EQ(Cpp::GetQualifiedName(Decls[4]), "N::C::E");
 }
 
-TEST_P(CppInterOpTest, ScopeReflectionTestGetQualifiedCompleteName) {
+TYPED_TEST(CppInterOpTest, ScopeReflectionTestGetQualifiedCompleteName) {
   std::vector<Decl*> Decls;
   std::string code = R"(namespace N {
                         class C {
@@ -452,7 +452,7 @@ TEST_P(CppInterOpTest, ScopeReflectionTestGetQualifiedCompleteName) {
   EXPECT_EQ(Cpp::GetQualifiedCompleteName(Decls[6]), "N::C::E");
 }
 
-TEST_P(CppInterOpTest, ScopeReflectionTestGetUsingNamespaces) {
+TYPED_TEST(CppInterOpTest, ScopeReflectionTestGetUsingNamespaces) {
   std::vector<Decl *> Decls, Decls1;
   std::string code = R"(
     namespace abc {
@@ -485,12 +485,12 @@ TEST_P(CppInterOpTest, ScopeReflectionTestGetUsingNamespaces) {
   EXPECT_EQ(usingNamespaces1.size(), 0);
 }
 
-TEST_P(CppInterOpTest, ScopeReflectionTestGetGlobalScope) {
+TYPED_TEST(CppInterOpTest, ScopeReflectionTestGetGlobalScope) {
   EXPECT_EQ(Cpp::GetQualifiedName(Cpp::GetGlobalScope()), "");
   EXPECT_EQ(Cpp::GetName(Cpp::GetGlobalScope()), "");
 }
 
-TEST_P(CppInterOpTest, ScopeReflectionTestGetUnderlyingScope) {
+TYPED_TEST(CppInterOpTest, ScopeReflectionTestGetUnderlyingScope) {
   std::vector<Decl *> Decls;
   std::string code = R"(
     namespace N {
@@ -509,7 +509,7 @@ TEST_P(CppInterOpTest, ScopeReflectionTestGetUnderlyingScope) {
   EXPECT_EQ(Cpp::GetQualifiedName(Cpp::GetUnderlyingScope(nullptr)), "<unnamed>");
 }
 
-TEST_P(CppInterOpTest, ScopeReflectionTestGetScope) {
+TYPED_TEST(CppInterOpTest, ScopeReflectionTestGetScope) {
   std::string code = R"(namespace N {
                         class C {
                           int i;
@@ -520,7 +520,7 @@ TEST_P(CppInterOpTest, ScopeReflectionTestGetScope) {
                         typedef N::C T;
                        )";
 
-  CppInterOpTest::CreateInterpreter();
+  TestFixture::CreateInterpreter();
   Interp->declare(code);
   Cpp::TCppScope_t tu = Cpp::GetScope("", 0);
   Cpp::TCppScope_t ns_N = Cpp::GetScope("N", 0);
@@ -535,7 +535,7 @@ TEST_P(CppInterOpTest, ScopeReflectionTestGetScope) {
   EXPECT_EQ(Cpp::GetQualifiedName(non_existent), "<unnamed>");
 }
 
-TEST_P(CppInterOpTest, ScopeReflectionTestGetScopefromCompleteName) {
+TYPED_TEST(CppInterOpTest, ScopeReflectionTestGetScopefromCompleteName) {
   std::string code = R"(namespace N1 {
                         namespace N2 {
                           class C {
@@ -545,7 +545,7 @@ TEST_P(CppInterOpTest, ScopeReflectionTestGetScopefromCompleteName) {
                         }
                        )";
 
-  CppInterOpTest::CreateInterpreter();
+  TestFixture::CreateInterpreter();
 
   Interp->declare(code);
   EXPECT_EQ(Cpp::GetQualifiedName(Cpp::GetScopeFromCompleteName("N1")), "N1");
@@ -554,7 +554,7 @@ TEST_P(CppInterOpTest, ScopeReflectionTestGetScopefromCompleteName) {
   EXPECT_EQ(Cpp::GetQualifiedName(Cpp::GetScopeFromCompleteName("N1::N2::C::S")), "N1::N2::C::S");
 }
 
-TEST_P(CppInterOpTest, ScopeReflectionTestGetNamed) {
+TYPED_TEST(CppInterOpTest, ScopeReflectionTestGetNamed) {
 #if CLANG_VERSION_MAJOR == 18 && defined(CPPINTEROP_USE_CLING) &&              \
     defined(_WIN32) && (defined(_M_ARM) || defined(_M_ARM64))
   GTEST_SKIP() << "Test fails with Cling on Windows on ARM";
@@ -572,7 +572,7 @@ TEST_P(CppInterOpTest, ScopeReflectionTestGetNamed) {
 
   std::vector<const char*> interpreter_args = {"-include", "new"};
 
-  CppInterOpTest::CreateInterpreter(interpreter_args);
+  TestFixture::CreateInterpreter(interpreter_args);
 
   Interp->declare(code);
   Cpp::TCppScope_t ns_N1 = Cpp::GetNamed("N1", nullptr);
@@ -599,7 +599,7 @@ TEST_P(CppInterOpTest, ScopeReflectionTestGetNamed) {
   EXPECT_EQ(Cpp::GetQualifiedName(std_string_npos_var), "std::basic_string<char>::npos");
 }
 
-TEST_P(CppInterOpTest, ScopeReflectionTestGetParentScope) {
+TYPED_TEST(CppInterOpTest, ScopeReflectionTestGetParentScope) {
   std::string code = R"(namespace N1 {
                         namespace N2 {
                           class C {
@@ -611,7 +611,7 @@ TEST_P(CppInterOpTest, ScopeReflectionTestGetParentScope) {
                         }
                        )";
 
-  CppInterOpTest::CreateInterpreter();
+  TestFixture::CreateInterpreter();
 
   Interp->declare(code);
   Cpp::TCppScope_t ns_N1 = Cpp::GetNamed("N1");
@@ -631,7 +631,7 @@ TEST_P(CppInterOpTest, ScopeReflectionTestGetParentScope) {
   EXPECT_EQ(Cpp::GetQualifiedName(Cpp::GetParentScope(en_B)), "N1::N2::C::E");
 }
 
-TEST_P(CppInterOpTest, ScopeReflectionTestGetScopeFromType) {
+TYPED_TEST(CppInterOpTest, ScopeReflectionTestGetScopeFromType) {
   std::vector<Decl *> Decls;
   std::string code = R"(
     namespace N {
@@ -675,7 +675,7 @@ TEST_P(CppInterOpTest, ScopeReflectionTestGetScopeFromType) {
             "N::C");
 }
 
-TEST_P(CppInterOpTest, ScopeReflectionTestGetNumBases) {
+TYPED_TEST(CppInterOpTest, ScopeReflectionTestGetNumBases) {
   std::vector<Decl *> Decls;
   std::string code = R"(
     class A {};
@@ -706,7 +706,7 @@ TEST_P(CppInterOpTest, ScopeReflectionTestGetNumBases) {
   EXPECT_EQ(Cpp::GetNumBases(Cpp::GetUnderlyingScope(Decls[7])), 1);
 }
 
-TEST_P(CppInterOpTest, ScopeReflectionTestGetBaseClass) {
+TYPED_TEST(CppInterOpTest, ScopeReflectionTestGetBaseClass) {
   std::vector<Decl *> Decls;
   std::string code = R"(
     class A {};
@@ -755,7 +755,7 @@ TEST_P(CppInterOpTest, ScopeReflectionTestGetBaseClass) {
   EXPECT_EQ(Cpp::GetCompleteName(A_class), "A");
 }
 
-TEST_P(CppInterOpTest, ScopeReflectionTestIsSubclass) {
+TYPED_TEST(CppInterOpTest, ScopeReflectionTestIsSubclass) {
   std::vector<Decl *> Decls;
   std::string code = R"(
     class A {};
@@ -797,7 +797,7 @@ TEST_P(CppInterOpTest, ScopeReflectionTestIsSubclass) {
   EXPECT_FALSE(Cpp::IsSubclass(Decls[4], nullptr));
 }
 
-TEST_P(CppInterOpTest, ScopeReflectionTestGetBaseClassOffset) {
+TYPED_TEST(CppInterOpTest, ScopeReflectionTestGetBaseClassOffset) {
   std::vector<Decl *> Decls;
 #define Stringify(s) Stringifyx(s)
 #define Stringifyx(...) #__VA_ARGS__
@@ -834,7 +834,7 @@ CODE;
   EXPECT_EQ(Cpp::GetBaseClassOffset(Decls[6], Decls[0]), (char *)(A*)g - (char *)g);
 }
 
-TEST_P(CppInterOpTest, ScopeReflectionTestGetAllCppNames) {
+TYPED_TEST(CppInterOpTest, ScopeReflectionTestGetAllCppNames) {
   std::vector<Decl *> Decls;
   std::string code = R"(
     class A { int a; };
@@ -876,7 +876,7 @@ TEST_P(CppInterOpTest, ScopeReflectionTestGetAllCppNames) {
   test_get_all_cpp_names(Decls[5], {});
 }
 
-TEST_P(CppInterOpTest, ScopeReflectionTestInstantiateNNTPClassTemplate) {
+TYPED_TEST(CppInterOpTest, ScopeReflectionTestInstantiateNNTPClassTemplate) {
   std::vector<Decl *> Decls;
   std::string code = R"(
     template <int N>
@@ -909,7 +909,7 @@ TEST_P(CppInterOpTest, ScopeReflectionTestInstantiateNNTPClassTemplate) {
   clang_Interpreter_dispose(I);
 }
 
-TEST_P(CppInterOpTest, ScopeReflectionTestInstantiateVarTemplate) {
+TYPED_TEST(CppInterOpTest, ScopeReflectionTestInstantiateVarTemplate) {
   std::vector<Decl*> Decls;
   std::string code = R"(
 template<class T> constexpr T pi = T(3.1415926535897932385L);
@@ -933,7 +933,7 @@ template<class T> constexpr T pi = T(3.1415926535897932385L);
   EXPECT_TRUE(TA1.getAsType()->isIntegerType());
 }
 
-TEST_P(CppInterOpTest, ScopeReflectionTestInstantiateFunctionTemplate) {
+TYPED_TEST(CppInterOpTest, ScopeReflectionTestInstantiateFunctionTemplate) {
   std::vector<Decl*> Decls;
   std::string code = R"(
 template<typename T> T TrivialFnTemplate() { return T(); }
@@ -953,7 +953,7 @@ template<typename T> T TrivialFnTemplate() { return T(); }
   EXPECT_TRUE(TA1.getAsType()->isIntegerType());
 }
 
-TEST_P(CppInterOpTest, ScopeReflectionTestInstantiateTemplateFunctionFromString) {
+TYPED_TEST(CppInterOpTest, ScopeReflectionTestInstantiateTemplateFunctionFromString) {
 #if CLANG_VERSION_MAJOR == 18 && defined(CPPINTEROP_USE_CLING) &&              \
     defined(_WIN32) && (defined(_M_ARM) || defined(_M_ARM64))
   GTEST_SKIP() << "Test fails with Cling on Windows on ARM";
@@ -961,7 +961,7 @@ TEST_P(CppInterOpTest, ScopeReflectionTestInstantiateTemplateFunctionFromString)
   if (llvm::sys::RunningOnValgrind())
     GTEST_SKIP() << "XFAIL due to Valgrind report";
   std::vector<const char*> interpreter_args = {"-include", "new"};
-  CppInterOpTest::CreateInterpreter(interpreter_args);
+  TestFixture::CreateInterpreter(interpreter_args);
   std::string code = R"(#include <memory>)";
   Interp->process(code);
   const char* str = "std::make_unique<int,int>";
@@ -969,7 +969,7 @@ TEST_P(CppInterOpTest, ScopeReflectionTestInstantiateTemplateFunctionFromString)
   EXPECT_TRUE(Instance1);
 }
 
-TEST_P(CppInterOpTest, ScopeReflectionTestInstantiateTemplate) {
+TYPED_TEST(CppInterOpTest, ScopeReflectionTestInstantiateTemplate) {
   std::vector<Decl *> Decls;
   std::string code = R"(
     template<typename T>
@@ -1060,7 +1060,7 @@ TEST_P(CppInterOpTest, ScopeReflectionTestInstantiateTemplate) {
   EXPECT_TRUE(TA4_1.getAsIntegral() == 3);
 }
 
-TEST_P(CppInterOpTest, ScopeReflectionTestGetClassTemplateInstantiationArgs) {
+TYPED_TEST(CppInterOpTest, ScopeReflectionTestGetClassTemplateInstantiationArgs) {
   std::vector<Decl *> Decls;
   std::string code = R"(
     template<typename ...T> struct __Cppyy_AppendTypesSlow {};
@@ -1098,7 +1098,7 @@ TEST_P(CppInterOpTest, ScopeReflectionTestGetClassTemplateInstantiationArgs) {
 }
 
 
-TEST_P(CppInterOpTest, ScopeReflectionTestIncludeVector) {
+TYPED_TEST(CppInterOpTest, ScopeReflectionTestIncludeVector) {
 #if CLANG_VERSION_MAJOR == 18 && defined(CPPINTEROP_USE_CLING) &&              \
     defined(_WIN32) && (defined(_M_ARM) || defined(_M_ARM64))
   GTEST_SKIP() << "Test fails with Cling on Windows on ARM";
@@ -1110,15 +1110,15 @@ TEST_P(CppInterOpTest, ScopeReflectionTestIncludeVector) {
     #include <iostream>
   )";
   std::vector<const char*> interpreter_args = {"-include", "new"};
-  CppInterOpTest::CreateInterpreter(interpreter_args);
+  TestFixture::CreateInterpreter(interpreter_args);
   Interp->declare(code);
 }
 
-TEST_P(CppInterOpTest, ScopeReflectionTestGetOperator) {
+TYPED_TEST(CppInterOpTest, ScopeReflectionTestGetOperator) {
   if (llvm::sys::RunningOnValgrind())
     GTEST_SKIP() << "XFAIL due to Valgrind report";
 
-  CppInterOpTest::CreateInterpreter();
+  TestFixture::CreateInterpreter();
 
   std::string code = R"(
     class MyClass {

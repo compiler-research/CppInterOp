@@ -12,7 +12,7 @@ using namespace TestUtils;
 using namespace llvm;
 using namespace clang;
 
-TEST_P(CppInterOpTest, EnumReflectionTestIsEnumType) {
+TYPED_TEST(CppInterOpTest, EnumReflectionTestIsEnumType) {
   std::vector<Decl *> Decls;
   std::string code =  R"(
     enum class E {
@@ -40,7 +40,7 @@ TEST_P(CppInterOpTest, EnumReflectionTestIsEnumType) {
   EXPECT_TRUE(Cpp::IsEnumType(Cpp::GetVariableType(Decls[5])));
 }
 
-TEST_P(CppInterOpTest, EnumReflectionTestGetIntegerTypeFromEnumScope) {
+TYPED_TEST(CppInterOpTest, EnumReflectionTestGetIntegerTypeFromEnumScope) {
   std::vector<Decl *> Decls;
   std::string code = R"(
     enum Switch : bool {
@@ -90,7 +90,7 @@ TEST_P(CppInterOpTest, EnumReflectionTestGetIntegerTypeFromEnumScope) {
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetIntegerTypeFromEnumScope(Decls[5])),"NULL TYPE");
 }
 
-TEST_P(CppInterOpTest, EnumReflectionTestGetIntegerTypeFromEnumType) {
+TYPED_TEST(CppInterOpTest, EnumReflectionTestGetIntegerTypeFromEnumType) {
   std::vector<Decl *> Decls;
   std::string code = R"(
     enum Switch : bool {
@@ -150,7 +150,7 @@ TEST_P(CppInterOpTest, EnumReflectionTestGetIntegerTypeFromEnumType) {
   EXPECT_EQ(get_int_type_from_enum_var(Decls[11]), "NULL TYPE"); // When a non Enum Type variable is used
 }
 
-TEST_P(CppInterOpTest, EnumReflectionTestGetEnumConstants) {
+TYPED_TEST(CppInterOpTest, EnumReflectionTestGetEnumConstants) {
   std::vector<Decl *> Decls;
   std::string code = R"(
     enum ZeroEnum {
@@ -194,7 +194,7 @@ TEST_P(CppInterOpTest, EnumReflectionTestGetEnumConstants) {
   EXPECT_EQ(Cpp::GetEnumConstants(Decls[5]).size(), 0);
 }
 
-TEST_P(CppInterOpTest, EnumReflectionTestGetEnumConstantType) {
+TYPED_TEST(CppInterOpTest, EnumReflectionTestGetEnumConstantType) {
   std::vector<Decl *> Decls;
   std::string code = R"(
     enum Enum0 {
@@ -225,7 +225,7 @@ TEST_P(CppInterOpTest, EnumReflectionTestGetEnumConstantType) {
   EXPECT_EQ(get_enum_constant_type_as_str(nullptr), "NULL TYPE");
 }
 
-TEST_P(CppInterOpTest, EnumReflectionTestGetEnumConstantValue) {
+TYPED_TEST(CppInterOpTest, EnumReflectionTestGetEnumConstantValue) {
   std::vector<Decl *> Decls;
   std::string code = R"(
     enum Counter {
@@ -253,7 +253,7 @@ TEST_P(CppInterOpTest, EnumReflectionTestGetEnumConstantValue) {
   EXPECT_EQ(Cpp::GetEnumConstantValue(Decls[1]), 0); // Checking value of non enum constant
 }
 
-TEST_P(CppInterOpTest, EnumReflectionTestGetEnums) {
+TYPED_TEST(CppInterOpTest, EnumReflectionTestGetEnums) {
   std::string code = R"(
     enum Color {
       Red,
@@ -294,7 +294,7 @@ TEST_P(CppInterOpTest, EnumReflectionTestGetEnums) {
     int myVariable;
     )";
 
-  CppInterOpTest::CreateInterpreter();
+  TestFixture::CreateInterpreter();
   Interp->declare(code);
   std::vector<std::string> enumNames1, enumNames2, enumNames3, enumNames4;
   Cpp::TCppScope_t globalscope = Cpp::GetScope("", 0);

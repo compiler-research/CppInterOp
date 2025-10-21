@@ -19,7 +19,7 @@ using namespace TestUtils;
 using namespace llvm;
 using namespace clang;
 
-TEST_P(CppInterOpTest, FunctionReflectionTestGetClassMethods) {
+TYPED_TEST(CppInterOpTest, FunctionReflectionTestGetClassMethods) {
   std::vector<Decl*> Decls;
   std::string code = R"(
     class A;
@@ -171,7 +171,7 @@ TEST_P(CppInterOpTest, FunctionReflectionTestGetClassMethods) {
   clang_Interpreter_dispose(I);
 }
 
-TEST_P(CppInterOpTest, FunctionReflectionTestConstructorInGetClassMethods) {
+TYPED_TEST(CppInterOpTest, FunctionReflectionTestConstructorInGetClassMethods) {
   std::vector<Decl*> Decls;
   std::string code = R"(
     struct S {
@@ -195,7 +195,7 @@ TEST_P(CppInterOpTest, FunctionReflectionTestConstructorInGetClassMethods) {
   EXPECT_TRUE(has_constructor(Decls[0]));
 }
 
-TEST_P(CppInterOpTest, FunctionReflectionTestHasDefaultConstructor) {
+TYPED_TEST(CppInterOpTest, FunctionReflectionTestHasDefaultConstructor) {
   std::vector<Decl*> Decls;
   std::string code = R"(
     class A {
@@ -236,7 +236,7 @@ TEST_P(CppInterOpTest, FunctionReflectionTestHasDefaultConstructor) {
   clang_Interpreter_dispose(I);
 }
 
-TEST_P(CppInterOpTest, FunctionReflectionTestGetDestructor) {
+TYPED_TEST(CppInterOpTest, FunctionReflectionTestGetDestructor) {
   std::vector<Decl*> Decls;
   std::string code = R"(
     class A {
@@ -272,7 +272,7 @@ TEST_P(CppInterOpTest, FunctionReflectionTestGetDestructor) {
   clang_Interpreter_dispose(I);
 }
 
-TEST_P(CppInterOpTest, FunctionReflectionTestGetFunctionsUsingName) {
+TYPED_TEST(CppInterOpTest, FunctionReflectionTestGetFunctionsUsingName) {
   std::vector<Decl*> Decls;
   std::string code = R"(
     class A {
@@ -316,7 +316,7 @@ TEST_P(CppInterOpTest, FunctionReflectionTestGetFunctionsUsingName) {
   EXPECT_EQ(get_number_of_funcs_using_name(Decls[2], ""), 0);
 }
 
-TEST_P(CppInterOpTest, FunctionReflectionTestGetClassDecls) {
+TYPED_TEST(CppInterOpTest, FunctionReflectionTestGetClassDecls) {
   std::vector<Decl*> Decls, SubDecls;
   std::string code = R"(
     class MyTemplatedMethodClass {
@@ -353,7 +353,7 @@ TEST_P(CppInterOpTest, FunctionReflectionTestGetClassDecls) {
   EXPECT_EQ(Cpp::GetName(methods[3]), Cpp::GetName(SubDecls[8]));
 }
 
-TEST_P(CppInterOpTest, FunctionReflectionTestGetFunctionTemplatedDecls) {
+TYPED_TEST(CppInterOpTest, FunctionReflectionTestGetFunctionTemplatedDecls) {
   std::vector<Decl*> Decls, SubDecls;
   std::string code = R"(
     class MyTemplatedMethodClass {
@@ -390,7 +390,7 @@ TEST_P(CppInterOpTest, FunctionReflectionTestGetFunctionTemplatedDecls) {
   EXPECT_EQ(Cpp::GetName(template_methods[3]), Cpp::GetName(SubDecls[6]));
 }
 
-TEST_P(CppInterOpTest, FunctionReflectionTestGetFunctionReturnType) {
+TYPED_TEST(CppInterOpTest, FunctionReflectionTestGetFunctionReturnType) {
   std::vector<Decl*> Decls, SubDecls, TemplateSubDecls;
   std::string code = R"(
     namespace N { class C {}; }
@@ -487,7 +487,7 @@ TEST_P(CppInterOpTest, FunctionReflectionTestGetFunctionReturnType) {
             "double");
 }
 
-TEST_P(CppInterOpTest, FunctionReflectionTestGetFunctionNumArgs) {
+TYPED_TEST(CppInterOpTest, FunctionReflectionTestGetFunctionNumArgs) {
   std::vector<Decl*> Decls, TemplateSubDecls;
   std::string code = R"(
     void f1() {}
@@ -526,7 +526,7 @@ TEST_P(CppInterOpTest, FunctionReflectionTestGetFunctionNumArgs) {
   EXPECT_EQ(Cpp::GetFunctionNumArgs(TemplateSubDecls[3]), 3);
 }
 
-TEST_P(CppInterOpTest, FunctionReflectionTestGetFunctionRequiredArgs) {
+TYPED_TEST(CppInterOpTest, FunctionReflectionTestGetFunctionRequiredArgs) {
   std::vector<Decl*> Decls, TemplateSubDecls;
   std::string code = R"(
     void f1() {}
@@ -561,7 +561,7 @@ TEST_P(CppInterOpTest, FunctionReflectionTestGetFunctionRequiredArgs) {
   EXPECT_EQ(Cpp::GetFunctionRequiredArgs(TemplateSubDecls[3]), 2);
 }
 
-TEST_P(CppInterOpTest, FunctionReflectionTestGetFunctionArgType) {
+TYPED_TEST(CppInterOpTest, FunctionReflectionTestGetFunctionArgType) {
   std::vector<Decl*> Decls;
   std::string code = R"(
     void f1(int i, double d, long l, char ch) {}
@@ -581,7 +581,7 @@ TEST_P(CppInterOpTest, FunctionReflectionTestGetFunctionArgType) {
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetFunctionArgType(Decls[2], 0)), "NULL TYPE");
 }
 
-TEST_P(CppInterOpTest, FunctionReflectionTestGetFunctionSignature) {
+TYPED_TEST(CppInterOpTest, FunctionReflectionTestGetFunctionSignature) {
   std::vector<Decl*> Decls;
   std::string code = R"(
     class C {
@@ -625,7 +625,7 @@ TEST_P(CppInterOpTest, FunctionReflectionTestGetFunctionSignature) {
   EXPECT_EQ(Cpp::GetFunctionSignature(nullptr), "<unknown>");
 }
 
-TEST_P(CppInterOpTest, FunctionReflectionTestIsTemplatedFunction) {
+TYPED_TEST(CppInterOpTest, FunctionReflectionTestIsTemplatedFunction) {
   std::vector<Decl*> Decls;
   std::vector<Decl*> SubDeclsC1;
   std::string code = R"(
@@ -665,7 +665,7 @@ TEST_P(CppInterOpTest, FunctionReflectionTestIsTemplatedFunction) {
   clang_Interpreter_dispose(I);
 }
 
-TEST_P(CppInterOpTest, FunctionReflectionTestExistsFunctionTemplate) {
+TYPED_TEST(CppInterOpTest, FunctionReflectionTestExistsFunctionTemplate) {
   std::vector<Decl*> Decls;
   std::string code = R"(
     template<typename T>
@@ -693,7 +693,7 @@ TEST_P(CppInterOpTest, FunctionReflectionTestExistsFunctionTemplate) {
   clang_Interpreter_dispose(I);
 }
 
-TEST_P(CppInterOpTest, FunctionReflectionTestInstantiateTemplateFunctionFromString) {
+TYPED_TEST(CppInterOpTest, FunctionReflectionTestInstantiateTemplateFunctionFromString) {
 #if CLANG_VERSION_MAJOR == 18 && defined(CPPINTEROP_USE_CLING) &&              \
     defined(_WIN32) && (defined(_M_ARM) || defined(_M_ARM64))
   GTEST_SKIP() << "Test fails with Cling on Windows on ARM";
@@ -701,7 +701,7 @@ TEST_P(CppInterOpTest, FunctionReflectionTestInstantiateTemplateFunctionFromStri
   if (llvm::sys::RunningOnValgrind())
     GTEST_SKIP() << "XFAIL due to Valgrind report";
   std::vector<const char*> interpreter_args = { "-include", "new" };
-  CppInterOpTest::CreateInterpreter(interpreter_args);
+  TestFixture::CreateInterpreter(interpreter_args);
   std::string code = R"(#include <memory>)";
   Interp->process(code);
   const char* str = "std::make_unique<int,int>";
@@ -709,7 +709,7 @@ TEST_P(CppInterOpTest, FunctionReflectionTestInstantiateTemplateFunctionFromStri
   EXPECT_TRUE(Instance1);
 }
 
-TEST_P(CppInterOpTest, FunctionReflectionTestInstantiateFunctionTemplate) {
+TYPED_TEST(CppInterOpTest, FunctionReflectionTestInstantiateFunctionTemplate) {
   std::vector<Decl*> Decls;
   std::string code = R"(
 template<typename T> T TrivialFnTemplate() { return T(); }
@@ -729,7 +729,7 @@ template<typename T> T TrivialFnTemplate() { return T(); }
   EXPECT_TRUE(TA1.getAsType()->isIntegerType());
 }
 
-TEST_P(CppInterOpTest, FunctionReflectionTestInstantiateTemplateMethod) {
+TYPED_TEST(CppInterOpTest, FunctionReflectionTestInstantiateTemplateMethod) {
   std::vector<Decl*> Decls;
   std::string code = R"(
     class MyTemplatedMethodClass {
@@ -757,7 +757,7 @@ TEST_P(CppInterOpTest, FunctionReflectionTestInstantiateTemplateMethod) {
   EXPECT_TRUE(TA1.getAsType()->isIntegerType());
 }
 
-TEST_P(CppInterOpTest, FunctionReflectionTestLookupConstructors) {
+TYPED_TEST(CppInterOpTest, FunctionReflectionTestLookupConstructors) {
   if (llvm::sys::RunningOnValgrind())
     GTEST_SKIP() << "XFAIL due to Valgrind report";
 
@@ -798,7 +798,7 @@ TEST_P(CppInterOpTest, FunctionReflectionTestLookupConstructors) {
   EXPECT_EQ(Cpp::GetFunctionSignature(ctors[3]), "MyClass::MyClass(T t)");
 }
 
-TEST_P(CppInterOpTest, FunctionReflectionTestGetClassTemplatedMethods) {
+TYPED_TEST(CppInterOpTest, FunctionReflectionTestGetClassTemplatedMethods) {
   if (llvm::sys::RunningOnValgrind())
     GTEST_SKIP() << "XFAIL due to Valgrind report";
 
@@ -856,7 +856,7 @@ TEST_P(CppInterOpTest, FunctionReflectionTestGetClassTemplatedMethods) {
             "void MyClass::templatedStaticMethod(T param)");
 }
 
-TEST_P(CppInterOpTest, FunctionReflectionTestGetClassTemplatedMethods_VariadicsAndOthers) {
+TYPED_TEST(CppInterOpTest, FunctionReflectionTestGetClassTemplatedMethods_VariadicsAndOthers) {
   std::vector<Decl*> Decls;
   std::string code = R"(
     class MyClass {
@@ -910,7 +910,7 @@ TEST_P(CppInterOpTest, FunctionReflectionTestGetClassTemplatedMethods_VariadicsA
             "void MyClass::staticVariadic(T t, Args ...args)");
 }
 
-TEST_P(CppInterOpTest, FunctionReflectionTestInstantiateVariadicFunction) {
+TYPED_TEST(CppInterOpTest, FunctionReflectionTestInstantiateVariadicFunction) {
   std::vector<Decl*> Decls;
   std::string code = R"(
     class MyClass {};
@@ -973,7 +973,7 @@ TEST_P(CppInterOpTest, FunctionReflectionTestInstantiateVariadicFunction) {
             "fixedParam, MyClass args, double args)");
 }
 
-TEST_P(CppInterOpTest, FunctionReflectionTestBestOverloadFunctionMatch1) {
+TYPED_TEST(CppInterOpTest, FunctionReflectionTestBestOverloadFunctionMatch1) {
   std::vector<Decl*> Decls;
   std::string code = R"(
     class MyTemplatedMethodClass {
@@ -1053,7 +1053,7 @@ TEST_P(CppInterOpTest, FunctionReflectionTestBestOverloadFunctionMatch1) {
             "template<> long MyTemplatedMethodClass::get_size<1, int>(int a)");
 }
 
-TEST_P(CppInterOpTest, FunctionReflectionTestBestOverloadFunctionMatch2) {
+TYPED_TEST(CppInterOpTest, FunctionReflectionTestBestOverloadFunctionMatch2) {
   std::vector<Decl*> Decls;
   std::string code = R"(
     template<typename T>
@@ -1123,7 +1123,7 @@ TEST_P(CppInterOpTest, FunctionReflectionTestBestOverloadFunctionMatch2) {
             "void somefunc(int arg1, double arg2)");
 }
 
-TEST_P(CppInterOpTest, FunctionReflectionTestBestOverloadFunctionMatch3) {
+TYPED_TEST(CppInterOpTest, FunctionReflectionTestBestOverloadFunctionMatch3) {
   std::vector<Decl*> Decls;
   std::string code = R"(
     template<typename T>
@@ -1201,7 +1201,7 @@ TEST_P(CppInterOpTest, FunctionReflectionTestBestOverloadFunctionMatch3) {
             "template<> A<int> A<int>::operator-<int>(A<int> rhs)");
 }
 
-TEST_P(CppInterOpTest, FunctionReflectionTestBestOverloadFunctionMatch4) {
+TYPED_TEST(CppInterOpTest, FunctionReflectionTestBestOverloadFunctionMatch4) {
   std::vector<Decl*> Decls, SubDecls;
   std::string code = R"(
     template<typename T>
@@ -1272,7 +1272,7 @@ TEST_P(CppInterOpTest, FunctionReflectionTestBestOverloadFunctionMatch4) {
             "template<> void B::fn<int, int>(A<int> x, A<int> y)");
 }
 
-TEST_P(CppInterOpTest, FunctionReflectionTestIsPublicMethod) {
+TYPED_TEST(CppInterOpTest, FunctionReflectionTestIsPublicMethod) {
   std::vector<Decl *> Decls, SubDecls;
   std::string code = R"(
     class C {
@@ -1299,7 +1299,7 @@ TEST_P(CppInterOpTest, FunctionReflectionTestIsPublicMethod) {
   EXPECT_FALSE(Cpp::IsPublicMethod(SubDecls[9]));
 }
 
-TEST_P(CppInterOpTest, FunctionReflectionTestIsProtectedMethod) {
+TYPED_TEST(CppInterOpTest, FunctionReflectionTestIsProtectedMethod) {
   std::vector<Decl *> Decls, SubDecls;
   std::string code = R"(
     class C {
@@ -1324,7 +1324,7 @@ TEST_P(CppInterOpTest, FunctionReflectionTestIsProtectedMethod) {
   EXPECT_TRUE(Cpp::IsProtectedMethod(SubDecls[8]));
 }
 
-TEST_P(CppInterOpTest, FunctionReflectionTestIsPrivateMethod) {
+TYPED_TEST(CppInterOpTest, FunctionReflectionTestIsPrivateMethod) {
   std::vector<Decl *> Decls, SubDecls;
   std::string code = R"(
     class C {
@@ -1349,7 +1349,7 @@ TEST_P(CppInterOpTest, FunctionReflectionTestIsPrivateMethod) {
   EXPECT_FALSE(Cpp::IsPrivateMethod(SubDecls[8]));
 }
 
-TEST_P(CppInterOpTest, FunctionReflectionTestIsConstructor) {
+TYPED_TEST(CppInterOpTest, FunctionReflectionTestIsConstructor) {
   std::vector<Decl *> Decls, SubDecls;
   std::string code = R"(
     class C {
@@ -1396,7 +1396,7 @@ TEST_P(CppInterOpTest, FunctionReflectionTestIsConstructor) {
   EXPECT_EQ(templCtorCount, 1);
 }
 
-TEST_P(CppInterOpTest, FunctionReflectionTestIsDestructor) {
+TYPED_TEST(CppInterOpTest, FunctionReflectionTestIsDestructor) {
   std::vector<Decl *> Decls, SubDecls;
   std::string code = R"(
     class C {
@@ -1421,7 +1421,7 @@ TEST_P(CppInterOpTest, FunctionReflectionTestIsDestructor) {
   EXPECT_FALSE(Cpp::IsDestructor(SubDecls[8]));
 }
 
-TEST_P(CppInterOpTest, FunctionReflectionTestIsStaticMethod) {
+TYPED_TEST(CppInterOpTest, FunctionReflectionTestIsStaticMethod) {
   std::vector<Decl *> Decls, SubDecls;
   std::string code = R"(
     class C {
@@ -1438,7 +1438,7 @@ TEST_P(CppInterOpTest, FunctionReflectionTestIsStaticMethod) {
   EXPECT_TRUE(Cpp::IsStaticMethod(SubDecls[2]));
 }
 
-TEST_P(CppInterOpTest, FunctionReflectionTestGetFunctionAddress) {
+TYPED_TEST(CppInterOpTest, FunctionReflectionTestGetFunctionAddress) {
 #ifdef EMSCRIPTEN
 #if CLANG_VERSION_MAJOR < 20
   GTEST_SKIP() << "Test fails for Emscipten builds";
@@ -1450,7 +1450,7 @@ TEST_P(CppInterOpTest, FunctionReflectionTestGetFunctionAddress) {
   GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
 #endif
 
-  if (GetParam().use_oop_jit)
+  if (TypeParam::isOutOfProcess)
     GTEST_SKIP() << "Test fails for OOP JIT builds";
 
   std::vector<Decl*> Decls;
@@ -1492,7 +1492,7 @@ TEST_P(CppInterOpTest, FunctionReflectionTestGetFunctionAddress) {
   EXPECT_TRUE(Cpp::GetFunctionAddress(add1_double));
 }
 
-TEST_P(CppInterOpTest, FunctionReflectionTestIsVirtualMethod) {
+TYPED_TEST(CppInterOpTest, FunctionReflectionTestIsVirtualMethod) {
   std::vector<Decl*> Decls, SubDecls;
   std::string code = R"(
     class A {
@@ -1512,7 +1512,7 @@ TEST_P(CppInterOpTest, FunctionReflectionTestIsVirtualMethod) {
   EXPECT_FALSE(Cpp::IsVirtualMethod(Decls[0]));
 }
 
-TEST_P(CppInterOpTest, FunctionReflectionTestJitCallAdvanced) {
+TYPED_TEST(CppInterOpTest, FunctionReflectionTestJitCallAdvanced) {
 #ifdef EMSCRIPTEN
 #if CLANG_VERSION_MAJOR < 20
   GTEST_SKIP() << "Test fails for Emscipten builds";
@@ -1521,7 +1521,7 @@ TEST_P(CppInterOpTest, FunctionReflectionTestJitCallAdvanced) {
   if (llvm::sys::RunningOnValgrind())
     GTEST_SKIP() << "XFAIL due to Valgrind report";
 
-  if (GetParam().use_oop_jit)
+  if (TypeParam::isOutOfProcess)
     GTEST_SKIP() << "Test fails for OOP JIT builds";
 
   Cpp::JitCall JC = Cpp::MakeFunctionCallable(nullptr);
@@ -1563,7 +1563,7 @@ TEST_P(CppInterOpTest, FunctionReflectionTestJitCallAdvanced) {
 
 #if !defined(NDEBUG) && GTEST_HAS_DEATH_TEST
 #ifndef _WIN32 // Death tests do not work on Windows
-TEST_P(CppInterOpTest, FunctionReflectionTestJitCallDebug) {
+TYPED_TEST(CppInterOpTest, FunctionReflectionTestJitCallDebug) {
 #ifdef EMSCRIPTEN
 #if CLANG_VERSION_MAJOR < 20
   GTEST_SKIP() << "Test fails for Emscipten builds";
@@ -1572,7 +1572,7 @@ TEST_P(CppInterOpTest, FunctionReflectionTestJitCallDebug) {
   if (llvm::sys::RunningOnValgrind())
     GTEST_SKIP() << "XFAIL due to Valgrind report";
 
-  if (GetParam().use_oop_jit)
+  if (TypeParam::isOutOfProcess)
     GTEST_SKIP() << "Test fails for OOP JIT builds";
 
   std::vector<Decl*> Decls, SubDecls;
@@ -1659,7 +1659,7 @@ instantiation_in_host<int>();
 template int instantiation_in_host<int>();
 #endif
 
-TEST_P(CppInterOpTest, FunctionReflectionTestGetFunctionCallWrapper) {
+TYPED_TEST(CppInterOpTest, FunctionReflectionTestGetFunctionCallWrapper) {
 #ifdef EMSCRIPTEN
   GTEST_SKIP() << "Test fails for Emscipten builds";
 #endif
@@ -1668,7 +1668,7 @@ TEST_P(CppInterOpTest, FunctionReflectionTestGetFunctionCallWrapper) {
 #if defined(CPPINTEROP_USE_CLING) && defined(_WIN32)
   GTEST_SKIP() << "Disabled, invoking functions containing printf does not work with Cling on Windows";
 #endif
-  if (GetParam().use_oop_jit)
+  if (TypeParam::isOutOfProcess)
     GTEST_SKIP() << "Test fails for OOP JIT builds";
   std::vector<Decl*> Decls;
   std::string code = R"(
@@ -2198,7 +2198,7 @@ TEST_P(CppInterOpTest, FunctionReflectionTestGetFunctionCallWrapper) {
   EXPECT_FALSE(Cpp::IsLambdaClass(Cpp::GetFunctionReturnType(bar)));
 }
 
-TEST_P(CppInterOpTest, FunctionReflectionTestIsConstMethod) {
+TYPED_TEST(CppInterOpTest, FunctionReflectionTestIsConstMethod) {
   std::vector<Decl*> Decls, SubDecls;
   std::string code = R"(
     class C {
@@ -2216,7 +2216,7 @@ TEST_P(CppInterOpTest, FunctionReflectionTestIsConstMethod) {
   EXPECT_FALSE(Cpp::IsConstMethod(method));
 }
 
-TEST_P(CppInterOpTest, FunctionReflectionTestGetFunctionArgName) {
+TYPED_TEST(CppInterOpTest, FunctionReflectionTestGetFunctionArgName) {
   std::vector<Decl*> Decls;
   std::string code = R"(
     void f1(int i, double d, long l, char ch) {}
@@ -2256,7 +2256,7 @@ TEST_P(CppInterOpTest, FunctionReflectionTestGetFunctionArgName) {
   EXPECT_EQ(Cpp::GetFunctionArgName(Decls[4], 3), "l");
 }
 
-TEST_P(CppInterOpTest, FunctionReflectionTestGetFunctionArgDefault) {
+TYPED_TEST(CppInterOpTest, FunctionReflectionTestGetFunctionArgDefault) {
   std::vector<Decl*> Decls;
   std::string code = R"(
     void f1(int i, double d = 4.0, const char *s = "default", char ch = 'c') {}
@@ -2320,7 +2320,7 @@ TEST_P(CppInterOpTest, FunctionReflectionTestGetFunctionArgDefault) {
   EXPECT_EQ(Cpp::GetFunctionArgDefault(fn, 1), "S()");
 }
 
-TEST_P(CppInterOpTest, FunctionReflectionTestConstruct) {
+TYPED_TEST(CppInterOpTest, FunctionReflectionTestConstruct) {
 #ifdef EMSCRIPTEN
 #if CLANG_VERSION_MAJOR < 20
   GTEST_SKIP() << "Test fails for Emscipten builds";
@@ -2331,7 +2331,7 @@ TEST_P(CppInterOpTest, FunctionReflectionTestConstruct) {
 #ifdef _WIN32
   GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
 #endif
-  if (GetParam().use_oop_jit)
+  if (TypeParam::isOutOfProcess)
     GTEST_SKIP() << "Test fails for OOP JIT builds";
   std::vector<const char*> interpreter_args = {"-include", "new"};
   std::vector<Decl*> Decls, SubDecls;
@@ -2403,7 +2403,7 @@ TEST_P(CppInterOpTest, FunctionReflectionTestConstruct) {
 }
 
 // Test zero initialization of PODs and default initialization cases
-TEST_P(CppInterOpTest, FunctionReflectionTestConstructPOD) {
+TYPED_TEST(CppInterOpTest, FunctionReflectionTestConstructPOD) {
 #ifdef EMSCRIPTEN
 #if CLANG_VERSION_MAJOR < 20
   GTEST_SKIP() << "Test fails for Emscipten builds";
@@ -2414,10 +2414,10 @@ TEST_P(CppInterOpTest, FunctionReflectionTestConstructPOD) {
 #ifdef _WIN32
   GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
 #endif
-  if (GetParam().use_oop_jit)
+  if (TypeParam::isOutOfProcess)
     GTEST_SKIP() << "Test fails for OOP JIT builds";
   std::vector<const char*> interpreter_args = {"-include", "new"};
-  CppInterOpTest::CreateInterpreter(interpreter_args);
+  TestFixture::CreateInterpreter(interpreter_args);
 
   Interp->declare(R"(
     namespace PODS {
@@ -2448,7 +2448,7 @@ TEST_P(CppInterOpTest, FunctionReflectionTestConstructPOD) {
 }
 
 // Test nested constructor calls
-TEST_P(CppInterOpTest, FunctionReflectionTestConstructNested) {
+TYPED_TEST(CppInterOpTest, FunctionReflectionTestConstructNested) {
 #ifdef EMSCRIPTEN
 #if CLANG_VERSION_MAJOR < 20
   GTEST_SKIP() << "Test fails for Emscipten builds";
@@ -2459,11 +2459,11 @@ TEST_P(CppInterOpTest, FunctionReflectionTestConstructNested) {
 #ifdef _WIN32
   GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
 #endif
-  if (GetParam().use_oop_jit)
+  if (TypeParam::isOutOfProcess)
     GTEST_SKIP() << "Test fails for OOP JIT builds";
 
   std::vector<const char*> interpreter_args = {"-include", "new"};
-  CppInterOpTest::CreateInterpreter(interpreter_args);
+  TestFixture::CreateInterpreter(interpreter_args);
 
   Interp->declare(R"(
     #include <new>
@@ -2512,7 +2512,7 @@ TEST_P(CppInterOpTest, FunctionReflectionTestConstructNested) {
   output.clear();
 }
 
-TEST_P(CppInterOpTest, FunctionReflectionTestConstructArray) {
+TYPED_TEST(CppInterOpTest, FunctionReflectionTestConstructArray) {
 #if defined(EMSCRIPTEN)
   GTEST_SKIP() << "Test fails for Emscripten builds";
 #endif
@@ -2521,10 +2521,10 @@ TEST_P(CppInterOpTest, FunctionReflectionTestConstructArray) {
 #ifdef _WIN32
   GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
 #endif
-  if (GetParam().use_oop_jit)
+  if (TypeParam::isOutOfProcess)
     GTEST_SKIP() << "Test fails for OOP JIT builds";
 
-  CppInterOpTest::CreateInterpreter();
+  TestFixture::CreateInterpreter();
 
   Interp->declare(R"(
       #include <new>
@@ -2566,7 +2566,7 @@ TEST_P(CppInterOpTest, FunctionReflectionTestConstructArray) {
   output.clear();
 }
 
-TEST_P(CppInterOpTest, FunctionReflectionTestDestruct) {
+TYPED_TEST(CppInterOpTest, FunctionReflectionTestDestruct) {
 #ifdef EMSCRIPTEN
   GTEST_SKIP() << "Test fails for Emscipten builds";
 #endif
@@ -2576,11 +2576,11 @@ TEST_P(CppInterOpTest, FunctionReflectionTestDestruct) {
 #ifdef _WIN32
   GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
 #endif
-  if (GetParam().use_oop_jit)
+  if (TypeParam::isOutOfProcess)
     GTEST_SKIP() << "Test fails for OOP JIT builds";
 
   std::vector<const char*> interpreter_args = {"-include", "new"};
-  CppInterOpTest::CreateInterpreter(interpreter_args);
+  TestFixture::CreateInterpreter(interpreter_args);
 
   Interp->declare(R"(
     #include <new>
@@ -2639,7 +2639,7 @@ TEST_P(CppInterOpTest, FunctionReflectionTestDestruct) {
   EXPECT_FALSE(Cpp::Destruct(object, scope));
 }
 
-TEST_P(CppInterOpTest, FunctionReflectionTestDestructArray) {
+TYPED_TEST(CppInterOpTest, FunctionReflectionTestDestructArray) {
 #ifdef EMSCRIPTEN
   GTEST_SKIP() << "Test fails for Emscipten builds";
 #endif
@@ -2649,11 +2649,11 @@ TEST_P(CppInterOpTest, FunctionReflectionTestDestructArray) {
 #ifdef _WIN32
   GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
 #endif
-  if (GetParam().use_oop_jit)
+  if (TypeParam::isOutOfProcess)
     GTEST_SKIP() << "Test fails for OOP JIT builds";
 
   std::vector<const char*> interpreter_args = {"-include", "new"};
-  CppInterOpTest::CreateInterpreter(interpreter_args);
+  TestFixture::CreateInterpreter(interpreter_args);
 
   Interp->declare(R"(
       #include <new>
@@ -2718,14 +2718,14 @@ TEST_P(CppInterOpTest, FunctionReflectionTestDestructArray) {
   output.clear();
 }
 
-TEST_P(CppInterOpTest, FunctionReflectionTestUndoTest) {
+TYPED_TEST(CppInterOpTest, FunctionReflectionTestUndoTest) {
 #ifdef _WIN32
   GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
 #endif
 #ifdef EMSCRIPTEN
   GTEST_SKIP() << "Test fails for Emscipten builds";
 #else
-  CppInterOpTest::CreateInterpreter();
+  TestFixture::CreateInterpreter();
   EXPECT_EQ(Cpp::Process("int a = 5;"), 0);
   EXPECT_EQ(Cpp::Process("int b = 10;"), 0);
   EXPECT_EQ(Cpp::Process("int x = 5;"), 0);
@@ -2745,14 +2745,14 @@ TEST_P(CppInterOpTest, FunctionReflectionTestUndoTest) {
 #endif
 }
 
-TEST_P(CppInterOpTest, FunctionReflectionTestFailingTest1) {
+TYPED_TEST(CppInterOpTest, FunctionReflectionTestFailingTest1) {
 #ifdef _WIN32
   GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
 #endif
 #ifdef EMSCRIPTEN_SHARED_LIBRARY
   GTEST_SKIP() << "Test fails for Emscipten shared library builds";
 #endif
-  CppInterOpTest::CreateInterpreter();
+  TestFixture::CreateInterpreter();
   EXPECT_FALSE(Cpp::Declare(R"(
     class WithOutEqualOp1 {};
     class WithOutEqualOp2 {};
