@@ -24,8 +24,15 @@ class Decl;
 namespace TestUtils {
 
 struct TestConfig {
-  bool use_oop_jit;
-  std::string name;
+    bool use_oop_jit;
+    std::string name;
+
+    // Constructor ensures proper initialization
+    TestConfig(bool oop_jit, const std::string& n) 
+        : use_oop_jit(oop_jit), name(n) {}
+
+    // Default constructor
+    TestConfig() : use_oop_jit(false), name("InProcessJIT") {}
 };
 
 extern TestConfig current_config;

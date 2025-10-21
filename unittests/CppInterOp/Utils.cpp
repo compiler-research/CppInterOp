@@ -21,7 +21,7 @@ using namespace clang;
 using namespace llvm;
 
 namespace TestUtils {
-TestConfig current_config = {false, "InProcessJIT"};
+TestConfig current_config;
 std::vector<const char*> GetInterpreterArgs(
     const std::vector<const char*>& base_args) {
   auto args = base_args;
