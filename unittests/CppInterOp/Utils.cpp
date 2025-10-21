@@ -15,14 +15,13 @@
 #include <algorithm>
 #include <string>
 #include <vector>
+#include "gtest/gtest.h"
 
 using namespace clang;
 using namespace llvm;
 
 namespace TestUtils {
-
 TestConfig current_config = {false, "InProcessJIT"};
-
 std::vector<const char*> GetInterpreterArgs(
     const std::vector<const char*>& base_args) {
   auto args = base_args;
@@ -31,14 +30,13 @@ std::vector<const char*> GetInterpreterArgs(
   }
   return args;
 }
-
 }
 
 void TestUtils::GetAllTopLevelDecls(
     const std::string& code, std::vector<Decl*>& Decls,
     bool filter_implicitGenerated /* = false */,
     const std::vector<const char*>& interpreter_args /* = {} */) {
-  TestUtils::CreateInterpreter(interpreter_args);
+  CppInterOpTest::CreateInterpreter(interpreter_args);
 #ifdef CPPINTEROP_USE_CLING
   cling::Transaction *T = nullptr;
   Interp->declare(code, &T);
@@ -75,13 +73,6 @@ void TestUtils::GetAllSubDecls(Decl *D, std::vector<Decl*>& SubDecls,
   }
 }
 
-TInterp_t
-TestUtils::CreateInterpreter(const std::vector<const char*>& Args,
-                             const std::vector<const char*>& GpuArgs) {
-  auto mergedArgs = GetInterpreterArgs(Args);
-  return Cpp::CreateInterpreter(mergedArgs, GpuArgs);
-}
-
 bool IsTargetX86() {
 #ifndef CPPINTEROP_USE_CLING
   llvm::Triple triple(Interp->getCompilerInstance()->getTargetOpts().Triple);
@@ -103,3 +94,32 @@ void dispose_string(CXString string) {
 CXScope make_scope(const clang::Decl* D, const CXInterpreter I) {
   return {CXCursor_UnexposedDecl, 0, {D, nullptr, I}};
 }
+
+#ifdef LLVM_BUILT_WITH_OOP_JIT
+INSTANTIATE_TEST_SUITE_P(
+    InProcessJIT,
+    CppInterOpTest,
+    ::testing::Values(TestUtils::TestConfig{false, "InProcessJIT"}),
+    [](const ::testing::TestParamInfo<TestUtils::TestConfig>& info) {
+      return info.param.name;
+    }
+);
+
+INSTANTIATE_TEST_SUITE_P(
+    OutOfProcessJIT,
+    CppInterOpTest,
+    ::testing::Values(TestUtils::TestConfig{true, "OutOfProcessJIT"}),
+    [](const ::testing::TestParamInfo<TestUtils::TestConfig>& info) {
+      return info.param.name;
+    }
+);
+#else
+INSTANTIATE_TEST_SUITE_P(
+    InProcessJIT,
+    CppInterOpTest,
+    ::testing::Values(TestUtils::TestConfig{false, "InProcessJIT"}),
+    [](const ::testing::TestParamInfo<TestUtils::TestConfig>& info) {
+      return info.param.name;
+    }
+);
+#endif

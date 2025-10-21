@@ -5,12 +5,14 @@
 
 #include "clang-c/CXCppInterOp.h"
 #include "clang-c/CXString.h"
+#include "CppInterOp/CppInterOp.h"
 
 #include "llvm/Support/Valgrind.h"
 
 #include <memory>
 #include <string>
 #include <vector>
+#include "gtest/gtest.h"
 
 using namespace clang;
 using namespace llvm;
@@ -22,15 +24,15 @@ class Decl;
 namespace TestUtils {
 
 struct TestConfig {
-    bool use_oop_jit;
-    std::string name; 
+  bool use_oop_jit;
+  std::string name;
 };
 
 extern TestConfig current_config;
 
 // Helper to get interpreter args with current config
-std::vector<const char*> GetInterpreterArgs(
-const std::vector<const char*>& base_args = {});
+std::vector<const char*>
+GetInterpreterArgs(const std::vector<const char*>& base_args = {});
 
 void GetAllTopLevelDecls(const std::string& code,
                          std::vector<clang::Decl*>& Decls,
@@ -38,8 +40,6 @@ void GetAllTopLevelDecls(const std::string& code,
                          const std::vector<const char*>& interpreter_args = {});
 void GetAllSubDecls(clang::Decl* D, std::vector<clang::Decl*>& SubDecls,
                     bool filter_implicitGenerated = false);
-TInterp_t CreateInterpreter(const std::vector<const char*>& Args = {},
-                            const std::vector<const char*>& GpuArgs = {});
 } // end namespace TestUtils
 
 const char* get_c_string(CXString string);
@@ -49,5 +49,17 @@ void dispose_string(CXString string);
 CXScope make_scope(const clang::Decl* D, const CXInterpreter I);
 
 bool IsTargetX86();
+
+class CppInterOpTest : public ::testing::TestWithParam<TestUtils::TestConfig> {
+protected:
+  void SetUp() override { TestUtils::current_config = GetParam(); }
+
+public:
+  static TInterp_t CreateInterpreter(const std::vector<const char*>& Args = {},
+                              const std::vector<const char*>& GpuArgs = {}) {
+    auto mergedArgs = TestUtils::GetInterpreterArgs(Args);
+    return Cpp::CreateInterpreter(mergedArgs, GpuArgs);
+  }
+};
 
 #endif // CPPINTEROP_UNITTESTS_LIBCPPINTEROP_UTILS_H

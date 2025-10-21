@@ -16,14 +16,7 @@ using namespace TestUtils;
 using namespace llvm;
 using namespace clang;
 
-class VariableReflectionTest : public ::testing::TestWithParam<TestUtils::TestConfig> {
-protected:
-  void SetUp() override {
-    TestUtils::current_config = GetParam();
-  }
-};
-
-TEST_P(VariableReflectionTest, GetDatamembers) {
+TEST_P(CppInterOpTest, VariableReflectionTestGetDatamembers) {
   std::vector<Decl*> Decls;
   std::string code = R"(
     class C {
@@ -120,7 +113,7 @@ TEST_P(VariableReflectionTest, GetDatamembers) {
 
 CODE
 
-TEST_P(VariableReflectionTest, DatamembersWithAnonymousStructOrUnion) {
+TEST_P(CppInterOpTest, VariableReflectionTestDatamembersWithAnonymousStructOrUnion) {
   if (llvm::sys::RunningOnValgrind())
     GTEST_SKIP() << "XFAIL due to Valgrind report";
 
@@ -169,7 +162,7 @@ TEST_P(VariableReflectionTest, DatamembersWithAnonymousStructOrUnion) {
 #endif
 }
 
-TEST_P(VariableReflectionTest, GetTypeAsString) {
+TEST_P(CppInterOpTest, VariableReflectionTestGetTypeAsString) {
   if (llvm::sys::RunningOnValgrind())
     GTEST_SKIP() << "XFAIL due to Valgrind report";
 
@@ -187,7 +180,7 @@ TEST_P(VariableReflectionTest, GetTypeAsString) {
   }
   )";
 
-  TestUtils::CreateInterpreter();
+  CppInterOpTest::CreateInterpreter();
   EXPECT_EQ(Cpp::Declare(code.c_str()), 0);
 
   Cpp::TCppScope_t wrapper =
@@ -202,7 +195,7 @@ TEST_P(VariableReflectionTest, GetTypeAsString) {
             "my_namespace::Container");
 }
 
-TEST_P(VariableReflectionTest, LookupDatamember) {
+TEST_P(CppInterOpTest, VariableReflectionTestLookupDatamember) {
   std::vector<Decl*> Decls;
   std::string code = R"(
     class C {
@@ -226,7 +219,7 @@ TEST_P(VariableReflectionTest, LookupDatamember) {
   EXPECT_EQ(Cpp::GetQualifiedName(Cpp::LookupDatamember("k", Decls[0])), "<unnamed>");
 }
 
-TEST_P(VariableReflectionTest, GetVariableType) {
+TEST_P(CppInterOpTest, VariableReflectionTestGetVariableType) {
   std::vector<Decl*> Decls;
   std::string code = R"(
     class C {};
@@ -275,7 +268,7 @@ TEST_P(VariableReflectionTest, GetVariableType) {
 
 CODE
 
-TEST_P(VariableReflectionTest, GetVariableOffset) {
+TEST_P(CppInterOpTest, VariableReflectionTestGetVariableOffset) {
 #ifdef EMSCRIPTEN
 #if CLANG_VERSION_MAJOR < 20
   GTEST_SKIP() << "Test fails for Emscipten builds";
@@ -386,7 +379,7 @@ TEST_P(VariableReflectionTest, GetVariableOffset) {
 
 CODE
 
-TEST_P(VariableReflectionTest, VariableOffsetsWithInheritance) {
+TEST_P(CppInterOpTest, VariableReflectionTestVariableOffsetsWithInheritance) {
 #if CLANG_VERSION_MAJOR == 18 && defined(CPPINTEROP_USE_CLING) &&              \
     defined(_WIN32) && (defined(_M_ARM) || defined(_M_ARM64))
   GTEST_SKIP() << "Test fails with Cling on Windows on ARM";
@@ -395,7 +388,7 @@ TEST_P(VariableReflectionTest, VariableOffsetsWithInheritance) {
     GTEST_SKIP() << "XFAIL due to Valgrind report";
 
   std::vector<const char*> interpreter_args = {"-include", "new"};
-  TestUtils::CreateInterpreter(interpreter_args);
+  CppInterOpTest::CreateInterpreter(interpreter_args);
 
   Cpp::Declare("#include<string>");
 
@@ -442,7 +435,7 @@ TEST_P(VariableReflectionTest, VariableOffsetsWithInheritance) {
             ((intptr_t)&(my_k.s)) - ((intptr_t)&(my_k)));
 }
 
-TEST_P(VariableReflectionTest, IsPublicVariable) {
+TEST_P(CppInterOpTest, VariableReflectionTestIsPublicVariable) {
   std::vector<Decl *> Decls, SubDecls;
   std::string code = R"(
     class C {
@@ -465,7 +458,7 @@ TEST_P(VariableReflectionTest, IsPublicVariable) {
   EXPECT_FALSE(Cpp::IsPublicVariable(SubDecls[7]));
 }
 
-TEST_P(VariableReflectionTest, IsProtectedVariable) {
+TEST_P(CppInterOpTest, VariableReflectionTestIsProtectedVariable) {
   std::vector<Decl *> Decls, SubDecls;
   std::string code = R"(
     class C {
@@ -486,7 +479,7 @@ TEST_P(VariableReflectionTest, IsProtectedVariable) {
   EXPECT_TRUE(Cpp::IsProtectedVariable(SubDecls[6]));
 }
 
-TEST_P(VariableReflectionTest, IsPrivateVariable) {
+TEST_P(CppInterOpTest, VariableReflectionTestIsPrivateVariable) {
   std::vector<Decl *> Decls, SubDecls;
   std::string code = R"(
     class C {
@@ -507,7 +500,7 @@ TEST_P(VariableReflectionTest, IsPrivateVariable) {
   EXPECT_FALSE(Cpp::IsPrivateVariable(SubDecls[6]));
 }
 
-TEST_P(VariableReflectionTest, IsStaticVariable) {
+TEST_P(CppInterOpTest, VariableReflectionTestIsStaticVariable) {
   std::vector<Decl *> Decls, SubDecls;
   std::string code =  R"(
     class C {
@@ -523,7 +516,7 @@ TEST_P(VariableReflectionTest, IsStaticVariable) {
   EXPECT_TRUE(Cpp::IsStaticVariable(SubDecls[2]));
 }
 
-TEST_P(VariableReflectionTest, IsConstVariable) {
+TEST_P(CppInterOpTest, VariableReflectionTestIsConstVariable) {
   std::vector<Decl *> Decls, SubDecls;
   std::string code =  R"(
     class C {
@@ -540,7 +533,7 @@ TEST_P(VariableReflectionTest, IsConstVariable) {
   EXPECT_TRUE(Cpp::IsConstVariable(SubDecls[2]));
 }
 
-TEST_P(VariableReflectionTest, DISABLED_GetArrayDimensions) {
+TEST_P(CppInterOpTest, VariableReflectionTestDISABLED_GetArrayDimensions) {
   std::vector<Decl *> Decls;
   std::string code =  R"(
     int a;
@@ -564,7 +557,7 @@ TEST_P(VariableReflectionTest, DISABLED_GetArrayDimensions) {
   // EXPECT_TRUE(is_vec_eq(Cpp::GetArrayDimensions(Decls[2]), {1,2}));
 }
 
-TEST_P(VariableReflectionTest, StaticConstExprDatamember) {
+TEST_P(CppInterOpTest, VariableReflectionTestStaticConstExprDatamember) {
   if (llvm::sys::RunningOnValgrind())
     GTEST_SKIP() << "XFAIL due to Valgrind report";
 
@@ -572,7 +565,7 @@ TEST_P(VariableReflectionTest, StaticConstExprDatamember) {
   GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
 #endif
 
-  TestUtils::CreateInterpreter();
+  CppInterOpTest::CreateInterpreter();
 
   Cpp::Declare(R"(
   class MyClass {
@@ -643,8 +636,8 @@ TEST_P(VariableReflectionTest, StaticConstExprDatamember) {
   EXPECT_EQ(2, *(size_t*)offset);
 }
 
-TEST_P(VariableReflectionTest, GetEnumConstantDatamembers) {
-  TestUtils::CreateInterpreter();
+TEST_P(CppInterOpTest, VariableReflectionTestGetEnumConstantDatamembers) {
+  CppInterOpTest::CreateInterpreter();
 
   Cpp::Declare(R"(
   class MyEnumClass {
@@ -667,8 +660,8 @@ TEST_P(VariableReflectionTest, GetEnumConstantDatamembers) {
   EXPECT_EQ(datamembers2.size(), 6);
 }
 
-TEST_P(VariableReflectionTest, Is_Get_Pointer) {
-  TestUtils::CreateInterpreter();
+TEST_P(CppInterOpTest, VariableReflectionTestIs_Get_Pointer) {
+  CppInterOpTest::CreateInterpreter();
   std::vector<Decl*> Decls;
   std::string code = R"(
   class A {};
@@ -699,8 +692,8 @@ TEST_P(VariableReflectionTest, Is_Get_Pointer) {
   EXPECT_FALSE(Cpp::GetPointeeType(Cpp::GetVariableType(Decls[5])));
 }
 
-TEST_P(VariableReflectionTest, Is_Get_Reference) {
-  TestUtils::CreateInterpreter();
+TEST_P(CppInterOpTest, VariableReflectionTestIs_Get_Reference) {
+  CppInterOpTest::CreateInterpreter();
   std::vector<Decl*> Decls;
   std::string code = R"(
   class A {};
@@ -737,8 +730,8 @@ TEST_P(VariableReflectionTest, Is_Get_Reference) {
       Cpp::GetReferencedType(Cpp::GetVariableType(Decls[1]), true)));
 }
 
-TEST_P(VariableReflectionTest, GetPointerType) {
-  TestUtils::CreateInterpreter();
+TEST_P(CppInterOpTest, VariableReflectionTestGetPointerType) {
+  CppInterOpTest::CreateInterpreter();
   std::vector<Decl*> Decls;
   std::string code = R"(
   class A {};
@@ -759,26 +752,3 @@ TEST_P(VariableReflectionTest, GetPointerType) {
   EXPECT_EQ(Cpp::GetPointerType(Cpp::GetVariableType(Decls[5])),
             Cpp::GetVariableType(Decls[6]));
 }
-
-#ifdef LLVM_BUILT_WITH_OOP_JIT
-INSTANTIATE_TEST_SUITE_P(
-    AllJITModes,
-    VariableReflectionTest,
-    ::testing::Values(
-        TestUtils::TestConfig{false, "InProcessJIT"},
-        TestUtils::TestConfig{true, "OutOfProcessJIT"}
-    ),
-    [](const ::testing::TestParamInfo<TestUtils::TestConfig>& info) {
-      return info.param.name;
-    }
-);
-#else
-INSTANTIATE_TEST_SUITE_P(
-    AllJITModes,
-    VariableReflectionTest,
-    ::testing::Values(TestUtils::TestConfig{false, "InProcessJIT"}),
-    [](const ::testing::TestParamInfo<TestUtils::TestConfig>& info) {
-      return info.param.name;
-    }
-);
-#endif

@@ -6,19 +6,12 @@
 
 using namespace TestUtils;
 
-class JitTest : public ::testing::TestWithParam<TestUtils::TestConfig> {
-protected:
-  void SetUp() override {
-    TestUtils::current_config = GetParam();
-  }
-};
-
 static int printf_jit(const char* format, ...) {
   llvm::errs() << "printf_jit called!\n";
   return 0;
 }
 
-TEST_P(JitTest, InsertOrReplaceJitSymbol) {
+TEST_P(CppInterOpTest, JitTestInsertOrReplaceJitSymbol) {
 #ifdef EMSCRIPTEN
   GTEST_SKIP() << "Test fails for Emscipten builds";
 #endif
@@ -48,7 +41,7 @@ TEST_P(JitTest, InsertOrReplaceJitSymbol) {
   EXPECT_TRUE(Cpp::InsertOrReplaceJitSymbol("non_existent", 0));
 }
 
-TEST_P(JitTest, StreamRedirect) {
+TEST_P(CppInterOpTest, JitTestStreamRedirect) {
   if (GetParam().use_oop_jit)
     GTEST_SKIP() << "Test fails for OOP JIT builds";
   // printf and etc are fine here.
@@ -82,7 +75,7 @@ TEST_P(JitTest, StreamRedirect) {
   // NOLINTEND(cppcoreguidelines-pro-type-vararg)
 }
 
-TEST_P(JitTest, StreamRedirectJIT) {
+TEST_P(CppInterOpTest, JitTestStreamRedirectJIT) {
 #ifdef EMSCRIPTEN
   GTEST_SKIP() << "Test fails for Emscipten builds";
 #endif
@@ -94,7 +87,7 @@ TEST_P(JitTest, StreamRedirectJIT) {
 #ifdef CPPINTEROP_USE_CLING
   GTEST_SKIP() << "Test fails for cling builds";
 #endif
-  TestUtils::CreateInterpreter();
+  CppInterOpTest::CreateInterpreter();
   Interp->process(R"(
     #include <stdio.h>
     printf("%s\n", "Hello World");
@@ -117,25 +110,3 @@ TEST_P(JitTest, StreamRedirectJIT) {
   EXPECT_STREQ(CapturedStringErr.c_str(), "Hello Err\n");
 }
 
-#ifdef LLVM_BUILT_WITH_OOP_JIT
-INSTANTIATE_TEST_SUITE_P(
-    AllJITModes,
-    JitTest,
-    ::testing::Values(
-        TestUtils::TestConfig{false, "InProcessJIT"},
-        TestUtils::TestConfig{true, "OutOfProcessJIT"}
-    ),
-    [](const ::testing::TestParamInfo<TestUtils::TestConfig>& info) {
-      return info.param.name;
-    }
-);
-#else
-INSTANTIATE_TEST_SUITE_P(
-    AllJITModes,
-    JitTest,
-    ::testing::Values(TestUtils::TestConfig{false, "InProcessJIT"}),
-    [](const ::testing::TestParamInfo<TestUtils::TestConfig>& info) {
-      return info.param.name;
-    }
-);
-#endif
