@@ -128,8 +128,6 @@ set_output_directory(DynamicLibraryManagerTests
 )
 
 add_dependencies(DynamicLibraryManagerTests TestSharedLib)
-add_dependencies(DynamicLibraryManagerTests TestSharedLib2)
 
 #export_executable_symbols_for_plugins(TestSharedLib)
 add_subdirectory(TestSharedLib)
-add_subdirectory(TestSharedLib2)

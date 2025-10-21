@@ -140,11 +140,12 @@ namespace Cpp {
 /// CppInterOp Interpreter
 ///
 class Interpreter {
+private:
   std::unique_ptr<clang::Interpreter> inner;
 
-public:
   Interpreter(std::unique_ptr<clang::Interpreter> CI) : inner(std::move(CI)) {}
 
+public:
   static std::unique_ptr<Interpreter>
   create(int argc, const char* const* argv, const char* llvmdir = nullptr,
          const std::vector<std::shared_ptr<clang::ModuleFileExtension>>&
@@ -154,6 +155,7 @@ public:
     llvm::InitializeAllTargetInfos();
     llvm::InitializeAllTargets();
     llvm::InitializeAllTargetMCs();
+    llvm::InitializeAllAsmParsers();
     llvm::InitializeAllAsmPrinters();
 
     std::vector<const char*> vargs(argv + 1, argv + argc);
