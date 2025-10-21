@@ -74,8 +74,6 @@
 #ifndef _WIN32
 #include <unistd.h>
 #endif
-#include <unordered_map>
-#include <utility>
 
 // Stream redirect.
 #ifdef _WIN32
@@ -4000,7 +3998,11 @@ public:
 #if !defined(CPPINTEROP_USE_CLING) && !defined(_WIN32)
     auto& I = getInterp();
     if (I.isOutOfProcess()) {
-      // Use interpreter-managed redirection file for out-of-process stdout
+      // Use interpreter-managed redirection file for out-of-process
+      // redirection. Since, we are using custom pipes instead of stdout, sterr,
+      // it is kind of necessary to have this complication in StreamCaptureInfo.
+
+      // TODO(issues/733): Refactor the stream redirection
       FILE* redirected = I.getRedirectionFileForOutOfProcess(FD);
       if (redirected) {
         m_TempFile = redirected;
@@ -4056,8 +4058,12 @@ public:
 
     // Get the size of the file.
     long bufsize = ftell(m_TempFile);
-    if (bufsize == -1)
+    if (bufsize == -1) {
       perror("StreamCaptureInfo:");
+      close(m_DupFD);
+      m_DupFD = -1;
+      return "";
+    }
 
     // Allocate our buffer to that size.
     std::unique_ptr<char[]> content(new char[bufsize + 1]);

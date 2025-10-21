@@ -63,8 +63,8 @@ static inline char* GetEnv(const char* Var_Name) {
   CXXSpecialMemberKind::MoveConstructor
 #endif
 
-#define stringify(s) stringifyx(s)
-#define stringifyx(...) #__VA_ARGS__
+#define STRINGIFY(s) STRINGIFY_X(s)
+#define STRINGIFY_X(...) #__VA_ARGS__
 
 #include "clang/Interpreter/CodeCompletion.h"
 
@@ -223,7 +223,8 @@ namespace compat {
 
 inline std::unique_ptr<clang::Interpreter>
 createClangInterpreter(std::vector<const char*>& args, int stdin_fd = 0,
-                       int stdout_fd = 1, int stderr_fd = 2) {
+                       int stdout_fd = 1, int stderr_fd = 2,
+                       bool outOfProcess = false) {
   auto has_arg = [](const char* x, llvm::StringRef match = "cuda") {
     llvm::StringRef Arg = x;
     Arg = Arg.trim().ltrim('-');
@@ -235,15 +236,6 @@ createClangInterpreter(std::vector<const char*>& args, int stdin_fd = 0,
   bool CudaEnabled = false;
 #else
   bool CudaEnabled = !gpu_args.empty();
-#endif
-
-#if defined(_WIN32)
-  bool outOfProcess = false;
-#else
-  bool outOfProcess =
-      std::any_of(args.begin(), args.end(), [](const char* arg) {
-        return llvm::StringRef(arg).trim() == "--use-oop-jit";
-      });
 #endif
 
   clang::IncrementalCompilerBuilder CB;
@@ -291,10 +283,10 @@ createClangInterpreter(std::vector<const char*>& args, int stdin_fd = 0,
     };
 
 #ifdef __APPLE__
-    std::string OrcRuntimePath = LLVM_BUILD_LIB_DIR "/lib/clang/" stringify(
+    std::string OrcRuntimePath = LLVM_BUILD_LIB_DIR "/lib/clang/" STRINGIFY(
         LLVM_VERSION_MAJOR) "/lib/darwin/liborc_rt_osx.a";
 #else
-    std::string OrcRuntimePath = LLVM_BUILD_LIB_DIR "/lib/clang/" stringify(
+    std::string OrcRuntimePath = LLVM_BUILD_LIB_DIR "/lib/clang/" STRINGIFY(
         LLVM_VERSION_MAJOR) "/lib/x86_64-unknown-linux-gnu/liborc_rt.a";
 #endif
     OutOfProcessConfig.OrcRuntimePath = OrcRuntimePath;

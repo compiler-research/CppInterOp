@@ -249,8 +249,8 @@ public:
       outOfProcess = true;
     }
 
-    auto CI =
-        compat::createClangInterpreter(vargs, stdin_fd, stdout_fd, stderr_fd);
+    auto CI = compat::createClangInterpreter(vargs, stdin_fd, stdout_fd,
+                                             stderr_fd, outOfProcess);
     if (!CI) {
       llvm::errs() << "Interpreter creation failed\n";
       return nullptr;
@@ -267,6 +267,10 @@ public:
 
   [[nodiscard]] bool isOutOfProcess() const { return outOfProcess; }
 
+// Since, we are using custom pipes instead of stdout, sterr,
+// it is kind of necessary to have this complication in StreamCaptureInfo.
+
+// TODO(issues/733): Refactor the stream redirection
 #ifndef _WIN32
   FILE* getRedirectionFileForOutOfProcess(int FD) {
     if (!io_context)
