@@ -11,6 +11,7 @@
 
 #include <memory>
 #include <string>
+#include <utility>
 #include <vector>
 #include "gtest/gtest.h"
 
@@ -28,7 +29,7 @@ struct TestConfig {
     bool use_oop_jit;
 
     TestConfig(bool oop_jit, const std::string& n) 
-        : name(n), use_oop_jit(oop_jit) {}
+        : name(std::move(n)), use_oop_jit(oop_jit) {}
 
     TestConfig() 
         : name("InProcessJIT"), use_oop_jit(false) {}

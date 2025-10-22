@@ -220,9 +220,8 @@ inline void codeComplete(std::vector<std::string>& Results,
 namespace compat {
 
 inline std::unique_ptr<clang::Interpreter>
-createClangInterpreter(std::vector<const char*>& args, int stdin_fd = 0,
-                       int stdout_fd = 1, int stderr_fd = 2,
-                       bool outOfProcess = false) {
+createClangInterpreter(std::vector<const char*>& args, int stdin_fd = -1,
+                       int stdout_fd = -1, int stderr_fd = -1) {
   auto has_arg = [](const char* x, llvm::StringRef match = "cuda") {
     llvm::StringRef Arg = x;
     Arg = Arg.trim().ltrim('-');
@@ -262,6 +261,8 @@ createClangInterpreter(std::vector<const char*>& args, int stdin_fd = 0,
     DeviceCI->LoadRequestedPlugins();
 
 #ifdef LLVM_BUILT_WITH_OOP_JIT
+
+  bool outOfProcess = (stdin_fd != -1 && stdout_fd != -1 && stderr_fd != -1);
 
   clang::Interpreter::JITConfig OutOfProcessConfig;
   if (outOfProcess) {

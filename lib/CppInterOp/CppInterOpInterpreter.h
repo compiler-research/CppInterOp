@@ -41,6 +41,7 @@
 
 #ifndef _WIN32
 #include <unistd.h>
+#include <sched.h>
 #endif
 #include <algorithm>
 #include <cstdio>
@@ -173,9 +174,9 @@ private:
   static std::tuple<int, int, int>
   initAndGetFileDescriptors(std::vector<const char*>& vargs,
                             std::unique_ptr<IOContext>& io_ctx) {
-    int stdin_fd = 0;
-    int stdout_fd = 1;
-    int stderr_fd = 2;
+    int stdin_fd = -1;
+    int stdout_fd = -1;
+    int stderr_fd = -1;
     bool outOfProcess = false;
 
 #if defined(_WIN32)
@@ -191,12 +192,8 @@ private:
         bool init = io_ctx->initializeTempFiles();
         if (!init) {
           llvm::errs()
-              << "Can't start out-of-process JIT execution. Continuing "
-                 "with in-process JIT execution.\n";
+              << "Can't start out-of-process JIT execution.\n";
           outOfProcess = false;
-          stdin_fd = 0;
-          stdout_fd = 1;
-          stderr_fd = 2;
         }
       }
       if (outOfProcess) {
@@ -237,20 +234,14 @@ public:
     int stdin_fd;
     int stdout_fd;
     int stderr_fd;
-    bool outOfProcess;
     auto io_ctx = std::make_unique<IOContext>();
     std::tie(stdin_fd, stdout_fd, stderr_fd) =
         initAndGetFileDescriptors(vargs, io_ctx);
 
-    if (stdin_fd == 0 && stdout_fd == 1 && stderr_fd == 2) {
-      io_ctx = nullptr; // No redirection
-      outOfProcess = false;
-    } else {
-      outOfProcess = true;
-    }
+    bool outOfProcess = (stdin_fd != -1 && stdout_fd != -1 && stderr_fd != -1);
 
     auto CI = compat::createClangInterpreter(vargs, stdin_fd, stdout_fd,
-                                             stderr_fd, outOfProcess);
+                                             stderr_fd);
     if (!CI) {
       llvm::errs() << "Interpreter creation failed\n";
       return nullptr;

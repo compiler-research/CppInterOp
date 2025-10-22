@@ -26,7 +26,8 @@ using namespace llvm;
 using namespace clang;
 
 TYPED_TEST(CppInterOpTest, ScopeReflectionTestIsEnumScope) {
-  std::vector<Decl *> Decls, SubDecls;
+  std::vector<Decl *> Decls;
+  std::vector<Decl *> SubDecls;
   std::string code = R"(
     enum Switch {
       OFF,
@@ -48,7 +49,8 @@ TYPED_TEST(CppInterOpTest, ScopeReflectionTestIsEnumScope) {
 }
 
 TYPED_TEST(CppInterOpTest, ScopeReflectionTestIsEnumConstant) {
-  std::vector<Decl *> Decls, SubDecls;
+  std::vector<Decl *> Decls;
+  std::vector<Decl *> SubDecls;
   std::string code = R"(
     enum Switch {
       OFF,

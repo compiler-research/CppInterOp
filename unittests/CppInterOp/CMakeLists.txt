@@ -13,8 +13,6 @@ else()
   set(EXTRA_PATH_TEST_BINARIES /CppInterOpTests/unittests/bin/$<CONFIG>/)
 endif()
 
-
-
 add_cppinterop_unittest(CppInterOpTests
   EnumReflectionTest.cpp
   FunctionReflectionTest.cpp

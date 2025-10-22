@@ -15,7 +15,6 @@
 #include <algorithm>
 #include <string>
 #include <vector>
-#include "gtest/gtest.h"
 
 using namespace clang;
 using namespace llvm;
