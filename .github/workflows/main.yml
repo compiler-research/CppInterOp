@@ -257,7 +257,9 @@ jobs:
 
     - name: Cache LLVM-${{ matrix.clang-runtime }} and ${{ matrix.cling == 'On' && 'Cling' || 'Clang-REPL' }} build
       uses: actions/cache/save@v4
-      if: ${{ steps.cache.outputs.cache-hit != 'true' }}
+# DO NOT MERGE
+      if: ${{ steps.cache.outputs.cache-hit != 'true' && github.ref == 'refs/heads/main' }}
+# DO NOT MERGE
       with:
         path: |
           llvm-project

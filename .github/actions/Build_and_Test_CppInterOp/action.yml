@@ -1,6 +1,7 @@
 name: 'Builds and test CppInterOp'
 description: 'This action builds and tests CppInterOp for native platforms'
 
+# DO NOT MERGE
 runs:
   using: composite
   steps:
@@ -59,7 +60,16 @@ runs:
           cmake --build . --target check-cppinterop --parallel ${{ env.ncpus }}
           os="${{ matrix.os }}"
           if [[ "${os}" != "macos"* ]]; then
-            valgrind --show-error-list=yes --track-origins=yes --error-exitcode=1 unittests/CppInterOp/CppInterOpTests/unittests/bin/${{ env.BUILD_TYPE }}/CppInterOpTests
+            valgrind \
+              --leak-check=full \
+              --show-leak-kinds=all \
+              --track-origins=yes \
+              --gen-suppressions=all \
+              --log-file=valgrind.log \
+              unittests/CppInterOp/CppInterOpTests/unittests/bin/${{ env.BUILD_TYPE }}/CppInterOpTests || true
+
+            echo "======= Valgrind log (for suppression generation) ======="
+            cat valgrind.log
           fi
         fi
         echo "CB_PYTHON_DIR=$CB_PYTHON_DIR" >> $GITHUB_ENV
@@ -67,6 +77,14 @@ runs:
         echo "CPPINTEROP_DIR=$CPPINTEROP_DIR" >> $GITHUB_ENV
         echo "LLVM_BUILD_DIR=$LLVM_BUILD_DIR" >> $GITHUB_ENV
         echo "CPLUS_INCLUDE_PATH=$CPLUS_INCLUDE_PATH" >> $GITHUB_ENV
+
+# DO NOT MERGE
+    - name: Upload Valgrind log
+      uses: actions/upload-artifact@v4
+      with:
+        name: valgrind-suppressions
+        path: valgrind.log
+# DO NOT MERGE
 
     - name: Build and Test/Install CppInterOp on Windows systems
       if: runner.os == 'Windows'
