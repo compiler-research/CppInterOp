@@ -39,7 +39,7 @@ TYPED_TEST(CppInterOpTest, InterpreterTestVersion) {
 }
 
 #ifdef NDEBUG
-TYPED_TEST(CppInterOpTest, InterpreterTestDISABLED_DebugFlag) {
+TYPED_TEST(CppInterOpTest, DISABLED_InterpreterTestDebugFlag) {
 #else
 TYPED_TEST(CppInterOpTest, InterpreterTestDebugFlag) {
 #endif // NDEBUG
