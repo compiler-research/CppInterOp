@@ -56,18 +56,6 @@ CXScope make_scope(const clang::Decl* D, const CXInterpreter I);
 
 bool IsTargetX86();
 
-// class CppInterOpTest : public ::testing::TestWithParam<TestUtils::TestConfig> {
-// protected:
-//   void SetUp() override { TestUtils::current_config = GetParam(); }
-
-// public:
-//   static TInterp_t CreateInterpreter(const std::vector<const char*>& Args = {},
-//                               const std::vector<const char*>& GpuArgs = {}) {
-//     auto mergedArgs = TestUtils::GetInterpreterArgs(Args);
-//     return Cpp::CreateInterpreter(mergedArgs, GpuArgs);
-//   }
-// };
-
 // Define type tags for each configuration
 struct InProcessJITConfig {
   static constexpr bool isOutOfProcess = false;

@@ -217,8 +217,6 @@ inline void codeComplete(std::vector<std::string>& Results,
 
 #include <algorithm>
 
-static const llvm::ExitOnError ExitOnError;
-
 namespace compat {
 
 inline std::unique_ptr<clang::Interpreter>

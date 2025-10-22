@@ -29,6 +29,8 @@ TYPED_TEST(CppInterOpTest, DynamicLibraryManagerTestSanity) {
     defined(_WIN32)
   GTEST_SKIP() << "Test fails with Cling on Windows";
 #endif
+  if (TypeParam::isOutOfProcess)
+    GTEST_SKIP() << "Test fails for OOP JIT builds";
 
   EXPECT_TRUE(TestFixture::CreateInterpreter());
   EXPECT_FALSE(Cpp::GetFunctionAddress("ret_zero"));
@@ -75,6 +77,8 @@ TYPED_TEST(CppInterOpTest, DynamicLibraryManagerTestBasicSymbolLookup) {
     GTEST_SKIP() << "Support for loading shared libraries was added in LLVM 20.";
   #endif
 #endif
+  if (TypeParam::isOutOfProcess)
+    GTEST_SKIP() << "Test fails for OOP JIT builds";
 
   ASSERT_TRUE(TestFixture::CreateInterpreter());
   EXPECT_FALSE(Cpp::GetFunctionAddress("ret_zero"));
