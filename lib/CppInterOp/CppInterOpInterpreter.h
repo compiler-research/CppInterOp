@@ -40,8 +40,8 @@
 #include "llvm/TargetParser/Triple.h"
 
 #ifndef _WIN32
-#include <unistd.h>
 #include <sched.h>
+#include <unistd.h>
 #endif
 #include <algorithm>
 #include <cstdio>
@@ -191,8 +191,7 @@ private:
       if (!io_ctx->stdin_file || !io_ctx->stdout_file || !io_ctx->stderr_file) {
         bool init = io_ctx->initializeTempFiles();
         if (!init) {
-          llvm::errs()
-              << "Can't start out-of-process JIT execution.\n";
+          llvm::errs() << "Can't start out-of-process JIT execution.\n";
           outOfProcess = false;
         }
       }
@@ -240,8 +239,8 @@ public:
 
     bool outOfProcess = (stdin_fd != -1 && stdout_fd != -1 && stderr_fd != -1);
 
-    auto CI = compat::createClangInterpreter(vargs, stdin_fd, stdout_fd,
-                                             stderr_fd);
+    auto CI =
+        compat::createClangInterpreter(vargs, stdin_fd, stdout_fd, stderr_fd);
     if (!CI) {
       llvm::errs() << "Interpreter creation failed\n";
       return nullptr;
