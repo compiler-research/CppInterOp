@@ -255,16 +255,16 @@ jobs:
       with:
         cache-hit: ${{ steps.cache.outputs.cache-hit }}
 
-    - name: Cache LLVM-${{ matrix.clang-runtime }} and ${{ matrix.cling == 'On' && 'Cling' || 'Clang-REPL' }} build
-      uses: actions/cache/save@v4
-# DO NOT MERGE
-      if: ${{ steps.cache.outputs.cache-hit != 'true' && github.ref == 'refs/heads/main' }}
-# DO NOT MERGE
-      with:
-        path: |
-          llvm-project
-          ${{ matrix.cling=='On' && 'cling' || '' }}
-        key: ${{ steps.cache.outputs.cache-primary-key }}
+# REVERT BEFORE MERGING
+    # - name: Cache LLVM-${{ matrix.clang-runtime }} and ${{ matrix.cling == 'On' && 'Cling' || 'Clang-REPL' }} build
+    #   uses: actions/cache/save@v4
+    #   if: ${{ steps.cache.outputs.cache-hit != 'true' }}
+    #   with:
+    #     path: |
+    #       llvm-project
+    #       ${{ matrix.cling=='On' && 'cling' || '' }}
+    #     key: ${{ steps.cache.outputs.cache-primary-key }}
+# REVERT BEFORE MERGING
 
     - name: Setup code coverage
       if: ${{ success() && (matrix.coverage == true) }}
