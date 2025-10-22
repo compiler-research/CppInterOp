@@ -65,10 +65,10 @@ runs:
               --show-leak-kinds=all \
               --track-origins=yes \
               --gen-suppressions=all \
-              --log-fd=9
+              --log-fd=9 \
               unittests/CppInterOp/CppInterOpTests/unittests/bin/${{ env.BUILD_TYPE }}/CppInterOpTests \
               9>>memcheck.log
-
+              
             echo "======= Valgrind log (for suppression generation) ======="
             cat memcheck.log
           fi
