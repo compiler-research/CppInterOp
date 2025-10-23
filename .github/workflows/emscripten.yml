@@ -708,7 +708,7 @@ jobs:
         if [[ "${os}" != macos* ]] ; then
           EMCC_CORES=1 emmake make -j 1 check-cppinterop
         else
-          EMCC_CORES=2 emmake make -j 2 check-cppinterop
+          emmake make -j ${{ env.ncpus }} check-cppinterop
         fi
         cd ./unittests/CppInterOp/
         # Explaination of options for emrun
