@@ -84,7 +84,7 @@ jobs:
         fetch-depth: 0
 
     - name: Set up Python
-      uses: actions/setup-python@v5
+      uses: actions/setup-python@v6
       with:
         python-version: '3.11'
 
@@ -708,7 +708,7 @@ jobs:
         if [[ "${os}" != macos* ]] ; then
           EMCC_CORES=1 emmake make -j 1 check-cppinterop
         else
-          EMCC_CORES=2 emmake make -j 2 check-cppinterop
+          emmake make -j ${{ env.ncpus }} check-cppinterop
         fi
         cd ./unittests/CppInterOp/
         # Explaination of options for emrun
@@ -785,7 +785,13 @@ jobs:
         .\emsdk\emsdk_env.ps1
         $env:PWD_DIR= $PWD.Path
         $env:SYSROOT_PATH="$env:EMSDK/upstream/emscripten/cache/sysroot"
-        $env:PREFIX="%CONDA_PREFIX%/envs/CppInterOp-wasm"
+        echo "SYSROOT_PATH=$env:SYSROOT_PATH"
+        echo "SYSROOT_PATH=$env:SYSROOT_PATH" >> $env:GITHUB_ENV
+        
+        $env:PREFIX="$env:MAMBA_ROOT_PREFIX/envs/CppInterOp-wasm"
+        echo "PREFIX=$env:PREFIX"
+        echo "PREFIX=$env:PREFIX" >> $env:GITHUB_ENV
+        
         $env:CMAKE_PREFIX_PATH=$env:PREFIX
         $env:CMAKE_SYSTEM_PREFIX_PATH=$env:PREFIX
         
@@ -888,6 +894,11 @@ jobs:
         Error-OnFailure { emrun.bat --browser="chrome.exe" --kill_exit --timeout 60 --browser-args="--headless --no-sandbox"  DynamicLibraryManagerTests.html }
         cd ..\..
         Error-OnFailure { emmake make -j ${{ env.ncpus }} install }
+        echo "SYSROOT_PATH=$env:SYSROOT_PATH" >> $GITHUB_ENV
+        echo "CPPINTEROP_DIR=$env:CPPINTEROP_DIR" >> $GITHUB_ENV
+        echo "LLVM_BUILD_DIR=$env:LLVM_BUILD_DIR" >> $GITHUB_ENV
+        echo "CPLUS_INCLUDE_PATH=$env:CPLUS_INCLUDE_PATH" >> $GITHUB_ENV
+        echo "PREFIX=$env:PREFIX" >> $GITHUB_ENV
 
     - name: Build and Test/Install CppInterOp on Windows systems (static library)
       if: ${{ runner.os == 'windows' }}
@@ -990,7 +1001,7 @@ jobs:
         echo "Running DynamicLibraryManagerTests in Chromium"
         Error-OnFailure{ emrun.bat --browser="chrome.exe" --kill_exit --timeout 60 --browser-args="--headless --no-sandbox"  DynamicLibraryManagerTests.html }
 
-    - name: Build xeus-cpp
+    - name: Build xeus-cpp on Unix Systems
       if: ${{ runner.os != 'windows' }}
       shell: bash -l {0}
       run: |
@@ -1014,7 +1025,31 @@ jobs:
           ..
         emmake make -j ${{ env.ncpus }} install
 
-    - name: Test xeus-cpp C++ Emscripten
+    - name: Build xeus-cpp on Windows systems
+      if: ${{ runner.os == 'windows' }}
+      shell: powershell
+      run: |
+        .\emsdk\emsdk activate ${{matrix.emsdk_ver}}
+        .\emsdk\emsdk_env.ps1
+        micromamba activate CppInterOp-wasm
+        git clone --depth=1 https://github.com/compiler-research/xeus-cpp.git
+        cd .\xeus-cpp
+        mkdir build
+        pushd build
+        $env:CMAKE_PREFIX_PATH="${{ env.PREFIX }}"
+        $env:CMAKE_SYSTEM_PREFIX_PATH="${{ env.PREFIX }}"
+        emcmake cmake `
+          -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}          `
+          -DCMAKE_PREFIX_PATH=${{ env.PREFIX }}             `
+          -DCMAKE_INSTALL_PREFIX=${{ env.PREFIX }}          `
+          -DXEUS_CPP_EMSCRIPTEN_WASM_BUILD=ON               `
+          -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            `
+          -DXEUS_CPP_RESOURCE_DIR=${{ env.LLVM_BUILD_DIR }}\lib\clang\${{ matrix.clang-runtime }} `
+          -DSYSROOT_PATH=${{ env.SYSROOT_PATH }}                `
+          ..
+        emmake make -j ${{ env.ncpus }} install
+
+    - name: Test xeus-cpp C++ Emscripten on Unix Systems
       if: ${{ runner.os != 'windows' }}
       shell: bash -l {0}
       run: |
@@ -1023,11 +1058,44 @@ jobs:
         cd ./xeus-cpp/build/test
         node test_xeus_cpp.js
 
+    - name: Test xeus-cpp C++ Emscripten on Windows Systems
+      if: ${{ runner.os == 'windows' }}
+      shell: powershell
+      run: |
+        function Error-OnFailure {
+          param (
+              [Parameter(Mandatory)]
+              [ScriptBlock]$Command
+          )
+
+         & $Command
+
+         if ($LASTEXITCODE -ne 0) {
+            exit $LASTEXITCODE
+         }
+        }
+        micromamba activate CppInterOp-wasm
+        cd .\xeus-cpp\build\test
+        node test_xeus_cpp.js
+        echo "Running test_xeus_cpp in Firefox"
+        Error-OnFailure { emrun.bat --browser="firefox.exe" --kill_exit --timeout 60 --browser-args="--headless"  test_xeus_cpp.html }
+        echo "Running test_xeus_cpp in Chromium"
+        Error-OnFailure { emrun.bat --browser="chrome.exe" --kill_exit --timeout 60 --browser-args="--headless --no-sandbox"  test_xeus_cpp.html }
+
     - name: Jupyter Lite integration
       if: ${{ runner.os != 'windows' }}
       shell: bash -l {0}
       run: |
           cd ./xeus-cpp/
+          micromamba create -n xeus-lite-host jupyterlite-core=0.6 jupyterlite-xeus jupyter_server jupyterlab notebook python-libarchive-c -c conda-forge
+          micromamba activate xeus-lite-host
+          jupyter lite build --XeusAddon.prefix=${{ env.PREFIX }} --contents notebooks/xeus-cpp-lite-demo.ipynb --contents notebooks/smallpt.ipynb --contents notebooks/images/marie.png --contents notebooks/audio/audio.wav --output-dir dist
+
+    - name: Jupyter Lite integration
+      if: ${{ runner.os == 'windows' }}
+      shell: powershell
+      run: |
+          cd .\xeus-cpp\
           micromamba create -n xeus-lite-host jupyterlite-core=0.6 jupyterlite-xeus jupyter_server jupyterlab notebook python-libarchive-c -c conda-forge
           micromamba activate xeus-lite-host
           jupyter lite build --XeusAddon.prefix=${{ env.PREFIX }} --contents notebooks/xeus-cpp-lite-demo.ipynb --contents notebooks/smallpt.ipynb --contents notebooks/images/marie.png --contents notebooks/audio/audio.wav --output-dir dist
