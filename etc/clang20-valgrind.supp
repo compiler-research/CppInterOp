@@ -1,0 +1,15 @@
+{
+   llvm_orc_uninitialized_write
+   Memcheck:Param
+   write(buf)
+   fun:write
+   fun:*FDSimpleRemoteEPCTransport*sendMessage*
+}
+
+{
+   llvm_orc_uninitialized_memory
+   Memcheck:Param
+   write(buf)
+   ...
+   obj:*/libclangCppInterOp.so*
+}

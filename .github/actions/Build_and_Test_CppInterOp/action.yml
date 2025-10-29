@@ -59,8 +59,16 @@ runs:
           cmake --build . --target check-cppinterop --parallel ${{ env.ncpus }}
           os="${{ matrix.os }}"
           if [[ "${os}" != "macos"* ]]; then
+            CLANG_VERSION="${{ matrix.clang-runtime }}"
+            if [[ "${{ matrix.cling }}" == "On" ]]; then
+              CLANG_INTERPRETER="cling"
+            else
+              CLANG_INTERPRETER="clang"
+            fi
+            SUPPRESSION_FILE="../etc/${CLANG_INTERPRETER}${CLANG_VERSION}-valgrind.supp"
             valgrind --show-error-list=yes --track-origins=yes --error-exitcode=1 \
               --show-leak-kinds=definite,possible \
+              --suppressions="${SUPPRESSION_FILE}" \
               unittests/CppInterOp/CppInterOpTests/unittests/bin/${{ env.BUILD_TYPE }}/CppInterOpTests
           fi
         fi
