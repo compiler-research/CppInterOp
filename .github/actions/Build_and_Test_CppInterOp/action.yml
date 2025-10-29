@@ -1,7 +1,6 @@
 name: 'Builds and test CppInterOp'
 description: 'This action builds and tests CppInterOp for native platforms'
 
-# REVERT BEFORE MERGING
 runs:
   using: composite
   steps:
@@ -60,18 +59,9 @@ runs:
           cmake --build . --target check-cppinterop --parallel ${{ env.ncpus }}
           os="${{ matrix.os }}"
           if [[ "${os}" != "macos"* ]]; then
-            valgrind \
-              --leak-check=full \
-              --show-leak-kinds=all \
-              --track-origins=yes \
-              --gen-suppressions=all \
-              --log-file=valgrind-raw.log \
+            valgrind --show-error-list=yes --track-origins=yes --error-exitcode=1 \
+              --leak-check=full --show-leak-kinds=definite,possible \
               unittests/CppInterOp/CppInterOpTests/unittests/bin/${{ env.BUILD_TYPE }}/CppInterOpTests
-
-            grep -A 20 "^{$" valgrind-raw.log > suppressions.supp
-              
-            echo "======= Valgrind log (for suppression generation) ======="
-            cat suppressions.supp
           fi
         fi
         echo "CB_PYTHON_DIR=$CB_PYTHON_DIR" >> $GITHUB_ENV
