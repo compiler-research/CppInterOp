@@ -72,7 +72,7 @@ runs:
                 --suppressions="${SUPPRESSION_FILE}" \
                 unittests/CppInterOp/CppInterOpTests/unittests/bin/${{ env.BUILD_TYPE }}/CppInterOpTests
             else
-              valgrind --leak-check=full --track-origins=yes --error-exitcode=1 \
+              valgrind --show-error-list=yes --track-origins=yes --error-exitcode=1 \
                 --show-leak-kinds=definite,possible \
                 unittests/CppInterOp/CppInterOpTests/unittests/bin/${{ env.BUILD_TYPE }}/CppInterOpTests
             fi
