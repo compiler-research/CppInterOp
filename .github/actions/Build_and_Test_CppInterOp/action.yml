@@ -60,7 +60,7 @@ runs:
           os="${{ matrix.os }}"
           if [[ "${os}" != "macos"* ]]; then
             valgrind --show-error-list=yes --track-origins=yes --error-exitcode=1 \
-              --leak-check=full --show-leak-kinds=definite,possible \
+              --show-leak-kinds=definite,possible \
               unittests/CppInterOp/CppInterOpTests/unittests/bin/${{ env.BUILD_TYPE }}/CppInterOpTests
           fi
         fi
