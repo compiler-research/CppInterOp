@@ -66,10 +66,16 @@ runs:
               CLANG_INTERPRETER="clang"
             fi
             SUPPRESSION_FILE="../etc/${CLANG_INTERPRETER}${CLANG_VERSION}-valgrind.supp"
-            valgrind --show-error-list=yes --track-origins=yes --error-exitcode=1 \
-              --show-leak-kinds=definite,possible \
-              --suppressions="${SUPPRESSION_FILE}" \
-              unittests/CppInterOp/CppInterOpTests/unittests/bin/${{ env.BUILD_TYPE }}/CppInterOpTests
+            if [[ CLANG_VERSION == "20" ]]; then
+              valgrind --show-error-list=yes --track-origins=yes --error-exitcode=1 \
+                --show-leak-kinds=definite,possible \
+                --suppressions="${SUPPRESSION_FILE}" \
+                unittests/CppInterOp/CppInterOpTests/unittests/bin/${{ env.BUILD_TYPE }}/CppInterOpTests
+            else
+              valgrind --leak-check=full --track-origins=yes --error-exitcode=1 \
+                --show-leak-kinds=definite,possible \
+                unittests/CppInterOp/CppInterOpTests/unittests/bin/${{ env.BUILD_TYPE }}/CppInterOpTests
+            fi
           fi
         fi
         echo "CB_PYTHON_DIR=$CB_PYTHON_DIR" >> $GITHUB_ENV
