@@ -282,7 +282,7 @@ jobs:
         # Create lcov report
         # capture coverage info
         vers="${CC#*-}"
-        lcov --directory build/ --capture --output-file coverage.info --gcov-tool /usr/bin/gcov-${vers} --ignore-errors mismatch
+        lcov --directory build/ --capture --output-file coverage.info --gcov-tool /usr/bin/gcov-${vers}
         lcov --remove coverage.info '/usr/*' ${{ github.workspace }}'/llvm-project/*' --ignore-errors unused --output-file coverage.info
         lcov --remove coverage.info '${{ github.workspace }}/unittests/*' --ignore-errors unused --output-file coverage.info
         lcov --remove coverage.info  '${{ github.workspace }}/build/*' --ignore-errors unused --output-file coverage.info
