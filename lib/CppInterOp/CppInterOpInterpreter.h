@@ -241,7 +241,8 @@ public:
         initAndGetFileDescriptors(vargs, io_ctx);
 
     if (stdin_fd == -1 || stdout_fd == -1 || stderr_fd == -1) {
-      llvm::errs() << "Redirection files creation failed for Out-Of-Process JIT\n";
+      llvm::errs()
+          << "Redirection files creation failed for Out-Of-Process JIT\n";
       return nullptr;
     }
 
