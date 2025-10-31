@@ -84,8 +84,9 @@ export_executable_symbols(CppInterOpTests)
 
 unset(LLVM_LINK_COMPONENTS)
 
+set(EXTRA_TEST_SOURCE_FILES Utils.cpp)
+
 if (NOT EMSCRIPTEN)
-  set(EXTRA_TEST_SOURCE_FILES Utils.cpp)
   set(EXTRA_PATH_TEST_BINARIES /TestSharedLib/unittests/bin/$<CONFIG>/)
 endif()
 

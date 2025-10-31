@@ -111,8 +111,8 @@ git clone --depth=1 --branch release/20.x https://github.com/llvm/llvm-project.g
 cd llvm-project
 ```
 
-If you want to have out-of-process JIT execution enabled in CppInterOp, then apply this patch on Linux-x86_64 and MacOS-Darwin environment.
-> Note that this patch will not work for Windows because out-of-process JIT execution is currently implemented for Linux-x86_64 and MacOS-Darwin only.
+If you want to have out-of-process JIT execution enabled in CppInterOp, then apply this patch on Linux-x86_64 and MacOS arm64 environment.
+> Note that this patch will not work for Windows because out-of-process JIT execution is currently implemented for Linux-x86_64 and MacOS arm64 only.
 
 ```bash
 git apply -v ../CppInterOp/patches/llvm/clang20-1-out-of-process.patch
@@ -150,7 +150,7 @@ cd ../
 ##### Build Clang-REPL with Out-of-Process JIT Execution
 
 To have ``Out-of-Process JIT Execution`` enabled, run following commands to build clang and clang-repl to support this feature:
-> Only for Linux x86_64 and Macos amr64
+> Only for Linux x86_64 and MacOS arm64
 
 ```bash
 mkdir build 
