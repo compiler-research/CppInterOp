@@ -27,13 +27,6 @@
 
 using ::testing::StartsWith;
 
-class InterpreterTest : public ::testing::TestWithParam<TestUtils::TestConfig> {
-protected:
-  void SetUp() override {
-    TestUtils::current_config = GetParam();
-  }
-};
-
 TYPED_TEST(CppInterOpTest, InterpreterTestVersion) {
   EXPECT_THAT(Cpp::GetVersion(), StartsWith("CppInterOp version"));
 }

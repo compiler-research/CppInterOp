@@ -260,7 +260,7 @@ createClangInterpreter(std::vector<const char*>& args, int stdin_fd = -1,
   if (CudaEnabled)
     DeviceCI->LoadRequestedPlugins();
 
-  bool outOfProcess = (stdin_fd != -1 && stdout_fd != -1 && stderr_fd != -1);
+  bool outOfProcess = (stdin_fd != 0 && stdout_fd != 1 && stderr_fd != 2);
 
 #ifdef LLVM_BUILT_WITH_OOP_JIT
 

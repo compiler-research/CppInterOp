@@ -1,15 +1,13 @@
-set(EXTRA_TEST_SOURCE_FILES Utils.cpp)
-
 if (EMSCRIPTEN)
   # So we create a html file, as well as the javascript file
   set(CMAKE_EXECUTABLE_SUFFIX ".html")
   # Omitting CUDATest.cpp since Emscripten build currently has no GPU support
   # For Emscripten builds linking to gtest_main will not suffice for gtest to run
   # the tests and an explicitly main.cpp is needed
-  list(APPEND EXTRA_TEST_SOURCE_FILES main.cpp)
+  set(EXTRA_TEST_SOURCE_FILES main.cpp)
 else()
   # Do not need main.cpp for native builds, but we do have GPU support for native builds
-  list(APPEND EXTRA_TEST_SOURCE_FILES CUDATest.cpp)
+  set(EXTRA_TEST_SOURCE_FILES CUDATest.cpp)
   set(EXTRA_PATH_TEST_BINARIES /CppInterOpTests/unittests/bin/$<CONFIG>/)
 endif()
 
@@ -20,6 +18,7 @@ add_cppinterop_unittest(CppInterOpTests
   JitTest.cpp
   ScopeReflectionTest.cpp
   TypeReflectionTest.cpp
+  Utils.cpp
   VariableReflectionTest.cpp
   ${EXTRA_TEST_SOURCE_FILES}
 )

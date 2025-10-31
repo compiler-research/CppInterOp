@@ -174,9 +174,9 @@ private:
   static std::tuple<int, int, int>
   initAndGetFileDescriptors(std::vector<const char*>& vargs,
                             std::unique_ptr<IOContext>& io_ctx) {
-    int stdin_fd = -1;
-    int stdout_fd = -1;
-    int stderr_fd = -1;
+    int stdin_fd = 0;
+    int stdout_fd = 1;
+    int stderr_fd = 2;
     bool outOfProcess = false;
 
 #if defined(_WIN32)
@@ -193,6 +193,9 @@ private:
         if (!init) {
           llvm::errs() << "Can't start out-of-process JIT execution.\n";
           outOfProcess = false;
+          stdin_fd = -1;
+          stdout_fd = -1;
+          stderr_fd = -1;
         }
       }
       if (outOfProcess) {
@@ -237,7 +240,12 @@ public:
     std::tie(stdin_fd, stdout_fd, stderr_fd) =
         initAndGetFileDescriptors(vargs, io_ctx);
 
-    bool outOfProcess = (stdin_fd != -1 && stdout_fd != -1 && stderr_fd != -1);
+    if (stdin_fd == -1 || stdout_fd == -1 || stderr_fd == -1) {
+      llvm::errs() << "Redirection files creation failed for Out-Of-Process JIT\n";
+      return nullptr;
+    }
+
+    bool outOfProcess = (stdin_fd != 0 && stdout_fd != 1 && stderr_fd != 2);
 
     auto CI =
         compat::createClangInterpreter(vargs, stdin_fd, stdout_fd, stderr_fd);
