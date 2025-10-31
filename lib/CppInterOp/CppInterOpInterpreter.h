@@ -177,34 +177,20 @@ private:
     int stdin_fd = 0;
     int stdout_fd = 1;
     int stderr_fd = 2;
-    bool outOfProcess = false;
 
-#if defined(_WIN32)
-    outOfProcess = false;
-#else
-    outOfProcess = std::any_of(vargs.begin(), vargs.end(), [](const char* arg) {
-      return llvm::StringRef(arg).trim() == "--use-oop-jit";
-    });
-
-    if (outOfProcess) {
-      // Only initialize temp files if not already initialized
-      if (!io_ctx->stdin_file || !io_ctx->stdout_file || !io_ctx->stderr_file) {
-        bool init = io_ctx->initializeTempFiles();
-        if (!init) {
-          llvm::errs() << "Can't start out-of-process JIT execution.\n";
-          outOfProcess = false;
-          stdin_fd = -1;
-          stdout_fd = -1;
-          stderr_fd = -1;
-        }
-      }
-      if (outOfProcess) {
-        stdin_fd = fileno(io_ctx->stdin_file.get());
-        stdout_fd = fileno(io_ctx->stdout_file.get());
-        stderr_fd = fileno(io_ctx->stderr_file.get());
+    // Only initialize temp files if not already initialized
+    if (!io_ctx->stdin_file || !io_ctx->stdout_file || !io_ctx->stderr_file) {
+      bool init = io_ctx->initializeTempFiles();
+      if (!init) {
+        llvm::errs() << "Can't start out-of-process JIT execution.\n";
+        stdin_fd = -1;
+        stdout_fd = -1;
+        stderr_fd = -1;
       }
     }
-#endif
+    stdin_fd = fileno(io_ctx->stdin_file.get());
+    stdout_fd = fileno(io_ctx->stdout_file.get());
+    stderr_fd = fileno(io_ctx->stderr_file.get());
 
     return std::make_tuple(stdin_fd, stdout_fd, stderr_fd);
   }
@@ -233,21 +219,33 @@ public:
 
     std::vector<const char*> vargs(argv + 1, argv + argc);
 
-    int stdin_fd;
-    int stdout_fd;
-    int stderr_fd;
+    int stdin_fd = 0;
+    int stdout_fd = 1;
+    int stderr_fd = 2;
     auto io_ctx = std::make_unique<IOContext>();
-    std::tie(stdin_fd, stdout_fd, stderr_fd) =
-        initAndGetFileDescriptors(vargs, io_ctx);
+    bool outOfProcess = false;
 
-    if (stdin_fd == -1 || stdout_fd == -1 || stderr_fd == -1) {
-      llvm::errs()
-          << "Redirection files creation failed for Out-Of-Process JIT\n";
-      return nullptr;
+#if defined(_WIN32)
+    outOfProcess = false;
+#else
+    outOfProcess = std::any_of(vargs.begin(), vargs.end(), [](const char* arg) {
+      return llvm::StringRef(arg).trim() == "--use-oop-jit";
+    });
+#endif
+
+    if (outOfProcess) {
+      std::tie(stdin_fd, stdout_fd, stderr_fd) =
+          initAndGetFileDescriptors(vargs, io_ctx);
+
+      if (stdin_fd == -1 || stdout_fd == -1 || stderr_fd == -1) {
+        llvm::errs()
+            << "Redirection files creation failed for Out-Of-Process JIT\n";
+        return nullptr;
+      }
     }
 
-    bool outOfProcess = (stdin_fd != 0 && stdout_fd != 1 && stderr_fd != 2);
-
+    // Currently, we can't pass IOContext in `createClangInterpreter`, that's
+    // why fd's are passed. This should be refactored later.
     auto CI =
         compat::createClangInterpreter(vargs, stdin_fd, stdout_fd, stderr_fd);
     if (!CI) {

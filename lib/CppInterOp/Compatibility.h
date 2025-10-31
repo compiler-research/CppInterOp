@@ -260,7 +260,14 @@ createClangInterpreter(std::vector<const char*>& args, int stdin_fd = -1,
   if (CudaEnabled)
     DeviceCI->LoadRequestedPlugins();
 
-  bool outOfProcess = (stdin_fd != 0 && stdout_fd != 1 && stderr_fd != 2);
+  bool outOfProcess;
+#if defined(_WIN32)
+  outOfProcess = false;
+#else
+  outOfProcess = std::any_of(args.begin(), args.end(), [](const char* arg) {
+    return llvm::StringRef(arg).trim() == "--use-oop-jit";
+  });
+#endif
 
 #ifdef LLVM_BUILT_WITH_OOP_JIT
 
