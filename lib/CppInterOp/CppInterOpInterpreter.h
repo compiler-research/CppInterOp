@@ -225,7 +225,7 @@ public:
     auto io_ctx = std::make_unique<IOContext>();
     bool outOfProcess = false;
 
-#if defined(_WIN32)
+#if defined(_WIN32) || !defined(LLVM_BUILT_WITH_OOP_JIT)
     outOfProcess = false;
 #else
     outOfProcess = std::any_of(vargs.begin(), vargs.end(), [](const char* arg) {

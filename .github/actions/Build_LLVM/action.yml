@@ -61,7 +61,7 @@ runs:
                 -DLLVM_INCLUDE_EXAMPLES=OFF                     \
                 -DLLVM_INCLUDE_TESTS=OFF                        \
                 ../llvm
-          ninja clang clangInterpreter clangStaticAnalyzerCore -j ${{ env.ncpus }}
+          ninja clang clangInterpreter clangStaticAnalyzerCore
           if [[ "${{ matrix.oop-jit }}" == "On" ]]; then
             if [[ "${{ matrix.os }}" == macos* ]]; then
               SUFFIX="_osx"

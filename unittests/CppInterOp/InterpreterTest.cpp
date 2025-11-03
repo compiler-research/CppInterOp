@@ -163,8 +163,7 @@ TYPED_TEST(CppInterOpTest, InterpreterTestProcess) {
 
 TYPED_TEST(CppInterOpTest, InterpreterTestEmscriptenExceptionHandling) {
 #ifndef EMSCRIPTEN
-  GTEST_SKIP() << "This test is intended to check exception handling for "
-                  "Emscripten builds.";
+  GTEST_SKIP() << "This test is intended to check exception handling for Emscripten builds.";
 #endif
 
   std::vector<const char*> Args = {

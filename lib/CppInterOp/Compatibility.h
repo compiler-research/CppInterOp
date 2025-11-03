@@ -261,7 +261,7 @@ createClangInterpreter(std::vector<const char*>& args, int stdin_fd = -1,
     DeviceCI->LoadRequestedPlugins();
 
   bool outOfProcess;
-#if defined(_WIN32)
+#if defined(_WIN32) || !defined(LLVM_BUILT_WITH_OOP_JIT)
   outOfProcess = false;
 #else
   outOfProcess = std::any_of(args.begin(), args.end(), [](const char* arg) {
@@ -275,7 +275,7 @@ createClangInterpreter(std::vector<const char*>& args, int stdin_fd = -1,
   if (outOfProcess) {
     OutOfProcessConfig.IsOutOfProcess = true;
     OutOfProcessConfig.OOPExecutor =
-        LLVM_BUILD_LIB_DIR "/bin/llvm-jitlink-executor";
+        LLVM_BINARY_LIB_DIR "/bin/llvm-jitlink-executor";
     OutOfProcessConfig.UseSharedMemory = false;
     OutOfProcessConfig.SlabAllocateSize = 0;
     OutOfProcessConfig.CustomizeFork = [stdin_fd, stdout_fd,
@@ -289,10 +289,10 @@ createClangInterpreter(std::vector<const char*>& args, int stdin_fd = -1,
     };
 
 #ifdef __APPLE__
-    std::string OrcRuntimePath = LLVM_BUILD_LIB_DIR "/lib/clang/" STRINGIFY(
+    std::string OrcRuntimePath = LLVM_BINARY_LIB_DIR "/lib/clang/" STRINGIFY(
         LLVM_VERSION_MAJOR) "/lib/darwin/liborc_rt_osx.a";
 #else
-    std::string OrcRuntimePath = LLVM_BUILD_LIB_DIR "/lib/clang/" STRINGIFY(
+    std::string OrcRuntimePath = LLVM_BINARY_LIB_DIR "/lib/clang/" STRINGIFY(
         LLVM_VERSION_MAJOR) "/lib/x86_64-unknown-linux-gnu/liborc_rt.a";
 #endif
     OutOfProcessConfig.OrcRuntimePath = OrcRuntimePath;
