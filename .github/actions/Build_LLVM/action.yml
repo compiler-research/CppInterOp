@@ -43,6 +43,10 @@ runs:
           ninja LLVMOrcDebugging -j ${{ env.ncpus }}
           ninja clingInterpreter -j ${{ env.ncpus }}
         else
+          if [[ "${{ matrix.oop-jit }}" == "On" ]]; then
+            git apply -v ../patches/llvm/clang20-1-out-of-process.patch
+            echo "Apply clang20-1-out-of-process.patch:"
+          fi
           cd build
           cmake -DLLVM_ENABLE_PROJECTS="${{ matrix.llvm_enable_projects}}" \
                 -DLLVM_TARGETS_TO_BUILD="${{ matrix.llvm_targets_to_build }}"  \
@@ -57,7 +61,15 @@ runs:
                 -DLLVM_INCLUDE_EXAMPLES=OFF                     \
                 -DLLVM_INCLUDE_TESTS=OFF                        \
                 ../llvm
-          ninja clang clangInterpreter clangStaticAnalyzerCore -j ${{ env.ncpus }}
+          ninja clang clangInterpreter clangStaticAnalyzerCore
+          if [[ "${{ matrix.oop-jit }}" == "On" ]]; then
+            if [[ "${{ matrix.os }}" == macos* ]]; then
+              SUFFIX="_osx"
+            elif [[ "${{ matrix.os }}" == ubuntu* ]]; then
+              SUFFIX="-x86_64"
+            fi
+            ninja llvm-jitlink-executor orc_rt${SUFFIX} -j ${{ env.ncpus }}       
+          fi
           cd ./tools/
           rm -rf $(find . -maxdepth 1 ! -name "clang" ! -name ".")
           cd ..
