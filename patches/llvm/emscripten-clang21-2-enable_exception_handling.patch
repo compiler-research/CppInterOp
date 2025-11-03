@@ -5,7 +5,7 @@ index ed3bae59a..f1fedd532 100644
 @@ -144,6 +144,48 @@ CreateCI(const llvm::opt::ArgStringList &Argv) {
    return std::move(Clang);
  }
- 
+
 +static llvm::Error HandleFrontendOptions(const CompilerInstance &CI) {
 +  const auto &FrontendOpts = CI.getFrontendOpts();
 +
@@ -47,9 +47,9 @@ index ed3bae59a..f1fedd532 100644
 +
 +  return llvm::Error::success();
 +}
-+  
++
  } // anonymous namespace
- 
+
  namespace clang {
 @@ -462,7 +504,12 @@ const char *const Runtimes = R"(
  llvm::Expected<std::unique_ptr<Interpreter>>
