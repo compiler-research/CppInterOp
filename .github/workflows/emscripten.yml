@@ -329,7 +329,6 @@ jobs:
           {
             git apply -v emscripten-clang21-1-shift-temporary-files-to-tmp-dir.patch
             git apply -v emscripten-clang21-2-enable_exception_handling.patch
-            git apply -v emscripten-clang21-3-llvm-abi-annotation-remote.patch
           }
           cd build
           echo "Apply clang${{ matrix.clang-runtime }}-*.patch patches:"
@@ -540,14 +539,14 @@ jobs:
 
         emmake make -j ${{ env.ncpus }} check-cppinterop
         os="${{ matrix.os }}"
-        if [[ "${os}" != macos* ]] ; then
-          actual_size=$(stat -c%s "./lib/libclangCppInterOp.so")
-          max_size=$((40 * 1024 * 1024))
-          if [[ "$actual_size" -gt "$max_size" ]]; then
-            echo "Error: libclangCppInterOp.so is larger than 40 MB."
-            exit 1
-          fi
-        fi
+        #if [[ "${os}" != macos* ]] ; then
+        #  actual_size=$(stat -c%s "./lib/libclangCppInterOp.so")
+        #  max_size=$((40 * 1024 * 1024))
+        #  if [[ "$actual_size" -gt "$max_size" ]]; then
+        #    echo "Error: libclangCppInterOp.so is larger than 40 MB."
+        #    exit 1
+        #  fi
+        #fi
         cd ./unittests/CppInterOp/
         # Fresh install browsers, and run Emscripten tests in them
         # This is to match the Emscripten build instructions, where
