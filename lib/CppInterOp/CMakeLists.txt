@@ -122,7 +122,11 @@ if(EMSCRIPTEN)
   # unit tests main_module you get errors due to undefined symbols. The reading of the file
   # below into a SYMBOLS_LIST variable is a temporary workaround that exports the undefined
   # symbols from the shared library, until it can be determined why they are not being exported already.
-  file(READ "${CMAKE_CURRENT_SOURCE_DIR}/exports.ld" SYMBOLS_LIST)
+  if (CPPINTEROP_USE_CLING)
+    file(READ "${CMAKE_CURRENT_SOURCE_DIR}/cling-exports.ld" SYMBOLS_LIST)
+  else()
+    file(READ "${CMAKE_CURRENT_SOURCE_DIR}/exports.ld" SYMBOLS_LIST)
+  endif()
 
   # Replace newlines with spaces
   string(REPLACE "\n" " " SYMBOLS_LIST "${SYMBOLS_LIST}")
