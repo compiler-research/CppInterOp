@@ -226,13 +226,6 @@ jobs:
             cling: Off
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
-          - name: win11-msvc-clang-repl-20
-            os: windows-11-arm
-            compiler: msvc
-            clang-runtime: '20'
-            cling: Off
-            llvm_enable_projects: "clang"
-            llvm_targets_to_build: "host;NVPTX"
           - name: win11-msvc-clang18-cling
             os: windows-11-arm
             compiler: msvc
@@ -246,13 +239,6 @@ jobs:
             os: windows-2025
             compiler: msvc
             clang-runtime: '21'
-            cling: Off
-            llvm_enable_projects: "clang"
-            llvm_targets_to_build: "host;NVPTX"
-          - name: win2025-msvc-clang-repl-20
-            os: windows-2025
-            compiler: msvc
-            clang-runtime: '20'
             cling: Off
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
@@ -357,4 +343,5 @@ jobs:
       uses: mxschmitt/action-tmate@v3
       # When debugging increase to a suitable value!
       timeout-minutes: 30
+
 
