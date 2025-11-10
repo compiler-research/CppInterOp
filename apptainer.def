@@ -1,0 +1,25 @@
+# Minimal Apptainer/Singularity definition for building CppInterOp on HPC systems.
+# Usage: apptainer build cppinterop.sif apptainer.def
+
+Bootstrap: docker
+From: ubuntu:24.04
+
+%post
+    apt-get update
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+        build-essential cmake git python3 python3-pip ninja-build wget ca-certificates \
+        && rm -rf /var/lib/apt/lists/*
+
+    # create user-space directories
+    mkdir -p /opt/cppinterop
+
+%files
+    scripts/container_build.py /opt/cppinterop/container_build.py
+
+%environment
+    export PATH=/usr/local/bin:/usr/bin:$PATH
+
+%runscript
+    exec /usr/bin/env python3 /opt/cppinterop/container_build.py "$@"
+
+# Note: to expose NVIDIA GPU support, run the container with `--nv`.
