@@ -974,6 +974,7 @@ jobs:
           -DSYSROOT_PATH=${{ env.SYSROOT_PATH }}                     \
           -DCMAKE_CROSSCOMPILING_EMULATOR="$MAMBA_ROOT_PREFIX/envs/node-env/bin/node" \
           ..
+        export PATH="$MAMBA_ROOT_PREFIX/envs/node-env/bin/node:$PATH"
         emmake make -j ${{ env.ncpus }} check-xeus-cpp
         emmake make -j ${{ env.ncpus }} install
 
@@ -1002,6 +1003,7 @@ jobs:
         pushd build
         $env:CMAKE_PREFIX_PATH="${{ env.PREFIX }}"
         $env:CMAKE_SYSTEM_PREFIX_PATH="${{ env.PREFIX }}"
+        $env:PATH="$env:MAMBA_ROOT_PREFIX/envs/node-env/bin/node;$PATH"
         micromamba create -n node-env -c conda-forge nodejs=22
         emcmake cmake `
           -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}          `
