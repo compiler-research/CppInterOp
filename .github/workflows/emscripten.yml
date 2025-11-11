@@ -964,7 +964,6 @@ jobs:
         export CMAKE_PREFIX_PATH=${{ env.PREFIX }}
         export CMAKE_SYSTEM_PREFIX_PATH=${{ env.PREFIX }}
         micromamba create -n node-env -c conda-forge nodejs=22
-        export PATH="$MAMBA_ROOT_PREFIX/envs/node-env/bin:$PATH"
         emcmake cmake \
           -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}          \
           -DCMAKE_PREFIX_PATH=${{ env.PREFIX }}             \
@@ -973,6 +972,7 @@ jobs:
           -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            \
           -DXEUS_CPP_RESOURCE_DIR=${{ env.LLVM_BUILD_DIR }}/lib/clang/${{ matrix.clang-runtime }} \
           -DSYSROOT_PATH=${{ env.SYSROOT_PATH }}                     \
+          -DCMAKE_CROSSCOMPILING_EMULATOR="$MAMBA_ROOT_PREFIX/envs/node-env/bin/node" \
           ..
         emmake make -j ${{ env.ncpus }} check-xeus-cpp
         emmake make -j ${{ env.ncpus }} install
@@ -1003,9 +1003,6 @@ jobs:
         $env:CMAKE_PREFIX_PATH="${{ env.PREFIX }}"
         $env:CMAKE_SYSTEM_PREFIX_PATH="${{ env.PREFIX }}"
         micromamba create -n node-env -c conda-forge nodejs=22
-        $env:PATH="$env:MAMBA_ROOT_PREFIX/envs/node-env/bin;$env:PATH""
-        echo "PATH=$env:PATH"
-        echo "PATH=$env:PATH" >> $env:GITHUB_ENV
         emcmake cmake `
           -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}          `
           -DCMAKE_PREFIX_PATH=${{ env.PREFIX }}             `
@@ -1014,6 +1011,7 @@ jobs:
           -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            `
           -DXEUS_CPP_RESOURCE_DIR=${{ env.LLVM_BUILD_DIR }}\lib\clang\${{ matrix.clang-runtime }} `
           -DSYSROOT_PATH=${{ env.SYSROOT_PATH }}                `
+          -DCMAKE_CROSSCOMPILING_EMULATOR="$env:MAMBA_ROOT_PREFIX\envs\node-env\bin\node" `
           ..
         Error-OnFailure { emmake make -j ${{ env.ncpus }} check-xeus-cpp }
         Error-OnFailure { emmake make -j ${{ env.ncpus }} install }
