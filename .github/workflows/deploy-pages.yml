@@ -192,6 +192,7 @@ jobs:
     - name: Build xeus-cpp
       shell: bash -l {0}
       run: |
+        set -e
         ./emsdk/emsdk activate ${{matrix.emsdk_ver}}
         source ./emsdk/emsdk_env.sh
         micromamba activate CppInterOp-wasm
@@ -210,15 +211,8 @@ jobs:
           -DXEUS_CPP_RESOURCE_DIR=${{ env.LLVM_BUILD_DIR }}/lib/clang/${{ matrix.clang-runtime }} \
           -DSYSROOT_PATH=${{ env.SYSROOT_PATH }}                     \
           ..
+        emmake make -j ${{ env.ncpus }} check-xeus-cpp
         emmake make -j ${{ env.ncpus }} install
-
-    - name: Test xeus-cpp C++ Emscripten
-      shell: bash -l {0}
-      run: |
-        set -e
-        micromamba activate CppInterOp-wasm
-        cd ./xeus-cpp/build/test
-        node test_xeus_cpp.js
 
     - name: Jupyter Lite integration
       shell: bash -l {0}
