@@ -1010,6 +1010,7 @@ jobs:
       if: ${{ runner.os != 'windows' }}
       shell: bash -l {0}
       run: |
+        set -e
         ./emsdk/emsdk activate ${{matrix.emsdk_ver}}
         source ./emsdk/emsdk_env.sh
         micromamba activate CppInterOp-wasm
@@ -1028,12 +1029,25 @@ jobs:
           -DXEUS_CPP_RESOURCE_DIR=${{ env.LLVM_BUILD_DIR }}/lib/clang/${{ matrix.clang-runtime }} \
           -DSYSROOT_PATH=${{ env.SYSROOT_PATH }}                     \
           ..
+        emmake make -j ${{ env.ncpus }} check-xeus-cpp
         emmake make -j ${{ env.ncpus }} install
 
     - name: Build xeus-cpp on Windows systems
       if: ${{ runner.os == 'windows' }}
       shell: powershell
       run: |
+        function Error-OnFailure {
+          param (
+              [Parameter(Mandatory)]
+              [ScriptBlock]$Command
+          )
+
+         & $Command
+
+         if ($LASTEXITCODE -ne 0) {
+            exit $LASTEXITCODE
+         }
+        }
         .\emsdk\emsdk activate ${{matrix.emsdk_ver}}
         .\emsdk\emsdk_env.ps1
         micromamba activate CppInterOp-wasm
@@ -1052,36 +1066,15 @@ jobs:
           -DXEUS_CPP_RESOURCE_DIR=${{ env.LLVM_BUILD_DIR }}\lib\clang\${{ matrix.clang-runtime }} `
           -DSYSROOT_PATH=${{ env.SYSROOT_PATH }}                `
           ..
-        emmake make -j ${{ env.ncpus }} install
-
-    - name: Test xeus-cpp C++ Emscripten on Unix Systems
-      if: ${{ runner.os != 'windows' }}
-      shell: bash -l {0}
-      run: |
-        set -e
-        micromamba activate CppInterOp-wasm
-        cd ./xeus-cpp/build/test
-        node test_xeus_cpp.js
+        Error-OnFailure { emmake make -j ${{ env.ncpus }} check-xeus-cpp }
+        Error-OnFailure { emmake make -j ${{ env.ncpus }} install }
 
     - name: Test xeus-cpp C++ Emscripten on Windows Systems
       if: ${{ runner.os == 'windows' }}
       shell: powershell
       run: |
-        function Error-OnFailure {
-          param (
-              [Parameter(Mandatory)]
-              [ScriptBlock]$Command
-          )
-
-         & $Command
-
-         if ($LASTEXITCODE -ne 0) {
-            exit $LASTEXITCODE
-         }
-        }
         micromamba activate CppInterOp-wasm
         cd .\xeus-cpp\build\test
-        node test_xeus_cpp.js
         echo "Running test_xeus_cpp in Firefox"
         Error-OnFailure { emrun.bat --browser="firefox.exe" --kill_exit --timeout 60 --browser-args="--headless"  test_xeus_cpp.html }
         echo "Running test_xeus_cpp in Chromium"
