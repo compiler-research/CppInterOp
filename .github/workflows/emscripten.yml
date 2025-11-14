@@ -479,8 +479,10 @@ jobs:
                 -DSYSROOT_PATH=$SYSROOT_PATH                     \
                 ../
         fi
-
+        set +e
         emmake make -j ${{ env.ncpus }} check-cppinterop
+        cat /home/runner/work/CppInterOp/CppInterOp/build/unittests/googletest-prefix/src/googletest-stamp/googletest-build-*.log
+        set -e
         os="${{ matrix.os }}"
         if [[ "${os}" != macos* ]] ; then
           actual_size=$(stat -c%s "./lib/libclangCppInterOp.so")
