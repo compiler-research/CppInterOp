@@ -156,7 +156,7 @@ TYPED_TEST(CppInterOpTest, InterpreterTestProcess) {
     GTEST_SKIP() << "Test fails for OOP JIT builds";
   if (llvm::sys::RunningOnValgrind())
     GTEST_SKIP() << "XFAIL due to Valgrind report";
-  std::vector<const char*> interpreter_args = { "-include", "new" };
+  std::vector<const char*> interpreter_args = { "-include", "new", "-Xclang", "-iwithsysroot/include/compat" };
   auto* I = TestFixture::CreateInterpreter(interpreter_args);
   EXPECT_TRUE(Cpp::Process("") == 0);
   EXPECT_TRUE(Cpp::Process("int a = 12;") == 0);
