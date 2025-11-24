@@ -49,9 +49,10 @@ runs:
           $env:LLVM_HASH_TEMP = (git ls-remote https://github.com/llvm/llvm-project.git refs/heads/release/${{ matrix.clang-runtime}}.x )
           $env:LLVM_HASH = $env:LLVM_HASH_TEMP -replace "\t","-"
         }
-
+        touch patches/llvm/clang${{ matrix.clang-runtime}}-empty.patch
         echo "CLING_HASH=$env:CLING_HASH"
         echo "LLVM_HASH=$env:LLVM_HASH"
 
         echo "CLING_HASH=$env:CLING_HASH" >> $GITHUB_ENV
         echo "LLVM_HASH=$env:LLVM_HASH" >> $GITHUB_ENV
+
