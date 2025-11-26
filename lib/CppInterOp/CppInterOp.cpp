@@ -3874,11 +3874,11 @@ OperatorArity GetOperatorArity(TCppFunction_t op) {
 #define OVERLOADED_OPERATOR(Name, Spelling, Token, Unary, Binary, MemberOnly)  \
   case OO_##Name:                                                              \
     if ((Unary) && (Binary))                                                   \
-      return kBoth;                                                            \
+      return OperatorArity::kBoth;                                             \
     if (Unary)                                                                 \
-      return kUnary;                                                           \
+      return OperatorArity::kUnary;                                            \
     if (Binary)                                                                \
-      return kBinary;                                                          \
+      return OperatorArity::kBinary;                                           \
     break;
 #include "clang/Basic/OperatorKinds.def"
       default:

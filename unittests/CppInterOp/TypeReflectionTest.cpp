@@ -614,11 +614,11 @@ TYPED_TEST(CppInterOpTest, TypeReflectionTestIsFunctionPointerType) {
 }
 
 TYPED_TEST(CppInterOpTest, TypeReflectionTestOperatorSpelling) {
-  EXPECT_EQ(Cpp::GetSpellingFromOperator(Cpp::OP_Less), "<");
-  EXPECT_EQ(Cpp::GetSpellingFromOperator(Cpp::OP_Plus), "+");
-  EXPECT_EQ(Cpp::GetOperatorFromSpelling("->"), Cpp::OP_Arrow);
-  EXPECT_EQ(Cpp::GetOperatorFromSpelling("()"), Cpp::OP_Call);
-  EXPECT_EQ(Cpp::GetOperatorFromSpelling("invalid"), Cpp::OP_None);
+  EXPECT_EQ(Cpp::GetSpellingFromOperator(Cpp::Operator::OP_Less), "<");
+  EXPECT_EQ(Cpp::GetSpellingFromOperator(Cpp::Operator::OP_Plus), "+");
+  EXPECT_EQ(Cpp::GetOperatorFromSpelling("->"), Cpp::Operator::OP_Arrow);
+  EXPECT_EQ(Cpp::GetOperatorFromSpelling("()"), Cpp::Operator::OP_Call);
+  EXPECT_EQ(Cpp::GetOperatorFromSpelling("invalid"), Cpp::Operator::OP_None);
 }
 
 TYPED_TEST(CppInterOpTest, TypeReflectionTestTypeQualifiers) {

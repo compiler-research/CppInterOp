@@ -44,7 +44,19 @@ using TCppFuncAddr_t = void*;
 using TInterp_t = void*;
 using TCppObject_t = void*;
 
-enum Operator : unsigned char {
+template <typename T> struct TruthValue {
+  T t;
+  constexpr TruthValue(T t) : t(t) {}
+  constexpr operator T() const { return t; }
+  constexpr explicit operator bool() const { return underlying(t); }
+};
+
+template <typename T> using Underlying = std::underlying_type_t<T>;
+template <typename T> constexpr Underlying<T> underlying(T t) {
+  return Underlying<T>(t);
+}
+
+enum class Operator : unsigned char {
   OP_None,
   OP_New,
   OP_Delete,
@@ -93,18 +105,31 @@ enum Operator : unsigned char {
   OP_Coawait,
 };
 
-enum OperatorArity : unsigned char { kUnary = 1, kBinary, kBoth };
+enum class OperatorArity : unsigned char { kUnary = 1, kBinary, kBoth };
+
+constexpr TruthValue<OperatorArity> operator&(OperatorArity l,
+                                              OperatorArity r) {
+  return OperatorArity(underlying(l) & underlying(r));
+}
+
+constexpr TruthValue<OperatorArity> operator|(OperatorArity l,
+                                              OperatorArity r) {
+  return OperatorArity(underlying(l) | underlying(r));
+}
 
 /// Enum modelling CVR qualifiers.
-enum QualKind : unsigned char {
+enum class QualKind : unsigned char {
   Const = 1 << 0,
   Volatile = 1 << 1,
   Restrict = 1 << 2
 };
 
-inline QualKind operator|(QualKind a, QualKind b) {
-  return static_cast<QualKind>(static_cast<unsigned char>(a) |
-                               static_cast<unsigned char>(b));
+constexpr TruthValue<QualKind> operator&(QualKind l, QualKind r) {
+  return QualKind(underlying(l) & underlying(r));
+}
+
+constexpr TruthValue<QualKind> operator|(QualKind l, QualKind r) {
+  return QualKind(underlying(l) | underlying(r));
 }
 
 /// A class modeling function calls for functions produced by the interpreter
@@ -686,7 +711,7 @@ CPPINTEROP_API OperatorArity GetOperatorArity(TCppFunction_t op);
 ///\returns list of operator overloads
 CPPINTEROP_API void GetOperator(TCppScope_t scope, Operator op,
                                 std::vector<TCppFunction_t>& operators,
-                                OperatorArity kind = kBoth);
+                                OperatorArity kind = OperatorArity::kBoth);
 
 /// Creates an owned instance of the interpreter we need for the various interop
 /// services and pushes it onto a stack.
