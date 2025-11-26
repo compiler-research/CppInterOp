@@ -1233,7 +1233,9 @@ BestOverloadFunctionMatch(const std::vector<TCppFunction_t>& candidates,
   size_t idx = 0;
   for (auto i : arg_types) {
     QualType Type = QualType::getFromOpaquePtr(i.m_Type);
-    ExprValueKind ExprKind = ExprValueKind::VK_PRValue;
+    // XValue is an object that can be "moved" whereas PRValue is temporary
+    // value. This enables overloads that require the object to be moved
+    ExprValueKind ExprKind = ExprValueKind::VK_XValue;
     if (Type->isLValueReferenceType())
       ExprKind = ExprValueKind::VK_LValue;
 
