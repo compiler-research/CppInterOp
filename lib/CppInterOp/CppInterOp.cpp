@@ -1696,14 +1696,13 @@ bool IsReferenceType(TCppType_t type) {
   return QT->isReferenceType();
 }
 
-bool IsLValueReferenceType(TCppType_t type) {
+ValueKind GetValueKind(TCppType_t type) {
   QualType QT = QualType::getFromOpaquePtr(type);
-  return QT->isLValueReferenceType();
-}
-
-bool IsRValueReferenceType(TCppType_t type) {
-  QualType QT = QualType::getFromOpaquePtr(type);
-  return QT->isRValueReferenceType();
+  if (QT->isRValueReferenceType())
+    return ValueKind::RValue;
+  if (QT->isLValueReferenceType())
+    return ValueKind::LValue;
+  return ValueKind::None;
 }
 
 TCppType_t GetPointerType(TCppType_t type) {
