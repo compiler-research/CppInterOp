@@ -106,7 +106,7 @@ runs:
 
         set -o pipefail
         os="${{ matrix.os }}"
-        if [[ "${os}" != "macos"* ]]; then
+        if [[ "${os}" != "macos"* && "${matrix.Valgrind}" == "On" ]]; then
           echo "Running valgrind on passing tests"
           CLANG_VERSION="${{ matrix.clang-runtime }}"
 

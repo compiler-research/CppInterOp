@@ -58,7 +58,7 @@ runs:
         else
           cmake --build . --target check-cppinterop --parallel ${{ env.ncpus }}
           os="${{ matrix.os }}"
-          if [[ "${os}" != "macos"* ]]; then
+          if [[ "${os}" != "macos"* && "${matrix.Valgrind}" == "On" ]]; then
             CLANG_VERSION="${{ matrix.clang-runtime }}"
             if [[ "$CLANG_VERSION" == "20" && "${{ matrix.cling }}" == "Off" ]]; then
               SUPPRESSION_FILE="../etc/clang${CLANG_VERSION}-valgrind.supp"
