@@ -3455,6 +3455,9 @@ TInterp_t CreateInterpreter(const std::vector<const char*>& Args /*={}*/,
       *I, "__clang_Interpreter_SetValueNoAlloc",
       reinterpret_cast<uint64_t>(&__clang_Interpreter_SetValueNoAlloc));
 #endif
+  if(CPPINTEROP_ENABLE_CLAD) {
+    Cpp::AddIncludePath(CLAD_INCLUDE_DIRS);
+  }
   return I;
 }
 
