@@ -287,6 +287,9 @@ CPPINTEROP_API bool IsNamespace(TCppScope_t scope);
 /// Checks if the scope is a class or not.
 CPPINTEROP_API bool IsClass(TCppScope_t scope);
 
+/// Checks if the scope is a CUDA function or not.
+CPPINTEROP_API bool IsCUDAFunction(TCppScope_t scope);
+
 /// Checks if the scope is a function.
 CPPINTEROP_API bool IsFunction(TCppScope_t scope);
 
