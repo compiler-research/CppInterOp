@@ -388,7 +388,6 @@ micromamba create -n xeus-lite-host jupyterlite-core=0.6 jupyterlite-xeus jupyte
 micromamba activate xeus-lite-host
 jupyter lite serve --XeusAddon.prefix=$PREFIX \
                    --contents xeus-cpp/notebooks/xeus-cpp-lite-demo.ipynb \
-                   --contents xeus-cpp/notebooks/smallpt.ipynb \
                    --contents xeus-cpp/notebooks/images/marie.png \
                    --contents xeus-cpp/notebooks/audio/audio.wav \
                    --XeusAddon.mounts="$PREFIX/share/xeus-cpp/tagfiles:/share/xeus-cpp/tagfiles" \
@@ -403,7 +402,6 @@ micromamba create -n xeus-lite-host jupyterlite-core=0.6 jupyterlite-xeus jupyte
 micromamba activate xeus-lite-host
 jupyter lite serve --XeusAddon.prefix="$env:PREFIX" `
                    --contents xeus-cpp/notebooks/xeus-cpp-lite-demo.ipynb `
-                   --contents xeus-cpp/notebooks/smallpt.ipynb `
                    --contents xeus-cpp/notebooks/images/marie.png `
                    --contents xeus-cpp/notebooks/audio/audio.wav `
                    --XeusAddon.mounts="$env:PREFIX/share/xeus-cpp/tagfiles:/share/xeus-cpp/tagfiles" `
