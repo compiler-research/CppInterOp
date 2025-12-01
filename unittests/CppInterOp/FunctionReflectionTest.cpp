@@ -973,6 +973,56 @@ TYPED_TEST(CppInterOpTest, FunctionReflectionTestInstantiateVariadicFunction) {
             "fixedParam, MyClass args, double args)");
 }
 
+TYPED_TEST(CppInterOpTest, FunctionReflectionTestBestOverloadFunctionMatch0) {
+  // make sure templates are not instantiated multiple times
+  std::vector<Decl*> Decls;
+  std::string code = R"(
+  template <typename T1, typename T2 = int>
+  void Tfn(T1& t1, T2& t2) {}
+  )";
+  GetAllTopLevelDecls(code, Decls);
+  EXPECT_EQ(Decls.size(), 1);
+
+  std::vector<Cpp::TCppFunction_t> candidates;
+  candidates.reserve(Decls.size());
+  for (auto* i : Decls)
+    candidates.push_back(i);
+
+  ASTContext& C = Interp->getCI()->getASTContext();
+
+  std::vector<Cpp::TemplateArgInfo> args0 = {
+      C.getLValueReferenceType(C.DoubleTy).getAsOpaquePtr(),
+      C.getLValueReferenceType(C.IntTy).getAsOpaquePtr(),
+  };
+
+  std::vector<Cpp::TemplateArgInfo> explicit_args0;
+  std::vector<Cpp::TemplateArgInfo> explicit_args1 = {
+      C.DoubleTy.getAsOpaquePtr()};
+  std::vector<Cpp::TemplateArgInfo> explicit_args2 = {
+      C.DoubleTy.getAsOpaquePtr(),
+      C.IntTy.getAsOpaquePtr(),
+  };
+
+  Cpp::TCppScope_t fn0 =
+      Cpp::BestOverloadFunctionMatch(candidates, explicit_args0, args0);
+  EXPECT_TRUE(fn0);
+
+  Cpp::TCppScope_t fn =
+      Cpp::BestOverloadFunctionMatch(candidates, explicit_args1, args0);
+  EXPECT_EQ(fn, fn0);
+
+  fn = Cpp::BestOverloadFunctionMatch(candidates, explicit_args2, args0);
+  EXPECT_EQ(fn, fn0);
+
+  fn = Cpp::InstantiateTemplate(Decls[0], explicit_args1.data(),
+                                explicit_args1.size());
+  EXPECT_EQ(fn, fn0);
+
+  fn = Cpp::InstantiateTemplate(Decls[0], explicit_args2.data(),
+                                explicit_args2.size());
+  EXPECT_EQ(fn, fn0);
+}
+
 TYPED_TEST(CppInterOpTest, FunctionReflectionTestBestOverloadFunctionMatch1) {
   std::vector<Decl*> Decls;
   std::string code = R"(
@@ -1270,6 +1320,48 @@ TYPED_TEST(CppInterOpTest, FunctionReflectionTestBestOverloadFunctionMatch4) {
             "template<> void B::fn<int, double>(A<int> x, A<double> y)");
   EXPECT_EQ(Cpp::GetFunctionSignature(func5),
             "template<> void B::fn<int, int>(A<int> x, A<int> y)");
+}
+
+TYPED_TEST(CppInterOpTest, FunctionReflectionTestBestOverloadFunctionMatch5) {
+  std::vector<Decl*> Decls;
+  std::string code = R"(
+    template<typename T1, typename T2>
+    void callme(T1 t1, T2 t2) {}
+
+    template <typename F, typename... Args>
+    void callback(F callable, Args&&... args) {
+      callable(args...);
+    }
+  )";
+  GetAllTopLevelDecls(code, Decls);
+  EXPECT_EQ(Decls.size(), 2);
+
+  std::vector<Cpp::TCppFunction_t> candidates;
+  candidates.push_back(Decls[1]);
+
+  ASTContext& C = Interp->getCI()->getASTContext();
+  std::vector<Cpp::TemplateArgInfo> explicit_params = {
+      C.DoubleTy.getAsOpaquePtr(),
+      C.IntTy.getAsOpaquePtr(),
+  };
+
+  Cpp::TCppScope_t callme = Cpp::InstantiateTemplate(
+      Decls[0], explicit_params.data(), explicit_params.size());
+  EXPECT_TRUE(callme);
+
+  std::vector<Cpp::TemplateArgInfo> arg_types = {
+      Cpp::GetTypeFromScope(callme),
+      C.getLValueReferenceType(C.DoubleTy).getAsOpaquePtr(),
+      C.getLValueReferenceType(C.IntTy).getAsOpaquePtr(),
+  };
+
+  Cpp::TCppScope_t callback =
+      Cpp::BestOverloadFunctionMatch(candidates, {}, arg_types);
+  EXPECT_TRUE(callback);
+
+  EXPECT_EQ(Cpp::GetFunctionSignature(callback),
+            "template<> void callback<void (*)(double, int), <double &, int "
+            "&>>(void (*callable)(double, int), double &args, int &args)");
 }
 
 TYPED_TEST(CppInterOpTest, FunctionReflectionTestIsPublicMethod) {
