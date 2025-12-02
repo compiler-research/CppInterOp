@@ -1950,7 +1950,7 @@ TYPED_TEST(CppInterOpTest, FunctionReflectionTestGetFunctionCallWrapper) {
 
   EXPECT_TRUE(toperator);
   std::vector<Cpp::TCppScope_t> operators;
-  Cpp::GetOperator(TOperator, Cpp::OP_Less, operators);
+  Cpp::GetOperator(TOperator, Cpp::Operator::OP_Less, operators);
   EXPECT_EQ(operators.size(), 1);
 
   Cpp::TCppScope_t op_templated = operators[0];
@@ -1993,8 +1993,8 @@ TYPED_TEST(CppInterOpTest, FunctionReflectionTestGetFunctionCallWrapper) {
   Cpp::TCppType_t K1 = Cpp::GetTypeFromScope(Cpp::GetNamed("K1"));
   Cpp::TCppType_t K2 = Cpp::GetTypeFromScope(Cpp::GetNamed("K2"));
   operators.clear();
-  Cpp::GetOperator(Cpp::GetScope("N2", Cpp::GetScope("N1")), Cpp::OP_Plus,
-                   operators);
+  Cpp::GetOperator(Cpp::GetScope("N2", Cpp::GetScope("N1")),
+                   Cpp::Operator::OP_Plus, operators);
   EXPECT_EQ(operators.size(), 1);
   Cpp::TCppFunction_t kop =
       Cpp::BestOverloadFunctionMatch(operators, {}, {K1, K2});
@@ -2224,7 +2224,7 @@ TYPED_TEST(CppInterOpTest, FunctionReflectionTestGetFunctionCallWrapper) {
   EXPECT_TRUE(KlassProduct_float);
 
   operators.clear();
-  Cpp::GetOperator(KlassProduct_int, Cpp::OP_Star, operators);
+  Cpp::GetOperator(KlassProduct_int, Cpp::Operator::OP_Star, operators);
   EXPECT_EQ(operators.size(), 2);
 
   op = Cpp::BestOverloadFunctionMatch(
