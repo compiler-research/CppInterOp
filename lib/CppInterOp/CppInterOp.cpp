@@ -48,6 +48,11 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Demangle/Demangle.h"
+#if CLANG_VERSION_MAJOR >= 20
+#include "llvm/ExecutionEngine/Orc/AbsoluteSymbols.h"
+#include "llvm/ExecutionEngine/Orc/CoreContainers.h"
+#endif
+#include "llvm/ExecutionEngine/Orc/Core.h"
 #include "llvm/ExecutionEngine/Orc/Shared/ExecutorAddress.h"
 #include "llvm/IR/GlobalValue.h"
 #include "llvm/Support/Casting.h"
@@ -3175,6 +3180,29 @@ CPPINTEROP_API JitCall MakeFunctionCallable(TCppConstFunction_t func) {
 }
 
 namespace {
+#if !defined(CPPINTEROP_USE_CLING) && !defined(EMSCRIPTEN)
+bool DefineAbsoluteSymbol(compat::Interpreter& I,
+                          const char* linker_mangled_name, uint64_t address) {
+  using namespace llvm;
+  using namespace llvm::orc;
+
+  llvm::orc::LLJIT& Jit = *compat::getExecutionEngine(I);
+  llvm::orc::ExecutionSession& ES = Jit.getExecutionSession();
+  JITDylib& DyLib = *Jit.getProcessSymbolsJITDylib().get();
+
+  llvm::orc::SymbolMap InjectedSymbols{
+      {ES.intern(linker_mangled_name),
+       ExecutorSymbolDef(ExecutorAddr(address), JITSymbolFlags::Exported)}};
+
+  if (Error Err = DyLib.define(absoluteSymbols(InjectedSymbols))) {
+    logAllUnhandledErrors(std::move(Err), errs(),
+                          "DefineAbsoluteSymbol error: ");
+    return true;
+  }
+  return false;
+}
+#endif
+
 static std::string MakeResourcesPath() {
   StringRef Dir;
 #ifdef LLVM_BINARY_DIR
