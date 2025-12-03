@@ -79,8 +79,22 @@ TYPED_TEST(CppInterOpTest, InterpreterTestEvaluate) {
   bool HadError;
   EXPECT_TRUE(Cpp::Evaluate("#error", &HadError) == (intptr_t)~0UL);
   EXPECT_TRUE(HadError);
+  // for llvm < 19 this tests different overloads of
+  // __clang_Interpreter_SetValueNoAlloc
   EXPECT_EQ(Cpp::Evaluate("int i = 11; ++i", &HadError), 12);
-  EXPECT_FALSE(HadError) ;
+  EXPECT_FALSE(HadError);
+  EXPECT_EQ(Cpp::Evaluate("double a = 12.; a", &HadError), 12.);
+  EXPECT_FALSE(HadError);
+  EXPECT_EQ(Cpp::Evaluate("float b = 13.; b", &HadError), 13.);
+  EXPECT_FALSE(HadError);
+  EXPECT_EQ(Cpp::Evaluate("long double c = 14.; c", &HadError), 14.);
+  EXPECT_FALSE(HadError);
+  EXPECT_EQ(Cpp::Evaluate("long double d = 15.; d", &HadError), 15.);
+  EXPECT_FALSE(HadError);
+  EXPECT_EQ(Cpp::Evaluate("unsigned long long e = 16; e", &HadError), 16);
+  EXPECT_FALSE(HadError);
+  EXPECT_NE(Cpp::Evaluate("struct S{} s; s", &HadError), (intptr_t)~0UL);
+  EXPECT_FALSE(HadError);
 }
 
 TYPED_TEST(CppInterOpTest, InterpreterTestDeleteInterpreter) {
