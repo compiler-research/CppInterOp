@@ -723,11 +723,15 @@ TYPED_TEST(CppInterOpTest, VariableReflectionTestIs_Get_Reference) {
 
   EXPECT_FALSE(Cpp::GetNonReferenceType(Cpp::GetVariableType(Decls[5])));
 
-  EXPECT_TRUE(Cpp::IsLValueReferenceType(Cpp::GetVariableType(Decls[2])));
+  EXPECT_EQ(Cpp::GetValueKind(Cpp::GetVariableType(Decls[2])),
+            Cpp::ValueKind::LValue);
   EXPECT_EQ(Cpp::GetReferencedType(Cpp::GetVariableType(Decls[1])),
             Cpp::GetVariableType(Decls[2]));
-  EXPECT_TRUE(Cpp::IsRValueReferenceType(
-      Cpp::GetReferencedType(Cpp::GetVariableType(Decls[1]), true)));
+  EXPECT_EQ(Cpp::GetValueKind(
+                Cpp::GetReferencedType(Cpp::GetVariableType(Decls[1]), true)),
+            Cpp::ValueKind::RValue);
+  EXPECT_EQ(Cpp::GetValueKind(Cpp::GetVariableType(Decls[1])),
+            Cpp::ValueKind::None);
 }
 
 TYPED_TEST(CppInterOpTest, VariableReflectionTestGetPointerType) {

@@ -107,6 +107,12 @@ inline QualKind operator|(QualKind a, QualKind b) {
                                static_cast<unsigned char>(b));
 }
 
+enum class ValueKind : std::uint8_t {
+  None,
+  LValue,
+  RValue,
+};
+
 /// A class modeling function calls for functions produced by the interpreter
 /// in compiled code. It provides an information if we are calling a standard
 /// function, constructor or destructor.
@@ -615,11 +621,8 @@ CPPINTEROP_API TCppType_t GetPointeeType(TCppType_t type);
 /// Checks if type is a reference
 CPPINTEROP_API bool IsReferenceType(TCppType_t type);
 
-/// Checks if type is a LValue reference
-CPPINTEROP_API bool IsLValueReferenceType(TCppType_t type);
-
-/// Checks if type is a LValue reference
-CPPINTEROP_API bool IsRValueReferenceType(TCppType_t type);
+/// Get if lvalue or rvalue reference
+CPPINTEROP_API ValueKind GetValueKind(TCppType_t type);
 
 /// Get the type that the reference refers to
 CPPINTEROP_API TCppType_t GetNonReferenceType(TCppType_t type);

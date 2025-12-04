@@ -31,6 +31,7 @@ jobs:
             cppyy: Off
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
+            Valgrind: On
           - name: ubu24-arm-gcc12-clang-repl-20
             os: ubuntu-24.04-arm
             compiler: gcc-12
@@ -73,6 +74,7 @@ jobs:
             cppyy: Off
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
+            Valgrind: On
           - name: ubu24-x86-gcc12-clang-repl-20
             os: ubuntu-24.04
             compiler: gcc-12
@@ -90,7 +92,9 @@ jobs:
             llvm_enable_projects: "clang;compiler-rt"
             llvm_targets_to_build: "host;NVPTX"
             oop-jit: On
-          - name: ubu24-x86-gcc12-clang-repl-20-out-of-process-coverage
+            coverage: true
+            Valgrind: On
+           - name: ubu24-x86-gcc12-clang-repl-20-out-of-process-coverage
             os: ubuntu-24.04
             compiler: gcc-12
             clang-runtime: '20'
@@ -343,5 +347,3 @@ jobs:
       uses: mxschmitt/action-tmate@v3
       # When debugging increase to a suitable value!
       timeout-minutes: 30
-
-

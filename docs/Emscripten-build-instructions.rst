@@ -410,7 +410,6 @@ To build and test Jupyter Lite with this kernel locally on Linux/MacOS you can e
    micromamba activate xeus-lite-host
    jupyter lite serve --XeusAddon.prefix=$PREFIX \
                       --contents xeus-cpp/notebooks/xeus-cpp-lite-demo.ipynb \
-                      --contents xeus-cpp/notebooks/smallpt.ipynb \
                       --contents xeus-cpp/notebooks/images/marie.png \ 
                       --contents xeus-cpp/notebooks/audio/audio.wav \
                       --XeusAddon.mounts="$PREFIX/share/xeus-cpp/tagfiles:/share/xeus-cpp/tagfiles" \
@@ -425,7 +424,6 @@ and on Windows execute
    micromamba activate xeus-lite-host
    jupyter lite serve --XeusAddon.prefix="$env:PREFIX" `
                       --contents xeus-cpp/notebooks/xeus-cpp-lite-demo.ipynb `
-                      --contents xeus-cpp/notebooks/smallpt.ipynb `
                       --contents xeus-cpp/notebooks/images/marie.png ` 
                       --contents xeus-cpp/notebooks/audio/audio.wav `
                       --XeusAddon.mounts="$env:PREFIX/share/xeus-cpp/tagfiles:/share/xeus-cpp/tagfiles" `
