@@ -23,33 +23,6 @@ jobs:
       matrix:
         include:
           # Ubuntu Arm Jobs
-          - name: ubu24-arm-gcc15-clang-repl-20
-            os: ubuntu-24.04-arm
-            compiler: gcc-15
-            clang-runtime: '20'
-            cling: Off
-            cppyy: Off
-            llvm_enable_projects: "clang"
-            llvm_targets_to_build: "host;NVPTX"
-            Valgrind: On
-          - name: ubu24-arm-gcc14-clang-repl-20
-            os: ubuntu-24.04-arm
-            compiler: gcc-14
-            clang-runtime: '20'
-            cling: Off
-            cppyy: Off
-            llvm_enable_projects: "clang"
-            llvm_targets_to_build: "host;NVPTX"
-            Valgrind: On
-          - name: ubu24-arm-gcc13-clang-repl-20
-            os: ubuntu-24.04-arm
-            compiler: gcc-13
-            clang-runtime: '20'
-            cling: Off
-            cppyy: Off
-            llvm_enable_projects: "clang"
-            llvm_targets_to_build: "host;NVPTX"
-            Valgrind: On  
           - name: ubu24-arm-gcc12-clang-repl-20
             os: ubuntu-24.04-arm
             compiler: gcc-12
@@ -96,6 +69,22 @@ jobs:
             coverage: true
             oop-jit: On
             Valgrind: On
+          - name: ubu24-x86-gcc14-clang-repl-20
+            os: ubuntu-24.04
+            compiler: gcc-14
+            clang-runtime: '20'
+            cling: Off
+            cppyy: Off
+            llvm_enable_projects: "clang"
+            llvm_targets_to_build: "host;NVPTX"
+          - name: ubu24-x86-gcc13-clang-repl-20
+            os: ubuntu-24.04
+            compiler: gcc-13
+            clang-runtime: '20'
+            cling: Off
+            cppyy: Off
+            llvm_enable_projects: "clang"
+            llvm_targets_to_build: "host;NVPTX"
           - name: ubu24-x86-gcc12-clang-repl-20
             os: ubuntu-24.04
             compiler: gcc-12
@@ -340,5 +329,6 @@ jobs:
       uses: mxschmitt/action-tmate@v3
       # When debugging increase to a suitable value!
       timeout-minutes: 30
+
 
 
