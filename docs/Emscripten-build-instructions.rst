@@ -32,19 +32,19 @@ Now move into this directory using the following command
 
 To create a wasm build of CppInterOp we make use of the emsdk toolchain.
 This can be installed by executing (we only currently support version
-3.1.73)
+4.0.9)
 
 .. code:: bash
 
    git clone https://github.com/emscripten-core/emsdk.git
-   ./emsdk/emsdk install  3.1.73
+   ./emsdk/emsdk install  4.0.9
 
 and to activate the emsdk environment on Linux and osx execute 
 (we are defining SYSROOT_PATH for use later)
 
 .. code:: bash
 
-   ./emsdk/emsdk activate 3.1.73
+   ./emsdk/emsdk activate 4.0.9
    source ./emsdk/emsdk_env.sh
    export SYSROOT_PATH=$PWD/emsdk/upstream/emscripten/cache/sysroot
 
@@ -52,7 +52,7 @@ and on Windows execute in Powershell
 
 .. code:: powershell
 
-   .\emsdk\emsdk activate 3.1.73
+   .\emsdk\emsdk activate 4.0.9
    .\emsdk\emsdk_env.ps1
    $env:PWD_DIR= $PWD.Path
    $env:SYSROOT_PATH="$env:EMSDK/upstream/emscripten/cache/sysroot"
