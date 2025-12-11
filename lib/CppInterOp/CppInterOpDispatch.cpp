@@ -8,7 +8,7 @@
 
 #include <unordered_map>
 
-static const FunctionEntry api_function_table[] = {
+static const std::unordered_map<std::string_view, __CPP_FUNC> INTEROP_FUNCTIONS = {
     {"GetInterpreter", (__CPP_FUNC)Cpp::GetInterpreter},
     {"CreateInterpreter", (__CPP_FUNC)Cpp::CreateInterpreter},
     {"Process", (__CPP_FUNC)Cpp::Process},
@@ -20,7 +20,7 @@ static const FunctionEntry api_function_table[] = {
     {"IsNamespace", (__CPP_FUNC)Cpp::IsNamespace},
     {"ObjToString", (__CPP_FUNC)Cpp::ObjToString},
     {"GetQualifiedCompleteName", (__CPP_FUNC)Cpp::GetQualifiedCompleteName},
-    {"IsLValueReferenceType", (__CPP_FUNC)Cpp::IsLValueReferenceType},
+    {"GetValueKind", (__CPP_FUNC)Cpp::GetValueKind},
     {"GetNonReferenceType", (__CPP_FUNC)Cpp::GetNonReferenceType},
     {"IsEnumType", (__CPP_FUNC)Cpp::IsEnumType},
     {"GetIntegerTypeFromEnumType", (__CPP_FUNC)Cpp::GetIntegerTypeFromEnumType},
@@ -131,27 +131,12 @@ static const FunctionEntry api_function_table[] = {
     {"AddSearchPath", (__CPP_FUNC)Cpp::AddSearchPath},
     {"Evaluate", (__CPP_FUNC)Cpp::Evaluate},
     {"IsDebugOutputEnabled", (__CPP_FUNC)Cpp::IsDebugOutputEnabled},
-    {"EnableDebugOutput", (__CPP_FUNC)Cpp::EnableDebugOutput},
-    {nullptr, nullptr} /* end of list */
+    {"EnableDebugOutput", (__CPP_FUNC)Cpp::EnableDebugOutput}
 };
 
 static inline __CPP_FUNC _cppinterop_get_proc_address(const char* funcName) {
-  static const std::unordered_map<std::string_view, __CPP_FUNC> function_map =
-      [] {
-        std::unordered_map<std::string_view, __CPP_FUNC> map;
-        size_t count = 0;
-        while (api_function_table[count].name != nullptr)
-          ++count;
-        map.reserve(count);
-
-        for (size_t i = 0; i < count; ++i) {
-          map[api_function_table[i].name] = api_function_table[i].address;
-        }
-        return map;
-      }();
-
-  auto it = function_map.find(funcName);
-  return (it != function_map.end()) ? it->second : nullptr;
+    auto it = INTEROP_FUNCTIONS.find(funcName);
+    return (it != INTEROP_FUNCTIONS.end()) ? it->second : nullptr;
 }
 
 void (*CppGetProcAddress(const unsigned char* procName))(void) {
