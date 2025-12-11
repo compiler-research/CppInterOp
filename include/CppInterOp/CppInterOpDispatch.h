@@ -55,7 +55,7 @@ extern "C" CPPINTEROP_API void (
   DO(IsNamespace)                                                              \
   DO(ObjToString)                                                              \
   DO(GetQualifiedCompleteName)                                                 \
-  DO(IsLValueReferenceType)                                                    \
+  DO(GetValueKind)                                                    \
   DO(GetNonReferenceType)                                                      \
   DO(IsEnumType)                                                               \
   DO(GetIntegerTypeFromEnumType)                                               \
@@ -178,6 +178,7 @@ using Operator = ::Cpp::Operator;
 using OperatorArity = ::Cpp::OperatorArity;
 using QualKind = ::Cpp::QualKind;
 using TemplateArgInfo = ::Cpp::TemplateArgInfo;
+using ValueKind = ::Cpp::ValueKind;
 
 using JitCall = ::Cpp::JitCall;
 } // end namespace CppDispatch
@@ -390,7 +391,7 @@ using GetPointeeType = Cpp::TCppType_t (*)(Cpp::TCppType_t type);
 
 using IsReferenceType = bool (*)(Cpp::TCppType_t type);
 
-using IsLValueReferenceType = bool (*)(Cpp::TCppType_t type);
+using GetValueKind = Cpp::ValueKind (*)(Cpp::TCppType_t type);
 
 using IsRValueReferenceType = bool (*)(Cpp::TCppType_t type);
 
