@@ -1547,7 +1547,7 @@ TYPED_TEST(CppInterOpTest, FunctionReflectionTestGetFunctionAddress) {
 
   std::vector<Decl*> Decls;
   std::string code = "int f1(int i) { return i * i; }";
-  std::vector<const char*> interpreter_args = {"-include", "new"};
+  std::vector<const char*> interpreter_args = {"-include", "new", "-Xclang", "-iwithsysroot/include/compat"};
 
   GetAllTopLevelDecls(code, Decls, /*filter_implicitGenerated=*/false,
                       interpreter_args);

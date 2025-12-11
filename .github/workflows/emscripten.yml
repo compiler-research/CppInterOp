@@ -27,28 +27,28 @@ jobs:
             cling: Off
             llvm_enable_projects: "clang;lld"
             llvm_targets_to_build: "WebAssembly"
-            emsdk_ver: "3.1.73"
+            emsdk_ver: "4.0.9"
           - name: osx26-arm-clang-repl-20-emscripten
             os: macos-26
             clang-runtime: '20'
             cling: Off
             llvm_enable_projects: "clang;lld"
             llvm_targets_to_build: "WebAssembly"
-            emsdk_ver: "3.1.73"
+            emsdk_ver: "4.0.9"
           - name: ubu24-x86-clang-repl-20-emscripten
             os: ubuntu-24.04
             clang-runtime: '20'
             cling: Off
             llvm_enable_projects: "clang;lld"
             llvm_targets_to_build: "WebAssembly"
-            emsdk_ver: "3.1.73"
+            emsdk_ver: "4.0.9"
           - name: win2025-x86-clang-repl-20-emscripten
             os: windows-2025
             clang-runtime: '20'
             cling: Off
             llvm_enable_projects: "clang;lld"
             llvm_targets_to_build: "WebAssembly"
-            emsdk_ver: "3.1.73"
+            emsdk_ver: "4.0.9"
 
     steps:
     - uses: actions/checkout@v5
@@ -366,25 +366,25 @@ jobs:
             clang-runtime: '20'
             cling: Off
             micromamba_shell_init: bash
-            emsdk_ver: "3.1.73"
+            emsdk_ver: "4.0.9"
           - name: osx26-arm-clang-repl-20-emscripten_wasm
             os: macos-26
             clang-runtime: '20'
             cling: Off
             micromamba_shell_init: bash
-            emsdk_ver: "3.1.73"
+            emsdk_ver: "4.0.9"
           - name: ubu24-arm-clang-repl-20-emscripten_wasm
             os: ubuntu-24.04-arm
             clang-runtime: '20'
             cling: Off
             micromamba_shell_init: bash
-            emsdk_ver: "3.1.73"
+            emsdk_ver: "4.0.9"
           - name: win2025-x86-clang-repl-20-emscripten
             os: windows-2025
             clang-runtime: '20'
             cling: Off
             micromamba_shell_init: powershell
-            emsdk_ver: "3.1.73"
+            emsdk_ver: "4.0.9"
 
     steps:
     - uses: actions/checkout@v5
@@ -479,7 +479,6 @@ jobs:
                 -DSYSROOT_PATH=$SYSROOT_PATH                     \
                 ../
         fi
-
         emmake make -j ${{ env.ncpus }} check-cppinterop
         os="${{ matrix.os }}"
         if [[ "${os}" != macos* ]] ; then
