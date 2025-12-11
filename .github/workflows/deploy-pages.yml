@@ -21,8 +21,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: osx15-arm-clang-repl-20-emscripten_wasm
-            os: macos-15
+          - name: osx26-arm-clang-repl-20-emscripten_wasm
+            os: macos-26
             clang-runtime: '20'
             cling: Off
             micromamba_shell_init: bash
