@@ -1,6 +1,6 @@
 #include "Utils.h"
 
-#include "CppInterOp/CppDispatch.h"
+#include "CppInterOp/CppInterOpDispatch.h"
 
 #include "gtest/gtest.h"
 
