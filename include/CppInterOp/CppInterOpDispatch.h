@@ -17,13 +17,20 @@
 #include <string>
 #include <vector>
 
+#include <cstdlib>
+#include <dlfcn.h>
+#include <iostream>
+#include <mutex>
+
 #include <CppInterOp/CppInterOp.h>
 
+// Configured by CMake, can be overridden by defining before including this
+// header
+#ifndef CPPINTEROP_LIBRARY_PATH
+#define CPPINTEROP_LIBRARY_PATH "@CPPINTEROP_LIBRARY_PATH@"
+#endif
+
 using __CPP_FUNC = void (*)();
-struct FunctionEntry {
-  const char* name;
-  __CPP_FUNC address;
-};
 
 ///\param[in] procname - the name of the FunctionEntry in the symbol lookup
 /// table.
@@ -517,5 +524,74 @@ using MakeFunctionCallable = Cpp::JitCall (*)(Cpp::TCppConstFunction_t func);
 using GetFunctionAddress =
     Cpp::TCppFuncAddr_t (*)(Cpp::TCppConstFunction_t func);
 } // end namespace CppAPIType
+
+// TODO: implement overload that takes an existing opened DL handle
+inline void* dlGetProcAddress(const char* name,
+                              const char* customLibPath = nullptr) {
+  if (!name)
+    return nullptr;
+
+  static std::once_flag loaded;
+  static void* handle = nullptr;
+  static void* (*getCppProcAddress)(const char*) = nullptr;
+
+  std::call_once(loaded, [customLibPath]() {
+    // priority order: 1) custom path argument, or CPPINTEROP_LIBRARY_PATH via
+    // 2) cmake configured path 3) env vars
+    const char* libPath = customLibPath;
+    if (!libPath) {
+      libPath = std::getenv("CPPINTEROP_LIBRARY_PATH");
+    }
+    if (!libPath || libPath[0] == '\0') {
+      libPath = CPPINTEROP_LIBRARY_PATH;
+    }
+
+    handle = dlopen(libPath, RTLD_LOCAL | RTLD_NOW);
+    if (!handle) {
+      std::cerr << "[CppInterOp] Failed to load library from " << libPath
+                << ": " << dlerror() << '\n';
+      return;
+    }
+
+    getCppProcAddress = reinterpret_cast<void* (*)(const char*)>(
+        dlsym(handle, "CppGetProcAddress"));
+    if (!getCppProcAddress) {
+      std::cerr << "[CppInterOp] Failed to find CppGetProcAddress: "
+                << dlerror() << '\n';
+      dlclose(handle);
+      handle = nullptr;
+    }
+  });
+
+  return getCppProcAddress ? getCppProcAddress(name) : nullptr;
+}
+namespace CppDispatch {
+FOR_EACH_CPP_FUNCTION(EXTERN_CPP_FUNC);
+/// Initialize all CppInterOp API from the dynamically loaded library
+/// (RTLD_LOCAL) \param[in] customLibPath Optional custom path to
+/// libclangCppInterOp.so \returns true if initialization succeeded, false
+/// otherwise
+inline bool init_functions(const char* customLibPath = nullptr) {
+  // trigger library loading if custom path provided
+  if (customLibPath) {
+    void* test = dlGetProcAddress("GetInterpreter", customLibPath);
+    if (!test) {
+      std::cerr << "[CppInterOp] Failed to initialize with custom path: "
+                << customLibPath << '\n';
+      return false;
+    }
+  }
+
+  FOR_EACH_CPP_FUNCTION(LOAD_CPP_FUNCTION);
+
+  // test to verify that critical (and consequently all) functions loaded
+  if (!GetInterpreter || !CreateInterpreter) {
+    std::cerr << "[CppInterOp] Failed to load critical functions" << std::endl;
+    return false;
+  }
+
+  return true;
+}
+} // namespace CppDispatch
 
 #endif // CPPINTEROP_CPPINTEROPDISPATCH_H
