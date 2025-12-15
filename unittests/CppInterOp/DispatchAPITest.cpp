@@ -10,19 +10,9 @@ using namespace TestUtils;
 using namespace llvm;
 using namespace clang;
 
-static void* dlGetProcAddress(const char* name) {
-  static void* handle = dlopen(CPPINTEROP_LIB_DIR, RTLD_LAZY | RTLD_LOCAL);
-  EXPECT_NE(handle, nullptr) << "Failed to open library: " << dlerror();
-  if (!handle)
-    return nullptr;
-  static void* gpa = dlsym(handle, "CppGetProcAddress");
-  EXPECT_NE(gpa, nullptr) << "Failed to find GetProcAddress: " << dlerror();
-  return reinterpret_cast<void* (*)(const char*)>(gpa)(name);
-}
-
 TEST(DispatchAPITestTest, IsClassSymbolLookup) {
-  CppAPIType::IsClass IsClassFn =
-      reinterpret_cast<CppAPIType::IsClass>(dlGetProcAddress("IsClass"));
+  CppAPIType::IsClass IsClassFn = reinterpret_cast<CppAPIType::IsClass>(
+      dlGetProcAddress("IsClass", CPPINTEROP_LIB_DIR));
   ASSERT_NE(IsClassFn, nullptr) << "failed to locate symbol: " << dlerror();
   std::vector<Decl*> Decls;
   GetAllTopLevelDecls("namespace N {} class C{}; int I;", Decls);
@@ -51,8 +41,8 @@ TEST(DispatchAPITestTest, Demangle) {
   compat::maybeMangleDeclName(Add_double, mangled_add_double);
 
   // CppAPIType:: gives us the specific function pointer types
-  CppAPIType::Demangle DemangleFn =
-      reinterpret_cast<CppAPIType::Demangle>(dlGetProcAddress("Demangle"));
+  CppAPIType::Demangle DemangleFn = reinterpret_cast<CppAPIType::Demangle>(
+      dlGetProcAddress("Demangle", CPPINTEROP_LIB_DIR));
   CppAPIType::GetQualifiedCompleteName GetQualifiedCompleteNameFn =
       reinterpret_cast<CppAPIType::GetQualifiedCompleteName>(
           dlGetProcAddress("GetQualifiedCompleteName"));
