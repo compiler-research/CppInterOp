@@ -118,6 +118,12 @@ If you want to have out-of-process JIT execution enabled in CppInterOp, then app
 git apply -v ../CppInterOp/patches/llvm/clang20-1-out-of-process.patch
 ```
 
+MacOS builds also require the following patch be applied regardless of building the out of process JIT or not
+
+```bash
+git apply -v ../CppInterOp/patches/llvm/clang-21-1-add-back-darwin-legacy-framework.patch
+```
+
 ##### Build Clang-REPL
 
 Clang-REPL is an interpreter that CppInterOp works alongside. Build Clang (and
