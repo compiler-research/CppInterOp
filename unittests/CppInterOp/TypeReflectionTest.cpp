@@ -853,3 +853,69 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, TypeReflection_IsSameType) {
   EXPECT_TRUE(Cpp::IsSameType(Cpp::GetVariableType(Decls[5]),
                               Cpp::GetVariableType(Decls[6])));
 }
+
+TYPED_TEST(CPPINTEROP_TEST_MODE, TypeReflection_IsEquivalentTypes) {
+  std::vector<Decl*> Decls;
+  std::string code = R"(
+    int a;
+    const int b = 0;
+    int& c = a;
+    const int& d = b;
+    int* e = nullptr;
+    const int* f = nullptr;
+    double g = 0.0;
+  )";
+
+  GetAllTopLevelDecls(code, Decls);
+
+  Cpp::TypeRef t_int = Cpp::GetVariableType(Decls[0]);
+  Cpp::TypeRef t_const_int = Cpp::GetVariableType(Decls[1]);
+  Cpp::TypeRef t_int_ref = Cpp::GetVariableType(Decls[2]);
+  Cpp::TypeRef t_const_int_ref = Cpp::GetVariableType(Decls[3]);
+  Cpp::TypeRef t_int_ptr = Cpp::GetVariableType(Decls[4]);
+  Cpp::TypeRef t_const_int_ptr = Cpp::GetVariableType(Decls[5]);
+  Cpp::TypeRef t_double = Cpp::GetVariableType(Decls[6]);
+
+  Cpp::QualKind qual;
+  Cpp::ValueKind ref;
+  bool pointer;
+
+  // Same type
+  EXPECT_TRUE(Cpp::IsEquivalentTypes(t_int, t_int, qual, ref, pointer));
+  EXPECT_EQ(qual, Cpp::QualKind::None);
+  EXPECT_EQ(ref, Cpp::ValueKind::None);
+  EXPECT_FALSE(pointer);
+
+  // const vs non-const
+  EXPECT_TRUE(Cpp::IsEquivalentTypes(t_int, t_const_int, qual, ref, pointer));
+  EXPECT_TRUE(qual & Cpp::QualKind::Const);
+  EXPECT_FALSE(pointer);
+
+  // reference
+  EXPECT_TRUE(Cpp::IsEquivalentTypes(t_int, t_int_ref, qual, ref, pointer));
+  EXPECT_EQ(ref, Cpp::ValueKind::LValue);
+
+  // const reference
+  EXPECT_TRUE(
+      Cpp::IsEquivalentTypes(t_int, t_const_int_ref, qual, ref, pointer));
+  EXPECT_TRUE(qual & Cpp::QualKind::Const);
+  EXPECT_EQ(ref, Cpp::ValueKind::LValue);
+
+  // pointer
+  EXPECT_TRUE(Cpp::IsEquivalentTypes(t_int, t_int_ptr, qual, ref, pointer));
+  EXPECT_TRUE(pointer);
+
+  // const pointer
+  EXPECT_TRUE(
+      Cpp::IsEquivalentTypes(t_int, t_const_int_ptr, qual, ref, pointer));
+  EXPECT_TRUE(pointer);
+  EXPECT_TRUE(qual & Cpp::QualKind::Const);
+
+  // symmetry: const vs non-const reversed
+  EXPECT_TRUE(Cpp::IsEquivalentTypes(t_const_int, t_int, qual, ref, pointer));
+  EXPECT_TRUE(qual & Cpp::QualKind::Const);
+
+  // non-equivalent types
+  EXPECT_FALSE(Cpp::IsEquivalentTypes(t_int, t_double, qual, ref, pointer));
+  EXPECT_FALSE(Cpp::IsEquivalentTypes(t_int_ptr, t_double, qual, ref, pointer));
+}

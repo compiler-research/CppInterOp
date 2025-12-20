@@ -976,7 +976,8 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, VariableReflection_Is_Get_Reference) {
   EXPECT_EQ(Cpp::GetNonReferenceType(Cpp::GetVariableType(Decls[6])),
             Cpp::GetVariableType(Decls[5]));
 
-  EXPECT_FALSE(Cpp::GetNonReferenceType(Cpp::GetVariableType(Decls[5])));
+  EXPECT_EQ(Cpp::GetNonReferenceType(Cpp::GetVariableType(Decls[5])),
+            Cpp::GetVariableType(Decls[5]));
 
   EXPECT_EQ(Cpp::GetValueKind(Cpp::GetVariableType(Decls[2])),
             Cpp::ValueKind::LValue);
@@ -1010,4 +1011,33 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, VariableReflection_GetPointerType) {
             Cpp::GetVariableType(Decls[4]));
   EXPECT_EQ(Cpp::GetPointerType(Cpp::GetVariableType(Decls[5])),
             Cpp::GetVariableType(Decls[6]));
+}
+
+TYPED_TEST(CPPINTEROP_TEST_MODE, VariableReflection_GetTemplatedDecl) {
+  std::vector<Decl*> Decls;
+  std::string code = R"(
+    template <typename T>
+    struct MyTmpl {
+      T value;
+    };
+    MyTmpl<int> inst;
+    template <typename T>
+    T func_template(T t) { return t; }
+    int func_non_templated() { return 1; }
+  )";
+
+  GetAllTopLevelDecls(code, Decls);
+
+  Cpp::DeclRef tmpl_class = Cpp::GetTemplatedDecl(Decls[1]);
+  EXPECT_TRUE(tmpl_class);
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetVariableType(tmpl_class)),
+            "MyTmpl<int>");
+
+  Cpp::DeclRef tmpl_fn = Cpp::GetTemplatedDecl(Decls[2]);
+  EXPECT_TRUE(tmpl_fn);
+  EXPECT_EQ(Cpp::GetName(tmpl_fn), "func_template");
+
+  EXPECT_EQ(Cpp::GetTemplatedDecl(Decls[3]), Decls[3]);
+
+  EXPECT_FALSE(Cpp::GetTemplatedDecl(Cpp::DeclRef{nullptr}));
 }

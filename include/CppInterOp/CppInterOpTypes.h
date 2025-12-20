@@ -336,6 +336,7 @@ enum Signedness : unsigned char { kSigned = 1, kUnsigned };
 
 /// Enum modelling CVR qualifiers.
 enum QualKind : unsigned char {
+  None = 0,
   Const = 1 << 0,
   Volatile = 1 << 1,
   Restrict = 1 << 2,
@@ -437,6 +438,15 @@ enum class ValueKind : std::uint8_t {
   LValue,
   RValue,
 };
+
+inline ValueKind operator|(ValueKind a, ValueKind b) {
+  return static_cast<ValueKind>(static_cast<std::uint8_t>(a) |
+                                static_cast<std::uint8_t>(b));
+}
+inline ValueKind operator^(ValueKind a, ValueKind b) {
+  return static_cast<ValueKind>(static_cast<std::uint8_t>(a) ^
+                                static_cast<std::uint8_t>(b));
+}
 
 /// A class modeling function calls for functions produced by the interpreter
 /// in compiled code. It provides an information if we are calling a standard
