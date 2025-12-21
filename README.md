@@ -215,7 +215,7 @@ Now CppInterOp can be built. This can be done by executing
 ```bash
 mkdir CppInterOp/build/
 cd CppInterOp/build/
-cmake -DBUILD_SHARED_LIBS=ON -DCPPINTEROP_USE_CLING=ON -DCPPINTEROP_USE_REPL=Off -DCling_DIR=$LLVM_DIR/build/tools/cling -DLLVM_DIR=$LLVM_DIR/build/lib/cmake/llvm -DClang_DIR=$LLVM_DIR/build/lib/cmake/clang -DCMAKE_INSTALL_PREFIX=$CPPINTEROP_DIR ..
+cmake -DBUILD_SHARED_LIBS=ON -DLLVM_DIR=$LLVM_DIR/build/lib/cmake/llvm -DClang_DIR=$LLVM_DIR/build/lib/cmake/clang -DCMAKE_INSTALL_PREFIX=$CPPINTEROP_DIR ..
 cmake --build . --target install --parallel $(nproc --all)
 ```
 
