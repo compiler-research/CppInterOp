@@ -378,7 +378,7 @@ by executing (replace LLVM_VERSION with the version of llvm you are building aga
 	   -DXEUS_CPP_RESOURCE_DIR="$LLVM_BUILD_DIR/lib/clang/$LLVM_VERSION" \
            -DSYSROOT_PATH=$SYSROOT_PATH                                   \
            ..
-   EMCC_CFLAGS="-sSUPPORT_LONGJMP=wasm -fwasm-exceptions" emmake make -j $(nproc --all) install
+   EMCC_CFLAGS="-sERROR_ON_UNDEFINED_SYMBOLS=0" emmake make -j $(nproc --all) install
 
 and on Windows by executing 
 
@@ -399,7 +399,7 @@ and on Windows by executing
 	        -DXEUS_CPP_RESOURCE_DIR="$env:LLVM_BUILD_DIR/lib/clang/$env:LLVM_VERSION" `
            -DSYSROOT_PATH="$env:SYSROOT_PATH"                              `
            ..
-   $env:EMCC_CFLAGS="-sSUPPORT_LONGJMP=wasm -fwasm-exceptions"
+   $env:EMCC_CFLAGS="-sERROR_ON_UNDEFINED_SYMBOLS=0"
    emmake make -j $(nproc --all) install
    $env:EMCC_CFLAGS=""
 
