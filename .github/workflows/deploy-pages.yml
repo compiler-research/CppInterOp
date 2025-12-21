@@ -29,7 +29,7 @@ jobs:
             emsdk_ver: "4.0.9"
 
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
       with:
         fetch-depth: 0
 
