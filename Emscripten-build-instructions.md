@@ -356,7 +356,7 @@ emcmake cmake \
           -DXEUS_CPP_RESOURCE_DIR="$LLVM_BUILD_DIR/lib/clang/$LLVM_VERSION" \
           -DSYSROOT_PATH=$SYSROOT_PATH                                   \
           ..
- emmake make -j $(nproc --all) install
+EMCC_CFLAGS="-sSUPPORT_LONGJMP=wasm" emmake make -j $(nproc --all) install
 ```
 
 and on Windows by executing
@@ -377,7 +377,9 @@ emcmake cmake `
           -DXEUS_CPP_RESOURCE_DIR="$env:LLVM_BUILD_DIR/lib/clang/$env:LLVM_VERSION" `
           -DSYSROOT_PATH="$env:SYSROOT_PATH"                                   `
           ..
- emmake make -j $(nproc --all) install
+$env:EMCC_CFLAGS="-sSUPPORT_LONGJMP=wasm"
+emmake make -j $(nproc --all) install
+$env:EMCC_CFLAGS=""
 ```
 
 To build and test Jupyter Lite with this kernel locally on Linux/MacOS you can execute the following
