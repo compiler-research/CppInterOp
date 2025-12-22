@@ -195,7 +195,7 @@ jobs:
                         -DCMAKE_CXX_FLAGS_RELEASE="-Oz -g0 -DNDEBUG" \
                         -DLLVM_ENABLE_LTO=Full \
                          ../llvm
-          emmake ninja clang cling lld gtest_main
+          EMCC_CFLAGS="-sSUPPORT_LONGJMP=wasm -fwasm-exceptions" emmake ninja clang cling lld gtest_main
         else
           # Apply patches
           llvm_vers=$(echo "${{ matrix.clang-runtime }}" | tr '[:lower:]' '[:upper:]')
@@ -228,7 +228,7 @@ jobs:
                         -DCMAKE_CXX_FLAGS_RELEASE="-Oz -g0 -DNDEBUG" \
                         -DLLVM_ENABLE_LTO=Full \
                         ../llvm
-          emmake ninja libclang clangInterpreter clangStaticAnalyzerCore lldWasm
+          EMCC_CFLAGS="-sSUPPORT_LONGJMP=wasm -fwasm-exceptions" emmake ninja libclang clangInterpreter clangStaticAnalyzerCore lldWasm
         fi
         cd ../
         rm -rf $(find . -maxdepth 1 ! -name "build" ! -name "llvm" ! -name "clang" ! -name ".")
@@ -308,7 +308,9 @@ jobs:
                         -DLLVM_ENABLE_LTO=Full `
                         -DLLVM_NATIVE_TOOL_DIR="$env:NATIVE_DIR" 		    `
                 ..\llvm
+          $env:EMCC_CFLAGS="-sSUPPORT_LONGJMP=wasm -fwasm-exceptions"
           emmake make clang cling lld gtest_main
+          $env:EMCC_CFLAGS=""
         }
         else
         {
@@ -356,7 +358,9 @@ jobs:
                         -G Ninja `
                         -DLLVM_NATIVE_TOOL_DIR="$env:NATIVE_DIR" 		          `
                         ..\llvm
+          $env:EMCC_CFLAGS="-sSUPPORT_LONGJMP=wasm -fwasm-exceptions"
           emmake ninja libclang clangInterpreter clangStaticAnalyzerCore lldWasm
+          $env:EMCC_CFLAGS=""
         }
         cd ..\
         rm -r -force $(find.exe . -maxdepth 1 ! -name "build" ! -name "llvm" ! -name "clang" ! -name ".")
@@ -521,6 +525,7 @@ jobs:
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            \
                 -DLLVM_ENABLE_WERROR=On                      \
                 -DSYSROOT_PATH=$SYSROOT_PATH               \
+                -DCPPINTEROP_ENABLE_WASM_EXCEPTIONS=ON    \
                 ../
         else
           emcmake cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    \
@@ -534,6 +539,7 @@ jobs:
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            \
                 -DLLVM_ENABLE_WERROR=On                      \
                 -DSYSROOT_PATH=$SYSROOT_PATH                     \
+                -DCPPINTEROP_ENABLE_WASM_EXCEPTIONS=ON        \
                 ../
         fi
         emmake make -j ${{ env.ncpus }} check-cppinterop
@@ -694,6 +700,7 @@ jobs:
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            \
                 -DLLVM_ENABLE_WERROR=On                      \
                 -DSYSROOT_PATH=$SYSROOT_PATH               \
+                -DCPPINTEROP_ENABLE_WASM_EXCEPTIONS=ON     \
                 ../
         else
           emcmake cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    \
@@ -706,6 +713,7 @@ jobs:
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            \
                 -DLLVM_ENABLE_WERROR=On                      \
                 -DSYSROOT_PATH=$SYSROOT_PATH                     \
+                -DCPPINTEROP_ENABLE_WASM_EXCEPTIONS=ON           \
                 ../
         fi
         os="${{ matrix.os }}"
@@ -850,6 +858,7 @@ jobs:
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            `
                 -DLLVM_ENABLE_WERROR=On                      `
                 -DSYSROOT_PATH="$env:SYSROOT_PATH"              `
+                -DCPPINTEROP_ENABLE_WASM_EXCEPTIONS=ON      `
                 ..\
         }
         else
@@ -865,6 +874,7 @@ jobs:
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            `
                 -DLLVM_ENABLE_WERROR=On                      `
                 -DSYSROOT_PATH="$env:SYSROOT_PATH"                     `
+                -DCPPINTEROP_ENABLE_WASM_EXCEPTIONS              `
                 ..\
         }
         function Error-OnFailure {
@@ -978,6 +988,7 @@ jobs:
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            `
                 -DLLVM_ENABLE_WERROR=On                      `
                 -DSYSROOT_PATH="$env:SYSROOT_PATH"              `
+                -DCPPINTEROP_ENABLE_WASM_EXCEPTIONS=ON          `
                 ..\
         }
         else
@@ -992,6 +1003,7 @@ jobs:
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            `
                 -DLLVM_ENABLE_WERROR=On                      `
                 -DSYSROOT_PATH="$env:SYSROOT_PATH"                     `
+                -DCPPINTEROP_ENABLE_WASM_EXCEPTIONS=ON               `
                 ..\
         }
         Error-OnFailure { emmake make -j ${{ env.ncpus }} check-cppinterop }
@@ -1027,7 +1039,7 @@ jobs:
           -DXEUS_CPP_RESOURCE_DIR=${{ env.LLVM_BUILD_DIR }}/lib/clang/${{ matrix.clang-runtime }} \
           -DSYSROOT_PATH=${{ env.SYSROOT_PATH }}                     \
           ..
-        EMCC_CFLAGS="-sERROR_ON_UNDEFINED_SYMBOLS=0" emmake make -j ${{ env.ncpus }} install
+        EMCC_CFLAGS="-sSUPPORT_LONGJMP=wasm -fwasm-exceptions" emmake make -j ${{ env.ncpus }} install
 
     - name: Build xeus-cpp on Windows systems
       if: ${{ runner.os == 'windows' }}
@@ -1051,7 +1063,7 @@ jobs:
           -DXEUS_CPP_RESOURCE_DIR=${{ env.LLVM_BUILD_DIR }}\lib\clang\${{ matrix.clang-runtime }} `
           -DSYSROOT_PATH=${{ env.SYSROOT_PATH }}                `
           ..
-        $env:EMCC_CFLAGS="-sERROR_ON_UNDEFINED_SYMBOLS=0"
+        $env:EMCC_CFLAGS="-sSUPPORT_LONGJMP=wasm -fwasm-exceptions"
         emmake make -j ${{ env.ncpus }} install
         $env:EMCC_CFLAGS=""
 
