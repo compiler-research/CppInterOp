@@ -200,7 +200,7 @@ emcmake cmake -DCMAKE_BUILD_TYPE=Release    \
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            \
                 -DCMAKE_INSTALL_PREFIX=$PREFIX         \
                 -DSYSROOT_PATH=$SYSROOT_PATH                                   \
-		-DCPPINTEROP_ENABLE_WASM_EXCEPTIONS=ON                        \
+                -DCPPINTEROP_ENABLE_WASM_EXCEPTIONS=ON                        \
                 ../
 emmake make -j $(nproc --all) check-cppinterop
 ```
@@ -220,7 +220,7 @@ emcmake cmake -DCMAKE_BUILD_TYPE=Release    `
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            `
                 -DLLVM_ENABLE_WERROR=On                      `
                 -DSYSROOT_PATH="$env:SYSROOT_PATH"                     `
-		-DCPPINTEROP_ENABLE_WASM_EXCEPTIONS                    `
+                -DCPPINTEROP_ENABLE_WASM_EXCEPTIONS                    `
                 ..\
     emmake make -j $(nproc --all) check-cppinterop
 ```
