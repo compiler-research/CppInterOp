@@ -133,6 +133,8 @@ if(EMSCRIPTEN)
   target_compile_options(clangCppInterOp
     PRIVATE "SHELL: -Oz"
     PRIVATE "SHELL: -flto"
+    PRIVATE $<$<BOOL:${CPPINTEROP_ENABLE_WASM_EXCEPTIONS}>:SHELL:-fwasm-exceptions>
+    PRIVATE $<$<BOOL:${CPPINTEROP_ENABLE_WASM_EXCEPTIONS}>:SHELL:-sSUPPORT_LONGJMP=wasm>
   )
   target_link_options(clangCppInterOp
     PRIVATE "SHELL: -s WASM_BIGINT"
@@ -140,6 +142,8 @@ if(EMSCRIPTEN)
     PRIVATE "SHELL: ${SYMBOLS_LIST}"
     PRIVATE "SHELL: -Oz"
     PRIVATE "SHELL: -flto"
+    PRIVATE $<$<BOOL:${CPPINTEROP_ENABLE_WASM_EXCEPTIONS}>:SHELL:-fwasm-exceptions>
+    PRIVATE $<$<BOOL:${CPPINTEROP_ENABLE_WASM_EXCEPTIONS}>:SHELL:-sSUPPORT_LONGJMP=wasm>
   )
 else()
   target_link_options(clangCppInterOp

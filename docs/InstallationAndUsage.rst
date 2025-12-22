@@ -34,11 +34,11 @@ library
  Setup Clang-REPL
 ******************
 
-Clone the 20.x release of the LLVM project repository.
+Clone the 21.x release of the LLVM project repository.
 
 .. code:: bash
 
-   git clone --depth=1 --branch release/20.x https://github.com/llvm/llvm-project.git
+   git clone --depth=1 --branch release/21.x https://github.com/llvm/llvm-project.git
    cd llvm-project
 
 If you want to have out-of-process JIT execution enabled in CppInterOp, then apply this patch on Linux-x86_64 and MacOS arm64 environment.
@@ -50,6 +50,12 @@ If you want to have out-of-process JIT execution enabled in CppInterOp, then app
 
    git apply -v ../CppInterOp/patches/llvm/clang20-1-out-of-process.patch
 
+MacOS builds also require the following patch be applied regardless of building the out of process JIT or not
+
+.. code:: bash
+
+   git apply -v ../CppInterOp/patches/llvm/clang-21-1-add-back-darwin-legacy-framework.patch
+   
 ******************
  Build Clang-REPL
 ******************
