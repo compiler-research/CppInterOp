@@ -8,17 +8,12 @@
 
 #include <unordered_map>
 
-// Macro for simple functions (direct cast)
-#define MAP_ENTRY_SIMPLE(func_name) {#func_name, (__CPP_FUNC)Cpp::func_name},
-
-// Macro for overloaded functions (needs static_cast with signature)
-#define MAP_ENTRY_OVERLOADED(func_name, signature)                             \
-  {#func_name, (__CPP_FUNC) static_cast<signature>(&Cpp::func_name)},
-
 static const std::unordered_map<std::string_view, __CPP_FUNC>
     INTEROP_FUNCTIONS = {
-        FOR_EACH_CPP_FUNCTION_SIMPLE(MAP_ENTRY_SIMPLE)
-            FOR_EACH_CPP_FUNCTION_OVERLOADED(MAP_ENTRY_OVERLOADED)};
+#define X(name, type) {#name, (__CPP_FUNC) static_cast<type>(&Cpp::name)},
+        CPPINTEROP_API_MAP
+#undef X
+};
 
 #undef MAP_ENTRY_SIMPLE
 #undef MAP_ENTRY_OVERLOADED

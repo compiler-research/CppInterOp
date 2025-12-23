@@ -24,12 +24,6 @@
 
 #include <CppInterOp/CppInterOp.h>
 
-// Configured by CMake, can be overridden by defining before including this
-// header
-#ifndef CPPINTEROP_LIBRARY_PATH
-#define CPPINTEROP_LIBRARY_PATH "@CPPINTEROP_LIBRARY_PATH@"
-#endif
-
 using __CPP_FUNC = void (*)();
 
 ///\param[in] procname - the name of the FunctionEntry in the symbol lookup
@@ -38,20 +32,6 @@ using __CPP_FUNC = void (*)();
 ///\returns the function address of the requested API, or nullptr if not found
 extern "C" CPPINTEROP_API void (
     *CppGetProcAddress(const unsigned char* procname))(void);
-
-#define EXTERN_CPP_FUNC_SIMPLE(func_name)                                      \
-  extern CppAPIType::func_name func_name;
-
-#define EXTERN_CPP_FUNC_OVERLOADED(func_name, signature)                       \
-  extern CppAPIType::func_name func_name;
-
-#define LOAD_CPP_FUNCTION_SIMPLE(func_name)                                    \
-  func_name =                                                                  \
-      reinterpret_cast<CppAPIType::func_name>(dlGetProcAddress(#func_name));
-
-#define LOAD_CPP_FUNCTION_OVERLOADED(func_name, signature)                     \
-  func_name =                                                                  \
-      reinterpret_cast<CppAPIType::func_name>(dlGetProcAddress(#func_name));
 
 #define DECLARE_CPP_NULL_SIMPLE(func_name)                                     \
   CppAPIType::func_name func_name = nullptr;
@@ -62,138 +42,126 @@ extern "C" CPPINTEROP_API void (
 // macro that allows declaration and loading of all CppInterOp API functions in
 // a consistent way. This is used as our dispatched API list, along with the
 // name-address pair table
-#define FOR_EACH_CPP_FUNCTION_SIMPLE(DO)                                       \
-  DO(CreateInterpreter)                                                        \
-  DO(GetInterpreter)                                                           \
-  DO(Process)                                                                  \
-  DO(GetResourceDir)                                                           \
-  DO(AddIncludePath)                                                           \
-  DO(LoadLibrary)                                                              \
-  DO(Declare)                                                                  \
-  DO(DeleteInterpreter)                                                        \
-  DO(IsNamespace)                                                              \
-  DO(ObjToString)                                                              \
-  DO(GetQualifiedCompleteName)                                                 \
-  DO(GetValueKind)                                                             \
-  DO(GetNonReferenceType)                                                      \
-  DO(IsEnumType)                                                               \
-  DO(GetIntegerTypeFromEnumType)                                               \
-  DO(GetReferencedType)                                                        \
-  DO(IsPointerType)                                                            \
-  DO(GetPointeeType)                                                           \
-  DO(GetPointerType)                                                           \
-  DO(IsReferenceType)                                                          \
-  DO(GetTypeAsString)                                                          \
-  DO(GetCanonicalType)                                                         \
-  DO(HasTypeQualifier)                                                         \
-  DO(RemoveTypeQualifier)                                                      \
-  DO(GetUnderlyingType)                                                        \
-  DO(IsRecordType)                                                             \
-  DO(IsFunctionPointerType)                                                    \
-  DO(GetVariableType)                                                          \
-  DO(GetNamed)                                                                 \
-  DO(GetScopeFromType)                                                         \
-  DO(GetClassTemplateInstantiationArgs)                                        \
-  DO(IsClass)                                                                  \
-  DO(GetType)                                                                  \
-  DO(GetTypeFromScope)                                                         \
-  DO(GetComplexType)                                                           \
-  DO(GetIntegerTypeFromEnumScope)                                              \
-  DO(GetUnderlyingScope)                                                       \
-  DO(GetScope)                                                                 \
-  DO(GetGlobalScope)                                                           \
-  DO(GetScopeFromCompleteName)                                                 \
-  DO(InstantiateTemplate)                                                      \
-  DO(GetParentScope)                                                           \
-  DO(IsTemplate)                                                               \
-  DO(IsTemplateSpecialization)                                                 \
-  DO(IsTypedefed)                                                              \
-  DO(IsClassPolymorphic)                                                       \
-  DO(Demangle)                                                                 \
-  DO(SizeOf)                                                                   \
-  DO(GetSizeOfType)                                                            \
-  DO(IsBuiltin)                                                                \
-  DO(IsComplete)                                                               \
-  DO(Allocate)                                                                 \
-  DO(Deallocate)                                                               \
-  DO(Construct)                                                                \
-  DO(Destruct)                                                                 \
-  DO(IsAbstract)                                                               \
-  DO(IsEnumScope)                                                              \
-  DO(IsEnumConstant)                                                           \
-  DO(IsAggregate)                                                              \
-  DO(HasDefaultConstructor)                                                    \
-  DO(IsVariable)                                                               \
-  DO(GetAllCppNames)                                                           \
-  DO(GetUsingNamespaces)                                                       \
-  DO(GetCompleteName)                                                          \
-  DO(GetDestructor)                                                            \
-  DO(IsVirtualMethod)                                                          \
-  DO(GetNumBases)                                                              \
-  DO(GetName)                                                                  \
-  DO(GetBaseClass)                                                             \
-  DO(IsSubclass)                                                               \
-  DO(GetOperator)                                                              \
-  DO(GetFunctionReturnType)                                                    \
-  DO(GetBaseClassOffset)                                                       \
-  DO(GetClassMethods)                                                          \
-  DO(GetFunctionsUsingName)                                                    \
-  DO(GetFunctionNumArgs)                                                       \
-  DO(GetFunctionRequiredArgs)                                                  \
-  DO(GetFunctionArgName)                                                       \
-  DO(GetFunctionArgType)                                                       \
-  DO(GetFunctionArgDefault)                                                    \
-  DO(IsConstMethod)                                                            \
-  DO(GetFunctionTemplatedDecls)                                                \
-  DO(ExistsFunctionTemplate)                                                   \
-  DO(IsTemplatedFunction)                                                      \
-  DO(IsStaticMethod)                                                           \
-  DO(GetClassTemplatedMethods)                                                 \
-  DO(BestOverloadFunctionMatch)                                                \
-  DO(GetOperatorFromSpelling)                                                  \
-  DO(IsFunctionDeleted)                                                        \
-  DO(IsPublicMethod)                                                           \
-  DO(IsProtectedMethod)                                                        \
-  DO(IsPrivateMethod)                                                          \
-  DO(IsConstructor)                                                            \
-  DO(IsDestructor)                                                             \
-  DO(GetDatamembers)                                                           \
-  DO(GetStaticDatamembers)                                                     \
-  DO(GetEnumConstantDatamembers)                                               \
-  DO(LookupDatamember)                                                         \
-  DO(IsLambdaClass)                                                            \
-  DO(GetQualifiedName)                                                         \
-  DO(GetVariableOffset)                                                        \
-  DO(IsPublicVariable)                                                         \
-  DO(IsProtectedVariable)                                                      \
-  DO(IsPrivateVariable)                                                        \
-  DO(IsStaticVariable)                                                         \
-  DO(IsConstVariable)                                                          \
-  DO(GetDimensions)                                                            \
-  DO(GetEnumConstants)                                                         \
-  DO(GetEnumConstantType)                                                      \
-  DO(GetEnumConstantValue)                                                     \
-  DO(DumpScope)                                                                \
-  DO(AddSearchPath)                                                            \
-  DO(Evaluate)                                                                 \
-  DO(IsDebugOutputEnabled)                                                     \
-  DO(EnableDebugOutput)
-
-#define FOR_EACH_CPP_FUNCTION_OVERLOADED(DO)                                   \
-  DO(MakeFunctionCallable, Cpp::JitCall (*)(Cpp::TCppConstFunction_t))         \
-  DO(GetFunctionAddress, Cpp::TCppFuncAddr_t (*)(Cpp::TCppFunction_t))
-
-#define EXTRACT_NAME_OVERLOADED(name, sig) name
-
-#define FOR_EACH_CPP_FUNCTION(DO)                                              \
-  FOR_EACH_CPP_FUNCTION_SIMPLE(DO)                                             \
-  FOR_EACH_CPP_FUNCTION_OVERLOADED(EXTRACT_NAME_OVERLOADED)
-
-#define DECLARE_TYPE_SIMPLE(func_name)                                         \
-  using func_name = decltype(&Cpp::func_name);
-
-#define DECLARE_TYPE_OVERLOADED(func_name, signature)                          \
-  using func_name = signature;
+#define CPPINTEROP_API_MAP                                                     \
+  X(CreateInterpreter, decltype(&Cpp::CreateInterpreter))                      \
+  X(GetInterpreter, decltype(&Cpp::GetInterpreter))                            \
+  X(Process, decltype(&Cpp::Process))                                          \
+  X(GetResourceDir, decltype(&Cpp::GetResourceDir))                            \
+  X(AddIncludePath, decltype(&Cpp::AddIncludePath))                            \
+  X(LoadLibrary, decltype(&Cpp::LoadLibrary))                                  \
+  X(Declare, decltype(&Cpp::Declare))                                          \
+  X(DeleteInterpreter, decltype(&Cpp::DeleteInterpreter))                      \
+  X(IsNamespace, decltype(&Cpp::IsNamespace))                                  \
+  X(ObjToString, decltype(&Cpp::ObjToString))                                  \
+  X(GetQualifiedCompleteName, decltype(&Cpp::GetQualifiedCompleteName))        \
+  X(GetValueKind, decltype(&Cpp::GetValueKind))                                \
+  X(GetNonReferenceType, decltype(&Cpp::GetNonReferenceType))                  \
+  X(IsEnumType, decltype(&Cpp::IsEnumType))                                    \
+  X(GetIntegerTypeFromEnumType, decltype(&Cpp::GetIntegerTypeFromEnumType))    \
+  X(GetReferencedType, decltype(&Cpp::GetReferencedType))                      \
+  X(IsPointerType, decltype(&Cpp::IsPointerType))                              \
+  X(GetPointeeType, decltype(&Cpp::GetPointeeType))                            \
+  X(GetPointerType, decltype(&Cpp::GetPointerType))                            \
+  X(IsReferenceType, decltype(&Cpp::IsReferenceType))                          \
+  X(GetTypeAsString, decltype(&Cpp::GetTypeAsString))                          \
+  X(GetCanonicalType, decltype(&Cpp::GetCanonicalType))                        \
+  X(HasTypeQualifier, decltype(&Cpp::HasTypeQualifier))                        \
+  X(RemoveTypeQualifier, decltype(&Cpp::RemoveTypeQualifier))                  \
+  X(GetUnderlyingType, decltype(&Cpp::GetUnderlyingType))                      \
+  X(IsRecordType, decltype(&Cpp::IsRecordType))                                \
+  X(IsFunctionPointerType, decltype(&Cpp::IsFunctionPointerType))              \
+  X(GetVariableType, decltype(&Cpp::GetVariableType))                          \
+  X(GetNamed, decltype(&Cpp::GetNamed))                                        \
+  X(GetScopeFromType, decltype(&Cpp::GetScopeFromType))                        \
+  X(GetClassTemplateInstantiationArgs,                                         \
+    decltype(&Cpp::GetClassTemplateInstantiationArgs))                         \
+  X(IsClass, decltype(&Cpp::IsClass))                                          \
+  X(GetType, decltype(&Cpp::GetType))                                          \
+  X(GetTypeFromScope, decltype(&Cpp::GetTypeFromScope))                        \
+  X(GetComplexType, decltype(&Cpp::GetComplexType))                            \
+  X(GetIntegerTypeFromEnumScope, decltype(&Cpp::GetIntegerTypeFromEnumScope))  \
+  X(GetUnderlyingScope, decltype(&Cpp::GetUnderlyingScope))                    \
+  X(GetScope, decltype(&Cpp::GetScope))                                        \
+  X(GetGlobalScope, decltype(&Cpp::GetGlobalScope))                            \
+  X(GetScopeFromCompleteName, decltype(&Cpp::GetScopeFromCompleteName))        \
+  X(InstantiateTemplate, decltype(&Cpp::InstantiateTemplate))                  \
+  X(GetParentScope, decltype(&Cpp::GetParentScope))                            \
+  X(IsTemplate, decltype(&Cpp::IsTemplate))                                    \
+  X(IsTemplateSpecialization, decltype(&Cpp::IsTemplateSpecialization))        \
+  X(IsTypedefed, decltype(&Cpp::IsTypedefed))                                  \
+  X(IsClassPolymorphic, decltype(&Cpp::IsClassPolymorphic))                    \
+  X(Demangle, decltype(&Cpp::Demangle))                                        \
+  X(SizeOf, decltype(&Cpp::SizeOf))                                            \
+  X(GetSizeOfType, decltype(&Cpp::GetSizeOfType))                              \
+  X(IsBuiltin, decltype(&Cpp::IsBuiltin))                                      \
+  X(IsComplete, decltype(&Cpp::IsComplete))                                    \
+  X(Allocate, decltype(&Cpp::Allocate))                                        \
+  X(Deallocate, decltype(&Cpp::Deallocate))                                    \
+  X(Construct, decltype(&Cpp::Construct))                                      \
+  X(Destruct, decltype(&Cpp::Destruct))                                        \
+  X(IsAbstract, decltype(&Cpp::IsAbstract))                                    \
+  X(IsEnumScope, decltype(&Cpp::IsEnumScope))                                  \
+  X(IsEnumConstant, decltype(&Cpp::IsEnumConstant))                            \
+  X(IsAggregate, decltype(&Cpp::IsAggregate))                                  \
+  X(HasDefaultConstructor, decltype(&Cpp::HasDefaultConstructor))              \
+  X(IsVariable, decltype(&Cpp::IsVariable))                                    \
+  X(GetAllCppNames, decltype(&Cpp::GetAllCppNames))                            \
+  X(GetUsingNamespaces, decltype(&Cpp::GetUsingNamespaces))                    \
+  X(GetCompleteName, decltype(&Cpp::GetCompleteName))                          \
+  X(GetDestructor, decltype(&Cpp::GetDestructor))                              \
+  X(IsVirtualMethod, decltype(&Cpp::IsVirtualMethod))                          \
+  X(GetNumBases, decltype(&Cpp::GetNumBases))                                  \
+  X(GetName, decltype(&Cpp::GetName))                                          \
+  X(GetBaseClass, decltype(&Cpp::GetBaseClass))                                \
+  X(IsSubclass, decltype(&Cpp::IsSubclass))                                    \
+  X(GetOperator, decltype(&Cpp::GetOperator))                                  \
+  X(GetFunctionReturnType, decltype(&Cpp::GetFunctionReturnType))              \
+  X(GetBaseClassOffset, decltype(&Cpp::GetBaseClassOffset))                    \
+  X(GetClassMethods, decltype(&Cpp::GetClassMethods))                          \
+  X(GetFunctionsUsingName, decltype(&Cpp::GetFunctionsUsingName))              \
+  X(GetFunctionNumArgs, decltype(&Cpp::GetFunctionNumArgs))                    \
+  X(GetFunctionRequiredArgs, decltype(&Cpp::GetFunctionRequiredArgs))          \
+  X(GetFunctionArgName, decltype(&Cpp::GetFunctionArgName))                    \
+  X(GetFunctionArgType, decltype(&Cpp::GetFunctionArgType))                    \
+  X(GetFunctionArgDefault, decltype(&Cpp::GetFunctionArgDefault))              \
+  X(IsConstMethod, decltype(&Cpp::IsConstMethod))                              \
+  X(GetFunctionTemplatedDecls, decltype(&Cpp::GetFunctionTemplatedDecls))      \
+  X(ExistsFunctionTemplate, decltype(&Cpp::ExistsFunctionTemplate))            \
+  X(IsTemplatedFunction, decltype(&Cpp::IsTemplatedFunction))                  \
+  X(IsStaticMethod, decltype(&Cpp::IsStaticMethod))                            \
+  X(GetClassTemplatedMethods, decltype(&Cpp::GetClassTemplatedMethods))        \
+  X(BestOverloadFunctionMatch, decltype(&Cpp::BestOverloadFunctionMatch))      \
+  X(GetOperatorFromSpelling, decltype(&Cpp::GetOperatorFromSpelling))          \
+  X(IsFunctionDeleted, decltype(&Cpp::IsFunctionDeleted))                      \
+  X(IsPublicMethod, decltype(&Cpp::IsPublicMethod))                            \
+  X(IsProtectedMethod, decltype(&Cpp::IsProtectedMethod))                      \
+  X(IsPrivateMethod, decltype(&Cpp::IsPrivateMethod))                          \
+  X(IsConstructor, decltype(&Cpp::IsConstructor))                              \
+  X(IsDestructor, decltype(&Cpp::IsDestructor))                                \
+  X(GetDatamembers, decltype(&Cpp::GetDatamembers))                            \
+  X(GetStaticDatamembers, decltype(&Cpp::GetStaticDatamembers))                \
+  X(GetEnumConstantDatamembers, decltype(&Cpp::GetEnumConstantDatamembers))    \
+  X(LookupDatamember, decltype(&Cpp::LookupDatamember))                        \
+  X(IsLambdaClass, decltype(&Cpp::IsLambdaClass))                              \
+  X(GetQualifiedName, decltype(&Cpp::GetQualifiedName))                        \
+  X(GetVariableOffset, decltype(&Cpp::GetVariableOffset))                      \
+  X(IsPublicVariable, decltype(&Cpp::IsPublicVariable))                        \
+  X(IsProtectedVariable, decltype(&Cpp::IsProtectedVariable))                  \
+  X(IsPrivateVariable, decltype(&Cpp::IsPrivateVariable))                      \
+  X(IsStaticVariable, decltype(&Cpp::IsStaticVariable))                        \
+  X(IsConstVariable, decltype(&Cpp::IsConstVariable))                          \
+  X(GetDimensions, decltype(&Cpp::GetDimensions))                              \
+  X(GetEnumConstants, decltype(&Cpp::GetEnumConstants))                        \
+  X(GetEnumConstantType, decltype(&Cpp::GetEnumConstantType))                  \
+  X(GetEnumConstantValue, decltype(&Cpp::GetEnumConstantValue))                \
+  X(DumpScope, decltype(&Cpp::DumpScope))                                      \
+  X(AddSearchPath, decltype(&Cpp::AddSearchPath))                              \
+  X(Evaluate, decltype(&Cpp::Evaluate))                                        \
+  X(IsDebugOutputEnabled, decltype(&Cpp::IsDebugOutputEnabled))                \
+  X(EnableDebugOutput, decltype(&Cpp::EnableDebugOutput))                      \
+  X(MakeFunctionCallable, Cpp::JitCall (*)(Cpp::TCppConstFunction_t))          \
+  X(GetFunctionAddress, Cpp::TCppFuncAddr_t (*)(Cpp::TCppFunction_t))          \
+  /*X(API_name, fnptr_ty)*/
 namespace CppDispatch {
 // Forward all type aliases
 using TCppIndex_t = ::Cpp::TCppIndex_t;
@@ -216,12 +184,10 @@ using JitCall = ::Cpp::JitCall;
 } // end namespace CppDispatch
 
 namespace CppAPIType {
-FOR_EACH_CPP_FUNCTION_SIMPLE(DECLARE_TYPE_SIMPLE)
-FOR_EACH_CPP_FUNCTION_OVERLOADED(DECLARE_TYPE_OVERLOADED)
+#define X(name, type) using name = type;
+CPPINTEROP_API_MAP
+#undef X
 } // end namespace CppAPIType
-
-#undef DECLARE_TYPE_SIMPLE
-#undef DECLARE_TYPE_OVERLOADED
 
 // TODO: implement overload that takes an existing opened DL handle
 inline void* dlGetProcAddress(const char* name,
@@ -239,9 +205,6 @@ inline void* dlGetProcAddress(const char* name,
     const char* libPath = customLibPath;
     if (!libPath) {
       libPath = std::getenv("CPPINTEROP_LIBRARY_PATH");
-    }
-    if (!libPath || libPath[0] == '\0') {
-      libPath = CPPINTEROP_LIBRARY_PATH;
     }
 
     handle = dlopen(libPath, RTLD_LOCAL | RTLD_NOW);
@@ -263,9 +226,12 @@ inline void* dlGetProcAddress(const char* name,
 
   return getCppProcAddress ? getCppProcAddress(name) : nullptr;
 }
+
 namespace CppDispatch {
-FOR_EACH_CPP_FUNCTION_SIMPLE(EXTERN_CPP_FUNC_SIMPLE)
-FOR_EACH_CPP_FUNCTION_OVERLOADED(EXTERN_CPP_FUNC_OVERLOADED)
+
+#define X(name, type) extern CppAPIType::name name;
+CPPINTEROP_API_MAP
+#undef X
 
 /// Initialize all CppInterOp API from the dynamically loaded library
 /// (RTLD_LOCAL) \param[in] customLibPath Optional custom path to
@@ -282,8 +248,10 @@ inline bool init_functions(const char* customLibPath = nullptr) {
     }
   }
 
-  FOR_EACH_CPP_FUNCTION_SIMPLE(LOAD_CPP_FUNCTION_SIMPLE)
-  FOR_EACH_CPP_FUNCTION_OVERLOADED(LOAD_CPP_FUNCTION_OVERLOADED)
+#define X(name, type)                                                          \
+  name = reinterpret_cast<CppAPIType::name>(dlGetProcAddress(#name));
+  CPPINTEROP_API_MAP
+#undef X
 
   // test to verify that critical (and consequently all) functions loaded
   if (!GetInterpreter || !CreateInterpreter) {
