@@ -929,7 +929,7 @@ TYPED_TEST(CppInterOpTest, FunctionReflectionTestInstantiateVariadicFunction) {
                                              C.IntTy.getAsOpaquePtr()};
   auto Instance1 = Cpp::InstantiateTemplate(Decls[1], args1.data(),
                                             /*type_size*/ args1.size());
-  EXPECT_TRUE(Cpp::IsTemplatedFunction(Instance1));
+  EXPECT_TRUE(Cpp::IsTemplateInstantiationOrSpecialization(Instance1));
   EXPECT_EQ(Cpp::GetFunctionSignature(Instance1),
             "template<> void VariadicFn<<double, int>>(double args, int args)");
 
@@ -952,7 +952,7 @@ TYPED_TEST(CppInterOpTest, FunctionReflectionTestInstantiateVariadicFunction) {
   // instantiate VariadicFnExtended
   auto Instance2 =
       Cpp::InstantiateTemplate(Decls[2], args2.data(), args2.size(), true);
-  EXPECT_TRUE(Cpp::IsTemplatedFunction(Instance2));
+  EXPECT_TRUE(Cpp::IsTemplateInstantiationOrSpecialization(Instance2));
 
   FunctionDecl* FD2 = cast<FunctionDecl>((Decl*)Instance2);
   FunctionDecl* FnTD2 = FD2->getTemplateInstantiationPattern();
