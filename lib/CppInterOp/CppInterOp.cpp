@@ -338,6 +338,17 @@ bool IsNamespace(TCppScope_t scope) {
   return isa<NamespaceDecl>(D);
 }
 
+bool IsCUDAFunction(TCppScope_t scope) {
+  Decl* D = static_cast<Decl*>(scope);
+  if (auto* FD = llvm::dyn_cast<FunctionDecl>(D)) {
+    for (const auto& i : FD->attrs()) {
+      if (i->getKind() == clang::attr::Kind::CUDAGlobal)
+        return true;
+    }
+  }
+  return false;
+}
+
 bool IsClass(TCppScope_t scope) {
   Decl* D = static_cast<Decl*>(scope);
   return isa<CXXRecordDecl>(D);
