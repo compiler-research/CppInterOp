@@ -543,7 +543,7 @@ bool clang_existsFunctionTemplate(const char* name, CXScope parent) {
   const auto* Within = llvm::dyn_cast<clang::DeclContext>(getDecl(parent));
 
   auto& S = getInterpreter(parent)->getSema();
-  auto* ND = Cpp::Cpp_utils::Lookup::Named(&S, name, Within);
+  auto* ND = CppInternal::utils::Lookup::Named(&S, name, Within);
 
   if (!ND)
     return false;
