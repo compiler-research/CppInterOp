@@ -769,7 +769,7 @@ TCppScope_t GetNamed(const std::string& name,
     Within = llvm::dyn_cast<clang::DeclContext>(D);
   }
 
-  auto* ND = Cpp_utils::Lookup::Named(&getSema(), name, Within);
+  auto* ND = CppInternal::utils::Lookup::Named(&getSema(), name, Within);
   if (ND && ND != (clang::NamedDecl*)-1) {
     return (TCppScope_t)(ND->getCanonicalDecl());
   }
@@ -1025,7 +1025,7 @@ std::vector<TCppFunction_t> GetFunctionsUsingName(TCppScope_t scope,
   clang::LookupResult R(S, DName, SourceLocation(), Sema::LookupOrdinaryName,
                         For_Visible_Redeclaration);
 
-  Cpp_utils::Lookup::Named(&S, R, Decl::castToDeclContext(D));
+  CppInternal::utils::Lookup::Named(&S, R, Decl::castToDeclContext(D));
 
   if (R.empty())
     return funcs;
@@ -1169,7 +1169,7 @@ bool ExistsFunctionTemplate(const std::string& name, TCppScope_t parent) {
     Within = llvm::dyn_cast<DeclContext>(D);
   }
 
-  auto* ND = Cpp_utils::Lookup::Named(&getSema(), name, Within);
+  auto* ND = CppInternal::utils::Lookup::Named(&getSema(), name, Within);
 
   if ((intptr_t)ND == (intptr_t)0)
     return false;
@@ -1214,7 +1214,7 @@ bool GetClassTemplatedMethods(const std::string& name, TCppScope_t parent,
   clang::LookupResult R(S, DName, SourceLocation(), Sema::LookupOrdinaryName,
                         For_Visible_Redeclaration);
   auto* DC = clang::Decl::castToDeclContext(D);
-  Cpp_utils::Lookup::Named(&S, R, DC);
+  CppInternal::utils::Lookup::Named(&S, R, DC);
 
   if (R.getResultKind() == clang::LookupResult::NotFound && funcs.empty())
     return false;
@@ -1508,7 +1508,7 @@ TCppScope_t LookupDatamember(const std::string& name, TCppScope_t parent) {
     Within = llvm::dyn_cast<clang::DeclContext>(D);
   }
 
-  auto* ND = Cpp_utils::Lookup::Named(&getSema(), name, Within);
+  auto* ND = CppInternal::utils::Lookup::Named(&getSema(), name, Within);
   if (ND && ND != (clang::NamedDecl*)-1) {
     if (llvm::isa_and_nonnull<clang::FieldDecl>(ND)) {
       return (TCppScope_t)ND;

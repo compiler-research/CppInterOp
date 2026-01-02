@@ -23,7 +23,7 @@
 #include <dlfcn.h>
 #endif
 
-namespace Cpp {
+namespace CppInternal {
 namespace utils {
 
 namespace platform {
@@ -361,7 +361,7 @@ bool SplitPaths(llvm::StringRef PathStr,
 
 void AddIncludePaths(
     llvm::StringRef PathStr, clang::HeaderSearchOptions& HOpts,
-    const char* Delim /* = Cpp::utils::platform::kEnvDelim */) {
+    const char* Delim /* = CppInternal::utils::platform::kEnvDelim */) {
 #define DEBUG_TYPE "AddIncludePaths"
 
   llvm::SmallVector<llvm::StringRef, 10> Paths;
@@ -399,4 +399,4 @@ void AddIncludePaths(
 }
 
 } // namespace utils
-} // namespace Cpp
+} // namespace CppInternal
