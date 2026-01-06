@@ -97,8 +97,8 @@
 #include <unistd.h>
 #endif // WIN32
 
-//  Runtime symbols required if the library using JIT (Cpp::Evaluate) does not
-//  link to llvm
+//  Runtime symbols required if the library using JIT (Cpp::Evaluate) does
+//  not link to llvm
 #if !defined(CPPINTEROP_USE_CLING) && !defined(EMSCRIPTEN)
 struct __clang_Interpreter_NewTag {
 } __ci_newtag;
@@ -124,7 +124,7 @@ void __clang_Interpreter_SetValueNoAlloc(void*, void*, void*,
 #endif
 #endif // CPPINTEROP_USE_CLING
 
-namespace Cpp {
+namespace CppStatic {
 
 using namespace clang;
 using namespace llvm;
@@ -4289,4 +4289,4 @@ pid_t GetExecutorPID() {
 
 #endif
 
-} // end namespace Cpp
+} // namespace CppStatic
