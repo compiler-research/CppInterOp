@@ -9,7 +9,7 @@
 
 static const std::unordered_map<std::string_view, __CPP_FUNC>
     INTEROP_FUNCTIONS = {
-#define X(name, type) {#name, (__CPP_FUNC) static_cast<type>(&Cpp::name)},
+#define X(name, type) {#name, (__CPP_FUNC) static_cast<type>(&CppStatic::name)},
         CPPINTEROP_API_MAP
 #undef X
 };
