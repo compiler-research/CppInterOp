@@ -33,7 +33,7 @@
 #endif
 #endif
 
-namespace CppStatic {
+namespace CppImpl {
 using TCppIndex_t = size_t;
 using TCppScope_t = void*;
 using TCppConstScope_t = const void*;
@@ -945,9 +945,9 @@ CPPINTEROP_API int Undo(unsigned N = 1);
 CPPINTEROP_API pid_t GetExecutorPID();
 #endif
 
-} // namespace CppStatic
+} // namespace CppImpl
 
-#ifndef CPPINTEROP_CPPINTEROPDISPATCH_H
-namespace Cpp = CppStatic;
+#ifndef CPPINTEROP_DISPATCH_H
+namespace Cpp = CppImpl;
 #endif
 #endif // CPPINTEROP_CPPINTEROP_H
