@@ -24,6 +24,7 @@
 #include "clang/AST/Mangle.h"
 #include "clang/AST/NestedNameSpecifier.h"
 #include "clang/AST/QualTypeNames.h"
+#include "clang/AST/RawCommentList.h"
 #include "clang/AST/RecordLayout.h"
 #include "clang/AST/Stmt.h"
 #include "clang/AST/Type.h"
@@ -31,6 +32,7 @@
 #include "clang/Basic/Linkage.h"
 #include "clang/Basic/OperatorKinds.h"
 #include "clang/Basic/SourceLocation.h"
+#include "clang/Basic/SourceManager.h"
 #include "clang/Basic/Specifiers.h"
 #include "clang/Basic/Version.h"
 #include "clang/Frontend/CompilerInstance.h"
@@ -178,6 +180,73 @@ static compat::Interpreter& getInterp() {
 }
 static clang::Sema& getSema() { return getInterp().getCI()->getSema(); }
 static clang::ASTContext& getASTContext() { return getSema().getASTContext(); }
+
+namespace {
+static std::string StripDoxygenCommentMarkers(llvm::StringRef Raw) {
+  Raw = Raw.trim();
+  if (Raw.empty())
+    return "";
+
+  auto strip_line_prefix = [](llvm::StringRef Line) -> llvm::StringRef {
+    Line = Line.ltrim(" \t\r");
+    if (Line.consume_front("///") || Line.consume_front("//!") ||
+        Line.consume_front("///<") || Line.consume_front("//!<")) {
+      Line.consume_front(" ");
+      return Line;
+    }
+    return Line;
+  };
+
+  auto strip_block_line = [](llvm::StringRef Line) -> llvm::StringRef {
+    Line = Line.ltrim(" \t\r");
+    if (Line.consume_front("*")) {
+      Line.consume_front(" ");
+      return Line;
+    }
+    return Line;
+  };
+
+  llvm::SmallVector<llvm::StringRef, 32> Lines;
+  Raw.split(Lines, '\n', /*MaxSplit=*/-1, /*KeepEmpty=*/true);
+
+  const llvm::StringRef First =
+      Lines.empty() ? llvm::StringRef() : Lines.front().ltrim(" \t\r");
+  const bool IsBlock = First.starts_with("/**") || First.starts_with("/*!");
+
+  std::string Out;
+  llvm::raw_string_ostream OS(Out);
+
+  for (size_t I = 0; I < Lines.size(); ++I) {
+    llvm::StringRef L = Lines[I];
+
+    if (IsBlock) {
+      if (I == 0) {
+        L = L.ltrim(" \t\r");
+        if (L.consume_front("/**") || L.consume_front("/*!")) {
+          L = L.ltrim(" \t\r");
+        }
+      } else {
+        L = strip_block_line(L);
+      }
+
+      llvm::StringRef R = L.rtrim(" \t\r");
+      if (R.ends_with("*/")) {
+        L = R.drop_back(2).rtrim(" \t\r");
+      }
+    } else {
+      L = strip_line_prefix(L);
+    }
+
+    OS << L;
+    if (I + 1 < Lines.size())
+      OS << '\n';
+  }
+  OS.flush();
+
+  llvm::StringRef Trimmed = llvm::StringRef(Out).trim();
+  return Trimmed.str();
+}
+} // namespace
 
 static void ForceCodeGen(Decl* D, compat::Interpreter& I) {
   // The decl was deferred by CodeGen. Force its emission.
@@ -670,6 +739,29 @@ std::string GetQualifiedCompleteName(TCppType_t klass) {
   }
 
   return "<unnamed>";
+}
+
+std::string GetDoxygenComment(TCppScope_t scope, bool strip_comment_markers) {
+  auto* D = (Decl*)scope;
+  if (!D)
+    return "";
+
+  D = D->getCanonicalDecl();
+
+  ASTContext& C = D->getASTContext();
+  const RawComment* RC = C.getRawCommentForAnyRedecl(D);
+  if (!RC)
+    return "";
+
+  if (!RC->isDocumentation())
+    return "";
+
+  const SourceManager& SM = C.getSourceManager();
+  llvm::StringRef Raw = RC->getRawText(SM);
+  if (!strip_comment_markers)
+    return Raw.str();
+
+  return StripDoxygenCommentMarkers(Raw);
 }
 
 std::vector<TCppScope_t> GetUsingNamespaces(TCppScope_t scope) {
@@ -4283,3 +4375,4 @@ pid_t GetExecutorPID() {
 #endif
 
 } // end namespace Cpp
+

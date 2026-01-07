@@ -519,6 +519,15 @@ CXString clang_getFunctionSignature(CXScope func) {
   return makeCXString("");
 }
 
+CXString clang_getDoxygenComment(CXScope S, bool strip_comment_markers) {
+  if (isNull(S))
+    return makeCXString("");
+
+  auto* D = getDecl(S);
+  return makeCXString(
+      Cpp::GetDoxygenComment((Cpp::TCppScope_t)D, strip_comment_markers));
+}
+
 bool clang_isTemplatedFunction(CXScope func) {
   auto* D = getDecl(func);
   if (llvm::isa_and_nonnull<clang::FunctionTemplateDecl>(D))
