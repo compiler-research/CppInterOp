@@ -1,4 +1,4 @@
-#include "CppInterOp/CppDispatch.h"
+#include "CppInterOp/Dispatch.h"
 
 #include "Utils.h"
 

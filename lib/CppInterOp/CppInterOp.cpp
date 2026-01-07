@@ -124,7 +124,7 @@ void __clang_Interpreter_SetValueNoAlloc(void*, void*, void*,
 #endif
 #endif // CPPINTEROP_USE_CLING
 
-namespace CppStatic {
+namespace CppImpl {
 
 using namespace clang;
 using namespace llvm;
@@ -3174,7 +3174,7 @@ static JitCall::DestructorCall make_dtor_wrapper(compat::Interpreter& interp,
   return (JitCall::DestructorCall)F;
 }
 #undef DEBUG_TYPE
-} // namespace
+} // namespace CppImpl
   // End of JitCall Helper Functions
 
 CPPINTEROP_API JitCall MakeFunctionCallable(TInterp_t I,
@@ -4289,4 +4289,4 @@ pid_t GetExecutorPID() {
 
 #endif
 
-} // namespace CppStatic
+} // namespace CppImpl
