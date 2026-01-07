@@ -15,13 +15,13 @@ runs:
           echo "CC=gcc-${vers}" >> $GITHUB_ENV
           echo "CXX=g++-${vers}" >> $GITHUB_ENV
         else
-          brew install llvm@15
           if [[ "$(uname -m)" == "x86_64" ]]; then
+            brew install llvm@15
             echo "CC=/usr/local/opt/llvm@15/bin/clang" >> $GITHUB_ENV
             echo "CXX=/usr/local/opt/llvm@15/bin/clang++" >> $GITHUB_ENV
           else
-            echo "CC=/opt/homebrew/opt/llvm@15/bin/clang" >> $GITHUB_ENV
-            echo "CXX=/opt/homebrew/opt/llvm@15/bin/clang++" >> $GITHUB_ENV
+            echo "CC=/opt/homebrew/opt/llvm@20/bin/clang" >> $GITHUB_ENV
+            echo "CXX=/opt/homebrew/opt/llvm@20/bin/clang++" >> $GITHUB_ENV
           fi
         fi
         echo "SDKROOT=$(xcrun --sdk macosx --show-sdk-path)" >> $GITHUB_ENV
@@ -75,3 +75,4 @@ runs:
         {
           echo "Unsupported compiler - fix YAML file"
         }
+
