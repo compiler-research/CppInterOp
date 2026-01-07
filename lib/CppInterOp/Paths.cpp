@@ -8,7 +8,6 @@
 //------------------------------------------------------------------------------
 
 #include "Paths.h"
-#include "Compatibility.h"
 
 #include "clang/Basic/FileManager.h"
 #include "clang/Lex/HeaderSearchOptions.h"

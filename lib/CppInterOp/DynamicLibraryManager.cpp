@@ -8,7 +8,6 @@
 //------------------------------------------------------------------------------
 
 #include "DynamicLibraryManager.h"
-#include "Compatibility.h"
 #include "Paths.h"
 
 #include "llvm/ADT/StringSet.h"
@@ -23,6 +22,7 @@
 #include "llvm/Support/Endian.h"
 #endif
 
+#include <cstdlib>
 #include <fstream>
 #include <sys/stat.h>
 #include <system_error>
@@ -52,7 +52,7 @@ DynamicLibraryManager::DynamicLibraryManager() {
   // Behaviour is to not add paths that don't exist...In an interpreted env
   // does this make sense? Path could pop into existence at any time.
   for (const char* Var : kSysLibraryEnv) {
-    if (const char* Env = GetEnv(Var)) {
+    if (const char* Env = std::getenv(Var)) {
       SmallVector<StringRef, 10> CurPaths;
       SplitPaths(Env, CurPaths, SplitMode::kPruneNonExistent,
                  platform::kEnvDelim);
