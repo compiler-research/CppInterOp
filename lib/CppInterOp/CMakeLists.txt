@@ -29,12 +29,6 @@ set(DLM
 if (CPPINTEROP_USE_CLING)
   set(LLVM_OPTIONAL_SOURCES ${LLVM_OPTIONAL_SOURCES} ${DLM})
   set(DLM)
-endif(CPPINTEROP_USE_CLING)
-if (CPPINTEROP_USE_REPL)
-  #Use DLM optional sources
-endif(CPPINTEROP_USE_REPL)
-
-if (CPPINTEROP_USE_CLING)
   set(cling_clang_interp clingInterpreter)
 endif()
 if (CPPINTEROP_USE_REPL)
