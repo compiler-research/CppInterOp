@@ -182,7 +182,7 @@ static clang::Sema& getSema() { return getInterp().getCI()->getSema(); }
 static clang::ASTContext& getASTContext() { return getSema().getASTContext(); }
 
 namespace {
-static std::string StripDoxygenCommentMarkers(llvm::StringRef Raw) {
+std::string StripDoxygenCommentMarkers(llvm::StringRef Raw) {
   Raw = Raw.trim();
   if (Raw.empty())
     return "";
@@ -742,7 +742,7 @@ std::string GetQualifiedCompleteName(TCppType_t klass) {
 }
 
 std::string GetDoxygenComment(TCppScope_t scope, bool strip_comment_markers) {
-  auto* D = (Decl*)scope;
+  auto* D = static_cast<Decl*>(scope);
   if (!D)
     return "";
 
@@ -4375,4 +4375,3 @@ pid_t GetExecutorPID() {
 #endif
 
 } // end namespace Cpp
-

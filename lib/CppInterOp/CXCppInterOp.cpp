@@ -524,8 +524,8 @@ CXString clang_getDoxygenComment(CXScope S, bool strip_comment_markers) {
     return makeCXString("");
 
   auto* D = getDecl(S);
-  return makeCXString(
-      Cpp::GetDoxygenComment((Cpp::TCppScope_t)D, strip_comment_markers));
+  return makeCXString(Cpp::GetDoxygenComment(static_cast<Cpp::TCppScope_t>(D),
+                                             strip_comment_markers));
 }
 
 bool clang_isTemplatedFunction(CXScope func) {

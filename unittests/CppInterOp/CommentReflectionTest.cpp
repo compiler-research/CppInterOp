@@ -1,7 +1,12 @@
 #include "Utils.h"
 
 #include "CppInterOp/CppInterOp.h"
+#include "clang-c/CXCppInterOp.h"
+#include "clang-c/CXString.h"
 #include "gtest/gtest.h"
+
+#include <string>
+#include <vector>
 
 using namespace TestUtils;
 using namespace llvm;
@@ -43,4 +48,3 @@ TYPED_TEST(CppInterOpTest, CommentReflectionDoxygenBlockAndLine) {
   clang_Interpreter_takeInterpreterAsPtr(I);
   clang_Interpreter_dispose(I);
 }
-
