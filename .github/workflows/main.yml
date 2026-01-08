@@ -130,16 +130,16 @@ jobs:
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
           # MacOS Arm Jobs
-          - name: osx15-arm-clang-clang-repl-21
-            os: macos-15
+          - name: osx26-arm-clang-clang-repl-21
+            os: macos-26
             compiler: clang
             clang-runtime: '21'
             cling: Off
             cppyy: Off
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host"
-          - name: osx15-arm-clang-clang-repl-20-out-of-process
-            os: macos-15
+          - name: osx26-arm-clang-clang-repl-20-out-of-process
+            os: macos-26
             compiler: clang
             clang-runtime: '20'
             cling: Off
@@ -147,32 +147,32 @@ jobs:
             llvm_enable_projects: "clang;compiler-rt"
             llvm_targets_to_build: "host"
             oop-jit: On
-          - name: osx15-arm-clang-clang-repl-20
-            os: macos-15
+          - name: osx26-arm-clang-clang-repl-20
+            os: macos-26
             compiler: clang
             clang-runtime: '20'
             cling: Off
             cppyy: Off
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host"
-          - name: osx15-arm-clang-clang-repl-19-cppyy
-            os: macos-15
+          - name: osx26-arm-clang-clang-repl-19-cppyy
+            os: macos-26
             compiler: clang
             clang-runtime: '19'
             cling: Off
             cppyy: On
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host"
-          - name: osx15-arm-clang-clang-repl-18-cppyy
-            os: macos-15
+          - name: osx26-arm-clang-clang-repl-18-cppyy
+            os: macos-26
             compiler: clang
             clang-runtime: '18'
             cling: Off
             cppyy: On
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host"
-          - name: osx15-arm-clang-clang18-cling-cppyy
-            os: macos-15
+          - name: osx26-arm-clang-clang18-cling-cppyy
+            os: macos-26
             compiler: clang
             clang-runtime: '18'
             cling: On
@@ -256,7 +256,7 @@ jobs:
             llvm_targets_to_build: "host;NVPTX"
 
     steps:
-    - uses: actions/checkout@v5
+    - uses: actions/checkout@v6
       with:
         fetch-depth: 0
 

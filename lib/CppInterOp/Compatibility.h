@@ -109,8 +109,8 @@ static inline char* GetEnv(const char* Var_Name) {
 #include <regex>
 #include <vector>
 
-namespace Cpp {
-namespace Cpp_utils = cling::utils;
+namespace CppInternal {
+namespace utils = cling::utils;
 }
 
 namespace compat {
@@ -451,12 +451,8 @@ inline void codeComplete(std::vector<std::string>& Results,
 
 #include "CppInterOpInterpreter.h"
 
-namespace Cpp {
-namespace Cpp_utils = Cpp::utils;
-}
-
 namespace compat {
-using Interpreter = Cpp::Interpreter;
+using Interpreter = CppInternal::Interpreter;
 
 class SynthesizingCodeRAII {
 private:

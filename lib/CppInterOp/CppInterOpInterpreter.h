@@ -67,7 +67,7 @@ template <typename D> static D* LookupResult2Decl(clang::LookupResult& R) {
 }
 } // namespace
 
-namespace Cpp {
+namespace CppInternal {
 namespace utils {
 namespace Lookup {
 
@@ -141,9 +141,9 @@ inline clang::NamedDecl* Named(clang::Sema* S, const char* Name,
 
 } // namespace Lookup
 } // namespace utils
-} // namespace Cpp
+} // namespace CppInternal
 
-namespace Cpp {
+namespace CppInternal {
 
 /// CppInterOp Interpreter
 ///
@@ -494,7 +494,7 @@ public:
 
     // Save the current number of entries
     size_t Idx = HOpts.UserEntries.size();
-    Cpp::utils::AddIncludePaths(PathsStr, HOpts, Delim);
+    CppInternal::utils::AddIncludePaths(PathsStr, HOpts, Delim);
 
     clang::Preprocessor& PP = CI->getPreprocessor();
     clang::SourceManager& SM = PP.getSourceManager();
@@ -532,8 +532,8 @@ public:
   ///
   void GetIncludePaths(llvm::SmallVectorImpl<std::string>& incpaths,
                        bool withSystem, bool withFlags) const {
-    utils::CopyIncludePaths(getCI()->getHeaderSearchOpts(), incpaths,
-                            withSystem, withFlags);
+    CppInternal::utils::CopyIncludePaths(getCI()->getHeaderSearchOpts(),
+                                         incpaths, withSystem, withFlags);
   }
 
   CompilationResult loadLibrary(const std::string& filename, bool lookup) {
@@ -587,6 +587,6 @@ public:
   }
 
 }; // Interpreter
-} // namespace Cpp
+} // namespace CppInternal
 
 #endif // CPPINTEROP_INTERPRETER_H
