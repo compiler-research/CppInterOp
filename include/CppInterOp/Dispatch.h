@@ -220,7 +220,7 @@ CPPINTEROP_API_MAP
 /// (RTLD_LOCAL) \param[in] customLibPath Optional custom path to
 /// libclangCppInterOp.so \returns true if initialization succeeded, false
 /// otherwise
-inline bool init_functions(const char* customLibPath = nullptr) {
+inline bool LoadDispatchAPI(const char* customLibPath = nullptr) {
   // trigger library loading if custom path provided
   std::cout << "[CppInterOp] Initializing CppInterOp API functions from "
             << (customLibPath ? customLibPath : "default library path") << '\n';
@@ -237,13 +237,19 @@ inline bool init_functions(const char* customLibPath = nullptr) {
   CPPINTEROP_API_MAP
 #undef X
 
-  // test to verify that critical (and consequently all) functions loaded
+  // Sanity check to verify that critical (and consequently all) functions loaded
   if (!GetInterpreter || !CreateInterpreter) {
     std::cerr << "[CppInterOp] Failed to load critical functions" << std::endl;
     return false;
   }
 
   return true;
+}
+// Unload all CppInterOp API functions
+inline void UnloadDispatchAPI() {
+#define X(name, type) name = nullptr;
+    CPPINTEROP_API_MAP
+#undef X
 }
 } // namespace Dispatch
 } // namespace CppInternal

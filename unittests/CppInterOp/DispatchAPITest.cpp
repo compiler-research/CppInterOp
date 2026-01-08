@@ -8,18 +8,30 @@ using namespace TestUtils;
 using namespace llvm;
 using namespace clang;
 
-TEST(DispatchAPITestTest, Basic_IsClassSymbolLookup) {
-  CppAPIType::IsClass IsClassFn = reinterpret_cast<CppAPIType::IsClass>(
-      dlGetProcAddress("IsClass", CPPINTEROP_LIB_DIR));
-  ASSERT_NE(IsClassFn, nullptr) << "failed to locate symbol: " << dlerror();
+#define X(name, type) CppAPIType::name Cpp::name = nullptr;
+CPPINTEROP_API_MAP
+#undef X
+
+class DispatchAPITest : public ::testing::Test {
+protected:
+    static void SetUpTestSuite() {
+        if (!Cpp::LoadDispatchAPI(CPPINTEROP_LIB_DIR))
+            GTEST_FAIL();
+    }
+    static void TearDownTestSuite() {
+      Cpp::UnloadDispatchAPI();
+    }
+};
+
+TEST_F(DispatchAPITest, Basic_IsClassSymbolLookup) {
   std::vector<Decl*> Decls;
   GetAllTopLevelDecls("namespace N {} class C{}; int I;", Decls);
-  EXPECT_FALSE(IsClassFn(Decls[0]));
-  EXPECT_TRUE(IsClassFn(Decls[1]));
-  EXPECT_FALSE(IsClassFn(Decls[2]));
+  EXPECT_FALSE(Cpp::IsClass(Decls[0]));
+  EXPECT_TRUE(Cpp::IsClass(Decls[1]));
+  EXPECT_FALSE(Cpp::IsClass(Decls[2]));
 }
 
-TEST(DispatchAPITestTest,  Basic_Demangle) {
+TEST_F(DispatchAPITest, Basic_Demangle) {
 
   std::string code = R"(
     int add(int x, int y) { return x + y; }
@@ -38,18 +50,11 @@ TEST(DispatchAPITestTest,  Basic_Demangle) {
   compat::maybeMangleDeclName(Add_int, mangled_add_int);
   compat::maybeMangleDeclName(Add_double, mangled_add_double);
 
-  // CppAPIType:: gives us the specific function pointer types
-  CppAPIType::Demangle DemangleFn = reinterpret_cast<CppAPIType::Demangle>(
-      dlGetProcAddress("Demangle", CPPINTEROP_LIB_DIR));
-  CppAPIType::GetQualifiedCompleteName GetQualifiedCompleteNameFn =
-      reinterpret_cast<CppAPIType::GetQualifiedCompleteName>(
-          dlGetProcAddress("GetQualifiedCompleteName"));
+  std::string demangled_add_int = Cpp::Demangle(mangled_add_int);
+  std::string demangled_add_double = Cpp::Demangle(mangled_add_double);
 
-  std::string demangled_add_int = DemangleFn(mangled_add_int);
-  std::string demangled_add_double = DemangleFn(mangled_add_double);
-
-  EXPECT_NE(demangled_add_int.find(GetQualifiedCompleteNameFn(Decls[0])),
+  EXPECT_NE(demangled_add_int.find(Cpp::GetQualifiedCompleteName(Decls[0])),
             std::string::npos);
-  EXPECT_NE(demangled_add_double.find(GetQualifiedCompleteNameFn(Decls[1])),
+  EXPECT_NE(demangled_add_double.find(Cpp::GetQualifiedCompleteName(Decls[1])),
             std::string::npos);
 }
