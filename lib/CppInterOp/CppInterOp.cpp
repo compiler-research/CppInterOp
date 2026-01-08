@@ -104,7 +104,7 @@ struct __clang_Interpreter_NewTag {
 } __ci_newtag;
 #if CLANG_VERSION_MAJOR > 21
 extern "C" void* __clang_Interpreter_SetValueWithAlloc(void* This, void* OutVal,
-                                                       void* OpaqueType)
+                                                       void* OpaqueType);
 #else
 void* __clang_Interpreter_SetValueWithAlloc(void* This, void* OutVal,
                                             void* OpaqueType);
