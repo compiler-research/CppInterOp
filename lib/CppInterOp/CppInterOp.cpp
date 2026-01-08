@@ -106,7 +106,7 @@ struct __clang_Interpreter_NewTag {
 } __ci_newtag;
 #if CLANG_VERSION_MAJOR > 21
 extern "C" void* __clang_Interpreter_SetValueWithAlloc(void* This, void* OutVal,
-                                                       void* OpaqueType)
+                                                       void* OpaqueType);
 #else
 void* __clang_Interpreter_SetValueWithAlloc(void* This, void* OutVal,
                                             void* OpaqueType);
@@ -860,7 +860,11 @@ TCppScope_t GetNamed(const std::string& name,
     D = GetUnderlyingScope(D);
     Within = llvm::dyn_cast<clang::DeclContext>(D);
   }
-
+#ifdef CPPINTEROP_USE_CLING
+  if (Within)
+    Within->getPrimaryContext()->buildLookup();
+  cling::Interpreter::PushTransactionRAII RAII(&getInterp());
+#endif
   auto* ND = CppInternal::utils::Lookup::Named(&getSema(), name, Within);
   if (ND && ND != (clang::NamedDecl*)-1) {
     return (TCppScope_t)(ND->getCanonicalDecl());
@@ -3941,6 +3945,10 @@ void GetAllCppNames(TCppScope_t scope, std::set<std::string>& names) {
   auto* D = (clang::Decl*)scope;
   clang::DeclContext* DC;
   clang::DeclContext::decl_iterator decl;
+
+#ifdef CPPINTEROP_USE_CLING
+  cling::Interpreter::PushTransactionRAII RAII(&getInterp());
+#endif
 
   if (auto* TD = dyn_cast_or_null<TagDecl>(D)) {
     DC = clang::TagDecl::castToDeclContext(TD);
