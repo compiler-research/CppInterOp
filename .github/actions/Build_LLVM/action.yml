@@ -48,10 +48,6 @@ runs:
             git apply -v ../patches/llvm/clang20-1-out-of-process.patch
             echo "Apply clang20-1-out-of-process.patch:"
           fi
-          if [[ "${llvm_vers}" == "21" && "${{ matrix.os }}" == macos* ]]; then
-            git apply -v ../patches/llvm/clang-21-1-add-back-darwin-legacy-framework.patch
-            echo "Applying clang-21-1-add-back-darwin-legacy-framework.patch"
-          fi
           cd build
           cmake -DLLVM_ENABLE_PROJECTS="${{ matrix.llvm_enable_projects}}" \
                 -DLLVM_TARGETS_TO_BUILD="${{ matrix.llvm_targets_to_build }}"  \
