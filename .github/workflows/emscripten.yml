@@ -874,7 +874,7 @@ jobs:
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            `
                 -DLLVM_ENABLE_WERROR=On                      `
                 -DSYSROOT_PATH="$env:SYSROOT_PATH"                     `
-                -DCPPINTEROP_ENABLE_WASM_EXCEPTIONS              `
+                -DCPPINTEROP_ENABLE_WASM_EXCEPTIONS=ON              `
                 ..\
         }
         function Error-OnFailure {

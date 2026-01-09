@@ -1,0 +1,254 @@
+commit 030118104fe23f51ef3b163fbcef0c1ef5c22ddb
+Author: mcbarton <150042563+mcbarton@users.noreply.github.com>
+Date:   Fri Jan 9 00:16:41 2026 +0000
+
+    Revert "WebAssembly: Stop changing MCAsmInfo's ExceptionsType based on flags (#146343)"
+    
+    This reverts commit 7b0f70a9b26ab082e02abd908d1622105fa1ec42.
+
+diff --git a/llvm/lib/Target/WebAssembly/MCTargetDesc/WebAssemblyMCAsmInfo.cpp b/llvm/lib/Target/WebAssembly/MCTargetDesc/WebAssemblyMCAsmInfo.cpp
+index a783e5fd8521..3987b086195a 100644
+--- a/llvm/lib/Target/WebAssembly/MCTargetDesc/WebAssemblyMCAsmInfo.cpp
++++ b/llvm/lib/Target/WebAssembly/MCTargetDesc/WebAssemblyMCAsmInfo.cpp
+@@ -55,7 +55,14 @@ WebAssemblyMCAsmInfo::WebAssemblyMCAsmInfo(const Triple &T,
+   LCOMMDirectiveAlignmentType = LCOMM::Log2Alignment;
+ 
+   SupportsDebugInformation = true;
+-  ExceptionsType = ExceptionHandling::None;
++
++  // When compilation is done on a cpp file by clang, the exception model info
++  // is stored in LangOptions, which is later used to set the info in
++  // TargetOptions and then MCAsmInfo in CodeGenTargetMachine::initAsmInfo().
++  // But this process does not happen when compiling bitcode directly with
++  // clang, so we make sure this info is set correctly.
++  if (WebAssembly::WasmEnableEH || WebAssembly::WasmEnableSjLj)
++    ExceptionsType = ExceptionHandling::Wasm;
+ 
+   initializeAtSpecifiers(atSpecifiers);
+ }
+diff --git a/llvm/lib/Target/WebAssembly/MCTargetDesc/WebAssemblyMCTargetDesc.cpp b/llvm/lib/Target/WebAssembly/MCTargetDesc/WebAssemblyMCTargetDesc.cpp
+index 8019ae165ec8..6c0031f429c6 100644
+--- a/llvm/lib/Target/WebAssembly/MCTargetDesc/WebAssemblyMCTargetDesc.cpp
++++ b/llvm/lib/Target/WebAssembly/MCTargetDesc/WebAssemblyMCTargetDesc.cpp
+@@ -36,6 +36,35 @@ using namespace llvm;
+ #define GET_REGINFO_MC_DESC
+ #include "WebAssemblyGenRegisterInfo.inc"
+ 
++// Exception handling & setjmp-longjmp handling related options.
++
++// Emscripten's asm.js-style exception handling
++cl::opt<bool> WebAssembly::WasmEnableEmEH(
++    "enable-emscripten-cxx-exceptions",
++    cl::desc("WebAssembly Emscripten-style exception handling"),
++    cl::init(false));
++// Emscripten's asm.js-style setjmp/longjmp handling
++cl::opt<bool> WebAssembly::WasmEnableEmSjLj(
++    "enable-emscripten-sjlj",
++    cl::desc("WebAssembly Emscripten-style setjmp/longjmp handling"),
++    cl::init(false));
++// Exception handling using wasm EH instructions
++cl::opt<bool>
++    WebAssembly::WasmEnableEH("wasm-enable-eh",
++                              cl::desc("WebAssembly exception handling"));
++// setjmp/longjmp handling using wasm EH instrutions
++cl::opt<bool> WebAssembly::WasmEnableSjLj(
++    "wasm-enable-sjlj", cl::desc("WebAssembly setjmp/longjmp handling"));
++// If true, use the legacy Wasm EH proposal:
++// https://github.com/WebAssembly/exception-handling/blob/main/proposals/exception-handling/legacy/Exceptions.md
++// And if false, use the standardized Wasm EH proposal:
++// https://github.com/WebAssembly/exception-handling/blob/main/proposals/exception-handling/Exceptions.md
++// Currently set to true by default because not all major web browsers turn on
++// the new standard proposal by default, but will later change to false.
++cl::opt<bool> WebAssembly::WasmUseLegacyEH(
++    "wasm-use-legacy-eh", cl::desc("WebAssembly exception handling (legacy)"),
++    cl::init(true));
++
+ static MCAsmInfo *createMCAsmInfo(const MCRegisterInfo & /*MRI*/,
+                                   const Triple &TT,
+                                   const MCTargetOptions &Options) {
+diff --git a/llvm/lib/Target/WebAssembly/MCTargetDesc/WebAssemblyMCTargetDesc.h b/llvm/lib/Target/WebAssembly/MCTargetDesc/WebAssemblyMCTargetDesc.h
+index fe9a4bada243..d6a2fe4c7839 100644
+--- a/llvm/lib/Target/WebAssembly/MCTargetDesc/WebAssemblyMCTargetDesc.h
++++ b/llvm/lib/Target/WebAssembly/MCTargetDesc/WebAssemblyMCTargetDesc.h
+@@ -39,6 +39,13 @@ createWebAssemblyWasmObjectWriter(bool Is64Bit, bool IsEmscripten);
+ 
+ namespace WebAssembly {
+ 
++// Exception handling / setjmp-longjmp handling command-line options
++extern cl::opt<bool> WasmEnableEmEH;   // asm.js-style EH
++extern cl::opt<bool> WasmEnableEmSjLj; // asm.js-style SjLJ
++extern cl::opt<bool> WasmEnableEH;     // EH using Wasm EH instructions
++extern cl::opt<bool> WasmEnableSjLj;   // SjLj using Wasm EH instructions
++extern cl::opt<bool> WasmUseLegacyEH;  // Legacy Wasm EH
++
+ enum OperandType {
+   /// Basic block label in a branch construct.
+   OPERAND_BASIC_BLOCK = MCOI::OPERAND_FIRST_TARGET,
+diff --git a/llvm/lib/Target/WebAssembly/WebAssemblyAsmPrinter.cpp b/llvm/lib/Target/WebAssembly/WebAssemblyAsmPrinter.cpp
+index 1bf070e9ec9c..44a19e4baaf6 100644
+--- a/llvm/lib/Target/WebAssembly/WebAssemblyAsmPrinter.cpp
++++ b/llvm/lib/Target/WebAssembly/WebAssemblyAsmPrinter.cpp
+@@ -24,7 +24,6 @@
+ #include "WebAssemblyMachineFunctionInfo.h"
+ #include "WebAssemblyRegisterInfo.h"
+ #include "WebAssemblyRuntimeLibcallSignatures.h"
+-#include "WebAssemblyTargetMachine.h"
+ #include "WebAssemblyUtilities.h"
+ #include "llvm/ADT/MapVector.h"
+ #include "llvm/ADT/SmallSet.h"
+@@ -156,11 +155,9 @@ static std::string getEmscriptenInvokeSymbolName(wasm::WasmSignature *Sig) {
+ //===----------------------------------------------------------------------===//
+ 
+ MCSymbolWasm *WebAssemblyAsmPrinter::getMCSymbolForFunction(
+-    const Function *F, wasm::WasmSignature *Sig, bool &InvokeDetected) {
++    const Function *F, bool EnableEmEH, wasm::WasmSignature *Sig,
++    bool &InvokeDetected) {
+   MCSymbolWasm *WasmSym = nullptr;
+-
+-  const bool EnableEmEH =
+-      WebAssembly::WasmEnableEmEH || WebAssembly::WasmEnableEmSjLj;
+   if (EnableEmEH && isEmscriptenInvokeName(F->getName())) {
+     assert(Sig);
+     InvokeDetected = true;
+@@ -347,7 +344,9 @@ void WebAssemblyAsmPrinter::emitDecls(const Module &M) {
+     // will discard it later if it turns out not to be necessary.
+     auto Signature = signatureFromMVTs(OutContext, Results, Params);
+     bool InvokeDetected = false;
+-    auto *Sym = getMCSymbolForFunction(&F, Signature, InvokeDetected);
++    auto *Sym = getMCSymbolForFunction(
++        &F, WebAssembly::WasmEnableEmEH || WebAssembly::WasmEnableEmSjLj,
++        Signature, InvokeDetected);
+ 
+     // Multiple functions can be mapped to the same invoke symbol. For
+     // example, two IR functions '__invoke_void_i8*' and '__invoke_void_i32'
+@@ -405,7 +404,7 @@ void WebAssemblyAsmPrinter::emitEndOfAsmFile(Module &M) {
+     if (!F.isIntrinsic() && F.hasAddressTaken()) {
+       MCSymbolWasm *FunctionTable =
+           WebAssembly::getOrCreateFunctionTableSymbol(OutContext, Subtarget);
+-      OutStreamer->emitSymbolAttribute(FunctionTable, MCSA_NoDeadStrip);
++      OutStreamer->emitSymbolAttribute(FunctionTable, MCSA_NoDeadStrip);    
+       break;
+     }
+   }
+diff --git a/llvm/lib/Target/WebAssembly/WebAssemblyAsmPrinter.h b/llvm/lib/Target/WebAssembly/WebAssemblyAsmPrinter.h
+index aef562e1dd68..46063bbe0fba 100644
+--- a/llvm/lib/Target/WebAssembly/WebAssemblyAsmPrinter.h
++++ b/llvm/lib/Target/WebAssembly/WebAssemblyAsmPrinter.h
+@@ -73,7 +73,7 @@ public:
+   MVT getRegType(unsigned RegNo) const;
+   std::string regToString(const MachineOperand &MO);
+   WebAssemblyTargetStreamer *getTargetStreamer();
+-  MCSymbolWasm *getMCSymbolForFunction(const Function *F,
++  MCSymbolWasm *getMCSymbolForFunction(const Function *F, bool EnableEmEH,
+                                        wasm::WasmSignature *Sig,
+                                        bool &InvokeDetected);
+   MCSymbol *getOrCreateWasmSymbol(StringRef Name);
+diff --git a/llvm/lib/Target/WebAssembly/WebAssemblyCFGStackify.cpp b/llvm/lib/Target/WebAssembly/WebAssemblyCFGStackify.cpp
+index acb889f00a48..640be5fe8e8c 100644
+--- a/llvm/lib/Target/WebAssembly/WebAssemblyCFGStackify.cpp
++++ b/llvm/lib/Target/WebAssembly/WebAssemblyCFGStackify.cpp
+@@ -21,13 +21,13 @@
+ ///
+ //===----------------------------------------------------------------------===//
+ 
++#include "MCTargetDesc/WebAssemblyMCTargetDesc.h"
+ #include "Utils/WebAssemblyTypeUtilities.h"
+ #include "WebAssembly.h"
+ #include "WebAssemblyExceptionInfo.h"
+ #include "WebAssemblyMachineFunctionInfo.h"
+ #include "WebAssemblySortRegion.h"
+ #include "WebAssemblySubtarget.h"
+-#include "WebAssemblyTargetMachine.h"
+ #include "WebAssemblyUtilities.h"
+ #include "llvm/ADT/Statistic.h"
+ #include "llvm/BinaryFormat/Wasm.h"
+diff --git a/llvm/lib/Target/WebAssembly/WebAssemblyLateEHPrepare.cpp b/llvm/lib/Target/WebAssembly/WebAssemblyLateEHPrepare.cpp
+index 8ac32f939c5f..254ad5c4f2be 100644
+--- a/llvm/lib/Target/WebAssembly/WebAssemblyLateEHPrepare.cpp
++++ b/llvm/lib/Target/WebAssembly/WebAssemblyLateEHPrepare.cpp
+@@ -11,9 +11,9 @@
+ ///
+ //===----------------------------------------------------------------------===//
+ 
++#include "MCTargetDesc/WebAssemblyMCTargetDesc.h"
+ #include "WebAssembly.h"
+ #include "WebAssemblySubtarget.h"
+-#include "WebAssemblyTargetMachine.h"
+ #include "WebAssemblyUtilities.h"
+ #include "llvm/ADT/SmallPtrSet.h"
+ #include "llvm/CodeGen/MachineFunctionPass.h"
+diff --git a/llvm/lib/Target/WebAssembly/WebAssemblyMCInstLower.cpp b/llvm/lib/Target/WebAssembly/WebAssemblyMCInstLower.cpp
+index cc36244e63ff..d5240959e765 100644
+--- a/llvm/lib/Target/WebAssembly/WebAssemblyMCInstLower.cpp
++++ b/llvm/lib/Target/WebAssembly/WebAssemblyMCInstLower.cpp
+@@ -77,7 +77,9 @@ WebAssemblyMCInstLower::GetGlobalAddressSymbol(const MachineOperand &MO) const {
+   auto Signature = signatureFromMVTs(Ctx, ResultMVTs, ParamMVTs);
+ 
+   bool InvokeDetected = false;
+-  auto *WasmSym = Printer.getMCSymbolForFunction(F, Signature, InvokeDetected);
++  auto *WasmSym = Printer.getMCSymbolForFunction(
++      F, WebAssembly::WasmEnableEmEH || WebAssembly::WasmEnableEmSjLj,
++      Signature, InvokeDetected);
+   WasmSym->setSignature(Signature);
+   WasmSym->setType(wasm::WASM_SYMBOL_TYPE_FUNCTION);
+   return WasmSym;
+diff --git a/llvm/lib/Target/WebAssembly/WebAssemblyTargetMachine.cpp b/llvm/lib/Target/WebAssembly/WebAssemblyTargetMachine.cpp
+index 6827ee652794..439494c3692b 100644
+--- a/llvm/lib/Target/WebAssembly/WebAssemblyTargetMachine.cpp
++++ b/llvm/lib/Target/WebAssembly/WebAssemblyTargetMachine.cpp
+@@ -53,35 +53,6 @@ static cl::opt<bool> WasmDisableFixIrreducibleControlFlowPass(
+              " irreducible control flow optimization pass"),
+     cl::init(false));
+ 
+-// Exception handling & setjmp-longjmp handling related options.
+-
+-// Emscripten's asm.js-style exception handling
+-cl::opt<bool> WebAssembly::WasmEnableEmEH(
+-    "enable-emscripten-cxx-exceptions",
+-    cl::desc("WebAssembly Emscripten-style exception handling"),
+-    cl::init(false));
+-// Emscripten's asm.js-style setjmp/longjmp handling
+-cl::opt<bool> WebAssembly::WasmEnableEmSjLj(
+-    "enable-emscripten-sjlj",
+-    cl::desc("WebAssembly Emscripten-style setjmp/longjmp handling"),
+-    cl::init(false));
+-// Exception handling using wasm EH instructions
+-cl::opt<bool>
+-    WebAssembly::WasmEnableEH("wasm-enable-eh",
+-                              cl::desc("WebAssembly exception handling"));
+-// setjmp/longjmp handling using wasm EH instrutions
+-cl::opt<bool> WebAssembly::WasmEnableSjLj(
+-    "wasm-enable-sjlj", cl::desc("WebAssembly setjmp/longjmp handling"));
+-// If true, use the legacy Wasm EH proposal:
+-// https://github.com/WebAssembly/exception-handling/blob/main/proposals/exception-handling/legacy/Exceptions.md
+-// And if false, use the standardized Wasm EH proposal:
+-// https://github.com/WebAssembly/exception-handling/blob/main/proposals/exception-handling/Exceptions.md
+-// Currently set to true by default because not all major web browsers turn on
+-// the new standard proposal by default, but will later change to false.
+-cl::opt<bool> WebAssembly::WasmUseLegacyEH(
+-    "wasm-use-legacy-eh", cl::desc("WebAssembly exception handling (legacy)"),
+-    cl::init(true));
+-
+ extern "C" LLVM_ABI LLVM_EXTERNAL_VISIBILITY void
+ LLVMInitializeWebAssemblyTarget() {
+   // Register the target.
+diff --git a/llvm/lib/Target/WebAssembly/WebAssemblyTargetMachine.h b/llvm/lib/Target/WebAssembly/WebAssemblyTargetMachine.h
+index 6f97f1302189..1d8197d02588 100644
+--- a/llvm/lib/Target/WebAssembly/WebAssemblyTargetMachine.h
++++ b/llvm/lib/Target/WebAssembly/WebAssemblyTargetMachine.h
+@@ -21,15 +21,6 @@
+ 
+ namespace llvm {
+ 
+-namespace WebAssembly {
+-// Exception handling / setjmp-longjmp handling command-line options
+-extern cl::opt<bool> WasmEnableEmEH;   // asm.js-style EH
+-extern cl::opt<bool> WasmEnableEmSjLj; // asm.js-style SjLJ
+-extern cl::opt<bool> WasmEnableEH;     // EH using Wasm EH instructions
+-extern cl::opt<bool> WasmEnableSjLj;   // SjLj using Wasm EH instructions
+-extern cl::opt<bool> WasmUseLegacyEH;  // Legacy Wasm EH
+-} // namespace WebAssembly
+-
+ class WebAssemblyTargetMachine final : public CodeGenTargetMachineImpl {
+   std::unique_ptr<TargetLoweringObjectFile> TLOF;
+   mutable StringMap<std::unique_ptr<WebAssemblySubtarget>> SubtargetMap;
