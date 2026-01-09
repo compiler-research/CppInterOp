@@ -56,8 +56,8 @@ jobs:
             llvm_enable_projects: "clang;lld"
             llvm_targets_to_build: "WebAssembly"
             emsdk_ver: "4.0.9"
-          - name: osx15-arm-clang-repl-21-emscripten
-            os: macos-15
+          - name: osx26-arm-clang-repl-21-emscripten
+            os: macos-26
             clang-runtime: '21'
             cling: Off
             llvm_enable_projects: "clang;lld"
@@ -331,6 +331,7 @@ jobs:
           {
             git apply -v emscripten-clang21-1-shift-temporary-files-to-tmp-dir.patch
             git apply -v emscripten-clang21-2-enable_exception_handling.patch
+            git apply -v emscripten-clang21-3-revert-7b0f70a9b26ab082e02abd908d1622105fa1ec42.patch
           }
           cd build
           echo "Apply clang${{ matrix.clang-runtime }}-*.patch patches:"
@@ -428,8 +429,8 @@ jobs:
             cling: Off
             micromamba_shell_init: bash
             emsdk_ver: "4.0.9"
-          - name: osx15-arm-clang-repl-21-emscripten_wasm
-            os: macos-15
+          - name: osx26-arm-clang-repl-21-emscripten_wasm
+            os: macos-26
             clang-runtime: '21'
             cling: Off
             micromamba_shell_init: bash
