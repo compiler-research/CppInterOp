@@ -21,9 +21,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: osx26-arm-clang-repl-20-emscripten_wasm
+          - name: osx26-arm-clang-repl-21-emscripten_wasm
             os: macos-26
-            clang-runtime: '20'
+            clang-runtime: '21'
             cling: Off
             micromamba_shell_init: bash
             emsdk_ver: "4.0.9"
@@ -108,6 +108,7 @@ jobs:
                 -DCMAKE_INSTALL_PREFIX=$PREFIX         \
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            \
                 -DSYSROOT_PATH=$SYSROOT_PATH               \
+                -DCPPINTEROP_ENABLE_WASM_EXCEPTIONS=ON        \
                 ../
         else
           emcmake cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    \
@@ -120,6 +121,7 @@ jobs:
                 -DCMAKE_INSTALL_PREFIX=$PREFIX      \
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            \
                 -DSYSROOT_PATH=$SYSROOT_PATH               \
+                -DCPPINTEROP_ENABLE_WASM_EXCEPTIONS=ON          \
                 ../
         fi
         emmake make -j ${{ env.ncpus }} check-cppinterop
@@ -210,7 +212,7 @@ jobs:
           -DXEUS_CPP_RESOURCE_DIR=${{ env.LLVM_BUILD_DIR }}/lib/clang/${{ matrix.clang-runtime }} \
           -DSYSROOT_PATH=${{ env.SYSROOT_PATH }}                     \
           ..
-        emmake make -j ${{ env.ncpus }} install
+        EMCC_CFLAGS="-sSUPPORT_LONGJMP=wasm -fwasm-exceptions" emmake make -j ${{ env.ncpus }} install
 
     - name: Test xeus-cpp C++ Emscripten
       shell: bash -l {0}
