@@ -23,6 +23,22 @@ add_cppinterop_unittest(CppInterOpTests
   ${EXTRA_TEST_SOURCE_FILES}
 )
 
+# Run tests with API Dispatch mode. Requires shared library build.
+if(BUILD_SHARED_LIBS)
+  add_cppinterop_unittest(CppInterOpDispatchTests
+    EnumReflectionTest.cpp
+    FunctionReflectionTest.cpp
+    InterpreterTest.cpp
+    JitTest.cpp
+    ScopeReflectionTest.cpp
+    TypeReflectionTest.cpp
+    Utils.cpp
+    VariableReflectionTest.cpp
+    ${EXTRA_TEST_SOURCE_FILES}
+    TEST_DISPATCH
+  )
+endif()
+
 if(EMSCRIPTEN)
   string(REPLACE "@" "@@" ESCAPED_SYSROOT_PATH "${SYSROOT_PATH}")
   # Explanation of Emscripten-specific link flags for CppInterOpTests:
@@ -65,8 +81,19 @@ target_link_libraries(CppInterOpTests
   PRIVATE
   clangCppInterOp
 )
+# We only link the Dispatch tests for the necessary LLVM and Clang symbols
+# referenced by CppInterOpInterpreter.h 
+target_link_libraries(CppInterOpDispatchTests
+  PRIVATE
+  clangCppInterOp
+)
 
 set_output_directory(CppInterOpTests
+  BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/${EXTRA_PATH_TEST_BINARIES}
+  LIBRARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/${EXTRA_PATH_TEST_BINARIES}
+)
+
+set_output_directory(CppInterOpDispatchTests
   BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/${EXTRA_PATH_TEST_BINARIES}
   LIBRARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/${EXTRA_PATH_TEST_BINARIES}
 )
@@ -81,6 +108,7 @@ set_source_files_properties(InterpreterTest.cpp PROPERTIES COMPILE_DEFINITIONS
   "LLVM_BINARY_DIR=\"${LLVM_BINARY_DIR}\""
 )
 export_executable_symbols(CppInterOpTests)
+export_executable_symbols(CppInterOpDispatchTests)
 
 unset(LLVM_LINK_COMPONENTS)
 
@@ -119,9 +147,11 @@ endif()
 if (EMSCRIPTEN)
   if (BUILD_SHARED_LIBS)
     target_compile_definitions(CppInterOpTests PRIVATE "EMSCRIPTEN_SHARED_LIBRARY")
+    target_compile_definitions(CppInterOpDispatchTests PRIVATE "EMSCRIPTEN_SHARED_LIBRARY")
     target_compile_definitions(DynamicLibraryManagerTests PRIVATE "EMSCRIPTEN_SHARED_LIBRARY")
   else()
     target_compile_definitions(CppInterOpTests PRIVATE "EMSCRIPTEN_STATIC_LIBRARY")
+    target_compile_definitions(CppInterOpDispatchTests PRIVATE "EMSCRIPTEN_STATIC_LIBRARY")
     target_compile_definitions(DynamicLibraryManagerTests PRIVATE "EMSCRIPTEN_STATIC_LIBRARY")
   endif()
 endif()

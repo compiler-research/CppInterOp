@@ -30,10 +30,20 @@ add_dependencies(CppInterOpUnitTests clangCppInterOp)
 
 set (TIMEOUT_VALUE 2400)
 function(add_cppinterop_unittest name)
-  add_executable(${name} EXCLUDE_FROM_ALL ${ARGN})
+  list(REMOVE_ITEM ARGN "TEST_DISPATCH")
+  set(SOURCE_FILES ${ARGN})
+  add_executable(${name} EXCLUDE_FROM_ALL ${SOURCE_FILES})
   add_dependencies(CppInterOpUnitTests ${name})
   target_include_directories(${name} PUBLIC ${CMAKE_CURRENT_BINARY_DIR} ${GTEST_INCLUDE_DIR})
   set_property(TARGET ${name} PROPERTY RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
+
+  # Check if the test executable should run in the API dispatch mode.
+  if("TEST_DISPATCH" IN_LIST ARGV)
+    target_compile_definitions(${name} PRIVATE 
+      ENABLE_DISPATCH_TESTS
+      CPPINTEROP_LIB_DIR="${CMAKE_BINARY_DIR}/lib/libclangCppInterOp${CMAKE_SHARED_LIBRARY_SUFFIX}"
+    )
+  endif()
   if(WIN32)
     target_link_libraries(${name} PUBLIC ${ARG_LIBRARIES} ${gtest_libs})
     set_property(TARGET ${name} APPEND_STRING PROPERTY LINK_FLAGS "${MSVC_EXPORTS}")
