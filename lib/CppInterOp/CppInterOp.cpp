@@ -13,6 +13,7 @@
 
 #include "clang/AST/Attrs.inc"
 #include "clang/AST/CXXInheritance.h"
+#include "clang/AST/Comment.h"
 #include "clang/AST/Decl.h"
 #include "clang/AST/DeclAccessPair.h"
 #include "clang/AST/DeclBase.h"
@@ -113,9 +114,8 @@ void* __clang_Interpreter_SetValueWithAlloc(void* This, void* OutVal,
 #endif
 
 #if CLANG_VERSION_MAJOR > 18
-    extern "C" void __clang_Interpreter_SetValueNoAlloc(void* This,
-                                                        void* OutVal,
-                                                        void* OpaqueType, ...);
+extern "C" void __clang_Interpreter_SetValueNoAlloc(void* This, void* OutVal,
+                                                    void* OpaqueType, ...);
 #else
 void __clang_Interpreter_SetValueNoAlloc(void*, void*, void*);
 void __clang_Interpreter_SetValueNoAlloc(void*, void*, void*, void*);
@@ -749,19 +749,19 @@ std::string GetDoxygenComment(TCppScope_t scope, bool strip_comment_markers) {
   D = D->getCanonicalDecl();
 
   ASTContext& C = D->getASTContext();
+  comments::FullComment* FC = C.getCommentForDecl(D, /*PP=*/nullptr);
+  if (!FC)
+    return "";
+
   const RawComment* RC = C.getRawCommentForAnyRedecl(D);
   if (!RC)
     return "";
 
-  if (!RC->isDocumentation())
-    return "";
-
   const SourceManager& SM = C.getSourceManager();
-  llvm::StringRef Raw = RC->getRawText(SM);
   if (!strip_comment_markers)
-    return Raw.str();
+    return RC->getRawText(SM).str();
 
-  return StripDoxygenCommentMarkers(Raw);
+  return RC->getFormattedText(SM, C.getDiagnostics());
 }
 
 std::vector<TCppScope_t> GetUsingNamespaces(TCppScope_t scope) {
