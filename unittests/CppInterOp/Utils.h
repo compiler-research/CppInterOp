@@ -5,7 +5,14 @@
 
 #include "clang-c/CXCppInterOp.h"
 #include "clang-c/CXString.h"
-#include "CppInterOp/CppInterOp.h"
+
+#if defined(ENABLE_DISPATCH_TESTS)
+  #include "CppInterOp/Dispatch.h"
+  #define CPPINTEROP_TEST_MODE CppInterOpDispatchTest
+#else
+  #include "CppInterOp/CppInterOp.h"
+  #define CPPINTEROP_TEST_MODE CppInterOpTest
+#endif
 
 #include "llvm/Support/Valgrind.h"
 
@@ -72,7 +79,7 @@ struct OutOfProcessJITConfig {
 
 // Define typed test fixture
 template <typename Config>
-class CppInterOpTest : public ::testing::Test {
+class CPPINTEROP_TEST_MODE : public ::testing::Test {
 protected:
   void SetUp() override {
     TestUtils::current_config =
@@ -104,7 +111,7 @@ using CppInterOpTestTypes = ::testing::Types<InProcessJITConfig, OutOfProcessJIT
 using CppInterOpTestTypes = ::testing::Types<InProcessJITConfig>;
 #endif
 
-TYPED_TEST_SUITE(CppInterOpTest, CppInterOpTestTypes, JITConfigNameGenerator);
+TYPED_TEST_SUITE(CPPINTEROP_TEST_MODE, CppInterOpTestTypes, JITConfigNameGenerator);
 
 
 #endif // CPPINTEROP_UNITTESTS_LIBCPPINTEROP_UTILS_H

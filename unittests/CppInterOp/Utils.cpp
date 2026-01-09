@@ -1,7 +1,5 @@
 #include "Utils.h"
 
-#include "CppInterOp/CppInterOp.h"
-
 #include "clang/AST/Decl.h"
 #include "clang/AST/DeclCXX.h"
 #include "clang/Basic/Version.h"
@@ -19,6 +17,25 @@
 using namespace clang;
 using namespace llvm;
 
+#if defined(ENABLE_DISPATCH_TESTS)
+#define DISPATCH_API(name, type) CppAPIType::name Cpp::name = nullptr;
+CPPINTEROP_API_TABLE
+#undef DISPATCH_API
+namespace {
+  struct DispatchInitializer {
+    DispatchInitializer() {
+      if (!Cpp::LoadDispatchAPI(CPPINTEROP_LIB_DIR)) {
+        std::abort();
+      }
+    }
+    ~DispatchInitializer() {
+      Cpp::UnloadDispatchAPI();
+    }
+  };
+  static DispatchInitializer g_dispatch_init;
+}
+#endif
+
 namespace TestUtils {
 TestConfig current_config;
 std::vector<const char*> GetInterpreterArgs(
@@ -35,7 +52,7 @@ void TestUtils::GetAllTopLevelDecls(
     const std::string& code, std::vector<Decl*>& Decls,
     bool filter_implicitGenerated /* = false */,
     const std::vector<const char*>& interpreter_args /* = {} */) {
-  Cpp::CreateInterpreter(interpreter_args);
+  Cpp::CreateInterpreter(interpreter_args, {});
 #ifdef CPPINTEROP_USE_CLING
   cling::Transaction *T = nullptr;
   Interp->declare(code, &T);
