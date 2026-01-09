@@ -111,9 +111,8 @@ void* __clang_Interpreter_SetValueWithAlloc(void* This, void* OutVal,
 #endif
 
 #if CLANG_VERSION_MAJOR > 18
-    extern "C" void __clang_Interpreter_SetValueNoAlloc(void* This,
-                                                        void* OutVal,
-                                                        void* OpaqueType, ...);
+extern "C" void __clang_Interpreter_SetValueNoAlloc(void* This, void* OutVal,
+                                                    void* OpaqueType, ...);
 #else
 void __clang_Interpreter_SetValueNoAlloc(void*, void*, void*);
 void __clang_Interpreter_SetValueNoAlloc(void*, void*, void*, void*);
