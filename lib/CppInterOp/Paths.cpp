@@ -158,7 +158,8 @@ void CopyIncludePaths(const clang::HeaderSearchOptions& Opts,
   /// User specified include entries.
   for (unsigned i = 0, e = Opts.UserEntries.size(); i != e; ++i) {
     const HeaderSearchOptions::Entry& E = Opts.UserEntries[i];
-    if (E.IsFramework && E.Group != frontend::Angled && E.Group != frontend::System)
+    if (E.IsFramework && E.Group != frontend::Angled &&
+        E.Group != frontend::System)
       llvm::report_fatal_error("Invalid option set!");
     switch (E.Group) {
     case frontend::After:
