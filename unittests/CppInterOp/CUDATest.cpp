@@ -17,7 +17,7 @@ static bool HasCudaSDK() {
     if (!Cpp::CreateInterpreter({}, {"--cuda"}))
       return false;
     return Cpp::Declare("__global__ void test_func() {}"
-                        "test_func<<<1,1>>>();") == 0;
+                        "test_func<<<1,1>>>();", false) == 0;
   };
   static bool hasCuda = supportsCudaSDK();
   return hasCuda;
@@ -35,9 +35,9 @@ static bool HasCudaRuntime() {
     if (!Cpp::CreateInterpreter({}, {"--cuda"}))
       return false;
     if (Cpp::Declare("__global__ void test_func() {}"
-                     "test_func<<<1,1>>>();"))
+                     "test_func<<<1,1>>>();", false))
       return false;
-    intptr_t result = Cpp::Evaluate("(bool)cudaGetLastError()");
+    intptr_t result = Cpp::Evaluate("(bool)cudaGetLastError()", nullptr);
     return !(bool)result;
   };
   static bool hasCuda = supportsCuda();
@@ -65,7 +65,7 @@ TEST(CUDATest, CUDAH) {
     GTEST_SKIP() << "Skipping CUDA tests as CUDA SDK not found";
 
   Cpp::CreateInterpreter({}, {"--cuda"});
-  bool success = !Cpp::Declare("#include <cuda.h>");
+  bool success = !Cpp::Declare("#include <cuda.h>", false);
   EXPECT_TRUE(success);
 }
 

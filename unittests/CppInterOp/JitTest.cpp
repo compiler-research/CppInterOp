@@ -11,7 +11,7 @@ static int printf_jit(const char* format, ...) {
   return 0;
 }
 
-TYPED_TEST(CppInterOpTest, JitTestInsertOrReplaceJitSymbol) {
+TYPED_TEST(CPPINTEROP_TEST_MODE, Jit_InsertOrReplaceJitSymbol) {
 #ifdef EMSCRIPTEN
   GTEST_SKIP() << "Test fails for Emscipten builds";
 #endif
@@ -41,7 +41,7 @@ TYPED_TEST(CppInterOpTest, JitTestInsertOrReplaceJitSymbol) {
   EXPECT_TRUE(Cpp::InsertOrReplaceJitSymbol("non_existent", 0));
 }
 
-TYPED_TEST(CppInterOpTest, JitTestStreamRedirect) {
+TYPED_TEST(CPPINTEROP_TEST_MODE, Jit_StreamRedirect) {
   if (TypeParam::isOutOfProcess)
     GTEST_SKIP() << "Test fails for OOP JIT builds";
   // printf and etc are fine here.
@@ -75,7 +75,7 @@ TYPED_TEST(CppInterOpTest, JitTestStreamRedirect) {
   // NOLINTEND(cppcoreguidelines-pro-type-vararg)
 }
 
-TYPED_TEST(CppInterOpTest, JitTestStreamRedirectJIT) {
+TYPED_TEST(CPPINTEROP_TEST_MODE, Jit_StreamRedirectJIT) {
 #ifdef EMSCRIPTEN
   GTEST_SKIP() << "Test fails for Emscipten builds";
 #endif
