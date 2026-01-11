@@ -384,9 +384,6 @@ TYPED_TEST(CppInterOpTest, VariableReflectionTestVariableOffsetsWithInheritance)
     defined(_WIN32) && (defined(_M_ARM) || defined(_M_ARM64))
   GTEST_SKIP() << "Test fails with Cling on Windows on ARM";
 #endif
-#if CPPINTEROP_ENABLE_WASM_EXCEPTIONS == 1
-  GTEST_SKIP() << "This test crashes if CppInterOp is built with wasm exceptions.";
-#endif
   if (llvm::sys::RunningOnValgrind())
     GTEST_SKIP() << "XFAIL due to Valgrind report";
 

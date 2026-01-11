@@ -14,14 +14,9 @@ if (EMSCRIPTEN)
   set_target_properties(TestSharedLib
     PROPERTIES NO_SONAME 1
   )
-  target_compile_options(TestSharedLib
-    PRIVATE $<$<BOOL:${CPPINTEROP_ENABLE_WASM_EXCEPTIONS}>:SHELL:-fwasm-exceptions>
-  )
-
   target_link_options(TestSharedLib
     PRIVATE "SHELL: -s WASM_BIGINT"
     PRIVATE "SHELL: -s SIDE_MODULE=1"
-    PRIVATE $<$<BOOL:${CPPINTEROP_ENABLE_WASM_EXCEPTIONS}>:SHELL:-fwasm-exceptions>
   )
 endif()
 

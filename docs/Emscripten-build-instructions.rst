@@ -86,7 +86,7 @@ On Windows execute the following
    git apply -v emscripten-clang21-2-enable_exception_handling.patch
 
 We are now in a position to build an emscripten build of llvm by executing the following on Linux
-and osx (if you are not intending to build xeus-cpp then you can omit the EMCC_CFLAGS definition)
+and osx
 
 .. code:: bash
 
@@ -121,11 +121,11 @@ and osx (if you are not intending to build xeus-cpp then you can omit the EMCC_C
                  -DCMAKE_CXX_FLAGS_RELEASE="-Oz -g0 -DNDEBUG" \
                  -DLLVM_ENABLE_LTO=Full \
                  ../llvm
-   EMCC_CFLAGS="-sSUPPORT_LONGJMP=wasm -fwasm-exceptions" emmake make libclang -j $(nproc --all)
-   EMCC_CFLAGS="-sSUPPORT_LONGJMP=wasm -fwasm-exceptions" emmake make clangInterpreter clangStaticAnalyzerCore -j $(nproc --all)
-   EMCC_CFLAGS="-sSUPPORT_LONGJMP=wasm -fwasm-exceptions" emmake make lldWasm -j $(nproc --all)
+   emmake make libclang -j $(nproc --all)
+   emmake make clangInterpreter clangStaticAnalyzerCore -j $(nproc --all)
+   emmake make lldWasm -j $(nproc --all)
 
-or executing (if you are not intending to build xeus-cpp then you can omit the EMCC_CFLAGS definition)
+or executing
 
 .. code:: powershell
 
@@ -162,9 +162,7 @@ or executing (if you are not intending to build xeus-cpp then you can omit the E
                         -DCMAKE_CXX_FLAGS_RELEASE="-Oz -g0 -DNDEBUG" `
                         -DLLVM_ENABLE_LTO=Full `
                         ..\llvm
-   $env:EMCC_CFLAGS="-sSUPPORT_LONGJMP=wasm -fwasm-exceptions"
    emmake ninja libclang clangInterpreter clangStaticAnalyzerCore lldWasm
-   $env:EMCC_CFLAGS=""
 
 on Windows. Once this finishes building we need to take note of where we built our llvm build.
 This can be done by executing the following on Linux and osx
@@ -210,8 +208,7 @@ and
    $env:CMAKE_SYSTEM_PREFIX_PATH=$env:PREFIX
 
 on Windows. Now to build and test your Emscripten build of CppInterOp on Linux and osx execute the following
-(BUILD_SHARED_LIBS=ON is only needed if building xeus-cpp, as CppInterOp can be built as an Emscripten static library.
-CPPINTEROP_ENABLE_WASM_EXCEPTIONS=ON is also only necessary if building xeus-cpp, or you built llvm with the EMCC_CFLAGS.)
+(BUILD_SHARED_LIBS=ON is only needed if building xeus-cpp, as CppInterOp can be built as an Emscripten static library.)
 
 .. code:: bash
 
@@ -225,13 +222,11 @@ CPPINTEROP_ENABLE_WASM_EXCEPTIONS=ON is also only necessary if building xeus-cpp
                  -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            \
                  -DCMAKE_INSTALL_PREFIX=$PREFIX         \
                  -DSYSROOT_PATH=$SYSROOT_PATH                                   \
-		 -DCPPINTEROP_ENABLE_WASM_EXCEPTIONS=ON                 \
                  ../
    emmake make -j $(nproc --all) check-cppinterop
 
 To build and test your Emscripten build of CppInterOp on Windows execute the following
-(BUILD_SHARED_LIBS=ON is only needed if building xeus-cpp, as CppInterOp can be built as an Emscripten static library.
-CPPINTEROP_ENABLE_WASM_EXCEPTIONS=ON is also only necessary if building xeus-cpp, or you built llvm with the EMCC_CFLAGS.)
+(BUILD_SHARED_LIBS=ON is only needed if building xeus-cpp, as CppInterOp can be built as an Emscripten static library.)
 
 .. code:: powershell
 
@@ -245,7 +240,6 @@ CPPINTEROP_ENABLE_WASM_EXCEPTIONS=ON is also only necessary if building xeus-cpp
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            `
                 -DLLVM_ENABLE_WERROR=On                      `
                 -DSYSROOT_PATH="$env:SYSROOT_PATH"                     `
-		-DCPPINTEROP_ENABLE_WASM_EXCEPTIONS=ON                 `
                 ..\
    emmake make -j $(nproc --all) check-cppinterop
 
@@ -384,7 +378,7 @@ by executing (replace LLVM_VERSION with the version of llvm you are building aga
 	   -DXEUS_CPP_RESOURCE_DIR="$LLVM_BUILD_DIR/lib/clang/$LLVM_VERSION" \
            -DSYSROOT_PATH=$SYSROOT_PATH                                   \
            ..
-   EMCC_CFLAGS="-sSUPPORT_LONGJMP=wasm -fwasm-exceptions" emmake make -j $(nproc --all) install
+   emmake make -j $(nproc --all) install
 
 and on Windows by executing 
 
@@ -405,9 +399,7 @@ and on Windows by executing
 	        -DXEUS_CPP_RESOURCE_DIR="$env:LLVM_BUILD_DIR/lib/clang/$env:LLVM_VERSION" `
            -DSYSROOT_PATH="$env:SYSROOT_PATH"                              `
            ..
-   $env:EMCC_CFLAGS="-sSUPPORT_LONGJMP=wasm -fwasm-exceptions"
    emmake make -j $(nproc --all) install
-   $env:EMCC_CFLAGS=""
 
 To build and test Jupyter Lite with this kernel locally on Linux/MacOS you can execute the following
 

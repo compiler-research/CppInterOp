@@ -179,14 +179,6 @@ TYPED_TEST(CppInterOpTest, InterpreterTestEmscriptenExceptionHandling) {
 #ifndef EMSCRIPTEN
   GTEST_SKIP() << "This test is intended to check exception handling for Emscripten builds.";
 #endif
-#if CPPINTEROP_ENABLE_WASM_EXCEPTIONS == 1
-    std::vector<const char*> Args = {
-    "-std=c++20",
-    "-v",
-    "-fwasm-exceptions",
-    "-mllvm","-wasm-enable-sjlj"
-  };
-#else
     std::vector<const char*> Args = {
     "-std=c++20",
     "-v",
@@ -195,7 +187,6 @@ TYPED_TEST(CppInterOpTest, InterpreterTestEmscriptenExceptionHandling) {
     "-mllvm", "-enable-emscripten-cxx-exceptions",
     "-mllvm", "-enable-emscripten-sjlj"
   };
-#endif
   
   Cpp::CreateInterpreter(Args);
 
