@@ -139,7 +139,7 @@ if(EMSCRIPTEN)
     PRIVATE "SHELL: -flto"
   )
   else()
-   target_link_options(clangCppInterOp
+    target_link_options(clangCppInterOp
       PRIVATE "SHELL: -s WASM_BIGINT"
     )
   endif(BUILD_SHARED_LIBS)
