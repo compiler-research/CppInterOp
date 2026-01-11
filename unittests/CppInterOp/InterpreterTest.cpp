@@ -179,7 +179,7 @@ TYPED_TEST(CppInterOpTest, InterpreterTestEmscriptenExceptionHandling) {
 #ifndef EMSCRIPTEN
   GTEST_SKIP() << "This test is intended to check exception handling for Emscripten builds.";
 #endif
-    std::vector<const char*> Args = {
+  std::vector<const char*> Args = {
     "-std=c++20",
     "-v",
     "-fexceptions",
@@ -187,7 +187,7 @@ TYPED_TEST(CppInterOpTest, InterpreterTestEmscriptenExceptionHandling) {
     "-mllvm", "-enable-emscripten-cxx-exceptions",
     "-mllvm", "-enable-emscripten-sjlj"
   };
-  
+
   Cpp::CreateInterpreter(Args);
 
   const char* tryCatchCode = R"(

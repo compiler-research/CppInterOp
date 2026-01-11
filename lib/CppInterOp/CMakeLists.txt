@@ -139,9 +139,9 @@ if(EMSCRIPTEN)
     PRIVATE "SHELL: -flto"
   )
   else()
-  target_link_options(clangCppInterOp
+   target_link_options(clangCppInterOp
       PRIVATE "SHELL: -s WASM_BIGINT"
-  )
+    )
   endif(BUILD_SHARED_LIBS)
   if (CPPINTEROP_ENABLE_TESTING)
     # When compiling Emscripten tests the CppInterOp library it links to is expected to be in the same folder as the compiled Javascript

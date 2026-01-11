@@ -184,7 +184,7 @@ $env:CMAKE_SYSTEM_PREFIX_PATH=$env:PREFIX
 ```
 
 on Windows. Now to build and test your Emscripten build of CppInterOp using node on Linux and osx execute the following
-(BUILD_SHARED_LIBS=ON is only needed if building xeus-cpp, as CppInterOp can be built as an Emscripten static library.)
+(BUILD_SHARED_LIBS=ON is only needed if building xeus-cpp, as CppInterOp can be built as an Emscripten static library)
 
 ```bash
 mkdir build
@@ -202,7 +202,7 @@ emmake make -j $(nproc --all) check-cppinterop
 ```
 
 To build and test your Emscripten build of CppInterOp on using node Windows execute the following
-(BUILD_SHARED_LIBS=ON is only needed if building xeus-cpp, as CppInterOp can be built as an Emscripten static library.)
+(BUILD_SHARED_LIBS=ON is only needed if building xeus-cpp, as CppInterOp can be built as an Emscripten static library)
 
 ```powershell
 emcmake cmake -DCMAKE_BUILD_TYPE=Release    `
@@ -356,7 +356,7 @@ emcmake cmake \
           -DXEUS_CPP_RESOURCE_DIR="$LLVM_BUILD_DIR/lib/clang/$LLVM_VERSION" \
           -DSYSROOT_PATH=$SYSROOT_PATH                                   \
           ..
-emmake make -j $(nproc --all) install
+ emmake make -j $(nproc --all) install
 ```
 
 and on Windows by executing
@@ -377,7 +377,7 @@ emcmake cmake `
           -DXEUS_CPP_RESOURCE_DIR="$env:LLVM_BUILD_DIR/lib/clang/$env:LLVM_VERSION" `
           -DSYSROOT_PATH="$env:SYSROOT_PATH"                                   `
           ..
-emmake make -j $(nproc --all) install
+ emmake make -j $(nproc --all) install
 ```
 
 To build and test Jupyter Lite with this kernel locally on Linux/MacOS you can execute the following
