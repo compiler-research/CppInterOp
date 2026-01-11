@@ -65,7 +65,6 @@ cd .\llvm-project\
 cp -r ..\patches\llvm\emscripten-clang21*
 git apply -v emscripten-clang21-1-shift-temporary-files-to-tmp-dir.patch
 git apply -v emscripten-clang21-2-enable_exception_handling.patch
-git apply -v emscripten-clang21-3-revert-7b0f70a9b26ab082e02abd908d1622105fa1ec42.patch
 ```
 
 We are now in a position to build an emscripten build of llvm by executing the following on Linux
