@@ -230,10 +230,11 @@ endif()
   message(STATUS "Found supported version: Clang ${CLANG_PACKAGE_VERSION}")
   message(STATUS "Using ClangConfig.cmake in: ${Clang_DIR}")
 
-  ## Clang 18 require c++17 or later.
+
   if (NOT CMAKE_CXX_STANDARD)
-    set (CMAKE_CXX_STANDARD 17)
+    set (CMAKE_CXX_STANDARD 20)
   endif()
+  ## Clang 18 require c++17 or later.
   if (CMAKE_CXX_STANDARD LESS 17)
     message(fatal "LLVM/CppInterOp requires c++17 or later")
   endif()
