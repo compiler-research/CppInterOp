@@ -57,7 +57,7 @@ and on Windows execute in Powershell
    $env:PWD_DIR= $PWD.Path
    $env:SYSROOT_PATH="$env:EMSDK/upstream/emscripten/cache/sysroot"
 
-Now clone the 21.x release of the LLVM project repository and CppInterOp
+Now clone the 20.x release of the LLVM project repository and CppInterOp
 (the building of the emscripten version of llvm can be avoided by
 executing micromamba install llvm -c
 <https://repo.mamba.pm/emscripten-forge> and setting the LLVM_BUILD_DIR/$env:LLVM_BUILD_DIR
@@ -65,7 +65,7 @@ appropriately)
 
 .. code:: bash
 
-   git clone --depth=1 --branch release/21.x https://github.com/llvm/llvm-project.git
+   git clone --depth=1 --branch release/20.x https://github.com/llvm/llvm-project.git
    git clone --depth=1 https://github.com/compiler-research/CppInterOp.git
 
 Now move into the cloned llvm-project folder and apply the required patches. On Linux and osx this
@@ -74,16 +74,16 @@ executing
 .. code:: bash
 
    cd ./llvm-project/
-   git apply -v ../CppInterOp/patches/llvm/emscripten-clang21-*.patch
+   git apply -v ../CppInterOp/patches/llvm/emscripten-clang20-*.patch
 
 On Windows execute the following
 
 .. code:: powershell
 
    cd .\llvm-project\
-   cp -r ..\patches\llvm\emscripten-clang21*
-   git apply -v emscripten-clang21-1-shift-temporary-files-to-tmp-dir.patch
-   git apply -v emscripten-clang21-2-enable_exception_handling.patch
+   cp -r ..\patches\llvm\emscripten-clang20*
+   git apply -v emscripten-clang20-2-shift-temporary-files-to-tmp-dir.patch
+   git apply -v emscripten-clang20-3-enable_exception_handling.patch
 
 We are now in a position to build an emscripten build of llvm by executing the following on Linux
 and osx
@@ -365,7 +365,7 @@ by executing (replace LLVM_VERSION with the version of llvm you are building aga
 
    cd ../..
    git clone --depth=1 https://github.com/compiler-research/xeus-cpp.git
-   export LLVM_VERSION=21
+   export LLVM_VERSION=20
    cd ./xeus-cpp
    mkdir build
    cd build
@@ -386,7 +386,7 @@ and on Windows by executing
 
    cd ..\..
    git clone --depth=1 https://github.com/compiler-research/xeus-cpp.git
-   $env:LLVM_VERSION=21
+   $env:LLVM_VERSION=20
    cd .\xeus-cpp
    mkdir build
    cd build
