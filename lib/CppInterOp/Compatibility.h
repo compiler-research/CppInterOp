@@ -13,6 +13,24 @@
 #include "clang/Config/config.h"
 #include "clang/Sema/Sema.h"
 
+SuppressElaboration
+
+SuppressScope
+
+#if CLANG_VERSION_MAJOR < 22
+#define Suppress_Elab SuppressElaboration
+#else
+// May be incorrect. To double check
+#define Suppress_Elab SuppressScope
+#endif
+
+
+#if CLANG_VERSION_MAJOR < 22
+#define Get_Tag_Type getTagDeclType
+#else
+#define Get_Tag_Type getCanonicalTagType
+#endif
+
 #ifdef _MSC_VER
 #define dup _dup
 #define dup2 _dup2
