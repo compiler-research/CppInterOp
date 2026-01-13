@@ -13,10 +13,6 @@
 #include "clang/Config/config.h"
 #include "clang/Sema/Sema.h"
 
-SuppressElaboration
-
-SuppressScope
-
 #if CLANG_VERSION_MAJOR < 22
 #define Suppress_Elab SuppressElaboration
 #else
