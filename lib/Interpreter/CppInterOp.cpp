@@ -1457,49 +1457,61 @@ namespace Cpp {
     }
 
     bool has_member_candidate{};
+
+    // Returns whether the function should be considered for other candidacy.
+    auto register_member = [&](CXXMethodDecl *MD, FunctionTemplateDecl *FTD) -> bool {
+      if (MD->isDeleted())
+        return false;
+      if (!MD->isStatic()) {
+        DeclAccessPair found = DeclAccessPair::make(MD, MD->getAccess());
+        TemplateArgumentListInfo ExplicitTemplateArgs{};
+
+        if (auto *CD = dyn_cast<CXXConstructorDecl>(MD)) {
+          if (FTD)
+            S.AddTemplateOverloadCandidate(FTD, found, &ExplicitTemplateArgs, non_member_args, candSet);
+          else
+            S.AddOverloadCandidate(CD, found, non_member_args, candSet);
+          return false;
+        }
+
+        if (arg_types.empty())
+          return true;
+
+        QualType OT = QualType::getFromOpaquePtr(arg_types[0].m_Type);
+        ExprValueKind ExprKind = ExprValueKind::VK_PRValue;
+        if (OT->isLValueReferenceType())
+          ExprKind = ExprValueKind::VK_LValue;
+        else if (OT->isRValueReferenceType())
+          ExprKind = ExprValueKind::VK_XValue;
+
+        OpaqueValueExpr Expr(SourceLocation::getFromRawEncoding(1), OT.getNonReferenceType(), ExprKind);
+        Expr::Classification objClass = Expr.Classify(C);
+
+        has_member_candidate = true;
+        if (FTD) {
+          S.AddMethodTemplateCandidate(FTD, found, MD->getParent(), &ExplicitTemplateArgs, OT.getNonReferenceType(), objClass, member_args, candSet);
+          return false;
+        } else {
+          S.AddMethodCandidate(found, OT.getNonReferenceType(), objClass, member_args, candSet);
+          return false;
+        }
+      }
+      return true;
+    };
+
     for (TCppScope_t F : candidates) {
       Decl *D = (Decl*)F;
 
       if (auto *MD = dyn_cast<CXXMethodDecl>(D)) {
-        if (MD->isDeleted())
+        if(!register_member(MD, dyn_cast<FunctionTemplateDecl>(MD)))
           continue;
-        if (!MD->isStatic()) {
-          DeclAccessPair found = DeclAccessPair::make(MD, MD->getAccess());
-          TemplateArgumentListInfo ExplicitTemplateArgs{};
-
-          if (auto *CD = dyn_cast<CXXConstructorDecl>(D)) {
-            if (auto *FTD = dyn_cast<FunctionTemplateDecl>(MD))
-              S.AddTemplateOverloadCandidate(FTD, found, &ExplicitTemplateArgs, non_member_args, candSet);
-            else
-              S.AddOverloadCandidate(CD, found, non_member_args, candSet);
-            continue;
-          }
-
-          if (arg_types.empty())
-            continue;
-
-          QualType OT = QualType::getFromOpaquePtr(arg_types[0].m_Type);
-          ExprValueKind ExprKind = ExprValueKind::VK_PRValue;
-          if (OT->isLValueReferenceType())
-            ExprKind = ExprValueKind::VK_LValue;
-          else if (OT->isRValueReferenceType())
-            ExprKind = ExprValueKind::VK_XValue;
-
-          OpaqueValueExpr Expr(SourceLocation::getFromRawEncoding(1), OT.getNonReferenceType(), ExprKind);
-          Expr::Classification objClass = Expr.Classify(C);
-
-          has_member_candidate = true;
-          if (auto *MTD = dyn_cast<FunctionTemplateDecl>(MD)) {
-            S.AddMethodTemplateCandidate(MTD, found, MD->getParent(), &ExplicitTemplateArgs, OT.getNonReferenceType(), objClass, member_args, candSet);
-            continue;
-          } else {
-            S.AddMethodCandidate(found, OT.getNonReferenceType(), objClass, member_args, candSet);
-            continue;
-          }
-        }
       }
 
       if (auto *FTD = dyn_cast<FunctionTemplateDecl>(D)) {
+        if (auto *MD = dyn_cast<CXXMethodDecl>(FTD->getTemplatedDecl())) {
+          if(!register_member(MD, FTD))
+            continue;
+        }
         TemplateArgumentListInfo ExplicitTemplateArgs{};
         S.AddTemplateOverloadCandidate(FTD, DeclAccessPair::make(FTD, FTD->getAccess()), &ExplicitTemplateArgs, non_member_args, candSet);
         continue;
