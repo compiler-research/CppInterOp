@@ -9,9 +9,8 @@ runs:
       shell: bash
       run: |
         # Download cppyy-backend
-        git clone https://github.com/compiler-research/cppyy-backend.git
+        git clone --depth=1 https://github.com/compiler-research/cppyy-backend.git
         cd cppyy-backend
-        git checkout Update-clang-cling-supp-file
         mkdir -p $CPPINTEROP_DIR/lib build && cd build
         # Install CppInterOp
         (cd $CPPINTEROP_BUILD_DIR && cmake --build . --target install --parallel ${{ env.ncpus }} )
@@ -51,8 +50,9 @@ runs:
         # source virtual environment
         source .venv/bin/activate
         # Install cppyy
-        git clone --depth=1 https://github.com/compiler-research/cppyy.git
+        git clone https://github.com/compiler-research/cppyy.git
         cd cppyy
+        git checkout Update-clang-cling-supp-file
         python -m pip install --upgrade . --no-deps
         cd ..
 
