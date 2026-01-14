@@ -47,6 +47,12 @@ runs:
             git apply -v ../patches/llvm/clang20-1-out-of-process.patch
             echo "Apply clang20-1-out-of-process.patch:"
           fi
+          # Apply patches
+          llvm_vers=$(echo "${{ matrix.clang-runtime }}" | tr '[:lower:]' '[:upper:]')
+          if [[ "${llvm_vers}" == "21" ]]; then
+            git apply -v ../patches/llvm/emscripten-clang${{ matrix.clang-runtime }}-*.patch
+            echo "Apply emscripten-clang${{ matrix.clang-runtime }}-*.patch patches:"
+          fi
           cd build
           cmake -DLLVM_ENABLE_PROJECTS="${{ matrix.llvm_enable_projects}}" \
                 -DLLVM_TARGETS_TO_BUILD="${{ matrix.llvm_targets_to_build }}"  \
@@ -138,6 +144,12 @@ runs:
         }
         else
         {
+          cp -r ..\patches\llvm\clang${{ matrix.clang-runtime }}*
+          #FIXME: Apply patches without hardcoding
+          if ( "${{ matrix.clang-runtime }}" -imatch "21" )
+          {
+            git apply -v clang21-1-Value_getPointerAlignment.patch
+          }
           cd build
           echo "Apply clang${{ matrix.clang-runtime }}-*.patch patches:"
           cmake -DLLVM_ENABLE_PROJECTS="${{ matrix.llvm_enable_projects}}"                   `
