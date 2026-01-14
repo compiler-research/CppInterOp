@@ -122,6 +122,7 @@ runs:
             SUPPRESSION_FILE="../etc/${CLANG_INTERPRETER}${CLANG_VERSION}-valgrind.supp"
           fi
           export IS_VALGRIND=true
+          touch $SUPPRESSION_FILE
           valgrind --show-error-list=yes --error-exitcode=1 --track-origins=yes --gen-suppressions=all --suppressions="${SUPPRESSION_FILE}" --suppressions=../etc/valgrind-cppyy-cling.supp python -m pytest -m "not xfail" -sv -ra --ignore=test_leakcheck.py
           unset IS_VALGRIND
         fi
