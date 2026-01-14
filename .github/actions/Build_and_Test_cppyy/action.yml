@@ -9,8 +9,9 @@ runs:
       shell: bash
       run: |
         # Download cppyy-backend
-        git clone --depth=1 https://github.com/compiler-research/cppyy-backend.git
+        git clone https://github.com/compiler-research/cppyy-backend.git
         cd cppyy-backend
+        git checkout Update-clang-cling-supp-file
         mkdir -p $CPPINTEROP_DIR/lib build && cd build
         # Install CppInterOp
         (cd $CPPINTEROP_BUILD_DIR && cmake --build . --target install --parallel ${{ env.ncpus }} )
