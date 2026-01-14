@@ -50,8 +50,8 @@ runs:
           # Apply patches
           llvm_vers=$(echo "${{ matrix.clang-runtime }}" | tr '[:lower:]' '[:upper:]')
           if [[ "${llvm_vers}" == "21" ]]; then
-            git apply -v ../patches/llvm/emscripten-clang${{ matrix.clang-runtime }}-*.patch
-            echo "Apply emscripten-clang${{ matrix.clang-runtime }}-*.patch patches:"
+            git apply -v ../patches/llvm/clang${{ matrix.clang-runtime }}-*.patch
+            echo "Apply -clang${{ matrix.clang-runtime }}-*.patch patches:"
           fi
           cd build
           cmake -DLLVM_ENABLE_PROJECTS="${{ matrix.llvm_enable_projects}}" \
