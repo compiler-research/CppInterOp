@@ -237,6 +237,10 @@ inline void codeComplete(std::vector<std::string>& Results,
 
 #include "llvm/Support/Error.h"
 
+#if CLANG_VERSION_MAJOR > 21
+#include "clang/Interpreter/IncrementalExecutor.h"
+#endif
+
 #ifdef LLVM_BUILT_WITH_OOP_JIT
 #include "clang/Basic/Version.h"
 #include "llvm/TargetParser/Host.h"
@@ -394,8 +398,19 @@ inline void maybeMangleDeclName(const clang::GlobalDecl& GD,
 // Clang 18 - Add new Interpreter methods: CodeComplete
 
 inline llvm::orc::LLJIT* getExecutionEngine(clang::Interpreter& I) {
-  auto* engine = &llvm::cantFail(I.getExecutionEngine());
-  return const_cast<llvm::orc::LLJIT*>(engine);
+#if CLANG_VERSION_MAJOR < 22
+   auto* engine = &llvm::cantFail(I.getExecutionEngine());
+   return const_cast<llvm::orc::LLJIT*>(engine);
+#else
+  // FIXME: Remove the need of exposing the low-level execution engine and kill
+  // this horrible hack.
+  struct MyHorrbileHackOrcIncrementalExecutor : public clang::IncrementalExecutor {
+    std::unique_ptr<llvm::orc::LLJIT> Jit;
+  };
+
+  const auto* JITTaker = reinterpret_cast<MyHorrbileHackOrcIncrementalExecutor*>(I.getIncrementalExecutorBuilder().IE.get());
+  return JITTaker.get();
+#endif
 }
 
 inline llvm::Expected<llvm::JITTargetAddress>
