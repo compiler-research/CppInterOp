@@ -409,7 +409,7 @@ inline llvm::orc::LLJIT* getExecutionEngine(clang::Interpreter& I) {
   };
 
   const auto* JITTaker = reinterpret_cast<MyHorrbileHackOrcIncrementalExecutor*>(I.getIncrementalExecutorBuilder().IE.get());
-  return JITTaker.get();
+  return JITTaker->Jit.get();
 #endif
 }
 
