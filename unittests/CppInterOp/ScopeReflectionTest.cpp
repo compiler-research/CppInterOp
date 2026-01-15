@@ -235,14 +235,13 @@ TYPED_TEST(CppInterOpTest, ScopeReflectionTestIsBuiltin) {
   EXPECT_TRUE(Cpp::IsBuiltin(C.getComplexType(C.DoubleTy).getAsOpaquePtr()));
   EXPECT_TRUE(Cpp::IsBuiltin(C.getComplexType(C.LongDoubleTy).getAsOpaquePtr()));
   EXPECT_TRUE(Cpp::IsBuiltin(C.getComplexType(C.Float128Ty).getAsOpaquePtr()));
-
+// FIXME as part of llvm 22 PR. getTypeDeclType was deleted between llvm 21 and 22
+#if CLANG_VERSION_MAJOR < 22
   // std::complex
   Interp->declare("#include <complex>");
   Sema &S = Interp->getCI()->getSema();
   auto lookup = S.getStdNamespace()->lookup(&C.Idents.get("complex"));
   auto *CTD = cast<ClassTemplateDecl>(lookup.front());
-// FIXME as part of llvm 22 PR. getTypeDeclType was deleted between llvm 21 and 22
-#if CLANG_VERSION_MAJOR < 22
   for (ClassTemplateSpecializationDecl *CTSD : CTD->specializations())
     EXPECT_TRUE(Cpp::IsBuiltin(C.getTypeDeclType(CTSD).getAsOpaquePtr()));
 #endif
