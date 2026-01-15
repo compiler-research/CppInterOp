@@ -56,14 +56,6 @@ jobs:
             cppyy: On
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
-          - name: ubu24-arm-gcc12-clang-repl-18-cppyy
-            os: ubuntu-24.04-arm
-            compiler: gcc-12
-            clang-runtime: '18'
-            cling: Off
-            cppyy: On
-            llvm_enable_projects: "clang"
-            llvm_targets_to_build: "host;NVPTX"
           - name: ubu24-arm-gcc9-clang18-cling-cppyy
             os: ubuntu-24.04-arm
             compiler: gcc-9
@@ -74,6 +66,27 @@ jobs:
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
           # Ubuntu X86 Jobs
+          - name: ubu24-x86-gcc12-clang-repl-22-out-of-process
+            os: ubuntu-24.04
+            compiler: gcc-12
+            clang-runtime: '22'
+            cling: Off
+            cppyy: Off
+            llvm_enable_projects: "clang;compiler-rt"
+            llvm_targets_to_build: "host;NVPTX"
+            oop-jit: On
+            coverage: true
+            Valgrind: On
+          - name: ubu24-x86-gcc12-clang-repl-22-out-of-process-coverage
+            os: ubuntu-24.04
+            compiler: gcc-12
+            clang-runtime: '22'
+            cling: Off
+            cppyy: Off
+            llvm_enable_projects: "clang;compiler-rt"
+            llvm_targets_to_build: "host;NVPTX"
+            oop-jit: On
+            coverage: true
           - name: ubu24-x86-gcc12-clang-repl-22
             os: ubuntu-24.04
             compiler: gcc-12
@@ -99,39 +112,10 @@ jobs:
             cppyy: Off
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
-          - name: ubu24-x86-gcc12-clang-repl-20-out-of-process
-            os: ubuntu-24.04
-            compiler: gcc-12
-            clang-runtime: '20'
-            cling: Off
-            cppyy: Off
-            llvm_enable_projects: "clang;compiler-rt"
-            llvm_targets_to_build: "host;NVPTX"
-            oop-jit: On
-            coverage: true
-            Valgrind: On
-          - name: ubu24-x86-gcc12-clang-repl-20-out-of-process-coverage
-            os: ubuntu-24.04
-            compiler: gcc-12
-            clang-runtime: '20'
-            cling: Off
-            cppyy: Off
-            llvm_enable_projects: "clang;compiler-rt"
-            llvm_targets_to_build: "host;NVPTX"
-            oop-jit: On
-            coverage: true
           - name: ubu24-x86-gcc12-clang-repl-19-cppyy
             os: ubuntu-24.04
             compiler: gcc-12
             clang-runtime: '19'
-            cling: Off
-            cppyy: On
-            llvm_enable_projects: "clang"
-            llvm_targets_to_build: "host;NVPTX"
-          - name: ubu24-x86-gcc12-clang-repl-18-cppyy
-            os: ubuntu-24.04
-            compiler: gcc-12
-            clang-runtime: '18'
             cling: Off
             cppyy: On
             llvm_enable_projects: "clang"
@@ -146,6 +130,15 @@ jobs:
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
           # MacOS Arm Jobs
+          - name: osx26-arm-clang-clang-repl-22-out-of-process
+            os: macos-26
+            compiler: clang
+            clang-runtime: '22'
+            cling: Off
+            cppyy: Off
+            llvm_enable_projects: "clang;compiler-rt"
+            llvm_targets_to_build: "host"
+            oop-jit: On
           - name: osx26-arm-clang-clang-repl-22
             os: macos-26
             compiler: clang
@@ -162,15 +155,6 @@ jobs:
             cppyy: Off
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host"
-          - name: osx26-arm-clang-clang-repl-20-out-of-process
-            os: macos-26
-            compiler: clang
-            clang-runtime: '20'
-            cling: Off
-            cppyy: Off
-            llvm_enable_projects: "clang;compiler-rt"
-            llvm_targets_to_build: "host"
-            oop-jit: On
           - name: osx26-arm-clang-clang-repl-20
             os: macos-26
             compiler: clang
@@ -183,14 +167,6 @@ jobs:
             os: macos-26
             compiler: clang
             clang-runtime: '19'
-            cling: Off
-            cppyy: On
-            llvm_enable_projects: "clang"
-            llvm_targets_to_build: "host"
-          - name: osx26-arm-clang-clang-repl-18-cppyy
-            os: macos-26
-            compiler: clang
-            clang-runtime: '18'
             cling: Off
             cppyy: On
             llvm_enable_projects: "clang"
@@ -233,14 +209,6 @@ jobs:
             os: macos-15-intel
             compiler: clang
             clang-runtime: '19'
-            cling: Off
-            cppyy: On
-            llvm_enable_projects: "clang"
-            llvm_targets_to_build: "host"
-          - name: osx15-x86-clang-clang-repl-18-cppyy
-            os: macos-15-intel
-            compiler: clang
-            clang-runtime: '18'
             cling: Off
             cppyy: On
             llvm_enable_projects: "clang"
