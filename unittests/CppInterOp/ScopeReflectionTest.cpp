@@ -241,8 +241,11 @@ TYPED_TEST(CppInterOpTest, ScopeReflectionTestIsBuiltin) {
   Sema &S = Interp->getCI()->getSema();
   auto lookup = S.getStdNamespace()->lookup(&C.Idents.get("complex"));
   auto *CTD = cast<ClassTemplateDecl>(lookup.front());
+// FIXME as part of llvm 22 PR. getTypeDeclType was deleted between llvm 21 and 22
+#if CLANG_VERSION_MAJOR < 22
   for (ClassTemplateSpecializationDecl *CTSD : CTD->specializations())
     EXPECT_TRUE(Cpp::IsBuiltin(C.getTypeDeclType(CTSD).getAsOpaquePtr()));
+#endif
 }
 
 TYPED_TEST(CppInterOpTest, ScopeReflectionTestIsTemplate) {
