@@ -274,7 +274,7 @@ createClangInterpreter(std::vector<const char*>& args, int stdin_fd = -1,
 
 #ifdef LLVM_BUILT_WITH_OOP_JIT
 
-  clang::Interpreter::JITConfig OutOfProcessConfig;
+  clang::Interpreter::IncrementalExecutorBuilder OutOfProcessConfig;
   if (outOfProcess) {
     OutOfProcessConfig.IsOutOfProcess = true;
     OutOfProcessConfig.OOPExecutor =
