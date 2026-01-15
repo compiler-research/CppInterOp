@@ -3727,7 +3727,11 @@ static Decl* InstantiateTemplate(TemplateDecl* TemplateD,
   }
 
   if (auto* VarTemplate = dyn_cast<VarTemplateDecl>(TemplateD)) {
+#if CLANG_VERSION_MAJOR < 22
     DeclResult R = S.CheckVarTemplateId(VarTemplate, fakeLoc, fakeLoc, TLI);
+#else
+    DeclResult R = S.CheckVarTemplateId(VarTemplate, fakeLoc, fakeLoc, TLI, /*SetWrittenArgs=*/true);
+#endif
     if (R.isInvalid()) {
       // FIXME: Diagnose
     }
