@@ -3743,7 +3743,7 @@ static Decl* InstantiateTemplate(TemplateDecl* TemplateD,
 #if CLANG_VERSION_MAJOR < 22
   QualType TT = S.CheckTemplateIdType(TemplateName(TemplateD), noLoc, TLI);
 #else
-  QualType TT = S.CheckTemplateIdType(TemplateName(TemplateD), noLoc, TLI, /*Scope=*/nullptr, /*ForNestedNameSpecifier=*/false);
+  QualType TT = S.CheckTemplateIdType(ElaboratedTypeKeyword::None, TemplateName(TemplateD), noLoc, TLI, /*Scope=*/nullptr, /*ForNestedNameSpecifier=*/false);
 #endif
   if (TT.isNull())
     return nullptr;
