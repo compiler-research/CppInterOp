@@ -3740,7 +3740,11 @@ static Decl* InstantiateTemplate(TemplateDecl* TemplateD,
 
   // This will instantiate tape<T> type and return it.
   SourceLocation noLoc;
+#if CLANG_VERSION_MAJOR < 22
   QualType TT = S.CheckTemplateIdType(TemplateName(TemplateD), noLoc, TLI);
+#else
+  QualType TT = S.CheckTemplateIdType(TemplateName(TemplateD), noLoc, TLI, /*Scope=*/nullptr, /*ForNestedNameSpecifier=*/false);
+#endif
   if (TT.isNull())
     return nullptr;
 
