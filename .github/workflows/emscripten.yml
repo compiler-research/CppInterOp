@@ -651,12 +651,7 @@ jobs:
                 -DSYSROOT_PATH=$SYSROOT_PATH                     \
                 ../
         fi
-        os="${{ matrix.os }}"
-        if [[ "${os}" != macos* ]] ; then
-          EMCC_CORES=1 emmake make -j 1 check-cppinterop
-        else
-          emmake make -j ${{ env.ncpus }} check-cppinterop
-        fi
+        emmake make -j ${{ env.ncpus }} check-cppinterop
         cd ./unittests/CppInterOp/
         # Explaination of options for emrun
         # --browser (name of browser on path)
