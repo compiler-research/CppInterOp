@@ -12,6 +12,7 @@
 #include "clang/Basic/Version.h"
 #include "clang/Config/config.h"
 #include "clang/Sema/Sema.h"
+#include <iostream>
 
 #if CLANG_VERSION_MAJOR < 22
 #define Suppress_Elab SuppressElaboration
@@ -372,11 +373,13 @@ inline llvm::orc::LLJIT* getExecutionEngine(clang::Interpreter& I) {
 #else
   // FIXME: Remove the need of exposing the low-level execution engine and kill
   // this horrible hack.
+  std::cout << "Is this responsible for the segmentation fault" << std::endl;
   struct MyHorrbileHackOrcIncrementalExecutor : public clang::IncrementalExecutor {
     std::unique_ptr<llvm::orc::LLJIT> Jit;
   };
 
   const auto* JITTaker = reinterpret_cast<MyHorrbileHackOrcIncrementalExecutor*>(I.getIncrementalExecutorBuilder().IE.get());
+  std::cout << "No, it is not" << std::endl;
   return JITTaker->Jit.get();
 #endif
 }
