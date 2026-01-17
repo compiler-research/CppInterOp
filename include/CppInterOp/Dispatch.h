@@ -30,13 +30,11 @@
 #include <mutex>
 
 using CppFnPtrTy = void (*)();
-
 ///\param[in] procname - the name of the FunctionEntry in the symbol lookup
 /// table.
 ///
 ///\returns the function address of the requested API, or nullptr if not found
-extern "C" CPPINTEROP_API void (
-    *CppGetProcAddress(const unsigned char* procname))(void);
+extern "C" CPPINTEROP_API CppFnPtrTy CppGetProcAddress(const char* procname);
 
 // macro that allows declaration and loading of all CppInterOp API functions in
 // a consistent way. This is used as our dispatched API list, along with the
@@ -178,7 +176,7 @@ inline void* dlGetProcAddress(const char* name,
   std::call_once(init, [customLibPath]() {
     const char* path = customLibPath ? customLibPath : std::getenv("CPPINTEROP_LIBRARY_PATH");
     if (!path) return;
-    
+
     void* handle = dlopen(path, RTLD_LOCAL | RTLD_NOW);
     if (handle) {
       //NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
@@ -228,13 +226,15 @@ inline bool LoadDispatchAPI(const char* customLibPath = nullptr) {
     }
   }
 
+// NOLINTBEGIN(cppcoreguidelines-pro-type-reinterpret-cast)
 #define DISPATCH_API(name, type) name = reinterpret_cast<type>(dlGetProcAddress(#name));
   CPPINTEROP_API_TABLE
 #undef DISPATCH_API
+  // NOLINTEND(cppcoreguidelines-pro-type-reinterpret-cast)
 
   // Sanity check to verify that critical (and consequently all) functions are loaded
   if (!GetInterpreter || !CreateInterpreter) {
-    std::cerr << "[CppInterOp] Failed to load critical functions" << std::endl;
+    std::cerr << "[CppInterOp] Failed to load critical functions\n";
     return false;
   }
 

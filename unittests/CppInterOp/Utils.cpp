@@ -24,7 +24,7 @@ CPPINTEROP_API_TABLE
 namespace {
   struct DispatchInitializer {
     DispatchInitializer() {
-      if (!Cpp::LoadDispatchAPI(CPPINTEROP_LIB_DIR)) {
+      if (!Cpp::LoadDispatchAPI(CPPINTEROP_LIB_PATH)) {
         std::abort();
       }
     }

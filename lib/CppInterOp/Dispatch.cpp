@@ -1,6 +1,6 @@
 #include <CppInterOp/Dispatch.h>
 
-#include <string>
+#include <string_view>
 #include <unordered_map>
 
 static const std::unordered_map<std::string_view, CppFnPtrTy>
@@ -10,11 +10,10 @@ static const std::unordered_map<std::string_view, CppFnPtrTy>
 #undef DISPATCH_API
 };
 
-static inline CppFnPtrTy _cppinterop_get_proc_address(const char* funcName) {
+CppFnPtrTy CppGetProcAddress(const char* funcName) {
   auto it = DispatchMap.find(funcName);
-  return (it != DispatchMap.end()) ? it->second : nullptr;
-}
-
-void (*CppGetProcAddress(const unsigned char* procName))(void) {
-  return _cppinterop_get_proc_address(reinterpret_cast<const char*>(procName));
+  if (it == DispatchMap.end())
+    return nullptr;
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+  return reinterpret_cast<CppFnPtrTy>(it->second);
 }
