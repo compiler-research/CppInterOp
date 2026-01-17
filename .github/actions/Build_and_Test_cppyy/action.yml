@@ -50,8 +50,9 @@ runs:
         # source virtual environment
         source .venv/bin/activate
         # Install cppyy
-        git clone --depth=1 https://github.com/compiler-research/cppyy.git
+        git clone https://github.com/compiler-research/cppyy.git
         cd cppyy
+        git checkout Update-clang-cling-supp-file
         python -m pip install --upgrade . --no-deps
         cd ..
 
@@ -122,6 +123,7 @@ runs:
             SUPPRESSION_FILE="../etc/${CLANG_INTERPRETER}${CLANG_VERSION}-valgrind.supp"
           fi
           export IS_VALGRIND=true
+          touch $SUPPRESSION_FILE
           valgrind --show-error-list=yes --error-exitcode=1 --track-origins=yes --gen-suppressions=all --suppressions="${SUPPRESSION_FILE}" --suppressions=../etc/valgrind-cppyy-cling.supp python -m pytest -m "not xfail" -sv -ra --ignore=test_leakcheck.py
           unset IS_VALGRIND
         fi
