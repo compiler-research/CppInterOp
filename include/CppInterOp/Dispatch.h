@@ -25,9 +25,14 @@
 #include <CppInterOp/CppInterOp.h>
 
 #include <cstdlib>
-#include <dlfcn.h>
 #include <iostream>
 #include <mutex>
+
+#ifdef _WIN32
+  #include <windows.h>
+#else
+  #include <dlfcn.h>
+#endif
 
 using CppFnPtrTy = void (*)();
 ///\param[in] procname - the name of the FunctionEntry in the symbol lookup
@@ -177,6 +182,14 @@ inline void* dlGetProcAddress(const char* name,
     const char* path = customLibPath ? customLibPath : std::getenv("CPPINTEROP_LIBRARY_PATH");
     if (!path) return;
 
+#ifdef _WIN32
+    HMODULE h = LoadLibraryA(path);
+    if (h) {
+      getProc = reinterpret_cast<void* (*)(const char*)>(
+          GetProcAddress(h, "CppGetProcAddress"));
+      if (!getProc) FreeLibrary(h);
+    }
+#else
     void* handle = dlopen(path, RTLD_LOCAL | RTLD_NOW);
     if (handle) {
       //NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
@@ -184,6 +197,7 @@ inline void* dlGetProcAddress(const char* name,
           dlsym(handle, "CppGetProcAddress"));
       if (!getProc) dlclose(handle);
     }
+#endif
   });
 
   return getProc ? getProc(name) : nullptr;
