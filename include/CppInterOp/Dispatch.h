@@ -30,6 +30,7 @@
 
 #ifdef _WIN32
   #include <windows.h>
+  #undef LoadLibrary
 #else
   #include <dlfcn.h>
 #endif
