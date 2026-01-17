@@ -17,7 +17,7 @@ using namespace TestUtils;
 using namespace llvm;
 using namespace clang;
 
-TYPED_TEST(CppInterOpTest, TypeReflectionTestGetTypeAsString) {
+TYPED_TEST(CPPINTEROP_TEST_MODE, TypeReflection_GetTypeAsString) {
   std::vector<Decl *> Decls;
   std::string code = R"(
     namespace N {
@@ -57,7 +57,7 @@ TYPED_TEST(CppInterOpTest, TypeReflectionTestGetTypeAsString) {
   EXPECT_EQ(Cpp::GetTypeAsString(QT7.getAsOpaquePtr()), "char[4]");
 }
 
-TYPED_TEST(CppInterOpTest, TypeReflectionTestGetSizeOfType) {
+TYPED_TEST(CPPINTEROP_TEST_MODE, TypeReflection_GetSizeOfType) {
   std::vector<Decl *> Decls;
   std::string code =  R"(
     struct S {
@@ -85,7 +85,7 @@ TYPED_TEST(CppInterOpTest, TypeReflectionTestGetSizeOfType) {
             sizeof(intptr_t));
 }
 
-TYPED_TEST(CppInterOpTest, TypeReflectionTestGetCanonicalType) {
+TYPED_TEST(CPPINTEROP_TEST_MODE, TypeReflection_GetCanonicalType) {
   std::vector<Decl *> Decls;
   std::string code =  R"(
     typedef int I;
@@ -108,7 +108,7 @@ TYPED_TEST(CppInterOpTest, TypeReflectionTestGetCanonicalType) {
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetCanonicalType(D4)), "NULL TYPE");
 }
 
-TYPED_TEST(CppInterOpTest, TypeReflectionTestGetType) {
+TYPED_TEST(CPPINTEROP_TEST_MODE, TypeReflection_GetType) {
   TestFixture::CreateInterpreter();
 
   std::string code =  R"(
@@ -133,7 +133,7 @@ TYPED_TEST(CppInterOpTest, TypeReflectionTestGetType) {
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetType("struct")),"NULL TYPE");
 }
 
-TYPED_TEST(CppInterOpTest, TypeReflectionTestIsRecordType) {
+TYPED_TEST(CPPINTEROP_TEST_MODE, TypeReflection_IsRecordType) {
   std::vector<Decl *> Decls;
 
   std::string code = R"(
@@ -200,7 +200,7 @@ TYPED_TEST(CppInterOpTest, TypeReflectionTestIsRecordType) {
   EXPECT_FALSE(is_var_of_record_ty(Decls[24]));
 }
 
-TYPED_TEST(CppInterOpTest, TypeReflectionTestGetUnderlyingType) {
+TYPED_TEST(CPPINTEROP_TEST_MODE, TypeReflection_GetUnderlyingType) {
   std::vector<Decl *> Decls;
 
   std::string code = R"(
@@ -278,7 +278,7 @@ TYPED_TEST(CppInterOpTest, TypeReflectionTestGetUnderlyingType) {
   EXPECT_EQ(get_underly_var_type_as_str(Decls[30]), "E");
 }
 
-TYPED_TEST(CppInterOpTest, TypeReflectionTestIsUnderlyingTypeRecordType) {
+TYPED_TEST(CPPINTEROP_TEST_MODE, TypeReflection_IsUnderlyingTypeRecordType) {
   std::vector<Decl *> Decls;
 
   std::string code = R"(
@@ -345,7 +345,7 @@ TYPED_TEST(CppInterOpTest, TypeReflectionTestIsUnderlyingTypeRecordType) {
   EXPECT_TRUE(is_var_of_underly_record_ty(Decls[24]));
 }
 
-TYPED_TEST(CppInterOpTest, TypeReflectionTestGetComplexType) {
+TYPED_TEST(CPPINTEROP_TEST_MODE, TypeReflection_GetComplexType) {
   TestFixture::CreateInterpreter();
 
   auto get_complex_type_as_string = [&](const std::string &element_type) {
@@ -379,7 +379,7 @@ TYPED_TEST(CppInterOpTest, TypeReflectionTestGetComplexType) {
   clang_Interpreter_dispose(I);
 }
 
-TYPED_TEST(CppInterOpTest, TypeReflectionTestGetTypeFromScope) {
+TYPED_TEST(CPPINTEROP_TEST_MODE, TypeReflection_GetTypeFromScope) {
   std::vector<Decl *> Decls;
 
   std::string code =  R"(
@@ -396,7 +396,7 @@ TYPED_TEST(CppInterOpTest, TypeReflectionTestGetTypeFromScope) {
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetTypeFromScope(nullptr)), "NULL TYPE");
 }
 
-TYPED_TEST(CppInterOpTest, TypeReflectionTestIsTypeDerivedFrom) {
+TYPED_TEST(CPPINTEROP_TEST_MODE, TypeReflection_IsTypeDerivedFrom) {
   std::vector<Decl *> Decls;
 
   std::string code = R"(
@@ -433,7 +433,7 @@ TYPED_TEST(CppInterOpTest, TypeReflectionTestIsTypeDerivedFrom) {
   EXPECT_FALSE(Cpp::IsTypeDerivedFrom(type_A, type_E));
 }
 
-TYPED_TEST(CppInterOpTest, TypeReflectionTestGetDimensions) {
+TYPED_TEST(CPPINTEROP_TEST_MODE, TypeReflection_GetDimensions) {
   std::vector<Decl *> Decls, SubDecls;
 
   std::string code = R"(
@@ -528,7 +528,7 @@ TYPED_TEST(CppInterOpTest, TypeReflectionTestGetDimensions) {
   }
 }
 
-TYPED_TEST(CppInterOpTest, TypeReflectionTestIsPODType) {
+TYPED_TEST(CPPINTEROP_TEST_MODE, TypeReflection_IsPODType) {
   std::vector<Decl *> Decls;
 
   std::string code = R"(
@@ -550,7 +550,7 @@ TYPED_TEST(CppInterOpTest, TypeReflectionTestIsPODType) {
   EXPECT_FALSE(Cpp::IsPODType(0));
 }
 
-TYPED_TEST(CppInterOpTest, TypeReflectionTestIsSmartPtrType) {
+TYPED_TEST(CPPINTEROP_TEST_MODE, TypeReflection_IsSmartPtrType) {
 #if CLANG_VERSION_MAJOR == 18 && defined(CPPINTEROP_USE_CLING) &&              \
     defined(_WIN32) && (defined(_M_ARM) || defined(_M_ARM64))
   GTEST_SKIP() << "Test fails with Cling on Windows on ARM";
@@ -583,7 +583,7 @@ TYPED_TEST(CppInterOpTest, TypeReflectionTestIsSmartPtrType) {
   )");
 
   auto get_type_from_varname = [&](const std::string &varname) {
-    return Cpp::GetVariableType(Cpp::GetNamed(varname));
+    return Cpp::GetVariableType(Cpp::GetNamed(varname, 0));
   };
 
   //EXPECT_TRUE(Cpp::IsSmartPtrType(get_type_from_varname("smart_ptr1")));
@@ -596,7 +596,7 @@ TYPED_TEST(CppInterOpTest, TypeReflectionTestIsSmartPtrType) {
   EXPECT_FALSE(Cpp::IsSmartPtrType(get_type_from_varname("object")));
 }
 
-TYPED_TEST(CppInterOpTest, TypeReflectionTestIsFunctionPointerType) {
+TYPED_TEST(CPPINTEROP_TEST_MODE, TypeReflection_IsFunctionPointerType) {
   std::vector<const char*> interpreter_args = {"-include", "new"};
   TestFixture::CreateInterpreter(interpreter_args);
 
@@ -608,12 +608,12 @@ TYPED_TEST(CppInterOpTest, TypeReflectionTestIsFunctionPointerType) {
   )");
 
   EXPECT_TRUE(
-      Cpp::IsFunctionPointerType(Cpp::GetVariableType(Cpp::GetNamed("f"))));
+      Cpp::IsFunctionPointerType(Cpp::GetVariableType(Cpp::GetNamed("f", 0))));
   EXPECT_FALSE(
-      Cpp::IsFunctionPointerType(Cpp::GetVariableType(Cpp::GetNamed("i"))));
+      Cpp::IsFunctionPointerType(Cpp::GetVariableType(Cpp::GetNamed("i", 0))));
 }
 
-TYPED_TEST(CppInterOpTest, TypeReflectionTestOperatorSpelling) {
+TYPED_TEST(CPPINTEROP_TEST_MODE, TypeReflection_OperatorSpelling) {
   EXPECT_EQ(Cpp::GetSpellingFromOperator(Cpp::OP_Less), "<");
   EXPECT_EQ(Cpp::GetSpellingFromOperator(Cpp::OP_Plus), "+");
   EXPECT_EQ(Cpp::GetOperatorFromSpelling("->"), Cpp::OP_Arrow);
@@ -621,7 +621,7 @@ TYPED_TEST(CppInterOpTest, TypeReflectionTestOperatorSpelling) {
   EXPECT_EQ(Cpp::GetOperatorFromSpelling("invalid"), Cpp::OP_None);
 }
 
-TYPED_TEST(CppInterOpTest, TypeReflectionTestTypeQualifiers) {
+TYPED_TEST(CPPINTEROP_TEST_MODE, TypeReflection_TypeQualifiers) {
   TestFixture::CreateInterpreter();
   Cpp::Declare(R"(
     int *a;
@@ -632,16 +632,16 @@ TYPED_TEST(CppInterOpTest, TypeReflectionTestTypeQualifiers) {
     int *__restrict__ const f = nullptr;
     int *__restrict__ volatile g;
     int *__restrict__ const volatile h = nullptr;
-  )");
+  )", false);
 
-  Cpp::TCppType_t a = Cpp::GetVariableType(Cpp::GetNamed("a"));
-  Cpp::TCppType_t b = Cpp::GetVariableType(Cpp::GetNamed("b"));
-  Cpp::TCppType_t c = Cpp::GetVariableType(Cpp::GetNamed("c"));
-  Cpp::TCppType_t d = Cpp::GetVariableType(Cpp::GetNamed("d"));
-  Cpp::TCppType_t e = Cpp::GetVariableType(Cpp::GetNamed("e"));
-  Cpp::TCppType_t f = Cpp::GetVariableType(Cpp::GetNamed("f"));
-  Cpp::TCppType_t g = Cpp::GetVariableType(Cpp::GetNamed("g"));
-  Cpp::TCppType_t h = Cpp::GetVariableType(Cpp::GetNamed("h"));
+  Cpp::TCppType_t a = Cpp::GetVariableType(Cpp::GetNamed("a", 0));
+  Cpp::TCppType_t b = Cpp::GetVariableType(Cpp::GetNamed("b", 0));
+  Cpp::TCppType_t c = Cpp::GetVariableType(Cpp::GetNamed("c", 0));
+  Cpp::TCppType_t d = Cpp::GetVariableType(Cpp::GetNamed("d", 0));
+  Cpp::TCppType_t e = Cpp::GetVariableType(Cpp::GetNamed("e", 0));
+  Cpp::TCppType_t f = Cpp::GetVariableType(Cpp::GetNamed("f", 0));
+  Cpp::TCppType_t g = Cpp::GetVariableType(Cpp::GetNamed("g", 0));
+  Cpp::TCppType_t h = Cpp::GetVariableType(Cpp::GetNamed("h", 0));
 
   EXPECT_FALSE(Cpp::HasTypeQualifier(nullptr, Cpp::QualKind::Const));
   EXPECT_FALSE(Cpp::RemoveTypeQualifier(nullptr, Cpp::QualKind::Const));
