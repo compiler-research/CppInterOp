@@ -3,6 +3,7 @@
 #include <string_view>
 #include <unordered_map>
 
+// NOLINTNEXTLINE(cppcoreguidelines-pro-type-cstyle-cast)
 static const std::unordered_map<std::string_view, CppFnPtrTy>
     DispatchMap = {
 #define DISPATCH_API(name, type) {#name, (CppFnPtrTy) static_cast<type>(&CppImpl::name)},
