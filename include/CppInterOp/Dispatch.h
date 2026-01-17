@@ -193,7 +193,7 @@ inline void* dlGetProcAddress(const char* name,
 #else
     void* handle = dlopen(path, RTLD_LOCAL | RTLD_NOW);
     if (handle) {
-      //NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+      // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
       getProc = reinterpret_cast<void* (*)(const char*)>(
           dlsym(handle, "CppGetProcAddress"));
       if (!getProc) dlclose(handle);
@@ -207,13 +207,14 @@ inline void* dlGetProcAddress(const char* name,
 // CppAPIType is used for the extern clauses below
 // FIXME: drop the using clauses
 namespace CppAPIType {
+// NOLINTBEGIN(bugprone-macro-parentheses)
 #define DISPATCH_API(name, type) using name = type;
 CPPINTEROP_API_TABLE
 #undef DISPATCH_API
+// NOLINTEND(bugprone-macro-parentheses)
 } // end namespace CppAPIType
 
-namespace CppInternal {
-namespace Dispatch {
+namespace CppInternal::Dispatch {
 
 // FIXME: This is required for the types, but we should move the types
 // into a separate namespace and only use that scope (CppImpl::Types)
@@ -262,8 +263,7 @@ inline void UnloadDispatchAPI() {
     CPPINTEROP_API_TABLE
 #undef DISPATCH_API
 }
-} // namespace Dispatch
-} // namespace CppInternal
+} // namespace CppInternal::Dispatch
 
 namespace Cpp = CppInternal::Dispatch;
 #endif // CPPINTEROP_DISPATCH_H
