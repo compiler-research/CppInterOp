@@ -682,11 +682,14 @@ std::string GetDoxygenComment(TCppScope_t scope, bool strip_comment_markers) {
   D = D->getCanonicalDecl();
   ASTContext& C = D->getASTContext();
 
+  const RawComment* RC = C.getRawCommentForAnyRedecl(D);
+  if (!RC)
+    return "";
+
   comments::FullComment* FC = C.getCommentForDecl(D, /*PP=*/nullptr);
   if (!FC)
     return "";
 
-  const RawComment* RC = C.getRawCommentForAnyRedecl(D);
   const SourceManager& SM = C.getSourceManager();
 
   if (!strip_comment_markers)

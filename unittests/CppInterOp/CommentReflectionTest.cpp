@@ -55,3 +55,26 @@ TYPED_TEST(CppInterOpTest, CommentReflectionDoxygenNullScope) {
   EXPECT_STREQ(get_c_string(Doc), "");
   dispose_string(Doc);
 }
+
+TYPED_TEST(CppInterOpTest, CommentReflectionDoxygenNoComment) {
+  std::vector<Decl*> Decls;
+  std::string code = R"(
+    int foo() { return 42; }
+  )";
+
+  GetAllTopLevelDecls(code, Decls);
+  ASSERT_GE(Decls.size(), 1U);
+  EXPECT_EQ(Cpp::GetDoxygenComment(Decls[0], /*strip=*/true), "");
+}
+
+TYPED_TEST(CppInterOpTest, CommentReflectionDoxygenNonDoxygenComment) {
+  std::vector<Decl*> Decls;
+  std::string code = R"(
+    // A regular non-doxygen comment.
+    int bar() { return 7; }
+  )";
+
+  GetAllTopLevelDecls(code, Decls);
+  ASSERT_GE(Decls.size(), 1U);
+  EXPECT_EQ(Cpp::GetDoxygenComment(Decls[0], /*strip=*/true), "");
+}
