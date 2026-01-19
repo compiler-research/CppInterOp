@@ -48,3 +48,10 @@ TYPED_TEST(CppInterOpTest, CommentReflectionDoxygenBlockAndLine) {
   clang_Interpreter_takeInterpreterAsPtr(I);
   clang_Interpreter_dispose(I);
 }
+
+TYPED_TEST(CppInterOpTest, CommentReflectionDoxygenNullScope) {
+  CXScope NullS{};
+  CXString Doc = clang_getDoxygenComment(NullS, /*strip_comment_markers=*/true);
+  EXPECT_STREQ(get_c_string(Doc), "");
+  dispose_string(Doc);
+}
