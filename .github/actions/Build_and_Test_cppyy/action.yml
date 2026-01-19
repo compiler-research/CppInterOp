@@ -50,9 +50,8 @@ runs:
         # source virtual environment
         source .venv/bin/activate
         # Install cppyy
-        git clone https://github.com/compiler-research/cppyy.git
+        git clone --depth=1 https://github.com/compiler-research/cppyy.git
         cd cppyy
-        git checkout Add-llvm-20-cppyy-jobs
         python -m pip install --upgrade . --no-deps
         cd ..
 
