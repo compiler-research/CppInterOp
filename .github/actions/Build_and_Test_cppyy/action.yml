@@ -52,7 +52,7 @@ runs:
         # Install cppyy
         git clone https://github.com/compiler-research/cppyy.git
         cd cppyy
-        git checkout Update-clang-cling-supp-file
+        git checkout Add-llvm-20-cppyy-jobs
         python -m pip install --upgrade . --no-deps
         cd ..
 
