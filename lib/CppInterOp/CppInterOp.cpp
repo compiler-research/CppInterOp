@@ -686,9 +686,7 @@ std::string GetDoxygenComment(TCppScope_t scope, bool strip_comment_markers) {
   if (!RC)
     return "";
 
-  comments::FullComment* FC = C.getCommentForDecl(D, /*PP=*/nullptr);
-  if (!FC)
-    return "";
+  (void)C.getCommentForDecl(D, /*PP=*/nullptr);
 
   const SourceManager& SM = C.getSourceManager();
 
