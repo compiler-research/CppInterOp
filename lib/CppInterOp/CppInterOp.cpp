@@ -3383,7 +3383,9 @@ TInterp_t CreateInterpreter(const std::vector<const char*>& Args /*={}*/,
     llvm::cl::ParseCommandLineOptions(NumArgs + 1, Args.get());
   }
 
+#ifndef EMSCRIPTEN
   AddLibrarySearchPaths(ResourceDir, I);
+#endif
 
   I->declare(R"(
     namespace __internal_CppInterOp {
