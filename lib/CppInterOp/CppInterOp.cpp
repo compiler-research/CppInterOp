@@ -3312,11 +3312,13 @@ void AddLibrarySearchPaths(const std::string& ResourceDir,
 
 TInterp_t CreateInterpreter(const std::vector<const char*>& Args /*={}*/,
                             const std::vector<const char*>& GpuArgs /*={}*/) {
-  namespace fs = std::filesystem;
   std::string MainExecutableName = sys::fs::getMainExecutable(nullptr, nullptr);
   std::string ResourceDir = MakeResourcesPath();
+#if defined(__linux__) || defined(__APPLE__)
+  namespace fs = std::filesystem;
   if (!fs::is_directory(ResourceDir))
     ResourceDir = DetectResourceDir();
+#endif
 
   std::vector<const char*> ClingArgv = {"-resource-dir", ResourceDir.c_str(),
                                         "-std=c++14"};
