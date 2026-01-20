@@ -56,6 +56,10 @@ TYPED_TEST(CppInterOpTest, CommentReflectionDoxygenNullScope) {
   dispose_string(Doc);
 }
 
+TYPED_TEST(CppInterOpTest, CommentReflectionDoxygenNullPtr) {
+  EXPECT_EQ(Cpp::GetDoxygenComment(nullptr, /*strip=*/true), "");
+}
+
 TYPED_TEST(CppInterOpTest, CommentReflectionDoxygenNoComment) {
   std::vector<Decl*> Decls;
   std::string code = R"(
@@ -78,3 +82,4 @@ TYPED_TEST(CppInterOpTest, CommentReflectionDoxygenNonDoxygenComment) {
   ASSERT_GE(Decls.size(), 1U);
   EXPECT_EQ(Cpp::GetDoxygenComment(Decls[0], /*strip=*/true), "");
 }
+
