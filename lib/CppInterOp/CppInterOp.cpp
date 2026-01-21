@@ -3286,6 +3286,7 @@ static std::string MakeResourcesPath() {
   return std::string(P.str());
 }
 
+#ifndef EMSCRIPTEN
 void AddLibrarySearchPaths(const std::string& ResourceDir,
                            compat::Interpreter* I) {
   // the resource-dir can be of the form
@@ -3308,6 +3309,7 @@ void AddLibrarySearchPaths(const std::string& ResourceDir,
                                                  false, false);
   }
 }
+#endif
 } // namespace
 
 TInterp_t CreateInterpreter(const std::vector<const char*>& Args /*={}*/,
@@ -3578,7 +3580,7 @@ std::string DetectResourceDir(const char* ClangBinaryName /* = clang */) {
   std::string version = CLANG_VERSION_MAJOR_STRING;
   // We need to check if the detected resource directory is compatible.
   if (llvm::sys::path::filename(detected_resource_dir) != version)
-    std::cerr << "detected resource directory is incompatible\n";
+    return "";
 
   return detected_resource_dir;
 }
