@@ -13,6 +13,7 @@
 
 #include "clang/AST/Attrs.inc"
 #include "clang/AST/CXXInheritance.h"
+#include "clang/AST/Comment.h"
 #include "clang/AST/Decl.h"
 #include "clang/AST/DeclAccessPair.h"
 #include "clang/AST/DeclBase.h"
@@ -24,6 +25,7 @@
 #include "clang/AST/Mangle.h"
 #include "clang/AST/NestedNameSpecifier.h"
 #include "clang/AST/QualTypeNames.h"
+#include "clang/AST/RawCommentList.h"
 #include "clang/AST/RecordLayout.h"
 #include "clang/AST/Stmt.h"
 #include "clang/AST/Type.h"
@@ -31,6 +33,7 @@
 #include "clang/Basic/Linkage.h"
 #include "clang/Basic/OperatorKinds.h"
 #include "clang/Basic/SourceLocation.h"
+#include "clang/Basic/SourceManager.h"
 #include "clang/Basic/Specifiers.h"
 #include "clang/Basic/Version.h"
 #include "clang/Frontend/CompilerInstance.h"
@@ -669,6 +672,28 @@ std::string GetQualifiedCompleteName(TCppType_t klass) {
   }
 
   return "<unnamed>";
+}
+
+std::string GetDoxygenComment(TCppScope_t scope, bool strip_comment_markers) {
+  auto* D = static_cast<Decl*>(scope);
+  if (!D)
+    return "";
+
+  D = D->getCanonicalDecl();
+  ASTContext& C = D->getASTContext();
+
+  const RawComment* RC = C.getRawCommentForAnyRedecl(D);
+  if (!RC)
+    return "";
+
+  (void)C.getCommentForDecl(D, /*PP=*/nullptr);
+
+  const SourceManager& SM = C.getSourceManager();
+
+  if (!strip_comment_markers)
+    return RC->getRawText(SM).str();
+
+  return RC->getFormattedText(SM, C.getDiagnostics());
 }
 
 std::vector<TCppScope_t> GetUsingNamespaces(TCppScope_t scope) {

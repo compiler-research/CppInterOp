@@ -392,6 +392,14 @@ CPPINTEROP_API std::string GetQualifiedName(TCppScope_t klass);
 /// gets the template arguments.
 CPPINTEROP_API std::string GetQualifiedCompleteName(TCppScope_t klass);
 
+/// Retrieves the Doxygen documentation comment for a declaration.
+/// \param[in] scope -- The declaration to get the comment for.
+/// \param[in] strip_comment_markers -- If true, removes comment markers (///,
+/// /**, etc.).
+/// \returns The documentation comment, or empty string if none exists.
+CPPINTEROP_API std::string GetDoxygenComment(TCppScope_t scope,
+                                             bool strip_comment_markers = true);
+
 /// Gets the list of namespaces utilized in the supplied scope.
 CPPINTEROP_API std::vector<TCppScope_t> GetUsingNamespaces(TCppScope_t scope);
 
