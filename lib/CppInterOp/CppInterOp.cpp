@@ -65,6 +65,7 @@
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/TargetParser/Host.h"
 
 #include <algorithm>
 #include <cassert>
@@ -3316,11 +3317,12 @@ TInterp_t CreateInterpreter(const std::vector<const char*>& Args /*={}*/,
                             const std::vector<const char*>& GpuArgs /*={}*/) {
   std::string MainExecutableName = sys::fs::getMainExecutable(nullptr, nullptr);
   std::string ResourceDir = MakeResourcesPath();
-#if defined(__linux__) || defined(__APPLE__)
+  std::string processTargetTriple = llvm::sys::getProcessTriple();
   namespace fs = std::filesystem;
-  if (!fs::is_directory(ResourceDir))
+  if ((!fs::is_directory(ResourceDir)) &&
+      ((processTargetTriple.find("linux") != std::string::npos) ||
+       (processTargetTriple.find("apple") != std::string::npos)))
     ResourceDir = DetectResourceDir();
-#endif
 
   std::vector<const char*> ClingArgv = {"-resource-dir", ResourceDir.c_str(),
                                         "-std=c++14"};
