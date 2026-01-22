@@ -3288,7 +3288,6 @@ static std::string MakeResourcesPath() {
   return std::string(P.str());
 }
 
-#ifndef EMSCRIPTEN
 void AddLibrarySearchPaths(const std::string& ResourceDir,
                            compat::Interpreter* I) {
   // the resource-dir can be of the form
@@ -3311,7 +3310,6 @@ void AddLibrarySearchPaths(const std::string& ResourceDir,
                                                  false, false);
   }
 }
-#endif
 } // namespace
 
 TInterp_t CreateInterpreter(const std::vector<const char*>& Args /*={}*/,
@@ -3386,9 +3384,8 @@ TInterp_t CreateInterpreter(const std::vector<const char*>& Args /*={}*/,
     llvm::cl::ParseCommandLineOptions(NumArgs + 1, Args.get());
   }
 
-#ifndef EMSCRIPTEN
-  AddLibrarySearchPaths(ResourceDir, I);
-#endif
+  if (!T.isWasm())
+    AddLibrarySearchPaths(ResourceDir, I);
 
   I->declare(R"(
     namespace __internal_CppInterOp {
