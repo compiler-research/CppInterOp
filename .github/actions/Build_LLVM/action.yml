@@ -46,7 +46,7 @@ runs:
           cd build
           cmake -DLLVM_ENABLE_PROJECTS="${{ matrix.llvm_enable_projects}}" \
                 -DLLVM_TARGETS_TO_BUILD="${{ matrix.llvm_targets_to_build }}"  \
-                -DCMAKE_BUILD_TYPE=Release                          \
+                -DCMAKE_BUILD_TYPE=Debug                       \
                 -DLLVM_ENABLE_ASSERTIONS=ON                         \
                 -DCLANG_ENABLE_STATIC_ANALYZER=OFF                  \
                 -DCLANG_ENABLE_ARCMT=OFF                            \
