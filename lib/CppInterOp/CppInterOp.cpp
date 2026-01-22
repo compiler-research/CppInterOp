@@ -66,6 +66,7 @@
 #include "llvm/Support/Path.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/TargetParser/Host.h"
+#include "llvm/TargetParser/Triple.h"
 
 #include <algorithm>
 #include <cassert>
@@ -3317,11 +3318,9 @@ TInterp_t CreateInterpreter(const std::vector<const char*>& Args /*={}*/,
                             const std::vector<const char*>& GpuArgs /*={}*/) {
   std::string MainExecutableName = sys::fs::getMainExecutable(nullptr, nullptr);
   std::string ResourceDir = MakeResourcesPath();
-  std::string processTargetTriple = llvm::sys::getProcessTriple();
+  llvm::Triple T(llvm::sys::getProcessTriple());
   namespace fs = std::filesystem;
-  if ((!fs::is_directory(ResourceDir)) &&
-      ((processTargetTriple.find("linux") != std::string::npos) ||
-       (processTargetTriple.find("apple") != std::string::npos)))
+  if ((!fs::is_directory(ResourceDir)) && (T.isOSDarwin() || T.isOSLinux()))
     ResourceDir = DetectResourceDir();
 
   std::vector<const char*> ClingArgv = {"-resource-dir", ResourceDir.c_str(),
