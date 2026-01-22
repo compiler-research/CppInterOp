@@ -65,6 +65,8 @@
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/TargetParser/Host.h"
+#include "llvm/TargetParser/Triple.h"
 
 #include <algorithm>
 #include <cassert>
@@ -72,6 +74,8 @@
 #include <cstdint>
 #include <cstdio>
 #include <deque>
+#include <filesystem>
+#include <iostream>
 #include <iterator>
 #include <map>
 #include <memory>
@@ -3283,12 +3287,40 @@ static std::string MakeResourcesPath() {
                           CLANG_VERSION_MAJOR_STRING);
   return std::string(P.str());
 }
+
+void AddLibrarySearchPaths(const std::string& ResourceDir,
+                           compat::Interpreter* I) {
+  // the resource-dir can be of the form
+  // /prefix/lib/clang/XX or /prefix/lib/llvm-XX/lib/clang/XX
+  // where XX represents version
+  // the corresponing path we want to add are
+  // /prefix/lib/clang/XX/lib, /prefix/lib/, and
+  // /prefix/lib/llvm-XX/lib/clang/XX/lib, /prefix/lib/llvm-XX/lib/,
+  // /prefix/lib/
+  std::string path1 = ResourceDir + "/lib";
+  I->getDynamicLibraryManager()->addSearchPath(path1, false, false);
+  size_t pos = ResourceDir.rfind("/llvm-");
+  if (pos != std::string::npos) {
+    I->getDynamicLibraryManager()->addSearchPath(ResourceDir.substr(0, pos),
+                                                 false, false);
+  }
+  pos = ResourceDir.rfind("/clang");
+  if (pos != std::string::npos) {
+    I->getDynamicLibraryManager()->addSearchPath(ResourceDir.substr(0, pos),
+                                                 false, false);
+  }
+}
 } // namespace
 
 TInterp_t CreateInterpreter(const std::vector<const char*>& Args /*={}*/,
                             const std::vector<const char*>& GpuArgs /*={}*/) {
   std::string MainExecutableName = sys::fs::getMainExecutable(nullptr, nullptr);
   std::string ResourceDir = MakeResourcesPath();
+  llvm::Triple T(llvm::sys::getProcessTriple());
+  namespace fs = std::filesystem;
+  if ((!fs::is_directory(ResourceDir)) && (T.isOSDarwin() || T.isOSLinux()))
+    ResourceDir = DetectResourceDir();
+
   std::vector<const char*> ClingArgv = {"-resource-dir", ResourceDir.c_str(),
                                         "-std=c++14"};
   ClingArgv.insert(ClingArgv.begin(), MainExecutableName.c_str());
@@ -3351,6 +3383,9 @@ TInterp_t CreateInterpreter(const std::vector<const char*>& Args /*={}*/,
     Args[NumArgs + 1] = nullptr;
     llvm::cl::ParseCommandLineOptions(NumArgs + 1, Args.get());
   }
+
+  if (!T.isWasm())
+    AddLibrarySearchPaths(ResourceDir, I);
 
   I->declare(R"(
     namespace __internal_CppInterOp {
