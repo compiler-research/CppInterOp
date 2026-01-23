@@ -11,6 +11,7 @@ else()
 endif()
 
 add_cppinterop_unittest(CppInterOpTests
+  ENABLE_DISPATCH
   CommentReflectionTest.cpp
   EnumReflectionTest.cpp
   FunctionReflectionTest.cpp
