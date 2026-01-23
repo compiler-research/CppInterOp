@@ -20,7 +20,7 @@ std::string GetExecutablePath(const char* Argv0) {
   return llvm::sys::fs::getMainExecutable(Argv0, MainAddr);
 }
 
-TYPED_TEST(CppInterOpTest, DynamicLibraryManagerTestSanity) {
+TYPED_TEST(CPPINTEROP_TEST_MODE, DynamicLibraryManager_Sanity) {
 #ifdef EMSCRIPTEN
   GTEST_SKIP() << "Test fails for Emscipten builds";
 #endif
@@ -69,7 +69,7 @@ TYPED_TEST(CppInterOpTest, DynamicLibraryManagerTestSanity) {
   // EXPECT_FALSE(Cpp::GetFunctionAddress("ret_zero"));
 }
 
-TYPED_TEST(CppInterOpTest, DynamicLibraryManagerTestBasicSymbolLookup) {
+TYPED_TEST(CPPINTEROP_TEST_MODE, DynamicLibraryManager_BasicSymbolLookup) {
 #ifndef EMSCRIPTEN
   GTEST_SKIP() << "This test is only intended for Emscripten builds.";
 #else

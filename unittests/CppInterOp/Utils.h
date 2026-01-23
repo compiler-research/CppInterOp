@@ -9,9 +9,23 @@
 #if defined(ENABLE_DISPATCH_TESTS)
 #include "CppInterOp/Dispatch.h"
 #define CPPINTEROP_TEST_MODE CppInterOpDispatchTest
+// Helper macros that conditionally pass default arguments in dispatch mode
+// tests
+#define DFLT_OP_ARITY , Cpp::OperatorArity::kBoth
+#define DFLT_NULLPTR , nullptr
+#define DFLT_FALSE , false
+#define DFLT_TRUE , true
+#define DFLT_0 , 0
+#define DFLT_1 , 1
 #else
 #include "CppInterOp/CppInterOp.h"
 #define CPPINTEROP_TEST_MODE CppInterOpTest
+#define DFLT_OP_ARITY
+#define DFLT_NULLPTR
+#define DFLT_FALSE
+#define DFLT_TRUE
+#define DFLT_0
+#define DFLT_1
 #endif
 
 #include "llvm/Support/Valgrind.h"
