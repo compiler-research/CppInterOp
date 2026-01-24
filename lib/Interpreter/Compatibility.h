@@ -298,13 +298,13 @@ createClangInterpreter(std::vector<const char*>& args,
   OverlayFS->pushOverlay(InMemFS);
   (*ciOrErr)->createVirtualFileSystem(OverlayFS);
 
-  clang::Interpreter::JITConfig JC;
+  auto IEB = std::make_unique<clang::IncrementalExecutorBuilder>();
   if (CM)
-    JC.CM = static_cast<llvm::CodeModel::Model>(*CM);
+    IEB->CM = static_cast<llvm::CodeModel::Model>(*CM);
   auto innerOrErr =
       CudaEnabled ? clang::Interpreter::createWithCUDA(std::move(*ciOrErr),
                                                        std::move(DeviceCI))
-                  : clang::Interpreter::create(std::move(*ciOrErr), JC);
+                  : clang::Interpreter::create(std::move(*ciOrErr), std::move(IEB));
 #endif // CLANG_VERSION_MAJOR < 16
 
   if (!innerOrErr) {
@@ -357,12 +357,16 @@ inline void maybeMangleDeclName(const clang::GlobalDecl& GD,
 // Clang 18 - Add new Interpreter methods: CodeComplete
 
 inline llvm::orc::LLJIT* getExecutionEngine(clang::Interpreter& I) {
-#if CLANG_VERSION_MAJOR >= 14
-  auto* engine = &llvm::cantFail(I.getExecutionEngine());
-  return const_cast<llvm::orc::LLJIT*>(engine);
+#if CLANG_VERSION_MAJOR < 22
+   auto* engine = &llvm::cantFail(I.getExecutionEngine());
+   return const_cast<llvm::orc::LLJIT*>(engine);
 #else
-  assert(0 && "Not implemented in Clang <14!");
-  return nullptr;
+   struct OrcIncrementalExecutor : public clang::IncrementalExecutor {
+     std::unique_ptr<llvm::orc::LLJIT> Jit;
+   };
+
+   auto &engine = static_cast<OrcIncrementalExecutor&>(llvm::cantFail(I.getExecutionEngine()));
+   return engine.Jit.get();
 #endif
 }
 
