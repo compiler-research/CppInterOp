@@ -12,7 +12,7 @@ using namespace TestUtils;
 using namespace llvm;
 using namespace clang;
 
-TYPED_TEST(CppInterOpTest, CommentReflectionDoxygenBlockAndLine) {
+TYPED_TEST(CPPINTEROP_TEST_MODE, CommentReflection_DoxygenBlockAndLine) {
   std::vector<Decl*> Decls;
   std::string code = R"(
     /** Adds two integers.
@@ -49,18 +49,18 @@ TYPED_TEST(CppInterOpTest, CommentReflectionDoxygenBlockAndLine) {
   clang_Interpreter_dispose(I);
 }
 
-TYPED_TEST(CppInterOpTest, CommentReflectionDoxygenNullScope) {
+TYPED_TEST(CPPINTEROP_TEST_MODE, CommentReflection_DoxygenNullScope) {
   CXScope NullS{};
   CXString Doc = clang_getDoxygenComment(NullS, /*strip_comment_markers=*/true);
   EXPECT_STREQ(get_c_string(Doc), "");
   dispose_string(Doc);
 }
 
-TYPED_TEST(CppInterOpTest, CommentReflectionDoxygenNullPtr) {
+TYPED_TEST(CPPINTEROP_TEST_MODE, CommentReflection_DoxygenNullPtr) {
   EXPECT_EQ(Cpp::GetDoxygenComment(nullptr, /*strip=*/true), "");
 }
 
-TYPED_TEST(CppInterOpTest, CommentReflectionDoxygenNoComment) {
+TYPED_TEST(CPPINTEROP_TEST_MODE, CommentReflection_DoxygenNoComment) {
   std::vector<Decl*> Decls;
   std::string code = R"(
     int foo() { return 42; }
@@ -71,7 +71,7 @@ TYPED_TEST(CppInterOpTest, CommentReflectionDoxygenNoComment) {
   EXPECT_EQ(Cpp::GetDoxygenComment(Decls[0], /*strip=*/true), "");
 }
 
-TYPED_TEST(CppInterOpTest, CommentReflectionDoxygenNonDoxygenComment) {
+TYPED_TEST(CPPINTEROP_TEST_MODE, CommentReflection_DoxygenNonDoxygenComment) {
   std::vector<Decl*> Decls;
   std::string code = R"(
     // A regular non-doxygen comment.
@@ -82,4 +82,3 @@ TYPED_TEST(CppInterOpTest, CommentReflectionDoxygenNonDoxygenComment) {
   ASSERT_GE(Decls.size(), 1U);
   EXPECT_EQ(Cpp::GetDoxygenComment(Decls[0], /*strip=*/true), "");
 }
-
