@@ -108,7 +108,6 @@ jobs:
                 -DCMAKE_INSTALL_PREFIX=$PREFIX         \
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            \
                 -DSYSROOT_PATH=$SYSROOT_PATH               \
-                -DCPPINTEROP_ENABLE_WASM_EXCEPTIONS=ON        \
                 ../
         else
           emcmake cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    \
@@ -121,7 +120,6 @@ jobs:
                 -DCMAKE_INSTALL_PREFIX=$PREFIX      \
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            \
                 -DSYSROOT_PATH=$SYSROOT_PATH               \
-                -DCPPINTEROP_ENABLE_WASM_EXCEPTIONS=ON          \
                 ../
         fi
         emmake make -j ${{ env.ncpus }} check-cppinterop

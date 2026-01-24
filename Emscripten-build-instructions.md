@@ -69,7 +69,7 @@ git apply -v emscripten-clang21-3-webassembly_target_machine_reordering.patch
 ```
 
 We are now in a position to build an emscripten build of llvm by executing the following on Linux
-and osx (if you are not intending to build xeus-cpp then you can omit the EMCC_CFLAGS definition)
+and osx
 ```bash
 mkdir native_build
 cd native_build
@@ -107,7 +107,7 @@ EMCC_CFLAGS="-sSUPPORT_LONGJMP=wasm -fwasm-exceptions" emmake make clangInterpre
 EMCC_CFLAGS="-sSUPPORT_LONGJMP=wasm -fwasm-exceptions" emmake make lldWasm -j $(nproc --all)
 ```
 
-or executing (if you are not intending to build xeus-cpp then you can omit the EMCC_CFLAGS definition)
+or executing
 
 ```powershell
 mkdir native_build
@@ -187,8 +187,7 @@ $env:CMAKE_SYSTEM_PREFIX_PATH=$env:PREFIX
 ```
 
 on Windows. Now to build and test your Emscripten build of CppInterOp using node on Linux and osx execute the following
-(BUILD_SHARED_LIBS=ON is only needed if building xeus-cpp, as CppInterOp can be built as an Emscripten static library.
-CPPINTEROP_ENABLE_WASM_EXCEPTIONS=ON is also only necessary if building xeus-cpp, or you built llvm with the EMCC_CFLAGS.)
+(BUILD_SHARED_LIBS=ON is only needed if building xeus-cpp, as CppInterOp can be built as an Emscripten static library)
 
 ```bash
 mkdir build
@@ -201,14 +200,12 @@ emcmake cmake -DCMAKE_BUILD_TYPE=Release    \
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            \
                 -DCMAKE_INSTALL_PREFIX=$PREFIX         \
                 -DSYSROOT_PATH=$SYSROOT_PATH                                   \
-                -DCPPINTEROP_ENABLE_WASM_EXCEPTIONS=ON                        \
                 ../
 emmake make -j $(nproc --all) check-cppinterop
 ```
 
 To build and test your Emscripten build of CppInterOp on using node Windows execute the following
-(BUILD_SHARED_LIBS=ON is only needed if building xeus-cpp, as CppInterOp can be built as an Emscripten static library.
-CPPINTEROP_ENABLE_WASM_EXCEPTIONS=ON is also only necessary if building xeus-cpp, or you built llvm with the EMCC_CFLAGS.)
+(BUILD_SHARED_LIBS=ON is only needed if building xeus-cpp, as CppInterOp can be built as an Emscripten static library)
 
 ```powershell
 emcmake cmake -DCMAKE_BUILD_TYPE=Release    `
@@ -221,7 +218,6 @@ emcmake cmake -DCMAKE_BUILD_TYPE=Release    `
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            `
                 -DLLVM_ENABLE_WERROR=On                      `
                 -DSYSROOT_PATH="$env:SYSROOT_PATH"                     `
-                -DCPPINTEROP_ENABLE_WASM_EXCEPTIONS=ON                    `
                 ..\
     emmake make -j $(nproc --all) check-cppinterop
 ```

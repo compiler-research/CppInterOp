@@ -30,20 +30,9 @@ if(NOT WIN32)
 )
 endif ()
 
-if (CPPINTEROP_ENABLE_WASM_EXCEPTIONS)
-  set_source_files_properties(InterpreterTest.cpp PROPERTIES
-    COMPILE_DEFINITIONS
-      "LLVM_BINARY_DIR=\"${LLVM_BINARY_DIR}\";CPPINTEROP_ENABLE_WASM_EXCEPTIONS=$<$<BOOL:${CPPINTEROP_ENABLE_WASM_EXCEPTIONS}>:1>"
-  )
-  set_source_files_properties(VariableReflectionTest.cpp PROPERTIES
-    COMPILE_DEFINITIONS
-      "CPPINTEROP_ENABLE_WASM_EXCEPTIONS=$<$<BOOL:${CPPINTEROP_ENABLE_WASM_EXCEPTIONS}>:1>"
-  )
-else ()
 set_source_files_properties(InterpreterTest.cpp PROPERTIES COMPILE_DEFINITIONS
   "LLVM_BINARY_DIR=\"${LLVM_BINARY_DIR}\""
 )
-endif ()
 
 if(EMSCRIPTEN)
   string(REPLACE "@" "@@" ESCAPED_SYSROOT_PATH "${SYSROOT_PATH}")
@@ -72,12 +61,10 @@ if(EMSCRIPTEN)
   # Makes it so that we run the html file created by this target, that we can capture the standard output
   # and output to the terminal
   target_compile_options(CppInterOpTests
-    PUBLIC $<$<BOOL:${CPPINTEROP_ENABLE_WASM_EXCEPTIONS}>:SHELL:-fwasm-exceptions>
-    PUBLIC $<$<BOOL:${CPPINTEROP_ENABLE_WASM_EXCEPTIONS}>:SHELL:-sSUPPORT_LONGJMP=wasm>
+    PUBLIC "SHELL: ${CPPINTEROP_EXCEPTION_HANDLING_FLAGS}"
   )
   target_link_options(CppInterOpTests
-    PUBLIC $<$<BOOL:${CPPINTEROP_ENABLE_WASM_EXCEPTIONS}>:SHELL:-fwasm-exceptions>
-    PUBLIC $<$<NOT:$<BOOL:CPPINTEROP_ENABLE_WASM_EXCEPTIONS>>:SHELL:-fexceptions>
+    PUBLIC "SHELL: ${CPPINTEROP_EXCEPTION_HANDLING_FLAGS}"
     PUBLIC "SHELL: -s MAIN_MODULE=1"
     PUBLIC "SHELL: -s WASM_BIGINT"
     PUBLIC "SHELL: -s ALLOW_MEMORY_GROWTH=1"
@@ -85,7 +72,6 @@ if(EMSCRIPTEN)
     PUBLIC "SHELL: -s INITIAL_MEMORY=128mb"
     PUBLIC "SHELL: --preload-file ${ESCAPED_SYSROOT_PATH}/include@/include"
     PUBLIC "SHELL: --emrun"
-    PUBLIC $<$<BOOL:${CPPINTEROP_ENABLE_WASM_EXCEPTIONS}>:SHELL:-sSUPPORT_LONGJMP=wasm>
   )
 endif()
 
@@ -106,11 +92,10 @@ if(EMSCRIPTEN)
   string(REPLACE "@" "@@" ESCAPED_TEST_SHARED_LIBRARY_PATH "${TEST_SHARED_LIBRARY_PATH}")
   # Check explanation of Emscripten-specific link flags for CppInterOpTests above for DynamicLibraryManagerTests as well.
   target_compile_options(DynamicLibraryManagerTests
-    PUBLIC $<$<BOOL:${CPPINTEROP_ENABLE_WASM_EXCEPTIONS}>:SHELL:-fwasm-exceptions>
-    PUBLIC $<$<BOOL:${CPPINTEROP_ENABLE_WASM_EXCEPTIONS}>:SHELL:-sSUPPORT_LONGJMP=wasm>
+    PUBLIC "SHELL: ${CPPINTEROP_EXCEPTION_HANDLING_FLAGS}"
   )
   target_link_options(DynamicLibraryManagerTests
-    PUBLIC $<$<BOOL:${CPPINTEROP_ENABLE_WASM_EXCEPTIONS}>:SHELL:-fwasm-exceptions>
+    PUBLIC "SHELL: ${CPPINTEROP_EXCEPTION_HANDLING_FLAGS}"
     PUBLIC "SHELL: -s MAIN_MODULE=1"
     PUBLIC "SHELL: -s WASM_BIGINT"
     PUBLIC "SHELL: -s ALLOW_MEMORY_GROWTH=1"
@@ -119,7 +104,6 @@ if(EMSCRIPTEN)
     PUBLIC "SHELL: --preload-file ${ESCAPED_SYSROOT_PATH}/include@/include"
     PUBLIC "SHELL: --emrun"
     PUBLIC "SHELL: --preload-file ${ESCAPED_TEST_SHARED_LIBRARY_PATH}/libTestSharedLib.so@/libTestSharedLib.so"
-    PUBLIC $<$<BOOL:${CPPINTEROP_ENABLE_WASM_EXCEPTIONS}>:SHELL:-sSUPPORT_LONGJMP=wasm>
   )
 endif()
 

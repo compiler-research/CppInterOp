@@ -526,7 +526,6 @@ jobs:
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            \
                 -DLLVM_ENABLE_WERROR=On                      \
                 -DSYSROOT_PATH=$SYSROOT_PATH               \
-                -DCPPINTEROP_ENABLE_WASM_EXCEPTIONS=ON    \
                 ../
         else
           emcmake cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    \
@@ -540,7 +539,6 @@ jobs:
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            \
                 -DLLVM_ENABLE_WERROR=On                      \
                 -DSYSROOT_PATH=$SYSROOT_PATH                     \
-                -DCPPINTEROP_ENABLE_WASM_EXCEPTIONS=ON        \
                 ../
         fi
         emmake make -j ${{ env.ncpus }} check-cppinterop
@@ -701,7 +699,6 @@ jobs:
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            \
                 -DLLVM_ENABLE_WERROR=On                      \
                 -DSYSROOT_PATH=$SYSROOT_PATH               \
-                -DCPPINTEROP_ENABLE_WASM_EXCEPTIONS=ON     \
                 ../
         else
           emcmake cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    \
@@ -714,7 +711,6 @@ jobs:
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            \
                 -DLLVM_ENABLE_WERROR=On                      \
                 -DSYSROOT_PATH=$SYSROOT_PATH                     \
-                -DCPPINTEROP_ENABLE_WASM_EXCEPTIONS=ON           \
                 ../
         fi
         os="${{ matrix.os }}"
@@ -859,7 +855,6 @@ jobs:
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            `
                 -DLLVM_ENABLE_WERROR=On                      `
                 -DSYSROOT_PATH="$env:SYSROOT_PATH"              `
-                -DCPPINTEROP_ENABLE_WASM_EXCEPTIONS=ON      `
                 ..\
         }
         else
@@ -875,7 +870,6 @@ jobs:
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            `
                 -DLLVM_ENABLE_WERROR=On                      `
                 -DSYSROOT_PATH="$env:SYSROOT_PATH"                     `
-                -DCPPINTEROP_ENABLE_WASM_EXCEPTIONS=ON              `
                 ..\
         }
         function Error-OnFailure {
@@ -989,7 +983,6 @@ jobs:
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            `
                 -DLLVM_ENABLE_WERROR=On                      `
                 -DSYSROOT_PATH="$env:SYSROOT_PATH"              `
-                -DCPPINTEROP_ENABLE_WASM_EXCEPTIONS=ON          `
                 ..\
         }
         else
@@ -1004,7 +997,6 @@ jobs:
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            `
                 -DLLVM_ENABLE_WERROR=On                      `
                 -DSYSROOT_PATH="$env:SYSROOT_PATH"                     `
-                -DCPPINTEROP_ENABLE_WASM_EXCEPTIONS=ON               `
                 ..\
         }
         Error-OnFailure { emmake make -j ${{ env.ncpus }} check-cppinterop }
