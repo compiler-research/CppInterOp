@@ -13,6 +13,7 @@
 
 #include "clang/AST/Attrs.inc"
 #include "clang/AST/CXXInheritance.h"
+#include "clang/AST/Comment.h"
 #include "clang/AST/Decl.h"
 #include "clang/AST/DeclAccessPair.h"
 #include "clang/AST/DeclBase.h"
@@ -24,6 +25,7 @@
 #include "clang/AST/Mangle.h"
 #include "clang/AST/NestedNameSpecifier.h"
 #include "clang/AST/QualTypeNames.h"
+#include "clang/AST/RawCommentList.h"
 #include "clang/AST/RecordLayout.h"
 #include "clang/AST/Stmt.h"
 #include "clang/AST/Type.h"
@@ -31,6 +33,7 @@
 #include "clang/Basic/Linkage.h"
 #include "clang/Basic/OperatorKinds.h"
 #include "clang/Basic/SourceLocation.h"
+#include "clang/Basic/SourceManager.h"
 #include "clang/Basic/Specifiers.h"
 #include "clang/Basic/Version.h"
 #include "clang/Frontend/CompilerInstance.h"
@@ -60,6 +63,8 @@
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/TargetParser/Host.h"
+#include "llvm/TargetParser/Triple.h"
 
 #include <algorithm>
 #include <cassert>
@@ -67,6 +72,8 @@
 #include <cstdint>
 #include <cstdio>
 #include <deque>
+#include <filesystem>
+#include <iostream>
 #include <iterator>
 #include <map>
 #include <memory>
@@ -95,8 +102,8 @@
 #include <unistd.h>
 #endif // WIN32
 
-//  Runtime symbols required if the library using JIT (Cpp::Evaluate) does not
-//  link to llvm
+//  Runtime symbols required if the library using JIT (Cpp::Evaluate) does
+//  not link to llvm
 #if !defined(CPPINTEROP_USE_CLING) && !defined(EMSCRIPTEN)
 struct __clang_Interpreter_NewTag {
 } __ci_newtag;
@@ -112,7 +119,7 @@ extern "C" void __clang_Interpreter_SetValueNoAlloc(void* This, void* OutVal,
                                                     void* OpaqueType, ...);
 #endif // CPPINTEROP_USE_CLING
 
-namespace Cpp {
+namespace CppImpl {
 
 using namespace clang;
 using namespace llvm;
@@ -657,6 +664,28 @@ std::string GetQualifiedCompleteName(TCppType_t klass) {
   }
 
   return "<unnamed>";
+}
+
+std::string GetDoxygenComment(TCppScope_t scope, bool strip_comment_markers) {
+  auto* D = static_cast<Decl*>(scope);
+  if (!D)
+    return "";
+
+  D = D->getCanonicalDecl();
+  ASTContext& C = D->getASTContext();
+
+  const RawComment* RC = C.getRawCommentForAnyRedecl(D);
+  if (!RC)
+    return "";
+
+  (void)C.getCommentForDecl(D, /*PP=*/nullptr);
+
+  const SourceManager& SM = C.getSourceManager();
+
+  if (!strip_comment_markers)
+    return RC->getRawText(SM).str();
+
+  return RC->getFormattedText(SM, C.getDiagnostics());
 }
 
 std::vector<TCppScope_t> GetUsingNamespaces(TCppScope_t scope) {
@@ -3246,12 +3275,40 @@ static std::string MakeResourcesPath() {
                           CLANG_VERSION_MAJOR_STRING);
   return std::string(P.str());
 }
+
+void AddLibrarySearchPaths(const std::string& ResourceDir,
+                           compat::Interpreter* I) {
+  // the resource-dir can be of the form
+  // /prefix/lib/clang/XX or /prefix/lib/llvm-XX/lib/clang/XX
+  // where XX represents version
+  // the corresponing path we want to add are
+  // /prefix/lib/clang/XX/lib, /prefix/lib/, and
+  // /prefix/lib/llvm-XX/lib/clang/XX/lib, /prefix/lib/llvm-XX/lib/,
+  // /prefix/lib/
+  std::string path1 = ResourceDir + "/lib";
+  I->getDynamicLibraryManager()->addSearchPath(path1, false, false);
+  size_t pos = ResourceDir.rfind("/llvm-");
+  if (pos != std::string::npos) {
+    I->getDynamicLibraryManager()->addSearchPath(ResourceDir.substr(0, pos),
+                                                 false, false);
+  }
+  pos = ResourceDir.rfind("/clang");
+  if (pos != std::string::npos) {
+    I->getDynamicLibraryManager()->addSearchPath(ResourceDir.substr(0, pos),
+                                                 false, false);
+  }
+}
 } // namespace
 
 TInterp_t CreateInterpreter(const std::vector<const char*>& Args /*={}*/,
                             const std::vector<const char*>& GpuArgs /*={}*/) {
   std::string MainExecutableName = sys::fs::getMainExecutable(nullptr, nullptr);
   std::string ResourceDir = MakeResourcesPath();
+  llvm::Triple T(llvm::sys::getProcessTriple());
+  namespace fs = std::filesystem;
+  if ((!fs::is_directory(ResourceDir)) && (T.isOSDarwin() || T.isOSLinux()))
+    ResourceDir = DetectResourceDir();
+
   std::vector<const char*> ClingArgv = {"-resource-dir", ResourceDir.c_str(),
                                         "-std=c++14"};
   ClingArgv.insert(ClingArgv.begin(), MainExecutableName.c_str());
@@ -3314,6 +3371,9 @@ TInterp_t CreateInterpreter(const std::vector<const char*>& Args /*={}*/,
     Args[NumArgs + 1] = nullptr;
     llvm::cl::ParseCommandLineOptions(NumArgs + 1, Args.get());
   }
+
+  if (!T.isWasm())
+    AddLibrarySearchPaths(ResourceDir, I);
 
   I->declare(R"(
     namespace __internal_CppInterOp {
@@ -4230,4 +4290,4 @@ pid_t GetExecutorPID() {
 
 #endif
 
-} // end namespace Cpp
+} // namespace CppImpl

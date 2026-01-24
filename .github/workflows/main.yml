@@ -28,7 +28,7 @@ jobs:
             compiler: gcc-12
             clang-runtime: '22'
             cling: Off
-            cppyy: Off
+            cppyy: On
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
             Valgrind: On
@@ -37,7 +37,7 @@ jobs:
             compiler: gcc-12
             clang-runtime: '21'
             cling: Off
-            cppyy: Off
+            cppyy: On
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
           - name: ubu24-arm-gcc12-clang-repl-20
@@ -152,7 +152,7 @@ jobs:
             compiler: clang
             clang-runtime: '21'
             cling: Off
-            cppyy: Off
+            cppyy: On
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host"
           - name: osx26-arm-clang-clang-repl-20
@@ -194,7 +194,7 @@ jobs:
             compiler: clang
             clang-runtime: '21'
             cling: Off
-            cppyy: Off
+            cppyy: On
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host"
           - name: osx15-x86-clang-clang-repl-20
@@ -202,7 +202,7 @@ jobs:
             compiler: clang
             clang-runtime: '20'
             cling: Off
-            cppyy: Off
+            cppyy: On
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host"
           - name: osx15-x86-clang-clang-repl-19-cppyy
@@ -338,7 +338,3 @@ jobs:
       uses: mxschmitt/action-tmate@v3
       # When debugging increase to a suitable value!
       timeout-minutes: 30
-
-
-
-

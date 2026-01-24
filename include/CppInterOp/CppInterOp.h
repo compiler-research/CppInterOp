@@ -33,7 +33,7 @@
 #endif
 #endif
 
-namespace Cpp {
+namespace CppImpl {
 using TCppIndex_t = size_t;
 using TCppScope_t = void*;
 using TCppConstScope_t = const void*;
@@ -391,6 +391,14 @@ CPPINTEROP_API std::string GetQualifiedName(TCppScope_t klass);
 /// the "qualified" name (including the namespace), it also
 /// gets the template arguments.
 CPPINTEROP_API std::string GetQualifiedCompleteName(TCppScope_t klass);
+
+/// Retrieves the Doxygen documentation comment for a declaration.
+/// \param[in] scope -- The declaration to get the comment for.
+/// \param[in] strip_comment_markers -- If true, removes comment markers (///,
+/// /**, etc.).
+/// \returns The documentation comment, or empty string if none exists.
+CPPINTEROP_API std::string GetDoxygenComment(TCppScope_t scope,
+                                             bool strip_comment_markers = true);
 
 /// Gets the list of namespaces utilized in the supplied scope.
 CPPINTEROP_API std::vector<TCppScope_t> GetUsingNamespaces(TCppScope_t scope);
@@ -945,6 +953,10 @@ CPPINTEROP_API int Undo(unsigned N = 1);
 CPPINTEROP_API pid_t GetExecutorPID();
 #endif
 
-} // end namespace Cpp
+} // namespace CppImpl
 
+#ifndef CPPINTEROP_DISPATCH_H
+// NOLINTNEXTLINE(misc-unused-alias-decls)
+namespace Cpp = CppImpl;
+#endif
 #endif // CPPINTEROP_CPPINTEROP_H

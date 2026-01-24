@@ -65,11 +65,11 @@ runs:
               valgrind --show-error-list=yes --track-origins=yes --error-exitcode=1 \
                 --show-leak-kinds=definite,possible \
                 --suppressions="${SUPPRESSION_FILE}" \
-                unittests/CppInterOp/CppInterOpTests/unittests/bin/${{ env.BUILD_TYPE }}/CppInterOpTests
+                unittests/CppInterOp/bin/${{ env.BUILD_TYPE }}/CppInterOpTests
             else
               valgrind --show-error-list=yes --track-origins=yes --error-exitcode=1 \
                 --show-leak-kinds=definite,possible \
-                unittests/CppInterOp/CppInterOpTests/unittests/bin/${{ env.BUILD_TYPE }}/CppInterOpTests
+                unittests/CppInterOp/bin/${{ env.BUILD_TYPE }}/CppInterOpTests
             fi
           fi
         fi
