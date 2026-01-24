@@ -13,7 +13,7 @@ option(CPPINTEROP_USE_CLING "Use Cling as backend" OFF)
 option(CPPINTEROP_USE_REPL "Use clang-repl as backend" ON)
 option(CPPINTEROP_ENABLE_TESTING "Enable the CppInterOp testing infrastructure." ON)
 if(EMSCRIPTEN)
-  option(CPPINTEROP_EXTRA_WASM_FLAGS "Enable custom flags for wasm" "-sSUPPORT_LONGJMP=wasm -fwasm-exceptions")
+  set(CPPINTEROP_EXTRA_WASM_FLAGS "-sSUPPORT_LONGJMP=wasm -fwasm-exceptions" CACHE STRING "Extra flags for wasm")
 endif()
 
 if (CPPINTEROP_USE_CLING AND CPPINTEROP_USE_REPL)
