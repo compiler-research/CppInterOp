@@ -385,7 +385,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, VariableReflection_VariableOffsetsWithInheritan
     defined(_WIN32) && (defined(_M_ARM) || defined(_M_ARM64))
   GTEST_SKIP() << "Test fails with Cling on Windows on ARM";
 #endif
-#ifndef EMSCRIPTEN
+#ifdef __EMSCRIPTEN__
   GTEST_SKIP() << "This test crashes for Emscripten builds of CppInterOp";
 #endif
   if (llvm::sys::RunningOnValgrind())
