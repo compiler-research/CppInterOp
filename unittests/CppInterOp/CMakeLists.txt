@@ -61,10 +61,10 @@ if(EMSCRIPTEN)
   # Makes it so that we run the html file created by this target, that we can capture the standard output
   # and output to the terminal
   target_compile_options(CppInterOpTests
-    PUBLIC "SHELL: ${CPPINTEROP_EXCEPTION_HANDLING_FLAGS}"
+    PUBLIC "SHELL: ${CPPINTEROP_EXTRA_WASM_FLAGS}"
   )
   target_link_options(CppInterOpTests
-    PUBLIC "SHELL: ${CPPINTEROP_EXCEPTION_HANDLING_FLAGS}"
+    PUBLIC "SHELL: ${CPPINTEROP_EXTRA_WASM_FLAGS}"
     PUBLIC "SHELL: -s MAIN_MODULE=1"
     PUBLIC "SHELL: -s WASM_BIGINT"
     PUBLIC "SHELL: -s ALLOW_MEMORY_GROWTH=1"
@@ -92,10 +92,10 @@ if(EMSCRIPTEN)
   string(REPLACE "@" "@@" ESCAPED_TEST_SHARED_LIBRARY_PATH "${TEST_SHARED_LIBRARY_PATH}")
   # Check explanation of Emscripten-specific link flags for CppInterOpTests above for DynamicLibraryManagerTests as well.
   target_compile_options(DynamicLibraryManagerTests
-    PUBLIC "SHELL: ${CPPINTEROP_EXCEPTION_HANDLING_FLAGS}"
+    PUBLIC "SHELL: ${CPPINTEROP_EXTRA_WASM_FLAGS}"
   )
   target_link_options(DynamicLibraryManagerTests
-    PUBLIC "SHELL: ${CPPINTEROP_EXCEPTION_HANDLING_FLAGS}"
+    PUBLIC "SHELL: ${CPPINTEROP_EXTRA_WASM_FLAGS}"
     PUBLIC "SHELL: -s MAIN_MODULE=1"
     PUBLIC "SHELL: -s WASM_BIGINT"
     PUBLIC "SHELL: -s ALLOW_MEMORY_GROWTH=1"

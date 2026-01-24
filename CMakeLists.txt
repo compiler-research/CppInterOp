@@ -13,12 +13,7 @@ option(CPPINTEROP_USE_CLING "Use Cling as backend" OFF)
 option(CPPINTEROP_USE_REPL "Use clang-repl as backend" ON)
 option(CPPINTEROP_ENABLE_TESTING "Enable the CppInterOp testing infrastructure." ON)
 if(EMSCRIPTEN)
-  set(
-    CPPINTEROP_EXCEPTION_HANDLING_FLAGS
-    "-sSUPPORT_LONGJMP=wasm -fwasm-exceptions"
-    CACHE STRING
-    "Compiler flags for CPP interop exception handling"
-  )
+  option(CPPINTEROP_EXTRA_WASM_FLAGS "Enable custom flags for wasm" "-sSUPPORT_LONGJMP=wasm -fwasm-exceptions")
 endif()
 
 if (CPPINTEROP_USE_CLING AND CPPINTEROP_USE_REPL)
@@ -368,7 +363,7 @@ if (LLVM_COMPILER_IS_GCC_COMPATIBLE)
   if (APPLE OR EMSCRIPTEN)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-common -Woverloaded-virtual -Wcast-qual -fno-strict-aliasing -Wno-long-long -Wall -W -Wno-unused-parameter -Wwrite-strings")
     if (EMSCRIPTEN)
-      set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CPPINTEROP_EXCEPTION_HANDLING_FLAGS}")
+      set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CPPINTEROP_EXTRA_WASM_FLAGS}")
     endif ()
   else()
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-common -Woverloaded-virtual -Wcast-qual -fno-strict-aliasing -pedantic -Wno-long-long -Wall -W -Wno-unused-parameter -Wwrite-strings")
