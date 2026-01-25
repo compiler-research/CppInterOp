@@ -16,8 +16,7 @@
 #if CLANG_VERSION_MAJOR < 22
 #define Suppress_Elab SuppressElaboration
 #else
-// May be incorrect. To double check
-#define Suppress_Elab SuppressScope
+#define Suppress_Elab FullyQualifiedName
 #endif
 
 
