@@ -122,9 +122,7 @@ and osx
                  -DCMAKE_CXX_FLAGS_RELEASE="-Oz -g0 -DNDEBUG" \
                  -DLLVM_ENABLE_LTO=Full \
                  ../llvm
-   EMCC_CFLAGS="-sSUPPORT_LONGJMP=wasm -fwasm-exceptions" emmake make libclang -j $(nproc --all)
-   EMCC_CFLAGS="-sSUPPORT_LONGJMP=wasm -fwasm-exceptions" emmake make clangInterpreter clangStaticAnalyzerCore -j $(nproc --all)
-   EMCC_CFLAGS="-sSUPPORT_LONGJMP=wasm -fwasm-exceptions" emmake make lldWasm -j $(nproc --all)
+   EMCC_CFLAGS="-sSUPPORT_LONGJMP=wasm -fwasm-exceptions" emmake make libclang clangInterpreter clangStaticAnalyzerCore -j $(nproc --all)
 
 or executing
 
@@ -164,7 +162,7 @@ or executing
                         -DLLVM_ENABLE_LTO=Full `
                         ..\llvm
    $env:EMCC_CFLAGS="-sSUPPORT_LONGJMP=wasm -fwasm-exceptions"
-   emmake ninja libclang clangInterpreter clangStaticAnalyzerCore lldWasm
+   emmake ninja libclang clangInterpreter clangStaticAnalyzerCore
    $env:EMCC_CFLAGS=""
 
 on Windows. Once this finishes building we need to take note of where we built our llvm build.

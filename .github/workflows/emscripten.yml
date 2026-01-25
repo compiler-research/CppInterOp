@@ -228,7 +228,7 @@ jobs:
                         -DCMAKE_CXX_FLAGS_RELEASE="-Oz -g0 -DNDEBUG" \
                         -DLLVM_ENABLE_LTO=Full \
                         ../llvm
-          EMCC_CFLAGS="-sSUPPORT_LONGJMP=wasm -fwasm-exceptions" emmake ninja libclang clangInterpreter clangStaticAnalyzerCore lldWasm
+          EMCC_CFLAGS="-sSUPPORT_LONGJMP=wasm -fwasm-exceptions" emmake ninja libclang clangInterpreter clangStaticAnalyzerCore
         fi
         cd ../
         rm -rf $(find . -maxdepth 1 ! -name "build" ! -name "llvm" ! -name "clang" ! -name ".")
@@ -360,7 +360,7 @@ jobs:
                         -DLLVM_NATIVE_TOOL_DIR="$env:NATIVE_DIR" 		          `
                         ..\llvm
           $env:EMCC_CFLAGS="-sSUPPORT_LONGJMP=wasm -fwasm-exceptions"
-          emmake ninja libclang clangInterpreter clangStaticAnalyzerCore lldWasm
+          emmake ninja libclang clangInterpreter clangStaticAnalyzerCore
           $env:EMCC_CFLAGS=""
         }
         cd ..\

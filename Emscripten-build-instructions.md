@@ -102,9 +102,7 @@ emcmake cmake -DCMAKE_BUILD_TYPE=Release \
                         -DCMAKE_CXX_FLAGS_RELEASE="-Oz -g0 -DNDEBUG" \
                         -DLLVM_ENABLE_LTO=Full \
                         ../llvm
-EMCC_CFLAGS="-sSUPPORT_LONGJMP=wasm -fwasm-exceptions" emmake make libclang -j $(nproc --all)
-EMCC_CFLAGS="-sSUPPORT_LONGJMP=wasm -fwasm-exceptions" emmake make clangInterpreter clangStaticAnalyzerCore -j $(nproc --all)
-EMCC_CFLAGS="-sSUPPORT_LONGJMP=wasm -fwasm-exceptions" emmake make lldWasm -j $(nproc --all)
+EMCC_CFLAGS="-sSUPPORT_LONGJMP=wasm -fwasm-exceptions" emmake make libclang clangInterpreter clangStaticAnalyzerCore -j $(nproc --all)
 ```
 
 or executing
@@ -144,7 +142,7 @@ emcmake cmake -DCMAKE_BUILD_TYPE=Release `
                         -DLLVM_ENABLE_LTO=Full `
                         ..\llvm
 $env:EMCC_CFLAGS="-sSUPPORT_LONGJMP=wasm -fwasm-exceptions"
-emmake ninja libclang clangInterpreter clangStaticAnalyzerCore lldWasm
+emmake ninja libclang clangInterpreter clangStaticAnalyzerCore
 $env:EMCC_CFLAGS=""
 ```
 
