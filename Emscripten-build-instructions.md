@@ -387,10 +387,11 @@ To build and test Jupyter Lite with this kernel locally on Linux/MacOS you can e
 
 ```bash
 cd ../..
-micromamba create -n xeus-lite-host jupyterlite-core=0.6 jupyterlite-xeus jupyter_server jupyterlab notebook python-libarchive-c -c conda-forge
+micromamba create -n xeus-lite-host jupyterlite-core jupyterlite-xeus jupyter_server jupyterlab notebook python-libarchive-c -c conda-forge
 micromamba activate xeus-lite-host
 jupyter lite serve --XeusAddon.prefix=$PREFIX \
                    --contents xeus-cpp/notebooks/xeus-cpp-lite-demo.ipynb \
+                   --contents xeus-cpp/notebooks/tinyraytracer.ipynb \
                    --contents xeus-cpp/notebooks/images/marie.png \
                    --contents xeus-cpp/notebooks/audio/audio.wav \
                    --XeusAddon.mounts="$PREFIX/share/xeus-cpp/tagfiles:/share/xeus-cpp/tagfiles" \
@@ -401,10 +402,11 @@ and on Windows execute
 
 ```powershell
 cd ..\..
-micromamba create -n xeus-lite-host jupyterlite-core=0.6 jupyterlite-xeus jupyter_server jupyterlab notebook python-libarchive-c -c conda-forge
+micromamba create -n xeus-lite-host jupyterlite-core jupyterlite-xeus jupyter_server jupyterlab notebook python-libarchive-c -c conda-forge
 micromamba activate xeus-lite-host
 jupyter lite serve --XeusAddon.prefix="$env:PREFIX" `
                    --contents xeus-cpp/notebooks/xeus-cpp-lite-demo.ipynb `
+                   --contents xeus-cpp/notebooks/tinyraytracer.ipynb `
                    --contents xeus-cpp/notebooks/images/marie.png `
                    --contents xeus-cpp/notebooks/audio/audio.wav `
                    --XeusAddon.mounts="$env:PREFIX/share/xeus-cpp/tagfiles:/share/xeus-cpp/tagfiles" `
