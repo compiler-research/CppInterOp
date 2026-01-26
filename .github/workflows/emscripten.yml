@@ -1100,7 +1100,7 @@ jobs:
           cd ./xeus-cpp/
           micromamba create -n xeus-lite-host jupyterlite-core=0.6 jupyterlite-xeus jupyter_server jupyterlab notebook python-libarchive-c -c conda-forge
           micromamba activate xeus-lite-host
-          jupyter lite build --XeusAddon.prefix=${{ env.PREFIX }} --contents notebooks/xeus-cpp-lite-demo.ipynb --contents notebooks/images/marie.png --contents notebooks/audio/audio.wav --output-dir dist
+          jupyter lite build --XeusAddon.prefix=${{ env.PREFIX }} --contents notebooks/xeus-cpp-lite-demo.ipynb --contents notebooks/tinyraytracer.ipynb --contents notebooks/images/marie.png --contents notebooks/audio/audio.wav --output-dir dist
 
     - name: Jupyter Lite integration
       if: ${{ runner.os == 'windows' }}
@@ -1109,4 +1109,4 @@ jobs:
           cd .\xeus-cpp\
           micromamba create -n xeus-lite-host jupyterlite-core=0.6 jupyterlite-xeus jupyter_server jupyterlab notebook python-libarchive-c -c conda-forge
           micromamba activate xeus-lite-host
-          jupyter lite build --XeusAddon.prefix=${{ env.PREFIX }} --contents notebooks/xeus-cpp-lite-demo.ipynb --contents notebooks/images/marie.png --contents notebooks/audio/audio.wav --output-dir dist
+          jupyter lite build --XeusAddon.prefix=${{ env.PREFIX }} --contents notebooks/xeus-cpp-lite-demo.ipynb --contents notebooks/tinyraytracer.ipynb --contents notebooks/images/marie.png --contents notebooks/audio/audio.wav --output-dir dist

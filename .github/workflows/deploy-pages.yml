@@ -228,6 +228,7 @@ jobs:
           micromamba activate xeus-lite-host
           jupyter lite build --XeusAddon.prefix=${{ env.PREFIX }} \
                              --contents notebooks/xeus-cpp-lite-demo.ipynb \
+                             --contents notebooks/tinyraytracer.ipynb \
                              --contents notebooks/images/marie.png \
                              --contents notebooks/audio/audio.wav \
                              --XeusAddon.mounts="${{ env.PREFIX }}/share/xeus-cpp/tagfiles:/share/xeus-cpp/tagfiles" \
