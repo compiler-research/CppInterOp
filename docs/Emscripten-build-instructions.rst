@@ -409,7 +409,7 @@ To build and test Jupyter Lite with this kernel locally on Linux/MacOS you can e
 .. code:: bash
 
    cd ../..
-   micromamba create -n xeus-lite-host jupyterlite-core=0.6 jupyterlite-xeus jupyter_server jupyterlab notebook python-libarchive-c -c conda-forge
+   micromamba create -n xeus-lite-host jupyterlite-core jupyterlite-xeus jupyter_server jupyterlab notebook python-libarchive-c -c conda-forge
    micromamba activate xeus-lite-host
    jupyter lite serve --XeusAddon.prefix=$PREFIX \
                       --contents xeus-cpp/notebooks/xeus-cpp-lite-demo.ipynb \
@@ -424,7 +424,7 @@ and on Windows execute
 .. code:: powershell
 
    cd ..\..
-   micromamba create -n xeus-lite-host jupyterlite-core=0.6 jupyterlite-xeus jupyter_server jupyterlab notebook python-libarchive-c -c conda-forge
+   micromamba create -n xeus-lite-host jupyterlite-core jupyterlite-xeus jupyter_server jupyterlab notebook python-libarchive-c -c conda-forge
    micromamba activate xeus-lite-host
    jupyter lite serve --XeusAddon.prefix="$env:PREFIX" `
                       --contents xeus-cpp/notebooks/xeus-cpp-lite-demo.ipynb `
