@@ -131,6 +131,7 @@ if(EMSCRIPTEN)
   target_compile_options(clangCppInterOp
     PRIVATE "SHELL: -Oz"
     PRIVATE "SHELL: -flto"
+    PRIVATE "SHELL: ${CPPINTEROP_EXTRA_WASM_FLAGS}"
   )
   target_link_options(clangCppInterOp
     PRIVATE "SHELL: -s WASM_BIGINT"
@@ -138,11 +139,16 @@ if(EMSCRIPTEN)
     PRIVATE "SHELL: ${SYMBOLS_LIST}"
     PRIVATE "SHELL: -Oz"
     PRIVATE "SHELL: -flto"
+    PRIVATE "SHELL: ${CPPINTEROP_EXTRA_WASM_FLAGS}"
   )
   else()
-    target_link_options(clangCppInterOp
+  target_compile_options(clangCppInterOp
+    PRIVATE "SHELL: ${CPPINTEROP_EXTRA_WASM_FLAGS}"
+  )
+  target_link_options(clangCppInterOp
       PRIVATE "SHELL: -s WASM_BIGINT"
-    )
+      PRIVATE "SHELL: ${CPPINTEROP_EXTRA_WASM_FLAGS}"
+  )
   endif(BUILD_SHARED_LIBS)
   if (CPPINTEROP_ENABLE_TESTING)
     # When compiling Emscripten tests the CppInterOp library it links to is expected to be in the same folder as the compiled Javascript
