@@ -371,12 +371,13 @@ inline llvm::orc::LLJIT* getExecutionEngine(clang::Interpreter& I) {
 #else
   // FIXME: Remove the need of exposing the low-level execution engine and kill
   // this horrible hack.
-  struct MyHorrbileHackOrcIncrementalExecutor : public clang::IncrementalExecutor {
-    std::unique_ptr<llvm::orc::LLJIT> Jit;
-  };
+   struct OrcIncrementalExecutor : public clang::IncrementalExecutor {
+     std::unique_ptr<llvm::orc::LLJIT> Jit;
+   };
 
-  const auto* JITTaker = reinterpret_cast<MyHorrbileHackOrcIncrementalExecutor*>(I.getIncrementalExecutorBuilder().IE.get());
-  return JITTaker->Jit.get();
+   auto &engine = static_cast<OrcIncrementalExecutor&>(llvm::cantFail(I.getExecutionEngine()));
+   return engine.Jit.get();
+
 #endif
 }
 
