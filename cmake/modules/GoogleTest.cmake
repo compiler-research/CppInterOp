@@ -20,6 +20,9 @@ endif()
 
 include(ExternalProject)
 if (EMSCRIPTEN)
+  # FIXME: -sSUPPORT_LONGJMP=wasm in the default option causes a warning in the Emscripten build of Googletest
+  # and as we treat warnings as errors in the ci, it causes the ci to fail.
+  string(REPLACE "-sSUPPORT_LONGJMP=wasm" "" GOOGLETEST_CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
   set(config_cmd emcmake${EMCC_SUFFIX} cmake)
   if(CMAKE_GENERATOR STREQUAL "Ninja")
     set(build_cmd emmake${EMCC_SUFFIX} ninja)
@@ -49,7 +52,7 @@ ExternalProject_Add(
                 -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}
                 -DCMAKE_C_FLAGS=${CMAKE_C_FLAGS}
                 -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}
-                -DCMAKE_CXX_FLAGS=${CMAKE_CXX_FLAGS}
+                -DCMAKE_CXX_FLAGS=${GOOGLETEST_CMAKE_CXX_FLAGS}
                 -DCMAKE_AR=${CMAKE_AR}
                 -DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX}
                 ${EXTRA_GTEST_OPTS}

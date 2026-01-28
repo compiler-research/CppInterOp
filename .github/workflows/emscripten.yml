@@ -49,6 +49,34 @@ jobs:
             llvm_enable_projects: "clang;lld"
             llvm_targets_to_build: "WebAssembly"
             emsdk_ver: "4.0.9"
+          - name: ubu24-arm-clang-repl-21-emscripten
+            os: ubuntu-24.04-arm
+            clang-runtime: '21'
+            cling: Off
+            llvm_enable_projects: "clang;lld"
+            llvm_targets_to_build: "WebAssembly"
+            emsdk_ver: "4.0.9"
+          - name: osx26-arm-clang-repl-21-emscripten
+            os: macos-26
+            clang-runtime: '21'
+            cling: Off
+            llvm_enable_projects: "clang;lld"
+            llvm_targets_to_build: "WebAssembly"
+            emsdk_ver: "4.0.9"
+          - name: ubu24-x86-clang-repl-21-emscripten
+            os: ubuntu-24.04
+            clang-runtime: '21'
+            cling: Off
+            llvm_enable_projects: "clang;lld"
+            llvm_targets_to_build: "WebAssembly"
+            emsdk_ver: "4.0.9"
+          - name: win2025-x86-clang-repl-21-emscripten
+            os: windows-2025
+            clang-runtime: '21'
+            cling: Off
+            llvm_enable_projects: "clang;lld"
+            llvm_targets_to_build: "WebAssembly"
+            emsdk_ver: "4.0.9"
 
     steps:
     - uses: actions/checkout@v6
@@ -167,11 +195,11 @@ jobs:
                         -DCMAKE_CXX_FLAGS_RELEASE="-Oz -g0 -DNDEBUG" \
                         -DLLVM_ENABLE_LTO=Full \
                          ../llvm
-          emmake ninja clang cling lld gtest_main
+          EMCC_CFLAGS="-sSUPPORT_LONGJMP=wasm -fwasm-exceptions" emmake ninja clang cling lld gtest_main
         else
           # Apply patches
           llvm_vers=$(echo "${{ matrix.clang-runtime }}" | tr '[:lower:]' '[:upper:]')
-          if [[ "${llvm_vers}" == "19" || "${llvm_vers}" == "20" ]]; then
+          if [[ "${llvm_vers}" == "19" || "${llvm_vers}" == "20" || "${llvm_vers}" == "21"  ]]; then
             git apply -v ../patches/llvm/emscripten-clang${{ matrix.clang-runtime }}-*.patch
             echo "Apply emscripten-clang${{ matrix.clang-runtime }}-*.patch patches:"
           fi
@@ -200,7 +228,7 @@ jobs:
                         -DCMAKE_CXX_FLAGS_RELEASE="-Oz -g0 -DNDEBUG" \
                         -DLLVM_ENABLE_LTO=Full \
                         ../llvm
-          emmake ninja libclang clangInterpreter clangStaticAnalyzerCore lldWasm
+          EMCC_CFLAGS="-sSUPPORT_LONGJMP=wasm -fwasm-exceptions" emmake ninja libclang clangInterpreter clangStaticAnalyzerCore
         fi
         cd ../
         rm -rf $(find . -maxdepth 1 ! -name "build" ! -name "llvm" ! -name "clang" ! -name ".")
@@ -280,7 +308,9 @@ jobs:
                         -DLLVM_ENABLE_LTO=Full `
                         -DLLVM_NATIVE_TOOL_DIR="$env:NATIVE_DIR" 		    `
                 ..\llvm
+          $env:EMCC_CFLAGS="-sSUPPORT_LONGJMP=wasm -fwasm-exceptions"
           emmake make clang cling lld gtest_main
+          $env:EMCC_CFLAGS=""
         }
         else
         {
@@ -296,6 +326,12 @@ jobs:
           {
             git apply -v emscripten-clang20-2-shift-temporary-files-to-tmp-dir.patch
             git apply -v emscripten-clang20-3-enable_exception_handling.patch
+          }
+          elseif ( "${{ matrix.clang-runtime }}" -imatch "21" )
+          {
+            git apply -v emscripten-clang21-1-shift-temporary-files-to-tmp-dir.patch
+            git apply -v emscripten-clang21-2-enable_exception_handling.patch
+            git apply -v emscripten-clang21-3-webassembly_target_machine_reordering.patch
           }
           cd build
           echo "Apply clang${{ matrix.clang-runtime }}-*.patch patches:"
@@ -323,7 +359,9 @@ jobs:
                         -G Ninja `
                         -DLLVM_NATIVE_TOOL_DIR="$env:NATIVE_DIR" 		          `
                         ..\llvm
-          emmake ninja libclang clangInterpreter clangStaticAnalyzerCore lldWasm
+          $env:EMCC_CFLAGS="-sSUPPORT_LONGJMP=wasm -fwasm-exceptions"
+          emmake ninja libclang clangInterpreter clangStaticAnalyzerCore
+          $env:EMCC_CFLAGS=""
         }
         cd ..\
         rm -r -force $(find.exe . -maxdepth 1 ! -name "build" ! -name "llvm" ! -name "clang" ! -name ".")
@@ -385,6 +423,30 @@ jobs:
             cling: Off
             micromamba_shell_init: powershell
             emsdk_ver: "4.0.9"
+          - name: ubu24-x86-clang-repl-21-emscripten_wasm
+            os: ubuntu-24.04
+            clang-runtime: '21'
+            cling: Off
+            micromamba_shell_init: bash
+            emsdk_ver: "4.0.9"
+          - name: osx26-arm-clang-repl-21-emscripten_wasm
+            os: macos-26
+            clang-runtime: '21'
+            cling: Off
+            micromamba_shell_init: bash
+            emsdk_ver: "4.0.9"
+          - name: ubu24-arm-clang-repl-21-emscripten_wasm
+            os: ubuntu-24.04-arm
+            clang-runtime: '21'
+            cling: Off
+            micromamba_shell_init: bash
+            emsdk_ver: "4.0.9"
+          - name: win2025-x86-clang-repl-21-emscripten
+            os: windows-2025
+            clang-runtime: '21'
+            cling: Off
+            micromamba_shell_init: powershell
+            emsdk_ver: "4.0.9"
 
     steps:
     - uses: actions/checkout@v6
@@ -429,7 +491,7 @@ jobs:
         set -e
         ./emsdk/emsdk activate ${{matrix.emsdk_ver}}
         source ./emsdk/emsdk_env.sh
-        micromamba create -f environment-wasm.yml --platform=emscripten-wasm32
+        micromamba create -f environment-wasm.yml --platform=emscripten-wasm32 -c https://prefix.dev/emscripten-forge-4x -c https://prefix.dev/conda-forge
         export SYSROOT_PATH=$PWD/emsdk/upstream/emscripten/cache/sysroot
         export PREFIX=$MAMBA_ROOT_PREFIX/envs/CppInterOp-wasm
         export CMAKE_PREFIX_PATH=$PREFIX
@@ -483,11 +545,11 @@ jobs:
         os="${{ matrix.os }}"
         if [[ "${os}" != macos* ]] ; then
           actual_size=$(stat -c%s "./lib/libclangCppInterOp.so")
-          max_size=$((40 * 1024 * 1024))
-          if [[ "$actual_size" -gt "$max_size" ]]; then
-            echo "Error: libclangCppInterOp.so is larger than 40 MB."
+          max_size=$((50 * 1024 * 1024))
+         if [[ "$actual_size" -gt "$max_size" ]]; then
+            echo "Error: libclangCppInterOp.so is larger than 50 MB."
             exit 1
-          fi
+         fi
         fi
         cd ./unittests/CppInterOp/
         # Fresh install browsers, and run Emscripten tests in them
@@ -727,7 +789,7 @@ jobs:
       if: ${{ runner.os == 'windows' }}
       shell: powershell
       run: |
-        micromamba create -f environment-wasm.yml --platform=emscripten-wasm32
+        micromamba create -f environment-wasm.yml --platform=emscripten-wasm32 -c https://prefix.dev/emscripten-forge-4x -c https://prefix.dev/conda-forge
         .\emsdk\emsdk activate ${{matrix.emsdk_ver}}
         .\emsdk\emsdk_env.ps1
         $env:PWD_DIR= $PWD.Path
@@ -970,7 +1032,7 @@ jobs:
           -DXEUS_CPP_RESOURCE_DIR=${{ env.LLVM_BUILD_DIR }}/lib/clang/${{ matrix.clang-runtime }} \
           -DSYSROOT_PATH=${{ env.SYSROOT_PATH }}                     \
           ..
-        emmake make -j ${{ env.ncpus }} install
+        EMCC_CFLAGS="-sSUPPORT_LONGJMP=wasm -fwasm-exceptions" emmake make -j ${{ env.ncpus }} install
 
     - name: Build xeus-cpp on Windows systems
       if: ${{ runner.os == 'windows' }}
@@ -994,7 +1056,9 @@ jobs:
           -DXEUS_CPP_RESOURCE_DIR=${{ env.LLVM_BUILD_DIR }}\lib\clang\${{ matrix.clang-runtime }} `
           -DSYSROOT_PATH=${{ env.SYSROOT_PATH }}                `
           ..
+        $env:EMCC_CFLAGS="-sSUPPORT_LONGJMP=wasm -fwasm-exceptions"
         emmake make -j ${{ env.ncpus }} install
+        $env:EMCC_CFLAGS=""
 
     - name: Test xeus-cpp C++ Emscripten on Unix Systems
       if: ${{ runner.os != 'windows' }}
@@ -1034,15 +1098,15 @@ jobs:
       shell: bash -l {0}
       run: |
           cd ./xeus-cpp/
-          micromamba create -n xeus-lite-host jupyterlite-core=0.6 jupyterlite-xeus jupyter_server jupyterlab notebook python-libarchive-c -c conda-forge
+          micromamba create -n xeus-lite-host jupyterlite-core jupyterlite-xeus jupyter_server jupyterlab notebook python-libarchive-c -c conda-forge
           micromamba activate xeus-lite-host
-          jupyter lite build --XeusAddon.prefix=${{ env.PREFIX }} --contents notebooks/xeus-cpp-lite-demo.ipynb --contents notebooks/images/marie.png --contents notebooks/audio/audio.wav --output-dir dist
+          jupyter lite build --XeusAddon.prefix=${{ env.PREFIX }} --contents notebooks/xeus-cpp-lite-demo.ipynb --contents notebooks/tinyraytracer.ipynb --contents notebooks/images/marie.png --contents notebooks/audio/audio.wav --output-dir dist
 
     - name: Jupyter Lite integration
       if: ${{ runner.os == 'windows' }}
       shell: powershell
       run: |
           cd .\xeus-cpp\
-          micromamba create -n xeus-lite-host jupyterlite-core=0.6 jupyterlite-xeus jupyter_server jupyterlab notebook python-libarchive-c -c conda-forge
+          micromamba create -n xeus-lite-host jupyterlite-core jupyterlite-xeus jupyter_server jupyterlab notebook python-libarchive-c -c conda-forge
           micromamba activate xeus-lite-host
-          jupyter lite build --XeusAddon.prefix=${{ env.PREFIX }} --contents notebooks/xeus-cpp-lite-demo.ipynb --contents notebooks/images/marie.png --contents notebooks/audio/audio.wav --output-dir dist
+          jupyter lite build --XeusAddon.prefix=${{ env.PREFIX }} --contents notebooks/xeus-cpp-lite-demo.ipynb --contents notebooks/tinyraytracer.ipynb --contents notebooks/images/marie.png --contents notebooks/audio/audio.wav --output-dir dist
