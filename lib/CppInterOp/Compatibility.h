@@ -48,38 +48,6 @@ static inline char* GetEnv(const char* Var_Name) {
   clang::LookupResultKind::FoundOverloaded
 #endif
 
-#if CLANG_VERSION_MAJOR < 19
-#define Template_Deduction_Result Sema::TemplateDeductionResult
-#define Template_Deduction_Result_Success                                      \
-  Sema::TemplateDeductionResult::TDK_Success
-#else
-#define Template_Deduction_Result TemplateDeductionResult
-#define Template_Deduction_Result_Success TemplateDeductionResult::Success
-#endif
-
-#if CLANG_VERSION_MAJOR < 19
-#define For_Visible_Redeclaration Sema::ForVisibleRedeclaration
-#define Clang_For_Visible_Redeclaration clang::Sema::ForVisibleRedeclaration
-#else
-#define For_Visible_Redeclaration RedeclarationKind::ForVisibleRedeclaration
-#define Clang_For_Visible_Redeclaration                                        \
-  RedeclarationKind::ForVisibleRedeclaration
-#endif
-
-#if CLANG_VERSION_MAJOR < 19
-#define CXXSpecialMemberKindDefaultConstructor                                 \
-  clang::Sema::CXXDefaultConstructor
-#define CXXSpecialMemberKindCopyConstructor clang::Sema::CXXCopyConstructor
-#define CXXSpecialMemberKindMoveConstructor clang::Sema::CXXMoveConstructor
-#else
-#define CXXSpecialMemberKindDefaultConstructor                                 \
-  CXXSpecialMemberKind::DefaultConstructor
-#define CXXSpecialMemberKindCopyConstructor                                    \
-  CXXSpecialMemberKind::CopyConstructor
-#define CXXSpecialMemberKindMoveConstructor                                    \
-  CXXSpecialMemberKind::MoveConstructor
-#endif
-
 #define STRINGIFY(s) STRINGIFY_X(s)
 #define STRINGIFY_X(...) #__VA_ARGS__
 
