@@ -53,7 +53,7 @@ jobs:
             compiler: gcc-12
             clang-runtime: '19'
             cling: Off
-            cppyy: On
+            cppyy: Off
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
           - name: ubu24-arm-gcc9-clang18-cling-cppyy
@@ -117,7 +117,7 @@ jobs:
             compiler: gcc-12
             clang-runtime: '19'
             cling: Off
-            cppyy: On
+            cppyy: Off
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
           - name: ubu24-x86-gcc9-clang18-cling-cppyy
@@ -168,7 +168,7 @@ jobs:
             compiler: clang
             clang-runtime: '19'
             cling: Off
-            cppyy: On
+            cppyy: Off
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host"
           - name: osx26-arm-clang-clang18-cling-cppyy
