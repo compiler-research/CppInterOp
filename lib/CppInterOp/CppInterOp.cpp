@@ -850,7 +850,7 @@ TCppScope_t GetBaseClass(TCppScope_t klass, TCppIndex_t ibase) {
 
   auto type = (CXXRD->bases_begin() + ibase)->getType();
   if (auto RT = type->getAs<RecordType>())
-    return (TCppScope_t)RT->getDecl();
+    return (TCppScope_t)RT->getDecl()->getCanonicalDecl();
 
   return 0;
 }
@@ -1018,6 +1018,9 @@ TCppFunction_t GetDefaultConstructor(compat::Interpreter& interp,
     return nullptr;
 
   auto* CXXRD = (clang::CXXRecordDecl*)scope;
+#ifdef CPPINTEROP_USE_CLING
+  cling::Interpreter::PushTransactionRAII RAII(&getInterp());
+#endif
   return interp.getCI()->getSema().LookupDefaultConstructor(CXXRD);
 }
 
@@ -1634,7 +1637,8 @@ intptr_t GetVariableOffset(compat::Interpreter& I, Decl* D,
       }
       if (auto* RD = llvm::dyn_cast<CXXRecordDecl>(FieldParentRecordDecl)) {
         // add in the offsets for the (multi level) base classes
-        while (BaseCXXRD != RD->getCanonicalDecl()) {
+        RD = RD->getCanonicalDecl();
+        while (BaseCXXRD != RD) {
           CXXRecordDecl* Parent = direction.at(RD);
           offset +=
               C.getASTRecordLayout(Parent).getBaseClassOffset(RD).getQuantity();
@@ -2590,6 +2594,9 @@ int get_wrapper_code(compat::Interpreter& I, const FunctionDecl* FD,
   //
   bool needInstantiation = false;
   const FunctionDecl* Definition = 0;
+#ifdef CPPINTEROP_USE_CLING
+  cling::Interpreter::PushTransactionRAII RAII(&I);
+#endif
   if (!FD->isDefined(Definition)) {
     FunctionDecl::TemplatedKind TK = FD->getTemplatedKind();
     switch (TK) {
@@ -4014,6 +4021,9 @@ std::string GetFunctionArgDefault(TCppFunction_t func,
     std::string Result;
     llvm::raw_string_ostream OS(Result);
     Expr* DefaultArgExpr = nullptr;
+#ifdef CPPINTEROP_USE_CLING
+    cling::Interpreter::PushTransactionRAII RAII(&I);
+#endif
     if (PI->hasUninstantiatedDefaultArg())
       DefaultArgExpr = PI->getUninstantiatedDefaultArg();
     else
@@ -4099,6 +4109,9 @@ OperatorArity GetOperatorArity(TCppFunction_t op) {
 void GetOperator(TCppScope_t scope, Operator op,
                  std::vector<TCppFunction_t>& operators, OperatorArity kind) {
   Decl* D = static_cast<Decl*>(scope);
+#ifdef CPPINTEROP_USE_CLING
+  cling::Interpreter::PushTransactionRAII RAII(&I);
+#endif
   if (auto* CXXRD = llvm::dyn_cast_or_null<CXXRecordDecl>(D)) {
     auto fn = [&operators, kind, op](const RecordDecl* RD) {
       ASTContext& C = RD->getASTContext();
