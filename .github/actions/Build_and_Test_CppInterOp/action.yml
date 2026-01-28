@@ -60,7 +60,7 @@ runs:
           os="${{ matrix.os }}"
           if [[ "${os}" != "macos"* && "${{ matrix.Valgrind }}" == "On" ]]; then
             CLANG_VERSION="${{ matrix.clang-runtime }}"
-            if [[ "$CLANG_VERSION" == "20" && "${{ matrix.cling }}" == "Off" ]]; then
+            if [[ "${{ matrix.oop }}" == "On" ]]; then
               SUPPRESSION_FILE="../etc/clang${CLANG_VERSION}-valgrind.supp"
               valgrind --show-error-list=yes --track-origins=yes --error-exitcode=1 \
                 --show-leak-kinds=definite,possible \

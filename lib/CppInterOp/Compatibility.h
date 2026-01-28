@@ -13,6 +13,19 @@
 #include "clang/Config/config.h"
 #include "clang/Sema/Sema.h"
 
+#if CLANG_VERSION_MAJOR < 22
+#define Suppress_Elab SuppressElaboration
+#else
+#define Suppress_Elab FullyQualifiedName
+#endif
+
+
+#if CLANG_VERSION_MAJOR < 22
+#define Get_Tag_Type getTagDeclType
+#else
+#define Get_Tag_Type getCanonicalTagType
+#endif
+
 #ifdef _MSC_VER
 #define dup _dup
 #define dup2 _dup2
@@ -46,38 +59,6 @@ static inline char* GetEnv(const char* Var_Name) {
 #define clang_LookupResult_Not_Found clang::LookupResultKind::NotFound
 #define clang_LookupResult_Found_Overloaded                                    \
   clang::LookupResultKind::FoundOverloaded
-#endif
-
-#if CLANG_VERSION_MAJOR < 19
-#define Template_Deduction_Result Sema::TemplateDeductionResult
-#define Template_Deduction_Result_Success                                      \
-  Sema::TemplateDeductionResult::TDK_Success
-#else
-#define Template_Deduction_Result TemplateDeductionResult
-#define Template_Deduction_Result_Success TemplateDeductionResult::Success
-#endif
-
-#if CLANG_VERSION_MAJOR < 19
-#define For_Visible_Redeclaration Sema::ForVisibleRedeclaration
-#define Clang_For_Visible_Redeclaration clang::Sema::ForVisibleRedeclaration
-#else
-#define For_Visible_Redeclaration RedeclarationKind::ForVisibleRedeclaration
-#define Clang_For_Visible_Redeclaration                                        \
-  RedeclarationKind::ForVisibleRedeclaration
-#endif
-
-#if CLANG_VERSION_MAJOR < 19
-#define CXXSpecialMemberKindDefaultConstructor                                 \
-  clang::Sema::CXXDefaultConstructor
-#define CXXSpecialMemberKindCopyConstructor clang::Sema::CXXCopyConstructor
-#define CXXSpecialMemberKindMoveConstructor clang::Sema::CXXMoveConstructor
-#else
-#define CXXSpecialMemberKindDefaultConstructor                                 \
-  CXXSpecialMemberKind::DefaultConstructor
-#define CXXSpecialMemberKindCopyConstructor                                    \
-  CXXSpecialMemberKind::CopyConstructor
-#define CXXSpecialMemberKindMoveConstructor                                    \
-  CXXSpecialMemberKind::MoveConstructor
 #endif
 
 #define STRINGIFY(s) STRINGIFY_X(s)
@@ -222,6 +203,10 @@ inline void codeComplete(std::vector<std::string>& Results,
 #include "clang/Interpreter/Value.h"
 
 #include "llvm/Support/Error.h"
+
+#if CLANG_VERSION_MAJOR > 21
+#include "clang/Interpreter/IncrementalExecutor.h"
+#endif
 
 #ifdef LLVM_BUILT_WITH_OOP_JIT
 #include "clang/Basic/Version.h"
@@ -380,8 +365,20 @@ inline void maybeMangleDeclName(const clang::GlobalDecl& GD,
 // Clang 18 - Add new Interpreter methods: CodeComplete
 
 inline llvm::orc::LLJIT* getExecutionEngine(clang::Interpreter& I) {
-  auto* engine = &llvm::cantFail(I.getExecutionEngine());
-  return const_cast<llvm::orc::LLJIT*>(engine);
+#if CLANG_VERSION_MAJOR < 22
+   auto* engine = &llvm::cantFail(I.getExecutionEngine());
+   return const_cast<llvm::orc::LLJIT*>(engine);
+#else
+  // FIXME: Remove the need of exposing the low-level execution engine and kill
+  // this horrible hack.
+   struct OrcIncrementalExecutor : public clang::IncrementalExecutor {
+     std::unique_ptr<llvm::orc::LLJIT> Jit;
+   };
+
+   auto &engine = static_cast<OrcIncrementalExecutor&>(llvm::cantFail(I.getExecutionEngine()));
+   return engine.Jit.get();
+
+#endif
 }
 
 inline llvm::Expected<llvm::JITTargetAddress>

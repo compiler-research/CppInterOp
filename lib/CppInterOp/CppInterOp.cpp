@@ -42,9 +42,7 @@
 #include "clang/Sema/Overload.h"
 #include "clang/Sema/Ownership.h"
 #include "clang/Sema/Sema.h"
-#if CLANG_VERSION_MAJOR >= 19
 #include "clang/Sema/Redeclaration.h"
-#endif
 #include "clang/Sema/TemplateDeduction.h"
 
 #include "llvm/ADT/SmallString.h"
@@ -117,18 +115,8 @@ void* __clang_Interpreter_SetValueWithAlloc(void* This, void* OutVal,
                                             void* OpaqueType);
 #endif
 
-#if CLANG_VERSION_MAJOR > 18
 extern "C" void __clang_Interpreter_SetValueNoAlloc(void* This, void* OutVal,
                                                     void* OpaqueType, ...);
-#else
-void __clang_Interpreter_SetValueNoAlloc(void*, void*, void*);
-void __clang_Interpreter_SetValueNoAlloc(void*, void*, void*, void*);
-void __clang_Interpreter_SetValueNoAlloc(void*, void*, void*, float);
-void __clang_Interpreter_SetValueNoAlloc(void*, void*, void*, double);
-void __clang_Interpreter_SetValueNoAlloc(void*, void*, void*, long double);
-void __clang_Interpreter_SetValueNoAlloc(void*, void*, void*,
-                                         unsigned long long);
-#endif
 #endif // CPPINTEROP_USE_CLING
 
 namespace CppImpl {
@@ -615,7 +603,7 @@ std::string GetCompleteName(TCppType_t klass) {
   if (auto* ND = llvm::dyn_cast_or_null<NamedDecl>(D)) {
     if (auto* TD = llvm::dyn_cast<TagDecl>(ND)) {
       std::string type_name;
-      QualType QT = C.getTagDeclType(TD);
+      QualType QT = C.Get_Tag_Type(TD);
       QT.getAsStringInternal(type_name, Policy);
       return type_name;
     }
@@ -658,11 +646,11 @@ std::string GetQualifiedCompleteName(TCppType_t klass) {
   if (auto* ND = llvm::dyn_cast_or_null<NamedDecl>(D)) {
     if (auto* TD = llvm::dyn_cast<TagDecl>(ND)) {
       std::string type_name;
-      QualType QT = C.getTagDeclType(TD);
+      QualType QT = C.Get_Tag_Type(TD);
       PrintingPolicy PP = C.getPrintingPolicy();
       PP.FullyQualifiedName = true;
       PP.SuppressUnwrittenScope = true;
-      PP.SuppressElaboration = true;
+      PP.Suppress_Elab = true;
       QT.getAsStringInternal(type_name, PP);
 
       return type_name;
@@ -1055,7 +1043,7 @@ std::vector<TCppFunction_t> GetFunctionsUsingName(TCppScope_t scope,
   auto& S = getSema();
   DeclarationName DName = &getASTContext().Idents.get(name);
   clang::LookupResult R(S, DName, SourceLocation(), Sema::LookupOrdinaryName,
-                        For_Visible_Redeclaration);
+                        RedeclarationKind::ForVisibleRedeclaration);
 
   CppInternal::utils::Lookup::Named(&S, R, Decl::castToDeclContext(D));
 
@@ -1244,7 +1232,7 @@ bool GetClassTemplatedMethods(const std::string& name, TCppScope_t parent,
   llvm::StringRef Name(name);
   DeclarationName DName = &getASTContext().Idents.get(name);
   clang::LookupResult R(S, DName, SourceLocation(), Sema::LookupOrdinaryName,
-                        For_Visible_Redeclaration);
+                        RedeclarationKind::ForVisibleRedeclaration);
   auto* DC = clang::Decl::castToDeclContext(D);
   CppInternal::utils::Lookup::Named(&S, R, DC);
 
@@ -1816,7 +1804,7 @@ std::string GetTypeAsString(TCppType_t var) {
   PrintingPolicy Policy((LangOptions()));
   Policy.Bool = true;               // Print bool instead of _Bool.
   Policy.SuppressTagKeyword = true; // Do not print `class std::string`.
-  Policy.SuppressElaboration = true;
+  Policy.Suppress_Elab = true;
   Policy.FullyQualifiedName = true;
   return QT.getAsString(Policy);
 }
@@ -2013,7 +2001,7 @@ void get_type_as_string(QualType QT, std::string& type_name, ASTContext& C,
   //       cling::utils::Transform::GetPartiallyDesugaredType()
   if (!QT->isTypedefNameType() || QT->isBuiltinType())
     QT = QT.getDesugaredType(C);
-  Policy.SuppressElaboration = true;
+  Policy.Suppress_Elab = true;
   Policy.SuppressTagKeyword = !QT->isEnumeralType();
   Policy.FullyQualifiedName = true;
   Policy.UsePreferredNames = false;
@@ -2055,7 +2043,7 @@ void collect_type_info(const FunctionDecl* FD, QualType& QT,
   //
   ASTContext& C = FD->getASTContext();
   PrintingPolicy Policy(C.getPrintingPolicy());
-  Policy.SuppressElaboration = true;
+  Policy.Suppress_Elab = true;
   refType = kNotReference;
   if (QT->isRecordType()) {
     if (forArgument) {
@@ -2284,7 +2272,7 @@ void make_narg_call(const FunctionDecl* FD, const std::string& return_type,
       PrintingPolicy PP = FD->getASTContext().getPrintingPolicy();
       PP.FullyQualifiedName = true;
       PP.SuppressUnwrittenScope = true;
-      PP.SuppressElaboration = true;
+      PP.Suppress_Elab = true;
       FD->getNameForDiagnostic(stream, PP,
                                /*Qualified=*/false);
       name = complete_name;
@@ -2474,9 +2462,9 @@ void make_narg_call_with_return(compat::Interpreter& I, const FunctionDecl* FD,
   if (const CXXConstructorDecl* CD = dyn_cast<CXXConstructorDecl>(FD)) {
     if (N <= 1 && llvm::isa<UsingShadowDecl>(FD)) {
       auto SpecMemKind = I.getCI()->getSema().getSpecialMember(CD);
-      if ((N == 0 && SpecMemKind == CXXSpecialMemberKindDefaultConstructor) ||
-          (N == 1 && (SpecMemKind == CXXSpecialMemberKindCopyConstructor ||
-                      SpecMemKind == CXXSpecialMemberKindMoveConstructor))) {
+      if ((N == 0 && SpecMemKind == CXXSpecialMemberKind::DefaultConstructor) ||
+          (N == 1 && (SpecMemKind == CXXSpecialMemberKind::CopyConstructor ||
+                      SpecMemKind == CXXSpecialMemberKind::MoveConstructor))) {
         // Using declarations cannot inject special members; do not call
         // them as such. This might happen by using `Base(Base&, int = 12)`,
         // which is fine to be called as `Derived d(someBase, 42)` but not
@@ -3422,65 +3410,10 @@ TInterp_t CreateInterpreter(const std::vector<const char*>& Args /*={}*/,
         reinterpret_cast<uint64_t>(&__clang_Interpreter_SetValueWithAlloc));
   }
 #endif
-// llvm < 19 has multiple overloads of __clang_Interpreter_SetValueNoAlloc
-#if CLANG_VERSION_MAJOR < 19
-  // obtain all 6 candidates, and obtain the correct Decl for each overload
-  // using BestOverloadFunctionMatch. We then map the decl to the correct
-  // function pointer (force the compiler to find the right declarion by casting
-  // to the corresponding function pointer signature) and then register it.
-  const std::vector<TCppFunction_t> Methods = Cpp::GetFunctionsUsingName(
-      Cpp::GetGlobalScope(), "__clang_Interpreter_SetValueNoAlloc");
-  std::string mangledName;
-  ASTContext& Ctxt = I->getSema().getASTContext();
-  auto* TAI = Ctxt.VoidPtrTy.getAsOpaquePtr();
 
-  // possible parameter lists for __clang_Interpreter_SetValueNoAlloc overloads
-  // in LLVM 18
-  const std::vector<std::vector<Cpp::TemplateArgInfo>> a_params = {
-      {TAI, TAI, TAI},
-      {TAI, TAI, TAI, TAI},
-      {TAI, TAI, TAI, Ctxt.FloatTy.getAsOpaquePtr()},
-      {TAI, TAI, TAI, Ctxt.DoubleTy.getAsOpaquePtr()},
-      {TAI, TAI, TAI, Ctxt.LongDoubleTy.getAsOpaquePtr()},
-      {TAI, TAI, TAI, Ctxt.UnsignedLongLongTy.getAsOpaquePtr()}};
-
-  using FP0 = void (*)(void*, void*, void*);
-  using FP1 = void (*)(void*, void*, void*, void*);
-  using FP2 = void (*)(void*, void*, void*, float);
-  using FP3 = void (*)(void*, void*, void*, double);
-  using FP4 = void (*)(void*, void*, void*, long double);
-  using FP5 = void (*)(void*, void*, void*, unsigned long long);
-
-  const std::vector<void*> func_pointers = {
-      reinterpret_cast<void*>(
-          static_cast<FP0>(&__clang_Interpreter_SetValueNoAlloc)),
-      reinterpret_cast<void*>(
-          static_cast<FP1>(&__clang_Interpreter_SetValueNoAlloc)),
-      reinterpret_cast<void*>(
-          static_cast<FP2>(&__clang_Interpreter_SetValueNoAlloc)),
-      reinterpret_cast<void*>(
-          static_cast<FP3>(&__clang_Interpreter_SetValueNoAlloc)),
-      reinterpret_cast<void*>(
-          static_cast<FP4>(&__clang_Interpreter_SetValueNoAlloc)),
-      reinterpret_cast<void*>(
-          static_cast<FP5>(&__clang_Interpreter_SetValueNoAlloc))};
-
-  // these symbols are not externed, so we need to mangle their names
-  for (size_t i = 0; i < a_params.size(); ++i) {
-    auto* decl = static_cast<clang::Decl*>(
-        Cpp::BestOverloadFunctionMatch(Methods, {}, a_params[i]));
-    if (auto* fd = llvm::dyn_cast<clang::FunctionDecl>(decl)) {
-      auto gd = clang::GlobalDecl(fd);
-      compat::maybeMangleDeclName(gd, mangledName);
-      DefineAbsoluteSymbol(*I, mangledName.c_str(),
-                           reinterpret_cast<uint64_t>(func_pointers[i]));
-    }
-  }
-#else
   DefineAbsoluteSymbol(
       *I, "__clang_Interpreter_SetValueNoAlloc",
       reinterpret_cast<uint64_t>(&__clang_Interpreter_SetValueNoAlloc));
-#endif
 #endif
   return I;
 }
@@ -3774,10 +3707,10 @@ static Decl* InstantiateTemplate(TemplateDecl* TemplateD,
   if (auto* FunctionTemplate = dyn_cast<FunctionTemplateDecl>(TemplateD)) {
     FunctionDecl* Specialization = nullptr;
     clang::sema::TemplateDeductionInfo Info(fakeLoc);
-    Template_Deduction_Result Result =
+    TemplateDeductionResult Result =
         S.DeduceTemplateArguments(FunctionTemplate, &TLI, Specialization, Info,
                                   /*IsAddressOfFunction*/ true);
-    if (Result != Template_Deduction_Result_Success) {
+    if (Result != TemplateDeductionResult::Success) {
       // FIXME: Diagnose what happened.
       (void)Result;
     }
@@ -3787,7 +3720,11 @@ static Decl* InstantiateTemplate(TemplateDecl* TemplateD,
   }
 
   if (auto* VarTemplate = dyn_cast<VarTemplateDecl>(TemplateD)) {
+#if CLANG_VERSION_MAJOR < 22
     DeclResult R = S.CheckVarTemplateId(VarTemplate, fakeLoc, fakeLoc, TLI);
+#else
+    DeclResult R = S.CheckVarTemplateId(VarTemplate, fakeLoc, fakeLoc, TLI, /*SetWrittenArgs=*/true);
+#endif
     if (R.isInvalid()) {
       // FIXME: Diagnose
     }
@@ -3796,7 +3733,11 @@ static Decl* InstantiateTemplate(TemplateDecl* TemplateD,
 
   // This will instantiate tape<T> type and return it.
   SourceLocation noLoc;
+#if CLANG_VERSION_MAJOR < 22
   QualType TT = S.CheckTemplateIdType(TemplateName(TemplateD), noLoc, TLI);
+#else
+  QualType TT = S.CheckTemplateIdType(ElaboratedTypeKeyword::None, TemplateName(TemplateD), noLoc, TLI, /*Scope=*/nullptr, /*ForNestedNameSpecifier=*/false);
+#endif
   if (TT.isNull())
     return nullptr;
 
