@@ -75,6 +75,22 @@ jobs:
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
             Valgrind: On
+          - name: ubu24-x86-gcc14-clang-repl-20
+            os: ubuntu-24.04
+            compiler: gcc-14
+            clang-runtime: '20'
+            cling: Off
+            cppyy: Off
+            llvm_enable_projects: "clang"
+            llvm_targets_to_build: "host;NVPTX"
+          - name: ubu24-x86-gcc13-clang-repl-20
+            os: ubuntu-24.04
+            compiler: gcc-13
+            clang-runtime: '20'
+            cling: Off
+            cppyy: Off
+            llvm_enable_projects: "clang"
+            llvm_targets_to_build: "host;NVPTX"
           - name: ubu24-x86-gcc12-clang-repl-20
             os: ubuntu-24.04
             compiler: gcc-12
