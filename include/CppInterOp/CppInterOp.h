@@ -556,6 +556,9 @@ CPPINTEROP_API bool IsDestructor(TCppConstFunction_t method);
 /// Checks if the provided parameter is a 'Static' method.
 CPPINTEROP_API bool IsStaticMethod(TCppConstFunction_t method);
 
+/// Checks if the provided constructor or conversion operator is explicit
+CPPINTEROP_API bool IsExplicit(TCppConstFunction_t method);
+
 ///\returns the address of the function given its potentially mangled name.
 CPPINTEROP_API TCppFuncAddr_t GetFunctionAddress(const char* mangled_name);
 
