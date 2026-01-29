@@ -234,7 +234,8 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_IsBuiltin) {
   EXPECT_TRUE(Cpp::IsBuiltin(C.getComplexType(C.DoubleTy).getAsOpaquePtr()));
   EXPECT_TRUE(Cpp::IsBuiltin(C.getComplexType(C.LongDoubleTy).getAsOpaquePtr()));
   EXPECT_TRUE(Cpp::IsBuiltin(C.getComplexType(C.Float128Ty).getAsOpaquePtr()));
-
+// FIXME as part of llvm 22 PR. getTypeDeclType was deleted between llvm 21 and 22
+#if CLANG_VERSION_MAJOR < 22
   // std::complex
   Interp->declare("#include <complex>");
   Sema &S = Interp->getCI()->getSema();
@@ -242,6 +243,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_IsBuiltin) {
   auto *CTD = cast<ClassTemplateDecl>(lookup.front());
   for (ClassTemplateSpecializationDecl *CTSD : CTD->specializations())
     EXPECT_TRUE(Cpp::IsBuiltin(C.getTypeDeclType(CTSD).getAsOpaquePtr()));
+#endif
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_IsTemplate) {
@@ -928,11 +930,7 @@ template<class T> constexpr T pi = T(3.1415926535897932385L);
   auto* VD = cast<VarTemplateSpecializationDecl>((Decl*)Instance1);
   VarTemplateDecl* VDTD1 = VD->getSpecializedTemplate();
   EXPECT_TRUE(VDTD1->isThisDeclarationADefinition());
-#if CLANG_VERSION_MAJOR == 18
-  TemplateArgument TA1 = (*VD->getTemplateArgsInfo())[0].getArgument();
-#else
   TemplateArgument TA1 = (*VD->getTemplateArgsAsWritten())[0].getArgument();
-#endif // CLANG_VERSION_MAJOR
   EXPECT_TRUE(TA1.getAsType()->isIntegerType());
 }
 
