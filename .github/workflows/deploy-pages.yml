@@ -21,9 +21,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: osx26-arm-clang-repl-20-emscripten
+          - name: osx26-arm-clang-repl-21-emscripten_wasm
             os: macos-26
-            clang-runtime: '20'
+            clang-runtime: '21'
             cling: Off
             micromamba_shell_init: bash
             emsdk_ver: "4.0.9"
@@ -70,6 +70,29 @@ jobs:
     - name: Build and test CppInterOp
       uses: ./.github/actions/Build_and_Test_CppInterOp
 
+    - name: Build xeus-cpp
+      shell: bash -l {0}
+      run: |
+        ./emsdk/emsdk activate ${{matrix.emsdk_ver}}
+        source ./emsdk/emsdk_env.sh
+        micromamba activate CppInterOp-wasm
+        git clone --depth=1 https://github.com/compiler-research/xeus-cpp.git
+        cd ./xeus-cpp
+        mkdir build
+        pushd build
+        export CMAKE_PREFIX_PATH=${{ env.PREFIX }}
+        export CMAKE_SYSTEM_PREFIX_PATH=${{ env.PREFIX }}
+        emcmake cmake \
+          -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}          \
+          -DCMAKE_PREFIX_PATH=${{ env.PREFIX }}             \
+          -DCMAKE_INSTALL_PREFIX=${{ env.PREFIX }}          \
+          -DXEUS_CPP_EMSCRIPTEN_WASM_BUILD=ON               \
+          -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            \
+          -DXEUS_CPP_RESOURCE_DIR=${{ env.LLVM_BUILD_DIR }}/lib/clang/${{ matrix.clang-runtime }} \
+          -DSYSROOT_PATH=${{ env.SYSROOT_PATH }}                     \
+          ..
+        EMCC_CFLAGS="-sSUPPORT_LONGJMP=wasm -fwasm-exceptions" emmake make -j ${{ env.ncpus }} install
+
     - name: Test xeus-cpp C++ Emscripten
       shell: bash -l {0}
       run: |
@@ -82,10 +105,11 @@ jobs:
       shell: bash -l {0}
       run: |
           cd ./xeus-cpp/
-          micromamba create -n xeus-lite-host jupyterlite-core=0.6 jupyterlite-xeus jupyter_server jupyterlab notebook python-libarchive-c -c conda-forge
+          micromamba create -n xeus-lite-host jupyterlite-core jupyterlite-xeus jupyter_server jupyterlab notebook python-libarchive-c -c conda-forge
           micromamba activate xeus-lite-host
           jupyter lite build --XeusAddon.prefix=${{ env.PREFIX }} \
                              --contents notebooks/xeus-cpp-lite-demo.ipynb \
+                             --contents notebooks/tinyraytracer.ipynb \
                              --contents notebooks/images/marie.png \
                              --contents notebooks/audio/audio.wav \
                              --XeusAddon.mounts="${{ env.PREFIX }}/share/xeus-cpp/tagfiles:/share/xeus-cpp/tagfiles" \

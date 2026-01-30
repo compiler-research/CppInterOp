@@ -57,7 +57,7 @@ and on Windows execute in Powershell
    $env:PWD_DIR= $PWD.Path
    $env:SYSROOT_PATH="$env:EMSDK/upstream/emscripten/cache/sysroot"
 
-Now clone the 20.x release of the LLVM project repository and CppInterOp
+Now clone the 21.x release of the LLVM project repository and CppInterOp
 (the building of the emscripten version of llvm can be avoided by
 executing micromamba install llvm -c
 <https://repo.mamba.pm/emscripten-forge> and setting the LLVM_BUILD_DIR/$env:LLVM_BUILD_DIR
@@ -65,7 +65,7 @@ appropriately)
 
 .. code:: bash
 
-   git clone --depth=1 --branch release/20.x https://github.com/llvm/llvm-project.git
+   git clone --depth=1 --branch release/21.x https://github.com/llvm/llvm-project.git
    git clone --depth=1 https://github.com/compiler-research/CppInterOp.git
 
 Now move into the cloned llvm-project folder and apply the required patches. On Linux and osx this
@@ -74,16 +74,17 @@ executing
 .. code:: bash
 
    cd ./llvm-project/
-   git apply -v ../CppInterOp/patches/llvm/emscripten-clang20-*.patch
+   git apply -v ../CppInterOp/patches/llvm/emscripten-clang21-*.patch
 
 On Windows execute the following
 
 .. code:: powershell
 
    cd .\llvm-project\
-   cp -r ..\patches\llvm\emscripten-clang20*
-   git apply -v emscripten-clang20-2-shift-temporary-files-to-tmp-dir.patch
-   git apply -v emscripten-clang20-3-enable_exception_handling.patch
+   cp -r ..\patches\llvm\emscripten-clang21*
+   git apply -v emscripten-clang21-1-shift-temporary-files-to-tmp-dir.patch
+   git apply -v emscripten-clang21-2-enable_exception_handling.patch
+   git apply -v emscripten-clang21-3-webassembly_target_machine_reordering.patch
 
 We are now in a position to build an emscripten build of llvm by executing the following on Linux
 and osx
@@ -121,9 +122,7 @@ and osx
                  -DCMAKE_CXX_FLAGS_RELEASE="-Oz -g0 -DNDEBUG" \
                  -DLLVM_ENABLE_LTO=Full \
                  ../llvm
-   emmake make libclang -j $(nproc --all)
-   emmake make clangInterpreter clangStaticAnalyzerCore -j $(nproc --all)
-   emmake make lldWasm -j $(nproc --all)
+   EMCC_CFLAGS="-sSUPPORT_LONGJMP=wasm -fwasm-exceptions" emmake make libclang clangInterpreter clangStaticAnalyzerCore -j $(nproc --all)
 
 or executing
 
@@ -162,7 +161,9 @@ or executing
                         -DCMAKE_CXX_FLAGS_RELEASE="-Oz -g0 -DNDEBUG" `
                         -DLLVM_ENABLE_LTO=Full `
                         ..\llvm
-   emmake ninja libclang clangInterpreter clangStaticAnalyzerCore lldWasm
+   $env:EMCC_CFLAGS="-sSUPPORT_LONGJMP=wasm -fwasm-exceptions"
+   emmake ninja libclang clangInterpreter clangStaticAnalyzerCore
+   $env:EMCC_CFLAGS=""
 
 on Windows. Once this finishes building we need to take note of where we built our llvm build.
 This can be done by executing the following on Linux and osx
@@ -188,7 +189,7 @@ initialised for the micromamba install)
 .. code:: bash
 
    cd ../../CppInterOp/
-   micromamba create -f environment-wasm.yml --platform=emscripten-wasm32
+   micromamba create -f environment-wasm.yml --platform=emscripten-wasm32 -c https://prefix.dev/emscripten-forge-4x -c https://prefix.dev/conda-forge
    micromamba activate CppInterOp-wasm
 
 You will also want to set a few environment variables. On Linux and osx you define them as follows
@@ -365,7 +366,7 @@ by executing (replace LLVM_VERSION with the version of llvm you are building aga
 
    cd ../..
    git clone --depth=1 https://github.com/compiler-research/xeus-cpp.git
-   export LLVM_VERSION=20
+   export LLVM_VERSION=21
    cd ./xeus-cpp
    mkdir build
    cd build
@@ -378,7 +379,7 @@ by executing (replace LLVM_VERSION with the version of llvm you are building aga
 	   -DXEUS_CPP_RESOURCE_DIR="$LLVM_BUILD_DIR/lib/clang/$LLVM_VERSION" \
            -DSYSROOT_PATH=$SYSROOT_PATH                                   \
            ..
-   emmake make -j $(nproc --all) install
+   EMCC_CFLAGS="-sSUPPORT_LONGJMP=wasm -fwasm-exceptions" emmake make -j $(nproc --all) install
 
 and on Windows by executing 
 
@@ -386,7 +387,7 @@ and on Windows by executing
 
    cd ..\..
    git clone --depth=1 https://github.com/compiler-research/xeus-cpp.git
-   $env:LLVM_VERSION=20
+   $env:LLVM_VERSION=21
    cd .\xeus-cpp
    mkdir build
    cd build
@@ -399,17 +400,20 @@ and on Windows by executing
 	        -DXEUS_CPP_RESOURCE_DIR="$env:LLVM_BUILD_DIR/lib/clang/$env:LLVM_VERSION" `
            -DSYSROOT_PATH="$env:SYSROOT_PATH"                              `
            ..
+   $env:EMCC_CFLAGS="-sSUPPORT_LONGJMP=wasm -fwasm-exceptions"
    emmake make -j $(nproc --all) install
+   $env:EMCC_CFLAGS=""
 
 To build and test Jupyter Lite with this kernel locally on Linux/MacOS you can execute the following
 
 .. code:: bash
 
    cd ../..
-   micromamba create -n xeus-lite-host jupyterlite-core=0.6 jupyterlite-xeus jupyter_server jupyterlab notebook python-libarchive-c -c conda-forge
+   micromamba create -n xeus-lite-host jupyterlite-core jupyterlite-xeus jupyter_server jupyterlab notebook python-libarchive-c -c conda-forge
    micromamba activate xeus-lite-host
    jupyter lite serve --XeusAddon.prefix=$PREFIX \
                       --contents xeus-cpp/notebooks/xeus-cpp-lite-demo.ipynb \
+                      --contents xeus-cpp/notebooks/tinyraytracer.ipynb \
                       --contents xeus-cpp/notebooks/images/marie.png \ 
                       --contents xeus-cpp/notebooks/audio/audio.wav \
                       --XeusAddon.mounts="$PREFIX/share/xeus-cpp/tagfiles:/share/xeus-cpp/tagfiles" \
@@ -420,10 +424,11 @@ and on Windows execute
 .. code:: powershell
 
    cd ..\..
-   micromamba create -n xeus-lite-host jupyterlite-core=0.6 jupyterlite-xeus jupyter_server jupyterlab notebook python-libarchive-c -c conda-forge
+   micromamba create -n xeus-lite-host jupyterlite-core jupyterlite-xeus jupyter_server jupyterlab notebook python-libarchive-c -c conda-forge
    micromamba activate xeus-lite-host
    jupyter lite serve --XeusAddon.prefix="$env:PREFIX" `
                       --contents xeus-cpp/notebooks/xeus-cpp-lite-demo.ipynb `
+                      --contents xeus-cpp/notebooks/tinyraytracer.ipynb `
                       --contents xeus-cpp/notebooks/images/marie.png ` 
                       --contents xeus-cpp/notebooks/audio/audio.wav `
                       --XeusAddon.mounts="$env:PREFIX/share/xeus-cpp/tagfiles:/share/xeus-cpp/tagfiles" `

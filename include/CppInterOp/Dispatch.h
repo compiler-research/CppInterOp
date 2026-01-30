@@ -180,6 +180,7 @@ extern "C" CPPINTEROP_API CppFnPtrTy CppGetProcAddress(const char* procname);
   DISPATCH_API(EnableDebugOutput, decltype(&CppImpl::EnableDebugOutput))       \
   DISPATCH_API(BeginStdStreamCapture,                                          \
                decltype(&CppImpl::BeginStdStreamCapture))                      \
+  DISPATCH_API(GetDoxygenComment, decltype(&CppImpl::GetDoxygenComment))       \
   DISPATCH_API(MakeFunctionCallable,                                           \
                CppImpl::JitCall (*)(CppImpl::TCppConstFunction_t))             \
   DISPATCH_API(GetFunctionAddress,                                             \

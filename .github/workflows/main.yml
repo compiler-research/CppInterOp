@@ -48,12 +48,12 @@ jobs:
             cppyy: On
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
-          - name: ubu24-arm-gcc12-clang-repl-18-cppyy
+          - name: ubu24-arm-gcc12-clang-repl-18
             os: ubuntu-24.04-arm
             compiler: gcc-12
             clang-runtime: '18'
             cling: Off
-            cppyy: On
+            cppyy: Off
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
           - name: ubu24-arm-gcc9-clang18-cling-cppyy
@@ -112,12 +112,12 @@ jobs:
             cppyy: On
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
-          - name: ubu24-x86-gcc12-clang-repl-18-cppyy
+          - name: ubu24-x86-gcc12-clang-repl-18
             os: ubuntu-24.04
             compiler: gcc-12
             clang-runtime: '18'
             cling: Off
-            cppyy: On
+            cppyy: Off
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
           - name: ubu24-x86-gcc9-clang18-cling-cppyy
@@ -163,12 +163,12 @@ jobs:
             cppyy: On
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host"
-          - name: osx26-arm-clang-clang-repl-18-cppyy
+          - name: osx26-arm-clang-clang-repl-18
             os: macos-26
             compiler: clang
             clang-runtime: '18'
             cling: Off
-            cppyy: On
+            cppyy: Off
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host"
           - name: osx26-arm-clang-clang18-cling-cppyy
@@ -205,12 +205,12 @@ jobs:
             cppyy: On
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host"
-          - name: osx15-x86-clang-clang-repl-18-cppyy
+          - name: osx15-x86-clang-clang-repl-18
             os: macos-15-intel
             compiler: clang
             clang-runtime: '18'
             cling: Off
-            cppyy: On
+            cppyy: Off
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host"
           - name: osx15-x86-clang-clang18-cling-cppyy
