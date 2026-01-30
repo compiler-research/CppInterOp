@@ -9,6 +9,8 @@
 
 #include "CppInterOp/CppInterOp.h"
 
+#include "CppInterOpRuntime.h"
+
 #include "Compatibility.h"
 
 #include "clang/AST/Attrs.inc"
@@ -3388,14 +3390,7 @@ TInterp_t CreateInterpreter(const std::vector<const char*>& Args /*={}*/,
     AddLibrarySearchPaths(ResourceDir, I);
 
   I->declare(R"(
-    namespace __internal_CppInterOp {
-    template <typename Signature>
-    struct function;
-    template <typename Res, typename... ArgTypes>
-    struct function<Res(ArgTypes...)> {
-      typedef Res result_type;
-    };
-    }  // namespace __internal_CppInterOp
+    #include "CppInterOpRuntime.h"
   )");
 
   sInterpreters->emplace_back(I, /*Owned=*/true);
