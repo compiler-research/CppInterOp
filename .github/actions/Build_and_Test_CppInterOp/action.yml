@@ -154,7 +154,7 @@ runs:
         set -e
         ./emsdk/emsdk activate ${{matrix.emsdk_ver}}
         source ./emsdk/emsdk_env.sh
-        micromamba create -f environment-wasm.yml --platform=emscripten-wasm32
+        micromamba create -f environment-wasm.yml --platform=emscripten-wasm32 -c https://prefix.dev/emscripten-forge-4x -c https://prefix.dev/conda-forge
         export SYSROOT_PATH=$PWD/emsdk/upstream/emscripten/cache/sysroot
         export PREFIX=$MAMBA_ROOT_PREFIX/envs/CppInterOp-wasm
         export CMAKE_PREFIX_PATH=$PREFIX
@@ -446,7 +446,7 @@ runs:
       if: ${{ runner.os == 'Windows' && endsWith(matrix.name, '-emscripten') }}
       shell: powershell
       run: |
-        micromamba create -f environment-wasm.yml --platform=emscripten-wasm32
+        micromamba create -f environment-wasm.yml --platform=emscripten-wasm32 -c https://prefix.dev/emscripten-forge-4x -c https://prefix.dev/conda-forge
         .\emsdk\emsdk activate ${{matrix.emsdk_ver}}
         .\emsdk\emsdk_env.ps1
         $env:PWD_DIR= $PWD.Path
