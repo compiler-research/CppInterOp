@@ -3331,12 +3331,24 @@ void AddLibrarySearchPaths(const std::string& ResourceDir,
                                                  false, false);
   }
 }
+std::string parse_for(const std::vector<const char*>& Args,
+                      const std::string& Arg) {
+  size_t I = 0;
+  for (auto i = Args.begin(); i != Args.end(); i++) {
+    if ((++I < Args.size()) && (*i == Arg)) {
+      return *(++i);
+    }
+  }
+  return "";
+}
 } // namespace
 
 TInterp_t CreateInterpreter(const std::vector<const char*>& Args /*={}*/,
                             const std::vector<const char*>& GpuArgs /*={}*/) {
   std::string MainExecutableName = sys::fs::getMainExecutable(nullptr, nullptr);
-  std::string ResourceDir = MakeResourcesPath();
+  std::string ResourceDir = parse_for(Args, "-resource-dir");
+  if (ResourceDir.empty())
+    ResourceDir = MakeResourcesPath();
   llvm::Triple T(llvm::sys::getProcessTriple());
   namespace fs = std::filesystem;
   if ((!fs::is_directory(ResourceDir)) && (T.isOSDarwin() || T.isOSLinux()))
