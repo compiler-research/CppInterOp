@@ -48,10 +48,10 @@ jobs:
             cppyy: On
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
-          - name: ubu24-arm-gcc9-clang18-cling-cppyy
+          - name: ubu24-arm-gcc9-clang20-cling-cppyy
             os: ubuntu-24.04-arm
             compiler: gcc-9
-            clang-runtime: '18'
+            clang-runtime: '20'
             cling: On
             cppyy: Off
             cling-version: '1.2'
@@ -104,10 +104,10 @@ jobs:
             cppyy: On
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
-          - name: ubu24-x86-gcc9-clang18-cling-cppyy
+          - name: ubu24-x86-gcc9-clang20-cling-cppyy
             os: ubuntu-24.04
             compiler: gcc-9
-            clang-runtime: '18'
+            clang-runtime: '20'
             cling: On
             cppyy: Off
             cling-version: '1.2'
@@ -147,10 +147,10 @@ jobs:
             cppyy: On
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host"
-          - name: osx26-arm-clang-clang18-cling-cppyy
+          - name: osx26-arm-clang-clang20-cling-cppyy
             os: macos-26
             compiler: clang
-            clang-runtime: '18'
+            clang-runtime: '20'
             cling: On
             cppyy: On
             cling-version: '1.2'
@@ -181,10 +181,10 @@ jobs:
             cppyy: On
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host"
-          - name: osx15-x86-clang-clang18-cling-cppyy
+          - name: osx15-x86-clang-clang20-cling-cppyy
             os: macos-15-intel
             compiler: clang
-            clang-runtime: '18'
+            clang-runtime: '20'
             cling: On
             cppyy: On
             cling-version: '1.2'
@@ -198,10 +198,10 @@ jobs:
             cling: Off
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
-          - name: win11-msvc-clang18-cling
+          - name: win11-msvc-clang20-cling
             os: windows-11-arm
             compiler: msvc
-            clang-runtime: '18'
+            clang-runtime: '20'
             cling: On
             cling-version: '1.2'
             llvm_enable_projects: "clang"
@@ -214,10 +214,10 @@ jobs:
             cling: Off
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
-          - name: win2025-msvc-clang18-cling
+          - name: win2025-msvc-clang20-cling
             os: windows-2025
             compiler: msvc
-            clang-runtime: '18'
+            clang-runtime: '20'
             cling: On
             cling-version: '1.2'
             llvm_enable_projects: "clang"
@@ -259,14 +259,14 @@ jobs:
       with:
         cache-hit: ${{ steps.cache.outputs.cache-hit }}
 
-    - name: Cache LLVM-${{ matrix.clang-runtime }} and ${{ matrix.cling == 'On' && 'Cling' || 'Clang-REPL' }} build
-      uses: actions/cache/save@v4
-      if: ${{ steps.cache.outputs.cache-hit != 'true' }}
-      with:
-        path: |
-          llvm-project
-          ${{ matrix.cling=='On' && 'cling' || '' }}
-        key: ${{ steps.cache.outputs.cache-primary-key }}
+#    - name: Cache LLVM-${{ matrix.clang-runtime }} and ${{ matrix.cling == 'On' && 'Cling' || 'Clang-REPL' }} build
+#      uses: actions/cache/save@v4
+#      if: ${{ steps.cache.outputs.cache-hit != 'true' }}
+#      with:
+#        path: |
+#          llvm-project
+#          ${{ matrix.cling=='On' && 'cling' || '' }}
+#        key: ${{ steps.cache.outputs.cache-primary-key }}
 
     - name: Setup code coverage
       if: ${{ success() && (matrix.coverage == true) }}
