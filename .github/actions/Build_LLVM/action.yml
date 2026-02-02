@@ -19,7 +19,6 @@ runs:
 #          git apply -v ../patches/llvm/cling1.2-LookupHelper.patch
 #          cd ..
           git clone --depth=1 -b cling-llvm${{ matrix.clang-runtime }} https://github.com/root-project/llvm-project.git
-          git clone --depth=1 https://github.com/root-project/llvm-project.git
         else # repl
           git clone --depth=1 -b release/${{ matrix.clang-runtime }}.x https://github.com/llvm/llvm-project.git
         fi
