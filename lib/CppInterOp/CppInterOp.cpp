@@ -3313,11 +3313,9 @@ void AddLibrarySearchPaths(const std::string& ResourceDir,
 std::string ExtractArgument(const std::vector<const char*>& Args,
                             const std::string& Arg) {
   size_t I = 0;
-  for (auto i = Args.begin(); i != Args.end(); i++) {
-    if ((++I < Args.size()) && (*i == Arg)) {
+  for (auto i = Args.begin(); i != Args.end(); i++)
+    if ((++I < Args.size()) && (*i == Arg))
       return *(++i);
-    }
-  }
   return "";
 }
 } // namespace
