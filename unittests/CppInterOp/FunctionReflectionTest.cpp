@@ -2840,7 +2840,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_UndoTest) {
   GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
 #endif
 #if CLANG_VERSION_MAJOR == 20 && defined(CPPINTEROP_USE_CLING) &&           \
-    defined(_APPLE__)
+    defined(__APPLE__)
   GTEST_SKIP() << "Disabled on osx for cling based on llvm 20. Needs fixing.";
 #endif
 #ifdef EMSCRIPTEN
