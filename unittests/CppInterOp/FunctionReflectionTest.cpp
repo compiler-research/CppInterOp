@@ -2900,3 +2900,138 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_FailingTest1) {
   EXPECT_FALSE(Cpp::Declare("int x = 1;" DFLT_FALSE));
   EXPECT_FALSE(Cpp::Declare("int y = x;" DFLT_FALSE));
 }
+
+TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_IsExplicit) {
+  std::vector<Decl*> Decls;
+  std::vector<Decl*> SubDecls;
+  std::string code = R"(
+    class C {
+    public:
+      C() {}
+      explicit C(int) {}
+      C(const C&) {}
+      explicit C(C&&) {}
+      
+      operator int() { return 0; }
+      explicit operator bool() { return true; }
+      
+      void regular_method() {}
+    private:
+      explicit C(double) {}
+    };
+    )";
+
+  GetAllTopLevelDecls(code, Decls);
+  GetAllSubDecls(Decls[0], SubDecls);
+
+  // constructors
+  EXPECT_FALSE(Cpp::IsExplicit(SubDecls[2])); // C()
+  EXPECT_TRUE(Cpp::IsExplicit(SubDecls[3]));  // explicit C(int)
+  EXPECT_FALSE(Cpp::IsExplicit(SubDecls[4])); // C(const C&) copy ctor
+  EXPECT_TRUE(Cpp::IsExplicit(SubDecls[5]));  // explicit C(C&&) move ctor
+
+  // conversion operators
+  EXPECT_FALSE(Cpp::IsExplicit(SubDecls[6])); // operator int()
+  EXPECT_TRUE(Cpp::IsExplicit(SubDecls[7]));  // explicit operator bool()
+  EXPECT_FALSE(Cpp::IsExplicit(SubDecls[8])); // regular_method()
+  EXPECT_TRUE(Cpp::IsExplicit(SubDecls[10])); // private explicit C(double)
+  EXPECT_FALSE(Cpp::IsExplicit(Decls[0]));
+  EXPECT_FALSE(Cpp::IsExplicit(nullptr));
+}
+TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_IsExplicitTemplated) {
+  std::vector<Decl*> Decls;
+  std::vector<Decl*> SubDecls;
+  std::string code = R"(
+    class T {
+    public:
+      T() = delete;
+      
+      template<typename U>
+      T(U) {}
+      
+      template<typename U>
+      explicit T(U, int) {}
+      
+      template<typename U>
+      operator U() { return U{}; }
+      
+      template<typename U>
+      explicit operator U*() { return nullptr; }
+    };
+    )";
+
+  GetAllTopLevelDecls(code, Decls);
+  GetAllSubDecls(Decls[0], SubDecls);
+
+  int implicitCtorCount = 0;
+  int explicitCtorCount = 0;
+  int implicitConvCount = 0;
+  int explicitConvCount = 0;
+
+  for (auto* decl : SubDecls) {
+    // skip deleted constructors
+    if (auto* CD = llvm::dyn_cast_or_null<CXXConstructorDecl>(
+            static_cast<clang::Decl*>(decl))) {
+      if (CD->isDeleted())
+        continue;
+    }
+
+    if (Cpp::IsConstructor(decl)) {
+      if (Cpp::IsExplicit(decl))
+        explicitCtorCount++;
+      else
+        implicitCtorCount++;
+    } else {
+      // conversion operator
+      auto* D = static_cast<clang::Decl*>(decl);
+      if (auto* FTD = llvm::dyn_cast_or_null<FunctionTemplateDecl>(D))
+        D = FTD->getTemplatedDecl();
+
+      if (llvm::isa<CXXConversionDecl>(D)) {
+        if (Cpp::IsExplicit(decl))
+          explicitConvCount++;
+        else
+          implicitConvCount++;
+      }
+    }
+  }
+
+  EXPECT_EQ(implicitCtorCount, 1); // T(U)
+  EXPECT_EQ(explicitCtorCount, 1); // explicit T(U, int)
+  EXPECT_EQ(implicitConvCount, 1); // operator U()
+  EXPECT_EQ(explicitConvCount, 1); // explicit operator U*()
+}
+
+TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_IsExplicitDeductionGuide) {
+  // Deduction guides are a C++17 feature
+  std::vector<const char*> interpreter_args = {"-include", "new", "-std=c++17"};
+  Cpp::CreateInterpreter(interpreter_args, {});
+
+  Interp->declare(R"(
+    template<typename T>
+    struct Wrapper {
+      T value;
+      Wrapper(T v) : value(v) {}
+    };
+    template<typename T>
+    explicit Wrapper(T*) -> Wrapper<T*>;
+  )");
+
+  auto* TUD = Interp->getCI()->getASTContext().getTranslationUnitDecl();
+  bool foundExplicitGuide = false;
+  Decl* guide = nullptr;
+  for (auto* D : TUD->decls()) {
+    if (Cpp::IsExplicit(D)) {
+      foundExplicitGuide = true;
+      guide = D;
+      break;
+    }
+  }
+
+  EXPECT_TRUE(foundExplicitGuide);
+  EXPECT_TRUE(guide != nullptr);
+  EXPECT_EQ(Cpp::GetFunctionSignature(guide),
+            "explicit Wrapper(T *) -> Wrapper<T *>");
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetFunctionReturnType(guide)),
+            "Wrapper<T *>");
+}

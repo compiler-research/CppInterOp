@@ -1397,6 +1397,27 @@ bool IsStaticMethod(TCppConstFunction_t method) {
   return false;
 }
 
+bool IsExplicit(TCppConstFunction_t method) {
+  if (!method)
+    return false;
+
+  const auto* D = static_cast<const Decl*>(method);
+
+  if (const auto* FTD = llvm::dyn_cast_or_null<FunctionTemplateDecl>(D))
+    D = FTD->getTemplatedDecl();
+
+  if (const auto* CD = llvm::dyn_cast_or_null<CXXConstructorDecl>(D))
+    return CD->isExplicit();
+
+  if (const auto* CD = llvm::dyn_cast_or_null<CXXConversionDecl>(D))
+    return CD->isExplicit();
+
+  if (const auto* DGD = llvm::dyn_cast_or_null<CXXDeductionGuideDecl>(D))
+    return DGD->isExplicit();
+
+  return false;
+}
+
 TCppFuncAddr_t GetFunctionAddress(const char* mangled_name) {
   auto& I = getInterp();
   auto FDAorErr = compat::getSymbolAddress(I, mangled_name);
@@ -3298,12 +3319,28 @@ void AddLibrarySearchPaths(const std::string& ResourceDir,
                                                  false, false);
   }
 }
+std::string ExtractArgument(const std::vector<const char*>& Args,
+                            const std::string& Arg) {
+  size_t I = 0;
+  for (auto i = Args.begin(); i != Args.end(); i++)
+    if ((++I < Args.size()) && (*i == Arg))
+      return *(++i);
+  return "";
+}
 } // namespace
 
 TInterp_t CreateInterpreter(const std::vector<const char*>& Args /*={}*/,
                             const std::vector<const char*>& GpuArgs /*={}*/) {
   std::string MainExecutableName = sys::fs::getMainExecutable(nullptr, nullptr);
-  std::string ResourceDir = MakeResourcesPath();
+  // In some systems, CppInterOp cannot manually detect the correct resource.
+  // Then the -resource-dir passed by the user is assumed to be the correct
+  // location. Prioritising it over detecting it within CppInterOp. Extracting
+  // the resource-dir from the arguments is required because we set the
+  // necessary library search location explicitly below. Because by default,
+  // linker flags are ignored in repl (issue #748)
+  std::string ResourceDir = ExtractArgument(Args, "-resource-dir");
+  if (ResourceDir.empty())
+    ResourceDir = MakeResourcesPath();
   llvm::Triple T(llvm::sys::getProcessTriple());
   namespace fs = std::filesystem;
   if ((!fs::is_directory(ResourceDir)) && (T.isOSDarwin() || T.isOSLinux()))
