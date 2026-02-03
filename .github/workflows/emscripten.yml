@@ -427,21 +427,21 @@ jobs:
             micromamba_shell_init: powershell
             emsdk_ver: "4.0.9"
             build_static_library: On
-          - name: ubu24-x86-clang-repl-21-emscripten_wasm
+          - name: ubu24-x86-clang-repl-21-emscripten
             os: ubuntu-24.04
             clang-runtime: '21'
             cling: Off
             micromamba_shell_init: bash
             emsdk_ver: "4.0.9"
             build_static_library: On
-          - name: osx26-arm-clang-repl-21-emscripten_wasm
+          - name: osx26-arm-clang-repl-21-emscripten
             os: macos-26
             clang-runtime: '21'
             cling: Off
             micromamba_shell_init: bash
             emsdk_ver: "4.0.9"
             build_static_library: On
-          - name: ubu24-arm-clang-repl-21-emscripten_wasm
+          - name: ubu24-arm-clang-repl-21-emscripten
             os: ubuntu-24.04-arm
             clang-runtime: '21'
             cling: Off
