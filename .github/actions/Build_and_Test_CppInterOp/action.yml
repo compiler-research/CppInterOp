@@ -368,19 +368,6 @@ runs:
           emmake make -j ${{ env.ncpus }} check-cppinterop
         fi
         cd ./unittests/CppInterOp/
-        # Explaination of options for emrun
-        # --browser (name of browser on path)
-        # --kill_exit makes it so that when emrun finishes,
-        # that the headless browser we create is killed along with it
-        # --timeout 60 is such that emrun is killed after 60 seconds if
-        # still running. emrun should have finished long before then,
-        # so if it is still running, something went wrong (such as a test
-        # which crashed the html file). This will cause the ci to fail,
-        # as a non 0 value of will be returned.
-        # In the case of Chrome we have the extra --no-sandbox flag, as on
-        # Ubuntu Chrome will refuse to run otherwise, as it expects to have
-        # been installed with admin privileges. This flag allows it to run
-        # in userspace.
         os="${{ matrix.os }}"
         if [[ "${os}" == "macos"* ]]; then
           # Run tests in browsers
