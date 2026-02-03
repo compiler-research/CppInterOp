@@ -329,21 +329,6 @@ runs:
         set -e
         ./emsdk/emsdk activate ${{matrix.emsdk_ver}}
         source ./emsdk/emsdk_env.sh
-        export SYSROOT_PATH=$PWD/emsdk/upstream/emscripten/cache/sysroot
-        export PREFIX=$MAMBA_ROOT_PREFIX/envs/CppInterOp-wasm
-        export CMAKE_PREFIX_PATH=$PREFIX
-        export CMAKE_SYSTEM_PREFIX_PATH=$PREFIX
-
-        LLVM_DIR="$(pwd)/llvm-project"
-        LLVM_BUILD_DIR="$(pwd)/llvm-project/build"
-        cling_on=$(echo "${{ matrix.cling }}" | tr '[:lower:]' '[:upper:]')
-        if [[ "${cling_on}" == "ON" ]]; then
-          CLING_DIR="$(pwd)/cling"
-          CLING_BUILD_DIR="$(pwd)/cling/build"
-          CPLUS_INCLUDE_PATH="${CLING_DIR}/tools/cling/include:${CLING_BUILD_DIR}/include:${LLVM_DIR}/llvm/include:${LLVM_DIR}/clang/include:${LLVM_BUILD_DIR}/include:${LLVM_BUILD_DIR}/tools/clang/include:$PWD/include"
-        else
-          CPLUS_INCLUDE_PATH="${LLVM_DIR}/llvm/include:${LLVM_DIR}/clang/include:${LLVM_BUILD_DIR}/include:${LLVM_BUILD_DIR}/tools/clang/include:$PWD/include"
-        fi
 
         # Build CppInterOp next to cling and llvm-project.
         mkdir build_static
@@ -352,28 +337,28 @@ runs:
           emcmake cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}        \
                 -DCPPINTEROP_USE_CLING=ON                                  \
                 -DCPPINTEROP_USE_REPL=OFF                                  \
-                -DCMAKE_PREFIX_PATH=$PREFIX                     \
-                -DCling_DIR=$LLVM_BUILD_DIR/tools/cling         \
-                -DLLVM_DIR=$LLVM_BUILD_DIR/lib/cmake/llvm       \
-                -DLLD_DIR=$LLVM_BUILD_DIR/lib/cmake/lld         \
-                -DClang_DIR=$LLVM_BUILD_DIR/lib/cmake/clang     \
+                -DCMAKE_PREFIX_PATH=${{ env.PREFIX }}                    \
+                -DCling_DIR=${{ env.LLVM_BUILD_DIR }}/tools/cling         \
+                -DLLVM_DIR=${{ env.LLVM_BUILD_DIR }}/lib/cmake/llvm       \
+                -DLLD_DIR=${{ env.LLVM_BUILD_DIR }}/lib/cmake/lld         \
+                -DClang_DIR=${{ env.LLVM_BUILD_DIR }}/lib/cmake/clang     \
                 -DCODE_COVERAGE=${{ env.CODE_COVERAGE }}        \
-                -DCMAKE_INSTALL_PREFIX=$PREFIX         \
+                -DCMAKE_INSTALL_PREFIX=${{ env.PREFIX }}         \
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            \
                 -DLLVM_ENABLE_WERROR=On                      \
-                -DSYSROOT_PATH=$SYSROOT_PATH               \
+                -DSYSROOT_PATH=${{ env.SYSROOT_PATH }}              \
                 ../
         else
           emcmake cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    \
-                -DCMAKE_PREFIX_PATH=$PREFIX                      \
-                -DLLVM_DIR=$LLVM_BUILD_DIR/lib/cmake/llvm       \
-                -DLLD_DIR=$LLVM_BUILD_DIR/lib/cmake/lld         \
-                -DClang_DIR=$LLVM_BUILD_DIR/lib/cmake/clang     \
+                -DCMAKE_PREFIX_PATH=${{ env.PREFIX }}                      \
+                -DLLVM_DIR=${{ env.LLVM_BUILD_DIR }}/lib/cmake/llvm       \
+                -DLLD_DIR=${{ env.LLVM_BUILD_DIR }}/lib/cmake/lld         \
+                -DClang_DIR=${{ env.LLVM_BUILD_DIR }}/lib/cmake/clang     \
                 -DCODE_COVERAGE=${{ env.CODE_COVERAGE }}    \
-                -DCMAKE_INSTALL_PREFIX=$PREFIX      \
+                -DCMAKE_INSTALL_PREFIX=${{ env.PREFIX }}     \
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            \
                 -DLLVM_ENABLE_WERROR=On                      \
-                -DSYSROOT_PATH=$SYSROOT_PATH                     \
+                -DSYSROOT_PATH=${{ env.SYSROOT_PATH }}                  \
                 ../
         fi
         os="${{ matrix.os }}"
@@ -435,13 +420,6 @@ runs:
         fi
         cd ../../..
 
-        echo "SYSROOT_PATH=$SYSROOT_PATH" >> $GITHUB_ENV
-        echo "CB_PYTHON_DIR=$CB_PYTHON_DIR" >> $GITHUB_ENV
-        echo "CPPINTEROP_DIR=$CPPINTEROP_DIR" >> $GITHUB_ENV
-        echo "LLVM_BUILD_DIR=$LLVM_BUILD_DIR" >> $GITHUB_ENV
-        echo "CPLUS_INCLUDE_PATH=$CPLUS_INCLUDE_PATH" >> $GITHUB_ENV
-        echo "PREFIX=$PREFIX" >> $GITHUB_ENV  
-
     - name: Emscripten build of CppInterOp on Windows systems (shared library)
       if: ${{ runner.os == 'Windows' && endsWith(matrix.name, '-emscripten') }}
       shell: powershell
@@ -493,9 +471,6 @@ runs:
         # Build CppInterOp next to cling and llvm-project.
         mkdir build
         cd build
-        $env:CPPINTEROP_BUILD_DIR="$env:PWD_DIR"
-        echo "CPPINTEROP_BUILD_DIR=$env:CPPINTEROP_BUILD_DIR"
-        echo "CPPINTEROP_BUILD_DIR=$env:CPPINTEROP_BUILD_DIR" >> $env:GITHUB_ENV
         if ( "${{ matrix.cling }}" -imatch "On" )
         {
           emcmake cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}        `
@@ -561,7 +536,6 @@ runs:
         cd ..\..
         Error-OnFailure { emmake make -j ${{ env.ncpus }} install }
         echo "SYSROOT_PATH=$env:SYSROOT_PATH" >> $GITHUB_ENV
-        echo "CPPINTEROP_DIR=$env:CPPINTEROP_DIR" >> $GITHUB_ENV
         echo "LLVM_BUILD_DIR=$env:LLVM_BUILD_DIR" >> $GITHUB_ENV
         echo "CPLUS_INCLUDE_PATH=$env:CPLUS_INCLUDE_PATH" >> $GITHUB_ENV
         echo "PREFIX=$env:PREFIX" >> $GITHUB_ENV
@@ -584,76 +558,39 @@ runs:
             exit $LASTEXITCODE
          }
         }
-        $env:PWD_DIR= $PWD.Path
-        $env:SYSROOT_PATH="$env:EMSDK/upstream/emscripten/cache/sysroot"
-        $env:PREFIX="%CONDA_PREFIX%/envs/CppInterOp-wasm"
-        $env:CMAKE_PREFIX_PATH=$env:PREFIX
-        $env:CMAKE_SYSTEM_PREFIX_PATH=$env:PREFIX
-        
-        $env:LLVM_DIR="$env:PWD_DIR\llvm-project"
-        echo "LLVM_DIR=$env:LLVM_DIR"
-        echo "LLVM_DIR=$env:LLVM_DIR" >> $env:GITHUB_ENV
-
-        $env:LLVM_BUILD_DIR="$env:PWD_DIR\llvm-project\build"
-        echo "LLVM_BUILD_DIR=$env:LLVM_BUILD_DIR"
-        echo "LLVM_BUILD_DIR=$env:LLVM_BUILD_DIR" >> $env:GITHUB_ENV
-
-        if ( "${{ matrix.cling }}" -imatch "On" )
-        {
-          $env:CLING_DIR="$env:PWD_DIR\cling"
-          echo "CLING_DIR=$env:CLING_DIR"
-          echo "CLING_DIR=$env:CLING_DIR" >> $env:GITHUB_ENV
-
-          $env:CLING_BUILD_DIR="$env:PWD_DIR\cling\build"
-          echo "CLING_BUILD_DIR=$env:CLING_BUILD_DIR"
-          echo "CLING_BUILD_DIR=$env:CLING_BUILD_DIR" >> $env:GITHUB_ENV
-
-          $env:CPLUS_INCLUDE_PATH="$env:CLING_DIR\tools\cling\include;$env:CLING_BUILD_DIR\include;$env:LLVM_DIR\llvm\include;$env:LLVM_DIR\clang\include;$env:LLVM_BUILD_DIR\include;$env:LLVM_BUILD_DIR\tools\clang\include;$env:PWD_DIR\include;"
-          echo "CPLUS_INCLUDE_PATH=$env:CPLUS_INCLUDE_PATH"
-          echo "CPLUS_INCLUDE_PATH=$env:CPLUS_INCLUDE_PATH" >> $env:GITHUB_ENV
-        }
-        else
-        {
-          $env:CPLUS_INCLUDE_PATH="$env:LLVM_DIR\llvm\include;$env:LLVM_DIR\clang\include;$env:LLVM_BUILD_DIR\include;$env:LLVM_BUILD_DIR\tools\clang\include;$env:PWD_DIR\include;"
-          echo "CPLUS_INCLUDE_PATH=$env:CPLUS_INCLUDE_PATH"
-          echo "CPLUS_INCLUDE_PATH=$env:CPLUS_INCLUDE_PATH" >> $env:GITHUB_ENV
-        }
 
         # Build CppInterOp next to cling and llvm-project.
         mkdir build_static
         cd build_static
-        $env:CPPINTEROP_BUILD_DIR="$env:PWD_DIR"
-        echo "CPPINTEROP_BUILD_DIR=$env:CPPINTEROP_BUILD_DIR"
-        echo "CPPINTEROP_BUILD_DIR=$env:CPPINTEROP_BUILD_DIR" >> $env:GITHUB_ENV
         if ( "${{ matrix.cling }}" -imatch "On" )
         {
           emcmake cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}        `
                 -DCPPINTEROP_USE_CLING=ON                                  `
                 -DCPPINTEROP_USE_REPL=OFF                                  `
-                -DCMAKE_PREFIX_PATH="$env:PREFIX"                     `
-                -DCling_DIR="$env:LLVM_BUILD_DIR\tools\cling"         `
-                -DLLVM_DIR="$env:LLVM_BUILD_DIR\lib\cmake\llvm"        `
-                -DLLD_DIR="$env:LLVM_BUILD_DIR\lib\cmake\lld"       `
-                -DClang_DIR="$env:LLVM_BUILD_DIR\lib\cmake\clang"     `
+                -DCMAKE_PREFIX_PATH=${{ env.PREFIX }}                     `
+                -DCling_DIR="${{ env.LLVM_BUILD_DIR }}\tools\cling"         `
+                -DLLVM_DIR="${{ env.LLVM_BUILD_DIR }}\lib\cmake\llvm"        `
+                -DLLD_DIR="${{ env.LLVM_BUILD_DIR }}\lib\cmake\lld"       `
+                -DClang_DIR="${{ env.LLVM_BUILD_DIR }}\lib\cmake\clang"     `
                 -DCODE_COVERAGE=${{ env.CODE_COVERAGE }}        `
-                -DCMAKE_INSTALL_PREFIX="$env:PREFIX"         `
+                -DCMAKE_INSTALL_PREFIX=${{ env.PREFIX }}        `
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            `
                 -DLLVM_ENABLE_WERROR=On                      `
-                -DSYSROOT_PATH="$env:SYSROOT_PATH"              `
+                -DSYSROOT_PATH=${{ env.SYSROOT_PATH }}             `
                 ..\
         }
         else
         {
           emcmake cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    `
-                -DCMAKE_PREFIX_PATH="$env:PREFIX"                      `
-                -DLLVM_DIR="$env:LLVM_BUILD_DIR\lib\cmake\llvm"        `
-                -DLLD_DIR="$env:LLVM_BUILD_DIR\lib\cmake\lld"        `
-                -DClang_DIR="$env:LLVM_BUILD_DIR\lib\cmake\clang"    `
+                -DCMAKE_PREFIX_PATH=${{ env.PREFIX }}                     `
+                -DLLVM_DIR="${{ env.LLVM_BUILD_DIR }}\lib\cmake\llvm"        `
+                -DLLD_DIR="${{ env.LLVM_BUILD_DIR }}\lib\cmake\lld"        `
+                -DClang_DIR="${{ env.LLVM_BUILD_DIR }}\lib\cmake\clang"    `
                 -DCODE_COVERAGE=${{ env.CODE_COVERAGE }}    `
-                -DCMAKE_INSTALL_PREFIX="$env:PREFIX"      `
+                -DCMAKE_INSTALL_PREFIX=${{ env.PREFIX }}      `
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            `
                 -DLLVM_ENABLE_WERROR=On                      `
-                -DSYSROOT_PATH="$env:SYSROOT_PATH"                     `
+                -DSYSROOT_PATH=${{ env.SYSROOT_PATH }}                    `
                 ..\
         }
         Error-OnFailure { emmake make -j ${{ env.ncpus }} check-cppinterop }
