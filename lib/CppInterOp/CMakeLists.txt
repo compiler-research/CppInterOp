@@ -54,8 +54,17 @@ if(NOT WIN32 AND NOT EMSCRIPTEN)
   list(APPEND link_libs dl)
 endif()
 
-if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU" AND CMAKE_CXX_COMPILER_VERSION VERSION_LESS 9.0)
- list(APPEND link_libs stdc++fs)
+# Check if we need to link -lstdc++fs to use <filesystem> (libstdc++ 8 and older).
+include(CheckCXXSourceCompiles)
+set(_filesystem_src "#include <filesystem>
+int main() { std::filesystem::path p = \"path\"; return 0; }")
+check_cxx_source_compiles("${_filesystem_src}" HAVE_NATIVE_FILESYSTEM)
+if(NOT HAVE_NATIVE_FILESYSTEM)
+    set(CMAKE_REQUIRED_LIBRARIES stdc++fs)
+    check_cxx_source_compiles("${_filesystem_src}" NEED_STDCXXFS)
+    if(NEED_STDCXXFS)
+        list(APPEND link_libs stdc++fs)
+    endif()
 endif()
 
 # Get rid of libLLVM-X.so which is appended to the list of static libraries.
