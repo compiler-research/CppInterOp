@@ -62,6 +62,7 @@
 #include "llvm/Support/CommandLine.h"
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/Error.h"
+#include "llvm/Support/FileSystem.h"
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/raw_ostream.h"
@@ -74,7 +75,6 @@
 #include <cstdint>
 #include <cstdio>
 #include <deque>
-#include <filesystem>
 #include <iostream>
 #include <iterator>
 #include <map>
@@ -3354,8 +3354,8 @@ TInterp_t CreateInterpreter(const std::vector<const char*>& Args /*={}*/,
   if (ResourceDir.empty())
     ResourceDir = MakeResourcesPath();
   llvm::Triple T(llvm::sys::getProcessTriple());
-  namespace fs = std::filesystem;
-  if ((!fs::is_directory(ResourceDir)) && (T.isOSDarwin() || T.isOSLinux()))
+  if ((!sys::fs::is_directory(ResourceDir)) &&
+      (T.isOSDarwin() || T.isOSLinux()))
     ResourceDir = DetectResourceDir();
 
   std::vector<const char*> ClingArgv = {"-resource-dir", ResourceDir.c_str(),
