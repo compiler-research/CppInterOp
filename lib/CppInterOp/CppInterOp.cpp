@@ -87,7 +87,7 @@
 #ifndef _WIN32
 #include <unistd.h>
 #endif
-
+#include <utility>
 // Stream redirect.
 #ifdef _WIN32
 #include <io.h>
@@ -135,7 +135,6 @@ namespace CppImpl {
 
 using namespace clang;
 using namespace llvm;
-using namespace std;
 
 struct InterpreterInfo {
   compat::Interpreter* Interpreter = nullptr;
@@ -2008,7 +2007,7 @@ enum EReferenceType { kNotReference, kLValueReference, kRValueReference };
 
 // FIXME: Use that routine throughout CallFunc's port in places such as
 // make_narg_call.
-static inline void indent(ostringstream& buf, int indent_level) {
+inline void indent(std::ostringstream& buf, int indent_level) {
   static const std::string kIndentString("   ");
   for (int i = 0; i < indent_level; ++i)
     buf << kIndentString;
@@ -3058,9 +3057,9 @@ static std::string PrepareStructorWrapper(const Decl* D,
   //
   //  Make the wrapper name.
   //
-  string wrapper_name;
+  std::string wrapper_name;
   {
-    ostringstream buf;
+    std::ostringstream buf;
     buf << wrapper_prefix;
     // const NamedDecl* ND = dyn_cast<NamedDecl>(FD);
     // string mn;
@@ -3103,7 +3102,7 @@ static JitCall::DestructorCall make_dtor_wrapper(compat::Interpreter& interp,
   //
   //--
 
-  static map<const Decl*, void*> gDtorWrapperStore;
+  static std::map<const Decl*, void*> gDtorWrapperStore;
 
   auto I = gDtorWrapperStore.find(D);
   if (I != gDtorWrapperStore.end())
@@ -3113,12 +3112,12 @@ static JitCall::DestructorCall make_dtor_wrapper(compat::Interpreter& interp,
   //  Make the wrapper name.
   //
   std::string class_name;
-  string wrapper_name = PrepareStructorWrapper(D, "__dtor", class_name);
+  std::string wrapper_name = PrepareStructorWrapper(D, "__dtor", class_name);
   //
   //  Write the wrapper code.
   //
   int indent_level = 0;
-  ostringstream buf;
+  std::ostringstream buf;
   buf << "__attribute__((used)) ";
   buf << "extern \"C\" void ";
   buf << wrapper_name;
@@ -3199,7 +3198,7 @@ static JitCall::DestructorCall make_dtor_wrapper(compat::Interpreter& interp,
   --indent_level;
   buf << "}\n";
   // Done.
-  string wrapper(buf.str());
+  std::string wrapper(buf.str());
   // fprintf(stderr, "%s\n", wrapper.c_str());
   //
   //   Compile the wrapper code.
@@ -3207,7 +3206,7 @@ static JitCall::DestructorCall make_dtor_wrapper(compat::Interpreter& interp,
   void* F = compile_wrapper(interp, wrapper_name, wrapper,
                             /*withAccessControl=*/false);
   if (F) {
-    gDtorWrapperStore.insert(make_pair(D, F));
+    gDtorWrapperStore.insert(std::make_pair(D, F));
   } else {
     llvm::errs() << "make_dtor_wrapper"
                  << "Failed to compile\n"
