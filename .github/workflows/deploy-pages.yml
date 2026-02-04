@@ -21,7 +21,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: osx26-arm-clang-repl-21-emscripten_wasm
+          - name: osx26-arm-clang-repl-21-emscripten
             os: macos-26
             clang-runtime: '21'
             cling: Off
