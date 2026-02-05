@@ -383,9 +383,7 @@ bool IsComplete(TCppScope_t scope) {
     QualType QT = QualType::getFromOpaquePtr(GetTypeFromScope(scope));
     clang::Sema& S = getSema();
     SourceLocation fakeLoc = GetValidSLoc(S);
-#ifdef CPPINTEROP_USE_CLING
-    cling::Interpreter::PushTransactionRAII RAII(&getInterp());
-#endif // CPPINTEROP_USE_CLING
+    compat::SynthesizingCodeRAII RAII(&getInterp());
     return S.isCompleteType(fakeLoc, QT);
   }
 
@@ -799,8 +797,8 @@ TCppScope_t GetNamed(const std::string& name,
 #ifdef CPPINTEROP_USE_CLING
   if (Within)
     Within->getPrimaryContext()->buildLookup();
-  cling::Interpreter::PushTransactionRAII RAII(&getInterp());
 #endif
+  compat::SynthesizingCodeRAII RAII(&getInterp());
   auto* ND = CppInternal::utils::Lookup::Named(&getSema(), name, Within);
   if (ND && ND != (clang::NamedDecl*)-1) {
     return (TCppScope_t)(ND->getCanonicalDecl());
@@ -958,9 +956,7 @@ static void GetClassDecls(TCppScope_t klass,
     return;
 
   auto* CXXRD = dyn_cast<CXXRecordDecl>(D);
-#ifdef CPPINTEROP_USE_CLING
-  cling::Interpreter::PushTransactionRAII RAII(&getInterp());
-#endif // CPPINTEROP_USE_CLING
+  compat::SynthesizingCodeRAII RAII(&getInterp());
   if (CXXRD->hasDefinition())
     CXXRD = CXXRD->getDefinition();
   getSema().ForceDeclarationOfImplicitMembers(CXXRD);
@@ -1018,9 +1014,7 @@ TCppFunction_t GetDefaultConstructor(compat::Interpreter& interp,
     return nullptr;
 
   auto* CXXRD = (clang::CXXRecordDecl*)scope;
-#ifdef CPPINTEROP_USE_CLING
-  cling::Interpreter::PushTransactionRAII RAII(&getInterp());
-#endif
+  compat::SynthesizingCodeRAII RAII(&getInterp());
   return interp.getCI()->getSema().LookupDefaultConstructor(CXXRD);
 }
 
@@ -1284,9 +1278,7 @@ BestOverloadFunctionMatch(const std::vector<TCppFunction_t>& candidates,
   auto& S = getSema();
   auto& C = S.getASTContext();
 
-#ifdef CPPINTEROP_USE_CLING
-  cling::Interpreter::PushTransactionRAII RAII(&getInterp());
-#endif
+  compat::SynthesizingCodeRAII RAII(&getInterp());
 
   // The overload resolution interfaces in Sema require a list of expressions.
   // However, unlike handwritten C++, we do not always have a expression.
@@ -1683,9 +1675,7 @@ intptr_t GetVariableOffset(compat::Interpreter& I, Decl* D,
       address = I.getAddressOfGlobal(GD);
     if (!address) {
       if (!VD->hasInit()) {
-#ifdef CPPINTEROP_USE_CLING
-        cling::Interpreter::PushTransactionRAII RAII(&getInterp());
-#endif // CPPINTEROP_USE_CLING
+        compat::SynthesizingCodeRAII RAII(&getInterp());
         getSema().InstantiateVariableDefinition(SourceLocation(), VD);
         VD = VD->getDefinition();
       }
@@ -2615,9 +2605,7 @@ int get_wrapper_code(compat::Interpreter& I, const FunctionDecl* FD,
   //
   bool needInstantiation = false;
   const FunctionDecl* Definition = 0;
-#ifdef CPPINTEROP_USE_CLING
-  cling::Interpreter::PushTransactionRAII RAII(&I);
-#endif
+  compat::SynthesizingCodeRAII RAII(&getInterp());
   if (!FD->isDefined(Definition)) {
     FunctionDecl::TemplatedKind TK = FD->getTemplatedKind();
     switch (TK) {
@@ -3894,11 +3882,8 @@ TCppScope_t InstantiateTemplate(compat::Interpreter& I, TCppScope_t tmpl,
   }
 
   TemplateDecl* TmplD = static_cast<TemplateDecl*>(tmpl);
-
   // We will create a new decl, push a transaction.
-#ifdef CPPINTEROP_USE_CLING
-  cling::Interpreter::PushTransactionRAII RAII(&I);
-#endif
+  compat::SynthesizingCodeRAII RAII(&getInterp());
   return InstantiateTemplate(TmplD, TemplateArgs, S, instantiate_body);
 }
 
@@ -3957,9 +3942,7 @@ void GetAllCppNames(TCppScope_t scope, std::set<std::string>& names) {
   clang::DeclContext* DC;
   clang::DeclContext::decl_iterator decl;
 
-#ifdef CPPINTEROP_USE_CLING
-  cling::Interpreter::PushTransactionRAII RAII(&getInterp());
-#endif
+  compat::SynthesizingCodeRAII RAII(&getInterp());
 
   if (auto* TD = dyn_cast_or_null<TagDecl>(D)) {
     DC = clang::TagDecl::castToDeclContext(TD);
@@ -4037,9 +4020,7 @@ bool IsTypeDerivedFrom(TCppType_t derived, TCppType_t base) {
   auto derivedType = clang::QualType::getFromOpaquePtr(derived);
   auto baseType = clang::QualType::getFromOpaquePtr(base);
 
-#ifdef CPPINTEROP_USE_CLING
-  cling::Interpreter::PushTransactionRAII RAII(&getInterp());
-#endif
+  compat::SynthesizingCodeRAII RAII(&getInterp());
   return S.IsDerivedFrom(fakeLoc, derivedType, baseType);
 }
 
@@ -4058,9 +4039,7 @@ std::string GetFunctionArgDefault(TCppFunction_t func,
     std::string Result;
     llvm::raw_string_ostream OS(Result);
     Expr* DefaultArgExpr = nullptr;
-#ifdef CPPINTEROP_USE_CLING
-    cling::Interpreter::PushTransactionRAII RAII(&I);
-#endif
+    compat::SynthesizingCodeRAII RAII(&getInterp());
     if (PI->hasUninstantiatedDefaultArg())
       DefaultArgExpr = PI->getUninstantiatedDefaultArg();
     else
@@ -4146,9 +4125,7 @@ OperatorArity GetOperatorArity(TCppFunction_t op) {
 void GetOperator(TCppScope_t scope, Operator op,
                  std::vector<TCppFunction_t>& operators, OperatorArity kind) {
   Decl* D = static_cast<Decl*>(scope);
-#ifdef CPPINTEROP_USE_CLING
-  cling::Interpreter::PushTransactionRAII RAII(&I);
-#endif
+  compat::SynthesizingCodeRAII RAII(&getInterp());
   if (auto* CXXRD = llvm::dyn_cast_or_null<CXXRecordDecl>(D)) {
     auto fn = [&operators, kind, op](const RecordDecl* RD) {
       ASTContext& C = RD->getASTContext();
@@ -4378,10 +4355,9 @@ void CodeComplete(std::vector<std::string>& Results, const char* code,
 }
 
 int Undo(unsigned N) {
+  compat::SynthesizingCodeRAII RAII(&getInterp());
 #ifdef CPPINTEROP_USE_CLING
-  auto& I = getInterp();
-  cling::Interpreter::PushTransactionRAII RAII(&I);
-  I.unload(N);
+  getInterp().unload(N);
   return compat::Interpreter::kSuccess;
 #else
   return getInterp().undo(N);
