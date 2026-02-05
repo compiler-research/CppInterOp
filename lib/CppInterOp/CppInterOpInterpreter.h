@@ -22,8 +22,8 @@
 #include "clang/Frontend/FrontendOptions.h"
 #include "clang/Lex/Preprocessor.h"
 #include "clang/Sema/Lookup.h"
-#include "clang/Sema/Sema.h"
 #include "clang/Sema/Redeclaration.h"
+#include "clang/Sema/Sema.h"
 #include "clang/Serialization/ModuleFileExtension.h"
 
 #include "llvm/ADT/DenseMap.h"
