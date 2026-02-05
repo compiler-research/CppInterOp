@@ -53,7 +53,7 @@ jobs:
             compiler: gcc-9
             clang-runtime: '20'
             cling: On
-            cppyy: Off
+            cppyy: On
             cling-version: '1.2'
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
@@ -109,7 +109,7 @@ jobs:
             compiler: gcc-9
             clang-runtime: '20'
             cling: On
-            cppyy: Off
+            cppyy: On
             cling-version: '1.2'
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
