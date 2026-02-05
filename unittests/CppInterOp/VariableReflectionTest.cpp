@@ -114,6 +114,9 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, VariableReflection_GetDatamembers) {
 CODE
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, VariableReflection_DatamembersWithAnonymousStructOrUnion) {
+#if CLANG_VERSION_MAJOR == 20 && defined(CPPINTEROP_USE_CLING) && defined(_WIN32)
+  GTEST_SKIP() << "Test fails with Cling on Windows";
+#endif
   if (llvm::sys::RunningOnValgrind())
     GTEST_SKIP() << "XFAIL due to Valgrind report";
 
@@ -383,6 +386,9 @@ CODE
 TYPED_TEST(CPPINTEROP_TEST_MODE, VariableReflection_VariableOffsetsWithInheritance) {
 #ifdef __EMSCRIPTEN__
   GTEST_SKIP() << "This test crashes for Emscripten builds of CppInterOp";
+#endif
+#if CLANG_VERSION_MAJOR == 20 && defined(CPPINTEROP_USE_CLING) && defined(_WIN32)
+  GTEST_SKIP() << "Test fails with Cling on Windows";
 #endif
   if (llvm::sys::RunningOnValgrind())
     GTEST_SKIP() << "XFAIL due to Valgrind report";

@@ -41,8 +41,8 @@
 #include "clang/Sema/Lookup.h"
 #include "clang/Sema/Overload.h"
 #include "clang/Sema/Ownership.h"
-#include "clang/Sema/Sema.h"
 #include "clang/Sema/Redeclaration.h"
+#include "clang/Sema/Sema.h"
 #include "clang/Sema/TemplateDeduction.h"
 
 #include "llvm/ADT/SmallString.h"
