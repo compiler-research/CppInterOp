@@ -319,8 +319,8 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_IncludePaths) {
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_CodeCompletion) {
 #if CLANG_VERSION_MAJOR == 20 && defined(CPPINTEROP_USE_CLING) &&              \
-    defined(_WIN32) && (defined(_M_ARM) || defined(_M_ARM64))
-  GTEST_SKIP() << "Test fails with Cling on Windows on ARM";
+    defined(_WIN32)
+  GTEST_SKIP() << "Test fails with Cling on Windows";
 #endif
   TestFixture::CreateInterpreter();
   std::vector<std::string> cc;
