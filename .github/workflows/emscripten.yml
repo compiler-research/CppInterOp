@@ -209,7 +209,7 @@ jobs:
                         -DCMAKE_CXX_FLAGS_RELEASE="-Oz -g0 -DNDEBUG" \
                         -DLLVM_ENABLE_LTO=Full \
                          ../llvm
-          EMCC_CFLAGS="-sSUPPORT_LONGJMP=wasm -fwasm-exceptions" emmake ninja clang cling lld gtest_main
+          EMCC_CFLAGS="-fwasm-exceptions" emmake ninja clang cling lld gtest_main
         else
           # Apply patches
           llvm_vers=$(echo "${{ matrix.clang-runtime }}" | tr '[:lower:]' '[:upper:]')
@@ -242,7 +242,7 @@ jobs:
                         -DCMAKE_CXX_FLAGS_RELEASE="-Oz -g0 -DNDEBUG" \
                         -DLLVM_ENABLE_LTO=Full \
                         ../llvm
-          EMCC_CFLAGS="-sSUPPORT_LONGJMP=wasm -fwasm-exceptions" emmake ninja libclang clangInterpreter clangStaticAnalyzerCore
+          EMCC_CFLAGS="-fwasm-exceptions" emmake ninja libclang clangInterpreter clangStaticAnalyzerCore
         fi
         cd ../
         rm -rf $(find . -maxdepth 1 ! -name "build" ! -name "llvm" ! -name "clang" ! -name ".")
@@ -322,7 +322,7 @@ jobs:
                         -DLLVM_ENABLE_LTO=Full `
                         -DLLVM_NATIVE_TOOL_DIR="$env:NATIVE_DIR" 		    `
                 ..\llvm
-          $env:EMCC_CFLAGS="-sSUPPORT_LONGJMP=wasm -fwasm-exceptions"
+          $env:EMCC_CFLAGS="-fwasm-exceptions"
           emmake make clang cling lld gtest_main
           $env:EMCC_CFLAGS=""
         }
@@ -373,7 +373,7 @@ jobs:
                         -G Ninja `
                         -DLLVM_NATIVE_TOOL_DIR="$env:NATIVE_DIR" 		          `
                         ..\llvm
-          $env:EMCC_CFLAGS="-sSUPPORT_LONGJMP=wasm -fwasm-exceptions"
+          $env:EMCC_CFLAGS="-fwasm-exceptions"
           emmake ninja libclang clangInterpreter clangStaticAnalyzerCore
           $env:EMCC_CFLAGS=""
         }
@@ -442,7 +442,7 @@ jobs:
           -DXEUS_CPP_RESOURCE_DIR=${{ env.LLVM_BUILD_DIR }}/lib/clang/${{ matrix.clang-runtime }} \
           -DSYSROOT_PATH=${{ env.SYSROOT_PATH }}                     \
           ..
-        EMCC_CFLAGS="-sSUPPORT_LONGJMP=wasm -fwasm-exceptions" emmake make -j ${{ env.ncpus }} install
+        emmake make -j ${{ env.ncpus }} install
 
     - name: Build xeus-cpp on Windows systems
       if: ${{ runner.os == 'windows' }}
@@ -466,9 +466,7 @@ jobs:
           -DXEUS_CPP_RESOURCE_DIR=${{ env.LLVM_BUILD_DIR }}\lib\clang\${{ matrix.clang-runtime }} `
           -DSYSROOT_PATH=${{ env.SYSROOT_PATH }}                `
           ..
-        $env:EMCC_CFLAGS="-sSUPPORT_LONGJMP=wasm -fwasm-exceptions"
         emmake make -j ${{ env.ncpus }} install
-        $env:EMCC_CFLAGS=""
 
     - name: Test xeus-cpp C++ Emscripten on Unix Systems
       if: ${{ runner.os != 'windows' }}
