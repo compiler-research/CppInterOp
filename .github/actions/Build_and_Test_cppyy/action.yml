@@ -52,7 +52,9 @@ runs:
         # Install cppyy
         git clone --depth=1 https://github.com/compiler-research/cppyy.git
         cd cppyy
-        python -m pip install --upgrade . --no-deps
+        python -m pip install --upgrade pip
+        python -m pip install -r requirements.txt
+        python -m pip install --upgrade . --no-deps --verbose
         cd ..
 
     - name: Run cppyy
@@ -75,10 +77,6 @@ runs:
         cd cppyy/test
         echo ::group::Prepare For Testing
         make all
-        python -m pip install --upgrade pip
-        python -m pip install pytest
-        python -m pip install pytest-xdist
-        python -m pip install numba==0.61.2
         echo ::endgroup::
         echo ::group::Run complete test suite
         set -o pipefail
