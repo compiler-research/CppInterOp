@@ -147,7 +147,7 @@ build instructions to build on Linux and MacOS
 
 .. code:: bash
 
-   git clone --depth=1 --branch tags/v1.3 https://github.com/root-project/cling.git
+   git clone --depth=1 --branch v1.3 https://github.com/root-project/cling.git
    git clone --depth=1 -b cling-llvm20 https://github.com/root-project/llvm-project.git
    mkdir llvm-project/build
    cd llvm-project/build
@@ -169,7 +169,7 @@ Use the following build instructions to build on Windows
 
 .. code:: powershell
 
-   git clone --depth=1 --branch tags/v1.3 https://github.com/root-project/cling.git
+   git clone --depth=1 --branch v1.3 https://github.com/root-project/cling.git
    git clone --depth=1 -b cling-llvm20 https://github.com/root-project/llvm-project.git
    $env:ncpus = $([Environment]::ProcessorCount)
    $env:PWD_DIR= $PWD.Path

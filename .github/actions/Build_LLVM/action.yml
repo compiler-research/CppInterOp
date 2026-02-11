@@ -13,7 +13,7 @@ runs:
       run: |
         cling_on=$(echo "${{ matrix.cling }}" | tr '[:lower:]' '[:upper:]')
         if [[ "${cling_on}" == "ON" ]]; then
-          git clone --depth=1 --branch tags/v${{ matrix.cling-version }} https://github.com/root-project/cling.git
+          git clone --depth=1 --branch v${{ matrix.cling-version }} https://github.com/root-project/cling.git
           git clone --depth=1 -b cling-llvm${{ matrix.clang-runtime }} https://github.com/root-project/llvm-project.git
         else # repl
           git clone --depth=1 -b release/${{ matrix.clang-runtime }}.x https://github.com/llvm/llvm-project.git
@@ -96,7 +96,7 @@ runs:
 
         if ( "${{ matrix.cling }}" -imatch "On" )
         {
-          git clone --depth=1 --branch tags/v${{ matrix.cling-version }} https://github.com/root-project/cling.git
+          git clone --depth=1 --branch v${{ matrix.cling-version }} https://github.com/root-project/cling.git
           git clone --depth=1 -b cling-llvm${{ matrix.clang-runtime }} https://github.com/root-project/llvm-project.git
           $env:PWD_DIR= $PWD.Path
           $env:CLING_DIR="$env:PWD_DIR\cling"
