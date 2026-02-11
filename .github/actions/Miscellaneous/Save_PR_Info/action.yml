@@ -15,11 +15,8 @@ runs:
 
         cling_on=$(echo "${{ matrix.cling }}" | tr '[:lower:]' '[:upper:]')
         if [[ "$cling_on" == "ON" ]]; then
-          # FIXME: Revert back to non static hash after cling 1.3 released
-          #export CLING_HASH=$(git ls-remote https://github.com/root-project/cling.git refs/tags/v${{ matrix.cling-version }} | tr '\t' '-')
-          #export LLVM_HASH=$(git ls-remote https://github.com/root-project/llvm-project.git cling-llvm${{ matrix.clang-runtime}} | tr '\t' '-')
-          export CLING_HASH="72f12fd1712a5dbea379b9df833af2cc11913706"
-          export LLVM_HASH="6fb92ab985353ed71faec49beaaf5d111e041f8c"
+          export CLING_HASH=$(git ls-remote https://github.com/root-project/cling.git refs/tags/v${{ matrix.cling-version }} | tr '\t' '-')
+          export LLVM_HASH=$(git ls-remote https://github.com/root-project/llvm-project.git cling-llvm${{ matrix.clang-runtime}} | tr '\t' '-')
         else
           export CLING_HASH="Repl"
           # May need to revert back to both having same llvm_hash, as below cause llvm to be rebuilt everytime commit is made to llvm/llvm-project for release a.x
@@ -55,8 +52,5 @@ runs:
 
         echo "CLING_HASH=$env:CLING_HASH"
         echo "LLVM_HASH=$env:LLVM_HASH"
-        # FIXME: Revert back to non static hash after cling 1.3 released
-        $env:CLING_HASH="72f12fd1712a5dbea379b9df833af2cc11913706"
-        $env:LLVM_HASH="6fb92ab985353ed71faec49beaaf5d111e041f8c"
         echo "CLING_HASH=$env:CLING_HASH" >> $GITHUB_ENV
         echo "LLVM_HASH=$env:LLVM_HASH" >> $GITHUB_ENV
