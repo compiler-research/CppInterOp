@@ -25,6 +25,7 @@
 
 #include <cstdlib>
 #include <iostream>
+#include <memory>
 #include <mutex>
 
 #ifdef _WIN32
@@ -191,14 +192,18 @@ extern "C" CPPINTEROP_API CppFnPtrTy CppGetProcAddress(const char* procname);
 // TODO: implement overload that takes an existing opened DL handle
 inline void* dlGetProcAddress(const char* name,
                               const char* customLibPath = nullptr) {
-  if (!name)
-    return nullptr;
+  static auto init = std::make_unique<std::once_flag>();
+  static void* (*getProc)(const char*);
 
-  static std::once_flag init;
-  static void* (*getProc)(const char*) = nullptr;
+  // magic reset to keep static init inlined in function
+  if (!name) {
+    init = std::make_unique<std::once_flag>();
+    getProc = nullptr;
+    return nullptr;
+  }
 
   // this is currently not tested in a multiple thread/process setup
-  std::call_once(init, [customLibPath]() {
+  std::call_once(*init, [customLibPath]() {
     const char* path =
         customLibPath ? customLibPath : std::getenv("CPPINTEROP_LIBRARY_PATH");
     if (!path)
@@ -211,6 +216,9 @@ inline void* dlGetProcAddress(const char* name,
           GetProcAddress(h, "CppGetProcAddress"));
       if (!getProc)
         FreeLibrary(h);
+    } else {
+      std::cerr << "[CppInterOp Dispatch] error code=" << GetLastError()
+                << "\n";
     }
 #else
     void* handle = dlopen(path, RTLD_LOCAL | RTLD_NOW);
@@ -218,12 +226,21 @@ inline void* dlGetProcAddress(const char* name,
       // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
       getProc = reinterpret_cast<void* (*)(const char*)>(
           dlsym(handle, "CppGetProcAddress"));
-      if (!getProc) dlclose(handle);
+      if (!getProc)
+        dlclose(handle);
+    } else {
+      std::cerr << "[CppInterOp Dispatch] " << dlerror() << "\n";
     }
 #endif
   });
 
-  return getProc ? getProc(name) : nullptr;
+  if (!getProc) {
+    init = std::make_unique<std::once_flag>();
+    getProc = nullptr;
+    return nullptr;
+  }
+
+  return getProc(name);
 }
 
 // CppAPIType is used for the extern clauses below
@@ -286,6 +303,7 @@ inline void UnloadDispatchAPI() {
 #define DISPATCH_API(name, type) name = nullptr;
   CPPINTEROP_API_TABLE
 #undef DISPATCH_API
+  dlGetProcAddress(nullptr, nullptr); // this is a magic reset
 }
 } // namespace CppInternal::Dispatch
 
