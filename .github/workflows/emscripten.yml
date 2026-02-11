@@ -14,7 +14,7 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build_cache:
+  build:
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
     strategy:
@@ -28,6 +28,8 @@ jobs:
             llvm_enable_projects: "clang;lld"
             llvm_targets_to_build: "WebAssembly"
             emsdk_ver: "4.0.9"
+            build_static_library: On
+            micromamba_shell_init: bash
           - name: osx26-arm-clang-repl-20-emscripten
             os: macos-26
             clang-runtime: '20'
@@ -35,6 +37,8 @@ jobs:
             llvm_enable_projects: "clang;lld"
             llvm_targets_to_build: "WebAssembly"
             emsdk_ver: "4.0.9"
+            build_static_library: On
+            micromamba_shell_init: bash
           - name: ubu24-x86-clang-repl-20-emscripten
             os: ubuntu-24.04
             clang-runtime: '20'
@@ -42,6 +46,8 @@ jobs:
             llvm_enable_projects: "clang;lld"
             llvm_targets_to_build: "WebAssembly"
             emsdk_ver: "4.0.9"
+            build_static_library: On
+            micromamba_shell_init: bash
           - name: win2025-x86-clang-repl-20-emscripten
             os: windows-2025
             clang-runtime: '20'
@@ -49,6 +55,8 @@ jobs:
             llvm_enable_projects: "clang;lld"
             llvm_targets_to_build: "WebAssembly"
             emsdk_ver: "4.0.9"
+            build_static_library: On
+            micromamba_shell_init: powershell
           - name: ubu24-arm-clang-repl-21-emscripten
             os: ubuntu-24.04-arm
             clang-runtime: '21'
@@ -56,6 +64,8 @@ jobs:
             llvm_enable_projects: "clang;lld"
             llvm_targets_to_build: "WebAssembly"
             emsdk_ver: "4.0.9"
+            build_static_library: On
+            micromamba_shell_init: bash  
           - name: osx26-arm-clang-repl-21-emscripten
             os: macos-26
             clang-runtime: '21'
@@ -63,6 +73,8 @@ jobs:
             llvm_enable_projects: "clang;lld"
             llvm_targets_to_build: "WebAssembly"
             emsdk_ver: "4.0.9"
+            build_static_library: On
+            micromamba_shell_init: bash
           - name: ubu24-x86-clang-repl-21-emscripten
             os: ubuntu-24.04
             clang-runtime: '21'
@@ -70,6 +82,8 @@ jobs:
             llvm_enable_projects: "clang;lld"
             llvm_targets_to_build: "WebAssembly"
             emsdk_ver: "4.0.9"
+            build_static_library: On
+            micromamba_shell_init: bash
           - name: win2025-x86-clang-repl-21-emscripten
             os: windows-2025
             clang-runtime: '21'
@@ -77,6 +91,8 @@ jobs:
             llvm_enable_projects: "clang;lld"
             llvm_targets_to_build: "WebAssembly"
             emsdk_ver: "4.0.9"
+            build_static_library: On
+            micromamba_shell_init: powershell
 
     steps:
     - uses: actions/checkout@v6
@@ -99,10 +115,8 @@ jobs:
           llvm-project
           ${{ matrix.cling=='On' && 'cling' || '' }}
         key: ${{ env.CLING_HASH }}-${{ runner.os }}-${{ matrix.os }}-clang-${{ matrix.clang-runtime }}.x-emscripten
-        lookup-only: true
 
     - name: Setup emsdk
-      if: ${{ steps.cache.outputs.cache-hit != 'true' }}
       run: |
           git clone --depth=1 https://github.com/emscripten-core/emsdk.git
           cd emsdk
@@ -391,106 +405,12 @@ jobs:
           ${{ matrix.cling=='On' && 'cling' || '' }}
         key: ${{ steps.cache.outputs.cache-primary-key }}
 
-  emscripten_wasm_CppInterOp_and_xeus_cpp:
-    needs: [build_cache]
-    name: ${{ matrix.name }}
-    runs-on: ${{ matrix.os }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - name: ubu24-x86-clang-repl-20-emscripten
-            os: ubuntu-24.04
-            clang-runtime: '20'
-            cling: Off
-            micromamba_shell_init: bash
-            emsdk_ver: "4.0.9"
-            build_static_library: On
-          - name: osx26-arm-clang-repl-20-emscripten
-            os: macos-26
-            clang-runtime: '20'
-            cling: Off
-            micromamba_shell_init: bash
-            emsdk_ver: "4.0.9"
-            build_static_library: On
-          - name: ubu24-arm-clang-repl-20-emscripten
-            os: ubuntu-24.04-arm
-            clang-runtime: '20'
-            cling: Off
-            micromamba_shell_init: bash
-            emsdk_ver: "4.0.9"
-            build_static_library: On
-          - name: win2025-x86-clang-repl-20-emscripten
-            os: windows-2025
-            clang-runtime: '20'
-            cling: Off
-            micromamba_shell_init: powershell
-            emsdk_ver: "4.0.9"
-            build_static_library: On
-          - name: ubu24-x86-clang-repl-21-emscripten
-            os: ubuntu-24.04
-            clang-runtime: '21'
-            cling: Off
-            micromamba_shell_init: bash
-            emsdk_ver: "4.0.9"
-            build_static_library: On
-          - name: osx26-arm-clang-repl-21-emscripten
-            os: macos-26
-            clang-runtime: '21'
-            cling: Off
-            micromamba_shell_init: bash
-            emsdk_ver: "4.0.9"
-            build_static_library: On
-          - name: ubu24-arm-clang-repl-21-emscripten
-            os: ubuntu-24.04-arm
-            clang-runtime: '21'
-            cling: Off
-            micromamba_shell_init: bash
-            emsdk_ver: "4.0.9"
-            build_static_library: On
-          - name: win2025-x86-clang-repl-21-emscripten
-            os: windows-2025
-            clang-runtime: '21'
-            cling: Off
-            micromamba_shell_init: powershell
-            emsdk_ver: "4.0.9"
-            build_static_library: On
-
-    steps:
-    - uses: actions/checkout@v6
-      with:
-        fetch-depth: 0
-
-    - name: Save PR Info
-      uses: ./.github/actions/Miscellaneous/Save_PR_Info
-
-    - name: Setup default Build Type
-      uses: ./.github/actions/Miscellaneous/Select_Default_Build_Type
-
-    - name: Setup default Build Type
-      uses: ./.github/actions/Miscellaneous/Select_Default_Build_Type
-
     - name: install mamba
       uses: mamba-org/setup-micromamba@main
       with:
         init-shell: >-
           ${{ matrix.micromamba_shell_init }}
 
-    - name: Setup emsdk
-      shell: bash -l {0}
-      run: |
-          git clone --depth=1 https://github.com/emscripten-core/emsdk.git
-          cd emsdk
-          ./emsdk install  ${{ matrix.emsdk_ver }}
-
-    - name: Restore cached LLVM-${{ matrix.clang-runtime }} and ${{ matrix.cling == 'On' && 'Cling' || 'Clang-REPL' }} build
-      uses: actions/cache/restore@v4
-      id: cache
-      with:
-        path: |
-          llvm-project
-          ${{ matrix.cling=='On' && 'cling' || '' }}
-        key: ${{ env.CLING_HASH }}-${{ runner.os }}-${{ matrix.os }}-clang-${{ matrix.clang-runtime }}.x-emscripten
     - name: micromamba shell hook
       if: runner.os == 'Windows'
       shell: powershell
