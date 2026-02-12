@@ -69,7 +69,7 @@ if(EMSCRIPTEN)
     PUBLIC "SHELL: -s WASM_BIGINT"
     PUBLIC "SHELL: -s ALLOW_MEMORY_GROWTH=1"
     PUBLIC "SHELL: -s STACK_SIZE=32mb"
-    PUBLIC "SHELL: -s INITIAL_MEMORY=128mb"
+    PUBLIC "SHELL: -s INITIAL_MEMORY=64mb"
     PUBLIC "SHELL: --preload-file ${ESCAPED_SYSROOT_PATH}/include@/include"
     PUBLIC "SHELL: --emrun"
   )
@@ -100,7 +100,7 @@ if(EMSCRIPTEN)
     PUBLIC "SHELL: -s WASM_BIGINT"
     PUBLIC "SHELL: -s ALLOW_MEMORY_GROWTH=1"
     PUBLIC "SHELL: -s STACK_SIZE=32mb"
-    PUBLIC "SHELL: -s INITIAL_MEMORY=128mb"
+    PUBLIC "SHELL: -s INITIAL_MEMORY=64mb"
     PUBLIC "SHELL: --preload-file ${ESCAPED_SYSROOT_PATH}/include@/include"
     PUBLIC "SHELL: --emrun"
     PUBLIC "SHELL: --preload-file ${ESCAPED_TEST_SHARED_LIBRARY_PATH}/libTestSharedLib.so@/libTestSharedLib.so"
