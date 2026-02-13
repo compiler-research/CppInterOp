@@ -1,5 +1,8 @@
 name: 'Builds and test cppyy'
 description: 'This action builds and tests cppyy for native platforms'
+inputs:
+  cxx-standard:
+    required: true
 
 runs:
   using: composite
@@ -15,7 +18,7 @@ runs:
         # Install CppInterOp
         (cd $CPPINTEROP_BUILD_DIR && cmake --build . --target install --parallel ${{ env.ncpus }} )
         # Build and Install cppyy-backend
-        cmake -DCppInterOp_DIR=$CPPINTEROP_DIR ..
+        cmake -DCppInterOp_DIR=$CPPINTEROP_DIR -DCMAKE_CXX_STANDARD=${{ inputs.cxx-standard }} ..
         cmake --build . --parallel ${{ env.ncpus }}
         os="${{ matrix.os }}"
         if [[ "${os}" == "macos"* ]]; then
@@ -35,7 +38,7 @@ runs:
         git clone --depth=1 https://github.com/compiler-research/CPyCppyy.git
         mkdir CPyCppyy/build
         cd CPyCppyy/build
-        cmake ..
+        cmake -DCMAKE_CXX_STANDARD=${{ inputs.cxx-standard }} ..
         cmake --build . --parallel ${{ env.ncpus }}
         #
         export CPYCPPYY_DIR=$PWD
@@ -137,4 +140,5 @@ runs:
         echo "XFAIL Summary:"
         tail -n1 test_xfailed.log
         echo "Return Code: ${RETCODE}"
+        rm -rf ../../.venv ../../CPyCppyy ../../cppyy-backend ../../cppyy
         exit $RETCODE

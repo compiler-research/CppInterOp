@@ -301,8 +301,20 @@ jobs:
         verbose: true
         token: ${{ secrets.CODECOV_TOKEN }}
 
-    - name: Build and test cppyy
+    - name: Build and test cppyy (c++17 standard)
       uses: ./.github/actions/Build_and_Test_cppyy        
+      with:
+        cxx-standard: 17
+
+    - name: Build and test cppyy (c++20 standard)
+      uses: ./.github/actions/Build_and_Test_cppyy        
+      with:
+        cxx-standard: 20
+
+    - name: Build and test cppyy (c++23 standard)
+      uses: ./.github/actions/Build_and_Test_cppyy        
+      with:
+        cxx-standard: 23
 
     - name: Show debug info
       if: ${{ failure() }}
@@ -315,6 +327,7 @@ jobs:
       uses: mxschmitt/action-tmate@v3
       # When debugging increase to a suitable value!
       timeout-minutes: 30
+
 
 
 
