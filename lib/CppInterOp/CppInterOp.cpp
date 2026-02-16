@@ -600,7 +600,7 @@ std::string GetCompleteName(TCppType_t klass) {
   if (auto* ND = llvm::dyn_cast_or_null<NamedDecl>(D)) {
     if (auto* TD = llvm::dyn_cast<TagDecl>(ND)) {
       std::string type_name;
-      QualType QT = C.getTagDeclType(TD);
+      QualType QT = C.Get_Tag_Type(TD);
       QT.getAsStringInternal(type_name, Policy);
       return type_name;
     }
@@ -643,11 +643,11 @@ std::string GetQualifiedCompleteName(TCppType_t klass) {
   if (auto* ND = llvm::dyn_cast_or_null<NamedDecl>(D)) {
     if (auto* TD = llvm::dyn_cast<TagDecl>(ND)) {
       std::string type_name;
-      QualType QT = C.getTagDeclType(TD);
+      QualType QT = C.Get_Tag_Type(TD);
       PrintingPolicy PP = C.getPrintingPolicy();
       PP.FullyQualifiedName = true;
       PP.SuppressUnwrittenScope = true;
-      PP.SuppressElaboration = true;
+      PP.Suppress_Elab = true;
       QT.getAsStringInternal(type_name, PP);
 
       return type_name;
@@ -1818,7 +1818,7 @@ std::string GetTypeAsString(TCppType_t var) {
   PrintingPolicy Policy((LangOptions()));
   Policy.Bool = true;               // Print bool instead of _Bool.
   Policy.SuppressTagKeyword = true; // Do not print `class std::string`.
-  Policy.SuppressElaboration = true;
+  Policy.Suppress_Elab = true;
   Policy.FullyQualifiedName = true;
   return QT.getAsString(Policy);
 }
@@ -2015,7 +2015,7 @@ void get_type_as_string(QualType QT, std::string& type_name, ASTContext& C,
   //       cling::utils::Transform::GetPartiallyDesugaredType()
   if (!QT->isTypedefNameType() || QT->isBuiltinType())
     QT = QT.getDesugaredType(C);
-  Policy.SuppressElaboration = true;
+  Policy.Suppress_Elab = true;
   Policy.SuppressTagKeyword = !QT->isEnumeralType();
   Policy.FullyQualifiedName = true;
   Policy.UsePreferredNames = false;
@@ -2057,7 +2057,7 @@ void collect_type_info(const FunctionDecl* FD, QualType& QT,
   //
   ASTContext& C = FD->getASTContext();
   PrintingPolicy Policy(C.getPrintingPolicy());
-  Policy.SuppressElaboration = true;
+  Policy.Suppress_Elab = true;
   refType = kNotReference;
   if (QT->isRecordType()) {
     if (forArgument) {
@@ -2286,7 +2286,7 @@ void make_narg_call(const FunctionDecl* FD, const std::string& return_type,
       PrintingPolicy PP = FD->getASTContext().getPrintingPolicy();
       PP.FullyQualifiedName = true;
       PP.SuppressUnwrittenScope = true;
-      PP.SuppressElaboration = true;
+      PP.Suppress_Elab = true;
       FD->getNameForDiagnostic(stream, PP,
                                /*Qualified=*/false);
       name = complete_name;
@@ -3751,7 +3751,11 @@ static Decl* InstantiateTemplate(TemplateDecl* TemplateD,
   }
 
   if (auto* VarTemplate = dyn_cast<VarTemplateDecl>(TemplateD)) {
+#if CLANG_VERSION_MAJOR < 22
     DeclResult R = S.CheckVarTemplateId(VarTemplate, fakeLoc, fakeLoc, TLI);
+#else
+    DeclResult R = S.CheckVarTemplateId(VarTemplate, fakeLoc, fakeLoc, TLI, /*SetWrittenArgs=*/true);
+#endif
     if (R.isInvalid()) {
       // FIXME: Diagnose
     }
@@ -3760,7 +3764,11 @@ static Decl* InstantiateTemplate(TemplateDecl* TemplateD,
 
   // This will instantiate tape<T> type and return it.
   SourceLocation noLoc;
+#if CLANG_VERSION_MAJOR < 22
   QualType TT = S.CheckTemplateIdType(TemplateName(TemplateD), noLoc, TLI);
+#else
+  QualType TT = S.CheckTemplateIdType(ElaboratedTypeKeyword::None, TemplateName(TemplateD), noLoc, TLI, /*Scope=*/nullptr, /*ForNestedNameSpecifier=*/false);
+#endif
   if (TT.isNull())
     return nullptr;
 

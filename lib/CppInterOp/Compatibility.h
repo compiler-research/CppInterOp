@@ -13,6 +13,19 @@
 #include "clang/Config/config.h"
 #include "clang/Sema/Sema.h"
 
+#if CLANG_VERSION_MAJOR < 22
+#define Suppress_Elab SuppressElaboration
+#else
+#define Suppress_Elab FullyQualifiedName
+#endif
+
+
+#if CLANG_VERSION_MAJOR < 22
+#define Get_Tag_Type getTagDeclType
+#else
+#define Get_Tag_Type getCanonicalTagType
+#endif
+
 #ifdef _MSC_VER
 #define dup _dup
 #define dup2 _dup2
@@ -348,8 +361,19 @@ inline void maybeMangleDeclName(const clang::GlobalDecl& GD,
 // Clang 18 - Add new Interpreter methods: CodeComplete
 
 inline llvm::orc::LLJIT* getExecutionEngine(clang::Interpreter& I) {
-  auto* engine = &llvm::cantFail(I.getExecutionEngine());
-  return const_cast<llvm::orc::LLJIT*>(engine);
+#if CLANG_VERSION_MAJOR < 22
+   auto* engine = &llvm::cantFail(I.getExecutionEngine());
+   return const_cast<llvm::orc::LLJIT*>(engine);
+#else
+  // FIXME: Remove the need of exposing the low-level execution engine and kill
+  // this horrible hack.
+   struct OrcIncrementalExecutor : public clang::IncrementalExecutor {
+     std::unique_ptr<llvm::orc::LLJIT> Jit;
+   };
+
+   auto &engine = static_cast<OrcIncrementalExecutor&>(llvm::cantFail(I.getExecutionEngine()));
+   return engine.Jit.get();
+#endif
 }
 
 inline llvm::Expected<llvm::JITTargetAddress>

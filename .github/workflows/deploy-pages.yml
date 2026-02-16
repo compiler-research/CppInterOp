@@ -21,9 +21,9 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: osx26-arm-clang-repl-21-emscripten
+          - name: osx26-arm-clang-repl-22-emscripten
             os: macos-26
-            clang-runtime: '21'
+            clang-runtime: '22'
             cling: Off
             micromamba_shell_init: bash
             emsdk_ver: "4.0.9"
