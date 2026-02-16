@@ -40,14 +40,6 @@ jobs:
             cppyy: On
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
-          - name: ubu24-arm-gcc12-clang-repl-19-cppyy
-            os: ubuntu-24.04-arm
-            compiler: gcc-12
-            clang-runtime: '19'
-            cling: Off
-            cppyy: On
-            llvm_enable_projects: "clang"
-            llvm_targets_to_build: "host;NVPTX"
           - name: ubu24-arm-gcc9-clang20-cling-cppyy
             os: ubuntu-24.04-arm
             compiler: gcc-9
@@ -96,14 +88,6 @@ jobs:
             llvm_targets_to_build: "host;NVPTX"
             oop-jit: On
             coverage: true
-          - name: ubu24-x86-gcc12-clang-repl-19-cppyy
-            os: ubuntu-24.04
-            compiler: gcc-12
-            clang-runtime: '19'
-            cling: Off
-            cppyy: On
-            llvm_enable_projects: "clang"
-            llvm_targets_to_build: "host;NVPTX"
           - name: ubu24-x86-gcc9-clang20-cling-cppyy
             os: ubuntu-24.04
             compiler: gcc-9
@@ -139,14 +123,6 @@ jobs:
             cppyy: On
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host"
-          - name: osx26-arm-clang-clang-repl-19-cppyy
-            os: macos-26
-            compiler: clang
-            clang-runtime: '19'
-            cling: Off
-            cppyy: On
-            llvm_enable_projects: "clang"
-            llvm_targets_to_build: "host"
           - name: osx26-arm-clang-clang20-cling-cppyy
             os: macos-26
             compiler: clang
@@ -169,14 +145,6 @@ jobs:
             os: macos-15-intel
             compiler: clang
             clang-runtime: '20'
-            cling: Off
-            cppyy: On
-            llvm_enable_projects: "clang"
-            llvm_targets_to_build: "host"
-          - name: osx15-x86-clang-clang-repl-19-cppyy
-            os: macos-15-intel
-            compiler: clang
-            clang-runtime: '19'
             cling: Off
             cppyy: On
             llvm_enable_projects: "clang"
