@@ -24,7 +24,6 @@ jobs:
           - name: ubu24-arm-clang-repl-20-emscripten
             os: ubuntu-24.04-arm
             clang-runtime: '20'
-            cling: Off
             llvm_enable_projects: "clang;lld"
             llvm_targets_to_build: "WebAssembly"
             emsdk_ver: "4.0.9"
@@ -33,7 +32,6 @@ jobs:
           - name: osx26-arm-clang-repl-20-emscripten
             os: macos-26
             clang-runtime: '20'
-            cling: Off
             llvm_enable_projects: "clang;lld"
             llvm_targets_to_build: "WebAssembly"
             emsdk_ver: "4.0.9"
@@ -42,7 +40,6 @@ jobs:
           - name: ubu24-x86-clang-repl-20-emscripten
             os: ubuntu-24.04
             clang-runtime: '20'
-            cling: Off
             llvm_enable_projects: "clang;lld"
             llvm_targets_to_build: "WebAssembly"
             emsdk_ver: "4.0.9"
@@ -51,7 +48,6 @@ jobs:
           - name: win2025-x86-clang-repl-20-emscripten
             os: windows-2025
             clang-runtime: '20'
-            cling: Off
             llvm_enable_projects: "clang;lld"
             llvm_targets_to_build: "WebAssembly"
             emsdk_ver: "4.0.9"
@@ -60,7 +56,6 @@ jobs:
           - name: ubu24-arm-clang-repl-21-emscripten
             os: ubuntu-24.04-arm
             clang-runtime: '21'
-            cling: Off
             llvm_enable_projects: "clang;lld"
             llvm_targets_to_build: "WebAssembly"
             emsdk_ver: "4.0.9"
@@ -69,7 +64,6 @@ jobs:
           - name: osx26-arm-clang-repl-21-emscripten
             os: macos-26
             clang-runtime: '21'
-            cling: Off
             llvm_enable_projects: "clang;lld"
             llvm_targets_to_build: "WebAssembly"
             emsdk_ver: "4.0.9"
@@ -78,7 +72,6 @@ jobs:
           - name: ubu24-x86-clang-repl-21-emscripten
             os: ubuntu-24.04
             clang-runtime: '21'
-            cling: Off
             llvm_enable_projects: "clang;lld"
             llvm_targets_to_build: "WebAssembly"
             emsdk_ver: "4.0.9"
@@ -87,7 +80,6 @@ jobs:
           - name: win2025-x86-clang-repl-21-emscripten
             os: windows-2025
             clang-runtime: '21'
-            cling: Off
             llvm_enable_projects: "clang;lld"
             llvm_targets_to_build: "WebAssembly"
             emsdk_ver: "4.0.9"
