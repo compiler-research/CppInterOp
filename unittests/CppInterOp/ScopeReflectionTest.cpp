@@ -214,7 +214,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_IsBuiltin) {
   //  "int", "unsigned int", "long", "unsigned long", "long long", "unsigned long long",
   //  "float", "double", "long double", "void"}
 
-  std::vector<const char*> interpreter_args = { "-include", "new" };
+  std::vector<const char*> interpreter_args = { "-include", "new", "-Xclang", "-iwithsysroot/include/compat" };
 
   TestFixture::CreateInterpreter(interpreter_args);
   ASTContext &C = Interp->getCI()->getASTContext();
@@ -1096,7 +1096,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_IncludeVector) {
     #include <vector>
     #include <iostream>
   )";
-  std::vector<const char*> interpreter_args = {"-include", "new"};
+  std::vector<const char*> interpreter_args = {"-include", "new", "-Xclang", "-iwithsysroot/include/compat"};
   TestFixture::CreateInterpreter(interpreter_args);
   Interp->declare(code);
 }
