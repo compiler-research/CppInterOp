@@ -429,10 +429,15 @@ private:
 public:
   SynthesizingCodeRAII(Interpreter* i) : m_Interpreter(i) {}
   ~SynthesizingCodeRAII() {
-    auto GeneratedPTU = m_Interpreter->Parse("");
-    if (!GeneratedPTU)
-      llvm::logAllUnhandledErrors(GeneratedPTU.takeError(), llvm::errs(),
-                                  "Failed to generate PTU:");
+    clang::Sema& S = m_Interpreter->getSema();
+    clang::DiagnosticsEngine& Diags = S.getDiagnostics();
+    if (Diags.hasErrorOccurred()) {
+      // do we need a the following?
+      // IncrementalParser::CleanUpPTU(
+      //  S.getASTContext().getTranslationUnitDecl())
+      Diags.Reset(/*soft=*/true);
+      Diags.getClient()->clear();
+    }
   }
 };
 } // namespace compat
