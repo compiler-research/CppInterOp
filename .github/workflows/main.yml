@@ -50,7 +50,7 @@ jobs:
             llvm_targets_to_build: "host;NVPTX"
           - name: ubu24-arm-gcc9-clang20-cling-cppyy
             os: ubuntu-24.04-arm
-            compiler: gcc-9
+            compiler: gcc-14
             clang-runtime: '20'
             cling: On
             cppyy: On
@@ -106,7 +106,7 @@ jobs:
             llvm_targets_to_build: "host;NVPTX"
           - name: ubu24-x86-gcc9-clang20-cling-cppyy
             os: ubuntu-24.04
-            compiler: gcc-9
+            compiler: gcc-14
             clang-runtime: '20'
             cling: On
             cppyy: On
@@ -315,6 +315,7 @@ jobs:
       uses: mxschmitt/action-tmate@v3
       # When debugging increase to a suitable value!
       timeout-minutes: 30
+
 
 
 
