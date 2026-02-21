@@ -54,13 +54,12 @@ set(_clad_extra_settings
   LOG_OUTPUT_ON_FAILURE ON
 )
 
-# Either build off of a provided source directory, or fetch from git
 if (DEFINED CLAD_SOURCE_DIR)
   message(STATUS "Using local clad source directory: ${CLAD_SOURCE_DIR}")
   list(APPEND _clad_extra_settings SOURCE_DIR ${CLAD_SOURCE_DIR})
 else()
   list(APPEND _clad_extra_settings GIT_REPOSITORY https://github.com/vgvassilev/clad.git)
-  list(APPEND _clad_extra_settings GIT_TAG cppinterop)
+  list(APPEND _clad_extra_settings GIT_TAG v2.2)
 endif()
 
 message(STATUS "CMAKE_COMMAND: ${CMAKE_COMMAND}")
