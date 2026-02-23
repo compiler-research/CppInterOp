@@ -424,21 +424,11 @@ using Interpreter = CppInternal::Interpreter;
 
 class SynthesizingCodeRAII {
 private:
-  Interpreter* m_Interpreter;
+  [[maybe_unused]] Interpreter* m_Interpreter;
 
 public:
   SynthesizingCodeRAII(Interpreter* i) : m_Interpreter(i) {}
-  ~SynthesizingCodeRAII() {
-    clang::Sema& S = m_Interpreter->getSema();
-    clang::DiagnosticsEngine& Diags = S.getDiagnostics();
-    if (Diags.hasErrorOccurred()) {
-      // do we need a the following?
-      // IncrementalParser::CleanUpPTU(
-      //  S.getASTContext().getTranslationUnitDecl())
-      Diags.Reset(/*soft=*/true);
-      Diags.getClient()->clear();
-    }
-  }
+  // ~SynthesizingCodeRAII() {} // TODO: implement
 };
 } // namespace compat
 
