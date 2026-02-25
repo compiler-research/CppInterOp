@@ -52,6 +52,7 @@ runs:
         # Install cppyy
         git clone --depth=1 https://github.com/compiler-research/cppyy.git
         cd cppyy
+        python -m pip install uv
         python -m pip install --upgrade . --no-deps
         cd ..
 
@@ -78,7 +79,9 @@ runs:
         python -m pip install --upgrade pip
         python -m pip install pytest
         python -m pip install pytest-xdist
-        python -m pip install numba==0.61.2
+        if [[ "${{ matrix.python-version }}" != "3.14" ]]; then
+          python -m uv pip install numba==0.61.2
+        fi
         echo ::endgroup::
         echo ::group::Run complete test suite
         set -o pipefail
