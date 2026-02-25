@@ -79,6 +79,7 @@ runs:
         python -m pip install pytest
         python -m pip install pytest-xdist
         python -m pip install numba==0.61.2
+        python -m pip install psutil
         echo ::endgroup::
         echo ::group::Run complete test suite
         set -o pipefail
