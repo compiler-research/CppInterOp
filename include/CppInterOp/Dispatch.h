@@ -270,8 +270,10 @@ CPPINTEROP_API_TABLE
 /// \param[in] customLibPath Optional custom path to libclangCppInterOp
 /// \returns true if initialization succeeded, false otherwise
 inline bool LoadDispatchAPI(const char* customLibPath = nullptr) {
+#ifndef NDEBUG
   std::cout << "[CppInterOp Dispatch] Loading CppInterOp API from "
             << (customLibPath ? customLibPath : "default library path") << '\n';
+#endif // NDEBUG
   if (customLibPath) {
     void* test = dlGetProcAddress("GetInterpreter", customLibPath);
     if (!test) {
