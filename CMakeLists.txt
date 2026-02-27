@@ -13,7 +13,7 @@ option(CPPINTEROP_USE_CLING "Use Cling as backend" OFF)
 option(CPPINTEROP_USE_REPL "Use clang-repl as backend" ON)
 option(CPPINTEROP_ENABLE_TESTING "Enable the CppInterOp testing infrastructure." ON)
 if(EMSCRIPTEN)
-  set(CPPINTEROP_EXTRA_WASM_FLAGS "-sSUPPORT_LONGJMP=wasm -fwasm-exceptions" CACHE STRING "Extra flags for wasm")
+  set(CPPINTEROP_EXTRA_WASM_FLAGS "-fwasm-exceptions" CACHE STRING "Extra flags for wasm")
 endif()
 
 if (CPPINTEROP_USE_CLING AND CPPINTEROP_USE_REPL)
@@ -71,14 +71,14 @@ include(GNUInstallDirs)
   ## Define supported version of clang and llvm
 
   set(CLANG_MIN_SUPPORTED 20.0)
-  set(CLANG_MAX_SUPPORTED "22.1.x")
-  set(CLANG_VERSION_UPPER_BOUND 23.0.0)
+  set(CLANG_MAX_SUPPORTED "21.1.x")
+  set(CLANG_VERSION_UPPER_BOUND 22.0.0)
   set(LLD_MIN_SUPPORTED 20.0)
-  set(LLD_MAX_SUPPORTED "22.1.x")
-  set(LLD_VERSION_UPPER_BOUND 23.0.0)
+  set(LLD_MAX_SUPPORTED "21.1.x")
+  set(LLD_VERSION_UPPER_BOUND 22.0.0)
   set(LLVM_MIN_SUPPORTED 20.0)
-  set(LLVM_MAX_SUPPORTED "22.1.x")
-  set(LLVM_VERSION_UPPER_BOUND 23.0.0)
+  set(LLVM_MAX_SUPPORTED "21.1.x")
+  set(LLVM_VERSION_UPPER_BOUND 22.0.0)
 
   ## Set Cmake packages search order
 

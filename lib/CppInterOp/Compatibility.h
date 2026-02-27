@@ -424,16 +424,11 @@ using Interpreter = CppInternal::Interpreter;
 
 class SynthesizingCodeRAII {
 private:
-  Interpreter* m_Interpreter;
+  [[maybe_unused]] Interpreter* m_Interpreter;
 
 public:
   SynthesizingCodeRAII(Interpreter* i) : m_Interpreter(i) {}
-  ~SynthesizingCodeRAII() {
-    auto GeneratedPTU = m_Interpreter->Parse("");
-    if (!GeneratedPTU)
-      llvm::logAllUnhandledErrors(GeneratedPTU.takeError(), llvm::errs(),
-                                  "Failed to generate PTU:");
-  }
+  // ~SynthesizingCodeRAII() {} // TODO: implement
 };
 } // namespace compat
 
