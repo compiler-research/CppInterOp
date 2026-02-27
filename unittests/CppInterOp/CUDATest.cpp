@@ -80,3 +80,18 @@ TEST(CUDATest, CUDARuntime) {
 
   EXPECT_TRUE(HasCudaRuntime());
 }
+
+TEST(CUDATest, Interpreter_GetLanguageCUDA) {
+#ifdef _WIN32
+  GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
+#endif
+  if (!HasCudaRuntime())
+    GTEST_SKIP() << "Skipping CUDA tests as CUDA runtime not found";
+
+  auto* I =
+      Cpp::CreateInterpreter({}, {"-x", "cuda", "--cuda-path=/usr/local/cuda"});
+  if (!I) {
+    GTEST_SKIP() << "Skipping CUDA test as CUDA SDK not found";
+  }
+  EXPECT_EQ(Cpp::GetLanguage(nullptr), Cpp::InterpreterLanguage::CUDA);
+}

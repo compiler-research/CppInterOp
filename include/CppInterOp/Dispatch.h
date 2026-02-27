@@ -63,6 +63,8 @@ extern "C" CPPINTEROP_API CppFnPtrTy CppGetProcAddress(const char* procname);
   DISPATCH_API(IsEnumType, decltype(&CppImpl::IsEnumType))                     \
   DISPATCH_API(GetIntegerTypeFromEnumType,                                     \
                decltype(&CppImpl::GetIntegerTypeFromEnumType))                 \
+  DISPATCH_API(GetLanguage, decltype(&CppImpl::GetLanguage))                   \
+  DISPATCH_API(GetLanguageStandard, decltype(&CppImpl::GetLanguageStandard))   \
   DISPATCH_API(GetReferencedType, decltype(&CppImpl::GetReferencedType))       \
   DISPATCH_API(IsPointerType, decltype(&CppImpl::IsPointerType))               \
   DISPATCH_API(GetPointeeType, decltype(&CppImpl::GetPointeeType))             \
