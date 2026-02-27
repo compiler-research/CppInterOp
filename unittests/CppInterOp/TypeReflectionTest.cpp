@@ -380,19 +380,23 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, TypeReflection_GetComplexType) {
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, TypeReflection_GetTypeFromScope) {
-  std::vector<Decl *> Decls;
+  std::vector<Decl*> Decls, SubDecls;
 
-  std::string code =  R"(
+  std::string code = R"(
+  namespace N {
     class C {};
     struct S {};
     int a = 10;
+  }
     )";
 
   GetAllTopLevelDecls(code, Decls);
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetTypeFromScope(Decls[0])), "NULL TYPE");
 
-  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetTypeFromScope(Decls[0])), "C");
-  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetTypeFromScope(Decls[1])), "S");
-  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetTypeFromScope(Decls[2])), "int");
+  GetAllSubDecls(Decls[0], SubDecls);
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetTypeFromScope(SubDecls[0])), "N::C");
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetTypeFromScope(SubDecls[1])), "N::S");
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetTypeFromScope(SubDecls[2])), "int");
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetTypeFromScope(nullptr)), "NULL TYPE");
 }
 
