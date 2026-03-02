@@ -618,6 +618,16 @@ namespace Cpp {
   /// Checks if type is a pointer
   CPPINTEROP_API bool IsPointerType(TCppType_t type);
 
+  CPPINTEROP_API bool IsPointerToMemberType(TCppType_t type);
+
+  CPPINTEROP_API bool IsPointerToMemberVariableType(TCppType_t type);
+
+  CPPINTEROP_API bool IsPointerToMemberFunctionType(TCppType_t type);
+
+  CPPINTEROP_API TCppType_t GetParentTypeFromPointerToMember(TCppType_t type);
+
+  CPPINTEROP_API TCppType_t GetFunctionTypeFromPointerToMember(TCppType_t member_type, TCppType_t obj_type);
+
   /// Checks if type is an array
   CPPINTEROP_API bool IsArrayType(TCppType_t type);
 

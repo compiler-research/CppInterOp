@@ -2091,6 +2091,73 @@ namespace Cpp {
     return QT->isPointerType();
   }
 
+  bool IsPointerToMemberType(TCppType_t type) {
+    QualType QT = QualType::getFromOpaquePtr(type);
+    return QT->isMemberPointerType();
+  }
+
+  bool IsPointerToMemberVariableType(TCppType_t type) {
+    QualType QT = QualType::getFromOpaquePtr(type);
+    return QT->isMemberDataPointerType();
+  }
+
+  bool IsPointerToMemberFunctionType(TCppType_t type) {
+    QualType QT = QualType::getFromOpaquePtr(type);
+    return QT->isMemberFunctionPointerType();
+  }
+
+  TCppType_t GetParentTypeFromPointerToMember(TCppType_t type) {
+    QualType QT = QualType::getFromOpaquePtr(type);
+    if(!QT->isMemberPointerType())
+      return nullptr;
+
+    const MemberPointerType *MPT = QT->getAs<MemberPointerType>();
+    const CXXRecordDecl *RD = MPT->getMostRecentCXXRecordDecl();
+
+    ASTContext &C = getASTContext();
+    return C.getCanonicalTagType(RD).getAsOpaquePtr();
+  }
+
+  TCppType_t GetFunctionTypeFromPointerToMember(TCppType_t member_type, TCppType_t obj_type) {
+    ASTContext &C = getSema().getASTContext();
+    QualType MT = QualType::getFromOpaquePtr(member_type);
+    const MemberPointerType *MPT = MT->getAs<MemberPointerType>();
+    if (!MPT)
+      return nullptr;
+
+    QualType PointeeType = MPT->getPointeeType();
+    QualType OT = QualType::getFromOpaquePtr(obj_type).getNonReferenceType();
+    QualType ClassType = C.getCanonicalTagType(MPT->getMostRecentCXXRecordDecl());
+    if(OT.isConstQualified())
+      ClassType.addConst();
+    if(OT->isPointerType())
+      ClassType = C.getPointerType(ClassType);
+    else
+      ClassType = C.getLValueReferenceType(ClassType);
+
+    QualType FT;
+
+    if (const FunctionProtoType *FPT = PointeeType->getAs<FunctionProtoType>()) {
+      llvm::SmallVector<QualType, 8> ParamTypes;
+      ParamTypes.push_back(ClassType);
+      for (QualType P : FPT->param_types())
+        ParamTypes.push_back(P);
+
+      FunctionProtoType::ExtProtoInfo EPI = FPT->getExtProtoInfo();
+      EPI.RefQualifier = RQ_None;
+      EPI.TypeQuals = Qualifiers();
+
+      FT = C.getFunctionType(FPT->getReturnType(), ParamTypes, EPI);
+    } else {
+      FunctionProtoType::ExtProtoInfo EPI;
+      EPI.ExceptionSpec.Type = EST_None;
+
+      FT = C.getFunctionType(PointeeType, {ClassType}, EPI);
+    }
+
+    return FT.getAsOpaquePtr();
+  }
+
   bool IsArrayType(TCppType_t type) {
     QualType QT = QualType::getFromOpaquePtr(type);
     return QT->isArrayType();
