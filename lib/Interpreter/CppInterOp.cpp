@@ -2186,6 +2186,12 @@ namespace Cpp {
     return PointerTy.getAsOpaquePtr();
   }
 
+  TCppType_t GetRValueReferenceType(TCppType_t type) {
+    QualType QT = QualType::getFromOpaquePtr(type);
+    QualType PointerTy = getASTContext().getRValueReferenceType(QT);
+    return PointerTy.getAsOpaquePtr();
+  }
+
   bool IsReferenceType(TCppType_t type) {
     QualType QT = QualType::getFromOpaquePtr(type);
     return QT->isReferenceType();

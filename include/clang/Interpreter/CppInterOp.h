@@ -637,6 +637,8 @@ namespace Cpp {
   /// Get a reference type to the specified type
   CPPINTEROP_API TCppType_t GetLValueReferenceType(TCppType_t type);
 
+  CPPINTEROP_API TCppType_t GetRValueReferenceType(TCppType_t type);
+
   /// Checks if type is a reference
   CPPINTEROP_API bool IsReferenceType(TCppType_t type);
 
