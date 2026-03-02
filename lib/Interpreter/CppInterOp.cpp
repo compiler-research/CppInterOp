@@ -2126,6 +2126,24 @@ namespace Cpp {
     return ArrayQT.getAsOpaquePtr();
   }
 
+  TCppType_t GetFunctionType(TCppType_t ret, std::vector<TCppType_t> const &params) {
+    QualType R = QualType::getFromOpaquePtr(ret);
+    ASTContext &Ctx = getASTContext();
+    auto &S = getSema();
+
+    llvm::SmallVector<QualType, 8> ParamTypes;
+    ParamTypes.reserve(params.size());
+    for (TCppType_t P : params)
+      ParamTypes.push_back(QualType::getFromOpaquePtr(P));
+
+    FunctionProtoType::ExtProtoInfo EPI;
+    EPI.ExceptionSpec.Type = EST_None;
+
+    QualType FnType = Ctx.getFunctionType(R, ParamTypes, EPI);
+
+    return FnType.getAsOpaquePtr();
+  }
+
   TCppType_t GetPointeeType(TCppType_t type) {
     if (IsArrayType(type))
       return GetArrayElementType(type);

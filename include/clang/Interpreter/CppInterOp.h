@@ -624,6 +624,8 @@ namespace Cpp {
 
   CPPINTEROP_API TCppType_t GetArrayType(TCppType_t type, size_t size);
 
+  CPPINTEROP_API TCppType_t GetFunctionType(TCppType_t ret, std::vector<TCppType_t> const &params);
+
   /// Get the underlying pointee type
   CPPINTEROP_API TCppType_t GetPointeeType(TCppType_t type);
 
