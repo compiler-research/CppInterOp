@@ -620,6 +620,10 @@ namespace Cpp {
   /// Get the element type of an array
   CPPINTEROP_API TCppType_t GetArrayElementType(TCppType_t type);
 
+  CPPINTEROP_API TCppType_t GetArrayType(TCppType_t type);
+
+  CPPINTEROP_API TCppType_t GetArrayType(TCppType_t type, size_t size);
+
   /// Get the underlying pointee type
   CPPINTEROP_API TCppType_t GetPointeeType(TCppType_t type);
 

@@ -2108,6 +2108,24 @@ namespace Cpp {
     return ElemTy.getAsOpaquePtr();
   }
 
+  TCppType_t GetArrayType(TCppType_t type) {
+    QualType QT = QualType::getFromOpaquePtr(type);
+    ASTContext &Ctx = getASTContext();
+    auto &S = getSema();
+
+    QualType ArrayQT = Ctx.getIncompleteArrayType(QT, clang::ArraySizeModifier::Normal, 0);
+    return ArrayQT.getAsOpaquePtr();
+  }
+
+  TCppType_t GetArrayType(TCppType_t type, size_t size) {
+    QualType QT = QualType::getFromOpaquePtr(type);
+    ASTContext &Ctx = getASTContext();
+    auto &S = getSema();
+
+    QualType ArrayQT = Ctx.getConstantArrayType(QT, llvm::APInt(Ctx.getIntWidth(Ctx.getSizeType()), size), nullptr, clang::ArraySizeModifier::Normal, 0);
+    return ArrayQT.getAsOpaquePtr();
+  }
+
   TCppType_t GetPointeeType(TCppType_t type) {
     if (IsArrayType(type))
       return GetArrayElementType(type);
