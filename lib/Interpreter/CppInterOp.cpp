@@ -2159,6 +2159,27 @@ namespace Cpp {
     return PointerTy.getAsOpaquePtr();
   }
 
+  TCppType_t GetPointerToMemberType(TCppScope_t member) {
+    auto* M = (Decl*)member;
+    ASTContext &C = getSema().getASTContext();
+
+    QualType MemberType;
+    if (auto *VD = dyn_cast<ValueDecl>(M))
+      MemberType = VD->getType();
+    else
+      return nullptr;
+
+    auto *RD = dyn_cast<CXXRecordDecl>(M->getDeclContext());
+    if (!RD)
+      return nullptr;
+
+    QualType ClassType = C.getCanonicalTagType(RD);
+    NestedNameSpecifier Qualifier{ ClassType.getTypePtr() };
+    QualType PtrToMember = C.getMemberPointerType(MemberType, Qualifier, RD);
+
+    return PtrToMember.getAsOpaquePtr();
+  }
+
   TCppType_t GetLValueReferenceType(TCppType_t type) {
     QualType QT = QualType::getFromOpaquePtr(type);
     QualType PointerTy = getASTContext().getLValueReferenceType(QT);

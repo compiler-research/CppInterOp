@@ -632,6 +632,8 @@ namespace Cpp {
   /// Get a pointer type to the specified type
   CPPINTEROP_API TCppType_t GetPointerType(TCppType_t type);
 
+  CPPINTEROP_API TCppType_t GetPointerToMemberType(TCppScope_t member);
+
   /// Get a reference type to the specified type
   CPPINTEROP_API TCppType_t GetLValueReferenceType(TCppType_t type);
 
