@@ -658,6 +658,10 @@ namespace Cpp {
 
   CPPINTEROP_API TCppType_t GetTypeWithVolatile(TCppType_t type);
 
+  CPPINTEROP_API TCppType_t GetSignedType(TCppType_t type);
+
+  CPPINTEROP_API TCppType_t GetUnsignedType(TCppType_t type);
+
   /// Gets the Type (passed as a parameter) as a String value.
   CPPINTEROP_API std::string GetTypeAsString(TCppType_t type);
 

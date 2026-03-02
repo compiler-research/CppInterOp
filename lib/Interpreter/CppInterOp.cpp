@@ -2248,6 +2248,120 @@ namespace Cpp {
     return QT.getAsOpaquePtr();
   }
 
+  TCppType_t GetSignedType(TCppType_t type)
+  {
+    QualType QT = QualType::getFromOpaquePtr(type);
+
+    // Get the canonical unqualified type to inspect the builtin kind
+    const BuiltinType *BT = QT->getAs<BuiltinType>();
+    if (!BT)
+      return QT.getAsOpaquePtr();
+
+    ASTContext &C = getSema().getASTContext();
+
+    QualType SignedQT;
+    switch (BT->getKind())
+    {
+      // Already signed — return as-is
+      case BuiltinType::SChar:
+      case BuiltinType::Short:
+      case BuiltinType::Int:
+      case BuiltinType::Long:
+      case BuiltinType::LongLong:
+      case BuiltinType::Int128:
+        return QT.getAsOpaquePtr();
+
+      // Unsigned -> signed counterpart
+      case BuiltinType::UChar:
+      case BuiltinType::Char_U:
+        SignedQT = C.SignedCharTy;
+        break;
+      case BuiltinType::UShort:
+        SignedQT = C.ShortTy;
+        break;
+      case BuiltinType::UInt:
+        SignedQT = C.IntTy;
+        break;
+      case BuiltinType::ULong:
+        SignedQT = C.LongTy;
+        break;
+      case BuiltinType::ULongLong:
+        SignedQT = C.LongLongTy;
+        break;
+      case BuiltinType::UInt128:
+        SignedQT = C.Int128Ty;
+        break;
+
+      // char (platform-dependent signedness) -> signed char
+      case BuiltinType::Char_S:
+        return QT.getAsOpaquePtr(); // already signed on this platform
+
+      // Wchar, char8, char16, char32 — no signed equivalent; return as-is
+      default:
+        return QT.getAsOpaquePtr();
+    }
+
+    // Preserve qualifiers (const, volatile, etc.) from the original type
+    SignedQT = C.getQualifiedType(SignedQT, QT.getQualifiers());
+
+    return SignedQT.getAsOpaquePtr();
+  }
+
+  TCppType_t GetUnsignedType(TCppType_t type)
+  {
+    QualType QT = QualType::getFromOpaquePtr(type);
+
+    const BuiltinType *BT = QT->getAs<BuiltinType>();
+    if (!BT)
+      return QT.getAsOpaquePtr();
+
+    ASTContext &C = getSema().getASTContext();
+
+    QualType UnsignedQT;
+    switch (BT->getKind())
+    {
+      // Already unsigned — return as-is
+      case BuiltinType::UChar:
+      case BuiltinType::Char_U:
+      case BuiltinType::UShort:
+      case BuiltinType::UInt:
+      case BuiltinType::ULong:
+      case BuiltinType::ULongLong:
+      case BuiltinType::UInt128:
+        return QT.getAsOpaquePtr();
+
+      // Signed -> unsigned counterpart
+      case BuiltinType::SChar:
+      case BuiltinType::Char_S:
+        UnsignedQT = C.UnsignedCharTy;
+        break;
+      case BuiltinType::Short:
+        UnsignedQT = C.UnsignedShortTy;
+        break;
+      case BuiltinType::Int:
+        UnsignedQT = C.UnsignedIntTy;
+        break;
+      case BuiltinType::Long:
+        UnsignedQT = C.UnsignedLongTy;
+        break;
+      case BuiltinType::LongLong:
+        UnsignedQT = C.UnsignedLongLongTy;
+        break;
+      case BuiltinType::Int128:
+        UnsignedQT = C.UnsignedInt128Ty;
+        break;
+
+      // No unsigned equivalent — return as-is
+      default:
+        return QT.getAsOpaquePtr();
+    }
+
+    // Preserve qualifiers (const, volatile, etc.) from the original type
+    UnsignedQT = C.getQualifiedType(UnsignedQT, QT.getQualifiers());
+
+    return UnsignedQT.getAsOpaquePtr();
+  }
+
   std::string GetTypeAsString(TCppType_t var)
   {
       QualType QT = QualType::getFromOpaquePtr(var);
