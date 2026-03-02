@@ -488,6 +488,8 @@ namespace Cpp {
   ///\returns if a function was marked as \c =delete.
   CPPINTEROP_API bool IsFunctionDeleted(TCppConstFunction_t function);
 
+  CPPINTEROP_API bool IsFunctionTypeConst(TCppType_t function_type);
+
   CPPINTEROP_API bool IsTemplatedFunction(TCppFunction_t func);
 
   /// This function performs a lookup to check if there is a

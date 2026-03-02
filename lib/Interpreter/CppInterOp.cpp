@@ -1243,6 +1243,18 @@ namespace Cpp {
     return FD->isDeleted();
   }
 
+  bool IsFunctionTypeConst(TCppType_t function_type) {
+    QualType FT = QualType::getFromOpaquePtr(function_type);
+
+    if (const auto *MPT = FT->getAs<MemberPointerType>())
+      FT = MPT->getPointeeType();
+
+    if (const auto *FPT = FT->getAs<FunctionProtoType>())
+      return FPT->getMethodQuals().hasConst();
+
+    return false;
+  }
+
   bool IsTemplatedFunction(TCppFunction_t func)
   {
     auto *D = (Decl *) func;
