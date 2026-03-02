@@ -2022,6 +2022,16 @@ namespace Cpp {
     return false;
   }
 
+  bool IsNonStaticVariable(TCppScope_t var)
+  {
+    auto *D = (Decl *) var;
+    if (llvm::isa_and_nonnull<FieldDecl>(D)) {
+      return true;
+    }
+
+    return false;
+  }
+
   bool IsConstVariable(TCppScope_t var)
   {
     auto *D = (clang::Decl *) var;

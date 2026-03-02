@@ -597,6 +597,9 @@ namespace Cpp {
   /// Checks if the provided variable is a 'Static' variable.
   CPPINTEROP_API bool IsStaticVariable(TCppScope_t var);
 
+  /// Checks if the provided variable is a 'Static' variable.
+  CPPINTEROP_API bool IsNonStaticVariable(TCppScope_t var);
+
   /// Checks if the provided variable is a 'Constant' variable.
   CPPINTEROP_API bool IsConstVariable(TCppScope_t var);
 
