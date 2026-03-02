@@ -47,6 +47,7 @@ jobs:
             cling: On
             cppyy: On
             cling-version: '1.3'
+            root-llvm-tag: 'cling-llvm20-20260119-01'
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
             python-version: '3.14'
@@ -94,6 +95,7 @@ jobs:
             cling: On
             cppyy: On
             cling-version: '1.3'
+            root-llvm-tag: 'cling-llvm20-20260119-01'
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
             python-version: '3.14'
@@ -121,6 +123,7 @@ jobs:
             cppyy: On
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host"
+            python-version: '3.13'
           - name: osx26-arm-clang-clang20-cling-cppyy
             os: macos-26
             compiler: clang
@@ -128,6 +131,7 @@ jobs:
             cling: On
             cppyy: On
             cling-version: '1.3'
+            root-llvm-tag: 'cling-llvm20-20260119-01'
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
             python-version: '3.14'
@@ -147,6 +151,7 @@ jobs:
             cppyy: On
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host"
+            python-version: '3.13'
           - name: osx15-x86-clang-clang20-cling-cppyy
             os: macos-15-intel
             compiler: clang
@@ -154,6 +159,7 @@ jobs:
             cling: On
             cppyy: On
             cling-version: '1.3'
+            root-llvm-tag: 'cling-llvm20-20260119-01'
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
             python-version: '3.14'
@@ -171,6 +177,7 @@ jobs:
             clang-runtime: '20'
             cling: On
             cling-version: '1.3'
+            root-llvm-tag: 'cling-llvm20-20260119-01'
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
             python-version: '3.14'
@@ -188,6 +195,7 @@ jobs:
             clang-runtime: '20'
             cling: On
             cling-version: '1.3'
+            root-llvm-tag: 'cling-llvm20-20260119-01'
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
             python-version: '3.14'
@@ -212,7 +220,7 @@ jobs:
         path: |
           llvm-project
           ${{ matrix.cling=='On' && 'cling' || '' }}
-        key: ${{ env.CLING_HASH }}-${{ runner.os }}-${{ matrix.os }}-${{ matrix.compiler }}-clang-${{ matrix.clang-runtime }}.x-patch-${{ hashFiles(format('patches/llvm/clang{0}-*.patch', matrix.clang-runtime)) || 'none' }}${{ matrix.oop-jit == 'On' && '-oop' || '' }}
+        key: ${{ env.CLING_HASH }}-${{ runner.os }}-${{ matrix.os }}-${{ matrix.compiler }}-clang-${{ matrix.clang-runtime }}-${{ matrix.root-llvm-tag || 'none' }}.x-patch-${{ hashFiles(format('patches/llvm/clang{0}-*.patch', matrix.clang-runtime)) || 'none' }}${{ matrix.oop-jit == 'On' && '-oop' || '' }}
 
     - name: Setup default Build Type
       uses: ./.github/actions/Miscellaneous/Select_Default_Build_Type
@@ -284,7 +292,3 @@ jobs:
       uses: mxschmitt/action-tmate@v3
       # When debugging increase to a suitable value!
       timeout-minutes: 30
-
-
-
-

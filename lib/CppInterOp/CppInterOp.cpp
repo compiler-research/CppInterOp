@@ -1979,12 +1979,14 @@ TCppType_t GetTypeFromScope(TCppScope_t klass) {
     return 0;
 
   auto* D = (Decl*)klass;
-  ASTContext& C = getASTContext();
 
-  if (ValueDecl* VD = dyn_cast<ValueDecl>(D))
+  if (auto* VD = dyn_cast<ValueDecl>(D))
     return VD->getType().getAsOpaquePtr();
 
-  return C.getTypeDeclType(cast<TypeDecl>(D)).getAsOpaquePtr();
+  if (auto* TD = dyn_cast<TypeDecl>(D))
+    return getASTContext().getTypeDeclType(TD).getAsOpaquePtr();
+
+  return (TCppType_t) nullptr;
 }
 
 // Internal functions that are not needed outside the library are
