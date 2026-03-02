@@ -2241,6 +2241,13 @@ namespace Cpp {
     return QT.getAsOpaquePtr();
   }
 
+  TCppType_t GetTypeWithVolatile(TCppType_t type)
+  {
+    QualType QT = QualType::getFromOpaquePtr(type);
+    QT.addVolatile();
+    return QT.getAsOpaquePtr();
+  }
+
   std::string GetTypeAsString(TCppType_t var)
   {
       QualType QT = QualType::getFromOpaquePtr(var);
