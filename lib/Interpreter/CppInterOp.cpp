@@ -2055,6 +2055,11 @@ namespace Cpp {
     return false;
   }
 
+  bool IsConstType(TCppType_t type) {
+    QualType QT = QualType::getFromOpaquePtr(type);
+    return QT.isConstQualified();
+  }
+
   bool IsStaticDatamember(TCppScope_t var)
   {
     auto *D = (Decl *) var;
