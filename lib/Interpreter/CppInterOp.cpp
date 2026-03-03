@@ -5262,6 +5262,7 @@ namespace Cpp {
       if (Result != Template_Deduction_Result_Success) {
         // FIXME: Diagnose what happened.
         (void)Result;
+        return nullptr;
       }
       return Specialization;
     }
@@ -5270,6 +5271,7 @@ namespace Cpp {
       DeclResult R = S.CheckVarTemplateId(VarTemplate, fakeLoc, fakeLoc, TLI, false);
       if (R.isInvalid()) {
         // FIXME: Diagnose
+        return nullptr;
       }
       return R.get();
     }
@@ -5277,6 +5279,9 @@ namespace Cpp {
     // This will instantiate tape<T> type and return it.
     SourceLocation noLoc;
     QualType TT = S.CheckTemplateIdType(ElaboratedTypeKeyword::None, TemplateName(TemplateD), noLoc, TLI, nullptr, false);
+    if(TT.isNull()) {
+      return nullptr;
+    }
 
     // Perhaps we can extract this into a new interface.
     S.RequireCompleteType(fakeLoc, TT, diag::err_tentative_def_incomplete_type);
