@@ -24,6 +24,13 @@ endif()
 if( CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR )
   project(CppInterOp)
 
+  if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+    message(WARNING "No build type selected. Defaulted CMAKE_BUILD_TYPE=Release.\n"
+      "Valid options are: None, Debug, Release, RelWithDebInfo, MinSizeRel.")
+    set(CMAKE_BUILD_TYPE Release CACHE STRING
+      "Choose the type of build, options are: None Debug Release RelWithDebInfo MinSizeRel" FORCE)
+  endif()
+
   # LLVM/Clang/Cling default paths
   if (DEFINED LLVM_DIR)
     if (NOT DEFINED Clang_DIR)
