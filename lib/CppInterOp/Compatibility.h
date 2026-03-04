@@ -5,9 +5,13 @@
 #ifndef CPPINTEROP_COMPATIBILITY_H
 #define CPPINTEROP_COMPATIBILITY_H
 
+#include "clang/AST/DeclTemplate.h"
 #include "clang/AST/GlobalDecl.h"
+#include "clang/Basic/SourceLocation.h"
+#include "clang/Basic/Specifiers.h"
 #include "clang/Basic/Version.h"
 #include "clang/Config/config.h"
+#include "clang/Sema/Sema.h"
 
 #ifdef _MSC_VER
 #define dup _dup
@@ -27,46 +31,27 @@ static inline char* GetEnv(const char* Var_Name) {
 #endif
 }
 
-#if CLANG_VERSION_MAJOR < 19
-#define Template_Deduction_Result Sema::TemplateDeductionResult
-#define Template_Deduction_Result_Success                                      \
-  Sema::TemplateDeductionResult::TDK_Success
+#if CLANG_VERSION_MAJOR < 21
+#define Print_Canonical_Types PrintCanonicalTypes
 #else
-#define Template_Deduction_Result TemplateDeductionResult
-#define Template_Deduction_Result_Success TemplateDeductionResult::Success
+#define Print_Canonical_Types PrintAsCanonical
 #endif
 
-#if CLANG_VERSION_MAJOR < 19
-#define For_Visible_Redeclaration Sema::ForVisibleRedeclaration
-#define Clang_For_Visible_Redeclaration clang::Sema::ForVisibleRedeclaration
+#if CLANG_VERSION_MAJOR < 21
+#define clang_LookupResult_Found clang::LookupResult::Found
+#define clang_LookupResult_Not_Found clang::LookupResult::NotFound
+#define clang_LookupResult_Found_Overloaded clang::LookupResult::FoundOverloaded
 #else
-#define For_Visible_Redeclaration RedeclarationKind::ForVisibleRedeclaration
-#define Clang_For_Visible_Redeclaration                                        \
-  RedeclarationKind::ForVisibleRedeclaration
+#define clang_LookupResult_Found clang::LookupResultKind::Found
+#define clang_LookupResult_Not_Found clang::LookupResultKind::NotFound
+#define clang_LookupResult_Found_Overloaded                                    \
+  clang::LookupResultKind::FoundOverloaded
 #endif
 
-#if CLANG_VERSION_MAJOR < 19
-#define CXXSpecialMemberKindDefaultConstructor                                 \
-  clang::Sema::CXXDefaultConstructor
-#define CXXSpecialMemberKindCopyConstructor clang::Sema::CXXCopyConstructor
-#define CXXSpecialMemberKindMoveConstructor clang::Sema::CXXMoveConstructor
-#else
-#define CXXSpecialMemberKindDefaultConstructor                                 \
-  CXXSpecialMemberKind::DefaultConstructor
-#define CXXSpecialMemberKindCopyConstructor                                    \
-  CXXSpecialMemberKind::CopyConstructor
-#define CXXSpecialMemberKindMoveConstructor                                    \
-  CXXSpecialMemberKind::MoveConstructor
-#endif
+#define STRINGIFY(s) STRINGIFY_X(s)
+#define STRINGIFY_X(...) #__VA_ARGS__
 
-#if LLVM_VERSION_MAJOR < 18
-#define starts_with startswith
-#define ends_with endswith
-#endif
-
-#if CLANG_VERSION_MAJOR >= 18
 #include "clang/Interpreter/CodeCompletion.h"
-#endif
 
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/StringRef.h"
@@ -90,14 +75,20 @@ static inline char* GetEnv(const char* Var_Name) {
 #include "cling/Utils/AST.h"
 
 #include <regex>
+#include <vector>
 
-namespace Cpp {
-namespace Cpp_utils = cling::utils;
+namespace CppInternal {
+namespace utils = cling::utils;
 }
 
 namespace compat {
 
 using Interpreter = cling::Interpreter;
+
+class SynthesizingCodeRAII : public Interpreter::PushTransactionRAII {
+public:
+  SynthesizingCodeRAII(Interpreter* i) : Interpreter::PushTransactionRAII(i) {}
+};
 
 inline void maybeMangleDeclName(const clang::GlobalDecl& GD,
                                 std::string& mangledName) {
@@ -122,12 +113,8 @@ getSymbolAddress(cling::Interpreter& I, llvm::StringRef IRName) {
   llvm::orc::SymbolNameVector Names;
   llvm::orc::ExecutionSession& ES = Jit.getExecutionSession();
   Names.push_back(ES.intern(IRName));
-#if CLANG_VERSION_MAJOR < 16
-  return llvm::make_error<llvm::orc::SymbolsNotFound>(Names);
-#else
   return llvm::make_error<llvm::orc::SymbolsNotFound>(ES.getSymbolStringPool(),
                                                       std::move(Names));
-#endif // CLANG_VERSION_MAJOR
 }
 
 inline void codeComplete(std::vector<std::string>& Results,
@@ -192,9 +179,7 @@ inline void codeComplete(std::vector<std::string>& Results,
 
 } // namespace compat
 
-#endif // CPPINTEROP_USE_CLING
-
-#ifndef CPPINTEROP_USE_CLING
+#else // CPPINTEROP_USE_REPL
 
 #include "DynamicLibraryManager.h"
 #include "clang/AST/Mangle.h"
@@ -204,15 +189,25 @@ inline void codeComplete(std::vector<std::string>& Results,
 
 #include "llvm/Support/Error.h"
 
+#ifdef LLVM_BUILT_WITH_OOP_JIT
+#include "clang/Basic/Version.h"
+#include "llvm/TargetParser/Host.h"
+
+#include "llvm/ExecutionEngine/Orc/Debugging/DebuggerSupport.h"
+
+#include <unistd.h>
+#endif
+
+#include <algorithm>
+
 namespace compat {
 
 inline std::unique_ptr<clang::Interpreter>
 createClangInterpreter(std::vector<const char*>& args,
+                       int stdin_fd = -1,
+                       int stdout_fd = -1, int stderr_fd = -1,
                        const std::map<char const*, std::string_view>& VFS = {},
                        const std::optional<int> &CM = std::nullopt) {
-#if CLANG_VERSION_MAJOR < 16
-  auto ciOrErr = clang::IncrementalCompilerBuilder::create(args);
-#else
   auto has_arg = [](const char* x, llvm::StringRef match = "cuda") {
     llvm::StringRef Arg = x;
     Arg = Arg.trim().ltrim('-');
@@ -242,15 +237,11 @@ createClangInterpreter(std::vector<const char*>& args,
     DeviceCI = std::move(*devOrErr);
   }
   auto ciOrErr = CudaEnabled ? CB.CreateCudaHost() : CB.CreateCpp();
-#endif // CLANG_VERSION_MAJOR < 16
   if (!ciOrErr) {
     llvm::logAllUnhandledErrors(ciOrErr.takeError(), llvm::errs(),
                                 "Failed to build Incremental compiler:");
     return nullptr;
   }
-#if CLANG_VERSION_MAJOR < 16
-  auto innerOrErr = clang::Interpreter::create(std::move(*ciOrErr));
-#else
   (*ciOrErr)->LoadRequestedPlugins();
   if (CudaEnabled)
     DeviceCI->LoadRequestedPlugins();
@@ -271,12 +262,62 @@ createClangInterpreter(std::vector<const char*>& args,
   auto IEB = std::make_unique<clang::IncrementalExecutorBuilder>();
   if (CM)
     IEB->CM = static_cast<llvm::CodeModel::Model>(*CM);
+
+  bool outOfProcess;
+#if defined(_WIN32) || !defined(LLVM_BUILT_WITH_OOP_JIT)
+  outOfProcess = false;
+#else
+  outOfProcess = std::any_of(args.begin(), args.end(), [](const char* arg) {
+    return llvm::StringRef(arg).trim() == "--use-oop-jit";
+  });
+#endif
+
+#ifdef LLVM_BUILT_WITH_OOP_JIT
+
+  clang::Interpreter::JITConfig OutOfProcessConfig;
+  if (outOfProcess) {
+    OutOfProcessConfig.IsOutOfProcess = true;
+    OutOfProcessConfig.OOPExecutor =
+        LLVM_BINARY_LIB_DIR "/bin/llvm-jitlink-executor";
+    OutOfProcessConfig.UseSharedMemory = false;
+    OutOfProcessConfig.SlabAllocateSize = 0;
+    OutOfProcessConfig.CustomizeFork = [stdin_fd, stdout_fd,
+                                        stderr_fd]() { // Lambda defined inline
+      dup2(stdin_fd, STDIN_FILENO);
+      dup2(stdout_fd, STDOUT_FILENO);
+      dup2(stderr_fd, STDERR_FILENO);
+
+      setvbuf(fdopen(stdout_fd, "w+"), nullptr, _IONBF, 0);
+      setvbuf(fdopen(stderr_fd, "w+"), nullptr, _IONBF, 0);
+    };
+
+#ifdef __APPLE__
+    std::string OrcRuntimePath = LLVM_BINARY_LIB_DIR "/lib/clang/" STRINGIFY(
+        LLVM_VERSION_MAJOR) "/lib/darwin/liborc_rt_osx.a";
+#else
+    std::string OrcRuntimePath = LLVM_BINARY_LIB_DIR "/lib/clang/" STRINGIFY(
+        LLVM_VERSION_MAJOR) "/lib/x86_64-unknown-linux-gnu/liborc_rt.a";
+#endif
+    OutOfProcessConfig.OrcRuntimePath = OrcRuntimePath;
+  }
+  auto innerOrErr =
+      CudaEnabled
+          ? clang::Interpreter::createWithCUDA(std::move(*ciOrErr),
+                                               std::move(DeviceCI))
+          : clang::Interpreter::create(std::move(*ciOrErr), OutOfProcessConfig);
+#else
+  if (outOfProcess) {
+    llvm::errs()
+        << "[CreateClangInterpreter]: No compatibility with out-of-process "
+           "JIT. Running in-process JIT execution."
+        << "(To enable recompile CppInterOp with -DLLVM_BUILT_WITH_OOP_JIT=ON)"
+        << "\n";
+  }
   auto innerOrErr =
       CudaEnabled ? clang::Interpreter::createWithCUDA(std::move(*ciOrErr),
                                                        std::move(DeviceCI))
                   : clang::Interpreter::create(std::move(*ciOrErr), std::move(IEB));
-#endif // CLANG_VERSION_MAJOR < 16
-
+#endif
   if (!innerOrErr) {
     llvm::logAllUnhandledErrors(innerOrErr.takeError(), llvm::errs(),
                                 "Failed to build Interpreter:");
@@ -322,10 +363,6 @@ inline void maybeMangleDeclName(const clang::GlobalDecl& GD,
   RawStr.flush();
 }
 
-// Clang 13 - Initial implementation of Interpreter and clang-repl
-// Clang 14 - Add new Interpreter methods: getExecutionEngine,
-//            getSymbolAddress, getSymbolAddressFromLinkerName
-// Clang 15 - Add new Interpreter methods: Undo
 // Clang 18 - Add new Interpreter methods: CodeComplete
 
 inline llvm::orc::LLJIT* getExecutionEngine(clang::Interpreter& I) {
@@ -344,11 +381,6 @@ inline llvm::orc::LLJIT* getExecutionEngine(clang::Interpreter& I) {
 
 inline llvm::Expected<llvm::JITTargetAddress>
 getSymbolAddress(clang::Interpreter& I, llvm::StringRef IRName) {
-#if CLANG_VERSION_MAJOR < 14
-  assert(0 && "Not implemented in Clang <14!");
-  return llvm::createStringError(llvm::inconvertibleErrorCode(),
-                                 "Not implemented in Clang <14!");
-#endif // CLANG_VERSION_MAJOR < 14
 
   auto AddrOrErr = I.getSymbolAddress(IRName);
   if (llvm::Error Err = AddrOrErr.takeError())
@@ -366,7 +398,6 @@ getSymbolAddress(clang::Interpreter& I, clang::GlobalDecl GD) {
 inline llvm::Expected<llvm::JITTargetAddress>
 getSymbolAddressFromLinkerName(clang::Interpreter& I,
                                llvm::StringRef LinkerName) {
-#if CLANG_VERSION_MAJOR >= 14
   const auto& DL = getExecutionEngine(I)->getDataLayout();
   char GlobalPrefix = DL.getGlobalPrefix();
   std::string LinkerNameTmp(LinkerName);
@@ -377,28 +408,16 @@ getSymbolAddressFromLinkerName(clang::Interpreter& I,
   if (llvm::Error Err = AddrOrErr.takeError())
     return std::move(Err);
   return AddrOrErr->getValue();
-#else
-  assert(0 && "Not implemented in Clang <14!");
-  return llvm::createStringError(llvm::inconvertibleErrorCode(),
-                                 "Not implemented in Clang <14!");
-#endif
 }
 
 inline llvm::Error Undo(clang::Interpreter& I, unsigned N = 1) {
-#if CLANG_VERSION_MAJOR >= 15
   return I.Undo(N);
-#else
-  assert(0 && "Not implemented in Clang <15!");
-  return llvm::createStringError(llvm::inconvertibleErrorCode(),
-                                 "Not implemented in Clang <15!");
-#endif
 }
 
 inline void codeComplete(std::vector<std::string>& Results,
                          clang::Interpreter& I, const char* code,
                          unsigned complete_line = 1U,
                          unsigned complete_column = 1U) {
-#if CLANG_VERSION_MAJOR >= 18
   // FIXME: We should match the invocation arguments of the main interpreter.
   //        That can affect the returned completion results.
   auto CB = clang::IncrementalCompilerBuilder();
@@ -414,7 +433,6 @@ inline void codeComplete(std::vector<std::string>& Results,
   }
 
   std::vector<std::string> results;
-  std::vector<std::string> Comps;
   clang::CompilerInstance* MainCI = (*Interp)->getCompilerInstance();
   auto CC = clang::ReplCodeCompleter();
   CC.codeComplete(MainCI, code, complete_line, complete_column,
@@ -422,59 +440,28 @@ inline void codeComplete(std::vector<std::string>& Results,
   for (llvm::StringRef r : results)
     if (r.find(CC.Prefix) == 0)
       Results.push_back(r.str());
-#else
-  assert(false && "CodeCompletion API only available in Clang >= 18.");
-#endif
 }
 
 } // namespace compat
 
 #include "CppInterOpInterpreter.h"
 
-namespace Cpp {
-namespace Cpp_utils = Cpp::utils;
-}
-
 namespace compat {
-using Interpreter = Cpp::Interpreter;
-}
+using Interpreter = CppInternal::Interpreter;
+
+class SynthesizingCodeRAII {
+private:
+  [[maybe_unused]] Interpreter* m_Interpreter;
+
+public:
+  SynthesizingCodeRAII(Interpreter* i) : m_Interpreter(i) {}
+  // ~SynthesizingCodeRAII() {} // TODO: implement
+};
+} // namespace compat
 
 #endif // CPPINTEROP_USE_REPL
 
 namespace compat {
-
-// Clang >= 14 change type name to string (spaces formatting problem)
-#if CLANG_VERSION_MAJOR >= 14
-inline std::string FixTypeName(const std::string type_name) {
-  return type_name;
-}
-#else
-inline std::string FixTypeName(const std::string type_name) {
-  std::string result = type_name;
-  size_t pos = 0;
-  while ((pos = result.find(" [", pos)) != std::string::npos) {
-    result.erase(pos, 1);
-    pos++;
-  }
-  return result;
-}
-#endif
-
-// Clang >= 16 change CLANG_LIBDIR_SUFFIX to CLANG_INSTALL_LIBDIR_BASENAME
-#if CLANG_VERSION_MAJOR < 16
-#define CLANG_INSTALL_LIBDIR_BASENAME (llvm::Twine("lib") + CLANG_LIBDIR_SUFFIX)
-#endif
-inline std::string MakeResourceDir(llvm::StringRef Dir) {
-  llvm::SmallString<128> P(Dir);
-  llvm::sys::path::append(P, CLANG_INSTALL_LIBDIR_BASENAME, "clang",
-#if CLANG_VERSION_MAJOR < 16
-                          CLANG_VERSION_STRING
-#else
-                          CLANG_VERSION_MAJOR_STRING
-#endif
-  );
-  return std::string(P.str());
-}
 
 // Clang >= 16 (=16 with Value patch) change castAs to convertTo
 #ifdef CPPINTEROP_USE_CLING
@@ -487,6 +474,25 @@ template <typename T> inline T convertTo(clang::Value V) {
 }
 #endif // CPPINTEROP_USE_CLING
 
+inline void InstantiateClassTemplateSpecialization(
+    Interpreter& interp, clang::ClassTemplateSpecializationDecl* CTSD) {
+#ifdef CPPINTEROP_USE_CLING
+  cling::Interpreter::PushTransactionRAII RAII(&interp);
+#endif
+#if CLANG_VERSION_MAJOR < 20
+  interp.getSema().InstantiateClassTemplateSpecialization(
+      clang::SourceLocation::getFromRawEncoding(1), CTSD,
+
+      clang::TemplateSpecializationKind::TSK_ExplicitInstantiationDefinition,
+      /*Complain=*/true);
+#else
+  interp.getSema().InstantiateClassTemplateSpecialization(
+      clang::SourceLocation::getFromRawEncoding(1), CTSD,
+      clang::TemplateSpecializationKind::TSK_ExplicitInstantiationDefinition,
+      /*Complain=*/true,
+      /*PrimaryHasMatchedPackOnParmToNonPackOnArg=*/false);
+#endif
+}
 } // namespace compat
 
 #endif // CPPINTEROP_COMPATIBILITY_H

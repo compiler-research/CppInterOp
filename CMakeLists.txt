@@ -12,6 +12,9 @@ set(CMAKE_CXX_EXTENSIONS NO)
 option(CPPINTEROP_USE_CLING "Use Cling as backend" OFF)
 option(CPPINTEROP_USE_REPL "Use clang-repl as backend" ON)
 option(CPPINTEROP_ENABLE_TESTING "Enable the CppInterOp testing infrastructure." ON)
+if(EMSCRIPTEN)
+  set(CPPINTEROP_EXTRA_WASM_FLAGS "-fwasm-exceptions" CACHE STRING "Extra flags for wasm")
+endif()
 
 if (CPPINTEROP_USE_CLING AND CPPINTEROP_USE_REPL)
 message(FATAL_ERROR "We can only use Cling (${CPPINTEROP_USE_CLING}=On) or Repl (CPPINTEROP_USE_REPL=On), but not both of them.")
@@ -20,6 +23,13 @@ endif()
 # project, using LLVM as an external library:
 if( CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR )
   project(CppInterOp)
+
+  if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
+    message(WARNING "No build type selected. Defaulted CMAKE_BUILD_TYPE=Release.\n"
+      "Valid options are: None, Debug, Release, RelWithDebInfo, MinSizeRel.")
+    set(CMAKE_BUILD_TYPE Release CACHE STRING
+      "Choose the type of build, options are: None Debug Release RelWithDebInfo MinSizeRel" FORCE)
+  endif()
 
   # LLVM/Clang/Cling default paths
   if (DEFINED LLVM_DIR)
@@ -67,15 +77,15 @@ if( CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR )
 include(GNUInstallDirs)
   ## Define supported version of clang and llvm
 
-  set(CLANG_MIN_SUPPORTED 13.0)
-  set(CLANG_MAX_SUPPORTED "20.1.x")
-  set(CLANG_VERSION_UPPER_BOUND 21.0.0)
-  set(LLD_MIN_SUPPORTED 13.0)
-  set(LLD_MAX_SUPPORTED "20.1.x")
-  set(LLD_VERSION_UPPER_BOUND 21.0.0)
-  set(LLVM_MIN_SUPPORTED 13.0)
-  set(LLVM_MAX_SUPPORTED "20.1.x")
-  set(LLVM_VERSION_UPPER_BOUND 21.0.0)
+  set(CLANG_MIN_SUPPORTED 19.0)
+  set(CLANG_MAX_SUPPORTED "21.1.x")
+  set(CLANG_VERSION_UPPER_BOUND 22.0.0)
+  set(LLD_MIN_SUPPORTED 19.0)
+  set(LLD_MAX_SUPPORTED "21.1.x")
+  set(LLD_VERSION_UPPER_BOUND 22.0.0)
+  set(LLVM_MIN_SUPPORTED 19.0)
+  set(LLVM_MAX_SUPPORTED "21.1.x")
+  set(LLVM_VERSION_UPPER_BOUND 22.0.0)
 
   ## Set Cmake packages search order
 
@@ -230,21 +240,12 @@ endif()
   message(STATUS "Found supported version: Clang ${CLANG_PACKAGE_VERSION}")
   message(STATUS "Using ClangConfig.cmake in: ${Clang_DIR}")
 
-  ## Clang 13 require c++14 or later, Clang 16 require c++17 or later.
-  if (CLANG_VERSION_MAJOR GREATER_EQUAL 16)
-    if (NOT CMAKE_CXX_STANDARD)
-      set (CMAKE_CXX_STANDARD 17)
-    endif()
-    if (CMAKE_CXX_STANDARD LESS 17)
-      message(fatal "LLVM/CppInterOp requires c++17 or later")
-    endif()
-  elseif (CLANG_VERSION_MAJOR GREATER_EQUAL 13)
-    if (NOT CMAKE_CXX_STANDARD)
-      set (CMAKE_CXX_STANDARD 14)
-    endif()
-    if (CMAKE_CXX_STANDARD LESS 14)
-      message(fatal "LLVM/CppInterOp requires c++14 or later")
-    endif()
+  ## Clang 18 require c++17 or later.
+  if (NOT CMAKE_CXX_STANDARD)
+    set (CMAKE_CXX_STANDARD 17)
+  endif()
+  if (CMAKE_CXX_STANDARD LESS 17)
+    message(fatal "LLVM/CppInterOp requires c++17 or later")
   endif()
 
   ## Find supported Cling
@@ -283,10 +284,10 @@ endif()
   set(LLVM_LIBRARY_OUTPUT_INTDIR ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}/lib${LLVM_LIBDIR_SUFFIX})
 
   set( CPPINTEROP_BUILT_STANDALONE 1 )
-endif()
 
-include(AddLLVM)
-include(HandleLLVMOptions)
+  include(AddLLVM)
+  include(HandleLLVMOptions)
+endif()
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
@@ -306,6 +307,18 @@ include_directories(SYSTEM ${CLANG_INCLUDE_DIRS})
 include_directories(SYSTEM ${LLVM_INCLUDE_DIRS})
 separate_arguments(LLVM_DEFINITIONS_LIST NATIVE_COMMAND ${LLVM_DEFINITIONS})
 add_definitions(${LLVM_DEFINITIONS_LIST})
+
+string(REGEX REPLACE "/lib/cmake/llvm$" "" LLVM_BINARY_LIB_DIR "${LLVM_DIR}")
+add_definitions(-DLLVM_BINARY_LIB_DIR="${LLVM_BINARY_LIB_DIR}")
+
+if(LLVM_BUILT_WITH_OOP_JIT)
+  if((CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND CMAKE_SYSTEM_PROCESSOR MATCHES "arm64") OR
+     (CMAKE_SYSTEM_NAME STREQUAL "Linux" AND CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64"))
+    add_definitions(-DLLVM_BUILT_WITH_OOP_JIT)
+  else()
+    message(FATAL_ERROR "LLVM_BUILT_WITH_OOP_JIT is only supported on MacOS arm64 or Linux x86_64. Build aborted.")
+  endif()
+endif()
 
 # If the llvm sources are present add them with higher priority.
 if (LLVM_BUILD_MAIN_SRC_DIR)
@@ -356,6 +369,9 @@ endif()
 if (LLVM_COMPILER_IS_GCC_COMPATIBLE)
   if (APPLE OR EMSCRIPTEN)
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-common -Woverloaded-virtual -Wcast-qual -fno-strict-aliasing -Wno-long-long -Wall -W -Wno-unused-parameter -Wwrite-strings")
+    if (EMSCRIPTEN)
+      set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${CPPINTEROP_EXTRA_WASM_FLAGS}")
+    endif ()
   else()
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fno-common -Woverloaded-virtual -Wcast-qual -fno-strict-aliasing -pedantic -Wno-long-long -Wall -W -Wno-unused-parameter -Wwrite-strings")
   endif ()

@@ -27,10 +27,9 @@
 #include <sys/stat.h>
 #include <system_error>
 
-namespace Cpp {
+namespace CppInternal {
 
-using namespace Cpp::utils::platform;
-using namespace Cpp::utils;
+using namespace utils;
 using namespace llvm;
 
 DynamicLibraryManager::DynamicLibraryManager() {
@@ -55,8 +54,8 @@ DynamicLibraryManager::DynamicLibraryManager() {
   for (const char* Var : kSysLibraryEnv) {
     if (const char* Env = GetEnv(Var)) {
       SmallVector<StringRef, 10> CurPaths;
-      SplitPaths(Env, CurPaths, utils::kPruneNonExistent,
-                 Cpp::utils::platform::kEnvDelim);
+      SplitPaths(Env, CurPaths, SplitMode::kPruneNonExistent,
+                 platform::kEnvDelim);
       for (const auto& Path : CurPaths)
         addSearchPath(Path);
     }
@@ -66,7 +65,7 @@ DynamicLibraryManager::DynamicLibraryManager() {
   addSearchPath(".");
 
   SmallVector<std::string, 64> SysPaths;
-  Cpp::utils::platform::GetSystemLibraryPaths(SysPaths);
+  platform::GetSystemLibraryPaths(SysPaths);
 
   for (const std::string& P : SysPaths)
     addSearchPath(P, /*IsUser*/ false);
@@ -145,19 +144,22 @@ std::string DynamicLibraryManager::lookupLibInPaths(
 
   LLVM_DEBUG(dbgs() << "Dyld::lookupLibInPaths: \n");
   LLVM_DEBUG(dbgs() << ":: RPATH\n");
+#ifndef NDEBUG
   for (auto Info : RPath) {
     LLVM_DEBUG(dbgs() << ":::: " << Info.str() << "\n");
   }
+#endif
   LLVM_DEBUG(dbgs() << ":: SearchPaths (LD_LIBRARY_PATH, etc...)\n");
   for (auto Info : getSearchPaths()) {
     LLVM_DEBUG(dbgs() << ":::: " << Info.Path
                       << ", user=" << (Info.IsUser ? "true" : "false") << "\n");
   }
   LLVM_DEBUG(dbgs() << ":: RUNPATH\n");
+#ifndef NDEBUG
   for (auto Info : RunPath) {
     LLVM_DEBUG(dbgs() << ":::: " << Info.str() << "\n");
   }
-
+#endif
   SmallString<512> ThisPath;
   // RPATH
   for (auto Info : RPath) {
@@ -503,4 +505,4 @@ bool DynamicLibraryManager::isSharedLibrary(StringRef libFullPath,
   return result;
 }
 
-} // end namespace Cpp
+} // end namespace CppInternal

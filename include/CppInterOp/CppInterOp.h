@@ -15,11 +15,13 @@
 #define CPPINTEROP_CPPINTEROP_H
 
 #include <cassert>
+#include <cstddef>
 #include <cstdint>
 #include <map>
 #include <optional>
 #include <set>
 #include <string>
+#include <sys/types.h>
 #include <vector>
 
 // The cross-platform CPPINTEROP_API macro definition
@@ -33,9 +35,10 @@
 #endif
 #endif
 
-namespace Cpp {
+namespace CppImpl {
 using TCppIndex_t = size_t;
 using TCppScope_t = void*;
+using TCppConstScope_t = const void*;
 using TCppType_t = void*;
 using TCppFunction_t = void*;
 using TCppConstFunction_t = const void*;
@@ -44,7 +47,7 @@ using TInterp_t = void*;
 using TCppObject_t = void*;
 using TModule_t = void*;
 
-enum Operator {
+enum Operator : unsigned char {
   OP_None,
   OP_New,
   OP_Delete,
@@ -93,7 +96,25 @@ enum Operator {
   OP_Coawait,
 };
 
-enum OperatorArity { kUnary = 1, kBinary, kBoth };
+enum OperatorArity : unsigned char { kUnary = 1, kBinary, kBoth };
+
+/// Enum modelling CVR qualifiers.
+enum QualKind : unsigned char {
+  Const = 1 << 0,
+  Volatile = 1 << 1,
+  Restrict = 1 << 2
+};
+
+inline QualKind operator|(QualKind a, QualKind b) {
+  return static_cast<QualKind>(static_cast<unsigned char>(a) |
+                               static_cast<unsigned char>(b));
+}
+
+enum class ValueKind : std::uint8_t {
+  None,
+  LValue,
+  RValue,
+};
 
 /// A class modeling function calls for functions produced by the interpreter
 /// in compiled code. It provides an information if we are calling a standard
@@ -105,37 +126,45 @@ public:
   enum Kind : char {
     kUnknown = 0,
     kGenericCall,
+    kConstructorCall,
     kDestructorCall,
   };
   struct ArgList {
     void** m_Args = nullptr;
     size_t m_ArgSize = 0;
     // Clang struggles with =default...
-    ArgList() : m_Args(nullptr), m_ArgSize(0) {}
+    ArgList() {}
     ArgList(void** Args, size_t ArgSize) : m_Args(Args), m_ArgSize(ArgSize) {}
   };
   // FIXME: Figure out how to unify the wrapper signatures.
   // FIXME: Hide these implementation details by moving wrapper generation in
   // this class.
-  using GenericCall = void (*)(void*, int, void**, void*);
-  using DestructorCall = void (*)(void*, unsigned long, int);
+  // (self, nargs, args, result, nary)
+  using GenericCall = void (*)(void*, size_t, void**, void*);
+  // (result, nary, nargs, args, is_arena)
+  using ConstructorCall = void (*)(void*, size_t, size_t, void**, void*);
+  // (self, nary, withFree)
+  using DestructorCall = void (*)(void*, size_t, int);
 
 private:
   union {
     GenericCall m_GenericCall;
+    ConstructorCall m_ConstructorCall;
     DestructorCall m_DestructorCall;
   };
-  const Kind m_Kind;
+  Kind m_Kind;
   TCppConstFunction_t m_FD;
-  JitCall() : m_Kind(kUnknown), m_GenericCall(nullptr), m_FD(nullptr) {}
+  JitCall() : m_GenericCall(nullptr), m_Kind(kUnknown), m_FD(nullptr) {}
   JitCall(Kind K, GenericCall C, TCppConstFunction_t FD)
-      : m_Kind(K), m_GenericCall(C), m_FD(FD) {}
+      : m_GenericCall(C), m_Kind(K), m_FD(FD) {}
+  JitCall(Kind K, ConstructorCall C, TCppConstFunction_t Ctor)
+      : m_ConstructorCall(C), m_Kind(K), m_FD(Ctor) {}
   JitCall(Kind K, DestructorCall C, TCppConstFunction_t Dtor)
-      : m_Kind(K), m_DestructorCall(C), m_FD(Dtor) {}
+      : m_DestructorCall(C), m_Kind(K), m_FD(Dtor) {}
 
   /// Checks if the passed arguments are valid for the given function.
-  CPPINTEROP_API bool AreArgumentsValid(void* result, ArgList args,
-                                        void* self) const;
+  CPPINTEROP_API bool AreArgumentsValid(void* result, ArgList args, void* self,
+                                        size_t nary) const;
 
   /// This function is used for debugging, it reports when the function was
   /// called.
@@ -165,15 +194,36 @@ public:
   // by default. These changes should be synchronized with the wrapper if we
   // decide to directly.
   void Invoke(void* result, ArgList args = {}, void* self = nullptr) const {
-    // Forward if we intended to call a dtor with only 1 parameter.
-    if (m_Kind == kDestructorCall && result && !args.m_Args)
-      return InvokeDestructor(result, /*nary=*/0UL, /*withFree=*/true);
+    // NOLINTBEGIN(*-type-union-access)
+    // Its possible the JitCall object deals with structor decls but went
+    // through Invoke
 
+    switch (m_Kind) {
+    case kUnknown:
+      assert(0 && "Attempted to call an invalid function declaration");
+      break;
+
+    case kGenericCall:
 #ifndef NDEBUG
-    assert(AreArgumentsValid(result, args, self) && "Invalid args!");
-    ReportInvokeStart(result, args, self);
+      // We pass 1UL to nary which is only relevant for structors
+      assert(AreArgumentsValid(result, args, self, 1UL) && "Invalid args!");
+      ReportInvokeStart(result, args, self);
 #endif // NDEBUG
-    m_GenericCall(self, args.m_ArgSize, args.m_Args, result);
+      m_GenericCall(self, args.m_ArgSize, args.m_Args, result);
+      break;
+
+    case kConstructorCall:
+      // Forward if we intended to call a constructor (nary cannot be inferred,
+      // so we stick to constructing a single object)
+      InvokeConstructor(result, /*nary=*/1UL, args, self);
+      break;
+    case kDestructorCall:
+      // Forward if we intended to call a dtor with only 1 parameter.
+      assert(!args.m_Args && "Destructor called with arguments");
+      InvokeDestructor(result, /*nary=*/0UL, /*withFree=*/true);
+      break;
+    }
+    // NOLINTEND(*-type-union-access)
   }
   /// Makes a call to a destructor.
   ///\param[in] object - the pointer of the object whose destructor we call.
@@ -189,6 +239,26 @@ public:
     ReportInvokeStart(object, nary, withFree);
 #endif // NDEBUG
     m_DestructorCall(object, nary, withFree);
+  }
+
+  /// Makes a call to a constructor.
+  ///\param[in] result - the memory address at which we construct the object
+  ///           (placement new).
+  ///\param[in] nary - Use array new if we have to construct an array of
+  ///           objects (nary > 1).
+  ///\param[in] args - a pointer to a argument list and argument size.
+  ///\param[in] is_arena - a pointer that indicates if placement new is to be
+  /// used
+  // FIXME: Change the type of withFree from int to bool in the wrapper code.
+  void InvokeConstructor(void* result, unsigned long nary = 1,
+                         ArgList args = {}, void* is_arena = nullptr) const {
+    assert(m_Kind == kConstructorCall && "Wrong overload!");
+#ifndef NDEBUG
+    assert(AreArgumentsValid(result, args, /*self=*/nullptr, nary) &&
+           "Invalid args!");
+    ReportInvokeStart(result, args, nullptr);
+#endif // NDEBUG
+    m_ConstructorCall(result, nary, args.m_ArgSize, args.m_Args, is_arena);
   }
 };
 
@@ -325,6 +395,18 @@ CPPINTEROP_API bool IsEnumConstant(TCppScope_t handle);
 /// Checks if the passed value is an enum type or not.
 CPPINTEROP_API bool IsEnumType(TCppType_t type);
 
+/// Checks if the passed type has qual Qualifiers
+/// qual can be ORed value of enum QualKind
+CPPINTEROP_API bool HasTypeQualifier(TCppType_t type, QualKind qual);
+
+/// Returns type with the qual Qualifiers removed
+/// qual can be ORed value of enum QualKind
+CPPINTEROP_API TCppType_t RemoveTypeQualifier(TCppType_t type, QualKind qual);
+
+/// Returns type with the qual Qualifiers added
+/// qual can be ORed value of enum QualKind
+CPPINTEROP_API TCppType_t AddTypeQualifier(TCppType_t type, QualKind qual);
+
 /// Extracts enum declarations from a specified scope and stores them in
 /// vector
 CPPINTEROP_API void GetEnums(TCppScope_t scope,
@@ -379,6 +461,14 @@ CPPINTEROP_API std::string GetQualifiedName(TCppScope_t klass);
 /// the "qualified" name (including the namespace), it also
 /// gets the template arguments.
 CPPINTEROP_API std::string GetQualifiedCompleteName(TCppScope_t klass);
+
+/// Retrieves the Doxygen documentation comment for a declaration.
+/// \param[in] scope -- The declaration to get the comment for.
+/// \param[in] strip_comment_markers -- If true, removes comment markers (///,
+/// /**, etc.).
+/// \returns The documentation comment, or empty string if none exists.
+CPPINTEROP_API std::string GetDoxygenComment(TCppScope_t scope,
+                                             bool strip_comment_markers = true);
 
 /// Gets the list of namespaces utilized in the supplied scope.
 CPPINTEROP_API std::vector<TCppScope_t> GetUsingNamespaces(TCppScope_t scope);
@@ -550,6 +640,9 @@ CPPINTEROP_API bool IsDestructor(TCppConstFunction_t method);
 /// Checks if the provided parameter is a 'Static' method.
 CPPINTEROP_API bool IsStaticMethod(TCppConstFunction_t method);
 
+/// Checks if the provided constructor or conversion operator is explicit
+CPPINTEROP_API bool IsExplicit(TCppConstFunction_t method);
+
 ///\returns the address of the function given its potentially mangled name.
 CPPINTEROP_API TCppFuncAddr_t GetFunctionAddress(const char* mangled_name);
 
@@ -585,6 +678,9 @@ CPPINTEROP_API TCppScope_t LookupDatamember(const std::string& name,
 /// This is a Lookup function to be used specifically for methods.
 CPPINTEROP_API std::vector<TCppFunction_t>
 LookupMethods(const std::string& name, TCppScope_t parent);
+
+/// Check if the given type is a lamda class
+CPPINTEROP_API bool IsLambdaClass(TCppType_t type);
 
 /// Gets the type of the variable that is passed as a parameter.
 CPPINTEROP_API TCppType_t GetVariableType(TCppScope_t var);
@@ -668,8 +764,18 @@ CPPINTEROP_API bool IsReferenceType(TCppType_t type);
 /// Checks if type is an rvalue reference
 CPPINTEROP_API bool IsRvalueReferenceType(TCppType_t type);
 
+/// Get if lvalue or rvalue reference
+CPPINTEROP_API ValueKind GetValueKind(TCppType_t type);
+
 /// Get the type that the reference refers to
 CPPINTEROP_API TCppType_t GetNonReferenceType(TCppType_t type);
+
+/// Get lvalue referenced type, or rvalue if rvalue is true
+CPPINTEROP_API TCppType_t GetReferencedType(TCppType_t type,
+                                            bool rvalue = false);
+
+/// Get the pointer to type
+CPPINTEROP_API TCppType_t GetPointerType(TCppType_t type);
 
 /// Gets the pure, Underlying Type (as opposed to the Using Type).
 CPPINTEROP_API TCppType_t GetUnderlyingType(TCppType_t type);
@@ -760,6 +866,12 @@ CPPINTEROP_API std::string GetFunctionArgDefault(TCppFunction_t func,
 CPPINTEROP_API std::string GetFunctionArgName(TCppFunction_t func,
                                               TCppIndex_t param_index);
 
+///\returns string representation of the operator
+CPPINTEROP_API std::string GetSpellingFromOperator(Operator Operator);
+
+///\returns operator of representing the string
+CPPINTEROP_API Operator GetOperatorFromSpelling(const std::string& op);
+
 ///\returns arity of the operator or kNone
 CPPINTEROP_API OperatorArity GetOperatorArity(TCppFunction_t op);
 
@@ -769,16 +881,27 @@ CPPINTEROP_API void GetOperator(Operator op,
                                 std::vector<TCppFunction_t>& operators,
                                 OperatorArity kind);
 
-/// Creates an instance of the interpreter we need for the various interop
-/// services.
+/// Creates an owned instance of the interpreter we need for the various interop
+/// services and pushes it onto a stack.
 ///\param[in] Args - the list of arguments for interpreter constructor.
 ///\param[in] CPPINTEROP_EXTRA_INTERPRETER_ARGS - an env variable, if defined,
 ///           adds additional arguments to the interpreter.
+///\returns nullptr on failure.
 CPPINTEROP_API TInterp_t
 CreateInterpreter(const std::vector<const char*>& Args = {},
                   const std::vector<const char*>& GpuArgs = {},
                   const std::map<char const*, std::string_view>& VFS = {},
                   const std::optional<int>& CM = std::nullopt);
+
+/// Deletes an instance of an interpreter.
+///\param[in] I - the interpreter to be deleted, if nullptr, deletes the last.
+///\returns false on failure or if \c I is not tracked in the stack.
+CPPINTEROP_API bool DeleteInterpreter(TInterp_t I = nullptr);
+
+/// Activates an instance of an interpreter to handle subsequent API requests
+///\param[in] I - the interpreter to be activated.
+///\returns false on failure.
+CPPINTEROP_API bool ActivateInterpreter(TInterp_t I);
 
 /// Checks which Interpreter backend was CppInterOp library built with (Cling,
 /// Clang-REPL, etcetera). In practice, the selected interpreter should not
@@ -883,11 +1006,12 @@ CPPINTEROP_API std::string ObjToString(const char* type, void* obj);
 ///           in the \c TemplateArgInfo struct
 ///\param[in] template_args_size - Size of the vector of template arguments
 ///           passed as \c template_args
+///\param[in] instantiate_body - also instantiate/define the body
 ///
 ///\returns Instantiated templated class/function/variable pointer
 CPPINTEROP_API TCppScope_t
 InstantiateTemplate(TCppScope_t tmpl, const TemplateArgInfo* template_args,
-                    size_t template_args_size);
+                    size_t template_args_size, bool instantiate_body = false);
 
 CPPINTEROP_API bool InstantiateTemplate(TCppScope_t spec);
 
@@ -928,6 +1052,7 @@ CPPINTEROP_API void GetAllCppNames(TCppScope_t scope,
 
 CPPINTEROP_API void DumpScope(TCppScope_t scope);
 
+// FIXME: Rework the GetDimensions and make this enum redundant.
 namespace DimensionValue {
 enum : long int {
   UNKNOWN_SIZE = -1,
@@ -937,20 +1062,40 @@ enum : long int {
 /// Gets the size/dimensions of a multi-dimension array.
 CPPINTEROP_API std::vector<long int> GetDimensions(TCppType_t type);
 
-/// Allocates memory for a given class.
-CPPINTEROP_API TCppObject_t Allocate(TCppScope_t scope);
+/// Allocates memory required by an object of a given class
+/// \param[in] scope Given class for which to allocate memory for
+/// \param[in] count is used to indicate the number of objects to allocate for.
+CPPINTEROP_API TCppObject_t Allocate(TCppScope_t scope,
+                                     TCppIndex_t count = 1UL);
 
 /// Deallocates memory for a given class.
-CPPINTEROP_API void Deallocate(TCppScope_t scope, TCppObject_t address);
+/// \param[in] scope Class to indicate size of memory to deallocate
+/// \param[in] count is used to indicate the number of objects to dallocate for
+CPPINTEROP_API void Deallocate(TCppScope_t scope, TCppObject_t address,
+                               TCppIndex_t count = 1UL);
 
-/// Creates an object of class \c scope and calls its default constructor. If
-/// \c arena is set it uses placement new.
-CPPINTEROP_API TCppObject_t Construct(TCppScope_t scope, void* arena = nullptr);
+/// Creates one or more objects of class \c scope by calling its default
+/// constructor.
+/// \param[in] scope Class to construct, or handle to Constructor
+/// \param[in] arena If set, this API uses placement new to construct at this
+/// address.
+/// \param[in] is used to indicate the number of objects to construct.
+/// \returns a pointer to the constructed object, which is arena if placement
+/// new is used.
+CPPINTEROP_API TCppObject_t Construct(TCppScope_t scope, void* arena = nullptr,
+                                      TCppIndex_t count = 1UL);
 
-/// Calls the destructor of object of type \c type. When withFree is true it
-/// calls operator delete/free.
-CPPINTEROP_API void Destruct(TCppObject_t This, TCppScope_t type,
-                             bool withFree = true);
+/// Destroys one or more objects of a class
+/// \param[in] This this pointer of the object to destruct. Can also be the
+/// starting address of an array of objects
+/// \param[in] scope Class to destruct
+/// \param[in] withFree if true, we call operator delete/free, else just the
+/// destructor
+/// \param[in] count indicate the number of objects to destruct, if \c This
+/// points to an array of objects
+/// \returns true if wrapper generation and invocation succeeded.
+CPPINTEROP_API bool Destruct(TCppObject_t This, TCppConstScope_t scope,
+                             bool withFree = true, TCppIndex_t count = 0UL);
 
 /// @name Stream Redirection
 ///
@@ -987,6 +1132,16 @@ CPPINTEROP_API void CodeComplete(std::vector<std::string>& Results,
 ///\returns 0 on success, non-zero on failure.
 CPPINTEROP_API int Undo(unsigned N = 1);
 
-} // end namespace Cpp
+#ifndef _WIN32
+/// Returns the process ID of the executor process.
+/// \returns the PID of the executor process.
+CPPINTEROP_API pid_t GetExecutorPID();
+#endif
 
+} // namespace CppImpl
+
+#ifndef CPPINTEROP_DISPATCH_H
+// NOLINTNEXTLINE(misc-unused-alias-decls)
+namespace Cpp = CppImpl;
+#endif
 #endif // CPPINTEROP_CPPINTEROP_H
