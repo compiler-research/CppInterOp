@@ -550,7 +550,9 @@ TEST(TypeReflectionTest, IsPODType) {
 TEST(TypeReflectionTest, IsSmartPtrType) {
   if (llvm::sys::RunningOnValgrind())
     GTEST_SKIP() << "XFAIL due to Valgrind report";
-  Cpp::CreateInterpreter();
+
+  std::vector<const char*> interpreter_args = {"-include", "new"};
+  Cpp::CreateInterpreter(interpreter_args);
 
   Interp->declare(R"(
     #include <memory>
@@ -588,7 +590,8 @@ TEST(TypeReflectionTest, IsSmartPtrType) {
 }
 
 TEST(TypeReflectionTest, IsFunctionPointerType) {
-  Cpp::CreateInterpreter();
+  std::vector<const char*> interpreter_args = {"-include", "new"};
+  Cpp::CreateInterpreter(interpreter_args);
 
   Interp->declare(R"(
     typedef int (*int_func)(int, int);

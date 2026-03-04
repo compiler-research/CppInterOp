@@ -440,8 +440,8 @@ endif()
 
 # Generate docs for CppInterOp
 option(CPPINTEROP_INCLUDE_DOCS "Generate build targets for the CppInterOp docs.")
-option(CPPINTEROP_ENABLE_DOXYGEN "Use doxygen to generate CppInterOp interal API documentation.")
-option(CPPINTEROP_ENABLE_SPHINX "Use sphinx to generage CppInterOp user documentation")
+option(CPPINTEROP_ENABLE_DOXYGEN "Use doxygen to generate CppInterOp internal API documentation.")
+option(CPPINTEROP_ENABLE_SPHINX "Use sphinx to generate CppInterOp user documentation")
 
 
 if(MSVC)
@@ -498,7 +498,7 @@ if(MSVC)
     set(MSVC_EXPORTLIST ${MSVC_EXPORTLIST} ??3@YAXPAX0@Z ??_V@YAXPAX0@Z)
   endif()
 
-  if(MSVC_VERSION GREATER_EQUAL 1936)
+  if(MSVC_VERSION GREATER_EQUAL 1936 AND NOT (CMAKE_C_COMPILER MATCHES "aarch64|arm"))
     set(MSVC_EXPORTLIST ${MSVC_EXPORTLIST}
         __std_find_trivial_1
         __std_find_trivial_2

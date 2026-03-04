@@ -168,7 +168,9 @@ TEST(ScopeReflectionTest, IsBuiltin) {
   //  "int", "unsigned int", "long", "unsigned long", "long long", "unsigned long long",
   //  "float", "double", "long double", "void"}
 
-  Cpp::CreateInterpreter();
+  std::vector<const char*> interpreter_args = { "-include", "new" };
+
+  Cpp::CreateInterpreter(interpreter_args);
   ASTContext &C = Interp->getCI()->getASTContext();
   EXPECT_TRUE(Cpp::IsBuiltin(C.BoolTy.getAsOpaquePtr()));
   EXPECT_TRUE(Cpp::IsBuiltin(C.CharTy.getAsOpaquePtr()));
@@ -503,7 +505,10 @@ TEST(ScopeReflectionTest, GetNamed) {
                         }
                         }
                        )";
-  Cpp::CreateInterpreter();
+
+  std::vector<const char*> interpreter_args = {"-include", "new"};
+
+  Cpp::CreateInterpreter(interpreter_args);
 
   Interp->declare(code);
   Cpp::TCppScope_t ns_N1 = Cpp::GetNamed("N1", nullptr);
@@ -880,7 +885,8 @@ template<typename T> T TrivialFnTemplate() { return T(); }
 TEST(ScopeReflectionTest, InstantiateTemplateFunctionFromString) {
   if (llvm::sys::RunningOnValgrind())
     GTEST_SKIP() << "XFAIL due to Valgrind report";
-  Cpp::CreateInterpreter();
+  std::vector<const char*> interpreter_args = {"-include", "new"};
+  Cpp::CreateInterpreter(interpreter_args);
   std::string code = R"(#include <memory>)";
   Interp->process(code);
   const char* str = "std::make_unique<int,int>";
@@ -1024,6 +1030,8 @@ TEST(ScopeReflectionTest, IncludeVector) {
     #include <vector>
     #include <iostream>
   )";
+  std::vector<const char*> interpreter_args = {"-include", "new"};
+  Cpp::CreateInterpreter(interpreter_args);
   Interp->declare(code);
 }
 

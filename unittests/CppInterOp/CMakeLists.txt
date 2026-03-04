@@ -1,7 +1,7 @@
 if (EMSCRIPTEN)
   # Omitting CUDATest.cpp since Emscripten build currently has no GPU support
   # For Emscripten builds linking to gtest_main will not suffice for gtest to run
-  # the tests and an explictly main.cpp is needed
+  # the tests and an explicitly main.cpp is needed
   set(EXTRA_TEST_SOURCE_FILES main.cpp)
 else()
   # Do not need main.cpp for native builds, but we do have GPU support for native builds
@@ -43,6 +43,7 @@ if(EMSCRIPTEN)
   # --preload-file ${SYSROOT_PATH}/include@/include:
   # Preloads the system include directory into the Emscripten virtual filesystem to make headers accessible at runtime.
   target_link_options(CppInterOpTests
+    PUBLIC "SHELL: -fexceptions"
     PUBLIC "SHELL: -s MAIN_MODULE=1"
     PUBLIC "SHELL: -s WASM_BIGINT"
     PUBLIC "SHELL: -s ALLOW_MEMORY_GROWTH=1"
@@ -75,6 +76,11 @@ export_executable_symbols(CppInterOpTests)
 
 unset(LLVM_LINK_COMPONENTS)
 
+if (NOT EMSCRIPTEN)
+  set(EXTRA_TEST_SOURCE_FILES "")
+  set(EXTRA_PATH_TEST_BINARIES /TestSharedLib/unittests/bin/$<CONFIG>/)
+endif()
+
 add_cppinterop_unittest(DynamicLibraryManagerTests DynamicLibraryManagerTest.cpp ${EXTRA_TEST_SOURCE_FILES})
 
 target_link_libraries(DynamicLibraryManagerTests
@@ -92,10 +98,6 @@ if(EMSCRIPTEN)
     PUBLIC "SHELL: -s INITIAL_MEMORY=128mb"
     PUBLIC "SHELL: --preload-file ${SYSROOT_PATH}/include@/include"
   )
-endif()
-
- if (NOT EMSCRIPTEN)
-  set(EXTRA_PATH_TEST_BINARIES /TestSharedLib/unittests/bin/$<CONFIG>/)
 endif()
 
 set_output_directory(DynamicLibraryManagerTests

@@ -1885,7 +1885,7 @@ namespace Cpp {
         // not C. That means BaseCXXRD derives from C. Offset needs to be
         // calculated for Derived class
 
-        // Depth first Search is performed to the class that declears FD from
+        // Depth first Search is performed to the class that declares FD from
         // the base class
         std::vector<CXXRecordDecl*> stack;
         std::map<CXXRecordDecl*, CXXRecordDecl*> direction;
@@ -2639,6 +2639,29 @@ namespace Cpp {
       QT.getAsStringInternal(type_name, Policy);
     }
 
+    static void GetDeclName(const clang::Decl* D, ASTContext& Context,
+                            std::string& name) {
+      // Helper to extract a fully qualified name from a Decl
+      PrintingPolicy Policy(Context.getPrintingPolicy());
+      Policy.SuppressTagKeyword = true;
+      Policy.SuppressUnwrittenScope = true;
+      if (const TypeDecl* TD = dyn_cast<TypeDecl>(D)) {
+        // This is a class, struct, or union member.
+        QualType QT;
+        if (const TypedefDecl* Typedef = dyn_cast<const TypedefDecl>(TD)) {
+          // Handle the typedefs to anonymous types.
+          QT = Typedef->getTypeSourceInfo()->getType();
+        } else
+          QT = {TD->getTypeForDecl(), 0};
+        get_type_as_string(QT, name, Context, Policy);
+      } else if (const NamedDecl* ND = dyn_cast<NamedDecl>(D)) {
+        // This is a namespace member.
+        raw_string_ostream stream(name);
+        ND->getNameForDiagnostic(stream, Policy, /*Qualified=*/true);
+        stream.flush();
+      }
+    }
+
     void collect_type_info(const FunctionDecl* FD, QualType& QT,
                            std::ostringstream& typedefbuf,
                            std::ostringstream& callbuf, std::string& type_name,
@@ -2742,7 +2765,7 @@ namespace Cpp {
             callbuf << ' ';
           } else {
             callbuf << "\n";
-            indent(callbuf, indent_level);
+            indent(callbuf, indent_level + 1);
           }
         }
         if (refType != kNotReference) {
@@ -2802,7 +2825,7 @@ namespace Cpp {
                 callbuf << ' ';
               } else {
                 callbuf << "\n";
-                indent(callbuf, indent_level);
+                indent(callbuf, indent_level + 1);
               }
             }
             const ParmVarDecl* PVD = FD->getParamDecl(i);
@@ -2882,7 +2905,7 @@ namespace Cpp {
             callbuf << ' ';
           } else {
             callbuf << "\n";
-            indent(callbuf, indent_level);
+            indent(callbuf, indent_level + 1);
           }
         }
 
@@ -3023,22 +3046,12 @@ namespace Cpp {
                          std::string const &wrapper_name, std::string& wrapper) {
       assert(FD && "generate_wrapper called without a function decl!");
       ASTContext& Context = FD->getASTContext();
-      PrintingPolicy Policy(Context.getPrintingPolicy());
       //
       //  Get the class or namespace name.
       //
       std::string class_name;
       const clang::DeclContext* DC = get_non_transparent_decl_context(FD);
-      if (const TypeDecl* TD = dyn_cast<TypeDecl>(DC)) {
-        // This is a class, struct, or union member.
-        QualType QT(Context.getTypeDeclType(TD));
-        get_type_as_string(QT, class_name, Context, Policy);
-      } else if (const NamedDecl* ND = dyn_cast<NamedDecl>(DC)) {
-        // This is a namespace member.
-        raw_string_ostream stream(class_name);
-        ND->getNameForDiagnostic(stream, Policy, /*Qualified=*/true);
-        stream.flush();
-      }
+      GetDeclName(cast<Decl>(DC), Context, class_name);
       //
       //  Check to make sure that we can
       //  instantiate and codegen this function.
@@ -4580,30 +4593,28 @@ namespace Cpp {
     }
 
     // FIXME: Sink in the code duplication from get_wrapper_code.
-    static void PrepareTorWrapper(const Decl* D,
-                                  std::string& class_name) {
+    static std::string PrepareStructorWrapper(const Decl* D,
+                                              const char* wrapper_prefix,
+                                              std::string& class_name) {
       ASTContext &Context = D->getASTContext();
-      PrintingPolicy Policy(Context.getPrintingPolicy());
-      Policy.SuppressTagKeyword = true;
-      Policy.SuppressUnwrittenScope = true;
+      GetDeclName(D, Context, class_name);
+
       //
-      //  Get the class or namespace name.
+      //  Make the wrapper name.
       //
-      if (const TypeDecl *TD = dyn_cast<TypeDecl>(D)) {
-        // This is a class, struct, or union member.
-        // Handle the typedefs to anonymous types.
-        QualType QT;
-        if (const TypedefDecl *Typedef = dyn_cast<const TypedefDecl>(TD))
-          QT = Typedef->getTypeSourceInfo()->getType();
-        else
-          QT = Context.getTypeDeclType(TD);
-        get_type_as_string(QT, class_name, Context, Policy);
-      } else if (const NamedDecl *ND = dyn_cast<NamedDecl>(D)) {
-        // This is a namespace member.
-        raw_string_ostream stream(class_name);
-        ND->getNameForDiagnostic(stream, Policy, /*Qualified=*/true);
-        stream.flush();
+      string wrapper_name;
+      {
+        ostringstream buf;
+        buf << wrapper_prefix;
+        //const NamedDecl* ND = dyn_cast<NamedDecl>(FD);
+        //string mn;
+        //fInterp->maybeMangleDeclName(ND, mn);
+        //buf << '_dtor_' << mn;
+        buf << '_' << gWrapperSerial++;
+        wrapper_name = buf.str();
       }
+
+      return wrapper_name;
     }
 
     template <WrapperKind K = WrapperKind::Jit>
@@ -4629,7 +4640,6 @@ namespace Cpp {
         return I->second;
 
       std::string class_name;
-      PrepareTorWrapper(D, class_name);
       //
       //  Write the wrapper code.
       //
@@ -4961,7 +4971,15 @@ namespace Cpp {
                    std::back_inserter(ClingArgv),
                    [&](const std::string& str) { return str.c_str(); });
 
-    auto I = new compat::Interpreter(ClingArgv.size(), &ClingArgv[0], 0, {}, 0, true, VFS, CM);
+#ifdef CPPINTEROP_USE_CLING
+    auto I = new compat::Interpreter(ClingArgv.size(), &ClingArgv[0]);
+#else
+    auto Interp = compat::Interpreter::create(
+        static_cast<int>(ClingArgv.size()), ClingArgv.data(), 0, {}, 0, true, VFS, CM);
+    if (!Interp)
+      return nullptr;
+    auto* I = Interp.release();
+#endif
 
     // Honor -mllvm.
     //
@@ -5715,7 +5733,7 @@ namespace Cpp {
       m_DupFD = dup(FD);
 
       // Flush now or can drop the buffer when dup2 is called with Fd later.
-      // This seems only neccessary when piping stdout or stderr, but do it
+      // This seems only necessary when piping stdout or stderr, but do it
       // for ttys to avoid over complicated code for minimal benefit.
       ::fflush(FD == STDOUT_FILENO ? stdout : stderr);
       if (dup2(fileno(m_TempFile.get()), FD) < 0)
