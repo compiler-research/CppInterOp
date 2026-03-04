@@ -28,6 +28,7 @@
 #include "clang/AST/QualTypeNames.h"
 #include "clang/AST/RawCommentList.h"
 #include "clang/AST/RecordLayout.h"
+#include "clang/AST/RecursiveASTVisitor.h"
 #include "clang/AST/Stmt.h"
 #include "clang/AST/Type.h"
 #include "clang/Basic/DiagnosticSema.h"
@@ -44,7 +45,6 @@
 #include "clang/Sema/Ownership.h"
 #include "clang/Sema/Redeclaration.h"
 #include "clang/Sema/Sema.h"
-#include "clang/AST/RecursiveASTVisitor.h"
 #include "clang/Sema/TemplateDeduction.h"
 
 #include "llvm/ADT/SmallString.h"
@@ -1693,6 +1693,23 @@ BestOverloadMatch(const std::vector<TCppScope_t>& candidates,
   for (TCppScope_t F : candidates) {
     Decl* D = (Decl*)F;
 
+    // Unwrap ConstructorUsingShadowDecl (from `using Base::Base;`)
+    // to get the inherited constructor and add it in the derived class context.
+    if (auto* Shadow = dyn_cast<ConstructorUsingShadowDecl>(D)) {
+      CXXConstructorDecl* CD =
+          dyn_cast<CXXConstructorDecl>(Shadow->getTargetDecl());
+      if (!CD)
+        continue;
+      // Use the shadow's access (which reflects the using-decl's access),
+      // not the base constructor's access.
+      DeclAccessPair found = DeclAccessPair::make(CD, Shadow->getAccess());
+      // Pass the derived class as the object type so Sema checks the right
+      // conversion sequences.
+      QualType DerivedTy = S.Context.getCanonicalTagType(Shadow->getParent());
+      S.AddOverloadCandidate(CD, found, non_member_args, candSet);
+      continue;
+    }
+
     if (auto* MD = dyn_cast<CXXMethodDecl>(D)) {
       if (!register_member(MD, dyn_cast<FunctionTemplateDecl>(MD)))
         continue;
@@ -2842,7 +2859,7 @@ TCppType_t GetTypeFromScope(TCppScope_t klass) {
 namespace {
 static unsigned long long gWrapperSerial = 0LL;
 
-static std::string generate_wrapper_name(char const *prefix) {
+static std::string generate_wrapper_name(char const* prefix) {
   std::ostringstream nm;
   nm << prefix << gWrapperSerial++;
   return nm.str();
@@ -4994,7 +5011,8 @@ static std::string PrepareStructorWrapper(const Decl* D,
 }
 
 template <WrapperKind K = WrapperKind::Jit>
-static auto make_dtor_wrapper(compat::Interpreter& interp, const Decl* D, const std::string &wrapper_name) {
+static auto make_dtor_wrapper(compat::Interpreter& interp, const Decl* D,
+                              const std::string& wrapper_name) {
   // Make a code string that follows this pattern:
   //
   // void
@@ -5068,7 +5086,8 @@ CPPINTEROP_API JitCall MakeFunctionCallable(TInterp_t I,
   // FIXME: Unify with make_wrapper.
   if (const auto* Dtor = dyn_cast<CXXDestructorDecl>(D)) {
     auto wrapper_name = generate_wrapper_name("dtor");
-    if (auto Wrapper = make_dtor_wrapper(*interp, Dtor->getParent(), wrapper_name))
+    if (auto Wrapper =
+            make_dtor_wrapper(*interp, Dtor->getParent(), wrapper_name))
       return {JitCall::kDestructorCall, Wrapper, Dtor};
     // FIXME: else error we failed to compile the wrapper.
     return {};
@@ -5076,14 +5095,16 @@ CPPINTEROP_API JitCall MakeFunctionCallable(TInterp_t I,
 
   if (const auto* Ctor = dyn_cast<CXXConstructorDecl>(D)) {
     auto wrapper_name = generate_wrapper_name("ctor");
-    if (auto Wrapper = make_wrapper<WrapperKind::Jit>(*interp, cast<FunctionDecl>(D), {}, wrapper_name))
+    if (auto Wrapper = make_wrapper<WrapperKind::Jit>(
+            *interp, cast<FunctionDecl>(D), {}, wrapper_name))
       return {JitCall::kConstructorCall, Wrapper, Ctor};
     // FIXME: else error we failed to compile the wrapper.
     return {};
   }
 
   auto wrapper_name = generate_wrapper_name("function");
-  if (auto Wrapper = make_wrapper<WrapperKind::Jit>(*interp, cast<FunctionDecl>(D), {}, wrapper_name)) {
+  if (auto Wrapper = make_wrapper<WrapperKind::Jit>(
+          *interp, cast<FunctionDecl>(D), {}, wrapper_name)) {
     return {JitCall::kGenericCall, Wrapper, cast<FunctionDecl>(D)};
   }
   // FIXME: else error we failed to compile the wrapper.
@@ -5481,9 +5502,9 @@ CreateInterpreter(const std::vector<const char*>& Args /*={}*/,
 #ifdef CPPINTEROP_USE_CLING
   auto I = new compat::Interpreter(ClingArgv.size(), &ClingArgv[0]);
 #else
-  auto Interp =
-      compat::Interpreter::create(static_cast<int>(ClingArgv.size()),
-                                  ClingArgv.data(), nullptr, {}, nullptr, true, VFS, CM);
+  auto Interp = compat::Interpreter::create(static_cast<int>(ClingArgv.size()),
+                                            ClingArgv.data(), nullptr, {},
+                                            nullptr, true, VFS, CM);
   if (!Interp)
     return nullptr;
   auto* I = Interp.release();
@@ -6330,7 +6351,8 @@ TCppObject_t Construct(TCppScope_t scope, void* arena /*=nullptr*/,
 
 bool Destruct(compat::Interpreter& interp, TCppObject_t This, const Decl* Class,
               bool withFree, TCppIndex_t nary) {
-  if (auto wrapper = make_dtor_wrapper(interp, Class, generate_wrapper_name("dtor"))) {
+  if (auto wrapper =
+          make_dtor_wrapper(interp, Class, generate_wrapper_name("dtor"))) {
     (*wrapper)(This, nary, withFree);
     return true;
   }
