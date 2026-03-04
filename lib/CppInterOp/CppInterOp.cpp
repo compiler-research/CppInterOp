@@ -16,6 +16,7 @@
 #include "clang/AST/DeclAccessPair.h"
 #include "clang/AST/DeclBase.h"
 #include "clang/AST/DeclCXX.h"
+#include "clang/AST/DeclFriend.h"
 #include "clang/AST/DeclarationName.h"
 #include "clang/AST/Expr.h"
 #include "clang/AST/ExprCXX.h"
@@ -40,6 +41,7 @@
 #if CLANG_VERSION_MAJOR >= 19
 #include "clang/Sema/Redeclaration.h"
 #endif
+#include "clang/AST/RecursiveASTVisitor.h"
 #include "clang/Sema/TemplateDeduction.h"
 
 #include "llvm/ADT/SmallVector.h"
@@ -186,6 +188,19 @@ std::string Demangle(const std::string& mangled_name) {
   return demangle;
 }
 
+std::string MangleRTTI(TCppType_t type) {
+  QualType QT = QualType::getFromOpaquePtr(type);
+  std::unique_ptr<clang::MangleContext> mc(
+      getASTContext().createMangleContext());
+
+  llvm::SmallString<128> buffer;
+  llvm::raw_svector_ostream out(buffer);
+
+  mc->mangleCXXRTTI(QT, out);
+
+  return out.str().str();
+}
+
 void EnableDebugOutput(bool value /* =true*/) { llvm::DebugFlag = value; }
 
 bool IsDebugOutputEnabled() { return llvm::DebugFlag; }
@@ -213,6 +228,11 @@ bool IsNamespace(TCppScope_t scope) {
 bool IsClass(TCppScope_t scope) {
   Decl* D = static_cast<Decl*>(scope);
   return isa<CXXRecordDecl>(D);
+}
+
+bool IsClassTemplate(TCppScope_t scope) {
+  Decl* D = static_cast<Decl*>(scope);
+  return isa<ClassTemplateDecl>(D);
 }
 
 bool IsFunction(TCppScope_t scope) {
@@ -278,12 +298,39 @@ size_t SizeOf(TCppScope_t scope) {
   return 0;
 }
 
+size_t AlignmentOf(TCppScope_t scope) {
+  assert(scope);
+  if (!IsComplete(scope))
+    return 0;
+
+  if (auto* RD = dyn_cast<RecordDecl>(static_cast<Decl*>(scope))) {
+    ASTContext& Context = RD->getASTContext();
+    const ASTRecordLayout& Layout = Context.getASTRecordLayout(RD);
+    return Layout.getAlignment().getQuantity();
+  }
+
+  return 0;
+}
+
 bool IsBuiltin(TCppType_t type) {
   QualType Ty = QualType::getFromOpaquePtr(type);
-  if (Ty->isBuiltinType() || Ty->isAnyComplexType())
-    return true;
-  // FIXME: Figure out how to avoid the string comparison.
-  return llvm::StringRef(Ty.getAsString()).contains("complex");
+  return Ty->isBuiltinType();
+}
+
+bool IsIntegral(TCppType_t type) {
+  QualType Ty = QualType::getFromOpaquePtr(type);
+  return Ty->isIntegralType(getSema().getASTContext());
+}
+
+bool IsVoid(TCppType_t type) {
+  QualType Ty = QualType::getFromOpaquePtr(type);
+  return Ty->isVoidType();
+}
+
+TCppType_t GetVoidType() {
+  auto& S = getSema();
+  ASTContext& Ctx = S.getASTContext();
+  return Ctx.VoidTy.getAsOpaquePtr();
 }
 
 bool IsTemplate(TCppScope_t handle) {
@@ -294,6 +341,36 @@ bool IsTemplate(TCppScope_t handle) {
 bool IsTemplateSpecialization(TCppScope_t handle) {
   auto* D = (clang::Decl*)handle;
   return llvm::isa_and_nonnull<clang::ClassTemplateSpecializationDecl>(D);
+}
+
+bool IsTemplateSpecializationOf(TCppScope_t spec, TCppScope_t templ) {
+  auto* S = (clang::Decl*)spec;
+  auto* T = (clang::Decl*)templ;
+
+  if (auto* ClassSpec = llvm::dyn_cast<ClassTemplateSpecializationDecl>(S)) {
+    if (auto* ClassTpl = llvm::dyn_cast<ClassTemplateDecl>(T)) {
+      return ClassSpec->getSpecializedTemplate()->getCanonicalDecl() ==
+             ClassTpl->getCanonicalDecl();
+    }
+  }
+
+  if (auto* FD = llvm::dyn_cast<FunctionDecl>(S)) {
+    if (auto* FTSI = FD->getTemplateSpecializationInfo()) {
+      if (auto* FnTpl = llvm::dyn_cast<FunctionTemplateDecl>(T)) {
+        return FTSI->getTemplate()->getCanonicalDecl() ==
+               FnTpl->getCanonicalDecl();
+      }
+    }
+  }
+
+  if (auto* VarSpec = llvm::dyn_cast<VarTemplateSpecializationDecl>(S)) {
+    if (auto* VarTpl = llvm::dyn_cast<VarTemplateDecl>(T)) {
+      return VarSpec->getSpecializedTemplate()->getCanonicalDecl() ==
+             VarTpl->getCanonicalDecl();
+    }
+  }
+
+  return false;
 }
 
 bool IsTypedefed(TCppScope_t handle) {
@@ -307,6 +384,96 @@ bool IsAbstract(TCppType_t klass) {
     return CXXRD->isAbstract();
 
   return false;
+}
+
+TCppType_t GetCommonType(TCppType_t lhs, TCppType_t rhs) {
+  QualType LHS = QualType::getFromOpaquePtr(lhs);
+  QualType RHS = QualType::getFromOpaquePtr(rhs);
+  Sema& S = getSema();
+  ASTContext& C = S.getASTContext();
+
+  if (LHS->isArithmeticType() && RHS->isArithmeticType()) {
+    ImplicitValueInitExpr* L = new (C) ImplicitValueInitExpr{LHS};
+    ImplicitValueInitExpr* R = new (C) ImplicitValueInitExpr{RHS};
+    ExprResult LRes(L), RRes(R);
+    QualType Common = S.UsualArithmeticConversions(LRes, RRes, SourceLocation(),
+                                                   ArithConvKind::Arithmetic);
+    return Common.getAsOpaquePtr();
+  }
+
+  /* TODO: Handle complex types. */
+
+  return nullptr;
+}
+
+bool IsImplicitlyConvertible(TCppType_t from_type, TCppType_t to_type) {
+  QualType FromTy = QualType::getFromOpaquePtr(from_type);
+  QualType ToTy = QualType::getFromOpaquePtr(to_type);
+  auto& Sema = getSema();
+  auto& C = Sema.getASTContext();
+  Expr* DummyExpr = new (C) clang::OpaqueValueExpr(
+      clang::SourceLocation(), FromTy.getNonReferenceType(),
+      clang::ExprValueKind::VK_PRValue);
+  ImplicitConversionSequence ICS = Sema.TryImplicitConversion(
+      DummyExpr, ToTy, false, clang::Sema::AllowedExplicit::All, true, false,
+      false);
+  return ICS.isStandard() || ICS.isUserDefined() || ICS.isEllipsis();
+}
+
+bool IsCStyleConvertible(TCppType_t from_type, TCppType_t to_type) {
+  QualType FromTy = QualType::getFromOpaquePtr(from_type).getNonReferenceType();
+  QualType ToTy = QualType::getFromOpaquePtr(to_type);
+  auto& Sema = getSema();
+  auto& C = Sema.getASTContext();
+
+  // Build a dummy expression of type FromTy.
+  // Use a null pointer literal or zero literal as appropriate, then
+  // force its type to FromTy with an implicit cast; this avoids
+  // needing a full expression tree for user code.
+  Expr* Dummy = nullptr;
+  if (FromTy->isPointerType() || FromTy->isMemberPointerType()) {
+    auto* Zero = IntegerLiteral::Create(
+        C, llvm::APInt(C.getIntWidth(C.IntTy), 0), C.IntTy, SourceLocation());
+    Dummy = ImplicitCastExpr::Create(C, FromTy, CK_NullToPointer, Zero, nullptr,
+                                     VK_PRValue, FPOptionsOverride());
+  } else if (FromTy->isIntegralOrEnumerationType()) {
+    auto* Zero = IntegerLiteral::Create(
+        C, llvm::APInt(C.getIntWidth(FromTy), 0), FromTy, SourceLocation());
+    Dummy = Zero;
+  } else if (FromTy->isFunctionPointerType()) {
+    auto* Zero = IntegerLiteral::Create(
+        C, llvm::APInt(C.getIntWidth(C.IntTy), 0), C.IntTy, SourceLocation());
+    Dummy = ImplicitCastExpr::Create(C, FromTy, CK_NullToPointer, Zero, nullptr,
+                                     VK_PRValue, FPOptionsOverride());
+  } else {
+    // For other kinds of types, conservatively say no for now.
+    return false;
+  }
+
+  Sema::SFINAETrap trap(Sema, true);
+  auto TSI = C.getTrivialTypeSourceInfo(ToTy);
+  ExprResult CastRes =
+      Sema.BuildCStyleCastExpr(SourceLocation(), TSI, SourceLocation(), Dummy);
+  return !CastRes.isInvalid();
+}
+
+bool IsConstructible(TCppType_t to_type, TCppType_t from_type) {
+  QualType FromTy = QualType::getFromOpaquePtr(from_type);
+  QualType ToTy = QualType::getFromOpaquePtr(to_type);
+
+  auto& S = getSema();
+  ASTContext& Ctx = S.getASTContext();
+  TypeSourceInfo* ToInfo = Ctx.getTrivialTypeSourceInfo(ToTy, SourceLocation());
+  TypeSourceInfo* FromInfo =
+      Ctx.getTrivialTypeSourceInfo(FromTy, SourceLocation());
+
+  ExprResult ER = S.BuildTypeTrait(TT_IsConstructible, SourceLocation(),
+                                   {ToInfo, FromInfo}, SourceLocation());
+  if (ER.isInvalid())
+    return false;
+
+  auto* TT = cast<TypeTraitExpr>(ER.get());
+  return TT->getBoolValue();
 }
 
 bool IsEnumScope(TCppScope_t handle) {
@@ -337,7 +504,7 @@ static bool isSmartPointer(const RecordType* RT) {
     return !Result.empty();
   };
 
-  const RecordDecl* Record = RT->getDecl();
+  const RecordDecl* Record = RT->getOriginalDecl();
   if (IsUseCountPresent(Record))
     return true;
 
@@ -396,7 +563,7 @@ TCppType_t GetIntegerTypeFromEnumType(TCppType_t enum_type) {
 
   QualType QT = QualType::getFromOpaquePtr(enum_type);
   if (auto* ET = QT->getAs<EnumType>())
-    return ET->getDecl()->getIntegerType().getAsOpaquePtr();
+    return ET->getOriginalDecl()->getIntegerType().getAsOpaquePtr();
 
   return nullptr;
 }
@@ -438,13 +605,27 @@ TCppIndex_t GetEnumConstantValue(TCppScope_t handle) {
 
 size_t GetSizeOfType(TCppType_t type) {
   QualType QT = QualType::getFromOpaquePtr(type);
+  if (const EnumType* ET = QT->getAs<EnumType>())
+    QT = ET->getOriginalDecl()->getIntegerType();
   if (const TagType* TT = QT->getAs<TagType>())
-    return SizeOf(TT->getDecl());
+    return SizeOf(TT->getOriginalDecl());
 
   // FIXME: Can we get the size of a non-tag type?
   auto TI = getSema().getASTContext().getTypeInfo(QT);
   size_t TypeSize = TI.Width;
   return TypeSize / 8;
+}
+
+size_t GetAlignmentOfType(TCppType_t type) {
+  QualType QT = QualType::getFromOpaquePtr(type);
+  if (const EnumType* ET = QT->getAs<EnumType>())
+    QT = ET->getOriginalDecl()->getIntegerType();
+  if (const TagType* TT = QT->getAs<TagType>())
+    return AlignmentOf(TT->getOriginalDecl());
+
+  auto TI = getSema().getASTContext().getTypeInfo(QT);
+  size_t TypeAlign = TI.Align;
+  return TypeAlign / 8;
 }
 
 bool IsVariable(TCppScope_t scope) {
@@ -473,7 +654,7 @@ std::string GetCompleteName(TCppType_t klass) {
   if (auto* ND = llvm::dyn_cast_or_null<NamedDecl>(D)) {
     if (auto* TD = llvm::dyn_cast<TagDecl>(ND)) {
       std::string type_name;
-      QualType QT = C.getTagDeclType(TD);
+      QualType QT = C.getCanonicalTagType(TD);
       PrintingPolicy Policy = C.getPrintingPolicy();
       Policy.SuppressUnwrittenScope = true;
       Policy.SuppressScope = true;
@@ -514,7 +695,7 @@ std::string GetQualifiedCompleteName(TCppType_t klass) {
   if (auto* ND = llvm::dyn_cast_or_null<NamedDecl>(D)) {
     if (auto* TD = llvm::dyn_cast<TagDecl>(ND)) {
       std::string type_name;
-      QualType QT = C.getTagDeclType(TD);
+      QualType QT = C.getCanonicalTagType(TD);
       QT.getAsStringInternal(type_name, C.getPrintingPolicy());
 
       return type_name;
@@ -553,7 +734,7 @@ static Decl* GetScopeFromType(QualType QT) {
     Type = Type->getPointeeOrArrayElementType();
     Type = Type->getUnqualifiedDesugaredType();
     if (auto* ET = llvm::dyn_cast<EnumType>(Type))
-      return ET->getDecl();
+      return ET->getOriginalDecl();
     if (auto* FnType = llvm::dyn_cast<FunctionProtoType>(Type))
       Type = const_cast<clang::Type*>(FnType->getReturnType().getTypePtr());
     return Type->getAsCXXRecordDecl();
@@ -672,7 +853,7 @@ TCppScope_t GetBaseClass(TCppScope_t klass, TCppIndex_t ibase) {
 
   auto type = (CXXRD->bases_begin() + ibase)->getType();
   if (auto RT = type->getAs<RecordType>())
-    return (TCppScope_t)RT->getDecl();
+    return (TCppScope_t)RT->getOriginalDecl();
 
   return 0;
 }
@@ -864,7 +1045,8 @@ std::vector<TCppFunction_t> GetFunctionsUsingName(TCppScope_t scope,
   R.resolveKind();
 
   for (auto* Found : R)
-    if (llvm::isa<FunctionDecl>(Found))
+    if (llvm::isa<FunctionDecl>(Found) ||
+        llvm::isa<FunctionTemplateDecl>(Found))
       funcs.push_back(Found);
 
   return funcs;
@@ -952,6 +1134,64 @@ std::string GetFunctionSignature(TCppFunction_t func) {
   return Signature;
 }
 
+TCppType_t GetFunctionReturnTypeFromType(TCppType_t func) {
+  QualType TY = QualType::getFromOpaquePtr(func);
+
+  const clang::FunctionType* FT = nullptr;
+
+  if (const auto* F = TY->getAs<clang::FunctionType>()) {
+    FT = F;
+  } else if (const auto* PT = TY->getAs<clang::PointerType>()) {
+    FT = PT->getPointeeType()->getAs<clang::FunctionType>();
+  }
+
+  if (FT) {
+    return FT->getReturnType().getAsOpaquePtr();
+  }
+
+  return nullptr;
+}
+
+TCppIndex_t GetFunctionNumArgsFromType(TCppType_t func) {
+  QualType TY = QualType::getFromOpaquePtr(func);
+
+  const clang::FunctionType* FT = nullptr;
+
+  if (const auto* F = TY->getAs<clang::FunctionType>()) {
+    FT = F;
+  } else if (const auto* PT = TY->getAs<clang::PointerType>()) {
+    if (const auto* F = PT->getPointeeType()->getAs<clang::FunctionType>()) {
+      FT = F;
+    }
+  }
+
+  if (const auto* FPT = llvm::dyn_cast_or_null<clang::FunctionProtoType>(FT)) {
+    return FPT->getNumParams();
+  }
+
+  return 0;
+}
+
+TCppType_t GetFunctionArgTypeFromType(TCppType_t func, TCppIndex_t iarg) {
+  QualType TY = QualType::getFromOpaquePtr(func);
+
+  const clang::FunctionType* FT = nullptr;
+
+  if (const auto* F = TY->getAs<clang::FunctionType>()) {
+    FT = F;
+  } else if (const auto* PT = TY->getAs<clang::PointerType>()) {
+    FT = PT->getPointeeType()->getAs<clang::FunctionType>();
+  }
+
+  if (const auto* FPT = llvm::dyn_cast_or_null<clang::FunctionProtoType>(FT)) {
+    if (iarg < FPT->getNumParams()) {
+      return FPT->getParamType(iarg).getAsOpaquePtr();
+    }
+  }
+
+  return nullptr;
+}
+
 // Internal functions that are not needed outside the library are
 // encompassed in an anonymous namespace as follows.
 namespace {
@@ -977,6 +1217,18 @@ bool IsFunctionDeleted(TCppConstFunction_t function) {
   const auto* FD =
       cast<const FunctionDecl>(static_cast<const clang::Decl*>(function));
   return FD->isDeleted();
+}
+
+bool IsFunctionTypeConst(TCppType_t function_type) {
+  QualType FT = QualType::getFromOpaquePtr(function_type);
+
+  if (const auto* MPT = FT->getAs<MemberPointerType>())
+    FT = MPT->getPointeeType();
+
+  if (const auto* FPT = FT->getAs<FunctionProtoType>())
+    return FPT->getMethodQuals().hasConst();
+
+  return false;
 }
 
 bool IsTemplatedFunction(TCppFunction_t func) {
@@ -1008,19 +1260,15 @@ bool ExistsFunctionTemplate(const std::string& name, TCppScope_t parent) {
 }
 
 // Looks up all constructors in the current DeclContext
-void LookupConstructors(const std::string& name, TCppScope_t parent,
+void LookupConstructors(const std::string&, TCppScope_t parent,
                         std::vector<TCppFunction_t>& funcs) {
   auto* D = (Decl*)parent;
 
   if (auto* CXXRD = llvm::dyn_cast_or_null<CXXRecordDecl>(D)) {
     getSema().ForceDeclarationOfImplicitMembers(CXXRD);
     DeclContextLookupResult Result = getSema().LookupConstructors(CXXRD);
-    // Obtaining all constructors when we intend to lookup a method under a
-    // scope can lead to crashes. We avoid that by accumulating constructors
-    // only if the Decl matches the lookup name.
     for (auto* i : Result)
-      if (GetName(i) == name)
-        funcs.push_back(i);
+      funcs.push_back(i);
   }
 }
 
@@ -1041,23 +1289,23 @@ bool GetClassTemplatedMethods(const std::string& name, TCppScope_t parent,
   auto* DC = clang::Decl::castToDeclContext(D);
   Cpp_utils::Lookup::Named(&S, R, DC);
 
-  if (R.getResultKind() == clang::LookupResult::NotFound && funcs.empty())
+  if (R.getResultKind() == clang::LookupResultKind::NotFound && funcs.empty())
     return false;
 
   // Distinct match, single Decl
-  else if (R.getResultKind() == clang::LookupResult::Found) {
+  else if (R.getResultKind() == clang::LookupResultKind::Found) {
     if (IsTemplatedFunction(R.getFoundDecl()))
       funcs.push_back(R.getFoundDecl());
   }
   // Loop over overload set
-  else if (R.getResultKind() == clang::LookupResult::FoundOverloaded) {
+  else if (R.getResultKind() == clang::LookupResultKind::FoundOverloaded) {
     for (auto* Found : R)
       if (IsTemplatedFunction(Found))
         funcs.push_back(Found);
   }
 
   // TODO: Handle ambiguously found LookupResult
-  // else if (R.getResultKind() == clang::LookupResult::Ambiguous) {
+  // else if (R.getResultKind() == clang::LookupResultKind::Ambiguous) {
   //  auto kind = R.getAmbiguityKind();
   //  ...
   //  Produce a diagnostic describing the ambiguity that resulted
@@ -1149,6 +1397,141 @@ BestOverloadFunctionMatch(const std::vector<TCppFunction_t>& candidates,
   FunctionDecl* Result = Best != Overloads.end() ? Best->Function : nullptr;
   delete[] Exprs;
   return Result;
+}
+
+std::vector<TCppScope_t>
+BestOverloadMatch(const std::vector<TCppScope_t>& candidates,
+                  const std::vector<TemplateArgInfo>& arg_types,
+                  const std::vector<TCppScope_t>& arg_scopes) {
+  Sema& S = getSema();
+  ASTContext& C = S.getASTContext();
+  SourceLocation Loc;
+
+  OverloadCandidateSet candSet(
+      Loc, OverloadCandidateSet::CandidateSetKind::CSK_Normal);
+
+  SmallVector<Expr*, 8> non_member_args;
+  SmallVector<Expr*, 8> member_args;
+  for (unsigned i = 0; i < arg_types.size(); ++i) {
+    QualType ArgTy = QualType::getFromOpaquePtr(arg_types[i].m_Type);
+    Decl* ArgDecl = (Decl*)arg_scopes[i];
+
+    if (auto* FTD = dyn_cast_or_null<FunctionTemplateDecl>(ArgDecl)) {
+      UnresolvedSet<8> Unres;
+      Unres.addDecl(FTD);
+      DeclarationNameInfo NameInfo(FTD->getDeclName(), Loc);
+      Expr* ULE = UnresolvedLookupExpr::Create(
+          C, /*NamingClass=*/nullptr, NestedNameSpecifierLoc(), NameInfo,
+          /*RequiresADL=*/false, Unres.begin(), Unres.end(),
+          /*KnownDependent=*/false, /*KnownInstantiationDependent=*/false);
+      non_member_args.push_back(ULE);
+      if (i)
+        member_args.push_back(ULE);
+    } else {
+      ExprValueKind ExprKind = ExprValueKind::VK_PRValue;
+      if (ArgTy->isLValueReferenceType())
+        ExprKind = ExprValueKind::VK_LValue;
+      else if (ArgTy->isRValueReferenceType())
+        ExprKind = ExprValueKind::VK_XValue;
+
+      auto* Expr =
+          new (C) OpaqueValueExpr(SourceLocation::getFromRawEncoding(1),
+                                  ArgTy.getNonReferenceType(), ExprKind);
+
+      non_member_args.push_back(Expr);
+      if (i)
+        member_args.push_back(non_member_args.back());
+    }
+  }
+
+  bool has_member_candidate{};
+
+  // Returns whether the function should be considered for other candidacy.
+  auto register_member = [&](CXXMethodDecl* MD,
+                             FunctionTemplateDecl* FTD) -> bool {
+    if (MD->isDeleted())
+      return false;
+    if (!MD->isStatic()) {
+      DeclAccessPair found = DeclAccessPair::make(MD, MD->getAccess());
+      TemplateArgumentListInfo ExplicitTemplateArgs{};
+
+      if (auto* CD = dyn_cast<CXXConstructorDecl>(MD)) {
+        if (FTD)
+          S.AddTemplateOverloadCandidate(FTD, found, &ExplicitTemplateArgs,
+                                         non_member_args, candSet);
+        else
+          S.AddOverloadCandidate(CD, found, non_member_args, candSet);
+        return false;
+      }
+
+      if (arg_types.empty())
+        return true;
+
+      QualType OT = QualType::getFromOpaquePtr(arg_types[0].m_Type);
+      ExprValueKind ExprKind = ExprValueKind::VK_PRValue;
+      if (OT->isLValueReferenceType())
+        ExprKind = ExprValueKind::VK_LValue;
+      else if (OT->isRValueReferenceType())
+        ExprKind = ExprValueKind::VK_XValue;
+
+      OpaqueValueExpr Expr(SourceLocation::getFromRawEncoding(1),
+                           OT.getNonReferenceType(), ExprKind);
+      Expr::Classification objClass = Expr.Classify(C);
+
+      has_member_candidate = true;
+      if (FTD) {
+        S.AddMethodTemplateCandidate(
+            FTD, found, MD->getParent(), &ExplicitTemplateArgs,
+            OT.getNonReferenceType(), objClass, member_args, candSet);
+        return false;
+      } else {
+        S.AddMethodCandidate(found, OT.getNonReferenceType(), objClass,
+                             member_args, candSet);
+        return false;
+      }
+    }
+    return true;
+  };
+
+  for (TCppScope_t F : candidates) {
+    Decl* D = (Decl*)F;
+
+    if (auto* MD = dyn_cast<CXXMethodDecl>(D)) {
+      if (!register_member(MD, dyn_cast<FunctionTemplateDecl>(MD)))
+        continue;
+    }
+
+    if (auto* FTD = dyn_cast<FunctionTemplateDecl>(D)) {
+      if (auto* MD = dyn_cast<CXXMethodDecl>(FTD->getTemplatedDecl())) {
+        if (!register_member(MD, FTD))
+          continue;
+      }
+      TemplateArgumentListInfo ExplicitTemplateArgs{};
+      S.AddTemplateOverloadCandidate(
+          FTD, DeclAccessPair::make(FTD, FTD->getAccess()),
+          &ExplicitTemplateArgs, non_member_args, candSet);
+      continue;
+    }
+    if (auto* FD = dyn_cast<FunctionDecl>(D)) {
+      S.AddOverloadCandidate(FD, DeclAccessPair::make(FD, FD->getAccess()),
+                             non_member_args, candSet);
+      continue;
+    }
+  }
+
+  OverloadCandidateSet::iterator best;
+  candSet.BestViableFunction(S, Loc, best);
+  if (best != candSet.end() && best->Viable)
+    return {best->Function};
+
+  auto ambiguous = candSet.CompleteCandidates(
+      S, OverloadCandidateDisplayKind::OCD_AmbiguousCandidates,
+      non_member_args);
+  if (ambiguous.empty() && has_member_candidate)
+    ambiguous = candSet.CompleteCandidates(
+        S, OverloadCandidateDisplayKind::OCD_AmbiguousCandidates, member_args);
+
+  return std::vector<TCppScope_t>(ambiguous.begin(), ambiguous.end());
 }
 
 // Gets the AccessSpecifier of the function and checks if it is equal to
@@ -1267,7 +1650,8 @@ void GetDatamembers(TCppScope_t scope, std::vector<TCppScope_t>& datamembers) {
       if (auto* FD = llvm::dyn_cast<FieldDecl>(D)) {
         if (FD->isAnonymousStructOrUnion()) {
           if (const auto* RT = FD->getType()->getAs<RecordType>()) {
-            if (auto* CXXRD = llvm::dyn_cast<CXXRecordDecl>(RT->getDecl())) {
+            if (auto* CXXRD =
+                    llvm::dyn_cast<CXXRecordDecl>(RT->getOriginalDecl())) {
               stack_begin.back()++;
               stack_begin.push_back(CXXRD->decls_begin());
               stack_end.push_back(CXXRD->decls_end());
@@ -1325,6 +1709,121 @@ TCppScope_t LookupDatamember(const std::string& name, TCppScope_t parent) {
   return 0;
 }
 
+std::vector<TCppFunction_t> LookupMethods(const std::string& name,
+                                          TCppScope_t parent) {
+  using namespace clang;
+
+  std::vector<TCppFunction_t> results;
+  Decl* D = static_cast<Decl*>(parent);
+  if (!D)
+    return results;
+
+  auto& Ctx = getASTContext();
+  Sema& S = getSema(); // however you access your Sema
+
+  // Resolve to a CXXRecordDecl *definition* to do member lookup on.
+  auto resolveRecordDef = [&](Decl* Any) -> CXXRecordDecl* {
+    // If we were handed a record directly.
+    if (auto* RD = dyn_cast<CXXRecordDecl>(Any)) {
+      if (auto* Def = RD->getDefinition())
+        return Def;
+      return RD;
+    }
+
+    // If we were handed a class template specialization.
+    if (auto* Spec = dyn_cast<ClassTemplateSpecializationDecl>(Any)) {
+      if (auto* CTD = Spec->getSpecializedTemplate()) {
+        if (auto* Templated = CTD->getTemplatedDecl()) {
+          if (auto* Def = Templated->getDefinition())
+            return Def;
+          return Templated;
+        }
+      }
+      // Fall back to the specialization’s own definition if any.
+      if (auto* Def = Spec->getDefinition())
+        return Def;
+      return Spec;
+    }
+
+    // If we were handed a typedef / type alias to a class template or record.
+    if (auto* TDN = dyn_cast<TypedefNameDecl>(Any)) {
+      if (auto* RD = TDN->getUnderlyingType()->getAsCXXRecordDecl()) {
+        if (auto* Def = RD->getDefinition())
+          return Def;
+        return RD;
+      }
+    }
+
+    // If we were handed *something* that is a DeclContext, try its type.
+    if (auto* DC = dyn_cast<DeclContext>(Any)) {
+      if (auto* RD = dyn_cast<CXXRecordDecl>(DC)) {
+        if (auto* Def = RD->getDefinition())
+          return Def;
+        return RD;
+      }
+    }
+
+    return nullptr;
+  };
+
+  CXXRecordDecl* RD = resolveRecordDef(D);
+  if (!RD)
+    return results;
+
+  // Ensure the class type is complete enough for lookup to visit bases, etc.
+  // (Location can be empty; we just want to trigger completion if needed.)
+  (void)S.RequireCompleteType(SourceLocation(), Ctx.getCanonicalTagType(RD),
+                              diag::err_typecheck_incomplete_tag);
+
+  // Build the lookup name.
+  IdentifierInfo& II = Ctx.Idents.get(name);
+  LookupResult R(S, &II, SourceLocation(), Sema::LookupMemberName);
+  R.suppressAccessDiagnostics();
+
+  // Perform qualified member lookup (this walks bases, applies using-decls).
+  // Important: do NOT call DeclContext::lookup here; that’s a flat map of
+  // *direct* members only.
+  bool FoundAny = S.LookupQualifiedName(R, RD);
+
+  if (!FoundAny) {
+    // As a fallback, try on the primary template’s pattern if RD is a spec.
+    if (auto* Spec = dyn_cast<ClassTemplateSpecializationDecl>(RD)) {
+      if (auto* CTD = Spec->getSpecializedTemplate()) {
+        if (auto* Templated = CTD->getTemplatedDecl()) {
+          (void)S.RequireCompleteType(SourceLocation(),
+                                      Ctx.getCanonicalTagType(Templated),
+                                      diag::err_typecheck_incomplete_tag);
+          LookupResult R2(S, &II, SourceLocation(), Sema::LookupMemberName);
+          S.LookupQualifiedName(R2, Templated);
+          for (NamedDecl* ND : R2) {
+            if (auto* USD = dyn_cast<UsingShadowDecl>(ND))
+              ND = USD->getTargetDecl();
+            if (auto* MD = dyn_cast<CXXMethodDecl>(ND))
+              results.push_back(MD);
+            else if (auto* FTD = dyn_cast<FunctionTemplateDecl>(ND))
+              results.push_back(FTD);
+          }
+          return results;
+        }
+      }
+    }
+    return results;
+  }
+
+  // Collect results, unwrapping using-shadow decls.
+  for (NamedDecl* ND : R) {
+    if (auto* USD = dyn_cast<UsingShadowDecl>(ND))
+      ND = USD->getTargetDecl();
+    if (auto* MD = dyn_cast<CXXMethodDecl>(ND)) {
+      results.push_back(MD);
+    } else if (auto* FTD = dyn_cast<FunctionTemplateDecl>(ND)) {
+      results.push_back(FTD);
+    }
+  }
+
+  return results;
+}
+
 TCppType_t GetVariableType(TCppScope_t var) {
   auto* D = static_cast<Decl*>(var);
 
@@ -1365,7 +1864,7 @@ intptr_t GetVariableOffset(compat::Interpreter& I, Decl* D,
         const auto* RT = F->getType()->getAs<RecordType>();
         if (!RT)
           continue;
-        if (anon == RT->getDecl()) {
+        if (anon == RT->getOriginalDecl()) {
           FD = *F;
           break;
         }
@@ -1520,11 +2019,34 @@ bool IsStaticVariable(TCppScope_t var) {
   return false;
 }
 
+bool IsNonStaticVariable(TCppScope_t var) {
+  auto* D = (Decl*)var;
+  if (llvm::isa_and_nonnull<FieldDecl>(D)) {
+    return true;
+  }
+
+  return false;
+}
+
 bool IsConstVariable(TCppScope_t var) {
   auto* D = (clang::Decl*)var;
 
   if (auto* VD = llvm::dyn_cast_or_null<ValueDecl>(D)) {
     return VD->getType().isConstQualified();
+  }
+
+  return false;
+}
+
+bool IsConstType(TCppType_t type) {
+  QualType QT = QualType::getFromOpaquePtr(type);
+  return QT.isConstQualified();
+}
+
+bool IsStaticDatamember(TCppScope_t var) {
+  auto* D = (Decl*)var;
+  if (auto* VD = llvm::cast_or_null<VarDecl>(D)) {
+    return VD->getStorageClass() == SC_Static;
   }
 
   return false;
@@ -1549,11 +2071,190 @@ bool IsPointerType(TCppType_t type) {
   return QT->isPointerType();
 }
 
+bool IsPointerToMemberType(TCppType_t type) {
+  QualType QT = QualType::getFromOpaquePtr(type);
+  return QT->isMemberPointerType();
+}
+
+bool IsPointerToMemberVariableType(TCppType_t type) {
+  QualType QT = QualType::getFromOpaquePtr(type);
+  return QT->isMemberDataPointerType();
+}
+
+bool IsPointerToMemberFunctionType(TCppType_t type) {
+  QualType QT = QualType::getFromOpaquePtr(type);
+  return QT->isMemberFunctionPointerType();
+}
+
+TCppType_t GetParentTypeFromPointerToMember(TCppType_t type) {
+  QualType QT = QualType::getFromOpaquePtr(type);
+  if (!QT->isMemberPointerType())
+    return nullptr;
+
+  const MemberPointerType* MPT = QT->getAs<MemberPointerType>();
+  const CXXRecordDecl* RD = MPT->getMostRecentCXXRecordDecl();
+
+  ASTContext& C = getASTContext();
+  return C.getCanonicalTagType(RD).getAsOpaquePtr();
+}
+
+TCppType_t GetFunctionTypeFromPointerToMember(TCppType_t member_type,
+                                              TCppType_t obj_type) {
+  ASTContext& C = getSema().getASTContext();
+  QualType MT = QualType::getFromOpaquePtr(member_type);
+  const MemberPointerType* MPT = MT->getAs<MemberPointerType>();
+  if (!MPT)
+    return nullptr;
+
+  QualType PointeeType = MPT->getPointeeType();
+  QualType OT = QualType::getFromOpaquePtr(obj_type).getNonReferenceType();
+  QualType ClassType = C.getCanonicalTagType(MPT->getMostRecentCXXRecordDecl());
+  if (OT.isConstQualified())
+    ClassType.addConst();
+  if (OT->isPointerType())
+    ClassType = C.getPointerType(ClassType);
+  else
+    ClassType = C.getLValueReferenceType(ClassType);
+
+  QualType FT;
+
+  if (const FunctionProtoType* FPT = PointeeType->getAs<FunctionProtoType>()) {
+    llvm::SmallVector<QualType, 8> ParamTypes;
+    ParamTypes.push_back(ClassType);
+    for (QualType P : FPT->param_types())
+      ParamTypes.push_back(P);
+
+    FunctionProtoType::ExtProtoInfo EPI = FPT->getExtProtoInfo();
+    EPI.RefQualifier = RQ_None;
+    EPI.TypeQuals = Qualifiers();
+
+    FT = C.getFunctionType(FPT->getReturnType(), ParamTypes, EPI);
+  } else {
+    FunctionProtoType::ExtProtoInfo EPI;
+    EPI.ExceptionSpec.Type = EST_None;
+
+    FT = C.getFunctionType(PointeeType, {ClassType}, EPI);
+  }
+
+  return FT.getAsOpaquePtr();
+}
+
+bool IsArrayType(TCppType_t type) {
+  QualType QT = QualType::getFromOpaquePtr(type);
+  return QT->isArrayType();
+}
+
+TCppType_t GetArrayElementType(TCppType_t type) {
+  QualType QT = QualType::getFromOpaquePtr(type);
+  ASTContext& Ctx = getASTContext();
+
+  QualType ElemTy;
+  if (auto* CAT = Ctx.getAsConstantArrayType(QT)) {
+    // e.g. int[10]
+    ElemTy = CAT->getElementType();
+  } else if (auto* IAT = Ctx.getAsIncompleteArrayType(QT)) {
+    // e.g. extern int[]
+    ElemTy = IAT->getElementType();
+  } else if (auto* DSAT = Ctx.getAsDependentSizedArrayType(QT)) {
+    // e.g. T[N] where N is a dependent expression
+    ElemTy = DSAT->getElementType();
+  } else if (auto* VAT = Ctx.getAsVariableArrayType(QT)) {
+    // e.g. int arr[n]; where n is runtime
+    ElemTy = VAT->getElementType();
+  } else {
+    // Not an array type
+    return nullptr;
+  }
+
+  return ElemTy.getAsOpaquePtr();
+}
+
+TCppType_t GetArrayType(TCppType_t type) {
+  QualType QT = QualType::getFromOpaquePtr(type);
+  ASTContext& Ctx = getASTContext();
+  auto& S = getSema();
+
+  QualType ArrayQT =
+      Ctx.getIncompleteArrayType(QT, clang::ArraySizeModifier::Normal, 0);
+  return ArrayQT.getAsOpaquePtr();
+}
+
+TCppType_t GetArrayType(TCppType_t type, size_t size) {
+  QualType QT = QualType::getFromOpaquePtr(type);
+  ASTContext& Ctx = getASTContext();
+  auto& S = getSema();
+
+  QualType ArrayQT = Ctx.getConstantArrayType(
+      QT, llvm::APInt(Ctx.getIntWidth(Ctx.getSizeType()), size), nullptr,
+      clang::ArraySizeModifier::Normal, 0);
+  return ArrayQT.getAsOpaquePtr();
+}
+
+TCppType_t GetFunctionType(TCppType_t ret,
+                           std::vector<TCppType_t> const& params) {
+  QualType R = QualType::getFromOpaquePtr(ret);
+  ASTContext& Ctx = getASTContext();
+  auto& S = getSema();
+
+  llvm::SmallVector<QualType, 8> ParamTypes;
+  ParamTypes.reserve(params.size());
+  for (TCppType_t P : params)
+    ParamTypes.push_back(QualType::getFromOpaquePtr(P));
+
+  FunctionProtoType::ExtProtoInfo EPI;
+  EPI.ExceptionSpec.Type = EST_None;
+
+  QualType FnType = Ctx.getFunctionType(R, ParamTypes, EPI);
+
+  return FnType.getAsOpaquePtr();
+}
+
 TCppType_t GetPointeeType(TCppType_t type) {
+  if (IsArrayType(type))
+    return GetArrayElementType(type);
   if (!IsPointerType(type))
     return nullptr;
   QualType QT = QualType::getFromOpaquePtr(type);
   return QT->getPointeeType().getAsOpaquePtr();
+}
+
+TCppType_t GetPointerType(TCppType_t type) {
+  QualType QT = QualType::getFromOpaquePtr(type);
+  QualType PointerTy = getASTContext().getPointerType(QT);
+  return PointerTy.getAsOpaquePtr();
+}
+
+TCppType_t GetPointerToMemberType(TCppScope_t member) {
+  auto* M = (Decl*)member;
+  ASTContext& C = getSema().getASTContext();
+
+  QualType MemberType;
+  if (auto* VD = dyn_cast<ValueDecl>(M))
+    MemberType = VD->getType();
+  else
+    return nullptr;
+
+  auto* RD = dyn_cast<CXXRecordDecl>(M->getDeclContext());
+  if (!RD)
+    return nullptr;
+
+  QualType ClassType = C.getCanonicalTagType(RD);
+  NestedNameSpecifier Qualifier{ClassType.getTypePtr()};
+  QualType PtrToMember = C.getMemberPointerType(MemberType, Qualifier, RD);
+
+  return PtrToMember.getAsOpaquePtr();
+}
+
+TCppType_t GetLValueReferenceType(TCppType_t type) {
+  QualType QT = QualType::getFromOpaquePtr(type);
+  QualType PointerTy = getASTContext().getLValueReferenceType(QT);
+  return PointerTy.getAsOpaquePtr();
+}
+
+TCppType_t GetRValueReferenceType(TCppType_t type) {
+  QualType QT = QualType::getFromOpaquePtr(type);
+  QualType PointerTy = getASTContext().getRValueReferenceType(QT);
+  return PointerTy.getAsOpaquePtr();
 }
 
 bool IsReferenceType(TCppType_t type) {
@@ -1561,9 +2262,14 @@ bool IsReferenceType(TCppType_t type) {
   return QT->isReferenceType();
 }
 
+bool IsRvalueReferenceType(TCppType_t type) {
+  QualType QT = QualType::getFromOpaquePtr(type);
+  return QT->isRValueReferenceType();
+}
+
 TCppType_t GetNonReferenceType(TCppType_t type) {
   if (!IsReferenceType(type))
-    return nullptr;
+    return type;
   QualType QT = QualType::getFromOpaquePtr(type);
   return QT.getNonReferenceType().getAsOpaquePtr();
 }
@@ -1586,12 +2292,141 @@ TCppType_t GetUnderlyingType(TCppType_t type) {
   return QT.getAsOpaquePtr();
 }
 
+TCppType_t GetTypeWithoutCv(TCppType_t type) {
+  QualType QT = QualType::getFromOpaquePtr(type);
+  QT = QualType(QT->getUnqualifiedDesugaredType(), 0);
+  return QT.getAsOpaquePtr();
+}
+
+TCppType_t GetTypeWithConst(TCppType_t type) {
+  QualType QT = QualType::getFromOpaquePtr(type);
+  QT.addConst();
+  return QT.getAsOpaquePtr();
+}
+
+TCppType_t GetTypeWithVolatile(TCppType_t type) {
+  QualType QT = QualType::getFromOpaquePtr(type);
+  QT.addVolatile();
+  return QT.getAsOpaquePtr();
+}
+
+TCppType_t GetSignedType(TCppType_t type) {
+  QualType QT = QualType::getFromOpaquePtr(type);
+
+  // Get the canonical unqualified type to inspect the builtin kind
+  const BuiltinType* BT = QT->getAs<BuiltinType>();
+  if (!BT)
+    return QT.getAsOpaquePtr();
+
+  ASTContext& C = getSema().getASTContext();
+
+  QualType SignedQT;
+  switch (BT->getKind()) {
+  // Already signed — return as-is
+  case BuiltinType::SChar:
+  case BuiltinType::Short:
+  case BuiltinType::Int:
+  case BuiltinType::Long:
+  case BuiltinType::LongLong:
+  case BuiltinType::Int128:
+    return QT.getAsOpaquePtr();
+
+  // Unsigned -> signed counterpart
+  case BuiltinType::UChar:
+  case BuiltinType::Char_U:
+    SignedQT = C.SignedCharTy;
+    break;
+  case BuiltinType::UShort:
+    SignedQT = C.ShortTy;
+    break;
+  case BuiltinType::UInt:
+    SignedQT = C.IntTy;
+    break;
+  case BuiltinType::ULong:
+    SignedQT = C.LongTy;
+    break;
+  case BuiltinType::ULongLong:
+    SignedQT = C.LongLongTy;
+    break;
+  case BuiltinType::UInt128:
+    SignedQT = C.Int128Ty;
+    break;
+
+  // char (platform-dependent signedness) -> signed char
+  case BuiltinType::Char_S:
+    return QT.getAsOpaquePtr(); // already signed on this platform
+
+  // Wchar, char8, char16, char32 — no signed equivalent; return as-is
+  default:
+    return QT.getAsOpaquePtr();
+  }
+
+  // Preserve qualifiers (const, volatile, etc.) from the original type
+  SignedQT = C.getQualifiedType(SignedQT, QT.getQualifiers());
+
+  return SignedQT.getAsOpaquePtr();
+}
+
+TCppType_t GetUnsignedType(TCppType_t type) {
+  QualType QT = QualType::getFromOpaquePtr(type);
+
+  const BuiltinType* BT = QT->getAs<BuiltinType>();
+  if (!BT)
+    return QT.getAsOpaquePtr();
+
+  ASTContext& C = getSema().getASTContext();
+
+  QualType UnsignedQT;
+  switch (BT->getKind()) {
+  // Already unsigned — return as-is
+  case BuiltinType::UChar:
+  case BuiltinType::Char_U:
+  case BuiltinType::UShort:
+  case BuiltinType::UInt:
+  case BuiltinType::ULong:
+  case BuiltinType::ULongLong:
+  case BuiltinType::UInt128:
+    return QT.getAsOpaquePtr();
+
+  // Signed -> unsigned counterpart
+  case BuiltinType::SChar:
+  case BuiltinType::Char_S:
+    UnsignedQT = C.UnsignedCharTy;
+    break;
+  case BuiltinType::Short:
+    UnsignedQT = C.UnsignedShortTy;
+    break;
+  case BuiltinType::Int:
+    UnsignedQT = C.UnsignedIntTy;
+    break;
+  case BuiltinType::Long:
+    UnsignedQT = C.UnsignedLongTy;
+    break;
+  case BuiltinType::LongLong:
+    UnsignedQT = C.UnsignedLongLongTy;
+    break;
+  case BuiltinType::Int128:
+    UnsignedQT = C.UnsignedInt128Ty;
+    break;
+
+  // No unsigned equivalent — return as-is
+  default:
+    return QT.getAsOpaquePtr();
+  }
+
+  // Preserve qualifiers (const, volatile, etc.) from the original type
+  UnsignedQT = C.getQualifiedType(UnsignedQT, QT.getQualifiers());
+
+  return UnsignedQT.getAsOpaquePtr();
+}
+
 std::string GetTypeAsString(TCppType_t var) {
   QualType QT = QualType::getFromOpaquePtr(var);
   // FIXME: Get the default printing policy from the ASTContext.
   PrintingPolicy Policy((LangOptions()));
   Policy.Bool = true;               // Print bool instead of _Bool.
   Policy.SuppressTagKeyword = true; // Do not print `class std::string`.
+  Policy.FullyQualifiedName = true;
   return compat::FixTypeName(QT.getAsString(Policy));
 }
 
@@ -1675,7 +2510,8 @@ TCppType_t GetType(const std::string& name) {
 
   auto* D = (Decl*)GetNamed(name, /* Within= */ 0);
   if (auto* TD = llvm::dyn_cast_or_null<TypeDecl>(D)) {
-    return QualType(TD->getTypeForDecl(), 0).getAsOpaquePtr();
+    QualType QT(getASTContext().getTypeDeclType(TD));
+    return QT.getAsOpaquePtr();
   }
 
   return (TCppType_t)0;
@@ -1694,8 +2530,25 @@ TCppType_t GetTypeFromScope(TCppScope_t klass) {
   auto* D = (Decl*)klass;
   ASTContext& C = getASTContext();
 
+  if (auto* FTD = dyn_cast<FunctionTemplateDecl>(D)) {
+    FunctionDecl* FD = FTD->getTemplatedDecl();
+    if (FD) {
+      return C.getPointerType(FD->getType()).getAsOpaquePtr();
+    }
+    return 0;
+  }
+  if (auto* FD = dyn_cast<FunctionDecl>(D)) {
+    return C.getPointerType(FD->getType()).getAsOpaquePtr();
+  }
   if (ValueDecl* VD = dyn_cast<ValueDecl>(D))
     return VD->getType().getAsOpaquePtr();
+  if (auto* CTD = dyn_cast<ClassTemplateDecl>(D)) {
+    CXXRecordDecl* RD = CTD->getTemplatedDecl();
+    if (RD) {
+      return C.getCanonicalTagType(RD).getAsOpaquePtr();
+    }
+    return 0;
+  }
 
   return C.getTypeDeclType(cast<TypeDecl>(D)).getAsOpaquePtr();
 }
@@ -1706,6 +2559,8 @@ namespace {
 static unsigned long long gWrapperSerial = 0LL;
 
 enum EReferenceType { kNotReference, kLValueReference, kRValueReference };
+
+enum class WrapperKind { Aot, Jit };
 
 // Start of JitCall Helper Functions
 
@@ -1719,6 +2574,7 @@ static inline void indent(ostringstream& buf, int indent_level) {
     buf << kIndentString;
 }
 
+template <WrapperKind K = WrapperKind::Jit>
 void* compile_wrapper(compat::Interpreter& I, const std::string& wrapper_name,
                       const std::string& wrapper,
                       bool withAccessControl = true) {
@@ -1727,16 +2583,29 @@ void* compile_wrapper(compat::Interpreter& I, const std::string& wrapper_name,
                            withAccessControl);
 }
 
+template <>
+void* compile_wrapper<WrapperKind::Aot>(compat::Interpreter& I,
+                                        const std::string& wrapper_name,
+                                        const std::string& wrapper,
+                                        bool withAccessControl) {
+  LLVM_DEBUG(dbgs() << "Compiling '" << wrapper_name << "'\n");
+
+  auto PTU = I.Parse(wrapper);
+  if (!PTU) {
+    return 0;
+  }
+  return new AotCall{PTU->TheModule.release(), wrapper_name};
+}
+
 void get_type_as_string(QualType QT, std::string& type_name, ASTContext& C,
                         PrintingPolicy Policy) {
   // TODO: Implement cling desugaring from utils::AST
   //       cling::utils::Transform::GetPartiallyDesugaredType()
   if (!QT->isTypedefNameType() || QT->isBuiltinType())
     QT = QT.getDesugaredType(C);
-#if CLANG_VERSION_MAJOR > 16
-  Policy.SuppressElaboration = true;
-#endif
+  Policy.SuppressTagKeyword = !QT->isEnumeralType();
   Policy.FullyQualifiedName = true;
+  Policy.UsePreferredNames = false;
   QT.getAsStringInternal(type_name, Policy);
 }
 
@@ -1772,10 +2641,10 @@ void collect_type_info(const FunctionDecl* FD, QualType& QT,
   //  Collect information about the type of a function parameter
   //  needed for building the wrapper function.
   //
-  ASTContext& C = FD->getASTContext();
+  ASTContext& C = FD ? FD->getASTContext() : getSema().getASTContext();
   PrintingPolicy Policy(C.getPrintingPolicy());
 #if CLANG_VERSION_MAJOR > 16
-  Policy.SuppressElaboration = true;
+  Policy.FullyQualifiedName = true;
 #endif
   refType = kNotReference;
   if (QT->isRecordType() && forArgument) {
@@ -1881,7 +2750,7 @@ void make_narg_ctor(const FunctionDecl* FD, const unsigned N,
   callbuf << ")";
 }
 
-const DeclContext* get_non_transparent_decl_context(const FunctionDecl* FD) {
+const DeclContext* get_non_transparent_decl_context(const Decl* FD) {
   auto* DC = FD->getDeclContext();
   while (DC->isTransparentContext()) {
     DC = DC->getParent();
@@ -1891,9 +2760,9 @@ const DeclContext* get_non_transparent_decl_context(const FunctionDecl* FD) {
 }
 
 void make_narg_call(const FunctionDecl* FD, const std::string& return_type,
-                    const unsigned N, std::ostringstream& typedefbuf,
-                    std::ostringstream& callbuf, const std::string& class_name,
-                    int indent_level) {
+                    const unsigned N, const std::vector<TCppType_t>& arg_types,
+                    std::ostringstream& typedefbuf, std::ostringstream& callbuf,
+                    const std::string& class_name, int indent_level) {
   //
   // Make a code string that follows this pattern:
   //
@@ -1910,14 +2779,7 @@ void make_narg_call(const FunctionDecl* FD, const std::string& return_type,
   // Same applies with member methods which seem to cause parse failures
   // even when we supply the object parameter. Therefore we only use it in
   // cases where we know it works and set this variable to true when we do.
-
-  // true if not a overloaded operators or the overloaded operator is call
-  // operator
-  bool op_flag = !FD->isOverloadedOperator() ||
-                 FD->getOverloadedOperator() == clang::OO_Call;
-
-  bool ShouldCastFunction =
-      !isa<CXXMethodDecl>(FD) && N == FD->getNumParams() && op_flag;
+  bool ShouldCastFunction = !isa<CXXMethodDecl>(FD) && N == FD->getNumParams();
   if (ShouldCastFunction) {
     callbuf << "(";
     callbuf << "(";
@@ -1952,17 +2814,17 @@ void make_narg_call(const FunctionDecl* FD, const std::string& return_type,
 
   if (const CXXMethodDecl* MD = dyn_cast<CXXMethodDecl>(FD)) {
     // This is a class, struct, or union member.
-    if (MD->isConst())
+    if (MD->isStatic())
+      callbuf << class_name << "::";
+    else if (MD->isConst())
       callbuf << "((const " << class_name << "*)obj)->";
     else
       callbuf << "((" << class_name << "*)obj)->";
-
-    if (op_flag)
-      callbuf << class_name << "::";
-  } else if (isa<NamedDecl>(get_non_transparent_decl_context(FD))) {
+  } else if (const NamedDecl* ND =
+                 dyn_cast<NamedDecl>(get_non_transparent_decl_context(FD))) {
     // This is a namespace member.
-    if (op_flag || N <= 1)
-      callbuf << class_name << "::";
+    (void)ND;
+    callbuf << class_name << "::";
   }
   //   callbuf << fMethod->Name() << "(";
   {
@@ -1984,16 +2846,19 @@ void make_narg_call(const FunctionDecl* FD, const std::string& return_type,
       name = name_without_template_args +
              (template_args.empty() ? "" : " " + template_args);
     }
-    if (op_flag || N <= 1)
-      callbuf << name;
+    callbuf << name;
   }
   if (ShouldCastFunction)
     callbuf << ")";
 
   callbuf << "(";
-  for (unsigned i = 0U; i < N; ++i) {
-    const ParmVarDecl* PVD = FD->getParamDecl(i);
-    QualType Ty = PVD->getType();
+  for (unsigned i = 0U; i < std::max<unsigned>(N, arg_types.size()); ++i) {
+    QualType Ty;
+    if (i < N) {
+      Ty = FD->getParamDecl(i)->getType();
+    } else {
+      Ty = QualType::getFromOpaquePtr(arg_types[i]);
+    }
     QualType QT = Ty.getCanonicalType();
     std::string type_name;
     EReferenceType refType = kNotReference;
@@ -2002,11 +2867,12 @@ void make_narg_call(const FunctionDecl* FD, const std::string& return_type,
                       isPointer, indent_level, true);
 
     if (i) {
-      if (op_flag) {
-        callbuf << ", ";
+      callbuf << ',';
+      if (i % 2) {
+        callbuf << ' ';
       } else {
-        callbuf << ' ' << Cpp::getOperatorSpelling(FD->getOverloadedOperator())
-                << ' ';
+        callbuf << "\n";
+        indent(callbuf, indent_level + 1);
       }
     }
 
@@ -2028,10 +2894,10 @@ void make_narg_call(const FunctionDecl* FD, const std::string& return_type,
 void make_narg_ctor_with_return(const FunctionDecl* FD, const unsigned N,
                                 const std::string& class_name,
                                 std::ostringstream& buf, int indent_level) {
+  //
   // Make a code string that follows this pattern:
   //
-  //  (*(ClassName**)ret) = (obj) ?
-  //    new (*(ClassName**)ret) ClassName(args...) : new ClassName(args...);
+  //  new ((ClassName*)ret) ClassName(args...);
   //
   {
     std::ostringstream typedefbuf;
@@ -2040,18 +2906,9 @@ void make_narg_ctor_with_return(const FunctionDecl* FD, const unsigned N,
     //  Write the return value assignment part.
     //
     indent(callbuf, indent_level);
-    callbuf << "(*(" << class_name << "**)ret) = ";
-    callbuf << "(obj) ? new (*(" << class_name << "**)ret) ";
+    callbuf << "new ((" << class_name << "*)ret) ";
     make_narg_ctor(FD, N, typedefbuf, callbuf, class_name, indent_level);
 
-    callbuf << ": new ";
-    //
-    //  Write the actual expression.
-    //
-    make_narg_ctor(FD, N, typedefbuf, callbuf, class_name, indent_level);
-    //
-    //  End the new expression statement.
-    //
     callbuf << ";\n";
     //
     //  Output the whole new expression and return statement.
@@ -2061,7 +2918,9 @@ void make_narg_ctor_with_return(const FunctionDecl* FD, const unsigned N,
 }
 
 void make_narg_call_with_return(compat::Interpreter& I, const FunctionDecl* FD,
-                                const unsigned N, const std::string& class_name,
+                                const unsigned N,
+                                const std::vector<TCppType_t>& arg_types,
+                                const std::string& class_name,
                                 std::ostringstream& buf, int indent_level) {
   // Make a code string that follows this pattern:
   //
@@ -2093,7 +2952,7 @@ void make_narg_call_with_return(compat::Interpreter& I, const FunctionDecl* FD,
     std::ostringstream typedefbuf;
     std::ostringstream callbuf;
     indent(callbuf, indent_level);
-    make_narg_call(FD, "void", N, typedefbuf, callbuf, class_name,
+    make_narg_call(FD, "void", N, arg_types, typedefbuf, callbuf, class_name,
                    indent_level);
     callbuf << ";\n";
     indent(callbuf, indent_level);
@@ -2114,69 +2973,43 @@ void make_narg_call_with_return(compat::Interpreter& I, const FunctionDecl* FD,
 
     buf << typedefbuf.str();
 
-    buf << "if (ret) {\n";
-    ++indent_level;
-    {
-      //
-      //  Write the placement part of the placement new.
-      //
-      indent(callbuf, indent_level);
-      callbuf << "new (ret) ";
-      //
-      //  Write the type part of the placement new.
-      //
-      callbuf << "(" << type_name.c_str();
-      if (refType != kNotReference) {
-        callbuf << "*) (&";
-        type_name += "&";
-      } else if (isPointer) {
-        callbuf << "*) (";
-        type_name += "*";
-      } else {
-        callbuf << ") (";
-      }
-      //
-      //  Write the actual function call.
-      //
-      make_narg_call(FD, type_name, N, typedefbuf, callbuf, class_name,
-                     indent_level);
-      //
-      //  End the placement new.
-      //
-      callbuf << ");\n";
-      indent(callbuf, indent_level);
-      callbuf << "return;\n";
-      //
-      //  Output the whole placement new expression and return statement.
-      //
-      buf << typedefbuf.str() << callbuf.str();
+    //
+    //  Write the placement part of the placement new.
+    //
+    callbuf << "new (ret) ";
+    //
+    //  Write the type part of the placement new.
+    //
+    callbuf << "(" << type_name.c_str();
+    if (refType != kNotReference) {
+      callbuf << "*) (&";
+      type_name += "&";
+    } else if (isPointer) {
+      callbuf << "*) (";
+      type_name += "*";
+    } else {
+      callbuf << ") (";
     }
+    //
+    //  Write the actual function call.
+    //
+    make_narg_call(FD, type_name, N, arg_types, typedefbuf, callbuf, class_name,
+                   indent_level);
+    //
+    //  End the placement new.
+    //
+    callbuf << ");\n";
+    //
+    //  Output the whole placement new expression and return statement.
+    //
+    buf << typedefbuf.str() << callbuf.str();
     --indent_level;
-    indent(buf, indent_level);
-    buf << "}\n";
-    indent(buf, indent_level);
-    buf << "else {\n";
-    ++indent_level;
-    {
-      std::ostringstream typedefbuf;
-      std::ostringstream callbuf;
-      indent(callbuf, indent_level);
-      callbuf << "(void)(";
-      make_narg_call(FD, type_name, N, typedefbuf, callbuf, class_name,
-                     indent_level);
-      callbuf << ");\n";
-      indent(callbuf, indent_level);
-      callbuf << "return;\n";
-      buf << typedefbuf.str() << callbuf.str();
-    }
-    --indent_level;
-    indent(buf, indent_level);
-    buf << "}\n";
   }
 }
 
 int get_wrapper_code(compat::Interpreter& I, const FunctionDecl* FD,
-                     std::string& wrapper_name, std::string& wrapper) {
+                     const std::vector<TCppType_t>& arg_types,
+                     std::string const& wrapper_name, std::string& wrapper) {
   assert(FD && "generate_wrapper called without a function decl!");
   ASTContext& Context = FD->getASTContext();
   //
@@ -2378,8 +3211,7 @@ int get_wrapper_code(compat::Interpreter& I, const FunctionDecl* FD,
     default: {
       // Will only happen if clang implementation changes.
       // Protect ourselves in case that happens.
-      llvm::errs() << "TClingCallFunc::make_wrapper"
-                   << ":"
+      llvm::errs() << "TClingCallFunc::make_wrapper" << ":"
                    << "Unhandled template kind!";
       return 0;
     } break;
@@ -2540,19 +3372,7 @@ int get_wrapper_code(compat::Interpreter& I, const FunctionDecl* FD,
   }
   unsigned min_args = FD->getMinRequiredArguments();
   unsigned num_params = FD->getNumParams();
-  //
-  //  Make the wrapper name.
-  //
-  {
-    std::ostringstream buf;
-    buf << "__cf";
-    // const NamedDecl* ND = dyn_cast<NamedDecl>(FD);
-    // std::string mn;
-    // fInterp->maybeMangleDeclName(ND, mn);
-    // buf << '_' << mn;
-    buf << '_' << gWrapperSerial++;
-    wrapper_name = buf.str();
-  }
+  LLVM_DEBUG(dbgs() << "Wrapper name (FD): " << wrapper_name << "\n");
   //
   //  Write the wrapper code.
   // FIXME: this should be synthesized into the AST!
@@ -2563,14 +3383,25 @@ int get_wrapper_code(compat::Interpreter& I, const FunctionDecl* FD,
          "#pragma clang diagnostic ignored \"-Wformat-security\"\n"
          "__attribute__((used)) "
          "__attribute__((annotate(\"__cling__ptrcheck(off)\")))\n"
-         "extern \"C\" void ";
+         "extern \"C\" "
+         "[[gnu::always_inline]]\n"
+         "inline void ";
   buf << wrapper_name;
-  buf << "(void* obj, int nargs, void** args, void* ret)\n"
-         "{\n";
+  buf << "(void* obj, int nargs, void** args, ";
+
+  {
+    QualType QT = FD->getReturnType();
+    if (QT->isVoidType() && !dyn_cast<CXXConstructorDecl>(FD)) {
+      buf << "void*)\n";
+    } else {
+      buf << "[[gnu::nonnull]] void* ret)\n";
+    }
+  }
+  buf << "{\n";
   ++indent_level;
   if (min_args == num_params) {
     // No parameters with defaults.
-    make_narg_call_with_return(I, FD, num_params, class_name, buf,
+    make_narg_call_with_return(I, FD, num_params, arg_types, class_name, buf,
                                indent_level);
   } else {
     // We need one function call clause compiled for every
@@ -2579,7 +3410,8 @@ int get_wrapper_code(compat::Interpreter& I, const FunctionDecl* FD,
       indent(buf, indent_level);
       buf << "if (nargs == " << N << ") {\n";
       ++indent_level;
-      make_narg_call_with_return(I, FD, N, class_name, buf, indent_level);
+      make_narg_call_with_return(I, FD, N, arg_types, class_name, buf,
+                                 indent_level);
       --indent_level;
       indent(buf, indent_level);
       buf << "}\n";
@@ -2592,19 +3424,778 @@ int get_wrapper_code(compat::Interpreter& I, const FunctionDecl* FD,
   return 1;
 }
 
-JitCall::GenericCall make_wrapper(compat::Interpreter& I,
-                                  const FunctionDecl* FD) {
-  static std::map<const FunctionDecl*, void*> gWrapperStore;
+int get_value_wrapper_code(compat::Interpreter& I, const FunctionDecl* FD,
+                           std::string const& wrapper_name,
+                           std::string& wrapper) {
+  assert(FD && "generate_wrapper called without a decl!");
+  ASTContext& Context = FD->getASTContext();
+  PrintingPolicy Policy(Context.getPrintingPolicy());
+  //
+  //  Get the class or namespace name.
+  //
+  std::string class_name;
+  const clang::DeclContext* DC = get_non_transparent_decl_context(FD);
+  if (const TypeDecl* TD = dyn_cast<TypeDecl>(DC)) {
+    // This is a class, struct, or union member.
+    QualType QT(Context.getTypeDeclType(TD));
+    get_type_as_string(QT, class_name, Context, Policy);
+  } else if (const NamedDecl* ND = dyn_cast<NamedDecl>(DC)) {
+    // This is a namespace member.
+    raw_string_ostream stream(class_name);
+    ND->getNameForDiagnostic(stream, Policy, /*Qualified=*/true);
+    stream.flush();
+  }
+  LLVM_DEBUG(dbgs() << "Wrapper name (FD value): " << wrapper_name << "\n");
+  //
+  //  Write the wrapper code.
+  // FIXME: this should be synthesized into the AST!
+  //
+  int indent_level = 0;
+  std::ostringstream buf;
+  buf << "#pragma clang diagnostic push\n"
+         "#pragma clang diagnostic ignored \"-Wformat-security\"\n"
+         "__attribute__((used)) "
+         "__attribute__((annotate(\"__cling__ptrcheck(off)\")))\n"
+         "extern \"C\" "
+         "[[gnu::always_inline]]\n"
+         "inline void ";
+  buf << wrapper_name;
+  buf << "([[gnu::nonnull]] void* obj, int nargs, void** args, "
+         "[[gnu::nonnull]] void* ret)\n"
+         "{\n";
+  ++indent_level;
+  indent(buf, indent_level);
 
-  auto R = gWrapperStore.find(FD);
+  // Make a code string that follows this pattern:
+  //
+  // new (ret) ((FieldType*)&fn);
+  //
+  buf << "new (ret) ";
+  {
+    QualType Ty = FD->getType();
+    ASTContext& C = FD->getASTContext();
+    QualType QT = C.getPointerType(Ty.getCanonicalType());
+    std::string type;
+    get_type_as_string(QT, type, C, C.getPrintingPolicy());
+    buf << "(" << type << ")";
+  }
+  buf << " (&" << GetQualifiedCompleteName((void*)FD) << ");\n";
+
+  --indent_level;
+  buf << "}\n"
+         "#pragma clang diagnostic pop";
+  wrapper = buf.str();
+  return 1;
+}
+
+int get_wrapper_code(compat::Interpreter& I, const FieldDecl* FD,
+                     std::string const& wrapper_name, std::string& wrapper) {
+  assert(FD && "generate_wrapper called without a field decl!");
+  ASTContext& Context = FD->getASTContext();
+  PrintingPolicy Policy(Context.getPrintingPolicy());
+  //
+  //  Get the class or namespace name.
+  //
+  std::string class_name;
+  const clang::DeclContext* DC = get_non_transparent_decl_context(FD);
+  if (const TypeDecl* TD = dyn_cast<TypeDecl>(DC)) {
+    // This is a class, struct, or union member.
+    QualType QT(Context.getTypeDeclType(TD));
+    get_type_as_string(QT, class_name, Context, Policy);
+  } else if (const NamedDecl* ND = dyn_cast<NamedDecl>(DC)) {
+    // This is a namespace member.
+    raw_string_ostream stream(class_name);
+    ND->getNameForDiagnostic(stream, Policy, /*Qualified=*/true);
+    stream.flush();
+  }
+  LLVM_DEBUG(dbgs() << "Wrapper name (FD): " << wrapper_name << "\n");
+  //
+  //  Write the wrapper code.
+  // FIXME: this should be synthesized into the AST!
+  //
+  int indent_level = 0;
+  std::ostringstream buf;
+  buf << "#pragma clang diagnostic push\n"
+         "#pragma clang diagnostic ignored \"-Wformat-security\"\n"
+         "__attribute__((used)) "
+         "__attribute__((annotate(\"__cling__ptrcheck(off)\")))\n"
+         "extern \"C\" "
+         "[[gnu::always_inline]]\n"
+         "inline void ";
+  buf << wrapper_name;
+  buf << "([[gnu::nonnull]] void* obj, int nargs, void** args, "
+         "[[gnu::nonnull]] void* ret)\n"
+         "{\n";
+  ++indent_level;
+  indent(buf, indent_level);
+
+  // Make a code string that follows this pattern:
+  //
+  // new (ret) (FieldType*) (&((foo*)obj)->field);
+  //
+  buf << "new (ret) ";
+  {
+    QualType Ty = FD->getType();
+    QualType QT = Ty.getCanonicalType();
+    std::string type;
+    ASTContext& C = FD->getASTContext();
+    get_type_as_string(QT, type, C, C.getPrintingPolicy());
+    buf << "(" << type << "*) ";
+  }
+  {
+    const RecordDecl* RD = FD->getParent();
+    buf << "(&((";
+    buf << class_name;
+    buf << "*)obj)->";
+  }
+  buf << FD->getName().str();
+  buf << ");\n";
+
+  --indent_level;
+  buf << "}\n"
+         "#pragma clang diagnostic pop";
+  wrapper = buf.str();
+  return 1;
+}
+
+int get_wrapper_code(compat::Interpreter& I, const VarDecl* VD,
+                     std::string const& wrapper_name, std::string& wrapper) {
+  assert(VD && "generate_wrapper called without a var decl!");
+  ASTContext& Context = VD->getASTContext();
+  PrintingPolicy Policy(Context.getPrintingPolicy());
+  LLVM_DEBUG(dbgs() << "Wrapper name (var decl): " << wrapper_name << "\n");
+  //
+  //  Write the wrapper code.
+  // FIXME: this should be synthesized into the AST!
+  //
+  int indent_level = 0;
+  std::ostringstream buf;
+  buf << "__attribute__((used)) "
+         "__attribute__((annotate(\"__cling__ptrcheck(off)\")))\n"
+         "extern \"C\" "
+         "[[gnu::always_inline]]\n"
+         "inline void ";
+  buf << wrapper_name;
+  buf << "(void*, int, void**, [[gnu::nonnull]] void* ret)\n"
+         "{\n";
+  ++indent_level;
+  indent(buf, indent_level);
+
+  // Make a code string that follows this pattern:
+  //
+  // new (ret) (VarType)(VarScope::var);
+  //
+  buf << "new (ret) ";
+  {
+    ASTContext& C = VD->getASTContext();
+    QualType Ty = VD->getType();
+    QualType QT = Ty.getCanonicalType();
+    bool P = QT->isPointerType();
+    bool A = QT->isArrayType();
+    if (A) {
+      QT = C.getArrayDecayedType(QT);
+    }
+    bool R = QT->isReferenceType();
+    /* A Clang bug prevents this from working.
+     * https://github.com/llvm/llvm-project/issues/146956
+     */
+    bool Static = VD->isStaticDataMember();
+    if ((R || !P) && !A && !Static) {
+      QT = C.getPointerType(QT.getNonReferenceType());
+    }
+    std::string type;
+    get_type_as_string(QT, type, C, C.getPrintingPolicy());
+    buf << "(" << type << ")(";
+    if (!P && !A && !Static) {
+      buf << "&";
+    }
+  }
+  buf << VD->getQualifiedNameAsString();
+  buf << ");\n";
+
+  --indent_level;
+  buf << "}\n";
+  wrapper = buf.str();
+  return 1;
+}
+
+int get_wrapper_code(compat::Interpreter& I, const EnumConstantDecl* ECD,
+                     std::string const& wrapper_name, std::string& wrapper) {
+  assert(ECD && "generate_wrapper called without a decl!");
+  ASTContext& Context = ECD->getASTContext();
+  PrintingPolicy Policy(Context.getPrintingPolicy());
+  LLVM_DEBUG(dbgs() << "Wrapper name (enum constant decl): " << wrapper_name
+                    << "\n");
+  //
+  //  Write the wrapper code.
+  // FIXME: this should be synthesized into the AST!
+  //
+  int indent_level = 0;
+  std::ostringstream buf;
+  buf << "__attribute__((used)) "
+         "__attribute__((annotate(\"__cling__ptrcheck(off)\")))\n"
+         "extern \"C\" "
+         "[[gnu::always_inline]]\n"
+         "inline void ";
+  buf << wrapper_name;
+  buf << "(void*, int, void**, [[gnu::nonnull]] void* ret)\n"
+         "{\n";
+  ++indent_level;
+  indent(buf, indent_level);
+
+  // Make a code string that follows this pattern:
+  //
+  // new (ret) (EnumType)(EnumScope::constant);
+  //
+  buf << "new (ret) ";
+  {
+    ASTContext& C = ECD->getASTContext();
+    QualType Ty = ECD->getType();
+    QualType QT = Ty.getCanonicalType();
+    std::string type;
+    get_type_as_string(QT, type, C, C.getPrintingPolicy());
+    buf << "(" << type << ")(";
+  }
+  buf << ECD->getQualifiedNameAsString();
+  buf << ");\n";
+
+  --indent_level;
+  buf << "}\n";
+  wrapper = buf.str();
+  return 1;
+}
+
+int get_builtin_ctor_wrapper_code(compat::Interpreter& I, const QualType& CT,
+                                  const QualType& AT,
+                                  std::string const& wrapper_name,
+                                  std::string& wrapper) {
+  ASTContext& Context = getSema().getASTContext();
+  PrintingPolicy Policy(Context.getPrintingPolicy());
+  LLVM_DEBUG(dbgs() << "Wrapper name (builtin ctor): " << wrapper_name << "\n");
+  //
+  //  Write the wrapper code.
+  // FIXME: this should be synthesized into the AST!
+  //
+  int indent_level = 0;
+  std::ostringstream typedefbuf;
+  std::ostringstream buf;
+  std::ostringstream exprbuf;
+  buf << "__attribute__((used)) "
+         "__attribute__((annotate(\"__cling__ptrcheck(off)\")))\n"
+         "extern \"C\" "
+         "[[gnu::always_inline]]\n"
+         "inline void ";
+  buf << wrapper_name;
+  buf << "(void*, int, [[gnu::nonnull]] void** args, [[gnu::nonnull]] void* "
+         "ret)\n"
+         "{\n";
+  ++indent_level;
+  indent(buf, indent_level);
+
+  // Make a code string that follows this pattern:
+  //
+  // new (ret) (CT)(*(AT*)args[0]);
+  //
+  // If there are no arguments, the code string is like this:
+  //
+  // new (ret) (CT)();
+  //
+  exprbuf << "new (ret) ";
+  {
+    QualType QT = CT.getCanonicalType();
+    std::string type;
+    get_type_as_string(QT, type, Context, Context.getPrintingPolicy());
+    exprbuf << "(" << type << ")(";
+  }
+  if (!AT.isNull()) {
+    QualType QT = AT.getCanonicalType();
+    std::string type_name;
+    EReferenceType refType = kNotReference;
+    bool isPointer = false;
+    collect_type_info(nullptr, QT, typedefbuf, exprbuf, type_name, refType,
+                      isPointer, indent_level, true);
+
+    if (refType != kNotReference) {
+      exprbuf << "(" << type_name.c_str()
+              << (refType == kLValueReference ? "&" : "&&") << ")*("
+              << type_name.c_str() << "*)args[0]";
+    } else if (isPointer) {
+      exprbuf << "*(" << type_name.c_str() << "**)args[0]";
+    } else {
+      // pointer falls back to non-pointer case; the argument preserves
+      // the "pointerness" (i.e. doesn't reference the value).
+      exprbuf << "*(" << type_name.c_str() << "*)args[0]";
+    }
+  }
+  exprbuf << ");\n";
+
+  buf << typedefbuf.str();
+  indent(buf, indent_level);
+  buf << exprbuf.str();
+
+  --indent_level;
+  buf << "}\n";
+  wrapper = buf.str();
+  return 1;
+}
+
+int get_aggregate_ctor_predicate_wrapper_code(compat::Interpreter& I,
+                                              const QualType& T,
+                                              const std::vector<QualType>& ATs,
+                                              std::string const& wrapper_name,
+                                              std::string& wrapper) {
+  ASTContext& Context = getSema().getASTContext();
+  PrintingPolicy Policy(Context.getPrintingPolicy());
+  LLVM_DEBUG(dbgs() << "Wrapper name (aggregate ctor predicate): "
+                    << wrapper_name << "\n");
+  //
+  //  Write the helper template code.
+  // FIXME: this should be synthesized into the AST!
+  //
+  int indent_level = 0;
+  std::ostringstream typedefbuf;
+  std::ostringstream buf;
+  std::ostringstream exprbuf;
+  static std::string helper_name;
+
+  if (helper_name.empty()) {
+    {
+      std::ostringstream buf;
+      buf.imbue(std::locale("C"));
+      buf << "__cf";
+      buf << '_' << gWrapperSerial++;
+      helper_name = buf.str();
+      LLVM_DEBUG(dbgs() << "Helper name (aggregate ctor predicate): "
+                        << helper_name << "\n");
+    }
+    std::ostringstream helper_buf;
+
+    // Make a code string that follows this pattern:
+    //
+    // return requires { T{ std::declval<Args>()... }; };
+    //
+    helper_buf << "template <typename T, typename... Args>\n"
+                  "__attribute__((used)) "
+                  "__attribute__((annotate(\"__cling__ptrcheck(off)\")))\n"
+                  "[[gnu::always_inline]]\n"
+                  "constexpr bool ";
+    helper_buf << helper_name;
+    helper_buf << "()\n"
+                  "{\n";
+    indent(helper_buf, ++indent_level);
+    helper_buf << "return requires { T( std::declval<Args>()... ); };\n";
+    indent(helper_buf, --indent_level);
+    helper_buf << "}\n";
+
+    std::string code = helper_buf.str();
+    Declare(code.c_str());
+    LLVM_DEBUG(dbgs() << "Compiled helper '" << code << "'\n");
+  }
+
+  //
+  //  Write the wrapper code.
+  // FIXME: this should be synthesized into the AST!
+  //
+  buf << "__attribute__((used)) "
+         "__attribute__((annotate(\"__cling__ptrcheck(off)\")))\n"
+         "extern \"C\" "
+         "[[gnu::always_inline]]\n"
+         "inline void ";
+  buf << wrapper_name;
+  buf << "(void*, int, void**, [[gnu::nonnull]] void* ret)\n"
+         "{\n";
+  ++indent_level;
+  indent(buf, indent_level);
+
+  // Make a code string that follows this pattern:
+  //
+  // new (ret) bool{ helper<T, A1, A2, A3>() };
+  //
+  exprbuf << "new (ret) bool{ " << helper_name << "<";
+  {
+    QualType QT = T.getCanonicalType();
+    std::string type;
+    get_type_as_string(QT, type, Context, Context.getPrintingPolicy());
+    exprbuf << type;
+  }
+
+  for (const auto& AT : ATs) {
+    exprbuf << ", ";
+    QualType QT = AT.getCanonicalType();
+    std::string type_name;
+    EReferenceType refType = kNotReference;
+    bool isPointer = false;
+    collect_type_info(nullptr, QT, typedefbuf, exprbuf, type_name, refType,
+                      isPointer, indent_level, true);
+
+    if (refType != kNotReference) {
+      exprbuf << type_name.c_str()
+              << (refType == kLValueReference ? "&" : "&&");
+    } else if (isPointer) {
+      exprbuf << type_name.c_str() << "*";
+    } else {
+      exprbuf << type_name.c_str();
+    }
+  }
+  exprbuf << ">() };\n";
+
+  buf << typedefbuf.str() << '\n' << exprbuf.str() << '\n';
+
+  --indent_level;
+  indent(buf, indent_level);
+  buf << "}\n";
+
+  wrapper = buf.str();
+  return 1;
+}
+
+int get_aggregate_ctor_wrapper_code(compat::Interpreter& I, const QualType& T,
+                                    const std::vector<QualType>& ATs,
+                                    std::string const& wrapper_name,
+                                    std::string& wrapper) {
+  ASTContext& Context = getSema().getASTContext();
+  PrintingPolicy Policy(Context.getPrintingPolicy());
+  LLVM_DEBUG(dbgs() << "Wrapper name (aggregate ctor): " << wrapper_name
+                    << "\n");
+  //
+  //  Write the wrapper code.
+  // FIXME: this should be synthesized into the AST!
+  //
+  int indent_level = 0;
+  std::ostringstream typedefbuf;
+  std::ostringstream buf;
+  std::ostringstream exprbuf;
+  buf << "__attribute__((used)) "
+         "__attribute__((annotate(\"__cling__ptrcheck(off)\")))\n"
+         "extern \"C\" "
+         "[[gnu::always_inline]]\n"
+         "inline void ";
+  buf << wrapper_name;
+  buf << "(void*, int, [[gnu::nonnull]] void** args, [[gnu::nonnull]] void* "
+         "ret)\n"
+         "{\n";
+  ++indent_level;
+  indent(buf, indent_level);
+
+  // Make a code string that follows this pattern:
+  //
+  // new (ret) (CT){*(AT*)args[0]};
+  //
+  // If there are no arguments, the code string is like this:
+  //
+  // new (ret) (CT){};
+  //
+  exprbuf << "new (ret) ";
+  {
+    QualType QT = T.getCanonicalType();
+    std::string type;
+    get_type_as_string(QT, type, Context, Context.getPrintingPolicy());
+    exprbuf << "(" << type << "){";
+  }
+
+  bool Comma = false;
+  for (unsigned i = 0U; i < ATs.size(); ++i) {
+    if (Comma) {
+      exprbuf << ", ";
+    }
+    Comma = true;
+
+    QualType QT = ATs[i].getCanonicalType();
+    std::string type_name;
+    EReferenceType refType = kNotReference;
+    bool isPointer = false;
+    collect_type_info(nullptr, QT, typedefbuf, exprbuf, type_name, refType,
+                      isPointer, indent_level, true);
+
+    if (refType != kNotReference) {
+      exprbuf << "(" << type_name.c_str()
+              << (refType == kLValueReference ? "&" : "&&") << ")*("
+              << type_name.c_str() << "*)args[" << i << "]";
+    } else if (isPointer) {
+      exprbuf << "*(" << type_name.c_str() << "**)args[" << i << "]";
+    } else {
+      // pointer falls back to non-pointer case; the argument preserves
+      // the "pointerness" (i.e. doesn't reference the value).
+      exprbuf << "*(" << type_name.c_str() << "*)args[" << i << "]";
+    }
+  }
+  exprbuf << "};\n";
+
+  buf << typedefbuf.str() << '\n' << exprbuf.str() << '\n';
+
+  --indent_level;
+  buf << "}\n";
+  wrapper = buf.str();
+  return 1;
+}
+
+int get_builtin_operator_wrapper_code(compat::Interpreter& I, Operator op,
+                                      const QualType& T,
+                                      const std::vector<QualType>& ATs,
+                                      std::string const& wrapper_name,
+                                      std::string& wrapper) {
+  ASTContext& Context = getSema().getASTContext();
+  PrintingPolicy Policy(Context.getPrintingPolicy());
+  LLVM_DEBUG(dbgs() << "Wrapper name (builtin operator): " << wrapper_name
+                    << "\n");
+  //
+  //  Write the wrapper code.
+  // FIXME: this should be synthesized into the AST!
+  //
+  int indent_level = 0;
+  std::ostringstream typedefbuf;
+  std::ostringstream buf;
+  std::ostringstream exprbuf;
+  buf << "__attribute__((used)) "
+         "__attribute__((annotate(\"__cling__ptrcheck(off)\")))\n"
+         "extern \"C\" "
+         "[[gnu::always_inline]]\n"
+         "inline void ";
+  buf << wrapper_name;
+  buf << "(void*, int, [[gnu::nonnull]] void** args, [[gnu::nonnull]] void* "
+         "ret)\n"
+         "{\n";
+  ++indent_level;
+  indent(buf, indent_level);
+
+  // Make a code string that follows this pattern:
+  //
+  // Unary:
+  // new (ret) (T){op *(AT*)args[0]};
+  //
+  // Binary:
+  // new (ret) (T){*(AT0*)args[0] op *(AT1*)args[1]};
+
+  ASTContext& C = getSema().getASTContext();
+  DeclarationName OpName =
+      C.DeclarationNames.getCXXOperatorName((OverloadedOperatorKind)op);
+  std::string OpNameStr = OpName.getAsString();
+  if (OpNameStr.find("operator") == 0) {
+    OpNameStr.erase(0, strlen("operator"));
+  }
+
+  exprbuf << "new (ret) ";
+  {
+    QualType QT = T.getCanonicalType();
+    bool R = QT->isReferenceType();
+    QT = QT.getNonReferenceType();
+    bool A = QT->isArrayType();
+    if (A) {
+      QT = C.getArrayDecayedType(QT);
+    } else if (R) {
+      QT = C.getPointerType(QT.getNonReferenceType());
+    }
+    std::string type;
+    get_type_as_string(QT, type, Context, Context.getPrintingPolicy());
+    exprbuf << "(" << type << "){";
+    if (R && !A) {
+      exprbuf << "&";
+    }
+  }
+
+  exprbuf << "(";
+  if (ATs.size() == 1) {
+    exprbuf << OpNameStr;
+  }
+  for (unsigned i = 0U; i < ATs.size(); ++i) {
+    if (i == 1) {
+      if (op == OP_Subscript) {
+        exprbuf << "[ ";
+      } else {
+        exprbuf << " " << OpNameStr << " ";
+      }
+    }
+
+    QualType QT = ATs[i].getCanonicalType();
+    bool A = QT->isArrayType();
+    if (A) {
+      QT = C.getArrayDecayedType(QT);
+    }
+    std::string type_name;
+    EReferenceType refType = kNotReference;
+    bool isPointer = false;
+    collect_type_info(nullptr, QT, typedefbuf, exprbuf, type_name, refType,
+                      isPointer, indent_level, true);
+
+    if (refType != kNotReference) {
+      exprbuf << "((" << type_name.c_str()
+              << (refType == kLValueReference ? "&" : "&&") << ")*("
+              << type_name.c_str() << "*)args[" << i << "])";
+    } else if (isPointer) {
+      exprbuf << "(*(" << type_name.c_str() << "**)args[" << i << "])";
+    } else {
+      // pointer falls back to non-pointer case; the argument preserves
+      // the "pointerness" (i.e. doesn't reference the value).
+      exprbuf << "(*(" << type_name.c_str() << "*)args[" << i << "])";
+    }
+  }
+  if (op == OP_Subscript) {
+    exprbuf << " ]";
+  }
+
+  exprbuf << ")";
+  exprbuf << " };\n";
+
+  buf << typedefbuf.str();
+  indent(buf, indent_level);
+  buf << exprbuf.str();
+
+  indent(buf, --indent_level);
+  buf << "}\n";
+  wrapper = buf.str();
+  return 1;
+}
+
+int get_apply_wrapper_code(compat::Interpreter& I, const QualType& T,
+                           const std::vector<QualType>& ATs,
+                           std::string const& wrapper_name,
+                           std::string& wrapper) {
+  ASTContext& Context = getSema().getASTContext();
+  PrintingPolicy Policy(Context.getPrintingPolicy());
+  LLVM_DEBUG(dbgs() << "Wrapper name (apply): " << wrapper_name << "\n");
+  //
+  //  Write the wrapper code.
+  // FIXME: this should be synthesized into the AST!
+  //
+  int indent_level = 0;
+  std::ostringstream typedefbuf;
+  std::ostringstream buf;
+  std::ostringstream exprbuf;
+  buf << "__attribute__((used)) "
+         "__attribute__((annotate(\"__cling__ptrcheck(off)\")))\n"
+         "extern \"C\" "
+         "[[gnu::always_inline]]\n"
+         "inline void ";
+  buf << wrapper_name;
+  buf << "(void*, int, [[gnu::nonnull]] void** args, [[gnu::nonnull]] void* "
+         "ret)\n"
+         "{\n";
+  ++indent_level;
+  indent(buf, indent_level);
+
+  // Make a code string that follows this pattern:
+  //
+  // new (ret) (auto){(*(T*)args[0])(*(AT0*)args[1], *(AT1*)args[2])};
+
+  ASTContext& C = getSema().getASTContext();
+
+  exprbuf << "new (ret) (auto){ ";
+  {
+    QualType QT = C.getPointerType(T.getCanonicalType());
+    std::string type;
+    get_type_as_string(QT, type, Context, Context.getPrintingPolicy());
+    exprbuf << "(*(" << type << ")args[0])";
+  }
+
+  exprbuf << "(";
+  bool need_comma{};
+  for (unsigned i = 0U; i < ATs.size(); ++i) {
+    if (need_comma) {
+      exprbuf << ", ";
+    }
+    need_comma = true;
+
+    QualType QT = ATs[i].getCanonicalType();
+    bool A = QT->isArrayType();
+    if (A) {
+      QT = C.getArrayDecayedType(QT);
+    }
+    std::string type_name;
+    EReferenceType refType = kNotReference;
+    bool isPointer = false;
+    collect_type_info(nullptr, QT, typedefbuf, exprbuf, type_name, refType,
+                      isPointer, indent_level, true);
+
+    if (refType != kNotReference) {
+      exprbuf << "(" << type_name.c_str()
+              << (refType == kLValueReference ? "&" : "&&") << ")*("
+              << type_name.c_str() << "*)args[" << i + 1 << "]";
+    } else if (isPointer) {
+      exprbuf << "*(" << type_name.c_str() << "**)args[" << i + 1 << "]";
+    } else {
+      // pointer falls back to non-pointer case; the argument preserves
+      // the "pointerness" (i.e. doesn't reference the value).
+      exprbuf << "*(" << type_name.c_str() << "*)args[" << i + 1 << "]";
+    }
+  }
+  exprbuf << ")";
+  exprbuf << " };\n";
+
+  buf << typedefbuf.str();
+  indent(buf, indent_level);
+  buf << exprbuf.str();
+
+  indent(buf, --indent_level);
+  buf << "}\n";
+  wrapper = buf.str();
+  return 1;
+}
+
+int get_rtti_wrapper_code(compat::Interpreter& I, const QualType& T,
+                          const std::string& rtti_sym,
+                          std::string const& wrapper_name,
+                          std::string& wrapper) {
+  ASTContext& Context = getSema().getASTContext();
+  PrintingPolicy Policy(Context.getPrintingPolicy());
+  LLVM_DEBUG(dbgs() << "Wrapper name (rtti): " << wrapper_name << "\n");
+  //
+  //  Write the wrapper code.
+  // FIXME: this should be synthesized into the AST!
+  //
+  int indent_level = 0;
+  std::ostringstream buf;
+  std::ostringstream exprbuf;
+  ASTContext& C = getSema().getASTContext();
+
+  buf << "extern \"C\" ";
+  buf << "__attribute__((used, visibility(\"default\")))\n";
+  buf << "auto const " << rtti_sym << "{ ";
+  QualType QT = T.getCanonicalType();
+  std::string type;
+  get_type_as_string(QT, type, Context, Context.getPrintingPolicy());
+  buf << "&typeid(" << type << ")";
+  buf << " };\n\n";
+
+  buf << "__attribute__((used)) "
+         "__attribute__((annotate(\"__cling__ptrcheck(off)\")))\n"
+         "extern \"C\" "
+         "[[gnu::always_inline]]\n"
+         "inline void ";
+  buf << wrapper_name;
+  buf << "(void*, int, void**, [[gnu::nonnull]] void* ret)\n"
+         "{\n";
+  ++indent_level;
+  indent(buf, indent_level);
+
+  // Make a code string that follows this pattern:
+  //
+  // new (ret) (auto){ &typeid(T) };
+
+  buf << "new (ret) (auto){ " << rtti_sym << " };\n";
+
+  indent(buf, --indent_level);
+  buf << "}\n";
+  wrapper = buf.str();
+  return 1;
+}
+
+template <WrapperKind K = WrapperKind::Jit>
+auto make_wrapper(compat::Interpreter& I, const FunctionDecl* FD,
+                  const std::vector<TCppType_t>& arg_types,
+                  std::string const& wrapper_name) {
+  using Ret =
+      std::conditional_t<K == WrapperKind::Jit, JitCall::GenericCall, AotCall*>;
+  using Key = std::pair<const FunctionDecl*, std::vector<TCppType_t>>;
+  static std::map<Key, Ret> gWrapperStore;
+
+  auto R = gWrapperStore.find({FD, arg_types});
   if (R != gWrapperStore.end())
-    return (JitCall::GenericCall)R->second;
+    return R->second;
 
-  std::string wrapper_name;
   std::string wrapper_code;
 
-  if (get_wrapper_code(I, FD, wrapper_name, wrapper_code) == 0)
-    return 0;
+  if (get_wrapper_code(I, FD, arg_types, wrapper_name, wrapper_code) == 0)
+    return (Ret) nullptr;
 
   //
   //   Compile the wrapper code.
@@ -2614,9 +4205,10 @@ JitCall::GenericCall make_wrapper(compat::Interpreter& I,
   if (auto Ctor = dyn_cast<CXXConstructorDecl>(FD))
     withAccessControl = !Ctor->isDefaultConstructor();
   void* wrapper =
-      compile_wrapper(I, wrapper_name, wrapper_code, withAccessControl);
+      compile_wrapper<K>(I, wrapper_name, wrapper_code, withAccessControl);
   if (wrapper) {
-    gWrapperStore.insert(std::make_pair(FD, wrapper));
+    gWrapperStore.insert(
+        std::make_pair(std::make_pair(FD, arg_types), (Ret)wrapper));
   } else {
     llvm::errs() << "TClingCallFunc::make_wrapper"
                  << ":"
@@ -2628,7 +4220,387 @@ JitCall::GenericCall make_wrapper(compat::Interpreter& I,
   LLVM_DEBUG(dbgs() << "Compiled '" << (wrapper ? "" : "un")
                     << "successfully:\n"
                     << wrapper_code << "'\n");
+  return (Ret)wrapper;
+}
+
+template <WrapperKind K = WrapperKind::Jit>
+auto make_value_wrapper(compat::Interpreter& I, const FunctionDecl* FD,
+                        std::string const& wrapper_name) {
+  using Ret =
+      std::conditional_t<K == WrapperKind::Jit, JitCall::GenericCall, AotCall*>;
+  static std::map<const FunctionDecl*, Ret> gWrapperStore;
+
+  auto R = gWrapperStore.find(FD);
+  if (R != gWrapperStore.end())
+    return R->second;
+
+  std::string wrapper_code;
+
+  if (get_value_wrapper_code(I, FD, wrapper_name, wrapper_code) == 0)
+    return (Ret) nullptr;
+
+  //
+  //   Compile the wrapper code.
+  //
+  bool withAccessControl = true;
+  // We should be able to call private default constructors.
+  if (auto Ctor = dyn_cast<CXXConstructorDecl>(FD))
+    withAccessControl = !Ctor->isDefaultConstructor();
+  void* wrapper =
+      compile_wrapper<K>(I, wrapper_name, wrapper_code, withAccessControl);
+  if (wrapper) {
+    gWrapperStore.insert(std::make_pair(FD, (Ret)wrapper));
+  } else {
+    llvm::errs() << "TClingCallFunc::make_wrapper"
+                 << ":"
+                 << "Failed to compile\n"
+                 << "==== SOURCE BEGIN ====\n"
+                 << wrapper_code << "\n"
+                 << "==== SOURCE END ====\n";
+  }
+  LLVM_DEBUG(dbgs() << "Compiled '" << (wrapper ? "" : "un")
+                    << "successfully:\n"
+                    << wrapper_code << "'\n");
+  return (Ret)wrapper;
+}
+
+template <WrapperKind K>
+auto make_wrapper(compat::Interpreter& I, const FieldDecl* FD,
+                  std::string const& wrapper_name) {
+  using Ret =
+      std::conditional_t<K == WrapperKind::Jit, JitCall::GenericCall, AotCall*>;
+  static std::map<const FieldDecl*, Ret> gWrapperStore;
+
+  auto R = gWrapperStore.find(FD);
+  if (R != gWrapperStore.end())
+    return R->second;
+
+  std::string wrapper_code;
+
+  if (get_wrapper_code(I, FD, wrapper_name, wrapper_code) == 0)
+    return (Ret) nullptr;
+
+  //
+  //   Compile the wrapper code.
+  //
+  bool withAccessControl = true;
+  void* wrapper =
+      compile_wrapper<K>(I, wrapper_name, wrapper_code, withAccessControl);
+  if (wrapper) {
+    gWrapperStore.insert(std::make_pair(FD, (Ret)wrapper));
+  } else {
+    llvm::errs() << "TClingCallFunc::make_wrapper"
+                 << ":"
+                 << "Failed to compile\n"
+                 << "==== SOURCE BEGIN ====\n"
+                 << wrapper_code << "\n"
+                 << "==== SOURCE END ====\n";
+  }
+  LLVM_DEBUG(dbgs() << "Compiled '" << (wrapper ? "" : "un")
+                    << "successfully:\n"
+                    << wrapper_code << "'\n");
+  return (Ret)wrapper;
+}
+
+template <WrapperKind K>
+auto make_wrapper(compat::Interpreter& I, const VarDecl* VD,
+                  std::string const& wrapper_name) {
+  using Ret =
+      std::conditional_t<K == WrapperKind::Jit, JitCall::GenericCall, AotCall*>;
+  static std::map<const VarDecl*, Ret> gWrapperStore;
+
+  auto R = gWrapperStore.find(VD);
+  if (R != gWrapperStore.end())
+    return R->second;
+
+  std::string wrapper_code;
+
+  if (get_wrapper_code(I, VD, wrapper_name, wrapper_code) == 0)
+    return (Ret) nullptr;
+
+  //
+  //   Compile the wrapper code.
+  //
+  bool withAccessControl = true;
+  void* wrapper =
+      compile_wrapper<K>(I, wrapper_name, wrapper_code, withAccessControl);
+  if (wrapper) {
+    gWrapperStore.insert(std::make_pair(VD, (Ret)wrapper));
+  } else {
+    llvm::errs() << "TClingCallFunc::make_wrapper"
+                 << ":"
+                 << "Failed to compile\n"
+                 << "==== SOURCE BEGIN ====\n"
+                 << wrapper_code << "\n"
+                 << "==== SOURCE END ====\n";
+  }
+  LLVM_DEBUG(dbgs() << "Compiled '" << (wrapper ? "" : "un")
+                    << "successfully:\n"
+                    << wrapper_code << "'\n");
+  return (Ret)wrapper;
+}
+
+template <WrapperKind K>
+auto make_wrapper(compat::Interpreter& I, const EnumConstantDecl* ECD,
+                  std::string const& wrapper_name) {
+  using Ret =
+      std::conditional_t<K == WrapperKind::Jit, JitCall::GenericCall, AotCall*>;
+  static std::map<const EnumConstantDecl*, Ret> gWrapperStore;
+
+  auto R = gWrapperStore.find(ECD);
+  if (R != gWrapperStore.end())
+    return R->second;
+
+  std::string wrapper_code;
+
+  if (get_wrapper_code(I, ECD, wrapper_name, wrapper_code) == 0)
+    return (Ret) nullptr;
+
+  //
+  //   Compile the wrapper code.
+  //
+  bool withAccessControl = true;
+  void* wrapper =
+      compile_wrapper<K>(I, wrapper_name, wrapper_code, withAccessControl);
+  if (wrapper) {
+    gWrapperStore.insert(std::make_pair(ECD, (Ret)wrapper));
+  } else {
+    llvm::errs() << "TClingCallFunc::make_wrapper"
+                 << ":"
+                 << "Failed to compile\n"
+                 << "==== SOURCE BEGIN ====\n"
+                 << wrapper_code << "\n"
+                 << "==== SOURCE END ====\n";
+  }
+  LLVM_DEBUG(dbgs() << "Compiled '" << (wrapper ? "" : "un")
+                    << "successfully:\n"
+                    << wrapper_code << "'\n");
+  return (Ret)wrapper;
+}
+
+template <WrapperKind K>
+auto make_builtin_ctor_wrapper(compat::Interpreter& I, const QualType& CT,
+                               const QualType& AT,
+                               std::string const& wrapper_name) {
+  using Ret =
+      std::conditional_t<K == WrapperKind::Jit, JitCall::GenericCall, AotCall*>;
+  static std::map<std::pair<QualType, QualType>, Ret> gWrapperStore;
+
+  auto R = gWrapperStore.find({CT, AT});
+  if (R != gWrapperStore.end())
+    return R->second;
+
+  std::string wrapper_code;
+
+  if (get_builtin_ctor_wrapper_code(I, CT, AT, wrapper_name, wrapper_code) == 0)
+    return (Ret) nullptr;
+
+  //
+  //   Compile the wrapper code.
+  //
+  bool withAccessControl = true;
+  void* wrapper =
+      compile_wrapper<K>(I, wrapper_name, wrapper_code, withAccessControl);
+  if (wrapper) {
+    gWrapperStore.insert(std::make_pair(std::make_pair(CT, AT), (Ret)wrapper));
+  } else {
+    llvm::errs() << "TClingCallFunc::make_wrapper"
+                 << ":"
+                 << "Failed to compile\n"
+                 << "==== SOURCE BEGIN ====\n"
+                 << wrapper_code << "\n"
+                 << "==== SOURCE END ====\n";
+  }
+  LLVM_DEBUG(dbgs() << "Compiled '" << (wrapper ? "" : "un")
+                    << "successfully:\n"
+                    << wrapper_code << "'\n");
+  return (Ret)wrapper;
+}
+
+JitCall::GenericCall
+make_aggregate_ctor_predicate_wrapper(compat::Interpreter& I, const QualType& T,
+                                      const std::vector<QualType>& ATs,
+                                      std::string const& wrapper_name) {
+  std::string wrapper_code;
+
+  if (get_aggregate_ctor_predicate_wrapper_code(I, T, ATs, wrapper_name,
+                                                wrapper_code) == 0)
+    return nullptr;
+
+  //
+  //   Compile the wrapper code.
+  //
+  bool withAccessControl = true;
+  void* wrapper = compile_wrapper<WrapperKind::Jit>(
+      I, wrapper_name, wrapper_code, withAccessControl);
+  if (!wrapper) {
+    llvm::errs() << "TClingCallFunc::make_wrapper"
+                 << ":"
+                 << "Failed to compile\n"
+                 << "==== SOURCE BEGIN ====\n"
+                 << wrapper_code << "\n"
+                 << "==== SOURCE END ====\n";
+  }
+  LLVM_DEBUG(dbgs() << "Compiled '" << (wrapper ? "" : "un")
+                    << "successfully:\n"
+                    << wrapper_code << "'\n");
   return (JitCall::GenericCall)wrapper;
+}
+
+template <WrapperKind K>
+auto make_aggregate_ctor_wrapper(compat::Interpreter& I, const QualType& T,
+                                 const std::vector<QualType>& ATs,
+                                 std::string const& wrapper_name) {
+  using Ret =
+      std::conditional_t<K == WrapperKind::Jit, JitCall::GenericCall, AotCall*>;
+  static std::map<std::pair<QualType, std::vector<QualType>>, Ret>
+      gWrapperStore;
+
+  auto R = gWrapperStore.find({T, ATs});
+  if (R != gWrapperStore.end())
+    return R->second;
+
+  std::string wrapper_code;
+
+  if (get_aggregate_ctor_wrapper_code(I, T, ATs, wrapper_name, wrapper_code) ==
+      0)
+    return (Ret) nullptr;
+
+  //
+  //   Compile the wrapper code.
+  //
+  bool withAccessControl = true;
+  void* wrapper =
+      compile_wrapper<K>(I, wrapper_name, wrapper_code, withAccessControl);
+  if (!wrapper) {
+    llvm::errs() << "TClingCallFunc::make_wrapper"
+                 << ":"
+                 << "Failed to compile\n"
+                 << "==== SOURCE BEGIN ====\n"
+                 << wrapper_code << "\n"
+                 << "==== SOURCE END ====\n";
+  }
+  LLVM_DEBUG(dbgs() << "Compiled '" << (wrapper ? "" : "un")
+                    << "successfully:\n"
+                    << wrapper_code << "'\n");
+  return (Ret)wrapper;
+}
+
+template <WrapperKind K>
+auto make_builtin_operator_wrapper(compat::Interpreter& I, Operator op,
+                                   const QualType& T,
+                                   const std::vector<QualType>& ATs,
+                                   std::string const& wrapper_name) {
+  using Ret =
+      std::conditional_t<K == WrapperKind::Jit, JitCall::GenericCall, AotCall*>;
+  static std::map<std::pair<Operator, std::vector<QualType>>, Ret>
+      gWrapperStore;
+
+  auto R = gWrapperStore.find({op, ATs});
+  if (R != gWrapperStore.end())
+    return R->second;
+
+  std::string wrapper_code;
+
+  if (get_builtin_operator_wrapper_code(I, op, T, ATs, wrapper_name,
+                                        wrapper_code) == 0)
+    return (Ret) nullptr;
+
+  //
+  //   Compile the wrapper code.
+  //
+  bool withAccessControl = true;
+  void* wrapper =
+      compile_wrapper<K>(I, wrapper_name, wrapper_code, withAccessControl);
+  if (!wrapper) {
+    llvm::errs() << "TClingCallFunc::make_wrapper"
+                 << ":"
+                 << "Failed to compile\n"
+                 << "==== SOURCE BEGIN ====\n"
+                 << wrapper_code << "\n"
+                 << "==== SOURCE END ====\n";
+  }
+  LLVM_DEBUG(dbgs() << "Compiled '" << (wrapper ? "" : "un")
+                    << "successfully:\n"
+                    << wrapper_code << "'\n");
+  return (Ret)wrapper;
+}
+
+template <WrapperKind K>
+auto make_apply_wrapper(compat::Interpreter& I, const QualType& T,
+                        const std::vector<QualType>& ATs,
+                        std::string const& wrapper_name) {
+  using Ret =
+      std::conditional_t<K == WrapperKind::Jit, JitCall::GenericCall, AotCall*>;
+  static std::map<std::pair<QualType, std::vector<QualType>>, Ret>
+      gWrapperStore;
+
+  auto R = gWrapperStore.find({T, ATs});
+  if (R != gWrapperStore.end())
+    return R->second;
+
+  std::string wrapper_code;
+
+  if (get_apply_wrapper_code(I, T, ATs, wrapper_name, wrapper_code) == 0)
+    return (Ret) nullptr;
+
+  //
+  //   Compile the wrapper code.
+  //
+  bool withAccessControl = true;
+  void* wrapper =
+      compile_wrapper<K>(I, wrapper_name, wrapper_code, withAccessControl);
+  if (!wrapper) {
+    llvm::errs() << "TClingCallFunc::make_wrapper"
+                 << ":"
+                 << "Failed to compile\n"
+                 << "==== SOURCE BEGIN ====\n"
+                 << wrapper_code << "\n"
+                 << "==== SOURCE END ====\n";
+  }
+  LLVM_DEBUG(dbgs() << "Compiled '" << (wrapper ? "" : "un")
+                    << "successfully:\n"
+                    << wrapper_code << "'\n");
+  return (Ret)wrapper;
+}
+
+template <WrapperKind K>
+auto make_rtti_wrapper(compat::Interpreter& I, const QualType& T,
+                       const std::string& rtti_sym,
+                       std::string const& wrapper_name) {
+  using Ret =
+      std::conditional_t<K == WrapperKind::Jit, JitCall::GenericCall, AotCall*>;
+  static std::map<QualType, Ret> gWrapperStore;
+
+  auto R = gWrapperStore.find(T);
+  if (R != gWrapperStore.end())
+    return R->second;
+
+  std::string wrapper_code;
+
+  if (get_rtti_wrapper_code(I, T, rtti_sym, wrapper_name, wrapper_code) == 0)
+    return (Ret) nullptr;
+
+  //
+  //   Compile the wrapper code.
+  //
+  bool withAccessControl = true;
+  void* wrapper =
+      compile_wrapper<K>(I, wrapper_name, wrapper_code, withAccessControl);
+  if (wrapper) {
+    gWrapperStore.insert(std::make_pair(T, (Ret)wrapper));
+  } else {
+    llvm::errs() << "TClingCallFunc::make_wrapper"
+                 << ":"
+                 << "Failed to compile\n"
+                 << "==== SOURCE BEGIN ====\n"
+                 << wrapper_code << "\n"
+                 << "==== SOURCE END ====\n";
+  }
+  LLVM_DEBUG(dbgs() << "Compiled '" << (wrapper ? "" : "un")
+                    << "successfully:\n"
+                    << wrapper_code << "'\n");
+  return (Ret)wrapper;
 }
 
 // FIXME: Sink in the code duplication from get_wrapper_code.
@@ -2656,130 +4628,45 @@ static std::string PrepareStructorWrapper(const Decl* D,
   return wrapper_name;
 }
 
-static JitCall::DestructorCall make_dtor_wrapper(compat::Interpreter& interp,
-                                                 const Decl* D) {
+template <WrapperKind K = WrapperKind::Jit>
+static auto make_dtor_wrapper(compat::Interpreter& interp, const Decl* D,
+                              std::string const& wrapper_name) {
   // Make a code string that follows this pattern:
   //
   // void
-  // unique_wrapper_ddd(void* obj, unsigned long nary, int withFree)
+  // unique_wrapper_ddd(void* obj, void *client_data)
   // {
-  //    if (withFree) {
-  //       if (!nary) {
-  //          delete (ClassName*) obj;
-  //       }
-  //       else {
-  //          delete[] (ClassName*) obj;
-  //       }
-  //    }
-  //    else {
-  //       typedef ClassName DtorName;
-  //       if (!nary) {
-  //          ((ClassName*)obj)->~DtorName();
-  //       }
-  //       else {
-  //          for (unsigned long i = nary - 1; i > -1; --i) {
-  //             (((ClassName*)obj)+i)->~DtorName();
-  //          }
-  //       }
-  //    }
+  //   typedef ClassName DtorName;
+  //   ((ClassName*)obj)->~DtorName();
   // }
   //
   //--
 
-  static map<const Decl*, void*> gDtorWrapperStore;
+  using Ret = std::conditional_t<K == WrapperKind::Jit, JitCall::DestructorCall,
+                                 AotCall*>;
+  static map<const Decl*, Ret> gDtorWrapperStore;
 
   auto I = gDtorWrapperStore.find(D);
   if (I != gDtorWrapperStore.end())
-    return (JitCall::DestructorCall)I->second;
+    return I->second;
 
-  //
-  //  Make the wrapper name.
-  //
   std::string class_name;
-  string wrapper_name = PrepareStructorWrapper(D, "__dtor", class_name);
   //
   //  Write the wrapper code.
   //
   int indent_level = 0;
   ostringstream buf;
   buf << "__attribute__((used)) ";
-  buf << "extern \"C\" void ";
+  buf << "extern \"C\" inline void ";
   buf << wrapper_name;
-  buf << "(void* obj, unsigned long nary, int withFree)\n";
+  buf << "([[gnu::nonnull]] void* obj, void*)\n";
   buf << "{\n";
-  //    if (withFree) {
-  //       if (!nary) {
-  //          delete (ClassName*) obj;
-  //       }
-  //       else {
-  //          delete[] (ClassName*) obj;
-  //       }
-  //    }
-  ++indent_level;
-  indent(buf, indent_level);
-  buf << "if (withFree) {\n";
-  ++indent_level;
-  indent(buf, indent_level);
-  buf << "if (!nary) {\n";
-  ++indent_level;
-  indent(buf, indent_level);
-  buf << "delete (" << class_name << "*) obj;\n";
-  --indent_level;
-  indent(buf, indent_level);
-  buf << "}\n";
-  indent(buf, indent_level);
-  buf << "else {\n";
-  ++indent_level;
-  indent(buf, indent_level);
-  buf << "delete[] (" << class_name << "*) obj;\n";
-  --indent_level;
-  indent(buf, indent_level);
-  buf << "}\n";
-  --indent_level;
-  indent(buf, indent_level);
-  buf << "}\n";
-  //    else {
-  //       typedef ClassName Nm;
-  //       if (!nary) {
-  //          ((Nm*)obj)->~Nm();
-  //       }
-  //       else {
-  //          for (unsigned long i = nary - 1; i > -1; --i) {
-  //             (((Nm*)obj)+i)->~Nm();
-  //          }
-  //       }
-  //    }
-  indent(buf, indent_level);
-  buf << "else {\n";
-  ++indent_level;
-  indent(buf, indent_level);
+  indent(buf, ++indent_level);
   buf << "typedef " << class_name << " Nm;\n";
-  buf << "if (!nary) {\n";
-  ++indent_level;
   indent(buf, indent_level);
   buf << "((Nm*)obj)->~Nm();\n";
-  --indent_level;
-  indent(buf, indent_level);
-  buf << "}\n";
-  indent(buf, indent_level);
-  buf << "else {\n";
-  ++indent_level;
-  indent(buf, indent_level);
-  buf << "do {\n";
-  ++indent_level;
-  indent(buf, indent_level);
-  buf << "(((Nm*)obj)+(--nary))->~Nm();\n";
-  --indent_level;
-  indent(buf, indent_level);
-  buf << "} while (nary);\n";
-  --indent_level;
-  indent(buf, indent_level);
-  buf << "}\n";
-  --indent_level;
-  indent(buf, indent_level);
-  buf << "}\n";
   // End wrapper.
-  --indent_level;
+  indent(buf, --indent_level);
   buf << "}\n";
   // Done.
   string wrapper(buf.str());
@@ -2787,10 +4674,10 @@ static JitCall::DestructorCall make_dtor_wrapper(compat::Interpreter& interp,
   //
   //   Compile the wrapper code.
   //
-  void* F = compile_wrapper(interp, wrapper_name, wrapper,
-                            /*withAccessControl=*/false);
+  void* F = compile_wrapper<K>(interp, wrapper_name, wrapper,
+                               /*withAccessControl=*/false);
   if (F) {
-    gDtorWrapperStore.insert(make_pair(D, F));
+    gDtorWrapperStore.insert(make_pair(D, (Ret)F));
   } else {
     llvm::errs() << "make_dtor_wrapper"
                  << "Failed to compile\n"
@@ -2799,15 +4686,57 @@ static JitCall::DestructorCall make_dtor_wrapper(compat::Interpreter& interp,
   }
   LLVM_DEBUG(dbgs() << "Compiled '" << (F ? "" : "un") << "successfully:\n"
                     << wrapper << "'\n");
-  return (JitCall::DestructorCall)F;
+  return (Ret)F;
 }
 #undef DEBUG_TYPE
 } // namespace
   // End of JitCall Helper Functions
 
-CPPINTEROP_API JitCall MakeFunctionCallable(TInterp_t I,
-                                            TCppConstFunction_t func) {
-  const auto* D = static_cast<const clang::Decl*>(func);
+bool IsAggregateConstructible(TCppType_t to_type,
+                              const std::vector<TemplateArgInfo>& member_types,
+                              std::string const& name) {
+  QualType ToTy = QualType::getFromOpaquePtr(to_type);
+  static std::map<std::pair<QualType, std::vector<QualType>>, bool> gStore;
+
+  if (!ToTy->isAggregateType()) {
+    return false;
+  }
+
+  ASTContext& ASTC = getASTContext();
+  std::vector<QualType> MTs;
+  MTs.reserve(member_types.size());
+  for (auto MT : member_types) {
+    MTs.emplace_back(QualType::getFromOpaquePtr(MT.m_Type));
+  }
+
+  auto I = gStore.find({ToTy, MTs});
+  if (I != gStore.end())
+    return I->second;
+
+  /* TODO: Use Clang to figure this out instead of JIT compiling a trait. */
+  bool Result = false;
+  if (auto* Wrapper =
+          make_aggregate_ctor_predicate_wrapper(getInterp(), ToTy, MTs, name)) {
+    Wrapper(nullptr, 0, nullptr, &Result);
+  }
+  gStore.emplace(std::make_pair(ToTy, MTs), Result);
+  return Result;
+}
+
+bool IsTriviallyDestructible(TCppType_t type) {
+  QualType T =
+      QualType::getFromOpaquePtr(type).getDesugaredType(getASTContext());
+
+  if (const auto* RD = T->getAsCXXRecordDecl()) {
+    return RD->hasTrivialDestructor();
+  }
+
+  return T.isDestructedType() == clang::QualType::DK_none;
+}
+
+AotCall MakeAotCallable(TInterp_t I, TCppScope_t scope,
+                        const std::string& name) {
+  const auto* D = static_cast<const clang::Decl*>(scope);
   if (!D)
     return {};
 
@@ -2815,21 +4744,199 @@ CPPINTEROP_API JitCall MakeFunctionCallable(TInterp_t I,
 
   // FIXME: Unify with make_wrapper.
   if (const auto* Dtor = dyn_cast<CXXDestructorDecl>(D)) {
-    if (auto Wrapper = make_dtor_wrapper(*interp, Dtor->getParent()))
-      return {JitCall::kDestructorCall, Wrapper, Dtor};
+    if (auto Wrapper = make_dtor_wrapper<WrapperKind::Aot>(
+            *interp, Dtor->getParent(), name))
+      return *Wrapper;
     // FIXME: else error we failed to compile the wrapper.
     return {};
   }
 
-  if (auto Wrapper = make_wrapper(*interp, cast<FunctionDecl>(D))) {
-    return {JitCall::kGenericCall, Wrapper, cast<FunctionDecl>(D)};
+  if (const auto* F = dyn_cast<FunctionDecl>(D)) {
+    if (auto Wrapper = make_wrapper<WrapperKind::Aot>(*interp, F, {}, name)) {
+      return *Wrapper;
+    }
+    // FIXME: else error we failed to compile the wrapper.
+    return {};
+  }
+
+  if (const auto* F = dyn_cast<FieldDecl>(D)) {
+    if (auto Wrapper = make_wrapper<WrapperKind::Aot>(*interp, F, name)) {
+      return *Wrapper;
+    }
+    // FIXME: else error we failed to compile the wrapper.
+    return {};
+  }
+
+  if (const auto* V = dyn_cast<VarDecl>(D)) {
+    if (auto Wrapper = make_wrapper<WrapperKind::Aot>(*interp, V, name)) {
+      return *Wrapper;
+    }
+    // FIXME: else error we failed to compile the wrapper.
+    return {};
+  }
+
+  if (const auto* E = dyn_cast<EnumConstantDecl>(D)) {
+    if (auto Wrapper = make_wrapper<WrapperKind::Aot>(*interp, E, name)) {
+      return *Wrapper;
+    }
+    // FIXME: else error we failed to compile the wrapper.
+    return {};
+  }
+
+  // FIXME: else error we failed to compile the wrapper.
+  return {};
+}
+
+CPPINTEROP_API AotCall MakeAotCallable(TCppScope_t scope,
+                                       const std::string& name) {
+  return MakeAotCallable(&getInterp(), scope, name);
+}
+
+CPPINTEROP_API AotCall MakeAotCallable(TCppScope_t scope,
+                                       const std::vector<TCppType_t>& arg_types,
+                                       const std::string& name) {
+  const auto* D = static_cast<const clang::Decl*>(scope);
+  if (!D)
+    return {};
+
+  auto& interp = getInterp();
+  ;
+
+  if (const auto* F = dyn_cast<FunctionDecl>(D)) {
+    if (auto Wrapper =
+            make_wrapper<WrapperKind::Aot>(interp, F, arg_types, name)) {
+      return *Wrapper;
+    }
+    // FIXME: else error we failed to compile the wrapper.
+    return {};
+  }
+}
+
+CPPINTEROP_API AotCall
+MakeBuiltinConstructorAotCallable(TCppType_t type, const std::string& name) {
+  QualType CT = QualType::getFromOpaquePtr(type);
+  if (auto* Wrapper = make_builtin_ctor_wrapper<WrapperKind::Aot>(
+          getInterp(), CT, {}, name)) {
+    return *Wrapper;
   }
   // FIXME: else error we failed to compile the wrapper.
   return {};
 }
 
-CPPINTEROP_API JitCall MakeFunctionCallable(TCppConstFunction_t func) {
-  return MakeFunctionCallable(&getInterp(), func);
+CPPINTEROP_API AotCall MakeBuiltinConstructorAotCallable(
+    TCppType_t type, TCppType_t arg_type, const std::string& name) {
+  QualType CT = QualType::getFromOpaquePtr(type);
+  QualType AT = QualType::getFromOpaquePtr(arg_type);
+  if (auto* Wrapper = make_builtin_ctor_wrapper<WrapperKind::Aot>(
+          getInterp(), CT, AT, name)) {
+    return *Wrapper;
+  }
+  // FIXME: else error we failed to compile the wrapper.
+  return {};
+}
+
+static clang::Decl*
+GetFunctionInstantiation(const clang::FunctionTemplateDecl* FTD,
+                         clang::QualType QT) {
+  auto& S = getSema();
+  QT = QT.getNonReferenceType()->getPointeeType();
+  for (auto* Spec : FTD->specializations()) {
+    clang::QualType SpecTy = Spec->getType();
+
+    if (SpecTy.getCanonicalType() == QT.getCanonicalType()) {
+      return Spec;
+    }
+  }
+
+  return nullptr;
+}
+
+CPPINTEROP_API AotCall MakeFunctionValueAotCallable(TCppScope_t scope,
+                                                    TCppType_t type,
+                                                    const std::string& name) {
+  auto* D = static_cast<clang::Decl*>(scope);
+  if (!D)
+    return {};
+
+  auto* interp = &getInterp();
+
+  if (const auto* FT = dyn_cast<FunctionTemplateDecl>(D)) {
+    D = GetFunctionInstantiation(FT, QualType::getFromOpaquePtr(type));
+    if (!D)
+      return {};
+  }
+  if (const auto* F = dyn_cast<FunctionDecl>(D)) {
+    if (auto Wrapper = make_value_wrapper<WrapperKind::Aot>(*interp, F, name)) {
+      return *Wrapper;
+    }
+    // FIXME: else error we failed to compile the wrapper.
+    return {};
+  }
+
+  return {};
+}
+
+AotCall MakeAggregateInitializationAotCallable(
+    TCppType_t type, const std::vector<TemplateArgInfo>& arg_types,
+    const std::string& name) {
+  QualType T = QualType::getFromOpaquePtr(type);
+  std::vector<QualType> ATs;
+  ATs.reserve(arg_types.size());
+  for (auto MT : arg_types) {
+    ATs.emplace_back(QualType::getFromOpaquePtr(MT.m_Type));
+  }
+  if (auto Wrapper = make_aggregate_ctor_wrapper<WrapperKind::Aot>(
+          getInterp(), T, ATs, name)) {
+    return *Wrapper;
+  }
+  // FIXME: else error we failed to compile the wrapper.
+  return {};
+}
+
+AotCall
+MakeBuiltinOperatorAotCallable(Operator op, TCppType_t type,
+                               const std::vector<TemplateArgInfo>& arg_types,
+                               const std::string& name) {
+  QualType T = QualType::getFromOpaquePtr(type);
+  std::vector<QualType> ATs;
+  ATs.reserve(arg_types.size());
+  for (auto MT : arg_types) {
+    ATs.emplace_back(QualType::getFromOpaquePtr(MT.m_Type));
+  }
+  if (auto Wrapper = make_builtin_operator_wrapper<WrapperKind::Aot>(
+          getInterp(), op, T, ATs, name)) {
+    return *Wrapper;
+  }
+  // FIXME: else error we failed to compile the wrapper.
+  return {};
+}
+
+AotCall MakeApplyCallable(TCppType_t type,
+                          const std::vector<TCppType_t>& arg_types,
+                          const std::string& name) {
+  QualType T = QualType::getFromOpaquePtr(type);
+  std::vector<QualType> ATs;
+  ATs.reserve(arg_types.size());
+  for (auto MT : arg_types) {
+    ATs.emplace_back(QualType::getFromOpaquePtr(MT));
+  }
+  if (auto Wrapper =
+          make_apply_wrapper<WrapperKind::Aot>(getInterp(), T, ATs, name)) {
+    return *Wrapper;
+  }
+  // FIXME: else error we failed to compile the wrapper.
+  return {};
+}
+
+AotCall MakeRTTICallable(TCppType_t type, const std::string& rtti_sym,
+                         const std::string& name) {
+  QualType T = QualType::getFromOpaquePtr(type);
+  if (auto Wrapper =
+          make_rtti_wrapper<WrapperKind::Aot>(getInterp(), T, rtti_sym, name)) {
+    return *Wrapper;
+  }
+  // FIXME: else error we failed to compile the wrapper.
+  return {};
 }
 
 namespace {
@@ -2855,8 +4962,11 @@ static std::string MakeResourcesPath() {
 }
 } // namespace
 
-TInterp_t CreateInterpreter(const std::vector<const char*>& Args /*={}*/,
-                            const std::vector<const char*>& GpuArgs /*={}*/) {
+TInterp_t
+CreateInterpreter(const std::vector<const char*>& Args /*={}*/,
+                  const std::vector<const char*>& GpuArgs /*={}*/,
+                  const std::map<char const*, std::string_view>& VFS /*={}*/,
+                  const std::optional<int>& CM /*=std::nullopt*/) {
   std::string MainExecutableName = sys::fs::getMainExecutable(nullptr, nullptr);
   std::string ResourceDir = MakeResourcesPath();
   std::vector<const char*> ClingArgv = {"-resource-dir", ResourceDir.c_str(),
@@ -2899,8 +5009,9 @@ TInterp_t CreateInterpreter(const std::vector<const char*>& Args /*={}*/,
 #ifdef CPPINTEROP_USE_CLING
   auto I = new compat::Interpreter(ClingArgv.size(), &ClingArgv[0]);
 #else
-  auto Interp = compat::Interpreter::create(static_cast<int>(ClingArgv.size()),
-                                            ClingArgv.data());
+  auto Interp =
+      compat::Interpreter::create(static_cast<int>(ClingArgv.size()),
+                                  ClingArgv.data(), 0, {}, 0, true, VFS, CM);
   if (!Interp)
     return nullptr;
   auto* I = Interp.release();
@@ -2988,7 +5099,7 @@ std::string DetectResourceDir(const char* ClangBinaryName /* = clang */) {
       CLANG_VERSION_MAJOR_STRING;
 #endif
   // We need to check if the detected resource directory is compatible.
-  if (llvm::sys::path::filename(detected_resource_dir) != version)
+  if (detected_resource_dir.find(version) == std::string::npos)
     return "";
 
   return detected_resource_dir;
@@ -3199,21 +5310,29 @@ static Decl* InstantiateTemplate(TemplateDecl* TemplateD,
     if (Result != Template_Deduction_Result_Success) {
       // FIXME: Diagnose what happened.
       (void)Result;
+      return nullptr;
     }
     return Specialization;
   }
 
   if (auto* VarTemplate = dyn_cast<VarTemplateDecl>(TemplateD)) {
-    DeclResult R = S.CheckVarTemplateId(VarTemplate, fakeLoc, fakeLoc, TLI);
+    DeclResult R =
+        S.CheckVarTemplateId(VarTemplate, fakeLoc, fakeLoc, TLI, false);
     if (R.isInvalid()) {
       // FIXME: Diagnose
+      return nullptr;
     }
     return R.get();
   }
 
   // This will instantiate tape<T> type and return it.
   SourceLocation noLoc;
-  QualType TT = S.CheckTemplateIdType(TemplateName(TemplateD), noLoc, TLI);
+  QualType TT = S.CheckTemplateIdType(ElaboratedTypeKeyword::None,
+                                      TemplateName(TemplateD), noLoc, TLI,
+                                      nullptr, false);
+  if (TT.isNull()) {
+    return nullptr;
+  }
 
   // Perhaps we can extract this into a new interface.
   S.RequireCompleteType(fakeLoc, TT, diag::err_tentative_def_incomplete_type);
@@ -3276,6 +5395,48 @@ TCppScope_t InstantiateTemplate(TCppScope_t tmpl,
                                 size_t template_args_size) {
   return InstantiateTemplate(getInterp(), tmpl, template_args,
                              template_args_size);
+}
+
+bool InstantiateFunction(clang::FunctionDecl* FD) {
+  // Ignore if not a template instantiation
+  if (!(FD->isTemplateInstantiation() && !FD->isDefined()))
+    return false;
+
+  clang::Sema& S = getSema();
+  clang::DiagnosticErrorTrap Trap(S.getDiagnostics());
+
+  S.InstantiateFunctionDefinition(FD->getLocation(), FD, /*Recursive=*/true,
+                                  /*DefinitionRequired=*/true);
+
+  return Trap.hasErrorOccurred();
+}
+
+bool InstantiateTemplate(TCppScope_t spec) {
+  clang::Sema& S = getSema();
+  clang::QualType QT;
+  if (auto* D = llvm::dyn_cast<ClassTemplateSpecializationDecl>((Decl*)spec))
+    QT = S.Context.getCanonicalTagType(D);
+  else if (auto* D = llvm::dyn_cast<FunctionTemplateDecl>((Decl*)spec))
+    QT = D->getTemplatedDecl()->getType();
+  else if (auto* D = llvm::dyn_cast<CXXConstructorDecl>((Decl*)spec))
+    QT = S.Context.getCanonicalTagType(D->getParent());
+  else if (auto* D = llvm::dyn_cast<FunctionDecl>((Decl*)spec))
+    QT = D->getType();
+
+  if (QT.isNull())
+    return true;
+
+  clang::DiagnosticErrorTrap Trap(S.getDiagnostics());
+  bool R = S.RequireCompleteType(clang::SourceLocation(), QT,
+                                 /*DiagID*/ 0 /*no diagnostic*/);
+
+  if (!R) {
+    if (auto* FD = llvm::dyn_cast<FunctionDecl>((Decl*)spec)) {
+      return InstantiateFunction(FD);
+    }
+  }
+
+  return R || Trap.hasErrorOccurred();
 }
 
 void GetClassTemplateInstantiationArgs(TCppScope_t templ_instance,
@@ -3487,32 +5648,87 @@ OperatorArity GetOperatorArity(TCppFunction_t op) {
   return (OperatorArity)~0U;
 }
 
-void GetOperator(TCppScope_t scope, Operator op,
+void GetOperator(Operator op, std::vector<TemplateArgInfo> const& arg_types,
                  std::vector<TCppFunction_t>& operators, OperatorArity kind) {
-  Decl* D = static_cast<Decl*>(scope);
-  if (auto* CXXRD = llvm::dyn_cast_or_null<CXXRecordDecl>(D)) {
-    auto fn = [&operators, kind, op](const RecordDecl* RD) {
-      ASTContext& C = RD->getASTContext();
-      DeclContextLookupResult Result =
-          RD->lookup(C.DeclarationNames.getCXXOperatorName(
-              (clang::OverloadedOperatorKind)op));
-      for (auto* i : Result) {
-        if (kind & GetOperatorArity(i))
-          operators.push_back(i);
-      }
-      return true;
-    };
-    fn(CXXRD);
-    CXXRD->forallBases(fn);
-  } else if (auto* DC = llvm::dyn_cast_or_null<DeclContext>(D)) {
-    ASTContext& C = getSema().getASTContext();
-    DeclContextLookupResult Result =
-        DC->lookup(C.DeclarationNames.getCXXOperatorName(
-            (clang::OverloadedOperatorKind)op));
+  Sema& S = getSema();
+  ASTContext& Ctx = S.Context;
 
-    for (auto* i : Result) {
-      if (kind & GetOperatorArity(i))
-        operators.push_back(i);
+  const auto Op = static_cast<OverloadedOperatorKind>(op);
+  DeclarationName OpName = Ctx.DeclarationNames.getCXXOperatorName(Op);
+
+  llvm::SmallPtrSet<const NamedDecl*, 32> Seen;
+
+  auto pushIfNew = [&](NamedDecl* ND) {
+    if (!ND)
+      return;
+    if (Seen.insert(ND).second) {
+      if (kind & GetOperatorArity(ND))
+        operators.push_back(ND);
+    }
+  };
+
+  UnresolvedSet<16> Fns;
+  S.LookupOverloadedOperatorName(Op, S.getCurScope(), Fns);
+  for (auto I = Fns.begin(); I != Fns.end(); ++I) {
+    if (auto* FTD = llvm::dyn_cast<FunctionTemplateDecl>(I.getPair().getDecl()))
+      pushIfNew(FTD);
+    else
+      pushIfNew(I.getPair().getDecl()->getUnderlyingDecl());
+  }
+
+  // --- 1) Build operand exprs (types must be exactly your operands).
+  llvm::SmallVector<Expr*, 2> ArgExprs;
+  ArgExprs.reserve(arg_types.size());
+  for (auto const& arg_type : arg_types) {
+    QualType T = QualType::getFromOpaquePtr(arg_type.m_Type);
+    T = Ctx.getCanonicalType(T).getUnqualifiedType().getNonReferenceType();
+    ArgExprs.push_back(new (Ctx)
+                           OpaqueValueExpr(SourceLocation(), T, VK_LValue));
+  }
+
+  // --- 2) Collect associated namespaces/classes for ADL.
+  Sema::AssociatedNamespaceSet ANS;
+  Sema::AssociatedClassSet ACS;
+  S.FindAssociatedClassesAndNamespaces(SourceLocation(), ArgExprs, ANS, ACS);
+
+  // --- 3) Search each associated namespace (PRIMARY context, via Sema).
+  for (auto* NS : ANS) {
+    DeclContext* PC = NS->getPrimaryContext();
+    LookupResult LR(S, OpName, SourceLocation(), Sema::LookupOperatorName);
+    S.LookupQualifiedName(LR, PC);
+    for (NamedDecl* ND : LR) {
+      if (auto* FTD = dyn_cast<FunctionTemplateDecl>(ND))
+        pushIfNew(FTD);
+      else if (auto* FD = dyn_cast<FunctionDecl>(ND))
+        pushIfNew(FD);
+    }
+  }
+
+  // --- 4) Search each associated class:
+  //       a) member operators (rare for != here)
+  //       b) hidden friends declared inside the class (ADL-only)
+  for (CXXRecordDecl* RD : ACS) {
+    DeclContext* PC = RD->getPrimaryContext();
+
+    // a) any member operator!= (unlikely for __normal_iterator, but cheap)
+    for (NamedDecl* ND : PC->lookup(OpName)) {
+      if (auto* FTD = dyn_cast<FunctionTemplateDecl>(ND))
+        pushIfNew(FTD);
+      else if (auto* FD = dyn_cast<FunctionDecl>(ND))
+        pushIfNew(FD);
+    }
+
+    // b) hidden friends: these are NOT found by ordinary lookup
+    for (FriendDecl* F : RD->friends()) {
+      if (auto* FriendND = dyn_cast_or_null<NamedDecl>(F->getFriendDecl())) {
+        auto name = FriendND->getDeclName();
+        if (name.getCXXOverloadedOperator() == Op) {
+          if (auto* FTD = dyn_cast<FunctionTemplateDecl>(FriendND))
+            pushIfNew(FTD);
+          else if (auto* FD = dyn_cast<FunctionDecl>(FriendND))
+            pushIfNew(FD);
+        }
+      }
     }
   }
 }
@@ -3523,46 +5739,6 @@ TCppObject_t Allocate(TCppScope_t scope) {
 
 void Deallocate(TCppScope_t scope, TCppObject_t address) {
   ::operator delete(address);
-}
-
-// FIXME: Add optional arguments to the operator new.
-TCppObject_t Construct(compat::Interpreter& interp, TCppScope_t scope,
-                       void* arena /*=nullptr*/) {
-  auto* Class = (Decl*)scope;
-  // FIXME: Diagnose.
-  if (!HasDefaultConstructor(Class))
-    return nullptr;
-
-  auto* const Ctor = GetDefaultConstructor(interp, Class);
-  if (JitCall JC = MakeFunctionCallable(&interp, Ctor)) {
-    if (arena) {
-      JC.Invoke(&arena, {}, (void*)~0); // Tell Invoke to use placement new.
-      return arena;
-    }
-
-    void* obj = nullptr;
-    JC.Invoke(&obj);
-    return obj;
-  }
-  return nullptr;
-}
-
-TCppObject_t Construct(TCppScope_t scope, void* arena /*=nullptr*/) {
-  return Construct(getInterp(), scope, arena);
-}
-
-void Destruct(compat::Interpreter& interp, TCppObject_t This, Decl* Class,
-              bool withFree) {
-  if (auto wrapper = make_dtor_wrapper(interp, Class)) {
-    (*wrapper)(This, /*nary=*/0, withFree);
-    return;
-  }
-  // FIXME: Diagnose.
-}
-
-void Destruct(TCppObject_t This, TCppScope_t scope, bool withFree /*=true*/) {
-  auto* Class = static_cast<Decl*>(scope);
-  Destruct(getInterp(), This, Class, withFree);
 }
 
 class StreamCaptureInfo {

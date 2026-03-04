@@ -16,6 +16,8 @@
 
 #include <cassert>
 #include <cstdint>
+#include <map>
+#include <optional>
 #include <set>
 #include <string>
 #include <vector>
@@ -40,6 +42,7 @@ using TCppConstFunction_t = const void*;
 using TCppFuncAddr_t = void*;
 using TInterp_t = void*;
 using TCppObject_t = void*;
+using TModule_t = void*;
 
 enum Operator {
   OP_None,
@@ -189,11 +192,37 @@ public:
   }
 };
 
+class AotCall {
+public:
+  AotCall() = default;
+  AotCall(TModule_t M, const std::string& N) : m_module(M), m_name(N) {}
+
+  TModule_t getModule() const { return m_module; }
+  const std::string& getName() const { return m_name; }
+  bool isValid() const { return m_module; }
+  bool isInvalid() const { return !isValid(); }
+  explicit operator bool() const { return isValid(); }
+
+private:
+  TModule_t m_module{};
+  std::string m_name;
+};
+
+struct TemplateArgInfo {
+  TCppType_t m_Type;
+  const char* m_IntegralValue;
+  TemplateArgInfo(TCppScope_t type, const char* integral_value = nullptr)
+      : m_Type(type), m_IntegralValue(integral_value) {}
+};
+
 ///\returns the version string information of the library.
 CPPINTEROP_API std::string GetVersion();
 
 ///\returns the demangled representation of the given mangled_name
 CPPINTEROP_API std::string Demangle(const std::string& mangled_name);
+
+///\returns the mangled RTTI representation of the given type
+CPPINTEROP_API std::string MangleRTTI(TCppType_t type);
 
 /// Enables or disables the debugging printouts on stderr.
 /// Debugging output can be enabled also by the environment variable
@@ -217,6 +246,9 @@ CPPINTEROP_API bool IsNamespace(TCppScope_t scope);
 /// Checks if the scope is a class or not.
 CPPINTEROP_API bool IsClass(TCppScope_t scope);
 
+/// Checks if the scope is a class or not.
+CPPINTEROP_API bool IsClassTemplate(TCppScope_t scope);
+
 /// Checks if the scope is a function.
 CPPINTEROP_API bool IsFunction(TCppScope_t scope);
 
@@ -234,8 +266,18 @@ CPPINTEROP_API bool IsComplete(TCppScope_t scope);
 
 CPPINTEROP_API size_t SizeOf(TCppScope_t scope);
 
+CPPINTEROP_API size_t AlignmentOf(TCppScope_t scope);
+
 /// Checks if it is a "built-in" or a "complex" type.
 CPPINTEROP_API bool IsBuiltin(TCppType_t type);
+
+CPPINTEROP_API bool IsIntegral(TCppType_t type);
+
+/// Checks if it is a void type.
+CPPINTEROP_API bool IsVoid(TCppType_t type);
+
+/// Returns the void type.
+CPPINTEROP_API TCppType_t GetVoidType();
 
 /// Checks if it is a templated class.
 CPPINTEROP_API bool IsTemplate(TCppScope_t handle);
@@ -243,10 +285,35 @@ CPPINTEROP_API bool IsTemplate(TCppScope_t handle);
 /// Checks if it is a class template specialization class.
 CPPINTEROP_API bool IsTemplateSpecialization(TCppScope_t handle);
 
+/// Checks if it is a class template specialization class.
+CPPINTEROP_API bool IsTemplateSpecializationOf(TCppScope_t spec,
+                                               TCppScope_t templ);
+
 /// Checks if \c handle introduces a typedef name via \c typedef or \c using.
 CPPINTEROP_API bool IsTypedefed(TCppScope_t handle);
 
 CPPINTEROP_API bool IsAbstract(TCppType_t klass);
+
+CPPINTEROP_API TCppType_t GetCommonType(TCppType_t lhs, TCppType_t rhs);
+
+/// Checks if it is possible to implicitly convert from one type to another.
+CPPINTEROP_API bool IsImplicitlyConvertible(TCppType_t from_type,
+                                            TCppType_t to_type);
+
+/// Checks if it is possible to C-style cast from one type to another.
+CPPINTEROP_API bool IsCStyleConvertible(TCppType_t from_type,
+                                        TCppType_t to_type);
+
+/// Checks if it is possible to construct one type from another.
+CPPINTEROP_API bool IsConstructible(TCppType_t to_type, TCppType_t from_type);
+
+/// Checks if it is possible to aggregate construct one type from others.
+CPPINTEROP_API bool
+IsAggregateConstructible(TCppType_t to_type,
+                         const std::vector<TemplateArgInfo>& member_types,
+                         std::string const& name);
+
+CPPINTEROP_API bool IsTriviallyDestructible(TCppType_t type);
 
 /// Checks if it is an enum name (EnumDecl represents an enum name).
 CPPINTEROP_API bool IsEnumScope(TCppScope_t handle);
@@ -289,6 +356,9 @@ CPPINTEROP_API TCppIndex_t GetEnumConstantValue(TCppScope_t scope);
 
 /// Gets the size of the "type" that is passed in to this function.
 CPPINTEROP_API size_t GetSizeOfType(TCppType_t type);
+
+/// Gets the alignment of the "type" that is passed in to this function.
+CPPINTEROP_API size_t GetAlignmentOfType(TCppType_t type);
 
 /// Checks if the passed value is a variable.
 CPPINTEROP_API bool IsVariable(TCppScope_t scope);
@@ -409,10 +479,24 @@ CPPINTEROP_API TCppType_t GetFunctionArgType(TCppFunction_t func,
 
 ///\returns a stringified version of a given function signature in the form:
 /// void N::f(int i, double d, long l = 0, char ch = 'a').
-CPPINTEROP_API std::string GetFunctionSignature(TCppFunction_t func);
+CPPINTEROP_API std::string GetFunctionSignature(TCppType_t func);
+
+/// Gets the return type of the provided function.
+CPPINTEROP_API TCppType_t GetFunctionReturnTypeFromType(TCppType_t func);
+
+/// Gets the number of Arguments for the provided function.
+CPPINTEROP_API TCppIndex_t GetFunctionNumArgsFromType(TCppType_t func);
+
+/// For each Argument of a function, you can get the Argument Type
+/// by providing the Argument Index, based on the number of arguments
+/// from the GetFunctionNumArgs() function.
+CPPINTEROP_API TCppType_t GetFunctionArgTypeFromType(TCppType_t func,
+                                                     TCppIndex_t iarg);
 
 ///\returns if a function was marked as \c =delete.
 CPPINTEROP_API bool IsFunctionDeleted(TCppConstFunction_t function);
+
+CPPINTEROP_API bool IsFunctionTypeConst(TCppType_t function_type);
 
 CPPINTEROP_API bool IsTemplatedFunction(TCppFunction_t func);
 
@@ -498,6 +582,10 @@ void GetEnumConstantDatamembers(TCppScope_t scope,
 CPPINTEROP_API TCppScope_t LookupDatamember(const std::string& name,
                                             TCppScope_t parent);
 
+/// This is a Lookup function to be used specifically for methods.
+CPPINTEROP_API std::vector<TCppFunction_t>
+LookupMethods(const std::string& name, TCppScope_t parent);
+
 /// Gets the type of the variable that is passed as a parameter.
 CPPINTEROP_API TCppType_t GetVariableType(TCppScope_t var);
 
@@ -518,8 +606,15 @@ CPPINTEROP_API bool IsPrivateVariable(TCppScope_t var);
 /// Checks if the provided variable is a 'Static' variable.
 CPPINTEROP_API bool IsStaticVariable(TCppScope_t var);
 
+/// Checks if the provided variable is a 'Static' variable.
+CPPINTEROP_API bool IsNonStaticVariable(TCppScope_t var);
+
 /// Checks if the provided variable is a 'Constant' variable.
 CPPINTEROP_API bool IsConstVariable(TCppScope_t var);
+
+CPPINTEROP_API bool IsConstType(TCppType_t type);
+
+CPPINTEROP_API bool IsStaticDatamember(TCppScope_t var);
 
 /// Checks if the provided parameter is a Record (struct).
 CPPINTEROP_API bool IsRecordType(TCppType_t type);
@@ -530,17 +625,65 @@ CPPINTEROP_API bool IsPODType(TCppType_t type);
 /// Checks if type is a pointer
 CPPINTEROP_API bool IsPointerType(TCppType_t type);
 
+CPPINTEROP_API bool IsPointerToMemberType(TCppType_t type);
+
+CPPINTEROP_API bool IsPointerToMemberVariableType(TCppType_t type);
+
+CPPINTEROP_API bool IsPointerToMemberFunctionType(TCppType_t type);
+
+CPPINTEROP_API TCppType_t GetParentTypeFromPointerToMember(TCppType_t type);
+
+CPPINTEROP_API TCppType_t
+GetFunctionTypeFromPointerToMember(TCppType_t member_type, TCppType_t obj_type);
+
+/// Checks if type is an array
+CPPINTEROP_API bool IsArrayType(TCppType_t type);
+
+/// Get the element type of an array
+CPPINTEROP_API TCppType_t GetArrayElementType(TCppType_t type);
+
+CPPINTEROP_API TCppType_t GetArrayType(TCppType_t type);
+
+CPPINTEROP_API TCppType_t GetArrayType(TCppType_t type, size_t size);
+
+CPPINTEROP_API TCppType_t
+GetFunctionType(TCppType_t ret, std::vector<TCppType_t> const& params);
+
 /// Get the underlying pointee type
 CPPINTEROP_API TCppType_t GetPointeeType(TCppType_t type);
 
+/// Get a pointer type to the specified type
+CPPINTEROP_API TCppType_t GetPointerType(TCppType_t type);
+
+CPPINTEROP_API TCppType_t GetPointerToMemberType(TCppScope_t member);
+
+/// Get a reference type to the specified type
+CPPINTEROP_API TCppType_t GetLValueReferenceType(TCppType_t type);
+
+CPPINTEROP_API TCppType_t GetRValueReferenceType(TCppType_t type);
+
 /// Checks if type is a reference
 CPPINTEROP_API bool IsReferenceType(TCppType_t type);
+
+/// Checks if type is an rvalue reference
+CPPINTEROP_API bool IsRvalueReferenceType(TCppType_t type);
 
 /// Get the type that the reference refers to
 CPPINTEROP_API TCppType_t GetNonReferenceType(TCppType_t type);
 
 /// Gets the pure, Underlying Type (as opposed to the Using Type).
 CPPINTEROP_API TCppType_t GetUnderlyingType(TCppType_t type);
+
+/// Gets the type without const and volatile qualifiers.
+CPPINTEROP_API TCppType_t GetTypeWithoutCv(TCppType_t type);
+
+CPPINTEROP_API TCppType_t GetTypeWithConst(TCppType_t type);
+
+CPPINTEROP_API TCppType_t GetTypeWithVolatile(TCppType_t type);
+
+CPPINTEROP_API TCppType_t GetSignedType(TCppType_t type);
+
+CPPINTEROP_API TCppType_t GetUnsignedType(TCppType_t type);
 
 /// Gets the Type (passed as a parameter) as a String value.
 CPPINTEROP_API std::string GetTypeAsString(TCppType_t type);
@@ -571,6 +714,41 @@ CPPINTEROP_API JitCall MakeFunctionCallable(TCppConstFunction_t func);
 CPPINTEROP_API JitCall MakeFunctionCallable(TInterp_t I,
                                             TCppConstFunction_t func);
 
+/// Creates a trampoline function by using the interpreter and returns a
+/// uniform interface to get the name and IR module for it.
+CPPINTEROP_API AotCall MakeAotCallable(TCppScope_t scope,
+                                       const std::string& name);
+
+CPPINTEROP_API AotCall MakeAotCallable(TCppScope_t scope,
+                                       const std::vector<TCppType_t>& arg_types,
+                                       const std::string& name);
+
+CPPINTEROP_API AotCall
+MakeBuiltinConstructorAotCallable(TCppType_t type, const std::string& name);
+
+CPPINTEROP_API AotCall MakeBuiltinConstructorAotCallable(
+    TCppType_t type, TCppType_t arg_type, const std::string& name);
+
+CPPINTEROP_API AotCall MakeFunctionValueAotCallable(TCppScope_t scope,
+                                                    TCppType_t type,
+                                                    const std::string& name);
+
+CPPINTEROP_API AotCall MakeAggregateInitializationAotCallable(
+    TCppType_t type, const std::vector<TemplateArgInfo>& arg_types,
+    const std::string& name);
+
+CPPINTEROP_API AotCall MakeBuiltinOperatorAotCallable(
+    Operator op, TCppType_t type, const std::vector<TemplateArgInfo>& arg_types,
+    const std::string& name);
+
+CPPINTEROP_API AotCall
+MakeApplyCallable(TCppType_t type, const std::vector<TCppType_t>& arg_types,
+                  const std::string& name);
+
+CPPINTEROP_API AotCall MakeRTTICallable(TCppType_t type,
+                                        const std::string& rtti_sym,
+                                        const std::string& name);
+
 /// Checks if a function declared is of const type or not.
 CPPINTEROP_API bool IsConstMethod(TCppFunction_t method);
 
@@ -586,9 +764,10 @@ CPPINTEROP_API std::string GetFunctionArgName(TCppFunction_t func,
 CPPINTEROP_API OperatorArity GetOperatorArity(TCppFunction_t op);
 
 ///\returns list of operator overloads
-CPPINTEROP_API void GetOperator(TCppScope_t scope, Operator op,
+CPPINTEROP_API void GetOperator(Operator op,
+                                std::vector<TemplateArgInfo> const& arg_types,
                                 std::vector<TCppFunction_t>& operators,
-                                OperatorArity kind = kBoth);
+                                OperatorArity kind);
 
 /// Creates an instance of the interpreter we need for the various interop
 /// services.
@@ -597,7 +776,9 @@ CPPINTEROP_API void GetOperator(TCppScope_t scope, Operator op,
 ///           adds additional arguments to the interpreter.
 CPPINTEROP_API TInterp_t
 CreateInterpreter(const std::vector<const char*>& Args = {},
-                  const std::vector<const char*>& GpuArgs = {});
+                  const std::vector<const char*>& GpuArgs = {},
+                  const std::map<char const*, std::string_view>& VFS = {},
+                  const std::optional<int>& CM = std::nullopt);
 
 /// Checks which Interpreter backend was CppInterOp library built with (Cling,
 /// Clang-REPL, etcetera). In practice, the selected interpreter should not
@@ -693,12 +874,6 @@ CPPINTEROP_API bool InsertOrReplaceJitSymbol(const char* linker_mangled_name,
 /// Tries to load provided objects in a string format (prettyprint).
 CPPINTEROP_API std::string ObjToString(const char* type, void* obj);
 
-struct TemplateArgInfo {
-  TCppType_t m_Type;
-  const char* m_IntegralValue;
-  TemplateArgInfo(TCppScope_t type, const char* integral_value = nullptr)
-      : m_Type(type), m_IntegralValue(integral_value) {}
-};
 /// Builds a template instantiation for a given templated declaration.
 /// Offers a single interface for instantiation of class, function and
 /// variable templates
@@ -713,6 +888,8 @@ struct TemplateArgInfo {
 CPPINTEROP_API TCppScope_t
 InstantiateTemplate(TCppScope_t tmpl, const TemplateArgInfo* template_args,
                     size_t template_args_size);
+
+CPPINTEROP_API bool InstantiateTemplate(TCppScope_t spec);
 
 /// Sets the class template instantiation arguments of \c templ_instance.
 ///
@@ -740,6 +917,11 @@ CPPINTEROP_API TCppFunction_t
 BestOverloadFunctionMatch(const std::vector<TCppFunction_t>& candidates,
                           const std::vector<TemplateArgInfo>& explicit_types,
                           const std::vector<TemplateArgInfo>& arg_types);
+
+CPPINTEROP_API std::vector<TCppScope_t>
+BestOverloadMatch(const std::vector<TCppScope_t>& candidates,
+                  const std::vector<TemplateArgInfo>& arg_types,
+                  const std::vector<TCppScope_t>& arg_scopes);
 
 CPPINTEROP_API void GetAllCppNames(TCppScope_t scope,
                                    std::set<std::string>& names);
