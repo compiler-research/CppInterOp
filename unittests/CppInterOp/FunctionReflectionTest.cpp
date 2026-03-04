@@ -1,9 +1,10 @@
 #include "Utils.h"
 
+#include "CppInterOp/CppInterOp.h"
+
 #include "clang/AST/ASTContext.h"
 #include "clang/Basic/Version.h"
 #include "clang/Frontend/CompilerInstance.h"
-#include "clang/Interpreter/CppInterOp.h"
 #include "clang/Sema/Sema.h"
 
 #include <llvm/ADT/ArrayRef.h>
@@ -637,6 +638,10 @@ TEST(FunctionReflectionTest, ExistsFunctionTemplate) {
 }
 
 TEST(FunctionReflectionTest, InstantiateTemplateFunctionFromString) {
+#if CLANG_VERSION_MAJOR == 18 && defined(CPPINTEROP_USE_CLING) &&              \
+    defined(_WIN32) && (defined(_M_ARM) || defined(_M_ARM64))
+  GTEST_SKIP() << "Test fails with Cling on Windows on ARM";
+#endif
   if (llvm::sys::RunningOnValgrind())
     GTEST_SKIP() << "XFAIL due to Valgrind report";
   std::vector<const char*> interpreter_args = { "-include", "new" };
@@ -1379,7 +1384,9 @@ TEST(FunctionReflectionTest, IsStaticMethod) {
 
 TEST(FunctionReflectionTest, GetFunctionAddress) {
 #ifdef EMSCRIPTEN
+#if CLANG_VERSION_MAJOR < 20
   GTEST_SKIP() << "Test fails for Emscipten builds";
+#endif
 #endif
   if (llvm::sys::RunningOnValgrind())
     GTEST_SKIP() << "XFAIL due to Valgrind report";
@@ -1428,7 +1435,9 @@ TEST(FunctionReflectionTest, IsVirtualMethod) {
 
 TEST(FunctionReflectionTest, JitCallAdvanced) {
 #ifdef EMSCRIPTEN
+#if CLANG_VERSION_MAJOR < 20
   GTEST_SKIP() << "Test fails for Emscipten builds";
+#endif
 #endif
   if (llvm::sys::RunningOnValgrind())
     GTEST_SKIP() << "XFAIL due to Valgrind report";
@@ -1678,8 +1687,48 @@ TEST(FunctionReflectionTest, GetFunctionCallWrapper) {
   Cpp::TCppScope_t op = Cpp::InstantiateTemplate(op_templated, &TAI, 1);
   auto FCI_op = Cpp::MakeFunctionCallable(op);
   bool boolean = false;
-  FCI_op.Invoke((void*)&boolean, {args, /*args_size=*/1}, object);
+  FCI_op.Invoke((void*)&boolean, {args, /*args_size=*/1}, toperator);
   EXPECT_TRUE(boolean);
+
+  Interp->process(R"(
+    namespace N1 {
+
+    template <typename... _Tn> struct Klass3 {
+      using type = int;
+    };
+    
+    namespace N2 {
+    template <typename T1, typename T2> class Klass1 {};
+
+    template <typename T1, typename T2> class Klass2 {};
+
+    template <typename T1, typename T2, typename T3, typename T4>
+    constexpr Klass2<
+      T1, typename Klass3<T2, Klass1<T3, T4>>::type>
+    operator+(const Klass2<T1, T2> &__lhs,
+              const Klass1<T3, T4> &__rhs) {
+      typedef Klass1<T3, T4> __T1;
+      typedef typename Klass3<T2, __T1>::type __ct;
+      typedef Klass2<T1, __ct> __T2;
+      return {};
+    }
+    } // namespace N2
+    } // namespace N1
+  
+    N1::N2::Klass2<int, double> K1;
+    N1::N2::Klass1<char, float> K2;
+  )");
+
+  Cpp::TCppType_t K1 = Cpp::GetTypeFromScope(Cpp::GetNamed("K1"));
+  Cpp::TCppType_t K2 = Cpp::GetTypeFromScope(Cpp::GetNamed("K2"));
+  operators.clear();
+  Cpp::GetOperator(Cpp::GetScope("N2", Cpp::GetScope("N1")), Cpp::OP_Plus,
+                   operators);
+  EXPECT_EQ(operators.size(), 1);
+  Cpp::TCppFunction_t kop =
+      Cpp::BestOverloadFunctionMatch(operators, {}, {K1, K2});
+  auto chrono_op_fn_callable = Cpp::MakeFunctionCallable(kop);
+  EXPECT_EQ(chrono_op_fn_callable.getKind(), Cpp::JitCall::kGenericCall);
 }
 
 TEST(FunctionReflectionTest, IsConstMethod) {
@@ -1783,7 +1832,9 @@ TEST(FunctionReflectionTest, GetFunctionArgDefault) {
 
 TEST(FunctionReflectionTest, Construct) {
 #ifdef EMSCRIPTEN
+#if CLANG_VERSION_MAJOR < 20
   GTEST_SKIP() << "Test fails for Emscipten builds";
+#endif
 #endif
   if (llvm::sys::RunningOnValgrind())
     GTEST_SKIP() << "XFAIL due to Valgrind report";
@@ -1844,7 +1895,9 @@ TEST(FunctionReflectionTest, Construct) {
 // Test nested constructor calls
 TEST(FunctionReflectionTest, ConstructNested) {
 #ifdef EMSCRIPTEN
+#if CLANG_VERSION_MAJOR < 20
   GTEST_SKIP() << "Test fails for Emscipten builds";
+#endif
 #endif
   if (llvm::sys::RunningOnValgrind())
     GTEST_SKIP() << "XFAIL due to Valgrind report";
@@ -1984,4 +2037,4 @@ TEST(FunctionReflectionTest, UndoTest) {
   EXPECT_EQ(ret, 1);
 #endif
 #endif
-  }
+}

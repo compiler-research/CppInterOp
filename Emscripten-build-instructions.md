@@ -42,12 +42,11 @@ $env:PWD_DIR= $PWD.Path
 $env:SYSROOT_PATH="$env:EMSDK/upstream/emscripten/cache/sysroot"
 ```
 
-Now clone the 19.x release of the LLVM project repository and CppInterOp (the building of the emscripten version of llvm can be
+Now clone the 20.x release of the LLVM project repository and CppInterOp (the building of the emscripten version of llvm can be
 avoided by executing micromamba install llvm -c <https://repo.mamba.pm/emscripten-forge> and setting the LLVM_BUILD_DIR/$env:LLVM_BUILD_DIR appropriately)
 
-
 ```bash
-git clone --depth=1 --branch release/19.x https://github.com/llvm/llvm-project.git
+git clone --depth=1 --branch release/20.x https://github.com/llvm/llvm-project.git
 git clone --depth=1 https://github.com/compiler-research/CppInterOp.git
 ```
 
@@ -56,23 +55,28 @@ executing
 
 ```bash
 cd ./llvm-project/
-git apply -v ../CppInterOp/patches/llvm/emscripten-clang19-*.patch
+git apply -v ../CppInterOp/patches/llvm/emscripten-clang20-*.patch
 ```
 
 On Windows execute the following
 
 ```powershell
 cd .\llvm-project\
-cp -r ..\patches\llvm\emscripten-clang${{ matrix.clang-runtime }}*
-cp -r ..\patches\llvm\Windows-emscripten-clang${{ matrix.clang-runtime }}*
-git apply -v Windows-emscripten-clang19-1-CrossCompile.patch
-git apply -v emscripten-clang19-2-shift-temporary-files-to-tmp-dir.patch
-git apply -v emscripten-clang19-3-remove-zdefs.patch
+cp -r ..\patches\llvm\emscripten-clang20*
+cp -r ..\patches\llvm\Windows-emscripten-clang20*
+git apply -v Windows-emscripten-clang20-1-CrossCompile.patch
+git apply -v emscripten-clang20-2-shift-temporary-files-to-tmp-dir.patch
 ```
 
 We are now in a position to build an emscripten build of llvm by executing the following on Linux
 and osx
 ```bash
+mkdir native_build
+cd native_build
+cmake -DLLVM_ENABLE_PROJECTS=clang -DLLVM_TARGETS_TO_BUILD=host -DCMAKE_BUILD_TYPE=Release ../llvm/
+cmake --build . --target llvm-tblgen clang-tblgen --parallel $(nproc --all)
+export NATIVE_DIR=$PWD/bin/
+cd ..
 mkdir build
 cd build
 emcmake cmake -DCMAKE_BUILD_TYPE=Release \
@@ -94,6 +98,7 @@ emcmake cmake -DCMAKE_BUILD_TYPE=Release \
                         -DLLVM_BUILD_TOOLS=OFF                          \
                         -DLLVM_ENABLE_LIBPFM=OFF                        \
                         -DCLANG_BUILD_TOOLS=OFF                         \
+                        -DLLVM_NATIVE_TOOL_DIR=$NATIVE_DIR              \
                         ../llvm
 emmake make libclang -j $(nproc --all)
 emmake make clangInterpreter clangStaticAnalyzerCore -j $(nproc --all)
@@ -108,9 +113,9 @@ cd build
 emcmake cmake -DCMAKE_BUILD_TYPE=Release `
                         -DLLVM_HOST_TRIPLE=wasm32-unknown-emscripten `
                         -DLLVM_ENABLE_ASSERTIONS=ON                        `
-                        -DLLVM_TARGETS_TO_BUILD="${{ matrix.llvm_targets_to_build }}" `
+                        -DLLVM_TARGETS_TO_BUILD="WebAssembly" `
                         -DLLVM_ENABLE_LIBEDIT=OFF `
-                        -DLLVM_ENABLE_PROJECTS="${{ matrix.llvm_enable_projects }}" `
+                        -DLLVM_ENABLE_PROJECTS="clang;lld" `
                         -DLLVM_ENABLE_ZSTD=OFF `
                         -DLLVM_ENABLE_LIBXML2=OFF `
                         -DCLANG_ENABLE_STATIC_ANALYZER=OFF `
@@ -167,7 +172,7 @@ $env:CMAKE_PREFIX_PATH=$env:PREFIX
 $env:CMAKE_SYSTEM_PREFIX_PATH=$env:PREFIX
 ```
 
-on Windows. Now to build and test your Emscripten build of CppInterOp on Linux and osx execute the following
+on Windows. Now to build and test your Emscripten build of CppInterOp using node on Linux and osx execute the following
 
 ```bash
 mkdir build
@@ -184,16 +189,15 @@ emcmake cmake -DCMAKE_BUILD_TYPE=Release    \
 emmake make -j $(nproc --all) check-cppinterop
 ```
 
-To build and test your Emscripten build of CppInterOp on Windows execute the following
+To build and test your Emscripten build of CppInterOp on using node Windows execute the following
 
 ```powershell
-emcmake cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    `
+emcmake cmake -DCMAKE_BUILD_TYPE=Release    `
                 -DCMAKE_PREFIX_PATH="$env:PREFIX"                      `
                 -DLLVM_DIR="$env:LLVM_BUILD_DIR\lib\cmake\llvm"        `
                 -DLLD_DIR="$env:LLVM_BUILD_DIR\lib\cmake\lld"        `
                 -DClang_DIR="$env:LLVM_BUILD_DIR\lib\cmake\clang"    `
                 -DBUILD_SHARED_LIBS=ON                      `
-                -DCODE_COVERAGE=${{ env.CODE_COVERAGE }}    `
                 -DCMAKE_INSTALL_PREFIX="$env:PREFIX"      `
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            `
                 -DLLVM_ENABLE_WERROR=On                      `
@@ -202,16 +206,93 @@ emcmake cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    `
     emmake make -j $(nproc --all) check-cppinterop
 ```
 
+It is possible to run the Emscripten tests in a headless browser on Linux and osx (in future we plan to include instructions on how to run the tests in a browser on Windows too). To do this we will first move to the tests directory
+
+
+```bash
+    cd ./unittests/CppInterOp/
+```
+
+We will run our tests in a fresh installed browser. Installing the browsers, and running the tests within the installed browsers will be platform dependent. To do this on MacOS execute the following
+
+```bash
+wget "https://download.mozilla.org/?product=firefox-latest&os=osx&lang=en-US" -O Firefox-latest.dmg
+hdiutil attach Firefox-latest.dmg
+cp -r /Volumes/Firefox/Firefox.app $PWD
+hdiutil detach /Volumes/Firefox
+cd ./Firefox.app/Contents/MacOS/
+export PATH="$PWD:$PATH"
+cd -
+
+wget https://dl.google.com/chrome/mac/stable/accept_tos%3Dhttps%253A%252F%252Fwww.google.com%252Fintl%252Fen_ph%252Fchrome%252Fterms%252F%26_and_accept_tos%3Dhttps%253A%252F%252Fpolicies.google.com%252Fterms/googlechrome.pkg
+pkgutil --expand-full googlechrome.pkg google-chrome
+cd ./google-chrome/GoogleChrome.pkg/Payload/Google\ Chrome.app/Contents/MacOS/
+export PATH="$PWD:$PATH"
+cd -
+
+echo "Running CppInterOpTests in Firefox"
+emrun --browser="firefox" --kill_exit --timeout 60 --browser-args="--headless"  CppInterOpTests.html
+echo "Running DynamicLibraryManagerTests in Firefox"
+emrun --browser="firefox" --kill_exit --timeout 60 --browser-args="--headless"  DynamicLibraryManagerTests.html
+echo "Running CppInterOpTests in Google Chrome"
+emrun --browser="Google Chrome" --kill_exit --timeout 60 --browser-args="--headless --no-sandbox"  CppInterOpTests.html
+echo "Running DynamicLibraryManagerTests in Google Chrome"          
+emrun --browser="Google Chrome" --kill_exit --timeout 60 --browser-args="--headless --no-sandbox"  DynamicLibraryManagerTests.html
+```
+
+To do this on Ubuntu x86 execute the following
+
+```bash
+wget https://dl.google.com/linux/direct/google-chrome-stable_current_amd64.deb
+dpkg-deb -x google-chrome-stable_current_amd64.deb $PWD/chrome
+cd ./chrome/opt/google/chrome/
+export PATH="$PWD:$PATH"
+cd -
+
+wget https://ftp.mozilla.org/pub/firefox/releases/138.0.1/linux-x86_64/en-GB/firefox-138.0.1.tar.xz
+tar -xJf firefox-138.0.1.tar.xz
+cd ./firefox
+export PATH="$PWD:$PATH"
+cd -
+
+echo "Running CppInterOpTests in Firefox"
+emrun --browser="firefox" --kill_exit --timeout 60 --browser-args="--headless"  CppInterOpTests.html
+echo "Running DynamicLibraryManagerTests in Firefox"
+emrun --browser="firefox" --kill_exit --timeout 60 --browser-args="--headless"  DynamicLibraryManagerTests.html
+echo "Running CppInterOpTests in Google Chrome"
+emrun --browser="google-chrome" --kill_exit --timeout 60 --browser-args="--headless --no-sandbox"  CppInterOpTests.html
+echo "Running DynamicLibraryManagerTests in Google Chrome"          
+emrun --browser="google-chrome" --kill_exit --timeout 60 --browser-args="--headless --no-sandbox"  DynamicLibraryManagerTests.html
+```
+
+and on Ubuntu Arm execute the following (Google Chrome is not available on Ubuntu arm,
+so we currently only run in Firefox on this platform, unlike other plaforms)
+
+```bash
+wget https://ftp.mozilla.org/pub/firefox/releases/138.0.1/linux-aarch64/en-GB/firefox-138.0.1.tar.xz
+tar -xJf firefox-138.0.1.tar.xz
+cd ./firefox
+export PATH="$PWD:$PATH"
+cd -
+
+echo "Running CppInterOpTests in Firefox"
+emrun --browser="firefox" --kill_exit --timeout 60 --browser-args="--headless"  CppInterOpTests.html
+echo "Running DynamicLibraryManagerTests in Firefox"
+emrun --browser="firefox" --kill_exit --timeout 60 --browser-args="--headless"  DynamicLibraryManagerTests.html
+```
+
 Assuming it passes all test you can install by executing the following
 
 ```bash
+cd ../..
 emmake make -j $(nproc --all) install
 ```
 
 ## Xeus-cpp-lite Wasm Build Instructions
 
 A project which makes use of the wasm build of CppInterOp is xeus-cpp. xeus-cpp is a C++ Jupyter kernel. Assuming you are in  
-the CppInterOp build folder, you can build the wasm version of xeus-cpp by executing  
+the CppInterOp build folder, you can build the wasm version of xeus-cpp by executing (replace $LLVM_VERSION with the version
+of llvm you are building against)
 
 ```bash
 cd ../..
@@ -225,6 +306,7 @@ emcmake cmake \
           -DCMAKE_INSTALL_PREFIX=$PREFIX                                 \
           -DXEUS_CPP_EMSCRIPTEN_WASM_BUILD=ON                            \
           -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON                         \
+          -DXEUS_CPP_RESOURCE_DIR=$LLVM_BUILD_DIR/lib/clang/$LLVM_VERSION \
           -DSYSROOT_PATH=$SYSROOT_PATH                                   \
           ..
  emmake make -j $(nproc --all) install

@@ -1,10 +1,10 @@
 #include "Utils.h"
 
-#include "clang/Interpreter/CppInterOp.h"
+#include "CppInterOp/CppInterOp.h"
 #include "clang-c/CXCppInterOp.h"
 
 #include "clang/AST/ASTContext.h"
-#include "clang/Interpreter/CppInterOp.h"
+#include "clang/Basic/Version.h"
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Sema/Sema.h"
 
@@ -163,6 +163,11 @@ TEST(ScopeReflectionTest, SizeOf) {
 
 
 TEST(ScopeReflectionTest, IsBuiltin) {
+#if CLANG_VERSION_MAJOR == 18 && defined(CPPINTEROP_USE_CLING) &&              \
+    defined(_WIN32) && (defined(_M_ARM) || defined(_M_ARM64))
+  GTEST_SKIP() << "Test fails with Cling on Windows on ARM";
+#endif
+
   // static std::set<std::string> g_builtins =
   // {"bool", "char", "signed char", "unsigned char", "wchar_t", "short", "unsigned short",
   //  "int", "unsigned int", "long", "unsigned long", "long long", "unsigned long long",
@@ -495,6 +500,10 @@ TEST(ScopeReflectionTest, GetScopefromCompleteName) {
 }
 
 TEST(ScopeReflectionTest, GetNamed) {
+#if CLANG_VERSION_MAJOR == 18 && defined(CPPINTEROP_USE_CLING) &&              \
+    defined(_WIN32) && (defined(_M_ARM) || defined(_M_ARM64))
+  GTEST_SKIP() << "Test fails with Cling on Windows on ARM";
+#endif
   std::string code = R"(namespace N1 {
                         namespace N2 {
                           class C {
@@ -883,6 +892,10 @@ template<typename T> T TrivialFnTemplate() { return T(); }
 }
 
 TEST(ScopeReflectionTest, InstantiateTemplateFunctionFromString) {
+#if CLANG_VERSION_MAJOR == 18 && defined(CPPINTEROP_USE_CLING) &&              \
+    defined(_WIN32) && (defined(_M_ARM) || defined(_M_ARM64))
+  GTEST_SKIP() << "Test fails with Cling on Windows on ARM";
+#endif
   if (llvm::sys::RunningOnValgrind())
     GTEST_SKIP() << "XFAIL due to Valgrind report";
   std::vector<const char*> interpreter_args = {"-include", "new"};
@@ -1024,6 +1037,10 @@ TEST(ScopeReflectionTest, GetClassTemplateInstantiationArgs) {
 
 
 TEST(ScopeReflectionTest, IncludeVector) {
+#if CLANG_VERSION_MAJOR == 18 && defined(CPPINTEROP_USE_CLING) &&              \
+    defined(_WIN32) && (defined(_M_ARM) || defined(_M_ARM64))
+  GTEST_SKIP() << "Test fails with Cling on Windows on ARM";
+#endif
   if (llvm::sys::RunningOnValgrind())
       GTEST_SKIP() << "XFAIL due to Valgrind report";
   std::string code = R"(
@@ -1107,4 +1124,30 @@ TEST(ScopeReflectionTest, GetOperator) {
   Cpp::GetOperator(Cpp::GetScope("extra_ops"), Cpp::Operator::OP_Tilde, ops,
                    Cpp::OperatorArity::kBinary);
   EXPECT_EQ(ops.size(), 0);
+
+  std::string inheritance_code = R"(
+  struct Parent {
+    int x;
+    Parent(int x) : x(x) {}
+    Parent operator+(const Parent& other) {
+      return Parent(x + other.x);
+    }
+  };
+
+  struct Child : Parent {
+    Child(int x) : Parent(x) {}
+    Child operator-(const Child& other) {
+      return Child(x - other.x);
+    }
+  };
+  )";
+  Cpp::Declare(inheritance_code.c_str());
+
+  ops.clear();
+  Cpp::GetOperator(Cpp::GetScope("Child"), Cpp::Operator::OP_Plus, ops);
+  EXPECT_EQ(ops.size(), 1);
+
+  ops.clear();
+  Cpp::GetOperator(Cpp::GetScope("Child"), Cpp::Operator::OP_Minus, ops);
+  EXPECT_EQ(ops.size(), 1);
 }

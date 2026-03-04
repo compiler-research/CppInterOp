@@ -1,7 +1,7 @@
 
 #include "Utils.h"
 
-#include "clang/Interpreter/CppInterOp.h"
+#include "CppInterOp/CppInterOp.h"
 
 #ifdef CPPINTEROP_USE_CLING
 #include "cling/Interpreter/Interpreter.h"

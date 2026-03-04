@@ -1,7 +1,7 @@
 #ifndef CPPINTEROP_UNITTESTS_LIBCPPINTEROP_UTILS_H
 #define CPPINTEROP_UNITTESTS_LIBCPPINTEROP_UTILS_H
 
-#include "../../lib/Interpreter/Compatibility.h"
+#include "../../lib/CppInterOp/Compatibility.h"
 
 #include "llvm/Support/Valgrind.h"
 #include <memory>
