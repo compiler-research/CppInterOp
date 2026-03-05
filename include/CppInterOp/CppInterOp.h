@@ -113,6 +113,15 @@ enum class ValueKind : std::uint8_t {
   RValue,
 };
 
+enum class DeclCode : unsigned {
+  kNamespaceDecl = 1 << 0,
+  kRecordDecl = 1 << 1,
+  kClassTemplateDecl = 1 << 2,
+  kTypedefNameDecl = 1 << 3,
+  kTypeAliasTemplateDecl = 1 << 4,
+  kTypeAliasDecl = 1 << 5,
+};
+
 /// A class modeling function calls for functions produced by the interpreter
 /// in compiled code. It provides an information if we are calling a standard
 /// function, constructor or destructor.
@@ -413,8 +422,7 @@ CPPINTEROP_API TCppScope_t GetUnderlyingScope(TCppScope_t scope);
 /// Gets the namespace or class (by stripping typedefs) for the name
 /// passed as a parameter, and if the parent is not passed,
 /// then global scope will be assumed.
-CPPINTEROP_API TCppScope_t GetScope(const std::string& name,
-                                    TCppScope_t parent = nullptr);
+CPPINTEROP_API TCppScope_t GetScope(const std::string& name, TCppScope_t parent = nullptr, unsigned filter = 0);
 
 /// When the namespace is known, then the parent doesn't need
 /// to be specified. This will probably be phased-out in

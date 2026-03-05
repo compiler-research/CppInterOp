@@ -519,11 +519,11 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_GetScope) {
 
   TestFixture::CreateInterpreter();
   Interp->declare(code);
-  Cpp::TCppScope_t tu = Cpp::GetScope("", 0);
-  Cpp::TCppScope_t ns_N = Cpp::GetScope("N", 0);
-  Cpp::TCppScope_t cl_C = Cpp::GetScope("C", ns_N);
-  Cpp::TCppScope_t td_T = Cpp::GetScope("T", 0);
-  Cpp::TCppScope_t non_existent = Cpp::GetScope("sum", 0);
+  Cpp::TCppScope_t tu = Cpp::GetScope("", 0, 0);
+  Cpp::TCppScope_t ns_N = Cpp::GetScope("N", 0, 0);
+  Cpp::TCppScope_t cl_C = Cpp::GetScope("C", ns_N, 0);
+  Cpp::TCppScope_t td_T = Cpp::GetScope("T", 0, 0);
+  Cpp::TCppScope_t non_existent = Cpp::GetScope("sum", 0, 0);
 
   EXPECT_EQ(Cpp::GetQualifiedName(tu), "");
   EXPECT_EQ(Cpp::GetQualifiedName(ns_N), "N");
@@ -1159,23 +1159,23 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_GetOperator) {
   ops.clear();
 
   // operators defined within a namespace
-  Cpp::GetOperator(Cpp::GetScope("extra_ops" DFLT_0), Cpp::Operator::OP_Plus,
+  Cpp::GetOperator(Cpp::GetScope("extra_ops" DFLT_0 DFLT_0), Cpp::Operator::OP_Plus,
                    ops DFLT_OP_ARITY);
   EXPECT_EQ(ops.size(), 2);
   ops.clear();
 
   // unary operator
-  Cpp::GetOperator(Cpp::GetScope("extra_ops" DFLT_0), Cpp::Operator::OP_Tilde,
+  Cpp::GetOperator(Cpp::GetScope("extra_ops" DFLT_0 DFLT_0), Cpp::Operator::OP_Tilde,
                    ops DFLT_OP_ARITY);
   EXPECT_EQ(ops.size(), 1);
   ops.clear();
 
-  Cpp::GetOperator(Cpp::GetScope("extra_ops" DFLT_0), Cpp::Operator::OP_Tilde,
+  Cpp::GetOperator(Cpp::GetScope("extra_ops" DFLT_0 DFLT_0), Cpp::Operator::OP_Tilde,
                    ops, Cpp::OperatorArity::kUnary);
   EXPECT_EQ(ops.size(), 1);
   ops.clear();
 
-  Cpp::GetOperator(Cpp::GetScope("extra_ops" DFLT_0), Cpp::Operator::OP_Tilde,
+  Cpp::GetOperator(Cpp::GetScope("extra_ops" DFLT_0 DFLT_0), Cpp::Operator::OP_Tilde,
                    ops, Cpp::OperatorArity::kBinary);
   EXPECT_EQ(ops.size(), 0);
 
@@ -1198,12 +1198,12 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_GetOperator) {
   Cpp::Declare(inheritance_code.c_str() DFLT_FALSE);
 
   ops.clear();
-  Cpp::GetOperator(Cpp::GetScope("Child" DFLT_0), Cpp::Operator::OP_Plus,
+  Cpp::GetOperator(Cpp::GetScope("Child" DFLT_0 DFLT_0), Cpp::Operator::OP_Plus,
                    ops DFLT_OP_ARITY);
   EXPECT_EQ(ops.size(), 1);
 
   ops.clear();
-  Cpp::GetOperator(Cpp::GetScope("Child" DFLT_0), Cpp::Operator::OP_Minus,
+  Cpp::GetOperator(Cpp::GetScope("Child" DFLT_0 DFLT_0), Cpp::Operator::OP_Minus,
                    ops DFLT_OP_ARITY);
   EXPECT_EQ(ops.size(), 1);
 }

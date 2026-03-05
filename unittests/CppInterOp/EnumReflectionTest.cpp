@@ -297,10 +297,10 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, EnumReflection_GetEnums) {
   TestFixture::CreateInterpreter();
   Interp->declare(code);
   std::vector<std::string> enumNames1, enumNames2, enumNames3, enumNames4;
-  Cpp::TCppScope_t globalscope = Cpp::GetScope("", 0);
-  Cpp::TCppScope_t Animals_scope = Cpp::GetScope("Animals", 0);
-  Cpp::TCppScope_t myClass_scope = Cpp::GetScope("myClass", 0);
-  Cpp::TCppScope_t unsupported_scope = Cpp::GetScope("myVariable", 0);
+  Cpp::TCppScope_t globalscope = Cpp::GetScope("", 0, 0);
+  Cpp::TCppScope_t Animals_scope = Cpp::GetScope("Animals", 0, 0);
+  Cpp::TCppScope_t myClass_scope = Cpp::GetScope("myClass", 0, 0);
+  Cpp::TCppScope_t unsupported_scope = Cpp::GetScope("myVariable", 0, 0);
 
   Cpp::GetEnums(globalscope, enumNames1);
   Cpp::GetEnums(Animals_scope, enumNames2);

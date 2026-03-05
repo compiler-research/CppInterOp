@@ -746,11 +746,7 @@ TCppScope_t GetUnderlyingScope(TCppScope_t scope) {
   return GetUnderlyingScope((clang::Decl*)scope);
 }
 
-TCppScope_t GetScope(const std::string& name, TCppScope_t parent) {
-  // FIXME: GetScope should be replaced by a general purpose lookup
-  // and filter function. The function should be like GetNamed but
-  // also take in a filter parameter which determines which results
-  // to pass back
+TCppScope_t GetScope(const std::string& name, TCppScope_t parent, unsigned filter) {
   if (name == "")
     return GetGlobalScope();
 
@@ -759,13 +755,35 @@ TCppScope_t GetScope(const std::string& name, TCppScope_t parent) {
   if (!ND || ND == (NamedDecl*)-1)
     return 0;
 
-  if (llvm::isa<NamespaceDecl>(ND) || llvm::isa<RecordDecl>(ND) ||
-      llvm::isa<ClassTemplateDecl>(ND) || llvm::isa<TypedefNameDecl>(ND) ||
-      llvm::isa<TypeAliasTemplateDecl>(ND) || llvm::isa<TypeAliasDecl>(ND))
+  bool condition;
+  condition = filter == 0;
+  if(filter & (unsigned)DeclCode::kNamespaceDecl) {
+    condition = condition || llvm::isa<NamespaceDecl>(ND);
+  }
+  if(filter & (unsigned)DeclCode::kRecordDecl) {
+    condition = condition || llvm::isa<RecordDecl>(ND);
+  }
+  if(filter & (unsigned)DeclCode::kClassTemplateDecl) {
+    condition = condition || llvm::isa<ClassTemplateDecl>(ND);
+  }
+  if(filter & (unsigned)DeclCode::kTypedefNameDecl) {
+    condition = condition || llvm::isa<TypedefNameDecl>(ND);
+  }
+  if(filter & (unsigned)DeclCode::kTypeAliasTemplateDecl) {
+    condition = condition || llvm::isa<TypeAliasTemplateDecl>(ND);
+  }
+  if(filter & (unsigned)DeclCode::kTypeAliasDecl) {
+    condition = condition || llvm::isa<TypeAliasDecl>(ND);
+  }
+
+  if(condition) {
     return (TCppScope_t)(ND->getCanonicalDecl());
+  }
 
   return 0;
 }
+
+
 
 TCppScope_t GetScopeFromCompleteName(const std::string& name) {
   std::string delim = "::";

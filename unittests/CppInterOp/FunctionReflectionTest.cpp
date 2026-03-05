@@ -2016,7 +2016,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetFunctionCallWrapper) {
   Cpp::TCppType_t K1 = Cpp::GetTypeFromScope(Cpp::GetNamed("K1" DFLT_NULLPTR));
   Cpp::TCppType_t K2 = Cpp::GetTypeFromScope(Cpp::GetNamed("K2" DFLT_NULLPTR));
   operators.clear();
-  Cpp::GetOperator(Cpp::GetScope("N2", Cpp::GetScope("N1" DFLT_NULLPTR)),
+  Cpp::GetOperator(Cpp::GetScope("N2", Cpp::GetScope("N1" DFLT_NULLPTR DFLT_0) DFLT_0),
                    Cpp::Operator::OP_Plus, operators DFLT_OP_ARITY);
   EXPECT_EQ(operators.size(), 1);
   Cpp::TCppFunction_t kop =
@@ -2093,7 +2093,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetFunctionCallWrapper) {
   )");
 
   std::vector<Cpp::TCppFunction_t> unresolved_candidate_methods;
-  Cpp::GetClassTemplatedMethods("get", Cpp::GetScope("my_std" DFLT_NULLPTR),
+  Cpp::GetClassTemplatedMethods("get", Cpp::GetScope("my_std" DFLT_NULLPTR DFLT_0),
                                 unresolved_candidate_methods);
   Cpp::TCppType_t p = Cpp::GetTypeFromScope(Cpp::GetNamed("p" DFLT_NULLPTR));
   EXPECT_TRUE(p);
@@ -2188,7 +2188,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetFunctionCallWrapper) {
   )");
 
   Cpp::TCppScope_t bar =
-      Cpp::GetNamed("bar", Cpp::GetScope("EnumFunctionSameName" DFLT_NULLPTR));
+      Cpp::GetNamed("bar", Cpp::GetScope("EnumFunctionSameName" DFLT_NULLPTR DFLT_0));
   EXPECT_TRUE(bar);
 
   auto bar_callable = Cpp::MakeFunctionCallable(bar);
@@ -2270,7 +2270,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetFunctionCallWrapper) {
     }
   )" DFLT_FALSE);
 
-  Cpp::TCppScope_t TemplatedEnum = Cpp::GetScope("TemplatedEnum" DFLT_NULLPTR);
+  Cpp::TCppScope_t TemplatedEnum = Cpp::GetScope("TemplatedEnum" DFLT_NULLPTR DFLT_0);
   EXPECT_TRUE(TemplatedEnum);
 
   auto TAI_enum = Cpp::TemplateArgInfo(
@@ -2286,12 +2286,12 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetFunctionCallWrapper) {
   obj = nullptr;
 
   Cpp::TCppScope_t MyNameSpace_TemplatedEnum =
-      Cpp::GetScope("TemplatedEnum", Cpp::GetScope("MyNameSpace" DFLT_NULLPTR));
+      Cpp::GetScope("TemplatedEnum", Cpp::GetScope("MyNameSpace" DFLT_NULLPTR DFLT_0) DFLT_0);
   EXPECT_TRUE(TemplatedEnum);
 
   TAI_enum = Cpp::TemplateArgInfo(
       Cpp::GetTypeFromScope(
-          Cpp::GetNamed("MyEnum", Cpp::GetScope("MyNameSpace" DFLT_NULLPTR))),
+          Cpp::GetNamed("MyEnum", Cpp::GetScope("MyNameSpace" DFLT_NULLPTR DFLT_0))),
       "1");
   Cpp::TCppScope_t MyNameSpace_TemplatedEnum_instantiated =
       Cpp::InstantiateTemplate(MyNameSpace_TemplatedEnum, &TAI_enum,
