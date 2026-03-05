@@ -95,21 +95,12 @@ inline void maybeMangleDeclName(const clang::GlobalDecl& GD,
   cling::utils::Analyze::maybeMangleDeclName(GD, mangledName);
 }
 
-/// The getExecutionEngine() interface was been added for Cling based on LLVM
-/// >=18. For previous versions, the LLJIT was obtained by computing the object
-/// offsets in the cling::Interpreter instance(IncrementalExecutor):
-/// sizeof (m_Opts) + sizeof(m_LLVMContext). The IncrementalJIT and JIT itself
-/// have an offset of 0 as the first datamember.
-inline llvm::orc::LLJIT* getExecutionEngine(cling::Interpreter& I) {
-  return I.getExecutionEngine();
-}
-
 inline llvm::Expected<llvm::JITTargetAddress>
 getSymbolAddress(cling::Interpreter& I, llvm::StringRef IRName) {
   if (void* Addr = I.getAddressOfGlobal(IRName))
     return (llvm::JITTargetAddress)Addr;
 
-  llvm::orc::LLJIT& Jit = *compat::getExecutionEngine(I);
+  llvm::orc::LLJIT& Jit = *I.getExecutionEngine();
   llvm::orc::SymbolNameVector Names;
   llvm::orc::ExecutionSession& ES = Jit.getExecutionSession();
   Names.push_back(ES.intern(IRName));
@@ -347,11 +338,6 @@ inline void maybeMangleDeclName(const clang::GlobalDecl& GD,
 
 // Clang 18 - Add new Interpreter methods: CodeComplete
 
-inline llvm::orc::LLJIT* getExecutionEngine(clang::Interpreter& I) {
-  auto* engine = &llvm::cantFail(I.getExecutionEngine());
-  return const_cast<llvm::orc::LLJIT*>(engine);
-}
-
 inline llvm::Expected<llvm::JITTargetAddress>
 getSymbolAddress(clang::Interpreter& I, llvm::StringRef IRName) {
 
@@ -371,7 +357,8 @@ getSymbolAddress(clang::Interpreter& I, clang::GlobalDecl GD) {
 inline llvm::Expected<llvm::JITTargetAddress>
 getSymbolAddressFromLinkerName(clang::Interpreter& I,
                                llvm::StringRef LinkerName) {
-  const auto& DL = getExecutionEngine(I)->getDataLayout();
+  auto& Jit = llvm::cantFail(I.getExecutionEngine());
+  const auto& DL = Jit.getDataLayout();
   char GlobalPrefix = DL.getGlobalPrefix();
   std::string LinkerNameTmp(LinkerName);
   if (GlobalPrefix != '\0') {

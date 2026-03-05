@@ -293,9 +293,6 @@ public:
     return inner->getCompilerInstance();
   }
 
-  llvm::orc::LLJIT* getExecutionEngine() const {
-    return compat::getExecutionEngine(*inner);
-  }
 
   llvm::Expected<clang::PartialTranslationUnit&> Parse(llvm::StringRef Code) {
     return inner->Parse(Code);
@@ -464,7 +461,7 @@ public:
   clang::Sema& getSema() const { return getCI()->getSema(); }
 
   const DynamicLibraryManager* getDynamicLibraryManager() const {
-    assert(compat::getExecutionEngine(*inner) && "We must have an executor");
+    assert(inner && "We must have an interpreter");
     static std::unique_ptr<DynamicLibraryManager> DLM = nullptr;
     if (!DLM) {
       DLM.reset(new DynamicLibraryManager());

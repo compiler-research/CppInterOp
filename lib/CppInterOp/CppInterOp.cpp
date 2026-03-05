@@ -3258,7 +3258,8 @@ bool DefineAbsoluteSymbol(compat::Interpreter& I,
   using namespace llvm;
   using namespace llvm::orc;
 
-  llvm::orc::LLJIT& Jit = *compat::getExecutionEngine(I);
+  llvm::orc::LLJIT& Jit =
+      llvm::cantFail(static_cast<clang::Interpreter&>(I).getExecutionEngine());
   llvm::orc::ExecutionSession& ES = Jit.getExecutionSession();
   JITDylib& DyLib = *Jit.getProcessSymbolsJITDylib().get();
 
@@ -3678,7 +3679,8 @@ bool InsertOrReplaceJitSymbol(compat::Interpreter& I,
   using namespace llvm::orc;
 
   auto Symbol = compat::getSymbolAddress(I, linker_mangled_name);
-  llvm::orc::LLJIT& Jit = *compat::getExecutionEngine(I);
+  llvm::orc::LLJIT& Jit =
+      llvm::cantFail(static_cast<clang::Interpreter&>(I).getExecutionEngine());
   llvm::orc::ExecutionSession& ES = Jit.getExecutionSession();
   JITDylib& DyLib = *Jit.getProcessSymbolsJITDylib().get();
 
@@ -3700,7 +3702,7 @@ bool InsertOrReplaceJitSymbol(compat::Interpreter& I,
 
   // Let's inject it.
   llvm::orc::SymbolMap InjectedSymbols;
-  auto& DL = compat::getExecutionEngine(I)->getDataLayout();
+  auto& DL = Jit.getDataLayout();
   char GlobalPrefix = DL.getGlobalPrefix();
   std::string tmp(linker_mangled_name);
   if (GlobalPrefix != '\0') {
