@@ -1141,6 +1141,9 @@ std::string GetFunctionSignature(TCppFunction_t func) {
   std::string Signature;
   raw_string_ostream SS(Signature);
   PrintingPolicy Policy = getASTContext().getPrintingPolicy();
+  Policy.SuppressUnwrittenScope = false;
+  Policy.AnonymousTagLocations = true;
+  Policy.SuppressTemplateArgsInCXXConstructors = true;
   // Skip printing the body
   Policy.TerseOutput = true;
   Policy.FullyQualifiedName = true;
@@ -1822,9 +1825,10 @@ TCppType_t GetUnderlyingType(TCppType_t type) {
 std::string GetTypeAsString(TCppType_t var) {
   QualType QT = QualType::getFromOpaquePtr(var);
   // FIXME: Get the default printing policy from the ASTContext.
-  PrintingPolicy Policy((LangOptions()));
-  Policy.Bool = true;               // Print bool instead of _Bool.
-  Policy.SuppressTagKeyword = true; // Do not print `class std::string`.
+  PrintingPolicy Policy = getASTContext().getPrintingPolicy();
+  Policy.SuppressUnwrittenScope = false;
+  Policy.AnonymousTagLocations = true;
+  Policy.SuppressTemplateArgsInCXXConstructors = true;
   Policy.SuppressElaboration = true;
   Policy.FullyQualifiedName = true;
   return QT.getAsString(Policy);
@@ -2035,9 +2039,8 @@ static void GetDeclName(const clang::Decl* D, ASTContext& Context,
                         std::string& name) {
   // Helper to extract a fully qualified name from a Decl
   PrintingPolicy Policy(Context.getPrintingPolicy());
-  Policy.SuppressTagKeyword = true;
-  Policy.SuppressUnwrittenScope = true;
   Policy.Print_Canonical_Types = true;
+
   if (const TypeDecl* TD = dyn_cast<TypeDecl>(D)) {
     // This is a class, struct, or union member.
     QualType QT;
@@ -2054,7 +2057,6 @@ static void GetDeclName(const clang::Decl* D, ASTContext& Context,
     stream.flush();
   }
 }
-
 void collect_type_info(const FunctionDecl* FD, QualType& QT,
                        std::ostringstream& typedefbuf,
                        std::ostringstream& callbuf, std::string& type_name,
@@ -3427,6 +3429,16 @@ TInterp_t CreateInterpreter(const std::vector<const char*>& Args /*={}*/,
   )");
 
   sInterpreters->emplace_back(I, /*Owned=*/true);
+  clang::ASTContext& C = I->getCI()->getASTContext();
+  clang::PrintingPolicy Policy = C.getPrintingPolicy();
+
+  Policy.Bool = true;
+  Policy.SuppressTagKeyword = true;
+  Policy.SuppressUnwrittenScope = true;
+  Policy.AnonymousTagLocations = false;
+  Policy.SuppressTemplateArgsInCXXConstructors = false;
+
+  C.setPrintingPolicy(Policy);
 
 // Define runtime symbols in the JIT dylib for clang-repl
 #if !defined(CPPINTEROP_USE_CLING) && !defined(EMSCRIPTEN)
