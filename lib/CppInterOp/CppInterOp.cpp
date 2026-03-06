@@ -1141,6 +1141,9 @@ std::string GetFunctionSignature(TCppFunction_t func) {
   std::string Signature;
   raw_string_ostream SS(Signature);
   PrintingPolicy Policy = getASTContext().getPrintingPolicy();
+  Policy.SuppressUnwrittenScope = false;
+  Policy.AnonymousTagLocations = true;
+  Policy.SuppressTemplateArgsInCXXConstructors = true;
   // Skip printing the body
   Policy.TerseOutput = true;
   Policy.FullyQualifiedName = true;
@@ -1823,6 +1826,9 @@ std::string GetTypeAsString(TCppType_t var) {
   QualType QT = QualType::getFromOpaquePtr(var);
   // FIXME: Get the default printing policy from the ASTContext.
   PrintingPolicy Policy = getASTContext().getPrintingPolicy();
+  Policy.SuppressUnwrittenScope = false;
+  Policy.AnonymousTagLocations = true;
+  Policy.SuppressTemplateArgsInCXXConstructors = true;
   Policy.SuppressElaboration = true;
   Policy.FullyQualifiedName = true;
   return QT.getAsString(Policy);
