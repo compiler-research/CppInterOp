@@ -5500,7 +5500,7 @@ CreateInterpreter(const std::vector<const char*>& Args /*={}*/,
                  [&](const std::string& str) { return str.c_str(); });
 
 #ifdef CPPINTEROP_USE_CLING
-  auto I = new compat::Interpreter(ClingArgv.size(), &ClingArgv[0]);
+  auto I = new compat::Interpreter(ClingArgv.size(), &ClingArgv[0], 0, {}, 0, true, CM);
 #else
   auto Interp = compat::Interpreter::create(static_cast<int>(ClingArgv.size()),
                                             ClingArgv.data(), nullptr, {},
