@@ -1821,8 +1821,7 @@ TCppType_t GetUnderlyingType(TCppType_t type) {
 
 std::string GetTypeAsString(TCppType_t var) {
   QualType QT = QualType::getFromOpaquePtr(var);
-  // FIXME: Get the default printing policy from the ASTContext.
-  PrintingPolicy Policy((LangOptions()));
+  PrintingPolicy Policy(getASTContext().getPrintingPolicy());
   Policy.Bool = true;               // Print bool instead of _Bool.
   Policy.SuppressTagKeyword = true; // Do not print `class std::string`.
   Policy.Suppress_Elab = true;
@@ -1981,12 +1980,14 @@ TCppType_t GetTypeFromScope(TCppScope_t klass) {
     return 0;
 
   auto* D = (Decl*)klass;
-  ASTContext& C = getASTContext();
 
-  if (ValueDecl* VD = dyn_cast<ValueDecl>(D))
+  if (auto* VD = dyn_cast<ValueDecl>(D))
     return VD->getType().getAsOpaquePtr();
 
-  return C.getTypeDeclType(cast<TypeDecl>(D)).getAsOpaquePtr();
+  if (auto* TD = dyn_cast<TypeDecl>(D))
+    return getASTContext().getTypeDeclType(TD).getAsOpaquePtr();
+
+  return (TCppType_t) nullptr;
 }
 
 // Internal functions that are not needed outside the library are
