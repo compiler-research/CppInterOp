@@ -412,8 +412,16 @@ bool IsBuiltin(TCppType_t type) {
   QualType Ty = QualType::getFromOpaquePtr(type);
   if (Ty->isBuiltinType() || Ty->isAnyComplexType())
     return true;
-  // FIXME: Figure out how to avoid the string comparison.
-  return llvm::StringRef(Ty.getAsString()).contains("complex");
+  // Check for std::complex<T> specializations.
+  if (const auto* RD = Ty->getAsCXXRecordDecl()) {
+    if (const auto* CTSD = dyn_cast<ClassTemplateSpecializationDecl>(RD)) {
+      IdentifierInfo* II = CTSD->getSpecializedTemplate()->getIdentifier();
+      if (II && II->isStr("complex") &&
+          CTSD->getDeclContext()->isStdNamespace())
+        return true;
+    }
+  }
+  return false;
 }
 
 bool IsTemplate(TCppScope_t handle) {
