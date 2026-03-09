@@ -34,21 +34,21 @@ library
  Setup Clang-REPL
 ******************
 
-Clone the 21.x release of the LLVM project repository.
+Clone the LLVM project repository. If you need out-of-process JIT execution enabled (Linux x86_64 and macOS arm64 only), you must use LLVM 20 with a patch applied
+
+.. code:: bash
+
+   git clone --depth=1 --branch release/20.x https://github.com/llvm/llvm-project.git
+   cd llvm-project
+   git apply -v ../CppInterOp/patches/llvm/clang20-1-out-of-process.patch
+
+Otherwise clone the latest LLVM supported by CppInterOp
 
 .. code:: bash
 
    git clone --depth=1 --branch release/21.x https://github.com/llvm/llvm-project.git
    cd llvm-project
 
-If you want to have out-of-process JIT execution enabled in CppInterOp, then apply this patch on Linux-x86_64 and MacOS arm64 environment.
-.. note::
-
-   This patch will not work for Windows because out-of-process JIT execution is currently implemented for Linux and MacOS only.
-
-.. code:: bash
-
-   git apply -v ../CppInterOp/patches/llvm/clang20-1-out-of-process.patch
 
 ******************
  Build Clang-REPL
