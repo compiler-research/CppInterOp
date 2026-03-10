@@ -36,11 +36,11 @@ struct DispatchInitializer {
   DispatchInitializer& operator=(DispatchInitializer&&) noexcept = default;
 };
 // Thread-safe initialization using function-local static
-static DispatchInitializer& GetDispatchInitializer() {
+DispatchInitializer& GetDispatchInitializer() {
   static DispatchInitializer instance;
   return instance;
 }
-static DispatchInitializer& g_dispatch_init = GetDispatchInitializer();
+DispatchInitializer& g_dispatch_init = GetDispatchInitializer();
 } // namespace
 #endif
 
