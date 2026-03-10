@@ -13,6 +13,7 @@ option(CPPINTEROP_USE_CLING "Use Cling as backend" OFF)
 option(CPPINTEROP_USE_REPL "Use clang-repl as backend" ON)
 option(CPPINTEROP_ENABLE_TESTING "Enable the CppInterOp testing infrastructure." ON)
 if(EMSCRIPTEN)
+  option(CPPINTEROP_ENABLE_BENCHMARKS "Enable the CppInterOp benchmark infrastructure." ON)
   set(CPPINTEROP_EXTRA_WASM_FLAGS "-fwasm-exceptions" CACHE STRING "Extra flags for wasm")
 endif()
 
@@ -534,6 +535,13 @@ if (CPPINTEROP_INCLUDE_DOCS)
 endif()
 
 add_subdirectory(lib)
+
+if (EMSCRIPTEN)
+if (CPPINTEROP_ENABLE_BENCHMARKS)
+  add_subdirectory(benchmarks)
+endif(CPPINTEROP_ENABLE_BENCHMARKS)
+endif(EMSCRIPTEN)
+
 if (CPPINTEROP_ENABLE_TESTING)
   add_subdirectory(unittests)
 endif(CPPINTEROP_ENABLE_TESTING)
