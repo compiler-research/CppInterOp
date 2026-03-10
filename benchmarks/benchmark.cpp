@@ -1,9 +1,8 @@
-#include <emscripten.h>
-#include <cstdio>
-#include <vector>
-#include <string>
-#include <functional>
 #include "CppInterOp/CppInterOp.h"
+#include <cstdio>
+#include <emscripten.h>
+#include <functional>
+#include <vector>
 
 constexpr int iterations = 1000;
 
@@ -12,9 +11,9 @@ struct Benchmark {
    std::function<void()> func;
 };
 
-void run_benchmarks(const std::vector<Benchmark>& benchmarks) {
+static void run_benchmarks(const std::vector<Benchmark>& benchmarks) {
    for (const auto& bench : benchmarks) {
-       bench.func(); // warmup
+       bench.func();
 
        double start = emscripten_get_now();
        for (int i = 0; i < iterations; ++i) {
@@ -29,11 +28,11 @@ void run_benchmarks(const std::vector<Benchmark>& benchmarks) {
    }
 }
 
-void cpp_getversion() {
+static void cpp_getversion() {
   Cpp::GetVersion();
 }
 
-void cpp_process() {
+static void cpp_process() {
   Cpp::CreateInterpreter();
   Cpp::Process("int a = 12;");
 }
