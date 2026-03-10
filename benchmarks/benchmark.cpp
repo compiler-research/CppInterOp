@@ -2,6 +2,7 @@
 #include <cstdio>
 #include <emscripten.h>
 #include <functional>
+#include <string>
 #include <vector>
 
 constexpr int iterations = 1000;
