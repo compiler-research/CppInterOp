@@ -40,6 +40,7 @@ DispatchInitializer& GetDispatchInitializer() {
   static DispatchInitializer instance;
   return instance;
 }
+const DispatchInitializer& g_dispatch_init = GetDispatchInitializer();
 } // namespace
 #endif
 
