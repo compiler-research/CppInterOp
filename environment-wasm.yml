@@ -7,7 +7,7 @@ dependencies:
   - nlohmann_json
   - nlohmann_json-abi
   - xeus-lite
-  - xeus<6.0.0
+  - xeus
   - cpp-argparse
   - pugixml
   - doctest
