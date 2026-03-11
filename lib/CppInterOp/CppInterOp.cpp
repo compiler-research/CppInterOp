@@ -3607,22 +3607,16 @@ int Declare(const char* code, bool silent) {
 
 int Process(const char* code) { return getInterp().process(code); }
 
-intptr_t Evaluate(const char* code, bool* HadError /*=nullptr*/) {
+llvm::Expected<intptr_t> Evaluate(const char* code) {
 #ifdef CPPINTEROP_USE_CLING
   cling::Value V;
 #else
   clang::Value V;
 #endif // CPPINTEROP_USE_CLING
 
-  if (HadError)
-    *HadError = false;
-
   auto res = getInterp().evaluate(code, V);
   if (res != 0) { // 0 is success
-    if (HadError)
-      *HadError = true;
-    // FIXME: Make this return llvm::Expected
-    return ~0UL;
+    return llvm::createStringError("Failed to evaluate");
   }
 
   return compat::convertTo<intptr_t>(V);

@@ -39,8 +39,12 @@ static bool HasCudaRuntime() {
     if (Cpp::Declare("__global__ void test_func() {}"
                      "test_func<<<1,1>>>();" DFLT_FALSE))
       return false;
-    intptr_t result = Cpp::Evaluate("(bool)cudaGetLastError()" DFLT_NULLPTR);
-    return !(bool)result;
+    auto result = Cpp::Evaluate("(bool)cudaGetLastError()");
+    if (result) {
+      intptr_t val = *result;
+      return !(bool)val;
+    }
+    return false;
   };
   static bool hasCuda = supportsCuda();
   return hasCuda;

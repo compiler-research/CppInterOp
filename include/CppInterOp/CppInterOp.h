@@ -17,6 +17,7 @@
 #include <cassert>
 #include <cstddef>
 #include <cstdint>
+#include <llvm/Support/Error.h>
 #include <set>
 #include <string>
 #include <sys/types.h>
@@ -780,7 +781,7 @@ CPPINTEROP_API int Process(const char* code);
 
 /// Declares, executes and returns the execution result as a intptr_t.
 ///\returns the expression results as a intptr_t.
-CPPINTEROP_API intptr_t Evaluate(const char* code, bool* HadError = nullptr);
+CPPINTEROP_API llvm::Expected<intptr_t> Evaluate(const char* code);
 
 /// Looks up the library if access is enabled.
 ///\returns the path to the library.
