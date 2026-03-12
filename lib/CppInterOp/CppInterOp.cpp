@@ -30,6 +30,7 @@
 #include "clang/AST/Stmt.h"
 #include "clang/AST/Type.h"
 #include "clang/Basic/DiagnosticSema.h"
+#include "clang/Basic/LangStandard.h"
 #include "clang/Basic/Linkage.h"
 #include "clang/Basic/OperatorKinds.h"
 #include "clang/Basic/SourceLocation.h"
@@ -162,11 +163,14 @@ struct InterpreterInfo {
 // std::deque avoids relocations and calling the dtor of InterpreterInfo.
 static llvm::ManagedStatic<std::deque<InterpreterInfo>> sInterpreters;
 
-static compat::Interpreter& getInterp() {
+static compat::Interpreter& getInterp(TInterp_t I = nullptr) {
+  if (I)
+    return *static_cast<compat::Interpreter*>(I);
   assert(!sInterpreters->empty() &&
          "Interpreter instance must be set before calling this!");
   return *sInterpreters->back().Interpreter;
 }
+
 static clang::Sema& getSema() { return getInterp().getCI()->getSema(); }
 static clang::ASTContext& getASTContext() { return getSema().getASTContext(); }
 
@@ -1819,8 +1823,7 @@ TCppType_t GetUnderlyingType(TCppType_t type) {
 
 std::string GetTypeAsString(TCppType_t var) {
   QualType QT = QualType::getFromOpaquePtr(var);
-  // FIXME: Get the default printing policy from the ASTContext.
-  PrintingPolicy Policy((LangOptions()));
+  PrintingPolicy Policy(getASTContext().getPrintingPolicy());
   Policy.Bool = true;               // Print bool instead of _Bool.
   Policy.SuppressTagKeyword = true; // Do not print `class std::string`.
   Policy.SuppressElaboration = true;
@@ -3413,7 +3416,8 @@ TInterp_t CreateInterpreter(const std::vector<const char*>& Args /*={}*/,
   if (!T.isWasm())
     AddLibrarySearchPaths(ResourceDir, I);
 
-  I->declare(R"(
+  if (GetLanguage(I) != InterpreterLanguage::C) {
+    I->declare(R"(
     namespace __internal_CppInterOp {
     template <typename Signature>
     struct function;
@@ -3423,6 +3427,7 @@ TInterp_t CreateInterpreter(const std::vector<const char*>& Args /*={}*/,
     };
     }  // namespace __internal_CppInterOp
   )");
+  }
 
   sInterpreters->emplace_back(I, /*Owned=*/true);
 
@@ -3439,7 +3444,7 @@ TInterp_t CreateInterpreter(const std::vector<const char*>& Args /*={}*/,
   // obtain mangled name
   auto* D = static_cast<clang::Decl*>(
       Cpp::GetNamed("__clang_Interpreter_SetValueWithAlloc"));
-  if (auto* FD = llvm::dyn_cast<FunctionDecl>(D)) {
+  if (auto* FD = llvm::dyn_cast_or_null<FunctionDecl>(D)) {
     auto GD = GlobalDecl(FD);
     std::string mangledName;
     compat::maybeMangleDeclName(GD, mangledName);
@@ -3492,6 +3497,31 @@ TInterp_t GetInterpreter() {
   if (sInterpreters->empty())
     return nullptr;
   return sInterpreters->back().Interpreter;
+}
+
+InterpreterLanguage GetLanguage(TInterp_t I /*=nullptr*/) {
+  compat::Interpreter* interp = &getInterp(I);
+  const auto& LO = interp->getCI()->getLangOpts();
+  auto standard = clang::LangStandard::getLangStandardForKind(LO.LangStd);
+  auto lang = static_cast<InterpreterLanguage>(standard.getLanguage());
+  assert(lang != InterpreterLanguage::Unknown && "Unknown language");
+  assert(static_cast<unsigned char>(lang) <=
+             static_cast<unsigned char>(InterpreterLanguage::HLSL) &&
+         "Unhandled Language");
+  return lang;
+}
+
+InterpreterLanguageStandard GetLanguageStandard(TInterp_t I /*=nullptr*/) {
+  compat::Interpreter* interp = &getInterp(I);
+  const auto& LO = interp->getCI()->getLangOpts();
+  auto langStandard = static_cast<InterpreterLanguageStandard>(LO.LangStd);
+  assert(langStandard != InterpreterLanguageStandard::lang_unspecified &&
+         "Unspecified language standard");
+  assert(static_cast<unsigned char>(langStandard) <=
+             static_cast<unsigned char>(
+                 InterpreterLanguageStandard::lang_unspecified) &&
+         "Unhandled language standard.");
+  return langStandard;
 }
 
 void UseExternalInterpreter(TInterp_t I) {

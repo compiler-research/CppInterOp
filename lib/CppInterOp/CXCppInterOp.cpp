@@ -397,6 +397,17 @@ void clang_Interpreter_unloadLibrary(CXInterpreter I, const char* lib_stem) {
   interp->getDynamicLibraryManager()->unloadLibrary(lib_stem);
 }
 
+CXInterpreterLanguage clang_Interpreter_getLanguage(CXInterpreter I) {
+  return static_cast<CXInterpreterLanguage>(
+      Cpp::GetLanguage(getInterpreter(I)));
+}
+
+CXInterpreterLanguageStandard
+clang_Interpreter_getLanguageStandard(CXInterpreter I) {
+  return static_cast<CXInterpreterLanguageStandard>(
+      Cpp::GetLanguageStandard(getInterpreter(I)));
+}
+
 CXString clang_Interpreter_searchLibrariesForSymbol(CXInterpreter I,
                                                     const char* mangled_name,
                                                     bool search_system) {
