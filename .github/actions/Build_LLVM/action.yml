@@ -16,9 +16,10 @@ runs:
           git clone --depth=1 --branch v${{ matrix.cling-version }} https://github.com/root-project/cling.git
           git clone --depth=1 -b ${{ matrix.root-llvm-tag }} https://github.com/root-project/llvm-project.git
         else # repl
-          git clone --depth=1 -b release/${{ matrix.clang-runtime }}.x https://github.com/llvm/llvm-project.git
+          git clone  https://github.com/llvm/llvm-project.git
         fi
         cd llvm-project
+        git checkout 64a762804893
         # Build
         mkdir build
         if [[ "${cling_on}" == "ON" ]]; then
@@ -104,10 +105,11 @@ runs:
         }
         else
         {
-          git clone --depth=1 -b release/${{ matrix.clang-runtime }}.x https://github.com/llvm/llvm-project.git
+          git clone https://github.com/llvm/llvm-project.git
         }
 
         cd llvm-project
+        git checkout 64a762804893
         # Build
         mkdir build
         if ( "${{ matrix.cling }}" -imatch "On" )
