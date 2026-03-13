@@ -287,13 +287,13 @@ Further Reading
 ---------------
 
 -  `High-performance Python-C++ bindings with PyPy and
-   Cling <http://cern.ch/wlav/Cppyy_LavrijsenDutta_PyHPC16.pdf>`_
+   Cling <https://cern.ch/wlav/Cppyy_LavrijsenDutta_PyHPC16.pdf>`_
 
 -  `Efficient and Accurate Automatic Python Bindings with cppyy &
    Cling <https://arxiv.org/abs/2304.02712>`_
 
 -  cppyy documentation:
-   `cppyy.readthedocs.io <http://cppyy.readthedocs.io/>`_.
+   `cppyy.readthedocs.io <https://cppyy.readthedocs.io/>`_.
 
 -  Notebook-based tutorial: `Cppyy
    Tutorial <https://github.com/wlav/cppyy/blob/master/doc/tutorial/CppyyTutorial.ipynb>`_.

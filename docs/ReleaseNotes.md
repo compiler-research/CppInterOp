@@ -2,7 +2,7 @@
 
 This document contains the release notes for the language interoperability
 library CppInterOp, release 1.9.0. CppInterOp is built on top of
-[Clang](http://clang.llvm.org) and [LLVM](http://llvm.org%3E) compiler
+[Clang](https://clang.llvm.org) and [LLVM](https://llvm.org%3E) compiler
 infrastructure. Here we describe the status of CppInterOp in some detail,
 including major improvements from the previous release and new feature work.
 Note that if you are reading this file from a git checkout, this document

@@ -11,7 +11,7 @@
 
 </div>
 
-CppInterOp exposes API from [Clang](http://clang.llvm.org/) and [LLVM](https://llvm.org) in a backward compatible way.
+CppInterOp exposes API from [Clang](https://clang.llvm.org/) and [LLVM](https://llvm.org) in a backward compatible way.
 The API support downstream tools that utilize interactive C++ by using the compiler as a service.
 That is, embed Clang and LLVM as a libraries in their codebases.
 The API are designed to be minimalistic and aid non-trivial tasks such as language interoperability on the fly.
