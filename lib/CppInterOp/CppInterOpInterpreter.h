@@ -97,6 +97,10 @@ inline clang::NamespaceDecl* Namespace(clang::Sema* S, const char* Name,
 
 inline void Named(clang::Sema* S, clang::LookupResult& R,
                   const clang::DeclContext* Within = nullptr) {
+#ifdef CPPINTEROP_USE_CLING
+  if (Within)
+    Within->getPrimaryContext()->buildLookup();
+#endif
   R.suppressDiagnostics();
   if (!Within)
     S->LookupName(R, S->TUScope);
