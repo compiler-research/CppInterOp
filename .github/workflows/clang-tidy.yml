@@ -1,0 +1,69 @@
+name: clang-tidy
+
+on:
+  pull_request:
+    paths:
+      - '**.h'
+      - '**.cpp'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  review:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.11"
+
+      - name: Install LLVM and Clang
+        uses: KyleMayes/install-llvm-action@v2.0.7
+        with:
+          version: "20.1.4"
+
+      - name: Setup build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y cmake libxml2 libxml2-dev libtinfo-dev zlib1g-dev libzstd-dev
+          pip install lit
+
+      - name: Generate Compile Commands
+        run: |
+          cmake . -B build -DCMAKE_BUILD_TYPE="Release" \
+            -DCMAKE_C_COMPILER="$GITHUB_WORKSPACE/llvm/bin/clang" \
+            -DCMAKE_CXX_COMPILER="$GITHUB_WORKSPACE/llvm/bin/clang++" \
+            -DLLVM_DIR="$GITHUB_WORKSPACE/llvm" \
+            -DBUILD_SHARED_LIBS=ON \
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+          cd build
+          cmake --build . --target googletest --parallel $(nproc)
+
+      - name: Run Clang Tidy
+        run: |
+          # Get list of changed C++ files compared to base branch
+          PR_BASE=${{ github.event.pull_request.base.sha }}
+          CHANGED_FILES=$(git diff --name-only $PR_BASE HEAD | grep -E '\.(cpp|h)$' || true)
+          
+          if [ -z "$CHANGED_FILES" ]; then
+            echo "No C++ files changed."
+            exit 0
+          fi
+          
+          echo "Running clang-tidy on the following changed files:"
+          echo "$CHANGED_FILES"
+          
+          # Run run-clang-tidy from LLVM if present, or fallback to clang-tidy directly   
+          export PATH="$GITHUB_WORKSPACE/llvm/bin:$PATH"
+          if command -v run-clang-tidy >/dev/null 2>&1; then
+            echo "$CHANGED_FILES" | xargs run-clang-tidy -p build -quiet
+          else
+            echo "$CHANGED_FILES" | xargs clang-tidy -p build --quiet --warnings-as-errors='*'
+          fi
