@@ -240,6 +240,13 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_IsBuiltin) {
   for (ClassTemplateSpecializationDecl *CTSD : CTD->specializations())
     EXPECT_TRUE(Cpp::IsBuiltin(C.getTypeDeclType(CTSD).getAsOpaquePtr()));
 #endif
+
+  // User-defined records (even with "complex" in the name) are not builtins.
+  Interp->declare("class complex_number {}; class regular_record {};");
+  EXPECT_FALSE(
+      Cpp::IsBuiltin(Cpp::GetTypeFromScope(Cpp::GetNamed("complex_number", nullptr))));
+  EXPECT_FALSE(
+      Cpp::IsBuiltin(Cpp::GetTypeFromScope(Cpp::GetNamed("regular_record", nullptr))));
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_IsTemplate) {
