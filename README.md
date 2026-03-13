@@ -136,7 +136,7 @@ cmake -DLLVM_ENABLE_PROJECTS=clang                                  \
                 -DCLANG_ENABLE_FORMAT=OFF                           \
                 -DCLANG_ENABLE_BOOTSTRAP=OFF                        \
                 ../llvm
-cmake --build . --target clang clang-repl --parallel $(nproc --all)
+cmake --build . --target clang clang-repl --parallel
 ```
 
 Note the 'llvm-project' directory location by executing
@@ -169,13 +169,13 @@ cmake -DLLVM_ENABLE_PROJECTS="clang;compiler-rt"                   \
 ###### For Linux x86_64
 
 ```bash
-cmake --build . --target clang clang-repl llvm-jitlink-executor orc_rt-x86_64 --parallel $(nproc --all)
+cmake --build . --target clang clang-repl llvm-jitlink-executor orc_rt-x86_64 --parallel
 ```
 
 ###### For MacOS arm64
 
 ```bash
-cmake --build . --target clang clang-repl llvm-jitlink-executor orc_rt_osx --parallel $(sysctl -n hw.ncpu)
+cmake --build . --target clang clang-repl llvm-jitlink-executor orc_rt_osx --parallel
 ```
 
 Note the 'llvm-project' directory location by executing
@@ -210,7 +210,7 @@ Now CppInterOp can be built. This can be done by executing
 mkdir CppInterOp/build/
 cd CppInterOp/build/
 cmake -DBUILD_SHARED_LIBS=ON -DLLVM_DIR=$LLVM_DIR/build/lib/cmake/llvm -DClang_DIR=$LLVM_DIR/build/lib/cmake/clang -DCMAKE_INSTALL_PREFIX=$CPPINTEROP_DIR ..
-cmake --build . --target install --parallel $(nproc --all)
+cmake --build . --target install --parallel
 ```
 
 and
@@ -222,7 +222,7 @@ and
 To test the built CppInterOp execute the following command in the CppInterOP build folder on Linux and MacOS
 
 ```bash
-cmake --build . --target check-cppinterop --parallel $(nproc --all)
+cmake --build . --target check-cppinterop --parallel
 ```
 
 Now go back to the top level directory in which your building CppInterOP
@@ -274,8 +274,8 @@ cmake -DLLVM_ENABLE_PROJECTS=clang                                 \
                 -DCLANG_ENABLE_FORMAT=OFF                          \
                 -DCLANG_ENABLE_BOOTSTRAP=OFF                       \
                 ../llvm
-cmake --build . --target clang --parallel $(nproc --all)
-cmake --build . --target cling --parallel $(nproc --all)
+cmake --build . --target clang --parallel
+cmake --build . --target cling --parallel
 ```
 
 Note the 'llvm-project' directory location by executing the following
@@ -312,7 +312,7 @@ Now CppInterOp can be built. This can be done by executing
 mkdir CppInterOp/build/
 cd CppInterOp/build/
 cmake -DBUILD_SHARED_LIBS=ON -DCPPINTEROP_USE_CLING=ON -DCPPINTEROP_USE_REPL=Off -DCling_DIR=$LLVM_DIR/build/tools/cling -DLLVM_DIR=$LLVM_DIR/build/lib/cmake/llvm -DClang_DIR=$LLVM_DIR/build/lib/cmake/clang -DCMAKE_INSTALL_PREFIX=$CPPINTEROP_DIR ..
-cmake --build . --target install --parallel $(nproc --all)
+cmake --build . --target install --parallel
 ```
 
 #### Testing CppInterOp
@@ -320,7 +320,7 @@ cmake --build . --target install --parallel $(nproc --all)
 To test the built CppInterOp execute the following command in the CppInterOP build folder on Linux and MacOS
 
 ```bash
-cmake --build . --target check-cppinterop --parallel $(nproc --all)
+cmake --build . --target check-cppinterop --parallel
 ```
 
 Now go back to the top level directory in which your building CppInterOP
@@ -477,7 +477,7 @@ cmake   -DLLVM_ENABLE_PROJECTS=clang                  `
         -DCLANG_ENABLE_FORMAT=OFF                     `
         -DCLANG_ENABLE_BOOTSTRAP=OFF                  `
         ..\llvm
-cmake --build . --target clang clang-repl --parallel $env:ncpus
+cmake --build . --target clang clang-repl --parallel
 ```
 
 Note the 'llvm-project' directory location by executing the following
@@ -506,7 +506,7 @@ Now CppInterOp can be built. This can be done by executing
 mkdir CppInterOp\build\
 cd CppInterOp\build\
 cmake -DLLVM_DIR=$env:LLVM_DIR\build\lib\cmake\llvm -DClang_DIR=$env:LLVM_DIR\build\lib\cmake\clang -DCMAKE_INSTALL_PREFIX=$env:CPPINTEROP_DIR ..
-cmake --build . --target install --parallel $env:ncpus
+cmake --build . --target install --parallel
 ```
 
 #### Testing CppInterOp
@@ -515,7 +515,7 @@ To test the built CppInterOp execute the following command in the CppInterOP bui
 and
 
 ```powershell
-cmake --build . --target check-cppinterop --parallel $env:ncpus
+cmake --build . --target check-cppinterop --parallel
 ```
 
 </details>
@@ -562,8 +562,8 @@ cmake   -DLLVM_ENABLE_PROJECTS=clang                  `
         -DCLANG_ENABLE_FORMAT=OFF                     `
         -DCLANG_ENABLE_BOOTSTRAP=OFF                  `
         ../llvm
-cmake --build . --target clang --parallel $env:ncpus
-cmake --build . --target cling --parallel $env:ncpus
+cmake --build . --target clang --parallel
+cmake --build . --target cling --parallel
 ```
 
 Note the 'llvm-project' directory location by executing the following
@@ -594,7 +594,7 @@ Now CppInterOp can be built. This can be done by executing
 mkdir CppInterOp\build\
 cd CppInterOp\build\
 cmake -DCPPINTEROP_USE_CLING=ON -DCPPINTEROP_USE_REPL=Off -DCling_DIR=$env:LLVM_DIR\build\tools\cling -DLLVM_DIR=$env:LLVM_DIR\build\lib\cmake\llvm -DClang_DIR=$env:LLVM_DIR\build\lib\cmake\clang -DCMAKE_INSTALL_PREFIX=$env:CPPINTEROP_DIR ..
-cmake --build . --target install --parallel $env:ncpus
+cmake --build . --target install --parallel
 ```
 
 #### Testing CppInterOp
@@ -603,7 +603,7 @@ To test the built CppInterOp execute the following command in the CppInterOP bui
 and
 
 ```powershell
-cmake --build . --target check-cppinterop --parallel $env:ncpus
+cmake --build . --target check-cppinterop --parallel
 ```
 
 </details>
