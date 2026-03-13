@@ -59,6 +59,16 @@ jobs:
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
             python-version: '3.14'
+          # self-hosted CUDA Jobs
+            - name: selfh-ubu22-gcc12-clang-repl-20-cuda
+              os: [self-hosted, cuda]
+              compiler: gcc-12
+              clang-runtime: '20'
+              cppyy: On
+              llvm_enable_projects: "clang"
+              llvm_targets_to_build: "host;NVPTX"
+              python-version: '3.14'
+
           # Ubuntu X86 Jobs
           - name: ubu24-x86-gcc12-clang-repl-21
             os: ubuntu-24.04
