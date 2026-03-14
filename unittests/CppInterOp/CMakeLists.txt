@@ -21,6 +21,7 @@ add_cppinterop_unittest(CppInterOpTests
   TypeReflectionTest.cpp
   Utils.cpp
   VariableReflectionTest.cpp
+  PathsTest.cpp
   ${EXTRA_TEST_SOURCE_FILES}
 )
 
