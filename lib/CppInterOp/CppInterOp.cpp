@@ -3226,21 +3226,21 @@ CPPINTEROP_API JitCall MakeFunctionCallable(TInterp_t I,
   if (const auto* Dtor = dyn_cast<CXXDestructorDecl>(D)) {
     if (auto Wrapper = make_dtor_wrapper(*interp, Dtor->getParent()))
       return {JitCall::kDestructorCall, Wrapper, Dtor};
-    // FIXME: else error we failed to compile the wrapper.
+    llvm::errs() << "CppInterOp: Failed to compile destructor wrapper.\n";
     return {};
   }
 
   if (const auto* Ctor = dyn_cast<CXXConstructorDecl>(D)) {
     if (auto Wrapper = make_wrapper(*interp, cast<FunctionDecl>(D)))
       return {JitCall::kConstructorCall, Wrapper, Ctor};
-    // FIXME: else error we failed to compile the wrapper.
+    llvm::errs() << "CppInterOp: Failed to compile constructor wrapper.\n";
     return {};
   }
 
   if (auto Wrapper = make_wrapper(*interp, cast<FunctionDecl>(D))) {
     return {JitCall::kGenericCall, Wrapper, cast<FunctionDecl>(D)};
   }
-  // FIXME: else error we failed to compile the wrapper.
+  llvm::errs() << "CppInterOp: Failed to compile function wrapper.\n";
   return {};
 }
 
