@@ -35,12 +35,8 @@ struct DispatchInitializer {
   DispatchInitializer(DispatchInitializer&&) noexcept = default;
   DispatchInitializer& operator=(DispatchInitializer&&) noexcept = default;
 };
-// Thread-safe initialization using function-local static
-DispatchInitializer& GetDispatchInitializer() {
-  static DispatchInitializer instance;
-  return instance;
-}
-const DispatchInitializer& g_dispatch_init = GetDispatchInitializer();
+// FIXME: Make this threadsafe by moving it as a function static.
+DispatchInitializer g_dispatch_init;
 } // namespace
 #endif
 
