@@ -1,9 +1,8 @@
 #include "gtest/gtest.h"
 #include "clang/Lex/HeaderSearchOptions.h"
 #include "llvm/ADT/SmallVector.h"
-#include <string>
+
 #include <algorithm>
-#include <string>
 #include <string>
 
 
