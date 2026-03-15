@@ -316,8 +316,6 @@ Expand-Archive -Path "$PWD\chrome-win.zip" -DestinationPath "$PWD" -Force -Verbo
 Invoke-WebRequest -Uri "https://download.mozilla.org/?product=firefox-latest-ssl&os=win64&lang=en-US" -OutFile "firefox-setup.exe" -Verbose
 & "C:\Program Files\7-Zip\7z.exe" x "firefox-setup.exe"
 $env:PATH="$PWD\core;$PWD\chrome-win;$env:PATH"
-echo "PATH=$env:PATH"
-echo "PATH=$env:PATH" >> $env:GITHUB_ENV
 echo "Running CppInterOpTests in Firefox"
 emrun.bat --browser="firefox.exe" --kill_exit --timeout 60 --browser-args="--headless"  CppInterOpTests.html
 echo "Running DynamicLibraryManagerTests in Firefox"
