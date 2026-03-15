@@ -410,8 +410,16 @@ bool IsBuiltin(TCppType_t type) {
   QualType Ty = QualType::getFromOpaquePtr(type);
   if (Ty->isBuiltinType() || Ty->isAnyComplexType())
     return true;
-  // FIXME: Figure out how to avoid the string comparison.
-  return llvm::StringRef(Ty.getAsString()).contains("complex");
+  // Check for std::complex<T> specializations.
+  if (const auto* RD = Ty->getAsCXXRecordDecl()) {
+    if (const auto* CTSD = dyn_cast<ClassTemplateSpecializationDecl>(RD)) {
+      IdentifierInfo* II = CTSD->getSpecializedTemplate()->getIdentifier();
+      if (II && II->isStr("complex") &&
+          CTSD->getDeclContext()->isStdNamespace())
+        return true;
+    }
+  }
+  return false;
 }
 
 bool IsTemplate(TCppScope_t handle) {
@@ -594,19 +602,24 @@ std::string GetName(TCppType_t klass) {
   return "<unnamed>";
 }
 
-std::string GetCompleteName(TCppType_t klass) {
+static std::string GetCompleteNameImpl(TCppType_t klass, bool qualified) {
   auto& C = getSema().getASTContext();
   auto* D = (Decl*)klass;
 
-  PrintingPolicy Policy = C.getPrintingPolicy();
-  Policy.SuppressUnwrittenScope = true;
-  Policy.SuppressScope = true;
-  Policy.AnonymousTagLocations = false;
-  Policy.SuppressTemplateArgsInCXXConstructors = false;
-  Policy.SuppressDefaultTemplateArgs = false;
-  Policy.AlwaysIncludeTypeForTemplateArgument = true;
-
   if (auto* ND = llvm::dyn_cast_or_null<NamedDecl>(D)) {
+    PrintingPolicy Policy = C.getPrintingPolicy();
+    Policy.SuppressUnwrittenScope = true;
+    if (qualified) {
+      Policy.FullyQualifiedName = true;
+      Policy.SuppressElaboration = true;
+    } else {
+      Policy.SuppressScope = true;
+      Policy.AnonymousTagLocations = false;
+      Policy.SuppressTemplateArgsInCXXConstructors = false;
+      Policy.SuppressDefaultTemplateArgs = false;
+      Policy.AlwaysIncludeTypeForTemplateArgument = true;
+    }
+
     if (auto* TD = llvm::dyn_cast<TagDecl>(ND)) {
       std::string type_name;
       QualType QT = C.getTagDeclType(TD);
@@ -616,12 +629,12 @@ std::string GetCompleteName(TCppType_t klass) {
     if (auto* FD = llvm::dyn_cast<FunctionDecl>(ND)) {
       std::string func_name;
       llvm::raw_string_ostream name_stream(func_name);
-      FD->getNameForDiagnostic(name_stream, Policy, false);
+      FD->getNameForDiagnostic(name_stream, Policy, qualified);
       name_stream.flush();
       return func_name;
     }
 
-    return ND->getNameAsString();
+    return qualified ? ND->getQualifiedNameAsString() : ND->getNameAsString();
   }
 
   if (llvm::isa_and_nonnull<TranslationUnitDecl>(D)) {
@@ -629,6 +642,10 @@ std::string GetCompleteName(TCppType_t klass) {
   }
 
   return "<unnamed>";
+}
+
+std::string GetCompleteName(TCppType_t klass) {
+  return GetCompleteNameImpl(klass, /*qualified=*/false);
 }
 
 std::string GetQualifiedName(TCppType_t klass) {
@@ -644,32 +661,8 @@ std::string GetQualifiedName(TCppType_t klass) {
   return "<unnamed>";
 }
 
-// FIXME: Figure out how to merge with GetCompleteName.
 std::string GetQualifiedCompleteName(TCppType_t klass) {
-  auto& C = getSema().getASTContext();
-  auto* D = (Decl*)klass;
-
-  if (auto* ND = llvm::dyn_cast_or_null<NamedDecl>(D)) {
-    if (auto* TD = llvm::dyn_cast<TagDecl>(ND)) {
-      std::string type_name;
-      QualType QT = C.getTagDeclType(TD);
-      PrintingPolicy PP = C.getPrintingPolicy();
-      PP.FullyQualifiedName = true;
-      PP.SuppressUnwrittenScope = true;
-      PP.SuppressElaboration = true;
-      QT.getAsStringInternal(type_name, PP);
-
-      return type_name;
-    }
-
-    return ND->getQualifiedNameAsString();
-  }
-
-  if (llvm::isa_and_nonnull<TranslationUnitDecl>(D)) {
-    return "";
-  }
-
-  return "<unnamed>";
+  return GetCompleteNameImpl(klass, /*qualified=*/true);
 }
 
 std::string GetDoxygenComment(TCppScope_t scope, bool strip_comment_markers) {
