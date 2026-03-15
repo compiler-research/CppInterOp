@@ -1,0 +1,193 @@
+# Variables:
+# @@jobs@@ : parallel job count
+# @@CppInterOp@@ : path to CppInterOp
+# @@llvm-project@@ : path to llvm-project
+# @@cppyy-backend@@ : path to cppyy-backend
+# @@cling@@ : path to cling
+# @@sdkroot@@ : path to sdkroot (MacOS only)
+# @@DIR_SEP@@ : directory separator
+# @@PATH_SEP@@ : path separator
+
+env_llvm_dir:
+  type: env
+  name: LLVM_DIR
+  content: @@llvm-project@@
+
+env_cb_python_dir:
+  type: env
+  name: CB_PYTHON_DIR
+  content: @@cppyy-backend@@/python
+
+env_cppinterop_dir:
+  type: env
+  name: CPPINTEROP_DIR
+  content: @@cppyy-backend@@/python/cppyy_backend
+
+env_cling_dir:
+  type: env
+  name: CLING_DIR
+  content: @@cling@@
+
+env_cling_build_dir:
+  type: env
+  name: CLING_BUILD_DIR
+  content: @@cling@@/build
+
+env_cplus_include_path:
+  type: env
+  name: CPLUS_INCLUDE_PATH
+  content: "@@llvm-project@@@@DIR_SEP@@llvm@@DIR_SEP@@include@@PATH_SEP@@@@llvm-project@@@@DIR_SEP@@clang@@DIR_SEP@@include@@PATH_SEP@@@@llvm-project@@@@DIR_SEP@@build@@DIR_SEP@@include@@PATH_SEP@@@@llvm-project@@@@DIR_SEP@@build@@DIR_SEP@@tools@@DIR_SEP@@clang@@DIR_SEP@@include"
+
+env_cplus_include_path_cling:
+  type: env
+  name: CPLUS_INCLUDE_PATH
+  content: "@@cling@@@@DIR_SEP@@tools@@DIR_SEP@@cling@@DIR_SEP@@include@@PATH_SEP@@@@cling@@@@DIR_SEP@@build@@DIR_SEP@@include@@PATH_SEP@@@@llvm-project@@@@DIR_SEP@@llvm@@DIR_SEP@@include@@PATH_SEP@@@@llvm-project@@@@DIR_SEP@@clang@@DIR_SEP@@include@@PATH_SEP@@@@llvm-project@@@@DIR_SEP@@build@@DIR_SEP@@include@@PATH_SEP@@@@llvm-project@@@@DIR_SEP@@build@@DIR_SEP@@tools@@DIR_SEP@@clang@@DIR_SEP@@include"
+
+env_sdkroot:
+  type: env
+  name: SDKROOT
+  content: @@sdkroot@@
+
+clone_cppinterop:
+  type: clone
+  dir: @@CppInterOp@@
+  content: "git clone --depth=1 https://github.com/compiler-research/CppInterOp.git @@CppInterOp@@"
+
+clone_llvm_21:
+  type: clone
+  dir: @@llvm-project@@
+  content: "git clone --depth=1 --branch release/21.x https://github.com/llvm/llvm-project.git @@llvm-project@@"
+
+clone_llvm_20:
+  type: clone
+  dir: @@llvm-project@@
+  content: "git clone --depth=1 --branch release/20.x https://github.com/llvm/llvm-project.git @@llvm-project@@"
+
+clone_cppyy_backend:
+  type: clone
+  dir: @@cppyy-backend@@
+  content: "git clone --depth=1 https://github.com/compiler-research/cppyy-backend.git @@cppyy-backend@@"
+
+clone_cling:
+  type: clone
+  dir: @@cling@@
+  content: "git clone --depth=1 --branch v1.3 https://github.com/root-project/cling.git @@cling@@"
+
+clone_llvm_20_cling:
+  type: clone
+  dir: @@llvm-project@@
+  content: "git clone --depth=1 -b cling-llvm20-20260119-01 https://github.com/root-project/llvm-project.git @@llvm-project@@"
+
+
+patch_apply_jit:
+  type: command
+  cwd: @@llvm-project@@
+  content: "git apply -v @@CppInterOp@@/patches/llvm/clang20-1-out-of-process.patch"
+
+
+clang_repl_cmake_std:
+  type: command
+  cwd: @@llvm-project@@/build
+  content: 'cmake -DLLVM_ENABLE_PROJECTS=clang -DLLVM_TARGETS_TO_BUILD="host;NVPTX" -DCMAKE_BUILD_TYPE=Release -DLLVM_ENABLE_ASSERTIONS=ON -DCLANG_ENABLE_STATIC_ANALYZER=OFF -DCLANG_ENABLE_ARCMT=OFF -DCLANG_ENABLE_FORMAT=OFF -DCLANG_ENABLE_BOOTSTRAP=OFF ../llvm'
+
+clang_repl_cmake_oop:
+  type: command
+  cwd: @@llvm-project@@/build
+  content: 'cmake -DLLVM_ENABLE_PROJECTS="clang;compiler-rt" -DLLVM_TARGETS_TO_BUILD="host;NVPTX" -DCMAKE_BUILD_TYPE=Release -DLLVM_ENABLE_ASSERTIONS=ON -DCLANG_ENABLE_STATIC_ANALYZER=OFF -DCLANG_ENABLE_ARCMT=OFF -DCLANG_ENABLE_FORMAT=OFF -DCLANG_ENABLE_BOOTSTRAP=OFF ../llvm'
+
+clang_repl_cmake_windows:
+  type: command
+  cwd: @@llvm-project@@/build
+  content: 'cmake -DLLVM_ENABLE_PROJECTS=clang -DLLVM_TARGETS_TO_BUILD="host;NVPTX" -DCMAKE_BUILD_TYPE=Release -DLLVM_ENABLE_ASSERTIONS=ON -DCLANG_ENABLE_STATIC_ANALYZER=OFF -DCLANG_ENABLE_ARCMT=OFF -DCLANG_ENABLE_FORMAT=OFF -DCLANG_ENABLE_BOOTSTRAP=OFF ../llvm'
+
+clang_repl_build_std_unix:
+  type: command
+  cwd: @@llvm-project@@/build
+  content: "cmake --build . --target clang clang-repl --parallel @@jobs@@"
+
+clang_repl_build_oop_linux:
+  type: command
+  cwd: @@llvm-project@@/build
+  content: "cmake --build . --target clang clang-repl llvm-jitlink-executor orc_rt-x86_64 --parallel @@jobs@@"
+
+clang_repl_build_oop_mac:
+  type: command
+  cwd: @@llvm-project@@/build
+  content: "cmake --build . --target clang clang-repl llvm-jitlink-executor orc_rt_osx --parallel @@jobs@@"
+
+clang_repl_build_windows:
+  type: command
+  cwd: @@llvm-project@@/build
+  content: "cmake --build . --target clang clang-repl --parallel @@jobs@@"
+
+
+cppinterop_repl_cmake_unix:
+  type: command
+  cwd: @@CppInterOp@@
+  content: "cmake -S . -B build -DBUILD_SHARED_LIBS=ON -DLLVM_DIR=$LLVM_DIR/build/lib/cmake/llvm -DClang_DIR=$LLVM_DIR/build/lib/cmake/clang -DCMAKE_INSTALL_PREFIX=$CPPINTEROP_DIR -DCMAKE_BUILD_TYPE=Release"
+
+cppinterop_repl_cmake_oop_unix:
+  type: command
+  cwd: @@CppInterOp@@
+  content: "cmake -S . -B build -DBUILD_SHARED_LIBS=ON -DLLVM_DIR=$LLVM_DIR/build/lib/cmake/llvm -DClang_DIR=$LLVM_DIR/build/lib/cmake/clang -DCMAKE_INSTALL_PREFIX=$CPPINTEROP_DIR -DLLVM_BUILT_WITH_OOP_JIT=ON -DCMAKE_BUILD_TYPE=Release"
+
+cppinterop_repl_cmake_windows:
+  type: command
+  cwd: @@CppInterOp@@
+  content: "cmake -S . -B build -DCMAKE_C_COMPILER=cl -DLLVM_DIR=%LLVM_DIR%\\build\\lib\\cmake\\llvm -DClang_DIR=%LLVM_DIR%\\build\\lib\\cmake\\clang -DCMAKE_INSTALL_PREFIX=%CPPINTEROP_DIR% -DCMAKE_BUILD_TYPE=Release"
+
+
+cling_cmake_unix:
+  type: command
+  cwd: @@llvm-project@@
+  content: 'cmake -S llvm -B build -DLLVM_ENABLE_PROJECTS=clang -DLLVM_EXTERNAL_PROJECTS=cling -DLLVM_EXTERNAL_CLING_SOURCE_DIR=../../cling -DLLVM_TARGETS_TO_BUILD="host;NVPTX" -DCMAKE_BUILD_TYPE=Release -DLLVM_ENABLE_ASSERTIONS=ON -DCLANG_ENABLE_STATIC_ANALYZER=OFF -DCLANG_ENABLE_ARCMT=OFF -DCLANG_ENABLE_FORMAT=OFF -DCLANG_ENABLE_BOOTSTRAP=OFF'
+
+cling_cmake_windows:
+  type: command
+  cwd: @@llvm-project@@
+  content: 'cmake -S llvm -B build -DCMAKE_C_COMPILER=cl -DLLVM_ENABLE_PROJECTS=clang -DLLVM_EXTERNAL_PROJECTS=cling -DLLVM_EXTERNAL_CLING_SOURCE_DIR=%CLING_DIR% -DLLVM_TARGETS_TO_BUILD="host;NVPTX" -DCMAKE_BUILD_TYPE=Release -DLLVM_ENABLE_ASSERTIONS=ON -DCLANG_ENABLE_STATIC_ANALYZER=OFF -DCLANG_ENABLE_ARCMT=OFF -DCLANG_ENABLE_FORMAT=OFF -DCLANG_ENABLE_BOOTSTRAP=OFF'
+
+cling_build_clang:
+  type: command
+  cwd: @@llvm-project@@/build
+  content: "cmake --build . --target clang --parallel @@jobs@@"
+
+cling_build_cling:
+  type: command
+  cwd: @@llvm-project@@/build
+  content: "cmake --build . --target cling --parallel @@jobs@@"
+
+
+cppinterop_cling_cmake_unix:
+  type: command
+  cwd: @@CppInterOp@@
+  content: "cmake -S . -B build -DBUILD_SHARED_LIBS=ON -DCPPINTEROP_USE_CLING=ON -DCPPINTEROP_USE_REPL=Off -DCling_DIR=$LLVM_DIR/build/tools/cling -DLLVM_DIR=$LLVM_DIR/build/lib/cmake/llvm -DClang_DIR=$LLVM_DIR/build/lib/cmake/clang -DCMAKE_INSTALL_PREFIX=$CPPINTEROP_DIR -DCMAKE_BUILD_TYPE=Release"
+
+cppinterop_cling_cmake_windows:
+  type: command
+  cwd: @@CppInterOp@@
+  content: "cmake -S . -B build -DCMAKE_C_COMPILER=cl -DCPPINTEROP_USE_CLING=ON -DCPPINTEROP_USE_REPL=Off -DCling_DIR=%LLVM_DIR%\\build\\tools\\cling -DLLVM_DIR=%LLVM_DIR%\\build\\lib\\cmake\\llvm -DClang_DIR=%LLVM_DIR%\\build\\lib\\cmake\\clang -DCMAKE_INSTALL_PREFIX=%CPPINTEROP_DIR%"
+
+
+cppinterop_build_unix:
+  type: command
+  cwd: @@CppInterOp@@/build
+  content: "cmake --build . --target install --parallel @@jobs@@"
+
+cppinterop_build_windows:
+  type: command
+  cwd: @@CppInterOp@@/build
+  content: "cmake --build . --target install --parallel @@jobs@@"
+
+
+cppinterop_test_unix:
+  type: command
+  cwd: @@CppInterOp@@/build
+  content: "cmake --build . --target check-cppinterop --parallel @@jobs@@"
+
+cppinterop_test_windows:
+  type: command
+  cwd: @@CppInterOp@@/build
+  content: "cmake --build . --target check-cppinterop --parallel @@jobs@@"
+
+

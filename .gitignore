@@ -30,6 +30,7 @@
 # Directories
 build
 install
+__pycache__
 
 # CLion files
 .idea

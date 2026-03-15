@@ -1,0 +1,128 @@
+build_sequence:
+
+  # Clones
+  
+  - step: clone_cppinterop
+    tags: []
+
+  - step: clone_cppyy_backend
+    tags: []
+
+  - step: clone_llvm_20
+    tags: [clang-repl, oop, unix]
+
+  - step: clone_llvm_21
+    tags: [clang-repl, no-oop, unix]
+
+  - step: clone_llvm_21
+    tags: [clang-repl, windows]
+
+  - step: clone_cling
+    tags: [cling]
+
+  - step: clone_llvm_20_cling
+    tags: [cling]
+
+  # OOP Patch
+
+  - step: patch_apply_jit
+    tags: [clang-repl, oop, unix]
+
+
+  # Clang REPL build
+
+  - step: clang_repl_cmake_oop
+    tags: [clang-repl, oop, unix]
+
+  - step: clang_repl_build_oop_linux
+    tags: [clang-repl, oop, linux]
+
+  - step: clang_repl_build_oop_mac
+    tags: [clang-repl, oop, macos]
+
+  - step: clang_repl_cmake_std
+    tags: [clang-repl, no-oop, unix]
+
+  - step: clang_repl_build_std_unix
+    tags: [clang-repl, no-oop, unix]
+
+  - step: clang_repl_cmake_windows
+    tags: [clang-repl, windows]
+
+  - step: clang_repl_build_windows
+    tags: [clang-repl, windows]
+
+
+  # Cling build
+
+  - step: cling_cmake_unix
+    tags: [cling, unix]
+
+  - step: cling_cmake_windows
+    tags: [cling, windows]
+
+  - step: cling_build_clang
+    tags: [cling]
+
+  - step: cling_build_cling
+    tags: [cling]
+
+
+  # Environment setup
+
+  - step: env_llvm_dir
+    tags: [unix]
+
+  - step: env_cb_python_dir
+    tags: [unix]
+
+  - step: env_cppinterop_dir
+    tags: [unix]
+
+  - step: env_cling_dir
+    tags: [cling]
+
+  - step: env_cling_build_dir
+    tags: [cling]
+
+  - step: env_cplus_include_path
+    tags: [clang-repl]
+
+  - step: env_cplus_include_path_cling
+    tags: [cling]
+
+  - step: env_sdkroot
+    tags: [macos]
+
+
+  # CppInterOp build
+
+  - step: cppinterop_repl_cmake_oop_unix
+    tags: [clang-repl, oop, unix]
+
+  - step: cppinterop_repl_cmake_unix
+    tags: [clang-repl, no-oop, unix]
+
+  - step: cppinterop_repl_cmake_windows
+    tags: [clang-repl, windows]
+
+  - step: cppinterop_cling_cmake_unix
+    tags: [cling, unix]
+
+  - step: cppinterop_cling_cmake_windows
+    tags: [cling, windows]
+
+  - step: cppinterop_build_unix
+    tags: [unix]
+
+  - step: cppinterop_build_windows
+    tags: [windows]
+
+
+  # Tests
+
+  - step: cppinterop_test_unix
+    tags: [unix]
+
+  - step: cppinterop_test_windows
+    tags: [windows]
