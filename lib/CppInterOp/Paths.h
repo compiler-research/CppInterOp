@@ -10,8 +10,11 @@
 #ifndef CPPINTEROP_UTILS_PATHS_H
 #define CPPINTEROP_UTILS_PATHS_H
 
+#include "CppInterOp/CppInterOp.h"
+
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
+
 #include <string>
 #include <vector>
 
