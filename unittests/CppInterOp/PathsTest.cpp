@@ -9,7 +9,8 @@ namespace {
 
 TEST(PathsTest, GetIncludePathsEdgeCases) {
     std::vector<const char*> InterpArgs = {
-        "PathsTest",
+        "-xcc++",
+        "-",
         "-fmodule-cache-path=/tmp/fake_cache",
         "-nostdinc",
         "-nostdinc++",
