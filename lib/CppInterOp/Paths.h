@@ -10,8 +10,6 @@
 #ifndef CPPINTEROP_UTILS_PATHS_H
 #define CPPINTEROP_UTILS_PATHS_H
 
-#include "CppInterOp/CppInterOp.h"
-
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
 
@@ -116,7 +114,7 @@ void LogNonExistentDirectory(llvm::StringRef Path);
 ///       defining header search behavior will be included in incpaths, e.g.
 ///       "-nostdinc".
 ///
-CPPINTEROP_API void CopyIncludePaths(const clang::HeaderSearchOptions& Opts,
+ void CopyIncludePaths(const clang::HeaderSearchOptions& Opts,
                       llvm::SmallVectorImpl<std::string>& Paths,
                       bool WithSystem, bool WithFlags);
 
