@@ -114,7 +114,7 @@ void LogNonExistentDirectory(llvm::StringRef Path);
 ///       defining header search behavior will be included in incpaths, e.g.
 ///       "-nostdinc".
 ///
- void CopyIncludePaths(const clang::HeaderSearchOptions& Opts,
+void CopyIncludePaths(const clang::HeaderSearchOptions& Opts,
                       llvm::SmallVectorImpl<std::string>& Paths,
                       bool WithSystem, bool WithFlags);
 
