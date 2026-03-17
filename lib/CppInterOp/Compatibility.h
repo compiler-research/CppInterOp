@@ -14,6 +14,13 @@
 #include "clang/Sema/Sema.h"
 
 #if CLANG_VERSION_MAJOR < 22
+#define Suppress_Elab SuppressElaboration
+#else
+#define Suppress_Elab FullyQualifiedName
+#endif
+
+
+#if CLANG_VERSION_MAJOR < 22
 #define Get_Tag_Type getTagDeclType
 #else
 #define Get_Tag_Type getCanonicalTagType
