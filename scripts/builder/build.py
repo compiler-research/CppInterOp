@@ -54,10 +54,10 @@ config_variables = dict()
 
 config_variables["jobs"] = args.jobs
 
-config_variables["CppInterOp"] = os.path.abspath(args.cppinterop)
-config_variables["llvm-project"] = os.path.abspath(args.llvm_project)
-config_variables["cppyy-backend"] = os.path.abspath(args.cppyy_backend)
-config_variables["cling"] = os.path.abspath(args.cling) if args.cling else ""
+config_variables["CppInterOp"] = os.path.abspath(args.cppinterop).replace('\\', '/')
+config_variables["llvm-project"] = os.path.abspath(args.llvm_project).replace('\\', '/')
+config_variables["cppyy-backend"] = os.path.abspath(args.cppyy_backend).replace('\\', '/')
+config_variables["cling"] = os.path.abspath(args.cling).replace('\\', '/') if args.cling else ""
 
 config_variables["DIR_SEP"] = os.sep
 config_variables["PATH_SEP"] = os.pathsep
@@ -95,7 +95,7 @@ for step in pipeline["build_sequence"]:
     step_type = step_def["type"]
 
     if step_type == "clone":
-        directory = step_def["dir"]
+        directory = os.path.abspath(step_def["dir"])
         command = step_def["content"]
         build_sequence.append_clone(
             name, 
@@ -105,13 +105,18 @@ for step in pipeline["build_sequence"]:
 
     elif step_type == "command":
         command = step_def["content"]
-        directory = step_def["cwd"]
+        directory = os.path.abspath(step_def["cwd"])
         build_sequence.append_command(name, command, directory)
 
     elif step_type == "env":
         env_name = step_def["name"]
-        value = step_def["content"]
-        build_sequence.current_env[env_name] = value
+        content = step_def["content"]
+        if isinstance(content, str):
+            build_sequence.current_env[env_name] = content
+        elif isinstance(content, list):
+            build_sequence.current_env[env_name] = (os.pathsep).join(content)
+        else:
+            raise AssertionError("Unsupported type for env content")
 
 print("\n--- Build Plan ---")
 print(f"[OS: {platform.system()}] | [Backend: {args.backend}] | [OOP JIT: {args.oop}]")
@@ -134,8 +139,8 @@ print("\n--- Starting Build Pipeline ---")
 for command_state in build_sequence.command_list:
     success = command_state.run()
     if not success:
-        print("Build pipeline aborted due to an error.")
-        sys.exit()
+        print("Build pipeline aborted due to an error.", file=sys.stderr)
+        sys.exit(1)
 
 
 print("\n--- Build Complete ---")

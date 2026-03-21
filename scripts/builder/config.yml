@@ -36,12 +36,22 @@ env_cling_build_dir:
 env_cplus_include_path:
   type: env
   name: CPLUS_INCLUDE_PATH
-  content: "@@llvm-project@@@@DIR_SEP@@llvm@@DIR_SEP@@include@@PATH_SEP@@@@llvm-project@@@@DIR_SEP@@clang@@DIR_SEP@@include@@PATH_SEP@@@@llvm-project@@@@DIR_SEP@@build@@DIR_SEP@@include@@PATH_SEP@@@@llvm-project@@@@DIR_SEP@@build@@DIR_SEP@@tools@@DIR_SEP@@clang@@DIR_SEP@@include"
+  content: 
+    - @@llvm-project@@/llvm/include
+    - @@llvm-project@@/clang/include
+    - @@llvm-project@@/build/include
+    - @@llvm-project@@/build/tools/clang/include"
 
 env_cplus_include_path_cling:
   type: env
   name: CPLUS_INCLUDE_PATH
-  content: "@@cling@@@@DIR_SEP@@tools@@DIR_SEP@@cling@@DIR_SEP@@include@@PATH_SEP@@@@cling@@@@DIR_SEP@@build@@DIR_SEP@@include@@PATH_SEP@@@@llvm-project@@@@DIR_SEP@@llvm@@DIR_SEP@@include@@PATH_SEP@@@@llvm-project@@@@DIR_SEP@@clang@@DIR_SEP@@include@@PATH_SEP@@@@llvm-project@@@@DIR_SEP@@build@@DIR_SEP@@include@@PATH_SEP@@@@llvm-project@@@@DIR_SEP@@build@@DIR_SEP@@tools@@DIR_SEP@@clang@@DIR_SEP@@include"
+  content: 
+    - @@cling@@/tools/cling/include
+    - @@cling@@/build/include
+    - @@llvm-project@@/llvm/include
+    - @@llvm-project@@/clang/include
+    - @@llvm-project@@/build/include
+    - @@llvm-project@@/build/tools/clang/include"
 
 env_sdkroot:
   type: env
