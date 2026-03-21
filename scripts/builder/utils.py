@@ -38,23 +38,24 @@ class CommandStateSequence:
             current_env = os.environ.copy()
         self.current_env = current_env
 
-    def append_command(self, cmd_var):
+    def append_command(self, cmd_name, cmd_string, cmd_dir_path):
         self.command_list.append(
-            CommandState(cmd_var.name, cmd_var.command, cmd_var.cwd, self.current_env.copy())
+            CommandState(cmd_name, cmd_string, cmd_dir_path, self.current_env.copy())
         )
 
-    def append_clone(self, dir_path, command):
-        if not os.path.isdir(dir_path):
-            parent_dir = os.path.abspath(dir_path)
-            def new_run():
-                if not os.path.isdir(parent_dir):
-                    os.makedirs(parent_dir)
-                command.run()
-            command.run = new_run
-            command.makedirs = False
-            self.append_command(command)
+    def append_clone(self, cmd_name, cmd_string, clone_dir_path):
+        parent_dir_path = os.path.dirname(clone_dir_path)
+        if not os.path.isdir(clone_dir_path):
+            cmd_state = CommandState(cmd_name, cmd_string, parent_dir_path, self.current_env.copy(), makedirs=False)
+            old_run = cmd_state.run
+            def new_run(env=None):
+                if not os.path.isdir(parent_dir_path):
+                    os.makedirs(parent_dir_path)
+                return old_run(env=env)
+            cmd_state.run = new_run
+            self.command_list.append(cmd_state)
         else:
-            print(f"Skipping {command.name}: '{dir_path}' already exists")
+            print(f"Skipping {cmd_name}: '{clone_dir_path}' already exists")
 
 
 def get_user_permission(message, exit=False):

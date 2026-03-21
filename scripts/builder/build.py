@@ -29,23 +29,16 @@ args = parser.parse_args()
 
 # Detect OS
 
-system = platform.system()
-if system == "Linux":
-    target_os = "linux"
-elif system == "Darwin":
-    target_os = "macos"
-elif system == "Windows":
-    target_os = "windows"
-else:
+if not (platform.system().lower() in ["linux", "darwin", "windows"]):
     raise RuntimeError("Unsupported OS")
 
 # Pipeline Tags
 
 active_tags = set()
 
-active_tags.add(target_os)
+active_tags.add(platform.system().lower())
 
-if target_os in ["linux", "macos"]:
+if platform.system().lower() in ["linux", "darwin"]:
     active_tags.add("unix")
 
 active_tags.add(args.backend)
@@ -69,7 +62,7 @@ config_variables["cling"] = os.path.abspath(args.cling) if args.cling else ""
 config_variables["DIR_SEP"] = os.sep
 config_variables["PATH_SEP"] = os.pathsep
 
-if target_os == "macos":
+if platform.system() == "Darwin":
     sdkroot = subprocess.check_output(
         ["xcrun", "--show-sdk-path"], text=True
     ).strip()
@@ -105,16 +98,15 @@ for step in pipeline["build_sequence"]:
         directory = step_def["dir"]
         command = step_def["content"]
         build_sequence.append_clone(
-            directory,
-            utils.CommandState(name, command, os.path.dirname(directory))
+            name, 
+            command, 
+            directory
         )
 
     elif step_type == "command":
         command = step_def["content"]
         directory = step_def["cwd"]
-        build_sequence.append_command(
-            utils.CommandState(name, command, directory)
-        )
+        build_sequence.append_command(name, command, directory)
 
     elif step_type == "env":
         env_name = step_def["name"]
@@ -122,7 +114,7 @@ for step in pipeline["build_sequence"]:
         build_sequence.current_env[env_name] = value
 
 print("\n--- Build Plan ---")
-print(f"[OS: {target_os}] | [Backend: {args.backend}] | [OOP JIT: {args.oop}]")
+print(f"[OS: {platform.system()}] | [Backend: {args.backend}] | [OOP JIT: {args.oop}]")
 
 for i, command_state in enumerate(build_sequence.command_list, 1):
     print(f"Step {i}: {command_state.name}")
@@ -159,7 +151,7 @@ for key, value in build_sequence.current_env.items():
         "CPLUS_INCLUDE_PATH",
         "SDKROOT"
     ]:
-        if target_os == "windows":
+        if platform.system() == "Windows":
             print(f'$env:{key}="{value}"')
         else:
             print(f'export {key}="{value}"')

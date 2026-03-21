@@ -38,7 +38,7 @@ build_sequence:
     tags: [clang-repl, oop, linux]
 
   - step: clang_repl_build_oop_mac
-    tags: [clang-repl, oop, macos]
+    tags: [clang-repl, oop, darwin]
 
   - step: clang_repl_cmake_std
     tags: [clang-repl, no-oop, unix]
@@ -92,7 +92,7 @@ build_sequence:
     tags: [cling]
 
   - step: env_sdkroot
-    tags: [macos]
+    tags: [darwin]
 
 
   # CppInterOp build
