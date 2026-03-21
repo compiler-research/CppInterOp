@@ -146,16 +146,10 @@ for command_state in build_sequence.command_list:
 print("\n--- Build Complete ---")
 print("\nYou may copy the following environment variables\n")
 
+
+valid_env_names = [value["name"] for value in config_data.values() if value["type"] == "env"]
 for key, value in build_sequence.current_env.items():
-    if key in [
-        "LLVM_DIR",
-        "CB_PYTHON_DIR",
-        "CPPINTEROP_DIR",
-        "CLING_DIR",
-        "CLING_BUILD_DIR",
-        "CPLUS_INCLUDE_PATH",
-        "SDKROOT"
-    ]:
+    if key in valid_env_names:
         if platform.system() == "Windows":
             print(f'$env:{key}="{value}"')
         else:
