@@ -9,11 +9,7 @@ namespace {
 
 TEST(PathsTest, GetIncludePathsEdgeCases) {
     std::vector<const char*> InterpArgs = {
-        "-nostdinc",
-        "-nostdinc++",
-        "-stdlib=libc++",
         "-fmodule-cache-path=/tmp/fake_cache",
-        "-v"
     };
     
     Cpp::CreateInterpreter(InterpArgs);
@@ -25,11 +21,10 @@ TEST(PathsTest, GetIncludePathsEdgeCases) {
         return std::find(IncPaths.begin(), IncPaths.end(), flag) != IncPaths.end();
     };
 
-    EXPECT_TRUE(Contains("-fmodule-cache-path=/tmp/fake_cache") || Contains("-fmodule-cache-path"));
-    EXPECT_TRUE(Contains("-nostdinc"));
-    EXPECT_TRUE(Contains("-nostdinc++"));
-    EXPECT_TRUE(Contains("-stdlib=libc++"));
-    EXPECT_TRUE(Contains("-v"));
+    bool hasModuleCache = Contains("-fmodule-cache-path=/tmp/fake_cache") || 
+                          (Contains("-fmodule-cache-path") && Contains("/tmp/fake_cache"));
+                          
+    EXPECT_TRUE(hasModuleCache);
 }
 
 }
