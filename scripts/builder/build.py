@@ -5,8 +5,27 @@ import subprocess
 import platform
 import yaml
 import re
-import utils
 
+
+# Helper functions
+
+def get_user_permission(message, exit=False):
+    while True:
+        print()
+        response = input(message + "(y/n):")
+        print()
+        if response.lower() == "y":
+            return True
+        elif response.lower() == "n":
+            if exit:
+                sys.exit()
+            return False
+
+def replace_var(config_variables, match):
+    key = match.group(1)
+    if key not in config_variables:
+        raise RuntimeError(f"Unknown variable: {key}")
+    return str(config_variables[key])
 
 # CLI Arguments
 
@@ -74,7 +93,7 @@ else:
 
 with open("config.yml") as f:
     config_text = f.read()
-config_text = re.sub(r"@@([A-Za-z0-9_-]+)@@", lambda match: utils.replace_var(config_variables, match), config_text)
+config_text = re.sub(r"@@([A-Za-z0-9_-]+)@@", lambda match: replace_var(config_variables, match), config_text)
 config_data = yaml.safe_load(config_text)
 
 # Load pipeline.yaml
@@ -84,7 +103,9 @@ with open("pipeline.yml") as f:
 
 # Create build sequence
 
-build_sequence = utils.CommandStateSequence()
+command_list = []
+current_env = os.environ.copy()
+
 
 for step in pipeline["build_sequence"]:
     step_tags = set(step.get("tags", []))
@@ -95,50 +116,68 @@ for step in pipeline["build_sequence"]:
     step_type = step_def["type"]
 
     if step_type == "clone":
-        directory = os.path.abspath(step_def["dir"])
-        command = step_def["content"]
-        build_sequence.append_clone(
-            name, 
-            command, 
-            directory
-        )
+        clone_dir_path = os.path.abspath(step_def["dir"])
+        cmd_string = step_def["content"]
+        if not os.path.isdir(clone_dir_path):
+            parent_dir_path = os.path.dirname(clone_dir_path)
+            command_list.append({
+                "cmd_name": name,
+                "cmd_string": cmd_string,
+                "cmd_dir_path": parent_dir_path,
+                "cmd_env": current_env.copy()
+            })
+        else:
+            print(f"Skipping {name}: '{clone_dir_path}' already exists")
 
     elif step_type == "command":
-        command = step_def["content"]
-        directory = os.path.abspath(step_def["cwd"])
-        build_sequence.append_command(name, command, directory)
+        cmd_dir_path = os.path.abspath(step_def["cwd"])
+        cmd_string = step_def["content"]
+        command_list.append({
+            "cmd_name": name,
+            "cmd_string": cmd_string,
+            "cmd_dir_path": cmd_dir_path,
+            "cmd_env": current_env.copy()
+        })
 
     elif step_type == "env":
         env_name = step_def["name"]
         content = step_def["content"]
         if isinstance(content, str):
-            build_sequence.current_env[env_name] = content
+            current_env[env_name] = content
         elif isinstance(content, list):
-            build_sequence.current_env[env_name] = (os.pathsep).join(content)
+            current_env[env_name] = (os.pathsep).join(content)
         else:
             raise AssertionError("Unsupported type for env content")
 
 print("\n--- Build Plan ---")
 print(f"[OS: {platform.system()}] | [Backend: {args.backend}] | [OOP JIT: {args.oop}]")
 
-for i, command_state in enumerate(build_sequence.command_list, 1):
-    print(f"Step {i}: {command_state.name}")
-    print(command_state.command)
-    permission = utils.get_user_permission("Keep command in plan? ") if not args.grant_permission else True
+i = 0
+while i < len(command_list):
+    cmd_state = command_list[i]
+    print(f"Step {i+1}: {cmd_state["cmd_name"]}")
+    print(cmd_state["cmd_string"])
+    permission = get_user_permission("Keep command in plan? ") if not args.grant_permission else True
     if not permission:
-        command_state.disable()
+        command_list.pop(i)
+    else:
+        i+=1
     print()
 
 if not args.grant_permission:
-    utils.get_user_permission("Start build? ", exit=True)
+    get_user_permission("Start build? ", exit=True)
 
 # Run pipeline
 
 print("\n--- Starting Build Pipeline ---")
 
-for command_state in build_sequence.command_list:
-    success = command_state.run()
-    if not success:
+for cmd_state in command_list:
+    print(f"Running {cmd_state["cmd_name"]}: {cmd_state["cmd_string"]}")
+    if not os.path.isdir(cmd_dir_path):
+        os.makedirs(cmd_dir_path)
+    process = subprocess.run(cmd_state["cmd_string"], shell=True, cwd=cmd_state["cmd_dir_path"], env=cmd_state["cmd_env"])
+    if process.returncode != 0:
+        print(f"Error: {cmd_state["cmd_name"]} failed with return code {process.returncode}")
         print("Build pipeline aborted due to an error.", file=sys.stderr)
         sys.exit(1)
 
@@ -148,7 +187,7 @@ print("\nYou may copy the following environment variables\n")
 
 
 valid_env_names = [value["name"] for value in config_data.values() if value["type"] == "env"]
-for key, value in build_sequence.current_env.items():
+for key, value in current_env.items():
     if key in valid_env_names:
         if platform.system() == "Windows":
             print(f'$env:{key}="{value}"')
