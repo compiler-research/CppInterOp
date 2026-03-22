@@ -436,6 +436,12 @@ public:
 
 namespace compat {
 
+#ifdef CPPINTEROP_USE_CLING
+using Value = cling::Value;
+#else
+using Value = clang::Value;
+#endif
+
 // Clang >= 16 (=16 with Value patch) change castAs to convertTo
 #ifdef CPPINTEROP_USE_CLING
 template <typename T> inline T convertTo(cling::Value V) {
