@@ -35,7 +35,6 @@ runs:
         sudo apt-get install valgrind ninja-build
         sudo apt-get install git g++ debhelper devscripts gnupg python3 doxygen graphviz python3-sphinx
         sudo apt-get install -y libc6-dbg
-        sudo apt-get install valgrind
         sudo apt autoremove
         sudo apt clean
         # Install libraries used by the cppyy test suite
