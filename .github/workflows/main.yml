@@ -17,7 +17,7 @@ concurrency:
 jobs:
   prepare-dell:
     name: Activate self-host infrastructure
-    runs-on: self-hosted
+    runs-on: [self-hosted, spotter]
     steps:
       - name: Send Magic Packet
         env:
@@ -105,7 +105,7 @@ jobs:
             python-version: '3.14'
           # Ubuntu X86 Jobs
           - name: self-hosted-ubu22-x86-gcc12-clang-repl-21-cuda
-            os: self-hosted
+            os: [self-hosted, cuda, heavy]
             compiler: gcc-12
             clang-runtime: '21'
             llvm_enable_projects: "clang"
