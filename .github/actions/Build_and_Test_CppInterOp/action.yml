@@ -8,15 +8,21 @@ runs:
       if: ${{ runner.os != 'Windows' && !endsWith(matrix.name, '-emscripten') }}
       shell: bash
       run: |
-        LLVM_DIR="$(pwd)/llvm-project"
-        LLVM_BUILD_DIR="$(pwd)/llvm-project/build"
-        cling_on=$(echo "${{ matrix.cling }}" | tr '[:lower:]' '[:upper:]')
-        if [[ "${cling_on}" == "ON" ]]; then
-          CLING_DIR="$(pwd)/cling"
-          CLING_BUILD_DIR="$(pwd)/cling/build"
-          CPLUS_INCLUDE_PATH="${CLING_DIR}/tools/cling/include:${CLING_BUILD_DIR}/include:${LLVM_DIR}/llvm/include:${LLVM_DIR}/clang/include:${LLVM_BUILD_DIR}/include:${LLVM_BUILD_DIR}/tools/clang/include:$PWD/include"
+        if [[ "${{ runner.environment }}" == "self-hosted" ]]; then
+          LLVM_DIR="/usr/lib/llvm-${{ matrix.clang-runtime }}"
+          LLVM_BUILD_DIR="/usr/lib/llvm-${{ matrix.clang-runtime }}"
+          CPLUS_INCLUDE_PATH="/usr/lib/llvm-${{ matrix.clang-runtime }}/include:$PWD/include"
         else
-          CPLUS_INCLUDE_PATH="${LLVM_DIR}/llvm/include:${LLVM_DIR}/clang/include:${LLVM_BUILD_DIR}/include:${LLVM_BUILD_DIR}/tools/clang/include:$PWD/include"
+          LLVM_DIR="$(pwd)/llvm-project"
+          LLVM_BUILD_DIR="$(pwd)/llvm-project/build"
+          cling_on=$(echo "${{ matrix.cling }}" | tr '[:lower:]' '[:upper:]')
+          if [[ "${cling_on}" == "ON" ]]; then
+            CLING_DIR="$(pwd)/cling"
+            CLING_BUILD_DIR="$(pwd)/cling/build"
+            CPLUS_INCLUDE_PATH="${CLING_DIR}/tools/cling/include:${CLING_BUILD_DIR}/include:${LLVM_DIR}/llvm/include:${LLVM_DIR}/clang/include:${LLVM_BUILD_DIR}/include:${LLVM_BUILD_DIR}/tools/clang/include:$PWD/include"
+          else
+            CPLUS_INCLUDE_PATH="${LLVM_DIR}/llvm/include:${LLVM_DIR}/clang/include:${LLVM_BUILD_DIR}/include:${LLVM_BUILD_DIR}/tools/clang/include:$PWD/include"
+          fi
         fi
 
         export CB_PYTHON_DIR="$PWD/cppyy-backend/python"

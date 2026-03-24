@@ -17,7 +17,7 @@ concurrency:
 jobs:
   prepare-dell:
     name: Activate self-host infrastructure
-    runs-on: self-hosted
+    runs-on: [self-hosted, spotter]
     steps:
       - name: Send Magic Packet
         env:
@@ -97,7 +97,7 @@ jobs:
             python-version: '3.14'
           # Ubuntu X86 Jobs
           - name: self-hosted-ubu22-x86-gcc12-clang-repl-21-cuda
-            os: self-hosted
+            os: [self-hosted, cuda, heavy]
             compiler: gcc-12
             clang-runtime: '21'
             llvm_enable_projects: "clang"
@@ -265,6 +265,7 @@ jobs:
       uses: ./.github/actions/Miscellaneous/Save_PR_Info
 
     - name: Restore cached LLVM-${{ matrix.clang-runtime }} and ${{ matrix.cling == 'On' && 'Cling' || 'Clang-REPL' }} build
+      if: ${{ runner.environment != 'self-hosted' }}
       uses: actions/cache/restore@v4
       id: cache
       with:
@@ -282,14 +283,25 @@ jobs:
     - name: Install dependencies
       uses: ./.github/actions/Miscellaneous/Install_Dependencies
     
+    - name: Install LLVM-${{ matrix.clang-runtime }} dependencies on self-hosted
+      if: ${{ runner.environment == 'self-hosted' }}
+      shell: bash
+      run: |
+        wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc
+        codename="$(. /etc/os-release && echo $UBUNTU_CODENAME)"
+        echo "deb http://apt.llvm.org/${codename}/ llvm-toolchain-${codename}-${{ matrix.clang-runtime }} main" | sudo tee /etc/apt/sources.list.d/llvm.list
+        sudo apt-get update
+        sudo apt-get install -y llvm-${{ matrix.clang-runtime }}-dev libclang-${{ matrix.clang-runtime }}-dev clang-${{ matrix.clang-runtime }} libpolly-${{ matrix.clang-runtime }}-dev libzstd-dev
+
     - name: Build LLVM-${{ matrix.clang-runtime }} and ${{ matrix.cling == 'On' && 'Cling' || 'Clang-REPL' }}
+      if: ${{ runner.environment != 'self-hosted' }}
       uses: ./.github/actions/Build_LLVM
       with:
         cache-hit: ${{ steps.cache.outputs.cache-hit }}
 
     - name: Cache LLVM-${{ matrix.clang-runtime }} and ${{ matrix.cling == 'On' && 'Cling' || 'Clang-REPL' }} build
       uses: actions/cache/save@v4
-      if: ${{ steps.cache.outputs.cache-hit != 'true' }}
+      if: ${{ runner.environment != 'self-hosted' && steps.cache.outputs.cache-hit != 'true' }}
       with:
         path: |
           llvm-project
@@ -343,3 +355,7 @@ jobs:
       uses: mxschmitt/action-tmate@v3
       # When debugging increase to a suitable value!
       timeout-minutes: 30
+
+
+
+
