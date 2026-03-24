@@ -22,45 +22,69 @@ Some of the major new features and improvements to CppInterOp are listed here.
 Generic improvements to CppInterOp as a whole or to its underlying
 infrastructure are described first.
 
+This release drops LLVM 18 support, adds CUDA/GPU support with automatic SDK
+and architecture detection, improves introspection and type reflection APIs,
+hardens the incremental C++ and dispatch infrastructure, and includes ROOT-Cling
+integration changes for Cppyy.
+
 ## External Dependencies
 
-- CppInterOp now works with:
-  - llvm21
+- CppInterOp v1.9.0 supports llvm 19-21
+- Drops llvm18 support.
 
 ## Introspection
 
--
+- Adds `Cpp::IsExplicit` for constructors, conversion operators and deduction
+  guides.
+- Adds `Cpp::GetLanguage` for language detection support.
+- Replaces string comparison with AST check in `IsBuiltin` for `std::complex`.
+- Merges `GetCompleteName` and `GetQualifiedCompleteName` into a shared helper.
+- Makes `GetTypeAsString()` use the printing policy from ASTContext.
 
 ## Just-in-Time Compilation
 
--
+- Cling specific changes required for Cppyy in ROOT (#787).
+- Improved CUDA interpreter creation, uses clang::Driver to detect CUDA SDK and GPU architecture.
+- Adds incremental CUB BlockReduce test for CUDA.
 
 ## Incremental C++
 
--
+- Fixes `SynthesizingCodeRAII` for clang-repl (#819).
+- Uses a common `compat::Value` to avoid macro guard duplication.
 
 ## Misc
 
--
+- Adds `GetDoxygenComment` to the API dispatch table.
+- Disables verbose `LoadAPI` message unless debug mode is enabled.
+- Allows reset of dispatch data to test load/unload.
+- Prioritizes user-provided resource-dir over auto-detection (#791).
+- Uses `llvm::sys::fs` instead of `<filesystem>` to check resource-dir.
+- Includes API after undef of windows.h `LoadLibrary`.
+- Removes `using namespace std` from CppInterOp.cpp (#801).
+- Removes no-soname from cmake (#816).
+- Numerous improvements to CMake configuration, CI workflows, and documentation.
 
 ## Fixed Bugs
 
-[XXX](https://github.com/compiler-research/CppInterOp/issues/XXX)
-
-<!---Get release bugs
- git log v1.8.0..main | grep 'Fixes|Closes'
- --->
+- Fix error-prone failure path in `GetTypeFromScope`.
+- Fix `GetLanguage` for CUDA/HIP where CXX standard was returned.
+- Fix CUDA runtime error detection in tests.
+- Fixes thread-safe initialization of Dispatch API using function-local
+  static (#844).
+- Sets default build type if not provided.
 
 ## Special Kudos
 
 This release wouldn't have happened without the efforts of our contributors,
 listed in the form of Firstname Lastname (#contributions):
 
-FirstName LastName (#commits)
-
-A B (N)
-
-<!---Find contributor list for this release
- git log --pretty=format:"%an"  v1.8.0...main | sort | uniq -c | sort -rn |\
-   sed -E 's,^ *([0-9]+) (.*)$,\2 \(\1\),'
---->
+Matthew Barton (21; CI, Emscripten, build and deployment improvements)
+Aaron Jomy (19; CUDA support, Dispatch, IsExplicit API, CI, build and cmake fixes)
+Vassil Vassilev (5; coverage, test fixes, release preparation)
+Vipul Cariappa (3; ROOT-Cling integration, SynthesizingCodeRAII fix, resource-dir)
+Adriteyo Das (3; IsBuiltin AST check, GetCompleteName refactoring, default build type)
+Emery Conrad (2; Dispatch reset, path resolution in detection test)
+Kerem Şahin (1; language detection support)
+Jonas Hahnfeld (1; resource-dir check)
+Caevan Lin (1; thread-safe Dispatch API initialization)
+Janak Shah (1; printing policy fix)
