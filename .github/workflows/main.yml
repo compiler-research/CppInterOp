@@ -15,7 +15,51 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  prepare-dell:
+    name: Activate self-host infrastructure
+    runs-on: [self-hosted, spotter]
+    steps:
+      - name: Send Magic Packet
+        env:
+          TARGET_IP: 192.168.100.30
+          MAC_ADDR: a4:bb:6d:51:d5:d2
+          # The container has no ping, emulate it.
+        run: |
+          # Mask the IP and potential broadcast to keep logs clean
+          echo "::add-mask::$MAC_ADDR"
+          echo "::add-mask::$BROADCAST"
+          echo "::add-mask::$TARGET_IP"
+          BROADCAST=$(echo $TARGET_IP | sed 's/\.[0-9]*$/ .255/' | tr -d ' ')
+          PING="timeout 1 bash -c 'cat < /dev/null > /dev/tcp/$TARGET_IP/22' 2>/dev/null"
+
+          # Install tool silently
+          sudo apt-get update -qq && sudo apt-get install -y -qq wakeonlan > /dev/null
+
+          # Check if already awake (using the Bash TCP PING variable)
+          if eval "$PING"; then
+            echo "Target machine is already awake. Exiting."
+            exit 0
+          fi
+
+          # If offline, send WoL
+          echo "Machine is offline. Sending WoL..."
+          wakeonlan -i $BROADCAST $MAC_ADDR > /dev/null
+
+          # Wait & Verify Loop (checks every 10s for 4 minutes)
+          echo "Waiting for response (checking Port 22)..."
+          for i in {1..24}; do
+            if eval "$PING"; then
+              echo "Machine is online and SSH is ready."
+              exit 0
+            fi
+            sleep 10
+          done
+
+          echo "Error: Target hardware did not respond within the timeout period."
+          exit 1
+
   build:
+    needs: prepare-dell
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
     strategy:
@@ -27,7 +71,6 @@ jobs:
             os: ubuntu-24.04-arm
             compiler: gcc-12
             clang-runtime: '22'
-            cppyy: On
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
             Valgrind: On
@@ -73,10 +116,16 @@ jobs:
             os: ubuntu-24.04
             compiler: gcc-12
             clang-runtime: '22'
-            cppyy: On
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
             Valgrind: On
+            python-version: '3.14'
+          - name: self-hosted-ubu22-x86-gcc12-clang-repl-21-cuda
+            os: [self-hosted, cuda, heavy]
+            compiler: gcc-12
+            clang-runtime: '21'
+            llvm_enable_projects: "clang"
+            llvm_targets_to_build: "host;NVPTX"
             python-version: '3.14'
           - name: ubu24-x86-gcc12-clang-repl-21
             os: ubuntu-24.04
@@ -138,7 +187,6 @@ jobs:
             os: macos-26
             compiler: clang
             clang-runtime: '22'
-            cppyy: On
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host"
             python-version: '3.14'
@@ -190,7 +238,6 @@ jobs:
             os: macos-15-intel
             compiler: clang
             clang-runtime: '22'
-            cppyy: On
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host"
             python-version: '3.14'
@@ -280,6 +327,7 @@ jobs:
       uses: ./.github/actions/Miscellaneous/Save_PR_Info
 
     - name: Restore cached LLVM-${{ matrix.clang-runtime }} and ${{ matrix.cling == 'On' && 'Cling' || 'Clang-REPL' }} build
+      if: ${{ runner.environment != 'self-hosted' }}
       uses: actions/cache/restore@v4
       id: cache
       with:
@@ -297,19 +345,30 @@ jobs:
     - name: Install dependencies
       uses: ./.github/actions/Miscellaneous/Install_Dependencies
     
+    - name: Install LLVM-${{ matrix.clang-runtime }} dependencies on self-hosted
+      if: ${{ runner.environment == 'self-hosted' }}
+      shell: bash
+      run: |
+        wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc
+        codename="$(. /etc/os-release && echo $UBUNTU_CODENAME)"
+        echo "deb http://apt.llvm.org/${codename}/ llvm-toolchain-${codename}-${{ matrix.clang-runtime }} main" | sudo tee /etc/apt/sources.list.d/llvm.list
+        sudo apt-get update
+        sudo apt-get install -y llvm-${{ matrix.clang-runtime }}-dev libclang-${{ matrix.clang-runtime }}-dev clang-${{ matrix.clang-runtime }} libpolly-${{ matrix.clang-runtime }}-dev libzstd-dev
+
     - name: Build LLVM-${{ matrix.clang-runtime }} and ${{ matrix.cling == 'On' && 'Cling' || 'Clang-REPL' }}
+      if: ${{ runner.environment != 'self-hosted' }}
       uses: ./.github/actions/Build_LLVM
       with:
         cache-hit: ${{ steps.cache.outputs.cache-hit }}
 
-#    - name: Cache LLVM-${{ matrix.clang-runtime }} and ${{ matrix.cling == 'On' && 'Cling' || 'Clang-REPL' }} build
-#      uses: actions/cache/save@v4
-#      if: ${{ steps.cache.outputs.cache-hit != 'true' }}
-#      with:
-#        path: |
-#          llvm-project
-#          ${{ matrix.cling=='On' && 'cling' || '' }}
-#        key: ${{ steps.cache.outputs.cache-primary-key }}
+    - name: Cache LLVM-${{ matrix.clang-runtime }} and ${{ matrix.cling == 'On' && 'Cling' || 'Clang-REPL' }} build
+      uses: actions/cache/save@v4
+      if: ${{ runner.environment != 'self-hosted' && steps.cache.outputs.cache-hit != 'true' }}
+      with:
+        path: |
+          llvm-project
+          ${{ matrix.cling=='On' && 'cling' || '' }}
+        key: ${{ steps.cache.outputs.cache-primary-key }}
 
     - name: Setup code coverage
       if: ${{ success() && (matrix.coverage == true) }}
@@ -358,6 +417,7 @@ jobs:
       uses: mxschmitt/action-tmate@v3
       # When debugging increase to a suitable value!
       timeout-minutes: 30
+
 
 
 

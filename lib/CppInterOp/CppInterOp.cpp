@@ -3640,11 +3640,7 @@ int Declare(const char* code, bool silent) {
 int Process(const char* code) { return getInterp().process(code); }
 
 intptr_t Evaluate(const char* code, bool* HadError /*=nullptr*/) {
-#ifdef CPPINTEROP_USE_CLING
-  cling::Value V;
-#else
-  clang::Value V;
-#endif // CPPINTEROP_USE_CLING
+  compat::Value V;
 
   if (HadError)
     *HadError = false;
