@@ -319,8 +319,11 @@ jobs:
       if: ${{ runner.environment == 'self-hosted' }}
       shell: bash
       run: |
+        wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc
+        codename="$(. /etc/os-release && echo $UBUNTU_CODENAME)"
+        echo "deb http://apt.llvm.org/${codename}/ llvm-toolchain-${codename}-${{ matrix.clang-runtime }} main" | sudo tee /etc/apt/sources.list.d/llvm.list
         sudo apt-get update
-        sudo apt-get install -y llvm-${{ matrix.clang-runtime }}-dev libclang-${{ matrix.clang-runtime }}-dev clang-${{ matrix.clang-runtime }} libzstd-dev gcc-12 g++-12
+        sudo apt-get install -y llvm-${{ matrix.clang-runtime }}-dev libclang-${{ matrix.clang-runtime }}-dev clang-${{ matrix.clang-runtime }} libpolly-${{ matrix.clang-runtime }}-dev libzstd-dev
 
     - name: Build LLVM-${{ matrix.clang-runtime }} and ${{ matrix.cling == 'On' && 'Cling' || 'Clang-REPL' }}
       if: ${{ runner.environment != 'self-hosted' }}
