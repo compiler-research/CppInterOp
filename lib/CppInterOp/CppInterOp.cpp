@@ -1333,11 +1333,9 @@ DeclRef GetNamed(const std::string& name, ConstDeclRef parent /*= nullptr*/) {
     auto* D = unwrap<clang::Decl>(GetUnderlyingScope(parent));
     Within = llvm::dyn_cast<clang::DeclContext>(D);
   }
-#ifdef CPPINTEROP_USE_CLING
+  compat::SynthesizingCodeRAII RAII(&getInterp());
   if (Within)
     Within->getPrimaryContext()->buildLookup();
-#endif
-  compat::SynthesizingCodeRAII RAII(&getInterp());
 
   // Fast path: qualified lookup. Cheap, no DRef-chain allocation, and
   // resolves every name not brought into `Within` via a using-directive.
