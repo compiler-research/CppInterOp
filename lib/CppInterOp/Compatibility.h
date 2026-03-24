@@ -17,8 +17,8 @@
 #define Suppress_Elab Policy.SuppressElaboration = true;
 #define Suppress_Elab_2 PP.SuppressElaboration = true;
 #else
-#define Suppress_Elab
-#define Suppress_Elab_2
+#define Suppress_Elab Policy.FullyQualifiedName = true;
+#define Suppress_Elab_2 PP.FullyQualifiedName = true;
 #endif
 
 
