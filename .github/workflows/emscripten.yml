@@ -377,7 +377,8 @@ jobs:
           }
           elseif ( "${{ matrix.clang-runtime }}" -imatch "22" )
           {
-            git apply -v emscripten-clang22-1-enable_exception_handling.patch 
+            git apply -v emscripten-clang22-1-enable_exception_handling.patch
+            git apply -v emscripten-clang22-2-webassembly_target_machine_reordering.patch
           }
           cd build
           echo "Apply clang${{ matrix.clang-runtime }}-*.patch patches:"
