@@ -14,11 +14,9 @@
 #include "clang/Sema/Sema.h"
 
 #if CLANG_VERSION_MAJOR < 22
-#define Suppress_Elab Policy.SuppressElaboration = true;
-#define Suppress_Elab_2 PP.SuppressElaboration = true;
+#define Suppress_Elab SuppressElaboration
 #else
-#define Suppress_Elab Policy.FullyQualifiedName = true;
-#define Suppress_Elab_2 PP.FullyQualifiedName = true;
+#define Suppress_Elab FullyQualifiedName
 #endif
 
 

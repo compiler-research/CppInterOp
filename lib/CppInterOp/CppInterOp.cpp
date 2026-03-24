@@ -613,7 +613,7 @@ static std::string GetCompleteNameImpl(TCppType_t klass, bool qualified) {
     Policy.SuppressUnwrittenScope = true;
     if (qualified) {
       Policy.FullyQualifiedName = true;
-      Suppress_Elab
+       Policy.Suppress_Elab = true;
     } else {
       Policy.SuppressScope = true;
       Policy.AnonymousTagLocations = false;
@@ -1821,7 +1821,7 @@ std::string GetTypeAsString(TCppType_t var) {
   PrintingPolicy Policy(getASTContext().getPrintingPolicy());
   Policy.Bool = true;               // Print bool instead of _Bool.
   Policy.SuppressTagKeyword = true; // Do not print `class std::string`.
-  Suppress_Elab
+  Policy.Suppress_Elab = true;
   Policy.FullyQualifiedName = true;
   return QT.getAsString(Policy);
 }
@@ -2024,7 +2024,7 @@ void get_type_as_string(QualType QT, std::string& type_name, ASTContext& C,
   //       cling::utils::Transform::GetPartiallyDesugaredType()
   if (!QT->isTypedefNameType() || QT->isBuiltinType())
     QT = QT.getDesugaredType(C);
-  Suppress_Elab
+  Policy.Suppress_Elab = true;
   Policy.SuppressTagKeyword = !QT->isEnumeralType();
   Policy.FullyQualifiedName = true;
   Policy.UsePreferredNames = false;
@@ -2070,7 +2070,7 @@ void collect_type_info(const FunctionDecl* FD, QualType& QT,
   //
   ASTContext& C = FD->getASTContext();
   PrintingPolicy Policy(C.getPrintingPolicy());
-  Suppress_Elab
+  Policy.Suppress_Elab = true;
   refType = kNotReference;
   if (QT->isRecordType()) {
     if (forArgument) {
@@ -2299,7 +2299,7 @@ void make_narg_call(const FunctionDecl* FD, const std::string& return_type,
       PrintingPolicy PP = FD->getASTContext().getPrintingPolicy();
       PP.FullyQualifiedName = true;
       PP.SuppressUnwrittenScope = true;
-      Suppress_Elab_2
+      PP.Suppress_Elab = true;
       FD->getNameForDiagnostic(stream, PP,
                                /*Qualified=*/false);
       name = complete_name;
