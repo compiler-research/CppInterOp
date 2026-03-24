@@ -613,7 +613,7 @@ static std::string GetCompleteNameImpl(TCppType_t klass, bool qualified) {
     Policy.SuppressUnwrittenScope = true;
     if (qualified) {
       Policy.FullyQualifiedName = true;
-       Policy.Suppress_Elab = true;
+      Policy.Suppress_Elab = true;
     } else {
       Policy.SuppressScope = true;
       Policy.AnonymousTagLocations = false;
@@ -3790,7 +3790,8 @@ static Decl* InstantiateTemplate(TemplateDecl* TemplateD,
 #if CLANG_VERSION_MAJOR < 22
     DeclResult R = S.CheckVarTemplateId(VarTemplate, fakeLoc, fakeLoc, TLI);
 #else
-    DeclResult R = S.CheckVarTemplateId(VarTemplate, fakeLoc, fakeLoc, TLI, /*SetWrittenArgs=*/true);
+    DeclResult R = S.CheckVarTemplateId(VarTemplate, fakeLoc, fakeLoc, TLI,
+                                        /*SetWrittenArgs=*/true);
 #endif
     if (R.isInvalid()) {
       // FIXME: Diagnose
@@ -3803,7 +3804,9 @@ static Decl* InstantiateTemplate(TemplateDecl* TemplateD,
 #if CLANG_VERSION_MAJOR < 22
   QualType TT = S.CheckTemplateIdType(TemplateName(TemplateD), noLoc, TLI);
 #else
-  QualType TT = S.CheckTemplateIdType(ElaboratedTypeKeyword::None, TemplateName(TemplateD), noLoc, TLI, /*Scope=*/nullptr, /*ForNestedNameSpecifier=*/false);
+  QualType TT = S.CheckTemplateIdType(
+      ElaboratedTypeKeyword::None, TemplateName(TemplateD), noLoc, TLI,
+      /*Scope=*/nullptr, /*ForNestedNameSpecifier=*/false);
 #endif
   if (TT.isNull())
     return nullptr;

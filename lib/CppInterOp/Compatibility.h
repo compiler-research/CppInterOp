@@ -19,7 +19,6 @@
 #define Suppress_Elab FullyQualifiedName
 #endif
 
-
 #if CLANG_VERSION_MAJOR < 22
 #define Get_Tag_Type getTagDeclType
 #else
@@ -362,17 +361,18 @@ inline void maybeMangleDeclName(const clang::GlobalDecl& GD,
 
 inline llvm::orc::LLJIT* getExecutionEngine(clang::Interpreter& I) {
 #if CLANG_VERSION_MAJOR < 22
-   auto* engine = &llvm::cantFail(I.getExecutionEngine());
-   return const_cast<llvm::orc::LLJIT*>(engine);
+  auto* engine = &llvm::cantFail(I.getExecutionEngine());
+  return const_cast<llvm::orc::LLJIT*>(engine);
 #else
   // FIXME: Remove the need of exposing the low-level execution engine and kill
   // this horrible hack.
-   struct OrcIncrementalExecutor : public clang::IncrementalExecutor {
-     std::unique_ptr<llvm::orc::LLJIT> Jit;
-   };
+  struct OrcIncrementalExecutor : public clang::IncrementalExecutor {
+    std::unique_ptr<llvm::orc::LLJIT> Jit;
+  };
 
-   auto &engine = static_cast<OrcIncrementalExecutor&>(llvm::cantFail(I.getExecutionEngine()));
-   return engine.Jit.get();
+  auto& engine = static_cast<OrcIncrementalExecutor&>(
+      llvm::cantFail(I.getExecutionEngine()));
+  return engine.Jit.get();
 #endif
 }
 
