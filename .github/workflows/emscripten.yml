@@ -428,6 +428,15 @@ jobs:
           cd ..\..
         }
 
+    - name: Cache LLVM-${{ matrix.clang-runtime }} and ${{ matrix.cling == 'On' && 'Cling' || 'Clang-REPL' }} build
+      uses: actions/cache/save@v4
+      if: ${{ steps.cache.outputs.cache-hit != 'true' }}
+      with:
+        path: |
+          llvm-project
+          ${{ matrix.cling=='On' && 'cling' || '' }}
+        key: ${{ steps.cache.outputs.cache-primary-key }}
+
     - name: install mamba
       uses: mamba-org/setup-micromamba@main
       with:
