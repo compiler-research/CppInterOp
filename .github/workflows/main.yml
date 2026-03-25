@@ -138,14 +138,6 @@ jobs:
             oop-jit: On
             Valgrind: On
             python-version: '3.13'
-          - name: ubu24-x86-gcc12-clang-repl-20-out-of-process-coverage
-            os: ubuntu-24.04
-            compiler: gcc-12
-            clang-runtime: '20'
-            llvm_enable_projects: "clang;compiler-rt"
-            llvm_targets_to_build: "host;NVPTX"
-            oop-jit: On
-            python-version: '3.13'
           - name: ubu24-x86-gcc12-clang-repl-19-cppyy
             os: ubuntu-24.04
             compiler: gcc-12
