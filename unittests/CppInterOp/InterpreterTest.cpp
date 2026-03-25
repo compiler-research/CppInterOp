@@ -17,8 +17,9 @@
 #include "clang-c/CXCppInterOp.h"
 
 #include "llvm/ADT/SmallString.h"
+#include "llvm/Config/llvm-config.h"
+#include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Path.h"
-#include <llvm/Support/FileSystem.h>
 
 #include <gmock/gmock.h>
 #include "gtest/gtest.h"
@@ -31,11 +32,11 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_Version) {
   EXPECT_THAT(Cpp::GetVersion(), StartsWith("CppInterOp version"));
 }
 
-#ifdef NDEBUG
+#ifndef LLVM_ENABLE_ASSERTIONS
 TYPED_TEST(CPPINTEROP_TEST_MODE, DISABLED_Interpreter_DebugFlag) {
 #else
 TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_DebugFlag) {
-#endif // NDEBUG
+#endif // LLVM_ENABLE_ASSERTIONS
   TestFixture::CreateInterpreter();
   EXPECT_FALSE(Cpp::IsDebugOutputEnabled());
   std::string cerrs;
