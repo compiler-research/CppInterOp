@@ -104,13 +104,14 @@ jobs:
             llvm_targets_to_build: "host;NVPTX"
             python-version: '3.14'
           # Ubuntu X86 Jobs
-          - name: self-hosted-ubu22-x86-gcc12-clang-repl-21-cuda
+          - name: selfh-ubu22-x86-gcc12-clang-repl-21-cuda
             os: [self-hosted, cuda, heavy]
             compiler: gcc-12
             clang-runtime: '21'
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
             python-version: '3.14'
+            coverage: true
           - name: ubu24-x86-gcc12-clang-repl-21
             os: ubuntu-24.04
             compiler: gcc-12
@@ -135,7 +136,6 @@ jobs:
             llvm_enable_projects: "clang;compiler-rt"
             llvm_targets_to_build: "host;NVPTX"
             oop-jit: On
-            coverage: true
             Valgrind: On
             python-version: '3.13'
           - name: ubu24-x86-gcc12-clang-repl-20-out-of-process-coverage
@@ -145,7 +145,6 @@ jobs:
             llvm_enable_projects: "clang;compiler-rt"
             llvm_targets_to_build: "host;NVPTX"
             oop-jit: On
-            coverage: true
             python-version: '3.13'
           - name: ubu24-x86-gcc12-clang-repl-19-cppyy
             os: ubuntu-24.04
@@ -343,7 +342,7 @@ jobs:
     - name: Setup code coverage
       if: ${{ success() && (matrix.coverage == true) }}
       run: |
-        sudo apt install lcov
+        sudo apt-get install -y lcov
         echo "CODE_COVERAGE=1" >> $GITHUB_ENV
         echo "BUILD_TYPE=Debug" >> $GITHUB_ENV
 
