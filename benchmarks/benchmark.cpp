@@ -48,11 +48,7 @@ static void cpp_getversion() {
 }
 
 static void cpp_process() {
-  static bool initialized = false;
-  if (!initialized) {
-    Cpp::CreateInterpreter();
-    initialized = true;
-  }
+  Cpp::CreateInterpreter();
   Cpp::Process("int a = 12;");
 }
 
