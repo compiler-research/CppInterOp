@@ -3497,6 +3497,13 @@ TInterp_t GetInterpreter() {
 InterpreterLanguage GetLanguage(TInterp_t I /*=nullptr*/) {
   compat::Interpreter* interp = &getInterp(I);
   const auto& LO = interp->getCI()->getLangOpts();
+
+  // CUDA and HIP reuse C++ language standards, so LangStd alone reports CXX.
+  if (LO.CUDA)
+    return InterpreterLanguage::CUDA;
+  if (LO.HIP)
+    return InterpreterLanguage::HIP;
+
   auto standard = clang::LangStandard::getLangStandardForKind(LO.LangStd);
   auto lang = static_cast<InterpreterLanguage>(standard.getLanguage());
   assert(lang != InterpreterLanguage::Unknown && "Unknown language");
