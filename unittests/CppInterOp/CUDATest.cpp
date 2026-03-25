@@ -106,3 +106,62 @@ TEST_F(CUDATest, Interpreter_GetLanguageCUDA) {
     GTEST_SKIP() << "CUDA interpreter creation failed";
   EXPECT_EQ(Cpp::GetLanguage(nullptr), Cpp::InterpreterLanguage::CUDA);
 }
+
+// demonstrate incremental CUDA compilation with CUB BlockReduce
+// with a __device__ transform, multi-block atomicAdd
+TEST_F(CUDATest, CUB_BlockReduceWithDeviceFunction) {
+  if (!HasRuntime)
+    return;
+
+  Cpp::CreateInterpreter({}, {"--cuda"});
+
+  EXPECT_EQ(0, Cpp::Declare(R"(
+    #include <cub/block/block_reduce.cuh>
+
+    constexpr int BLOCK_SIZE = 128;
+
+    __device__ int transform(int x) { return x * x; }
+
+    __global__ void sumOfSquaresKernel(const int* __restrict__ input,
+                                       int* __restrict__ output, int N) {
+      using BlockReduceT = cub::BlockReduce<int, BLOCK_SIZE>;
+      __shared__ typename BlockReduceT::TempStorage temp_storage;
+
+      int idx = blockIdx.x * BLOCK_SIZE + threadIdx.x;
+      int val = (idx < N) ? transform(input[idx]) : 0;
+      int block_sum = BlockReduceT(temp_storage).Sum(val);
+      if (threadIdx.x == 0)
+        atomicAdd(output, block_sum);
+    }
+  )" DFLT_FALSE))
+      << "Failed to declare kernel";
+
+  EXPECT_EQ(0, Cpp::Declare(R"(
+    const int N = 256;
+    int* d_in;
+    int* d_out;
+    cudaMallocManaged(&d_in, N * sizeof(int));
+    cudaMallocManaged(&d_out, sizeof(int));
+    for (int i = 0; i < N; i++) d_in[i] = i + 1; // 1..256
+    *d_out = 0;
+    int numBlocks = (N + BLOCK_SIZE - 1) / BLOCK_SIZE;
+    sumOfSquaresKernel<<<numBlocks, BLOCK_SIZE>>>(d_in, d_out, N);
+    cudaError_t launchErr = cudaGetLastError();
+    cudaError_t syncErr = cudaDeviceSynchronize();
+  )" DFLT_FALSE))
+      << "Failed to launch kernel";
+
+  bool err = false;
+  EXPECT_EQ((int)Cpp::Evaluate("(int)launchErr", &err), 0);
+  EXPECT_FALSE(err);
+  EXPECT_EQ((int)Cpp::Evaluate("(int)syncErr", &err), 0);
+  EXPECT_FALSE(err);
+
+  // read result directly from managed memory
+  intptr_t result = Cpp::Evaluate("*d_out", &err);
+  EXPECT_FALSE(err);
+  // sum of squares: 1^2 + 2^2 + ... + 256^2 = 5625216
+  EXPECT_EQ((int)result, 5625216);
+
+  Cpp::Declare("cudaFree(d_in); cudaFree(d_out);" DFLT_FALSE);
+}
