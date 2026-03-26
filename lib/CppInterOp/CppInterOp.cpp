@@ -176,6 +176,27 @@ static compat::Interpreter& getInterp(TInterp_t I = nullptr) {
 static clang::Sema& getSema() { return getInterp().getCI()->getSema(); }
 static clang::ASTContext& getASTContext() { return getSema().getASTContext(); }
 
+std::string GetLLVMMouleFor(TCppScope_t scope, TInterp_t Interp) {
+  auto* D = static_cast<clang::Decl*>(scope);
+  auto& I = getInterp(Interp);
+
+  ASTContext& C = I.getSema().getASTContext();
+
+  D->addAttr(UsedAttr::CreateImplicit(C));
+  I.getCI()->getASTConsumer().HandleTopLevelDecl(DeclGroupRef(D));
+
+  // FIXME: We parse and create a PTU but don't send it to JIT. Is this safe?
+  auto GeneratedPTU = I.Parse("");
+  if (!GeneratedPTU)
+    return "";
+
+  std::string ModuleCode;
+  llvm::raw_string_ostream OS(ModuleCode);
+  GeneratedPTU->TheModule->print(OS, nullptr);
+  OS.flush();
+  return ModuleCode;
+}
+
 static void ForceCodeGen(Decl* D, compat::Interpreter& I) {
   // The decl was deferred by CodeGen. Force its emission.
   // FIXME: In ASTContext::DeclMustBeEmitted we should check if the
@@ -350,6 +371,12 @@ bool IsClass(TCppScope_t scope) {
 bool IsFunction(TCppScope_t scope) {
   Decl* D = static_cast<Decl*>(scope);
   return isa<FunctionDecl>(D);
+}
+
+bool IsInlineFunction(TCppScope_t scope) {
+  Decl* D = static_cast<Decl*>(scope);
+  return isa<FunctionDecl>(D) &&
+         llvm::dyn_cast<FunctionDecl>(D)->isInlineSpecified();
 }
 
 bool IsFunctionPointerType(TCppType_t type) {
@@ -1425,6 +1452,20 @@ TCppFuncAddr_t GetFunctionAddress(const char* mangled_name) {
     return llvm::jitTargetAddressToPointer<void*>(*FDAorErr);
 
   return nullptr;
+}
+
+std::string MangledNameOf(TCppScope_t scope) {
+  auto* D = static_cast<Decl*>(scope);
+  if (auto* FD = llvm::dyn_cast_or_null<FunctionDecl>(D)) {
+    auto* MangleCtxt = getASTContext().createMangleContext();
+    std::string mangled_name;
+    llvm::raw_string_ostream ostream(mangled_name);
+    MangleCtxt->mangleName(FD, ostream);
+    ostream.flush();
+    delete MangleCtxt;
+    return mangled_name;
+  }
+  return "";
 }
 
 static TCppFuncAddr_t GetFunctionAddress(const FunctionDecl* FD) {
