@@ -584,6 +584,7 @@ public:
   SynthesizingCodeRAII(Interpreter* i) : m_Interpreter(i) {}
   // ~SynthesizingCodeRAII() {} // TODO: implement
 };
+
 } // namespace compat
 
 #endif // CPPINTEROP_USE_REPL
@@ -626,6 +627,25 @@ inline void InstantiateClassTemplateSpecialization(
       /*PrimaryHasMatchedPackOnParmToNonPackOnArg=*/false);
 #endif
 }
+
+class DiagnosticsEngineRAII {
+private:
+  clang::DiagnosticsEngine& diags;
+
+public:
+  bool reset_condition; // additional condition to reset diagnostics
+
+  DiagnosticsEngineRAII(clang::DiagnosticsEngine& d, bool c = true)
+      : diags(d), reset_condition(c) {}
+  ~DiagnosticsEngineRAII() {
+    if (diags.hasErrorOccurred() && reset_condition) {
+      // instantiation failed, need to reset DiagnosticsEngine
+      diags.Reset(/*soft=*/true);
+      diags.getClient()->clear();
+    }
+  }
+};
+
 } // namespace compat
 
 #endif // CPPINTEROP_COMPATIBILITY_H
