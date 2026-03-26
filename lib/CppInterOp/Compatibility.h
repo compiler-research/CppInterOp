@@ -31,7 +31,7 @@
 #include <cstring>
 #include <memory>
 #include <string>
-  
+
 #if CLANG_VERSION_MAJOR < 22
 #define Suppress_Elab SuppressElaboration
 #else
