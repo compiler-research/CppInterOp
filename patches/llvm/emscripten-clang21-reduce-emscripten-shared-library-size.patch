@@ -1,0 +1,13 @@
+diff --git a/llvm/include/llvm/Support/Compiler.h b/llvm/include/llvm/Support/Compiler.h
+index 297d3e9b0..bf11024cf 100644
+--- a/llvm/include/llvm/Support/Compiler.h
++++ b/llvm/include/llvm/Support/Compiler.h
+@@ -202,7 +202,7 @@
+ #define LLVM_EXPORT_TEMPLATE
+ #define LLVM_ABI_EXPORT LLVM_ABI
+ #elif defined(__MACH__) || defined(__WASM__) || defined(__EMSCRIPTEN__)
+-#define LLVM_ABI __attribute__((visibility("default")))
++#define LLVM_ABI
+ #define LLVM_TEMPLATE_ABI
+ #define LLVM_EXPORT_TEMPLATE
+ #define LLVM_ABI_EXPORT LLVM_ABI
