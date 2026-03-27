@@ -1214,3 +1214,50 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_GetOperator) {
                    ops DFLT_OP_ARITY);
   EXPECT_EQ(ops.size(), 1);
 }
+
+TEST(ScopeReflectionTest, RequireCompleteType) {
+  Cpp::Declare("class Complete { int x; };" DFLT_FALSE);
+  auto* complete = Cpp::GetNamed("Complete" DFLT_NULLPTR);
+  EXPECT_TRUE(Cpp::IsComplete(complete));
+  EXPECT_TRUE(Cpp::RequireCompleteType(complete));
+
+  Cpp::Declare("class NotDefined;" DFLT_FALSE);
+  auto* fwd = Cpp::GetNamed("NotDefined" DFLT_NULLPTR);
+  EXPECT_FALSE(Cpp::IsComplete(fwd));
+  EXPECT_FALSE(Cpp::RequireCompleteType(fwd));
+  EXPECT_FALSE(Cpp::IsComplete(fwd));
+
+  Cpp::Declare(R"(
+    class ForwardThenComplete;
+    class ForwardThenComplete { 
+      int data; 
+      void meth();
+    };
+  )" DFLT_FALSE);
+  auto* ftc = Cpp::GetNamed("ForwardThenComplete" DFLT_NULLPTR);
+  EXPECT_TRUE(Cpp::IsComplete(ftc));
+  EXPECT_TRUE(Cpp::RequireCompleteType(ftc));
+
+  Cpp::Declare(R"(
+    template<typename T>
+    class MyTemplate { T value; };
+  )" DFLT_FALSE);
+  auto* tmpl = Cpp::GetNamed("MyTemplate<int>" DFLT_NULLPTR);
+  if (tmpl) {
+    EXPECT_TRUE(Cpp::RequireCompleteType(tmpl));
+    EXPECT_TRUE(Cpp::IsComplete(tmpl));
+  }
+
+  Cpp::Declare("struct SimpleStruct { float f; };" DFLT_FALSE);
+  auto* st = Cpp::GetNamed("SimpleStruct" DFLT_NULLPTR);
+  EXPECT_TRUE(Cpp::RequireCompleteType(st));
+
+  Cpp::Declare("enum Status { OK, ERROR };" DFLT_FALSE);
+  auto* enm = Cpp::GetNamed("Status" DFLT_NULLPTR);
+  EXPECT_TRUE(Cpp::IsComplete(enm));
+  EXPECT_TRUE(Cpp::RequireCompleteType(enm));
+
+  Cpp::Declare("namespace TestNS {}" DFLT_FALSE);
+  auto* ns = Cpp::GetNamed("TestNS" DFLT_NULLPTR);
+  EXPECT_FALSE(Cpp::RequireCompleteType(ns));
+}

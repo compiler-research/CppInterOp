@@ -365,6 +365,9 @@ CPPINTEROP_API bool IsClassPolymorphic(TCppScope_t klass);
 /// template instantiation if necessary.
 CPPINTEROP_API bool IsComplete(TCppScope_t scope);
 
+// Forces type completion if it is not complete
+CPPINTEROP_API bool RequireCompleteType(TCppScope_t scope);
+
 CPPINTEROP_API size_t SizeOf(TCppScope_t scope);
 
 /// Checks if it is a "built-in" or a "complex" type.
