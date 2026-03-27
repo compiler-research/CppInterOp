@@ -38,6 +38,12 @@
 #include <string>
 
 #if CLANG_VERSION_MAJOR < 22
+#define clang_driver_options clang::driver::options
+#else
+#define clang_driver_options clang::options
+#endif
+
+#if CLANG_VERSION_MAJOR < 22
 #define Suppress_Elab SuppressElaboration
 #else
 #define Suppress_Elab FullyQualifiedName
@@ -282,7 +288,7 @@ inline bool detectCudaInstallPath(const std::vector<const char*>& args,
 
   // --cuda-path was explicitly provided in user args
   if (auto* A =
-          C->getArgs().getLastArg(clang::driver::options::OPT_cuda_path_EQ)) {
+          C->getArgs().getLastArg(clang_driver_options::OPT_cuda_path_EQ)) {
     std::string Candidate = A->getValue();
     if (llvm::sys::fs::is_directory(Candidate + "/include")) {
       CudaPath = Candidate;
