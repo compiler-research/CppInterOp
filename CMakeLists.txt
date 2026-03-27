@@ -16,6 +16,10 @@ if(EMSCRIPTEN)
   set(CPPINTEROP_EXTRA_WASM_FLAGS "-fwasm-exceptions" CACHE STRING "Extra flags for wasm")
 endif()
 
+# Clad plugin options
+option(CPPINTEROP_ENABLE_CLAD "Enable the Clad automatic differentiation plugin." OFF)
+set(CLAD_BUILD_TYPE "Release" CACHE STRING "Build type for clad plugins")
+
 if (CPPINTEROP_USE_CLING AND CPPINTEROP_USE_REPL)
 message(FATAL_ERROR "We can only use Cling (${CPPINTEROP_USE_CLING}=On) or Repl (CPPINTEROP_USE_REPL=On), but not both of them.")
 endif()
@@ -531,6 +535,12 @@ endif()
 
 if (CPPINTEROP_INCLUDE_DOCS)
   add_subdirectory(docs)
+endif()
+
+if(CPPINTEROP_ENABLE_CLAD)
+  message(STATUS "CPPINTEROP_ENABLE_CLAD is ON: Building CppInterOp Clad plugin.")
+  message(STATUS "Clad build type: ${CLAD_BUILD_TYPE}")
+  add_subdirectory(plugins/clad)
 endif()
 
 add_subdirectory(lib)
