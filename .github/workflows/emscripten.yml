@@ -53,6 +53,42 @@ jobs:
             emsdk_ver: "4.0.9"
             build_static_library: On
             micromamba_shell_init: powershell
+          - name: ubu24-arm-clang-repl-22-emscripten
+            os: ubuntu-24.04-arm
+            clang-runtime: '22'
+            cling: Off
+            llvm_enable_projects: "clang;lld"
+            llvm_targets_to_build: "WebAssembly"
+            emsdk_ver: "4.0.9"
+            build_static_library: On
+            micromamba_shell_init: bash  
+          - name: osx26-arm-clang-repl-22-emscripten
+            os: macos-26
+            clang-runtime: '22'
+            cling: Off
+            llvm_enable_projects: "clang;lld"
+            llvm_targets_to_build: "WebAssembly"
+            emsdk_ver: "4.0.9"
+            build_static_library: On
+            micromamba_shell_init: bash
+          - name: ubu24-x86-clang-repl-22-emscripten
+            os: ubuntu-24.04
+            clang-runtime: '22'
+            cling: Off
+            llvm_enable_projects: "clang;lld"
+            llvm_targets_to_build: "WebAssembly"
+            emsdk_ver: "4.0.9"
+            build_static_library: On
+            micromamba_shell_init: bash
+          - name: win2025-x86-clang-repl-22-emscripten
+            os: windows-2025
+            clang-runtime: '22'
+            cling: Off
+            llvm_enable_projects: "clang;lld"
+            llvm_targets_to_build: "WebAssembly"
+            emsdk_ver: "4.0.9"
+            build_static_library: On
+            micromamba_shell_init: powershell
 
     steps:
     - uses: actions/checkout@v6
@@ -173,7 +209,7 @@ jobs:
         else
           # Apply patches
           llvm_vers=$(echo "${{ matrix.clang-runtime }}" | tr '[:lower:]' '[:upper:]')
-          if [[ "${llvm_vers}" == "19" || "${llvm_vers}" == "20" || "${llvm_vers}" == "21"  ]]; then
+          if [[ "${llvm_vers}" == "19" || "${llvm_vers}" == "20" || "${llvm_vers}" == "21" || "${llvm_vers}" == "22" ]]; then
             git apply -v ../patches/llvm/emscripten-clang${{ matrix.clang-runtime }}-*.patch
             echo "Apply emscripten-clang${{ matrix.clang-runtime }}-*.patch patches:"
           fi
@@ -306,6 +342,11 @@ jobs:
             git apply -v emscripten-clang21-1-shift-temporary-files-to-tmp-dir.patch
             git apply -v emscripten-clang21-2-enable_exception_handling.patch
             git apply -v emscripten-clang21-3-webassembly_target_machine_reordering.patch
+          }
+          elseif ( "${{ matrix.clang-runtime }}" -imatch "22" )
+          {
+            git apply -v emscripten-clang22-1-enable_exception_handling.patch
+            git apply -v emscripten-clang22-2-webassembly_target_machine_reordering.patch
           }
           cd build
           echo "Apply clang${{ matrix.clang-runtime }}-*.patch patches:"
