@@ -19,12 +19,12 @@
 #include "clang/Basic/Version.h"
 #include "clang/Config/config.h"
 #include "clang/Driver/Compilation.h"
+#include "clang/Driver/Driver.h"
 #if CLANG_VERSION_MAJOR < 22
 #include "clang/Driver/Options.h"
 #else
 #include "clang/Options/Options.h"
 #endif
-#include "clang/Driver/Options.h"
 #include "clang/Frontend/TextDiagnosticBuffer.h"
 #include "clang/Sema/Sema.h"
 
