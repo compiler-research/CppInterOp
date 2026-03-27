@@ -612,19 +612,11 @@ inline void InstantiateClassTemplateSpecialization(
 #ifdef CPPINTEROP_USE_CLING
   cling::Interpreter::PushTransactionRAII RAII(&interp);
 #endif
-#if CLANG_VERSION_MAJOR < 20
-  interp.getSema().InstantiateClassTemplateSpecialization(
-      clang::SourceLocation::getFromRawEncoding(1), CTSD,
-
-      clang::TemplateSpecializationKind::TSK_ExplicitInstantiationDefinition,
-      /*Complain=*/true);
-#else
   interp.getSema().InstantiateClassTemplateSpecialization(
       clang::SourceLocation::getFromRawEncoding(1), CTSD,
       clang::TemplateSpecializationKind::TSK_ExplicitInstantiationDefinition,
       /*Complain=*/true,
       /*PrimaryHasMatchedPackOnParmToNonPackOnArg=*/false);
-#endif
 }
 } // namespace compat
 

@@ -84,14 +84,6 @@ jobs:
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
             python-version: '3.13'
-          - name: ubu24-arm-gcc12-clang-repl-19-cppyy
-            os: ubuntu-24.04-arm
-            compiler: gcc-12
-            clang-runtime: '19'
-            cppyy: On
-            llvm_enable_projects: "clang"
-            llvm_targets_to_build: "host;NVPTX"
-            python-version: '3.12'
           - name: ubu24-arm-gcc14-clang20-cling-cppyy
             os: ubuntu-24.04-arm
             compiler: gcc-14
@@ -138,14 +130,6 @@ jobs:
             oop-jit: On
             Valgrind: On
             python-version: '3.13'
-          - name: ubu24-x86-gcc12-clang-repl-19-cppyy
-            os: ubuntu-24.04
-            compiler: gcc-12
-            clang-runtime: '19'
-            cppyy: On
-            llvm_enable_projects: "clang"
-            llvm_targets_to_build: "host;NVPTX"
-            python-version: '3.12'
           - name: ubu24-x86-gcc14-clang20-cling-cppyy
             os: ubuntu-24.04
             compiler: gcc-14
@@ -182,14 +166,6 @@ jobs:
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host"
             python-version: '3.13'
-          - name: osx26-arm-clang-clang-repl-19-cppyy
-            os: macos-26
-            compiler: clang
-            clang-runtime: '19'
-            cppyy: On
-            llvm_enable_projects: "clang"
-            llvm_targets_to_build: "host"
-            python-version: '3.12'
           - name: osx26-arm-clang-clang20-cling-cppyy
             os: macos-26
             compiler: clang
@@ -218,14 +194,6 @@ jobs:
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host"
             python-version: '3.13'
-          - name: osx15-x86-clang-clang-repl-19-cppyy
-            os: macos-15-intel
-            compiler: clang
-            clang-runtime: '19'
-            cppyy: On
-            llvm_enable_projects: "clang"
-            llvm_targets_to_build: "host"
-            python-version: '3.12'
           - name: osx15-x86-clang-clang20-cling-cppyy
             os: macos-15-intel
             compiler: clang
