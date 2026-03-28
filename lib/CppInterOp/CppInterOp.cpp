@@ -1416,7 +1416,7 @@ bool IsExplicit(TCppConstFunction_t method) {
   return false;
 }
 
-TCppFuncAddr_t GetFunctionAddress(const char* mangled_name) {
+TCppFuncAddr_t GetFunctionAddressFromMangledName(const char* mangled_name) {
   auto& I = getInterp();
   auto FDAorErr = compat::getSymbolAddress(I, mangled_name);
   if (llvm::Error Err = FDAorErr.takeError())
@@ -1448,7 +1448,7 @@ static TCppFuncAddr_t GetFunctionAddress(const FunctionDecl* FD) {
 
   // Constructor and Destructors needs to be handled differently
   if (!llvm::isa<CXXConstructorDecl>(FD) && !llvm::isa<CXXDestructorDecl>(FD))
-    return GetFunctionAddress(get_mangled_name(FD).c_str());
+    return GetFunctionAddressFromMangledName(get_mangled_name(FD).c_str());
 
   return 0;
 }

@@ -33,7 +33,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, DynamicLibraryManager_Sanity) {
     GTEST_SKIP() << "Test fails for OOP JIT builds";
 
   EXPECT_TRUE(TestFixture::CreateInterpreter());
-  EXPECT_FALSE(Cpp::GetFunctionAddress("ret_zero"));
+  EXPECT_FALSE(Cpp::GetFunctionAddressFromMangledName("ret_zero"));
 
   std::string BinaryPath = GetExecutablePath(/*Argv0=*/nullptr);
   llvm::StringRef Dir = llvm::sys::path::parent_path(BinaryPath);
@@ -59,14 +59,14 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, DynamicLibraryManager_Sanity) {
   Cpp::Process("");
   // FIXME: Conda returns false to run this code on osx.
 #ifndef __APPLE__
-  EXPECT_TRUE(Cpp::GetFunctionAddress("ret_zero"));
+  EXPECT_TRUE(Cpp::GetFunctionAddressFromMangledName("ret_zero"));
 #endif //__APPLE__
 
   Cpp::UnloadLibrary("TestSharedLib");
   // We have no reliable way to check if it was unloaded because posix does not
   // require the library to be actually unloaded but just the handle to be
   // invalidated...
-  // EXPECT_FALSE(Cpp::GetFunctionAddress("ret_zero"));
+  // EXPECT_FALSE(Cpp::GetFunctionAddressFromMangledName("ret_zero"));
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, DynamicLibraryManager_BasicSymbolLookup) {
@@ -81,7 +81,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, DynamicLibraryManager_BasicSymbolLookup) {
     GTEST_SKIP() << "Test fails for OOP JIT builds";
 
   ASSERT_TRUE(TestFixture::CreateInterpreter());
-  EXPECT_FALSE(Cpp::GetFunctionAddress("ret_zero"));
+  EXPECT_FALSE(Cpp::GetFunctionAddressFromMangledName("ret_zero"));
 
   // Load the library manually. Use known preload path (MEMFS path)
   const char* wasmLibPath = "libTestSharedLib.so";  // Preloaded path in MEMFS
@@ -89,7 +89,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, DynamicLibraryManager_BasicSymbolLookup) {
 
   Cpp::Process("");
 
-  void* Addr = Cpp::GetFunctionAddress("ret_zero");
+  void* Addr = Cpp::GetFunctionAddressFromMangledName("ret_zero");
   EXPECT_NE(Addr, nullptr) << "Symbol 'ret_zero' not found after dlopen.";
 
   using RetZeroFn = int (*)();

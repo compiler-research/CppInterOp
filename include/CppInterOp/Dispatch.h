@@ -187,8 +187,7 @@ extern "C" CPPINTEROP_API CppFnPtrTy CppGetProcAddress(const char* procname);
   DISPATCH_API(IsExplicit, decltype(&CppImpl::IsExplicit))                     \
   DISPATCH_API(MakeFunctionCallable,                                           \
                CppImpl::JitCall (*)(CppImpl::TCppConstFunction_t))             \
-  DISPATCH_API(GetFunctionAddress,                                             \
-               CppImpl::TCppFuncAddr_t (*)(CppImpl::TCppFunction_t))           \
+  DISPATCH_API(GetFunctionAddress, decltype(&CppImpl::GetFunctionAddress))     \
   /*DISPATCH_API(API_name, fnptr_ty)*/
 
 // TODO: implement overload that takes an existing opened DL handle
