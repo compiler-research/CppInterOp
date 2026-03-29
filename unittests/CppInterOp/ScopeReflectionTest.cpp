@@ -401,7 +401,11 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_GetCompleteName) {
   EXPECT_EQ(Cpp::GetCompleteName(Cpp::GetScopeFromType(
                                              Cpp::GetVariableType(
                                                      Decls[9]))), "A<int>");
+#if CLANG_VERSION_MAJOR < 22
   EXPECT_EQ(Cpp::GetCompleteName(Decls[10]), "(unnamed)");
+#else
+  EXPECT_EQ(Cpp::GetCompleteName(Decls[10]), "(unnamed enum)");
+#endif
   EXPECT_EQ(Cpp::GetCompleteName(Decls[11]), "fn");
   EXPECT_EQ(Cpp::GetCompleteName(nullptr), "<unnamed>");
 
