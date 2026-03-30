@@ -44,6 +44,7 @@
 #include <algorithm>
 #include <cstdio>
 #include <memory>
+#include <string>
 #include <tuple>
 #include <utility>
 #include <vector>
@@ -389,21 +390,23 @@ public:
     return nullptr;
   }
 
-  CompilationResult declare(const std::string& input,
+  CompilationResult declare(const std::string& input, bool silent = false,
                             clang::PartialTranslationUnit** PTU = nullptr) {
-    return process(input, /*Value=*/nullptr, PTU);
+    return process(input, /*V=*/nullptr, silent, PTU);
   }
 
-  ///\brief Maybe transform the input line to implement cint command line
+  /// Maybe transform the input line to implement cint command line
   /// semantics (declarations are global) and compile to produce a module.
   ///
   CompilationResult process(const std::string& input, clang::Value* V = 0,
+                            bool silent = false,
                             clang::PartialTranslationUnit** PTU = nullptr,
                             bool disableValuePrinting = false) {
+    DiagnosticGuard Guard(getSema().getDiagnostics(), silent);
     auto PTUOrErr = Parse(input);
     if (!PTUOrErr) {
-      llvm::logAllUnhandledErrors(PTUOrErr.takeError(), llvm::errs(),
-                                  "Failed to parse via ::process:");
+      Guard.handleOrConsume(PTUOrErr.takeError(),
+                            "Failed to parse via ::process:");
       return Interpreter::kFailure;
     }
 
@@ -411,8 +414,7 @@ public:
       *PTU = &*PTUOrErr;
 
     if (auto Err = Execute(*PTUOrErr)) {
-      llvm::logAllUnhandledErrors(std::move(Err), llvm::errs(),
-                                  "Failed to execute via ::process:");
+      Guard.handleOrConsume(std::move(Err), "Failed to execute via ::process:");
       return Interpreter::kFailure;
     }
     return Interpreter::kSuccess;

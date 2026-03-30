@@ -76,7 +76,7 @@ void TestUtils::GetAllTopLevelDecls(
   }
 #else
   PartialTranslationUnit *T = nullptr;
-  Interp->process(code, /*Value*/nullptr, &T);
+  Interp->process(code, /*Value*/ nullptr, /*silent=*/false, &T);
   for (auto *D : T->TUPart->decls()) {
     if (filter_implicitGenerated && D->isImplicit())
       continue;
