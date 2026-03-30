@@ -67,7 +67,7 @@ jobs:
       matrix:
         include:
           # Ubuntu Arm Jobs
-          - name: ubu24-arm-gcc12-clang-repl-21
+          - name: ubu24-arm-gcc12-clang-repl-21-cppyy
             os: ubuntu-24.04-arm
             compiler: gcc-12
             clang-runtime: '21'
@@ -76,7 +76,7 @@ jobs:
             llvm_targets_to_build: "host;NVPTX"
             Valgrind: On
             python-version: '3.14'
-          - name: ubu24-arm-gcc12-clang-repl-20
+          - name: ubu24-arm-gcc12-clang-repl-20-cppyy
             os: ubuntu-24.04-arm
             compiler: gcc-12
             clang-runtime: '20'
@@ -112,7 +112,7 @@ jobs:
             llvm_targets_to_build: "host;NVPTX"
             python-version: '3.14'
             coverage: true
-          - name: ubu24-x86-gcc12-clang-repl-21
+          - name: ubu24-x86-gcc12-clang-repl-21-cppyy
             os: ubuntu-24.04
             compiler: gcc-12
             clang-runtime: '21'
@@ -121,7 +121,7 @@ jobs:
             llvm_targets_to_build: "host;NVPTX"
             Valgrind: On
             python-version: '3.14'
-          - name: ubu24-x86-gcc12-clang-repl-20
+          - name: ubu24-x86-gcc12-clang-repl-20-cppyy
             os: ubuntu-24.04
             compiler: gcc-12
             clang-runtime: '20'
@@ -158,7 +158,7 @@ jobs:
             llvm_targets_to_build: "host;NVPTX"
             python-version: '3.14'
           # MacOS Arm Jobs
-          - name: osx26-arm-clang-clang-repl-21
+          - name: osx26-arm-clang-clang-repl-21-cppyy
             os: macos-26
             compiler: clang
             clang-runtime: '21'
@@ -174,7 +174,7 @@ jobs:
             llvm_targets_to_build: "host"
             oop-jit: On
             python-version: '3.13'
-          - name: osx26-arm-clang-clang-repl-20
+          - name: osx26-arm-clang-clang-repl-20-cppyy
             os: macos-26
             compiler: clang
             clang-runtime: '20'
@@ -202,7 +202,7 @@ jobs:
             llvm_targets_to_build: "host;NVPTX"
             python-version: '3.14'
           # MacOS X86 Jobs
-          - name: osx15-x86-clang-clang-repl-21
+          - name: osx15-x86-clang-clang-repl-21-cppyy
             os: macos-15-intel
             compiler: clang
             clang-runtime: '21'
@@ -210,7 +210,7 @@ jobs:
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host"
             python-version: '3.14'
-          - name: osx15-x86-clang-clang-repl-20
+          - name: osx15-x86-clang-clang-repl-20-cppyy
             os: macos-15-intel
             compiler: clang
             clang-runtime: '20'
