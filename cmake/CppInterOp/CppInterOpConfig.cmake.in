@@ -26,17 +26,17 @@ endif()
 
 if (IS_DIRECTORY "${CPPINTEROP_INSTALL_PREFIX}/include")
   set(_include "${CPPINTEROP_INSTALL_PREFIX}/include")
-  set(_lib "${CPPINTEROP_INSTALL_PREFIX}/${shared_lib_dir}/${_lib_prefix}clangCppInterOp${_lib_suffix}")
+  set(_lib "${CPPINTEROP_INSTALL_PREFIX}/${shared_lib_dir}/${_lib_prefix}CppInterOp${_lib_suffix}")
   set(_cmake "${CPPINTEROP_INSTALL_PREFIX}/${shared_lib_dir}/cmake/CppInterOp")
 else()
   set(_include "@CMAKE_CURRENT_SOURCE_DIR@/include")
-  set(_lib "@CMAKE_CURRENT_BINARY_DIR@/${shared_lib_dir}/${_lib_prefix}clangCppInterOp${_lib_suffix}")
+  set(_lib "@CMAKE_CURRENT_BINARY_DIR@/${shared_lib_dir}/${_lib_prefix}CppInterOp${_lib_suffix}")
   set(_cmake "@CMAKE_CURRENT_BINARY_DIR@/${shared_lib_dir}/cmake/CppInterOp")
 endif()
 
 ###
 
-set(CPPINTEROP_EXPORTED_TARGETS "clangCppInterOp")
+set(CPPINTEROP_EXPORTED_TARGETS "CppInterOp")
 set(CPPINTEROP_CMAKE_DIR "${_cmake}")
 set(CPPINTEROP_INCLUDE_DIRS "${_include}")
 set(CPPINTEROP_LIBRARIES "${_lib}")
@@ -51,22 +51,22 @@ set(CPPINTEROP_VERSION "@CPPINTEROP_VERSION@")
 
 # Provide all our library targets to users.
 if (@BUILD_SHARED_LIBS@)
-  add_library(clangCppInterOp SHARED IMPORTED)
+  add_library(CppInterOp SHARED IMPORTED)
 else()
-  add_library(clangCppInterOp STATIC IMPORTED)
+  add_library(CppInterOp STATIC IMPORTED)
 endif()
-set_target_properties(clangCppInterOp PROPERTIES
+set_target_properties(CppInterOp PROPERTIES
   INTERFACE_INCLUDE_DIRECTORIES ${_include}
   IMPORTED_LOCATION ${_lib}
   )
 if (MSVC)
   if (IS_DIRECTORY "${CPPINTEROP_INSTALL_PREFIX}/include")
-    set(_static_lib "${CPPINTEROP_INSTALL_PREFIX}/lib/${_lib_prefix}clangCppInterOp.lib")
+    set(_static_lib "${CPPINTEROP_INSTALL_PREFIX}/lib/${_lib_prefix}CppInterOp.lib")
   else()
-    set(_static_lib "@CMAKE_CURRENT_BINARY_DIR@/lib/${_lib_prefix}clangCppInterOp.lib")
+    set(_static_lib "@CMAKE_CURRENT_BINARY_DIR@/lib/${_lib_prefix}CppInterOp.lib")
   endif()
 
-  set_target_properties(clangCppInterOp PROPERTIES
+  set_target_properties(CppInterOp PROPERTIES
     IMPORTED_IMPLIB ${_static_lib}
     )
 endif(MSVC)

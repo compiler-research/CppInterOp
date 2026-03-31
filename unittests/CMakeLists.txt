@@ -26,7 +26,7 @@ endif()
 
 add_custom_target(CppInterOpUnitTests)
 set_target_properties(CppInterOpUnitTests PROPERTIES FOLDER "CppInterOp tests")
-add_dependencies(CppInterOpUnitTests clangCppInterOp)
+add_dependencies(CppInterOpUnitTests CppInterOp)
 
 set (TIMEOUT_VALUE 2400)
 function(add_cppinterop_unittest name)
@@ -61,7 +61,7 @@ function(add_cppinterop_unittest name)
   else()
     target_link_libraries(${name} PRIVATE ${gtest_libs} ${link_pthreads_lib})
   endif()
-  target_link_libraries(${name} PRIVATE clangCppInterOp)
+  target_link_libraries(${name} PRIVATE CppInterOp)
   if(EMSCRIPTEN)
     if (BUILD_SHARED_LIBS)
       target_compile_definitions(${name} PRIVATE "EMSCRIPTEN_SHARED_LIBRARY")
@@ -92,7 +92,7 @@ function(add_cppinterop_unittest name)
     add_cppinterop_unittest(${name}Dispatch ${ARG_UNPARSED_ARGUMENTS} DispatchTest.cpp)
     target_compile_definitions(${name}Dispatch PRIVATE
       ENABLE_DISPATCH_TESTS
-      CPPINTEROP_LIB_PATH="${CMAKE_BINARY_DIR}/lib/libclangCppInterOp${CMAKE_SHARED_LIBRARY_SUFFIX}"
+      CPPINTEROP_LIB_PATH="${CMAKE_BINARY_DIR}/lib/libCppInterOp${CMAKE_SHARED_LIBRARY_SUFFIX}"
     )
   endif()
 endfunction()

@@ -31,14 +31,14 @@ When compiling your CppInterOp application, use the following essential flags:
 
 .. code-block:: bash
 
-   $CXX -I$CPPINTEROP_DIR/include -g -O0 -lclangCppInterOp -Wl,-rpath,$CPPINTEROP_DIR/build/lib
+   $CXX -I$CPPINTEROP_DIR/include -g -O0 -lCppInterOp -Wl,-rpath,$CPPINTEROP_DIR/build/lib
 
 **Flag Explanation:**
 
 - ``-g``: Includes debugging information in the executable
 - ``-O0``: Disables compiler optimizations for clearer debugging
 - ``-I$CPPINTEROP_DIR/include``: Includes CppInterOp headers
-- ``-lclangCppInterOp``: Links against the CppInterOp library
+- ``-lCppInterOp``: Links against the CppInterOp library
 - ``-Wl,-rpath,$CPPINTEROP_DIR/build/lib``: Sets runtime library path
 
 Creating a Debug-Ready Test Program

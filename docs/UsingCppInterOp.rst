@@ -13,7 +13,7 @@ in the build/lib/ after building CppInterOp following the instructions in
 
 .. code-block:: bash
 
-    libInterop = ctypes.CDLL("./libclangCppInterOp.so")
+    libInterop = ctypes.CDLL("./libCppInterOp.so")
     
 The above method of usage is for Python on Linux; for C, we can include the headers of 
 the library. Including this library in our program enables the user to use 
@@ -26,7 +26,7 @@ objects, and many more things.
 
 CppInterOp API Dispatch Mechanism
 ==============================
-The standard way of using CppInterOp as a library is to link against the `clangCppInterOp` target at compile time. However, 
+The standard way of using CppInterOp as a library is to link against the `CppInterOp` target at compile time. However, 
 CppInterOp also supports an API dispatch mechanism that allows clients to load the shared library at runtime in `RTLD_LOCAL` mode.
 This alternate approach is particularly useful in scenarios where CppInterOp is loaded dynamically alongside other tools/libraries/packages that also
 rely on LLVM. With cppyy, importing tools like `numba` or `pygame` that come bundled with a statically linked copy of LLVM,
@@ -51,7 +51,7 @@ This creates the necessary function pointers in the `Cpp` namespace, which can t
 To load the API, invoke:
 
 ```cpp
-Cpp::LoadDispatchAPI("path/to/libclangCppInterOp.so");
+Cpp::LoadDispatchAPI("path/to/libCppInterOp.so");
 ```
 
 Now your application can use the CppInterOp API via the `Cpp::` namespace, with all functions being dispatched through the function pointers.

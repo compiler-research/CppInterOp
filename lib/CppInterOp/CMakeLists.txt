@@ -155,7 +155,7 @@ else()
     "cppinterop-tblgen binary when cross-compiling.")
 endif()
 
-add_llvm_library(clangCppInterOp
+add_llvm_library(CppInterOp
   DISABLE_LLVM_LINK_LLVM_DYLIB
   CppInterOp.cpp
   Dispatch.cpp
@@ -177,12 +177,12 @@ if(EMSCRIPTEN)
   # Replace newlines with spaces
   string(REPLACE "\n" " " SYMBOLS_LIST "${SYMBOLS_LIST}")
 
-  target_compile_options(clangCppInterOp
+  target_compile_options(CppInterOp
     PRIVATE "SHELL: -Oz"
     PRIVATE "SHELL: -flto"
     PRIVATE "SHELL: ${CPPINTEROP_EXTRA_WASM_FLAGS}"
   )
-  target_link_options(clangCppInterOp
+  target_link_options(CppInterOp
     PRIVATE "SHELL: -s WASM_BIGINT"
     PRIVATE "SHELL: -s SIDE_MODULE=1"
     PRIVATE "SHELL: ${SYMBOLS_LIST}"
@@ -191,26 +191,26 @@ if(EMSCRIPTEN)
     PRIVATE "SHELL: ${CPPINTEROP_EXTRA_WASM_FLAGS}"
   )
   else()
-  target_compile_options(clangCppInterOp
+  target_compile_options(CppInterOp
     PRIVATE "SHELL: ${CPPINTEROP_EXTRA_WASM_FLAGS}"
   )
-  target_link_options(clangCppInterOp
+  target_link_options(CppInterOp
       PRIVATE "SHELL: -s WASM_BIGINT"
       PRIVATE "SHELL: ${CPPINTEROP_EXTRA_WASM_FLAGS}"
   )
   endif(BUILD_SHARED_LIBS)
   if (CPPINTEROP_ENABLE_TESTING)
     # When compiling Emscripten tests the CppInterOp library it links to is expected to be in the same folder as the compiled Javascript
-    add_custom_command(TARGET clangCppInterOp POST_BUILD
-      COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:clangCppInterOp> ${CMAKE_BINARY_DIR}/unittests/CppInterOp/
+    add_custom_command(TARGET CppInterOp POST_BUILD
+      COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:CppInterOp> ${CMAKE_BINARY_DIR}/unittests/CppInterOp/
     )
   endif(CPPINTEROP_ENABLE_TESTING)
 endif(EMSCRIPTEN)
 
 if(TARGET CppInterOpTableGen)
-  add_dependencies(clangCppInterOp CppInterOpTableGen)
+  add_dependencies(CppInterOp CppInterOpTableGen)
 endif()
-target_compile_definitions(clangCppInterOp PUBLIC "_CINDEX_LIB_") # workaround for the use of `CINDEX_LINKAGE`
+target_compile_definitions(CppInterOp PUBLIC "_CINDEX_LIB_") # workaround for the use of `CINDEX_LINKAGE`
 
 string(REPLACE ";" "\;" _VER CPPINTEROP_VERSION)
 set_source_files_properties(CppInterOp.cpp PROPERTIES COMPILE_DEFINITIONS
