@@ -380,15 +380,9 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_GetLanguageC) {
             Cpp::InterpreterLanguageStandard::c99);
 }
 TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_GetLanguageStandardC) {
-// FIXME: Doesn't work for llvm 22, due restrict and inline keywords being introduced
-// which didn't exist for this standard. See
-// https://github.com/compiler-research/CppInterOp/pull/839#issuecomment-4132706781
-// for more details
-#if CLANG_VERSION_MAJOR < 22
   TestFixture::CreateInterpreter({"-xc", "-std=c89"});
   EXPECT_EQ(Cpp::GetLanguageStandard(nullptr),
             Cpp::InterpreterLanguageStandard::c89);
-#endif
 
   TestFixture::CreateInterpreter({"-xc", "-std=c11"});
   EXPECT_EQ(Cpp::GetLanguageStandard(nullptr),
