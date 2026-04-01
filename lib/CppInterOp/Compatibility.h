@@ -59,28 +59,32 @@ static inline char* GetEnv(const char* Var_Name) {
 class DiagnosticGuard {
   bool m_is_silent = false;
   clang::DiagnosticsEngine& m_diags;
-  clang::DiagnosticConsumer* m_oldClient = nullptr;
-  bool m_oldShouldOwn = false;
-  clang::IgnoringDiagConsumer m_ignoring_consumer;
+  // clang::DiagnosticConsumer* m_oldClient = nullptr;
+  // bool m_oldShouldOwn = false;
+  // clang::IgnoringDiagConsumer m_ignoring_consumer;
+  bool m_oldSuppressDiags;
 
 public:
   explicit DiagnosticGuard(clang::DiagnosticsEngine& diags, bool silent)
-      : m_is_silent(silent), m_diags(diags) {
-    if (m_is_silent) {
-      m_oldShouldOwn = m_diags.ownsClient();
-      if (m_oldShouldOwn)
-        m_oldClient = m_diags.takeClient().release();
-      else
-        m_oldClient = m_diags.getClient();
-      m_diags.setClient(&m_ignoring_consumer, /*ShouldOwnClient=*/false);
-    }
+    : m_is_silent(silent), m_diags(diags),
+      m_oldSuppressDiags(diags.getSuppressAllDiagnostics()) {
+    m_diags.setSuppressAllDiagnostics(silent);
+    // if (m_is_silent) {
+    //   m_oldShouldOwn = m_diags.ownsClient();
+    //   if (m_oldShouldOwn)
+    //     m_oldClient = m_diags.takeClient().release();
+    //   else
+    //     m_oldClient = m_diags.getClient();
+    //   m_diags.setClient(&m_ignoring_consumer, /*ShouldOwnClient=*/false);
+    // }
   }
 
   ~DiagnosticGuard() {
-    // Only restore if we actually swapped the client
-    if (m_is_silent) {
-      m_diags.setClient(m_oldClient, m_oldShouldOwn);
-    }
+    m_diags.setSuppressAllDiagnostics(m_oldSuppressDiags);
+    // // Only restore if we actually swapped the client
+    // if (m_is_silent) {
+    //   m_diags.setClient(m_oldClient, m_oldShouldOwn);
+    // }
   }
 
   // Explicitly non-copyable
