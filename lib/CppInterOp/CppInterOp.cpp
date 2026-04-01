@@ -3606,26 +3606,9 @@ void GetIncludePaths(std::vector<std::string>& IncludePaths, bool withSystem,
     IncludePaths.push_back(i);
 }
 
-namespace {
-
-class clangSilent {
-public:
-  clangSilent(clang::DiagnosticsEngine& diag) : fDiagEngine(diag) {
-    fOldDiagValue = fDiagEngine.getSuppressAllDiagnostics();
-    fDiagEngine.setSuppressAllDiagnostics(true);
-  }
-
-  ~clangSilent() { fDiagEngine.setSuppressAllDiagnostics(fOldDiagValue); }
-
-protected:
-  clang::DiagnosticsEngine& fDiagEngine;
-  bool fOldDiagValue;
-};
-} // namespace
-
 int Declare(compat::Interpreter& I, const char* code, bool silent) {
   if (silent) {
-    clangSilent diagSuppr(I.getSema().getDiagnostics());
+    // FIXME: Add a proper RAII object
     return I.declare(code);
   }
 
