@@ -1951,6 +1951,22 @@ static QualType findBuiltinType(llvm::StringRef typeName, ASTContext& Context) {
    */
   return QualType();
 }
+static std::optional<QualType> GetTypeInternal(Decl* D) {
+  if (!D)
+    return {};
+  // Even though typedefs derive from TypeDecl, their getTypeForDecl()
+  // returns a nullptr.
+  if (const auto* TND = llvm::dyn_cast_or_null<TypedefNameDecl>(D))
+    return TND->getUnderlyingType();
+
+  if (auto* VD = dyn_cast<ValueDecl>(D))
+    return VD->getType();
+
+  if (const auto* TD = llvm::dyn_cast_or_null<TypeDecl>(D))
+    return QualType(TD->getTypeForDecl(), 0);
+
+  return {};
+}
 } // namespace
 
 TCppType_t GetType(const std::string& name) {
@@ -1958,12 +1974,7 @@ TCppType_t GetType(const std::string& name) {
   if (!builtin.isNull())
     return builtin.getAsOpaquePtr();
 
-  auto* D = (Decl*)GetNamed(name, /* Within= */ 0);
-  if (auto* TD = llvm::dyn_cast_or_null<TypeDecl>(D)) {
-    return QualType(TD->getTypeForDecl(), 0).getAsOpaquePtr();
-  }
-
-  return (TCppType_t)0;
+  return GetTypeFromScope((Decl*)GetNamed(name, /*Within=*/nullptr));
 }
 
 TCppType_t GetComplexType(TCppType_t type) {
@@ -1974,17 +1985,12 @@ TCppType_t GetComplexType(TCppType_t type) {
 
 TCppType_t GetTypeFromScope(TCppScope_t klass) {
   if (!klass)
-    return 0;
+    return nullptr;
 
-  auto* D = (Decl*)klass;
+  if (auto QT = GetTypeInternal((Decl*)klass))
+    return QT->getAsOpaquePtr();
 
-  if (auto* VD = dyn_cast<ValueDecl>(D))
-    return VD->getType().getAsOpaquePtr();
-
-  if (auto* TD = dyn_cast<TypeDecl>(D))
-    return getASTContext().getTypeDeclType(TD).getAsOpaquePtr();
-
-  return (TCppType_t) nullptr;
+  return nullptr;
 }
 
 // Internal functions that are not needed outside the library are
