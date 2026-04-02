@@ -25,6 +25,19 @@ using namespace TestUtils;
 using namespace llvm;
 using namespace clang;
 
+TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_GetTypeOfTypedef) {
+  std::string code = R"(
+    typedef int Type_t;
+  )";
+
+  std::vector<Decl*> Decls;
+  GetAllTopLevelDecls(code, Decls);
+  auto Ty = Cpp::GetType("Type_t");
+  EXPECT_TRUE(Ty);
+  EXPECT_TRUE(Ty == Cpp::GetTypeFromScope(Decls[0]));
+  EXPECT_FALSE(Cpp::GetTypeFromScope(nullptr));
+}
+
 TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_IsEnumScope) {
   std::vector<Decl *> Decls;
   std::vector<Decl *> SubDecls;
