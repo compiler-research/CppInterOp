@@ -10,6 +10,7 @@
 #include "CppInterOp/CppInterOp.h"
 
 #include "Compatibility.h"
+#include "Sins.h" // for access to private members
 
 #include "clang/AST/Attrs.inc"
 #include "clang/AST/CXXInheritance.h"
@@ -128,6 +129,9 @@ using namespace llvm;
 struct InterpreterInfo {
   compat::Interpreter* Interpreter = nullptr;
   bool isOwned = true;
+  // Store the list of builtin types.
+  llvm::StringMap<QualType> BuiltinMap;
+
   InterpreterInfo(compat::Interpreter* I, bool Owned)
       : Interpreter(I), isOwned(Owned) {}
 
@@ -408,7 +412,7 @@ size_t SizeOf(TCppScope_t scope) {
   return 0;
 }
 
-bool IsBuiltin(TCppType_t type) {
+bool IsBuiltin(TCppConstType_t type) {
   QualType Ty = QualType::getFromOpaquePtr(type);
   if (Ty->isBuiltinType() || Ty->isAnyComplexType())
     return true;
@@ -1887,69 +1891,109 @@ TCppType_t AddTypeQualifier(TCppType_t type, QualKind qual) {
   return QT.getAsOpaquePtr();
 }
 
-// Internal functions that are not needed outside the library are
-// encompassed in an anonymous namespace as follows. This function converts
-// from a string to the actual type. It is used in the GetType() function.
-namespace {
-static QualType findBuiltinType(llvm::StringRef typeName, ASTContext& Context) {
-  bool issigned = false;
-  bool isunsigned = false;
-  if (typeName.starts_with("signed ")) {
-    issigned = true;
-    typeName = StringRef(typeName.data() + 7, typeName.size() - 7);
-  }
-  if (!issigned && typeName.starts_with("unsigned ")) {
-    isunsigned = true;
-    typeName = StringRef(typeName.data() + 9, typeName.size() - 9);
-  }
-  if (typeName == "char") {
-    if (isunsigned)
-      return Context.UnsignedCharTy;
-    return Context.SignedCharTy;
-  }
-  if (typeName == "short") {
-    if (isunsigned)
-      return Context.UnsignedShortTy;
-    return Context.ShortTy;
-  }
-  if (typeName == "int") {
-    if (isunsigned)
-      return Context.UnsignedIntTy;
-    return Context.IntTy;
-  }
-  if (typeName == "long") {
-    if (isunsigned)
-      return Context.UnsignedLongTy;
-    return Context.LongTy;
-  }
-  if (typeName == "long long") {
-    if (isunsigned)
-      return Context.UnsignedLongLongTy;
-    return Context.LongLongTy;
-  }
-  if (!issigned && !isunsigned) {
-    if (typeName == "bool")
-      return Context.BoolTy;
-    if (typeName == "float")
-      return Context.FloatTy;
-    if (typeName == "double")
-      return Context.DoubleTy;
-    if (typeName == "long double")
-      return Context.LongDoubleTy;
+// Registers all permutations of a word set
+static void RegisterPerms(llvm::StringMap<QualType>& Map, QualType QT,
+                          llvm::SmallVectorImpl<llvm::StringRef>& Words) {
+  std::sort(Words.begin(), Words.end());
+  do {
+    std::string Key;
+    for (size_t i = 0; i < Words.size(); ++i) {
+      if (i > 0)
+        Key += ' ';
+      Key += Words[i].str();
+    }
+    Map[Key] = QT;
+  } while (std::next_permutation(Words.begin(), Words.end()));
+}
+ALLOW_ACCESS(ASTContext, Types, llvm::SmallVector<clang::Type*, 0>);
+static void PopulateBuiltinMap(ASTContext& Context) {
+  const PrintingPolicy Policy(Context.getLangOpts());
+  auto& BuiltinMap = sInterpreters->back().BuiltinMap;
+  const auto& Types = ACCESS(Context, Types);
 
-    if (typeName == "wchar_t")
-      return Context.WCharTy;
-    if (typeName == "char16_t")
-      return Context.Char16Ty;
-    if (typeName == "char32_t")
-      return Context.Char32Ty;
+  for (clang::Type* T : Types) {
+    auto* BT = llvm::dyn_cast<BuiltinType>(T);
+    if (!BT || BT->isPlaceholderType())
+      continue;
+
+    QualType QT(BT, 0);
+    std::string Name = QT.getAsString(Policy);
+    if (Name.empty() || Name[0] == '<')
+      continue;
+
+    // Initial entry (e.g., "int", "unsigned long")
+    BuiltinMap[Name] = QT;
+
+    llvm::SmallVector<llvm::StringRef, 4> Words;
+    llvm::StringRef(Name).split(Words, ' ', -1, false);
+
+    bool hasInt = false;
+    bool hasSigned = false;
+    bool hasUnsigned = false;
+    bool hasChar = false;
+    bool isModifiable = false;
+
+    for (auto W : Words) {
+      if (W == "int")
+        hasInt = true;
+      else if (W == "signed")
+        hasSigned = true;
+      else if (W == "unsigned")
+        hasUnsigned = true;
+      else if (W == "char")
+        hasChar = true;
+
+      if (W == "long" || W == "short" || hasInt)
+        isModifiable = true;
+    }
+
+    // Skip things like 'float' or 'double' that aren't combined
+    if (!isModifiable && !hasUnsigned && !hasSigned)
+      continue;
+
+    // Register base permutations (e.g., "long long" or "unsigned int")
+    if (Words.size() > 1)
+      RegisterPerms(BuiltinMap, QT, Words);
+
+    // Expansion: Add "int" suffix where missing (e.g., "short" -> "short int")
+    if (!hasInt && !hasChar) {
+      auto WithInt = Words;
+      WithInt.push_back("int");
+      RegisterPerms(BuiltinMap, QT, WithInt);
+
+      // If we are adding 'int', we should also try adding 'signed'
+      // to cover cases like "short" -> "signed short int"
+      if (!hasSigned && !hasUnsigned) {
+        auto WithBoth = WithInt;
+        WithBoth.push_back("signed");
+        RegisterPerms(BuiltinMap, QT, WithBoth);
+      }
+    }
+
+    // Expansion: Add "signed" prefix
+    // (e.g., "int" -> "signed int", "long" -> "signed long")
+    if (!hasSigned && !hasUnsigned) {
+      auto WithSigned = Words;
+      WithSigned.push_back("signed");
+      RegisterPerms(BuiltinMap, QT, WithSigned);
+    }
   }
-  /* Missing
- CanQualType WideCharTy; // Same as WCharTy in C++, integer type in C99.
- CanQualType WIntTy;   // [C99 7.24.1], integer type unchanged by default
- promotions.
-   */
-  return QualType();
+
+  // Explicit global synonym
+  BuiltinMap["signed"] = Context.IntTy;
+  BuiltinMap["unsigned"] = Context.UnsignedIntTy;
+}
+static QualType findBuiltinType(llvm::StringRef typeName, ASTContext& Context) {
+  llvm::StringMap<QualType>& BuiltinMap = sInterpreters->back().BuiltinMap;
+  if (BuiltinMap.empty())
+    PopulateBuiltinMap(Context);
+
+  // Fast Lookup
+  auto It = BuiltinMap.find(typeName);
+  if (It != BuiltinMap.end())
+    return It->second;
+
+  return QualType(); // Return null if not a builtin
 }
 static std::optional<QualType> GetTypeInternal(Decl* D) {
   if (!D)
@@ -1967,7 +2011,6 @@ static std::optional<QualType> GetTypeInternal(Decl* D) {
 
   return {};
 }
-} // namespace
 
 TCppType_t GetType(const std::string& name) {
   QualType builtin = findBuiltinType(name, getASTContext());
