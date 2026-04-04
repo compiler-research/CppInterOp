@@ -309,8 +309,8 @@ enum CXErrorCode clang_Interpreter_undo(CXInterpreter I, unsigned int N) {
 #endif // CPPINTEROP_USE_CLING
 }
 
-void clang_Interpreter_dispose(CXInterpreter I) {
-  delete I; // NOLINT(*-owning-memory)
+void clang_Interpreter_deleteInterpreter(CXInterpreter I) {
+  Cpp::DeleteInterpreter(getInterpreter(I));
 }
 
 void clang_Interpreter_addSearchPath(CXInterpreter I, const char* dir,

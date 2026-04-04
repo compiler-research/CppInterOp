@@ -45,8 +45,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, CommentReflection_DoxygenBlockAndLine) {
   CXString Doc = clang_getDoxygenComment(S, /*strip_comment_markers=*/true);
   EXPECT_STREQ(get_c_string(Doc), sDoc.c_str());
   dispose_string(Doc);
-  clang_Interpreter_takeInterpreterAsPtr(I);
-  clang_Interpreter_dispose(I);
+  clang_Interpreter_deleteInterpreter(I);
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, CommentReflection_DoxygenNullScope) {

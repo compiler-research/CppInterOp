@@ -108,7 +108,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_DeleteInterpreter) {
 
   EXPECT_EQ(I3, Cpp::GetInterpreter()) << "I3 is not active";
 
-  EXPECT_TRUE(Cpp::DeleteInterpreter(nullptr));
+  EXPECT_TRUE(Cpp::DeleteInterpreter(/*I=*/nullptr));
   EXPECT_EQ(I2, Cpp::GetInterpreter());
 
   auto* I4 = reinterpret_cast<void*>(static_cast<std::uintptr_t>(~0U));
@@ -173,7 +173,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_Process) {
   auto Res = clang_Interpreter_evaluate(CXI, "c", CXV);
   EXPECT_EQ(Res, CXError_Success);
   clang_Value_dispose(CXV);
-  clang_Interpreter_dispose(CXI);
+  clang_Interpreter_deleteInterpreter(CXI);
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_EmscriptenExceptionHandling) {
@@ -230,7 +230,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_CreateInterpreter) {
 
   auto I2 = clang_Interpreter_takeInterpreterAsPtr(CXI);
   EXPECT_EQ(I, I2);
-  clang_Interpreter_dispose(CXI);
+  clang_Interpreter_deleteInterpreter(CXI);
 #endif
 }
 
@@ -240,7 +240,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_CreateInterpreterCAPI) {
   auto *CXI = clang_createInterpreter(argv, 1);
   auto CLI = clang_Interpreter_getClangInterpreter(CXI);
   EXPECT_TRUE(CLI);
-  clang_Interpreter_dispose(CXI);
+  clang_Interpreter_deleteInterpreter(CXI);
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_CreateInterpreterCAPIFailure) {
@@ -370,7 +370,17 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_GetLanguageCAPI) {
             CXInterpreterLanguage_CPlusPlus);
   EXPECT_EQ(clang_Interpreter_getLanguageStandard(CXI),
             CXInterpreterLanguageStandard_cxx14);
-  clang_Interpreter_dispose(CXI);
+  clang_Interpreter_deleteInterpreter(CXI);
+
+  // Make sure we did not destroy anything when disponsing the object
+  while (Cpp::GetInterpreter())
+    Cpp::DeleteInterpreter(/*I=*/nullptr);
+
+  EXPECT_FALSE(Cpp::GetInterpreter()) << "Failed to delete all interpreters";
+
+  // Create an interpreter (this calls RegisterInterpreter internally)
+  TInterp_t I2 = TestFixture::CreateInterpreter();
+  ASSERT_NE(I2, nullptr);
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_GetLanguageC) {

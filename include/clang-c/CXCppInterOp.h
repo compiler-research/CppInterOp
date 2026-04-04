@@ -66,7 +66,7 @@ CINDEX_LINKAGE enum CXErrorCode clang_Interpreter_undo(CXInterpreter I,
 /**
  * Dispose of the given interpreter context.
  */
-CINDEX_LINKAGE void clang_Interpreter_dispose(CXInterpreter I);
+CINDEX_LINKAGE void clang_Interpreter_deleteInterpreter(CXInterpreter I);
 
 /**
  * Describes the return result of the different routines that do the incremental
