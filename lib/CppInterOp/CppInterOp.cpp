@@ -64,6 +64,7 @@
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/Path.h"
+#include "llvm/Support/TargetSelect.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/TargetParser/Host.h"
 #include "llvm/TargetParser/Triple.h"
@@ -162,15 +163,85 @@ struct InterpreterInfo {
   InterpreterInfo& operator=(const InterpreterInfo&) = delete;
 };
 
-// std::deque avoids relocations and calling the dtor of InterpreterInfo.
-static llvm::ManagedStatic<std::deque<InterpreterInfo>> sInterpreters;
+// Function-static storage for interpreters
+static std::deque<InterpreterInfo>& GetInterpreters() {
+  static llvm::ManagedStatic<std::deque<InterpreterInfo>> sInterpreters;
+  static bool ProcessInitialized = false;
+
+  if (!ProcessInitialized) {
+    // Initialize all targets (required for device offloading)
+    llvm::InitializeAllTargetInfos();
+    llvm::InitializeAllTargets();
+    llvm::InitializeAllTargetMCs();
+    llvm::InitializeAllAsmParsers();
+    llvm::InitializeAllAsmPrinters();
+    ProcessInitialized = true;
+  }
+
+  return *sInterpreters;
+}
+
+static void RegisterInterpreter(compat::Interpreter* I, bool Owned) {
+  std::deque<InterpreterInfo>& Interps = GetInterpreters();
+  Interps.emplace_back(I, Owned);
+}
 
 static compat::Interpreter& getInterp(TInterp_t I = nullptr) {
   if (I)
     return *static_cast<compat::Interpreter*>(I);
-  assert(!sInterpreters->empty() &&
+  auto& Interps = GetInterpreters();
+  assert(!Interps.empty() &&
          "Interpreter instance must be set before calling this!");
-  return *sInterpreters->back().Interpreter;
+  return *Interps.back().Interpreter;
+}
+
+TInterp_t GetInterpreter() {
+  std::deque<InterpreterInfo>& Interps = GetInterpreters();
+  if (Interps.empty())
+    return nullptr;
+  return Interps.back().Interpreter;
+}
+
+void UseExternalInterpreter(TInterp_t I) {
+  assert(GetInterpreters().empty() && "sInterpreter already in use!");
+  RegisterInterpreter(static_cast<compat::Interpreter*>(I), /*Owned=*/false);
+}
+
+bool ActivateInterpreter(TInterp_t I) {
+  if (!I)
+    return false;
+
+  std::deque<InterpreterInfo>& Interps = GetInterpreters();
+  auto found =
+      std::find_if(Interps.begin(), Interps.end(),
+                   [&I](const auto& Info) { return Info.Interpreter == I; });
+  if (found == Interps.end())
+    return false;
+
+  if (std::next(found) != Interps.end()) // if not already last element.
+    std::rotate(found, found + 1, Interps.end());
+
+  return true; // success
+}
+
+bool DeleteInterpreter(TInterp_t I /*=nullptr*/) {
+  std::deque<InterpreterInfo>& Interps = GetInterpreters();
+  if (Interps.empty())
+    return false;
+
+  if (!I) {
+    Interps.pop_back(); // Triggers ~InterpreterInfo() and potential delete
+    return true;
+  }
+
+  auto found =
+      std::find_if(Interps.begin(), Interps.end(),
+                   [&I](const auto& Info) { return Info.Interpreter == I; });
+  if (found == Interps.end())
+    return false; // failure
+
+  Interps.erase(found);
+  return true;
 }
 
 static clang::Sema& getSema() { return getInterp().getCI()->getSema(); }
@@ -3388,6 +3459,9 @@ TInterp_t CreateInterpreter(const std::vector<const char*>& Args /*={}*/,
                  std::back_inserter(ClingArgv),
                  [&](const std::string& str) { return str.c_str(); });
 
+  // Force global process initialization.
+  (void)GetInterpreters();
+
 #ifdef CPPINTEROP_USE_CLING
   auto I = new compat::Interpreter(ClingArgv.size(), &ClingArgv[0]);
 #else
@@ -3430,7 +3504,7 @@ TInterp_t CreateInterpreter(const std::vector<const char*>& Args /*={}*/,
   )");
   }
 
-  sInterpreters->emplace_back(I, /*Owned=*/true);
+  RegisterInterpreter(I, /*Owned=*/true);
 
 // Define runtime symbols in the JIT dylib for clang-repl
 #if !defined(CPPINTEROP_USE_CLING) && !defined(EMSCRIPTEN)
@@ -3460,44 +3534,6 @@ TInterp_t CreateInterpreter(const std::vector<const char*>& Args /*={}*/,
       reinterpret_cast<uint64_t>(&__clang_Interpreter_SetValueNoAlloc));
 #endif
   return I;
-}
-
-bool DeleteInterpreter(TInterp_t I /*=nullptr*/) {
-  if (!I) {
-    sInterpreters->pop_back();
-    return true;
-  }
-
-  auto found =
-      std::find_if(sInterpreters->begin(), sInterpreters->end(),
-                   [&I](const auto& Info) { return Info.Interpreter == I; });
-  if (found == sInterpreters->end())
-    return false; // failure
-
-  sInterpreters->erase(found);
-  return true;
-}
-
-bool ActivateInterpreter(TInterp_t I) {
-  if (!I)
-    return false;
-
-  auto found =
-      std::find_if(sInterpreters->begin(), sInterpreters->end(),
-                   [&I](const auto& Info) { return Info.Interpreter == I; });
-  if (found == sInterpreters->end())
-    return false;
-
-  if (std::next(found) != sInterpreters->end()) // if not already last element.
-    std::rotate(found, found + 1, sInterpreters->end());
-
-  return true; // success
-}
-
-TInterp_t GetInterpreter() {
-  if (sInterpreters->empty())
-    return nullptr;
-  return sInterpreters->back().Interpreter;
 }
 
 InterpreterLanguage GetLanguage(TInterp_t I /*=nullptr*/) {
@@ -3530,12 +3566,6 @@ InterpreterLanguageStandard GetLanguageStandard(TInterp_t I /*=nullptr*/) {
                  InterpreterLanguageStandard::lang_unspecified) &&
          "Unhandled language standard.");
   return langStandard;
-}
-
-void UseExternalInterpreter(TInterp_t I) {
-  assert(sInterpreters->empty() && "sInterpreter already in use!");
-  sInterpreters->emplace_back(static_cast<compat::Interpreter*>(I),
-                              /*isOwned=*/false);
 }
 
 void AddSearchPath(const char* dir, bool isUser, bool prepend) {
