@@ -208,13 +208,6 @@ public:
          const std::vector<std::shared_ptr<clang::ModuleFileExtension>>&
              moduleExtensions = {},
          void* extraLibHandle = nullptr, bool noRuntime = true) {
-    // Initialize all targets (required for device offloading)
-    llvm::InitializeAllTargetInfos();
-    llvm::InitializeAllTargets();
-    llvm::InitializeAllTargetMCs();
-    llvm::InitializeAllAsmParsers();
-    llvm::InitializeAllAsmPrinters();
-
     std::vector<const char*> vargs(argv + 1, argv + argc);
 
     int stdin_fd = 0;
