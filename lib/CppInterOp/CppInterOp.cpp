@@ -64,6 +64,8 @@
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/Path.h"
+#include "llvm/Support/Process.h"
+#include "llvm/Support/Signals.h"
 #include "llvm/Support/TargetSelect.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/TargetParser/Host.h"
@@ -79,6 +81,7 @@
 #include <iterator>
 #include <map>
 #include <memory>
+#include <mutex>
 #include <set>
 #include <sstream>
 #include <stack>
@@ -163,22 +166,65 @@ struct InterpreterInfo {
   InterpreterInfo& operator=(const InterpreterInfo&) = delete;
 };
 
+static void DefaultProcessCrashHandler(void*);
 // Function-static storage for interpreters
 static std::deque<InterpreterInfo>& GetInterpreters() {
+  // static int FakeArgc = 1;
+  // static const std::string VersionStr = GetVersion();
+  // static const char* ArgvBuffer[] = {VersionStr.c_str(), nullptr};
+  // static const char** FakeArgv = ArgvBuffer;
+  // static llvm::InitLLVM X(FakeArgc, FakeArgv);
+  // Cannot be a llvm::ManagedStatic because X will call shutdown which will
+  // trigger destruction on llvm::ManagedStatics and the destruction of the
+  // InterpreterInfos require to have llvm around.
+  // FIXME: Currently we never call llvm::llvm_shutdown and sInterpreters leaks.
   static llvm::ManagedStatic<std::deque<InterpreterInfo>> sInterpreters;
-  static bool ProcessInitialized = false;
+  static std::once_flag ProcessInitialized;
+  std::call_once(ProcessInitialized, []() {
+    llvm::sys::PrintStackTraceOnErrorSignal("CppInterOp");
 
-  if (!ProcessInitialized) {
     // Initialize all targets (required for device offloading)
     llvm::InitializeAllTargetInfos();
     llvm::InitializeAllTargets();
     llvm::InitializeAllTargetMCs();
     llvm::InitializeAllAsmParsers();
     llvm::InitializeAllAsmPrinters();
-    ProcessInitialized = true;
-  }
+
+    llvm::sys::AddSignalHandler(DefaultProcessCrashHandler, /*Cookie=*/nullptr);
+    // std::atexit(llvm::llvm_shutdown);
+  });
 
   return *sInterpreters;
+}
+
+// Global crash handler for the entire process
+static void DefaultProcessCrashHandler(void*) {
+  // Access the static deque via the getter
+  std::deque<InterpreterInfo>& Interps = GetInterpreters();
+
+  llvm::errs() << "\n**************************************************\n";
+  llvm::errs() << "  CppInterOp CRASH DETECTED\n";
+
+  if (!Interps.empty()) {
+    llvm::errs() << "  Active Interpreters:\n";
+    for (const auto& Info : Interps) {
+      if (Info.Interpreter)
+        llvm::errs() << "    - " << Info.Interpreter << "\n";
+    }
+  }
+
+  llvm::errs() << "**************************************************\n";
+  llvm::errs().flush();
+
+  // Print backtrace (includes JIT symbols if registered)
+  llvm::sys::PrintStackTrace(llvm::errs());
+
+  llvm::errs() << "**************************************************\n";
+  llvm::errs().flush();
+
+  // The process must actually terminate for EXPECT_DEATH to pass.
+  // We use _exit to avoid calling atexit() handlers which might be corrupted.
+  llvm::sys::Process::Exit(/*RetCode=*/1, /*NoCleanup=*/false);
 }
 
 static void RegisterInterpreter(compat::Interpreter* I, bool Owned) {
