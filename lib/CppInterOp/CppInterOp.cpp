@@ -224,7 +224,7 @@ static void DefaultProcessCrashHandler(void*) {
 
   // The process must actually terminate for EXPECT_DEATH to pass.
   // We use _exit to avoid calling atexit() handlers which might be corrupted.
-  llvm::sys::Process::Exit(/*RetCode=*/1, /*NoCleanup=*/true);
+  llvm::sys::Process::Exit(/*RetCode=*/1, /*NoCleanup=*/false);
 }
 
 static void RegisterInterpreter(compat::Interpreter* I, bool Owned) {
