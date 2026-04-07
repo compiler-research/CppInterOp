@@ -27,6 +27,7 @@
 
 #include <algorithm>
 #include <csignal>
+#include <cstdlib>
 
 using ::testing::StartsWith;
 
@@ -147,6 +148,74 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_DeleteInterpreter) {
 
   EXPECT_TRUE(Cpp::DeleteInterpreter(I1));
   EXPECT_EQ(I2, Cpp::GetInterpreter()) << "I2 is not active";
+}
+
+TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_StaticDtorsRunOnDelete) {
+#ifdef EMSCRIPTEN
+  GTEST_SKIP() << "Test fails for Emscripten builds";
+#endif
+  if (TypeParam::isOutOfProcess)
+    GTEST_SKIP() << "Test fails for OOP JIT builds";
+
+  auto* I = TestFixture::CreateInterpreter();
+  ASSERT_NE(I, nullptr);
+
+  // Host-side flag the JIT writes to; survives the interpreter deletion
+  // that frees JIT memory. Reset explicitly for --gtest_repeat.
+  static int HostFlag;
+  HostFlag = 0;
+  std::string Inject = "extern \"C\" void* dtor_sink = (void*)" +
+                       std::to_string(reinterpret_cast<uintptr_t>(&HostFlag)) +
+                       ";";
+  Cpp::Declare(Inject.c_str(), I);
+  Cpp::Declare(R"(
+    struct DtorNotify { ~DtorNotify() { *static_cast<int*>(dtor_sink) = 1; } };
+  )",
+               I);
+  Cpp::Process("static DtorNotify notify;");
+
+  EXPECT_EQ(HostFlag, 0);
+  Cpp::DeleteInterpreter(I);
+  EXPECT_EQ(HostFlag, 1) << "JIT static dtor did not run on DeleteInterpreter";
+}
+
+// Mirrors clang/unittests/Interpreter/InterpreterTest.cpp's
+// ShutdownDoesNotMaterializeAgainstDestroyedGlobals at the CppInterOp
+// wrapper level: two interpreters each register a static with a
+// non-trivial dtor, then std::exit drives the C++ static-dtor phase.
+// On LLVM 23+ our InterpreterShutdown calls llvm_shutdown which fires
+// ~InterpreterInfo -> ~Interpreter -> JIT deinit; the deinit lookup
+// skips lazy materialization (Platform::lookupResolvedInitSymbols,
+// llvm/llvm-project#196874) and the process exits cleanly.
+//
+// Skipped on older LLVM: InterpreterShutdown's llvm_shutdown call is
+// gated out (we leak instead of risking the JIT cleanUp crash), and
+// driving the chain manually from the test deadlocks rather than
+// crashing cleanly through the compat layer. The crash contract is
+// pinned upstream by clang's
+// ShutdownDoesNotMaterializeAgainstDestroyedGlobals test.
+TYPED_TEST(CPPINTEROP_TEST_MODE,
+           Interpreter_ShutdownDoesNotMaterializeAgainstDestroyedGlobals) {
+#ifdef EMSCRIPTEN
+  GTEST_SKIP() << "Test fails for Emscripten builds";
+#endif
+  if (TypeParam::isOutOfProcess)
+    GTEST_SKIP() << "Test fails for OOP JIT builds";
+#if LLVM_VERSION_MAJOR <= 22
+  GTEST_SKIP() << "Requires LLVM 23+ (lookupResolvedInitSymbols)";
+#else
+  EXPECT_EXIT(
+      {
+        auto* I1 = TestFixture::CreateInterpreter();
+        auto* I2 = TestFixture::CreateInterpreter();
+        Cpp::ActivateInterpreter(I1);
+        Cpp::Process("struct S1 { S1() {} ~S1() {} }; static S1 s1;");
+        Cpp::ActivateInterpreter(I2);
+        Cpp::Process("struct S2 { S2() {} ~S2() {} }; static S2 s2;");
+        std::exit(0);
+      },
+      ::testing::ExitedWithCode(0), "");
+#endif
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_ActivateInterpreter) {
