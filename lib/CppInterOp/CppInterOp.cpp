@@ -2025,7 +2025,7 @@ static void RegisterPerms(llvm::StringMap<QualType>& Map, QualType QT,
 ALLOW_ACCESS(ASTContext, Types, llvm::SmallVector<clang::Type*, 0>);
 static void PopulateBuiltinMap(ASTContext& Context) {
   const PrintingPolicy Policy(Context.getLangOpts());
-  auto& BuiltinMap = sInterpreters->back().BuiltinMap;
+  auto& BuiltinMap = GetInterpreters().back().BuiltinMap;
   const auto& Types = ACCESS(Context, Types);
 
   for (clang::Type* T : Types) {
@@ -2101,7 +2101,7 @@ static void PopulateBuiltinMap(ASTContext& Context) {
   BuiltinMap["unsigned"] = Context.UnsignedIntTy;
 }
 static QualType findBuiltinType(llvm::StringRef typeName, ASTContext& Context) {
-  llvm::StringMap<QualType>& BuiltinMap = sInterpreters->back().BuiltinMap;
+  llvm::StringMap<QualType>& BuiltinMap = GetInterpreters().back().BuiltinMap;
   if (BuiltinMap.empty())
     PopulateBuiltinMap(Context);
 
