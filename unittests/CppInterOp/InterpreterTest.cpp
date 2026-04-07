@@ -119,6 +119,51 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_DeleteInterpreter) {
   EXPECT_EQ(I2, Cpp::GetInterpreter()) << "I2 is not active";
 }
 
+TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_StaticDtorsRunOnDelete) {
+#ifdef EMSCRIPTEN
+  GTEST_SKIP() << "Test fails for Emscripten builds";
+#endif
+  if (TypeParam::isOutOfProcess)
+    GTEST_SKIP() << "Test fails for OOP JIT builds";
+
+  auto* I = TestFixture::CreateInterpreter();
+  ASSERT_NE(I, nullptr);
+
+  // Declare a flag and a struct whose destructor sets it.
+  Cpp::Declare(R"(
+    int dtor_flag = 0;
+    struct DtorProbe { ~DtorProbe() { dtor_flag = 1; } };
+  )",
+               I);
+
+  // Create a static instance so its destructor is registered with atexit.
+  Cpp::Process("static DtorProbe probe;");
+
+  // Use a host-side flag that survives interpreter deletion.
+  // The JIT code writes to this address via a pointer we inject.
+  static int HostFlag = 0;
+  std::string inject = "extern \"C\" void* dtor_sink = (void*)" +
+                       std::to_string(reinterpret_cast<uintptr_t>(&HostFlag)) +
+                       ";";
+  Cpp::Declare(inject.c_str(), I);
+  Cpp::Declare(R"(
+    struct DtorNotify {
+      ~DtorNotify() { *static_cast<int*>(dtor_sink) = 1; }
+    };
+  )",
+               I);
+  Cpp::Process("static DtorNotify notify;");
+
+  EXPECT_EQ(HostFlag, 0) << "Flag should be 0 before destructor runs";
+
+  // Delete the interpreter — this should run JIT static destructors.
+  Cpp::DeleteInterpreter(I);
+
+  EXPECT_EQ(HostFlag, 1)
+      << "Static destructor did not run during DeleteInterpreter. "
+         "JIT atexit handlers are likely not being executed.";
+}
+
 TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_ActivateInterpreter) {
 #ifdef EMSCRIPTEN_STATIC_LIBRARY
   GTEST_SKIP() << "Test fails for Emscipten static library build";
@@ -407,6 +452,12 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_GetLanguageStandardGNU) {
   EXPECT_EQ(Cpp::GetLanguageStandard(nullptr),
             Cpp::InterpreterLanguageStandard::gnucxx17);
 }
+
+// Note: UseExternalInterpreter's effect on llvm_shutdown is tested
+// indirectly by the existing Interpreter_ExternalInterpreter test.
+// UseExternalInterpreter sets an internal flag that prevents
+// llvm_shutdown from being called at process exit, ensuring the
+// client's LLVM infrastructure remains intact.
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_ExternalInterpreter) {
 
