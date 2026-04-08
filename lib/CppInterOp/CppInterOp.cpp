@@ -11,6 +11,7 @@
 
 #include "Compatibility.h"
 #include "Sins.h" // for access to private members
+#include "Tracing.h"
 
 #include "clang/AST/Attrs.inc"
 #include "clang/AST/CXXInheritance.h"
@@ -51,6 +52,7 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Demangle/Demangle.h"
+#include "llvm/ExecutionEngine/JITSymbol.h"
 #if CLANG_VERSION_MAJOR >= 20
 #include "llvm/ExecutionEngine/Orc/AbsoluteSymbols.h"
 #include "llvm/ExecutionEngine/Orc/CoreContainers.h"
@@ -77,6 +79,7 @@
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
+#include <cstdlib>
 #include <deque>
 #include <iostream>
 #include <iterator>
@@ -187,6 +190,9 @@ static std::deque<InterpreterInfo>& GetInterpreters() {
   std::call_once(ProcessInitialized, []() {
     llvm::sys::PrintStackTraceOnErrorSignal("CppInterOp");
 
+    if (getenv("CPPINTEROP_LOG") != nullptr)
+      CppInterOp::Tracing::InitTracing();
+
     // Initialize all targets (required for device offloading)
     llvm::InitializeAllTargetInfos();
     llvm::InitializeAllTargets();
@@ -195,6 +201,7 @@ static std::deque<InterpreterInfo>& GetInterpreters() {
     llvm::InitializeAllAsmPrinters();
 
     llvm::sys::AddSignalHandler(DefaultProcessCrashHandler, /*Cookie=*/nullptr);
+
     // std::atexit(llvm::llvm_shutdown);
   });
 
@@ -208,6 +215,16 @@ static void DefaultProcessCrashHandler(void*) {
 
   llvm::errs() << "\n**************************************************\n";
   llvm::errs() << "  CppInterOp CRASH DETECTED\n";
+  if (CppInterOp::Tracing::TraceInfo::TheTraceInfo) {
+    std::string Path =
+        CppInterOp::Tracing::TraceInfo::TheTraceInfo->writeToFile();
+    if (!Path.empty())
+      llvm::errs() << "  Reproducer saved to: " << Path << "\n";
+    else
+      llvm::errs() << "  Failed to write reproducer file.\n";
+  } else {
+    llvm::errs() << "  Re-run with CPPINTEROP_LOG=1 for a crash reproducer\n";
+  }
 
   if (!Interps.empty()) {
     llvm::errs() << "  Active Interpreters:\n";

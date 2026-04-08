@@ -109,6 +109,7 @@ add_llvm_library(clangCppInterOp
   CppInterOp.cpp
   Dispatch.cpp
   CXCppInterOp.cpp
+  Tracing.cpp
   ${DLM}
   LINK_LIBS
   ${link_libs}
