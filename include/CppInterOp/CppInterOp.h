@@ -624,7 +624,8 @@ CPPINTEROP_API bool IsStaticMethod(TCppConstFunction_t method);
 CPPINTEROP_API bool IsExplicit(TCppConstFunction_t method);
 
 ///\returns the address of the function given its potentially mangled name.
-CPPINTEROP_API TCppFuncAddr_t GetFunctionAddress(const char* mangled_name);
+CPPINTEROP_API TCppFuncAddr_t
+GetFunctionAddressFromMangledName(const char* mangled_name);
 
 ///\returns the address of the function given its function declaration.
 CPPINTEROP_API TCppFuncAddr_t GetFunctionAddress(TCppFunction_t method);
