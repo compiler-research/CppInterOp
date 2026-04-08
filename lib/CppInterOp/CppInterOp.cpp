@@ -515,6 +515,31 @@ bool IsComplete(TCppScope_t scope) {
   return true;
 }
 
+bool RequireCompleteType(TCppScope_t scope) {
+  if (!scope)
+    return false;
+
+  Decl* D = static_cast<Decl*>(scope);
+  auto* TD = dyn_cast<TagDecl>(D);
+  if (!TD)
+    return false;
+
+  if (IsComplete(scope))
+    return true;
+
+  const clang::Type* Ty = TD->getTypeForDecl();
+  if (!Ty)
+    return false;
+
+  clang::Sema& S = getSema();
+  QualType QT = Ty->getCanonicalTypeInternal();
+  SourceLocation fakeLoc = GetValidSLoc(S);
+  compat::SynthesizingCodeRAII RAII(&getInterp());
+
+  // RequireCompleteType returns true on error
+  return !S.RequireCompleteType(fakeLoc, QT, diag::err_incomplete_type);
+}
+
 size_t SizeOf(TCppScope_t scope) {
   assert(scope);
   if (!IsComplete(scope))
