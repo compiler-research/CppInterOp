@@ -104,6 +104,18 @@ if (LLVM_LINK_LLVM_DYLIB)
     )
 endif(LLVM_LINK_LLVM_DYLIB)
 
+if(CPPINTEROP_ENABLE_CLAD)
+  set(CPPINTEROP_PLUGIN_LINK_LIBS)
+  if (APPLE)
+      set(CPPINTEROP_PLUGIN_LINK_LIBS -Wl,-force_load cladPlugin -Wl,-force_load cladDifferentiator)
+  elseif(MSVC)
+      set(CPPINTEROP_PLUGIN_LINK_LIBS cladPlugin cladDifferentiator)
+      set(CLAD_LIBS "-WHOLEARCHIVE:cladPlugin.lib -WHOLEARCHIVE:cladDifferentiator.lib")
+  else()
+      set(CPPINTEROP_PLUGIN_LINK_LIBS -Wl,--whole-archive cladPlugin cladDifferentiator -Wl,--no-whole-archive)
+  endif()
+endif(CPPINTEROP_ENABLE_CLAD)
+
 add_llvm_library(clangCppInterOp
   DISABLE_LLVM_LINK_LLVM_DYLIB
   CppInterOp.cpp
@@ -112,6 +124,7 @@ add_llvm_library(clangCppInterOp
   ${DLM}
   LINK_LIBS
   ${link_libs}
+  ${CPPINTEROP_PLUGIN_LINK_LIBS}
 )
 
 if(EMSCRIPTEN)
@@ -158,6 +171,12 @@ endif(EMSCRIPTEN)
 target_compile_definitions(clangCppInterOp PUBLIC "_CINDEX_LIB_") # workaround for the use of `CINDEX_LINKAGE`
 
 string(REPLACE ";" "\;" _VER CPPINTEROP_VERSION)
-set_source_files_properties(CppInterOp.cpp PROPERTIES COMPILE_DEFINITIONS
-  "LLVM_BINARY_DIR=\"${LLVM_BINARY_DIR}\";CPPINTEROP_VERSION=\"${_VAR}\""
+set_property(SOURCE CppInterOp.cpp APPEND PROPERTY COMPILE_DEFINITIONS
+  "LLVM_BINARY_DIR=\"${LLVM_BINARY_DIR}\""
+  "CPPINTEROP_VERSION=\"${_VAR}\""
+)
+
+set_property(SOURCE CppInterOp.cpp APPEND PROPERTY COMPILE_DEFINITIONS
+  "CLAD_INCLUDE_DIRS=\"${CMAKE_BINARY_DIR}/plugins/clad/include/\""
+  "CPPINTEROP_ENABLE_CLAD=\"${CPPINTEROP_ENABLE_CLAD}\""
 )

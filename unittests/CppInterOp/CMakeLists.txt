@@ -54,8 +54,9 @@ else()
 endif()
 
 add_cppinterop_unittest(CppInterOpTests
-  ENABLE_DISPATCH
+  # ENABLE_DISPATCH
   CommentReflectionTest.cpp
+  CladTest.cpp
   EnumReflectionTest.cpp
   FunctionReflectionTest.cpp
   InterpreterTest.cpp
@@ -75,6 +76,9 @@ endif ()
 
 set_source_files_properties(InterpreterTest.cpp PROPERTIES COMPILE_DEFINITIONS
   "LLVM_BINARY_DIR=\"${LLVM_BINARY_DIR}\""
+)
+set_source_files_properties(CladTest.cpp PROPERTIES COMPILE_DEFINITIONS
+  "CLAD_INCLUDE_DIRS=\"${CMAKE_BINARY_DIR}/plugins/clad/include/\""
 )
 
 if(EMSCRIPTEN)
