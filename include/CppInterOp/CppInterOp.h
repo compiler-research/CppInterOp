@@ -934,7 +934,8 @@ InstantiateTemplateFunctionFromString(const char* function_template);
 CPPINTEROP_API TCppFunction_t
 BestOverloadFunctionMatch(const std::vector<TCppFunction_t>& candidates,
                           const std::vector<TemplateArgInfo>& explicit_types,
-                          const std::vector<TemplateArgInfo>& arg_types);
+                          const std::vector<TemplateArgInfo>& arg_types,
+                          TCppType_t invoking_object_type = nullptr);
 
 CPPINTEROP_API void GetAllCppNames(TCppScope_t scope,
                                    std::set<std::string>& names);
