@@ -50,6 +50,8 @@ class TraceInfo {
   unsigned m_VarCount = 0;
 
   std::vector<std::string> m_Log;
+  size_t m_RegionStart = 0; ///< Log index where current region began.
+  bool m_InRegion = false;  ///< True between StartTracing/StopTracing.
 
 public:
   TraceInfo() : m_TG("CppInterOp", "CppInterOp Timing Report") {}
@@ -110,6 +112,16 @@ public:
   /// \param Version optional version string embedded as comments.
   CPPINTEROP_TRACE_API std::string writeToFile(const std::string& Version = "");
 
+  /// Begin a traced region. Returns the path where StopTracing will write.
+  CPPINTEROP_TRACE_API std::string StartRegion();
+
+  /// End the traced region and write only the region's entries to the file.
+  CPPINTEROP_TRACE_API void StopRegion(const std::string& Version = "");
+
+private:
+  std::string m_RegionPath;
+
+public:
   void clear() {
     // Stop any running timers before clearing to avoid triggering
     // TimerGroup's destructor report.

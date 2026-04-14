@@ -699,7 +699,7 @@ TEST_F(TracingTest, LogEntriesIncludeTimingAnnotation) {
 }
 
 // ---------------------------------------------------------------------------
-// Tests: all CPPINTEROP_API functions must have INTEROP_TRACE
+// Tests: StartTracing / StopTracing region-based tracing
 // ---------------------------------------------------------------------------
 
 #ifndef EMSCRIPTEN
@@ -709,6 +709,111 @@ static std::string ReadFileToString(const std::string& path) {
           std::istreambuf_iterator<char>()};
 }
 // This test reads source files from the build tree via CPPINTEROP_DIR.
+TEST_F(TracingTest, StartStopTracingWritesToFile) {
+  // StartTracing begins recording; StopTracing writes the file.
+  std::string Path = CppInterOp::Tracing::StartTracing();
+  ASSERT_FALSE(Path.empty());
+
+  // Calls within the region are recorded.
+  VoidFunc();
+  AnnotatedFunction(5);
+
+  CppInterOp::Tracing::StopTracing();
+
+  // The file should exist and contain the traced calls.
+  std::string content = ReadFileToString(Path);
+  ASSERT_FALSE(content.empty());
+  EXPECT_THAT(content, HasSubstr("Cpp::VoidFunc()"));
+  EXPECT_THAT(content, HasSubstr("Cpp::AnnotatedFunction("));
+  EXPECT_THAT(content, HasSubstr("#include <CppInterOp/CppInterOp.h>"));
+
+  llvm::sys::fs::remove(Path);
+}
+
+TEST_F(TracingTest, OnlyRegionCallsAreRecorded) {
+  // Calls before StartTracing should not appear.
+  VoidFunc();
+
+  std::string Path = CppInterOp::Tracing::StartTracing();
+  ASSERT_FALSE(Path.empty());
+
+  AnnotatedFunction(42);
+
+  CppInterOp::Tracing::StopTracing();
+
+  // Calls after StopTracing should not appear either.
+  VoidFunc();
+
+  std::string content = ReadFileToString(Path);
+  // Should contain only the call within the region.
+  EXPECT_THAT(content, HasSubstr("Cpp::AnnotatedFunction(42)"));
+  // VoidFunc was called before and after — should NOT be in the file.
+  // Count occurrences of VoidFunc in the reproducer body.
+  auto bodyStart = content.find("void reproducer()");
+  ASSERT_NE(bodyStart, std::string::npos);
+  std::string body = content.substr(bodyStart);
+  EXPECT_EQ(body.find("VoidFunc"), std::string::npos)
+      << "VoidFunc should not appear in the reproducer body:\n"
+      << body;
+
+  llvm::sys::fs::remove(Path);
+}
+
+TEST_F(TracingTest, StartTracingWithEnvVarNarrowsToRegion) {
+  // When CPPINTEROP_LOG=1 is set (tracing already active from SetUp),
+  // StartTracing/StopTracing should still narrow to just the region.
+  ASSERT_NE(TraceInfo::TheTraceInfo, nullptr);
+
+  // This call is before the region.
+  VoidFunc();
+
+  std::string Path = CppInterOp::Tracing::StartTracing();
+  ASSERT_FALSE(Path.empty());
+
+  AnnotatedFunction(7);
+
+  CppInterOp::Tracing::StopTracing();
+
+  std::string content = ReadFileToString(Path);
+  auto bodyStart = content.find("void reproducer()");
+  ASSERT_NE(bodyStart, std::string::npos);
+  std::string body = content.substr(bodyStart);
+  EXPECT_THAT(body, HasSubstr("Cpp::AnnotatedFunction(7)"));
+  EXPECT_EQ(body.find("VoidFunc"), std::string::npos);
+
+  llvm::sys::fs::remove(Path);
+}
+
+TEST_F(TracingTest, MultipleStartStopRegions) {
+  // Multiple regions should each produce their own file.
+  std::string Path1 = CppInterOp::Tracing::StartTracing();
+  AnnotatedFunction(1);
+  CppInterOp::Tracing::StopTracing();
+
+  std::string Path2 = CppInterOp::Tracing::StartTracing();
+  AnnotatedFunction(2);
+  CppInterOp::Tracing::StopTracing();
+
+  ASSERT_NE(Path1, Path2);
+
+  std::string content1 = ReadFileToString(Path1);
+  std::string content2 = ReadFileToString(Path2);
+
+  EXPECT_THAT(content1, HasSubstr("Cpp::AnnotatedFunction(1)"));
+  EXPECT_THAT(content2, HasSubstr("Cpp::AnnotatedFunction(2)"));
+
+  // Each file should only have its own call.
+  EXPECT_EQ(content1.find("AnnotatedFunction(2)"), std::string::npos);
+  EXPECT_EQ(content2.find("AnnotatedFunction(1)"), std::string::npos);
+
+  llvm::sys::fs::remove(Path1);
+  llvm::sys::fs::remove(Path2);
+}
+
+// ---------------------------------------------------------------------------
+// Tests: all CPPINTEROP_API functions must have INTEROP_TRACE
+// ---------------------------------------------------------------------------
+
 TEST(TracingCoverageTest, AllPublicAPIsAreTraced) {
   // 1. Parse the header to extract all CPPINTEROP_API function names.
   std::string Header =

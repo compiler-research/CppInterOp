@@ -13,6 +13,7 @@
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/Path.h"
+#include "llvm/Support/Process.h"
 #include "llvm/Support/raw_ostream.h"
 
 #include <cassert>
@@ -66,6 +67,46 @@ std::string TraceInfo::writeToFile(const std::string& Version) {
   OS << "int main() { reproducer(); return 0; }\n";
   OS.flush();
   return std::string(Path);
+}
+
+std::string TraceInfo::StartRegion() {
+  m_RegionStart = m_Log.size();
+  m_InRegion = true;
+
+  llvm::SmallString<128> TmpDir;
+  llvm::sys::path::system_temp_directory(/*ErasedOnReboot=*/true, TmpDir);
+  llvm::SmallString<128> Path;
+  llvm::sys::path::append(Path, TmpDir, "cppinterop-reproducer-%%%%%%.cpp");
+  int FD;
+  std::error_code EC = llvm::sys::fs::createUniqueFile(Path, FD, Path);
+  if (EC)
+    return "";
+  llvm::sys::Process::SafelyCloseFileDescriptor(FD);
+  m_RegionPath = std::string(Path);
+  return m_RegionPath;
+}
+
+void TraceInfo::StopRegion(const std::string& Version) {
+  if (!m_InRegion)
+    return;
+  m_InRegion = false;
+
+  std::error_code EC;
+  llvm::raw_fd_ostream OS(m_RegionPath, EC);
+  if (EC)
+    return;
+
+  OS << "// CppInterOp trace region\n";
+  std::string Ver = Version.empty() ? CppImpl::GetVersion() : Version;
+  WriteVersionComment(OS, Ver);
+  OS << "// Generated automatically.\n";
+  OS << "#include <CppInterOp/CppInterOp.h>\n\n";
+  OS << "void reproducer() {\n";
+  for (size_t i = m_RegionStart; i < m_Log.size(); ++i)
+    OS << m_Log[i] << "\n";
+  OS << "}\n\n";
+  OS << "int main() { reproducer(); return 0; }\n";
+  OS.flush();
 }
 
 } // namespace Tracing
