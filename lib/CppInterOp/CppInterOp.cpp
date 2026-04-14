@@ -396,24 +396,41 @@ bool JitCall::AreArgumentsValid(void* result, ArgList args, void* self,
 void JitCall::ReportInvokeStart(void* result, ArgList args, void* self) const {
   std::string Name;
   llvm::raw_string_ostream OS(Name);
-  auto FD = (const FunctionDecl*)m_FD;
+  auto* FD = (const FunctionDecl*)m_FD;
   FD->getNameForDiagnostic(OS, FD->getASTContext().getPrintingPolicy(),
                            /*Qualified=*/true);
   LLVM_DEBUG(dbgs() << "Run '" << Name << "', compiled at: "
                     << (void*)m_GenericCall << " with result at: " << result
                     << " , args at: " << args.m_Args << " , arg count: "
                     << args.m_ArgSize << " , self at: " << self << "\n";);
+
+  if (auto* TI = CppInterOp::Tracing::TraceInfo::TheTraceInfo) {
+    std::string SelfPart = self ? TI->lookupHandle(self) : "";
+    std::string Entry =
+        llvm::formatv("  // JitCall::Invoke {0}(nargs={1}, self={2})", Name,
+                      args.m_ArgSize, SelfPart.empty() ? "nullptr" : SelfPart);
+    TI->appendToLog(Entry);
+  }
 }
 
 void JitCall::ReportInvokeStart(void* object, unsigned long nary,
                                 int withFree) const {
   std::string Name;
   llvm::raw_string_ostream OS(Name);
-  auto FD = (const FunctionDecl*)m_FD;
+  auto* FD = (const FunctionDecl*)m_FD;
   FD->getNameForDiagnostic(OS, FD->getASTContext().getPrintingPolicy(),
                            /*Qualified=*/true);
   LLVM_DEBUG(dbgs() << "Finish '" << Name
                     << "', compiled at: " << (void*)m_DestructorCall);
+
+  if (auto* TI = CppInterOp::Tracing::TraceInfo::TheTraceInfo) {
+    std::string ObjPart = object ? TI->lookupHandle(object) : "nullptr";
+    std::string Entry = llvm::formatv(
+        "  // JitCall::InvokeDestructor {0}(object={1}, nary={2}, "
+        "withFree={3})",
+        Name, ObjPart, nary, withFree);
+    TI->appendToLog(Entry);
+  }
 }
 
 #undef DEBUG_TYPE
@@ -3197,6 +3214,24 @@ JitCall::GenericCall make_wrapper(compat::Interpreter& I,
 
   if (get_wrapper_code(I, FD, wrapper_name, wrapper_code) == 0)
     return 0;
+
+  // Log the wrapper source for the crash reproducer.
+  if (auto* TI = CppInterOp::Tracing::TraceInfo::TheTraceInfo) {
+    std::string FuncName;
+    llvm::raw_string_ostream FNS(FuncName);
+    FD->getNameForDiagnostic(FNS, FD->getASTContext().getPrintingPolicy(),
+                             /*Qualified=*/true);
+    TI->appendToLog("  // === Wrapper for " + FuncName + " ===");
+    // Emit each line of the wrapper source as a comment.
+    llvm::StringRef WC(wrapper_code);
+    while (!WC.empty()) {
+      auto [Line, Rest] = WC.split('\n');
+      if (!Line.empty())
+        TI->appendToLog(("  // " + Line).str());
+      WC = Rest;
+    }
+    TI->appendToLog("  // === End wrapper ===");
+  }
 
   //
   //   Compile the wrapper code.

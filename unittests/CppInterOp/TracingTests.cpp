@@ -558,3 +558,72 @@ TEST_F(TracingTest, WriteToFileContainsOutParamCalls) {
 
   llvm::sys::fs::remove(Path);
 }
+
+// ---------------------------------------------------------------------------
+// Tests: JitCall wrapper source and Invoke are logged
+// ---------------------------------------------------------------------------
+
+TEST_F(TracingTest, JitCallWrapperSourceLogged) {
+  Cpp::CreateInterpreter({});
+  ASSERT_NE(TraceInfo::TheTraceInfo, nullptr);
+
+  // Placement new requires <new>.
+  Cpp::Declare("#include <new>");
+  Cpp::Declare("namespace WrapNS { int add(int a, int b) { return a + b; } }");
+  auto* Func =
+      static_cast<void*>(Cpp::GetNamed("add", Cpp::GetScope("WrapNS")));
+  ASSERT_NE(Func, nullptr);
+
+  TraceInfo::TheTraceInfo->clear();
+
+  // MakeFunctionCallable triggers make_wrapper which logs the wrapper source.
+  auto JC = Cpp::MakeFunctionCallable(Func);
+  ASSERT_TRUE(JC.isValid());
+
+  auto log = getFullLog();
+  EXPECT_THAT(log, HasSubstr("=== Wrapper for"));
+  EXPECT_THAT(log, HasSubstr("=== End wrapper ==="));
+  // The wrapper source should contain the function name.
+  EXPECT_THAT(log, HasSubstr("add"));
+}
+
+#ifndef NDEBUG
+TEST_F(TracingTest, JitCallInvokeLogged) {
+  Cpp::CreateInterpreter({});
+  ASSERT_NE(TraceInfo::TheTraceInfo, nullptr);
+
+  Cpp::Declare("#include <new>");
+  Cpp::Declare("namespace InvNS { int square(int x) { return x * x; } }");
+  auto* Func =
+      static_cast<void*>(Cpp::GetNamed("square", Cpp::GetScope("InvNS")));
+  ASSERT_NE(Func, nullptr);
+
+  auto JC = Cpp::MakeFunctionCallable(Func);
+  ASSERT_TRUE(JC.isValid());
+
+  // Clear so only the Invoke shows up.
+  TraceInfo::TheTraceInfo->clear();
+
+  int arg = 7;
+  int result = 0;
+  void* args[] = {&arg};
+  JC.Invoke(&result, {args, 1});
+
+  auto log = getFullLog();
+  // ReportInvokeStart should have logged the invoke.
+  EXPECT_THAT(log, HasSubstr("JitCall::Invoke"));
+  EXPECT_THAT(log, HasSubstr("square"));
+  EXPECT_THAT(log, HasSubstr("nargs=1"));
+
+  // And the function should have actually executed.
+  EXPECT_EQ(result, 49);
+}
+#endif
+
+// Verify that log entries include timing annotations.
+TEST_F(TracingTest, LogEntriesIncludeTimingAnnotation) {
+  VoidFunc();
+  auto output = TraceInfo::TheTraceInfo->getLastLogEntry();
+  EXPECT_THAT(output, HasSubstr("// ["));
+  EXPECT_THAT(output, HasSubstr("ns]"));
+}
