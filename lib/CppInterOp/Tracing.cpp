@@ -29,7 +29,19 @@ void InitTracing() {
   TraceInfo::TheTraceInfo = &*TI;
 }
 
-std::string TraceInfo::writeToFile() {
+/// Helper: emit version info as comment lines.
+static void WriteVersionComment(llvm::raw_ostream& OS,
+                                const std::string& Version) {
+  llvm::StringRef Ver(Version);
+  while (!Ver.empty()) {
+    auto [Line, Rest] = Ver.split('\n');
+    if (!Line.empty())
+      OS << "// " << Line << "\n";
+    Ver = Rest;
+  }
+}
+
+std::string TraceInfo::writeToFile(const std::string& Version) {
   llvm::SmallString<128> TmpDir;
   llvm::sys::path::system_temp_directory(/*ErasedOnReboot=*/true, TmpDir);
   llvm::SmallString<128> Path;
@@ -43,15 +55,8 @@ std::string TraceInfo::writeToFile() {
   llvm::raw_fd_ostream OS(FD, /*shouldClose=*/true);
 
   OS << "// CppInterOp crash reproducer\n";
-  // Emit version info as comment lines — GetVersion() is multi-line.
-  std::string VerStr = CppImpl::GetVersion();
-  llvm::StringRef Ver(VerStr);
-  while (!Ver.empty()) {
-    auto [Line, Rest] = Ver.split('\n');
-    if (!Line.empty())
-      OS << "// " << Line << "\n";
-    Ver = Rest;
-  }
+  std::string Ver = Version.empty() ? CppImpl::GetVersion() : Version;
+  WriteVersionComment(OS, Ver);
   OS << "// Generated automatically — re-run to reproduce the crash.\n";
   OS << "#include <CppInterOp/CppInterOp.h>\n\n";
   OS << "void reproducer() {\n";

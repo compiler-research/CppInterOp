@@ -8,6 +8,8 @@
 #include <fstream>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
+#include <regex>
+#include <sstream>
 
 using namespace CppInterOp::Tracing;
 using ::testing::HasSubstr;
@@ -138,7 +140,7 @@ TEST_F(TracingTest, ValidAnnotatedBranch) {
 TEST_F(TracingTest, VoidFunctionTracing) {
   VoidFunc();
   auto output = TraceInfo::TheTraceInfo->getLastLogEntry();
-  EXPECT_THAT(output, HasSubstr("CppInterOp::VoidFunc();"));
+  EXPECT_THAT(output, HasSubstr("Cpp::VoidFunc();"));
 }
 
 // ---------------------------------------------------------------------------
@@ -159,7 +161,7 @@ void WithOutParamTrace(std::vector<void*>& out) {
 TEST_F(TracingTest, TraceWithNoArgs) {
   NoArgTrace();
   auto output = TraceInfo::TheTraceInfo->getLastLogEntry();
-  EXPECT_THAT(output, HasSubstr("CppInterOp::NoArgTrace();"));
+  EXPECT_THAT(output, HasSubstr("Cpp::NoArgTrace();"));
 }
 
 TEST_F(TracingTest, TraceWithOutParamArg) {
@@ -167,7 +169,7 @@ TEST_F(TracingTest, TraceWithOutParamArg) {
   WithOutParamTrace(v);
   auto output = TraceInfo::TheTraceInfo->getLastLogEntry();
   // OutParam should not appear in the arg list.
-  EXPECT_THAT(output, HasSubstr("CppInterOp::WithOutParamTrace();"));
+  EXPECT_THAT(output, HasSubstr("Cpp::WithOutParamTrace();"));
   EXPECT_EQ(v.size(), 1u);
 }
 
@@ -211,28 +213,27 @@ TEST_F(TracingTest, ArgFormattingHandle) {
   FuncTakingHandle(h);
   auto output = getFullLog();
   // The handle should be registered as v1, then reused.
-  EXPECT_THAT(output, HasSubstr("auto v1 = CppInterOp::FuncReturningHandle()"));
-  EXPECT_THAT(output, HasSubstr("CppInterOp::FuncTakingHandle(v1)"));
+  EXPECT_THAT(output, HasSubstr("auto v1 = Cpp::FuncReturningHandle()"));
+  EXPECT_THAT(output, HasSubstr("Cpp::FuncTakingHandle(v1)"));
 }
 
 TEST_F(TracingTest, ArgFormattingString) {
   FuncTakingString("hello");
   auto output = TraceInfo::TheTraceInfo->getLastLogEntry();
-  EXPECT_THAT(output, HasSubstr("CppInterOp::FuncTakingString(\"hello\")"));
+  EXPECT_THAT(output, HasSubstr("Cpp::FuncTakingString(\"hello\")"));
 }
 
 TEST_F(TracingTest, ArgFormattingInt) {
   FuncTakingInt(42);
   auto output = TraceInfo::TheTraceInfo->getLastLogEntry();
-  EXPECT_THAT(output, HasSubstr("CppInterOp::FuncTakingInt(42)"));
+  EXPECT_THAT(output, HasSubstr("Cpp::FuncTakingInt(42)"));
 }
 
 TEST_F(TracingTest, ArgFormattingMixed) {
   void* h = FuncReturningHandle();
   FuncTakingMixed(h, "world", 99);
   auto output = getFullLog();
-  EXPECT_THAT(output,
-              HasSubstr("CppInterOp::FuncTakingMixed(v1, \"world\", 99)"));
+  EXPECT_THAT(output, HasSubstr("Cpp::FuncTakingMixed(v1, \"world\", 99)"));
 }
 
 TEST_F(TracingTest, ArgFormattingOutParamSkipped) {
@@ -243,7 +244,7 @@ TEST_F(TracingTest, ArgFormattingOutParamSkipped) {
   FuncWithHandleAndOut(h, out);
   auto output = getFullLog();
   // Should show only the handle arg, not the OutParam.
-  EXPECT_THAT(output, HasSubstr("CppInterOp::FuncWithHandleAndOut(v1)"));
+  EXPECT_THAT(output, HasSubstr("Cpp::FuncWithHandleAndOut(v1)"));
 }
 
 // Test: when two functions return the same pointer, the second should not
@@ -265,8 +266,7 @@ TEST_F(TracingTest, DuplicateHandleNotRedeclared) {
   ASSERT_NE(firstDecl, std::string::npos) << "First call should declare v1";
 
   // The second occurrence should NOT be "auto v1 =" but "/*v1*/"
-  size_t secondCall =
-      output.find("CppInterOp::ReturnSameHandle()", firstDecl + 1);
+  size_t secondCall = output.find("Cpp::ReturnSameHandle()", firstDecl + 1);
   ASSERT_NE(secondCall, std::string::npos) << "Should have a second call";
 
   // There should be exactly one "auto v1 =" in the output.
@@ -290,7 +290,7 @@ TEST_F(TracingTest, NullptrReturnAnnotated) {
   ReturnNull();
   auto output = TraceInfo::TheTraceInfo->getLastLogEntry();
   EXPECT_THAT(output, HasSubstr("/*nullptr*/"));
-  EXPECT_THAT(output, HasSubstr("CppInterOp::ReturnNull()"));
+  EXPECT_THAT(output, HasSubstr("Cpp::ReturnNull()"));
 }
 
 // Test: non-void, non-pointer returns (int, bool, size_t) should NOT
@@ -305,7 +305,7 @@ TEST_F(TracingTest, NonPointerReturnNoAnnotation) {
   auto output = TraceInfo::TheTraceInfo->getLastLogEntry();
   EXPECT_THAT(output, Not(HasSubstr("auto")));
   EXPECT_THAT(output, Not(HasSubstr("nullptr")));
-  EXPECT_THAT(output, HasSubstr("CppInterOp::ReturnInt()"));
+  EXPECT_THAT(output, HasSubstr("Cpp::ReturnInt()"));
 }
 
 // Test: non-streamable types (e.g. std::vector) are formatted as placeholders.
@@ -319,7 +319,7 @@ TEST_F(TracingTest, ArgFormattingNonStreamable) {
   FuncTakingVector(v);
   auto output = TraceInfo::TheTraceInfo->getLastLogEntry();
   // Non-streamable types should get a {...} placeholder.
-  EXPECT_THAT(output, HasSubstr("CppInterOp::FuncTakingVector({...})"));
+  EXPECT_THAT(output, HasSubstr("Cpp::FuncTakingVector({...})"));
 }
 
 // ---------------------------------------------------------------------------
@@ -500,7 +500,7 @@ TEST_F(TracingTest, OutParamNonPointerElementType) {
   EXPECT_EQ(results.size(), 2u);
   EXPECT_EQ(results[0], "hello");
   EXPECT_EQ(results[1], "world");
-  EXPECT_THAT(output, HasSubstr("CppInterOp::FillStrings();"));
+  EXPECT_THAT(output, HasSubstr("Cpp::FillStrings();"));
 }
 
 TEST_F(NoTracingTest, OutParamNonPointerDisabled) {
@@ -535,8 +535,8 @@ TEST_F(TracingTest, WriteToFileProducesValidReproducer) {
                       std::istreambuf_iterator<char>());
 
   EXPECT_THAT(content, HasSubstr("#include <CppInterOp/CppInterOp.h>"));
-  EXPECT_THAT(content, HasSubstr("int main()"));
-  EXPECT_THAT(content, HasSubstr("CppInterOp::"));
+  EXPECT_THAT(content, HasSubstr("void reproducer()"));
+  EXPECT_THAT(content, HasSubstr("Cpp::"));
 
   // Clean up.
   llvm::sys::fs::remove(Path);
@@ -554,10 +554,80 @@ TEST_F(TracingTest, WriteToFileContainsOutParamCalls) {
   std::string content((std::istreambuf_iterator<char>(ifs)),
                       std::istreambuf_iterator<char>());
 
-  EXPECT_THAT(content, HasSubstr("CppInterOp::FillHandles();"));
+  EXPECT_THAT(content, HasSubstr("Cpp::FillHandles();"));
 
   llvm::sys::fs::remove(Path);
 }
+
+// ---------------------------------------------------------------------------
+// Tests: reproducer compiles via interpreter
+// ---------------------------------------------------------------------------
+
+#ifndef EMSCRIPTEN
+TEST_F(TracingTest, ReproducerCompilesViaInterpreter) {
+  // Create an interpreter so we can exercise real API calls.
+  Cpp::CreateInterpreter({});
+
+  // Verify tracing is active after interpreter creation.
+  ASSERT_NE(TraceInfo::TheTraceInfo, nullptr)
+      << "TheTraceInfo was cleared during CreateInterpreter";
+
+  // Clear any prior trace state so the reproducer only contains our calls.
+  TraceInfo::TheTraceInfo->clear();
+
+  // Exercise real API calls that will be recorded.
+  auto GlobalScope = Cpp::GetGlobalScope();
+  ASSERT_NE(GlobalScope, nullptr);
+
+  Cpp::Declare("namespace ReproNS { struct Foo { int x; }; }");
+
+  auto ReproNS = Cpp::GetScope("ReproNS", GlobalScope);
+  ASSERT_NE(ReproNS, nullptr);
+
+  auto Foo = Cpp::GetScope("Foo", ReproNS);
+  ASSERT_NE(Foo, nullptr);
+
+  EXPECT_TRUE(Cpp::IsClass(Foo));
+  EXPECT_FALSE(Cpp::IsNamespace(Foo));
+
+  auto FooType = Cpp::GetTypeFromScope(Foo);
+  ASSERT_NE(FooType, nullptr);
+
+  Cpp::GetName(Foo);
+  Cpp::SizeOf(Foo);
+
+  // Write the reproducer.
+  TraceInfo& TI = *TraceInfo::TheTraceInfo;
+  std::string Path = TI.writeToFile();
+  ASSERT_FALSE(Path.empty());
+
+  // Read it back.
+  std::ifstream ifs(Path);
+  ASSERT_TRUE(ifs.good());
+  std::string content((std::istreambuf_iterator<char>(ifs)),
+                      std::istreambuf_iterator<char>());
+  ifs.close();
+
+  // Verify the reproducer has proper structure and content.
+  EXPECT_THAT(content, HasSubstr("#include <CppInterOp/CppInterOp.h>"));
+  EXPECT_THAT(content, HasSubstr("void reproducer()"));
+  EXPECT_THAT(content, HasSubstr("Cpp::"));
+
+  // Create a fresh interpreter and #include the reproducer file as-is.
+  Cpp::CreateInterpreter({});
+  Cpp::AddIncludePath(CPPINTEROP_DIR "/include");
+
+  std::string includeDirective = "#include \"" + Path + "\"";
+  EXPECT_EQ(Cpp::Process(includeDirective.c_str()), 0)
+      << "Reproducer failed to compile via #include:\n"
+      << content;
+
+  // Execute the reproducer in clean interpreter state.
+  EXPECT_EQ(Cpp::Process("reproducer();"), 0) << "Reproducer failed to execute";
+
+  llvm::sys::fs::remove(Path);
+}
+#endif // !EMSCRIPTEN
 
 // ---------------------------------------------------------------------------
 // Tests: JitCall wrapper source and Invoke are logged
@@ -627,3 +697,78 @@ TEST_F(TracingTest, LogEntriesIncludeTimingAnnotation) {
   EXPECT_THAT(output, HasSubstr("// ["));
   EXPECT_THAT(output, HasSubstr("ns]"));
 }
+
+// ---------------------------------------------------------------------------
+// Tests: all CPPINTEROP_API functions must have INTEROP_TRACE
+// ---------------------------------------------------------------------------
+
+#ifndef EMSCRIPTEN
+static std::string ReadFileToString(const std::string& path) {
+  std::ifstream ifs(path);
+  return {std::istreambuf_iterator<char>(ifs),
+          std::istreambuf_iterator<char>()};
+}
+// This test reads source files from the build tree via CPPINTEROP_DIR.
+TEST(TracingCoverageTest, AllPublicAPIsAreTraced) {
+  // 1. Parse the header to extract all CPPINTEROP_API function names.
+  std::string Header =
+      ReadFileToString(CPPINTEROP_DIR "/include/CppInterOp/CppInterOp.h");
+  ASSERT_FALSE(Header.empty()) << "Could not read CppInterOp.h";
+
+  std::regex ApiRe(R"(CPPINTEROP_API\s+[\w:<>\s\*&]+?\s+(\w+)\s*\()");
+  std::set<std::string> ApiNames;
+  for (std::sregex_iterator it(Header.begin(), Header.end(), ApiRe), end;
+       it != end; ++it) {
+    ApiNames.insert((*it)[1].str());
+  }
+
+  // Exclude JitCall member functions declared with CPPINTEROP_API — they
+  // are class members, not free API functions we annotate.
+  ApiNames.erase("AreArgumentsValid");
+  ApiNames.erase("ReportInvokeStart");
+  ApiNames.erase("ReportInvokeEnd");
+
+  ASSERT_GT(ApiNames.size(), 100u)
+      << "Suspiciously few API functions found — regex may be broken";
+
+  // 2. For each API name, find its definition in the implementation and
+  //    verify INTEROP_TRACE appears shortly after the opening brace.
+  std::string Impl =
+      ReadFileToString(CPPINTEROP_DIR "/lib/CppInterOp/CppInterOp.cpp");
+  ASSERT_FALSE(Impl.empty()) << "Could not read CppInterOp.cpp";
+
+  std::vector<std::string> Missing;
+  for (const auto& Name : ApiNames) {
+    std::string Pattern = Name + "(";
+    size_t Pos = 0;
+    bool Found = false;
+    while ((Pos = Impl.find(Pattern, Pos)) != std::string::npos) {
+      // Find the opening brace of the function body.
+      size_t BracePos = Impl.find('{', Pos);
+      if (BracePos == std::string::npos || BracePos - Pos > 300) {
+        Pos += Pattern.size();
+        continue;
+      }
+
+      // Check the next ~200 chars after '{' for INTEROP_TRACE.
+      std::string Body =
+          Impl.substr(BracePos, std::min<size_t>(200, Impl.size() - BracePos));
+      if (Body.find("INTEROP_TRACE") != std::string::npos) {
+        Found = true;
+        break;
+      }
+      Pos += Pattern.size();
+    }
+    if (!Found)
+      Missing.push_back(Name);
+  }
+
+  if (!Missing.empty()) {
+    std::string Msg = "Public API functions missing INTEROP_TRACE:\n";
+    for (const auto& Name : Missing)
+      Msg += "  - " + Name + "\n";
+    Msg += "Add INTEROP_TRACE() to each function listed above.\n";
+    FAIL() << Msg;
+  }
+}
+#endif // !EMSCRIPTEN
