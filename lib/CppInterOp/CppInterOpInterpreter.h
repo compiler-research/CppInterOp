@@ -195,6 +195,7 @@ private:
 
   std::unique_ptr<clang::Interpreter> inner;
   std::unique_ptr<IOContext> io_context;
+  mutable std::unique_ptr<DynamicLibraryManager> m_DLM;
   bool outOfProcess;
 
 public:
@@ -447,14 +448,11 @@ public:
 
   const DynamicLibraryManager* getDynamicLibraryManager() const {
     assert(compat::getExecutionEngine(*inner) && "We must have an executor");
-    static std::unique_ptr<DynamicLibraryManager> DLM = nullptr;
-    if (!DLM) {
-      DLM.reset(new DynamicLibraryManager());
-      DLM->initializeDyld([](llvm::StringRef) { /*ignore*/ return false; });
+    if (!m_DLM) {
+      m_DLM = std::make_unique<DynamicLibraryManager>();
+      m_DLM->initializeDyld([](llvm::StringRef) { /*ignore*/ return false; });
     }
-    return DLM.get();
-    // TODO: Add DLM to InternalExecutor and use executor->getDML()
-    //      return inner->getExecutionEngine()->getDynamicLibraryManager();
+    return m_DLM.get();
   }
 
   DynamicLibraryManager* getDynamicLibraryManager() {
