@@ -44,6 +44,7 @@
 #include <algorithm>
 #include <cstdio>
 #include <memory>
+#include <mutex>
 #include <tuple>
 #include <utility>
 #include <vector>
@@ -195,6 +196,8 @@ private:
 
   std::unique_ptr<clang::Interpreter> inner;
   std::unique_ptr<IOContext> io_context;
+  mutable std::unique_ptr<DynamicLibraryManager> sDLM;
+  mutable std::once_flag sDLMInit;
   bool outOfProcess;
 
 public:
@@ -447,14 +450,13 @@ public:
 
   const DynamicLibraryManager* getDynamicLibraryManager() const {
     assert(compat::getExecutionEngine(*inner) && "We must have an executor");
-    static std::unique_ptr<DynamicLibraryManager> DLM = nullptr;
-    if (!DLM) {
-      DLM.reset(new DynamicLibraryManager());
-      DLM->initializeDyld([](llvm::StringRef) { /*ignore*/ return false; });
-    }
-    return DLM.get();
-    // TODO: Add DLM to InternalExecutor and use executor->getDML()
-    //      return inner->getExecutionEngine()->getDynamicLibraryManager();
+    // Replaces the C++11 magic-static thread-safe init the previous
+    // function-local DLM had for free.
+    std::call_once(sDLMInit, [this] {
+      sDLM = std::make_unique<DynamicLibraryManager>();
+      sDLM->initializeDyld([](llvm::StringRef) { /*ignore*/ return false; });
+    });
+    return sDLM.get();
   }
 
   DynamicLibraryManager* getDynamicLibraryManager() {
