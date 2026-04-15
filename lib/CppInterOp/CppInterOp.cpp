@@ -138,6 +138,10 @@ struct InterpreterInfo {
   bool isOwned = true;
   // Store the list of builtin types.
   llvm::StringMap<QualType> BuiltinMap;
+  // Per-interpreter wrapper caches. Keyed on AST nodes that belong to this
+  // interpreter, so the caches must be destroyed together with it.
+  std::map<const FunctionDecl*, void*> WrapperStore;
+  std::map<const Decl*, void*> DtorWrapperStore;
 
   InterpreterInfo(compat::Interpreter* I, bool Owned)
       : Interpreter(I), isOwned(Owned) {}
@@ -253,13 +257,22 @@ static void RegisterInterpreter(compat::Interpreter* I, bool Owned) {
   Interps.emplace_back(I, Owned);
 }
 
-static compat::Interpreter& getInterp(TInterp_t I = nullptr) {
-  if (I)
-    return *static_cast<compat::Interpreter*>(I);
+static InterpreterInfo& getInterpInfo(compat::Interpreter* I = nullptr) {
   auto& Interps = GetInterpreters();
   assert(!Interps.empty() &&
          "Interpreter instance must be set before calling this!");
-  return *Interps.back().Interpreter;
+  if (I) {
+    for (auto& Info : Interps)
+      if (Info.Interpreter == I)
+        return Info;
+  }
+  return Interps.back();
+}
+
+static compat::Interpreter& getInterp(TInterp_t I = nullptr) {
+  if (I)
+    return *static_cast<compat::Interpreter*>(I);
+  return *getInterpInfo().Interpreter;
 }
 
 TInterp_t GetInterpreter() {
@@ -3335,10 +3348,10 @@ int get_wrapper_code(compat::Interpreter& I, const FunctionDecl* FD,
 
 JitCall::GenericCall make_wrapper(compat::Interpreter& I,
                                   const FunctionDecl* FD) {
-  static std::map<const FunctionDecl*, void*> gWrapperStore;
+  auto& WrapperStore = getInterpInfo(&I).WrapperStore;
 
-  auto R = gWrapperStore.find(FD);
-  if (R != gWrapperStore.end())
+  auto R = WrapperStore.find(FD);
+  if (R != WrapperStore.end())
     return (JitCall::GenericCall)R->second;
 
   std::string wrapper_name;
@@ -3375,7 +3388,7 @@ JitCall::GenericCall make_wrapper(compat::Interpreter& I,
   void* wrapper =
       compile_wrapper(I, wrapper_name, wrapper_code, withAccessControl);
   if (wrapper) {
-    gWrapperStore.insert(std::make_pair(FD, wrapper));
+    WrapperStore.insert(std::make_pair(FD, wrapper));
   } else {
     llvm::errs() << "TClingCallFunc::make_wrapper"
                  << ":"
@@ -3445,10 +3458,10 @@ static JitCall::DestructorCall make_dtor_wrapper(compat::Interpreter& interp,
   //
   //--
 
-  static std::map<const Decl*, void*> gDtorWrapperStore;
+  auto& DtorWrapperStore = getInterpInfo(&interp).DtorWrapperStore;
 
-  auto I = gDtorWrapperStore.find(D);
-  if (I != gDtorWrapperStore.end())
+  auto I = DtorWrapperStore.find(D);
+  if (I != DtorWrapperStore.end())
     return (JitCall::DestructorCall)I->second;
 
   //
@@ -3549,7 +3562,7 @@ static JitCall::DestructorCall make_dtor_wrapper(compat::Interpreter& interp,
   void* F = compile_wrapper(interp, wrapper_name, wrapper,
                             /*withAccessControl=*/false);
   if (F) {
-    gDtorWrapperStore.insert(std::make_pair(D, F));
+    DtorWrapperStore.insert(std::make_pair(D, F));
   } else {
     llvm::errs() << "make_dtor_wrapper"
                  << "Failed to compile\n"
