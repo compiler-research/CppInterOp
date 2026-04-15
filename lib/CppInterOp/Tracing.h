@@ -102,7 +102,11 @@ public:
     return (it != m_HandleMap.end()) ? it->second : "nullptr";
   }
 
-  void appendToLog(const std::string& line) { m_Log.push_back(line); }
+  void appendToLog(const std::string& line) {
+    m_Log.push_back(line);
+    if (m_InRegion && m_WriteOnStdErr)
+      llvm::errs() << line << "\n";
+  }
   const std::vector<std::string>& getLog() const { return m_Log; }
   std::string getLastLogEntry() const {
     return m_Log.empty() ? "" : m_Log.back();
@@ -113,13 +117,15 @@ public:
   CPPINTEROP_TRACE_API std::string writeToFile(const std::string& Version = "");
 
   /// Begin a traced region. Returns the path where StopTracing will write.
-  CPPINTEROP_TRACE_API std::string StartRegion();
+  /// \param WriteOnStdErr if true, also emit the reproducer to stderr.
+  CPPINTEROP_TRACE_API std::string StartRegion(bool WriteOnStdErr = true);
 
   /// End the traced region and write only the region's entries to the file.
   CPPINTEROP_TRACE_API void StopRegion(const std::string& Version = "");
 
 private:
   std::string m_RegionPath;
+  bool m_WriteOnStdErr = false;
 
 public:
   void clear() {
@@ -146,10 +152,11 @@ CPPINTEROP_TRACE_API void InitTracing();
 
 /// Begin recording a traced region. If tracing is not yet active, activates
 /// it. Returns the path where StopTracing() will write the reproducer.
-inline std::string StartTracing() {
+/// \param WriteOnStdErr if true, also emit the reproducer to stderr on stop.
+inline std::string StartTracing(bool WriteOnStdErr = true) {
   if (!TraceInfo::TheTraceInfo)
     InitTracing();
-  return TraceInfo::TheTraceInfo->StartRegion();
+  return TraceInfo::TheTraceInfo->StartRegion(WriteOnStdErr);
 }
 
 /// End the traced region and write the reproducer file containing only the
