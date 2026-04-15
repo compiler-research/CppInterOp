@@ -574,4 +574,53 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_WrapperCacheIsPerInterpreter) {
   EXPECT_EQ(r2, 12) << "Wrapper should use I2's implementation (multiply), "
                        "not a stale cache from deleted I1";
 }
+
+TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_DLMIsPerInterpreter) {
+  if (TypeParam::isOutOfProcess)
+    GTEST_SKIP() << "Test fails for OOP JIT builds";
+
+  // Locate the test shared library directory.
+  std::string BinaryPath =
+      llvm::sys::fs::getMainExecutable(/*Argv0=*/nullptr, /*MainAddr=*/nullptr);
+  ASSERT_FALSE(BinaryPath.empty());
+  llvm::StringRef BinDir = llvm::sys::path::parent_path(BinaryPath);
+
+  // I1: add the binary directory as a user search path.
+  auto* I1 = TestFixture::CreateInterpreter();
+  ASSERT_NE(I1, nullptr);
+  Cpp::ActivateInterpreter(I1);
+  Cpp::AddSearchPath(BinDir.str().c_str());
+
+  // Verify I1 can find TestSharedLib through its search path.
+#ifdef __APPLE__
+  std::string R1 =
+      Cpp::SearchLibrariesForSymbol("_ret_zero", /*system_search=*/false);
+#else
+  std::string R1 =
+      Cpp::SearchLibrariesForSymbol("ret_zero", /*system_search=*/false);
+#endif
+  // Skip if the test shared library wasn't built.
+  if (R1.empty())
+    GTEST_SKIP() << "TestSharedLib not found — cannot test DLM isolation";
+
+  // I2: fresh interpreter, no extra search paths added.
+  // With a shared static DLM, the BinDir path added to I1 would leak here
+  // and the symbol search would succeed. With per-interpreter DLMs, I2
+  // should not see the path and the search must fail.
+  auto* I2 = TestFixture::CreateInterpreter();
+  ASSERT_NE(I2, nullptr);
+  Cpp::ActivateInterpreter(I2);
+
+#ifdef __APPLE__
+  std::string R2 =
+      Cpp::SearchLibrariesForSymbol("_ret_zero", /*system_search=*/false);
+#else
+  std::string R2 =
+      Cpp::SearchLibrariesForSymbol("ret_zero", /*system_search=*/false);
+#endif
+  EXPECT_TRUE(R2.empty())
+      << "I2 should NOT find ret_zero — search paths must not leak from I1."
+         " Found: "
+      << R2;
+}
 #endif // !EMSCRIPTEN
