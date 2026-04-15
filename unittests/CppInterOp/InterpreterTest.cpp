@@ -508,3 +508,50 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, SignalHandler_MultipleInterpreters) {
   EXPECT_DEATH({ raise(SIGSEGV); }, ExpectedMsg);
 }
 #endif // GTEST_HAS_DEATH_TEST
+
+#ifndef EMSCRIPTEN
+TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_WrapperCacheIsPerInterpreter) {
+  if (TypeParam::isOutOfProcess)
+    GTEST_SKIP() << "Test fails for OOP JIT builds";
+
+  // Create first interpreter: add(a,b) returns a + b.
+  auto* I1 = TestFixture::CreateInterpreter();
+  ASSERT_NE(I1, nullptr);
+  Cpp::ActivateInterpreter(I1);
+  Cpp::Declare("int add(int a, int b) { return a + b; }" DFLT_FALSE);
+  auto* AddDecl1 = Cpp::GetNamed("add" DFLT_NULLPTR);
+  ASSERT_NE(AddDecl1, nullptr);
+
+  Cpp::Declare("#include <new>" DFLT_FALSE); // Needed by JitCall
+  auto JC1 = Cpp::MakeFunctionCallable(AddDecl1);
+  ASSERT_TRUE(JC1.isValid());
+
+  int a1 = 3, b1 = 4, r1 = 0;
+  void* args1[] = {&a1, &b1};
+  JC1.Invoke(&r1, {args1, 2});
+  EXPECT_EQ(r1, 7);
+
+  // Create second interpreter: add(a,b) returns a * b.
+  auto* I2 = TestFixture::CreateInterpreter();
+  ASSERT_NE(I2, nullptr);
+  Cpp::ActivateInterpreter(I2);
+  Cpp::Declare("int add(int a, int b) { return a * b; }" DFLT_FALSE);
+  auto* AddDecl2 = Cpp::GetNamed("add" DFLT_NULLPTR);
+  ASSERT_NE(AddDecl2, nullptr);
+
+  Cpp::Declare("#include <new>" DFLT_FALSE); // Needed by JitCall
+  auto JC2 = Cpp::MakeFunctionCallable(AddDecl2);
+  ASSERT_TRUE(JC2.isValid());
+
+  // Delete the first interpreter.
+  EXPECT_TRUE(Cpp::DeleteInterpreter(I1));
+
+  // The second interpreter's wrapper must still work and must use its own
+  // implementation (multiply), not a stale cache entry from deleted I1.
+  int a2 = 3, b2 = 4, r2 = 0;
+  void* args2[] = {&a2, &b2};
+  JC2.Invoke(&r2, {args2, 2});
+  EXPECT_EQ(r2, 12) << "Wrapper should use I2's implementation (multiply), "
+                       "not a stale cache from deleted I1";
+}
+#endif // !EMSCRIPTEN
