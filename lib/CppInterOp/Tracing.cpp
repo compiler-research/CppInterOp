@@ -69,9 +69,16 @@ std::string TraceInfo::writeToFile(const std::string& Version) {
   return std::string(Path);
 }
 
-std::string TraceInfo::StartRegion() {
+std::string TraceInfo::StartRegion(bool WriteOnStdErr) {
   m_RegionStart = m_Log.size();
   m_InRegion = true;
+  m_WriteOnStdErr = WriteOnStdErr;
+
+  // When streaming to stderr, skip creating a file.
+  if (WriteOnStdErr) {
+    m_RegionPath.clear();
+    return "";
+  }
 
   llvm::SmallString<128> TmpDir;
   llvm::sys::path::system_temp_directory(/*ErasedOnReboot=*/true, TmpDir);
@@ -91,13 +98,18 @@ void TraceInfo::StopRegion(const std::string& Version) {
     return;
   m_InRegion = false;
 
+  // When streaming to stderr, there is no file to write.
+  if (m_WriteOnStdErr)
+    return;
+
   std::error_code EC;
   llvm::raw_fd_ostream OS(m_RegionPath, EC);
   if (EC)
     return;
 
-  OS << "// CppInterOp trace region\n";
   std::string Ver = Version.empty() ? CppImpl::GetVersion() : Version;
+
+  OS << "// CppInterOp trace region\n";
   WriteVersionComment(OS, Ver);
   OS << "// Generated automatically.\n";
   OS << "#include <CppInterOp/CppInterOp.h>\n\n";

@@ -402,7 +402,7 @@ TEST(StartTracingActivation, ActivatesIfNotActive) {
   TraceInfo::TheTraceInfo = nullptr;
 
   // StartTracing should call InitTracing (covers line 151).
-  std::string Path = CppInterOp::Tracing::StartTracing();
+  std::string Path = CppInterOp::Tracing::StartTracing(/*WriteOnStdErr=*/false);
   ASSERT_NE(TraceInfo::TheTraceInfo, nullptr);
   ASSERT_FALSE(Path.empty());
 
@@ -711,7 +711,7 @@ static std::string ReadFileToString(const std::string& path) {
 // This test reads source files from the build tree via CPPINTEROP_DIR.
 TEST_F(TracingTest, StartStopTracingWritesToFile) {
   // StartTracing begins recording; StopTracing writes the file.
-  std::string Path = CppInterOp::Tracing::StartTracing();
+  std::string Path = CppInterOp::Tracing::StartTracing(/*WriteOnStdErr=*/false);
   ASSERT_FALSE(Path.empty());
 
   // Calls within the region are recorded.
@@ -734,7 +734,7 @@ TEST_F(TracingTest, OnlyRegionCallsAreRecorded) {
   // Calls before StartTracing should not appear.
   VoidFunc();
 
-  std::string Path = CppInterOp::Tracing::StartTracing();
+  std::string Path = CppInterOp::Tracing::StartTracing(/*WriteOnStdErr=*/false);
   ASSERT_FALSE(Path.empty());
 
   AnnotatedFunction(42);
@@ -767,7 +767,7 @@ TEST_F(TracingTest, StartTracingWithEnvVarNarrowsToRegion) {
   // This call is before the region.
   VoidFunc();
 
-  std::string Path = CppInterOp::Tracing::StartTracing();
+  std::string Path = CppInterOp::Tracing::StartTracing(/*WriteOnStdErr=*/false);
   ASSERT_FALSE(Path.empty());
 
   AnnotatedFunction(7);
@@ -786,11 +786,13 @@ TEST_F(TracingTest, StartTracingWithEnvVarNarrowsToRegion) {
 
 TEST_F(TracingTest, MultipleStartStopRegions) {
   // Multiple regions should each produce their own file.
-  std::string Path1 = CppInterOp::Tracing::StartTracing();
+  std::string Path1 =
+      CppInterOp::Tracing::StartTracing(/*WriteOnStdErr=*/false);
   AnnotatedFunction(1);
   CppInterOp::Tracing::StopTracing();
 
-  std::string Path2 = CppInterOp::Tracing::StartTracing();
+  std::string Path2 =
+      CppInterOp::Tracing::StartTracing(/*WriteOnStdErr=*/false);
   AnnotatedFunction(2);
   CppInterOp::Tracing::StopTracing();
 
@@ -808,6 +810,48 @@ TEST_F(TracingTest, MultipleStartStopRegions) {
 
   llvm::sys::fs::remove(Path1);
   llvm::sys::fs::remove(Path2);
+}
+
+// ---------------------------------------------------------------------------
+// Tests: StartTracing WriteOnStdErr option
+// ---------------------------------------------------------------------------
+
+TEST_F(TracingTest, WriteOnStdErrStreamsEntriesImmediately) {
+  testing::internal::CaptureStderr();
+
+  // Default is WriteOnStdErr=true — no file is created.
+  std::string Path = CppInterOp::Tracing::StartTracing();
+  EXPECT_TRUE(Path.empty());
+
+  AnnotatedFunction(99);
+
+  // Capture stderr *before* StopTracing — the entry must already be there.
+  std::string Mid = testing::internal::GetCapturedStderr();
+  EXPECT_THAT(Mid, HasSubstr("Cpp::AnnotatedFunction(99)"))
+      << "Entry should appear on stderr immediately, not after StopTracing";
+
+  // Restart capture for the rest.
+  testing::internal::CaptureStderr();
+  VoidFunc();
+  CppInterOp::Tracing::StopTracing("test-version");
+  std::string Rest = testing::internal::GetCapturedStderr();
+  EXPECT_THAT(Rest, HasSubstr("Cpp::VoidFunc()"));
+}
+
+TEST_F(TracingTest, WriteToFileWhenStdErrDisabled) {
+  std::string Path = CppInterOp::Tracing::StartTracing(/*WriteOnStdErr=*/false);
+  ASSERT_FALSE(Path.empty());
+
+  AnnotatedFunction(77);
+
+  CppInterOp::Tracing::StopTracing();
+
+  // The file should contain the full reproducer.
+  std::string FileContent = ReadFileToString(Path);
+  EXPECT_THAT(FileContent, HasSubstr("#include <CppInterOp/CppInterOp.h>"));
+  EXPECT_THAT(FileContent, HasSubstr("Cpp::AnnotatedFunction(77)"));
+
+  llvm::sys::fs::remove(Path);
 }
 
 // ---------------------------------------------------------------------------
