@@ -98,6 +98,24 @@ add_cppinterop_unittest(DynamicLibraryManagerTests
   ${EXTRA_TEST_SOURCE_FILES}
 )
 
+add_cppinterop_unittest(TracingTests
+  TracingTests.cpp
+  Utils.cpp
+  ${EXTRA_TEST_SOURCE_FILES}
+)
+target_compile_definitions(TracingTests PRIVATE
+  "CPPINTEROP_DIR=\"${CMAKE_SOURCE_DIR}\""
+)
+
+if(EMSCRIPTEN)
+  target_compile_options(TracingTests
+    PUBLIC ${CPPINTEROP_COMMON_WASM_TEST_COMPILE_FLAGS}
+  )
+  target_link_options(TracingTests
+    PUBLIC ${CPPINTEROP_COMMON_WASM_TEST_LINK_FLAGS}
+  )
+endif()
+
 if(EMSCRIPTEN)
   set(TEST_SHARED_LIBRARY_PATH "${CMAKE_CURRENT_BINARY_DIR}/bin/$<CONFIG>/")
   string(REPLACE "@" "@@" ESCAPED_TEST_SHARED_LIBRARY_PATH "${TEST_SHARED_LIBRARY_PATH}")
