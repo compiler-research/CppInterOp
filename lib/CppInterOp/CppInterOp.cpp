@@ -2290,7 +2290,7 @@ static std::optional<QualType> GetTypeInternal(Decl* D) {
 #if CLANG_VERSION_MAJOR < 22
     return QualType(TD->getTypeForDecl(), 0);
 #else
-    return getASTContext().getTypeDeclType(TD).getAsOpaquePtr();
+    return getASTContext().getTypeDeclType(TD);
 #endif
 
   return {};
