@@ -329,6 +329,9 @@ CPPINTEROP_API std::string GetVersion();
 ///\returns the demangled representation of the given mangled_name
 CPPINTEROP_API std::string Demangle(const std::string& mangled_name);
 
+///\returns the mangled representation of the given scope
+CPPINTEROP_API std::string MangledNameOf(TCppScope_t scope);
+
 /// Enables or disables the debugging printouts on stderr.
 /// Debugging output can be enabled also by the environment variable
 /// CPPINTEROP_EXTRA_INTERPRETER_ARGS. For example,
@@ -353,6 +356,9 @@ CPPINTEROP_API bool IsClass(TCppScope_t scope);
 
 /// Checks if the scope is a function.
 CPPINTEROP_API bool IsFunction(TCppScope_t scope);
+
+/// Checks if the scope is an inline function.
+CPPINTEROP_API bool IsInlineFunction(TCppScope_t scope);
 
 /// Checks if the type is a function pointer.
 CPPINTEROP_API bool IsFunctionPointerType(TCppType_t type);
@@ -622,6 +628,10 @@ CPPINTEROP_API bool IsStaticMethod(TCppConstFunction_t method);
 
 /// Checks if the provided constructor or conversion operator is explicit
 CPPINTEROP_API bool IsExplicit(TCppConstFunction_t method);
+
+/// Gets the LLVM module (IR) for the given scope
+CPPINTEROP_API std::string GetLLVMMouleFor(TCppScope_t scope,
+                                           TInterp_t Interp = nullptr);
 
 ///\returns the address of the function given its potentially mangled name.
 CPPINTEROP_API TCppFuncAddr_t GetFunctionAddress(const char* mangled_name);

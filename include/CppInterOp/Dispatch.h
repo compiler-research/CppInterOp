@@ -84,6 +84,8 @@ extern "C" CPPINTEROP_API CppFnPtrTy CppGetProcAddress(const char* procname);
   DISPATCH_API(GetClassTemplateInstantiationArgs,                              \
                decltype(&CppImpl::GetClassTemplateInstantiationArgs))          \
   DISPATCH_API(IsClass, decltype(&CppImpl::IsClass))                           \
+  DISPATCH_API(IsInlineFunction, decltype(&CppImpl::IsInlineFunction))         \
+  DISPATCH_API(MangledNameOf, decltype(&CppImpl::MangledNameOf))               \
   DISPATCH_API(GetType, decltype(&CppImpl::GetType))                           \
   DISPATCH_API(GetTypeFromScope, decltype(&CppImpl::GetTypeFromScope))         \
   DISPATCH_API(GetComplexType, decltype(&CppImpl::GetComplexType))             \
@@ -185,6 +187,7 @@ extern "C" CPPINTEROP_API CppFnPtrTy CppGetProcAddress(const char* procname);
                decltype(&CppImpl::BeginStdStreamCapture))                      \
   DISPATCH_API(GetDoxygenComment, decltype(&CppImpl::GetDoxygenComment))       \
   DISPATCH_API(IsExplicit, decltype(&CppImpl::IsExplicit))                     \
+  DISPATCH_API(GetLLVMMouleFor, decltype(&CppImpl::GetLLVMMouleFor))           \
   DISPATCH_API(MakeFunctionCallable,                                           \
                CppImpl::JitCall (*)(CppImpl::TCppConstFunction_t))             \
   DISPATCH_API(GetFunctionAddress,                                             \
