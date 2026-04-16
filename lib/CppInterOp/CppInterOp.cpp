@@ -2124,7 +2124,11 @@ static std::optional<QualType> GetTypeInternal(Decl* D) {
     return VD->getType();
 
   if (const auto* TD = llvm::dyn_cast_or_null<TypeDecl>(D))
+#if CLANG_VERSION_MAJOR < 22
     return QualType(TD->getTypeForDecl(), 0);
+#else
+    return getASTContext().getTypeDeclType(TD).getAsOpaquePtr();
+#endif
 
   return {};
 }
