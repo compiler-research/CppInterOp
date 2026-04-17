@@ -507,4 +507,26 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, SignalHandler_MultipleInterpreters) {
 
   EXPECT_DEATH({ raise(SIGSEGV); }, ExpectedMsg);
 }
+
+TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_Exceptions) {
+  TestFixture::CreateInterpreter();
+  EXPECT_TRUE(Cpp::Declare("int f() { throw 1; return 2; }" DFLT_FALSE) == 0);
+  EXPECT_TRUE(
+      Cpp::Process(
+          "int ex() { try { f(); return 0; } catch(...){return 1;} }") == 0);
+  EXPECT_EQ(Cpp::Evaluate("ex()" DFLT_NULLPTR), 1)
+      << "Failed to catch exceptions in interpreter";
+}
+
+TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_ExceptionsCompiledCode) {
+  TestFixture::CreateInterpreter();
+  bool caught = false;
+  try {
+    EXPECT_TRUE(Cpp::Declare("int f() { throw 1; return 2; }" DFLT_FALSE) == 0);
+    EXPECT_TRUE(Cpp::Process("int res = f();") == 0);
+  } catch (...) {
+    caught = true;
+  }
+  EXPECT_TRUE(caught) << "Unable to catch exception coming from interpreter";
+}
 #endif // GTEST_HAS_DEATH_TEST

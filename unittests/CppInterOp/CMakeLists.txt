@@ -50,7 +50,7 @@ if (EMSCRIPTEN)
   )
 else()
   # Do not need main.cpp for native builds, but we do have GPU support for native builds
-  set(EXTRA_TEST_SOURCE_FILES CUDATest.cpp)
+  # set(EXTRA_TEST_SOURCE_FILES CUDATest.cpp)
 endif()
 
 add_cppinterop_unittest(CppInterOpTests

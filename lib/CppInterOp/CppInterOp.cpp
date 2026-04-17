@@ -128,6 +128,45 @@ extern "C" void __clang_Interpreter_SetValueNoAlloc(void* This, void* OutVal,
                                                     void* OpaqueType, ...);
 #endif // CPPINTEROP_USE_CLING
 
+#ifdef __APPLE__
+// Define a minimal mach header for JIT'd code, to support exceptions on osx 14
+// and later. See llvm/llvm-project#49036
+static llvm::MachO::mach_header_64 fake_mach_header = {
+    .magic = llvm::MachO::MH_MAGIC_64,
+    .cputype = llvm::MachO::CPU_TYPE_ARM64,
+    .cpusubtype = llvm::MachO::CPU_SUBTYPE_ARM64_ALL,
+    .filetype = llvm::MachO::MH_DYLIB,
+    .ncmds = 0,
+    .sizeofcmds = 0,
+    .flags = 0,
+    .reserved = 0};
+
+// Declare libunwind SPI types and functions.
+struct unw_dynamic_unwind_sections {
+  uintptr_t dso_base;
+  uintptr_t dwarf_section;
+  size_t dwarf_section_length;
+  uintptr_t compact_unwind_section;
+  size_t compact_unwind_section_length;
+};
+
+int find_dynamic_unwind_sections(uintptr_t addr,
+                                 unw_dynamic_unwind_sections* info) {
+  info->dso_base = (uintptr_t)&fake_mach_header;
+  info->dwarf_section = 0;
+  info->dwarf_section_length = 0;
+  info->compact_unwind_section = 0;
+  info->compact_unwind_section_length = 0;
+  return 1;
+}
+
+// Typedef for callback above.
+typedef int (*unw_find_dynamic_unwind_sections)(
+    uintptr_t addr, struct unw_dynamic_unwind_sections* info);
+
+#endif // __APPLE__
+
+
 namespace CppImpl {
 
 using namespace clang;
@@ -202,6 +241,21 @@ static std::deque<InterpreterInfo>& GetInterpreters() {
 
     llvm::sys::AddSignalHandler(DefaultProcessCrashHandler, /*Cookie=*/nullptr);
 
+    #ifdef __APPLE__
+  // Add a handler to support exceptions from interpreted code.
+  // See llvm/llvm-project#49036
+  if (auto* unw_add_find_dynamic_unwind_sections = (int (*)(
+          unw_find_dynamic_unwind_sections find_dynamic_unwind_sections))
+          dlsym(RTLD_DEFAULT, "__unw_add_find_dynamic_unwind_sections"))
+    unw_add_find_dynamic_unwind_sections(find_dynamic_unwind_sections);
+#endif // __APPLE__
+  // At destruction, we should deregister the exception handling unwind frames that were added for Mac, but we currently leak the interpreters.
+    // #ifdef __APPLE__
+    //     if (auto* unw_remove_find_dynamic_unwind_sections = (int (*)(
+    //             unw_find_dynamic_unwind_sections find_dynamic_unwind_sections))
+    //             dlsym(RTLD_DEFAULT, "__unw_remove_find_dynamic_unwind_sections"))
+    //       unw_remove_find_dynamic_unwind_sections(find_dynamic_unwind_sections);
+    // #endif
     // std::atexit(llvm::llvm_shutdown);
   });
 
@@ -3705,6 +3759,8 @@ TInterp_t CreateInterpreter(const std::vector<const char*>& Args /*={}*/,
 #ifdef _WIN32
   // FIXME : Workaround Sema::PushDeclContext assert on windows
   ClingArgv.push_back("-fno-delayed-template-parsing");
+#elif __APPLE__
+  ClingArgv.push_back("-fforce-dwarf-frame");
 #endif
   ClingArgv.insert(ClingArgv.end(), Args.begin(), Args.end());
   // To keep the Interpreter creation interface between cling and clang-repl
