@@ -65,6 +65,7 @@
 #include "llvm/Support/Debug.h"
 #include "llvm/Support/Error.h"
 #include "llvm/Support/FileSystem.h"
+#include "llvm/Support/InitLLVM.h"
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/Process.h"
@@ -174,18 +175,43 @@ struct InterpreterInfo {
 };
 
 static void DefaultProcessCrashHandler(void*);
+
+/// True if an external (unowned) interpreter has been registered.
+/// When set, CppInterOp must not call llvm_shutdown — the client owns LLVM.
+static bool HasExternalInterpreter = false;
+
+/// RAII guard that destroys all owned interpreters and optionally calls
+/// llvm_shutdown at process exit. Constructed as a function-local static
+/// inside GetInterpreters().
+struct InterpreterCleanup {
+  std::deque<InterpreterInfo>* Interps;
+  explicit InterpreterCleanup(std::deque<InterpreterInfo>* I) : Interps(I) {}
+  ~InterpreterCleanup() {
+    if (!Interps)
+      return;
+    // Destroy owned interpreters in reverse order. External (unowned)
+    // interpreters are the client's responsibility.
+    while (!Interps->empty()) {
+      if (!Interps->back().isOwned) {
+        Interps->pop_back();
+        continue;
+      }
+      Interps->pop_back(); // ~InterpreterInfo deletes owned interpreters
+    }
+    CppInterOp::Tracing::TraceInfo::TheTraceInfo = nullptr;
+
+    // Only shut down LLVM if we own it (no external interpreter).
+    if (!HasExternalInterpreter)
+      llvm::llvm_shutdown();
+  }
+};
+
 // Function-static storage for interpreters
 static std::deque<InterpreterInfo>& GetInterpreters() {
-  // static int FakeArgc = 1;
-  // static const std::string VersionStr = GetVersion();
-  // static const char* ArgvBuffer[] = {VersionStr.c_str(), nullptr};
-  // static const char** FakeArgv = ArgvBuffer;
-  // static llvm::InitLLVM X(FakeArgc, FakeArgv);
-  // Cannot be a llvm::ManagedStatic because X will call shutdown which will
-  // trigger destruction on llvm::ManagedStatics and the destruction of the
-  // InterpreterInfos require to have llvm around.
-  // FIXME: Currently we never call llvm::llvm_shutdown and sInterpreters leaks.
-  static llvm::ManagedStatic<std::deque<InterpreterInfo>> sInterpreters;
+  // Intentionally heap-allocated so it outlives the cleanup guard.
+  // The guard drains it; the pointer itself leaks (harmless).
+  static auto sInterpreters = new std::deque<InterpreterInfo>();
+  static InterpreterCleanup Cleanup(sInterpreters);
   static std::once_flag ProcessInitialized;
   std::call_once(ProcessInitialized, []() {
     llvm::sys::PrintStackTraceOnErrorSignal("CppInterOp");
@@ -200,9 +226,10 @@ static std::deque<InterpreterInfo>& GetInterpreters() {
     llvm::InitializeAllAsmParsers();
     llvm::InitializeAllAsmPrinters();
 
+    llvm::sys::SetOneShotPipeSignalFunction(
+        llvm::sys::DefaultOneShotPipeSignalHandler);
     llvm::sys::AddSignalHandler(DefaultProcessCrashHandler, /*Cookie=*/nullptr);
-
-    // std::atexit(llvm::llvm_shutdown);
+    llvm::install_out_of_memory_new_handler();
   });
 
   return *sInterpreters;
@@ -250,6 +277,21 @@ static void DefaultProcessCrashHandler(void*) {
 
 static void RegisterInterpreter(compat::Interpreter* I, bool Owned) {
   std::deque<InterpreterInfo>& Interps = GetInterpreters();
+
+  // When adding a second (or later) interpreter, eagerly materialize the
+  // deinit runtime symbols (__lljit_run_atexits) for all existing ones.
+  // This ensures that deinitialize() during shutdown does not trigger lazy
+  // JIT compilation — by that point LLVM globals (e.g. TargetLibraryInfoImpl)
+  // may already be destroyed.
+#if !defined(CPPINTEROP_USE_CLING) && !defined(EMSCRIPTEN)
+  if (!Interps.empty()) {
+    for (auto& Info : Interps) {
+      if (Info.Interpreter)
+        (void)Info.Interpreter->getAddressOfGlobal("__lljit_run_atexits");
+    }
+  }
+#endif
+
   Interps.emplace_back(I, Owned);
 }
 
@@ -273,6 +315,7 @@ TInterp_t GetInterpreter() {
 void UseExternalInterpreter(TInterp_t I) {
   INTEROP_TRACE(I);
   assert(GetInterpreters().empty() && "sInterpreter already in use!");
+  HasExternalInterpreter = true;
   RegisterInterpreter(static_cast<compat::Interpreter*>(I), /*Owned=*/false);
   return INTEROP_VOID_RETURN();
 }
