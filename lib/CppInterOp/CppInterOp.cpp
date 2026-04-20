@@ -31,6 +31,7 @@
 #include "clang/AST/RecordLayout.h"
 #include "clang/AST/Stmt.h"
 #include "clang/AST/Type.h"
+#include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/DiagnosticSema.h"
 #include "clang/Basic/LangStandard.h"
 #include "clang/Basic/Linkage.h"
@@ -3966,8 +3967,13 @@ protected:
 
 int Declare(compat::Interpreter& I, const char* code, bool silent) {
   if (silent) {
-    clangSilent diagSuppr(I.getSema().getDiagnostics());
-    return I.declare(code);
+    clang::DiagnosticsEngine& Diag = I.getSema().getDiagnostics();
+    clangSilent diagSuppr(Diag);
+    clang::DiagnosticErrorTrap Trap(Diag);
+    auto result = I.declare(code);
+    if (Trap.hasErrorOccurred())
+      return 1;
+    return result;
   }
 
   return I.declare(code);

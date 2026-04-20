@@ -177,6 +177,19 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_Process) {
   clang_Interpreter_dispose(CXI);
 }
 
+TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_DeclareSilent) {
+  TestFixture::CreateInterpreter();
+
+  // Valid code with silent=true should succeed.
+  EXPECT_EQ(0, Cpp::Declare("int x = 42;", /*silent=*/true));
+
+  // Invalid code with silent=true should still report failure.
+  EXPECT_NE(0, Cpp::Declare("invalid_syntax!!!;", /*silent=*/true));
+
+  // The interpreter should remain usable after a silent failure.
+  EXPECT_EQ(0, Cpp::Declare("int y = 123;", /*silent=*/false));
+}
+
 TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_EmscriptenExceptionHandling) {
 #ifndef EMSCRIPTEN
   GTEST_SKIP() << "This test is intended to check exception handling for Emscripten builds.";
