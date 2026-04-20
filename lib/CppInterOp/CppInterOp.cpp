@@ -3934,30 +3934,13 @@ void GetIncludePaths(std::vector<std::string>& IncludePaths, bool withSystem,
   return INTEROP_VOID_RETURN();
 }
 
-namespace {
-
-class clangSilent {
-public:
-  clangSilent(clang::DiagnosticsEngine& diag) : fDiagEngine(diag) {
-    fOldDiagValue = fDiagEngine.getSuppressAllDiagnostics();
-    fDiagEngine.setSuppressAllDiagnostics(true);
-  }
-
-  ~clangSilent() { fDiagEngine.setSuppressAllDiagnostics(fOldDiagValue); }
-
-protected:
-  clang::DiagnosticsEngine& fDiagEngine;
-  bool fOldDiagValue;
-};
-} // namespace
-
 int Declare(compat::Interpreter& I, const char* code, bool silent) {
-  if (silent) {
-    clangSilent diagSuppr(I.getSema().getDiagnostics());
-    return I.declare(code);
-  }
-
+#ifdef CPPINTEROP_USE_CLING
+  DiagnosticGuard Guard(I.getSema().getDiagnostics(), silent);
   return I.declare(code);
+#else
+  return I.declare(code, silent);
+#endif // CPPINTEROP_USE_CLING
 }
 
 int Declare(const char* code, bool silent) {

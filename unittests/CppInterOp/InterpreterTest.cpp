@@ -201,6 +201,34 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_EmscriptenExceptionHandling) {
   EXPECT_TRUE(Cpp::Process(tryCatchCode) == 0);
 }
 
+TYPED_TEST(CPPINTEROP_TEST_MODE, Silent_Declare_Behavior) {
+  auto* I = TestFixture::CreateInterpreter();
+  ASSERT_TRUE(I);
+
+  EXPECT_FALSE(Cpp::Declare("int valid_var = 42;", /*silent=*/true));
+
+  // Should produce output
+  {
+    testing::internal::CaptureStderr();
+    // Intentionally broken code: "int x = ;"
+    bool success = Cpp::Declare("int broken_syntax = ;", /*silent=*/false);
+    std::string output = testing::internal::GetCapturedStderr();
+    EXPECT_TRUE(success);
+    EXPECT_FALSE(output.empty()) << "We expect to see a Clang error message\n";
+  }
+
+  // Should NOT produce output
+  {
+    testing::internal::CaptureStderr();
+    // Intentionally broken code
+    bool success = Cpp::Declare("invalid_type error_var = 0;", /*silent=*/true);
+    std::string output = testing::internal::GetCapturedStderr();
+    EXPECT_TRUE(success);
+    EXPECT_TRUE(output.empty())
+        << "Silent Declare leaked an error to stderr: " << output;
+  }
+}
+
 TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_CreateInterpreter) {
   auto* I = TestFixture::CreateInterpreter();
   EXPECT_TRUE(I);
