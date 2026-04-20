@@ -1150,8 +1150,22 @@ int64_t GetBaseClassOffset(TCppScope_t derived, TCppScope_t base) {
     return INTEROP_RETURN(-1);
   CXXRecordDecl* DCXXRD = cast<CXXRecordDecl>(DD);
   CXXRecordDecl* BCXXRD = cast<CXXRecordDecl>(BD);
+  // GCC's -Wmaybe-uninitialized false-positives here only under ASan:
+  // -fsanitize=address keeps the SmallDenseMap's union storage live across
+  // poison/unpoison calls and blocks the SROA pass that normally folds away
+  // the LargeRep read on the Small==true branch. The load survives into the
+  // IR the uninit pass sees, and it can no longer prove the `Small` guard.
+  // Clang's analyzer does not false-positive here; plain-O2 GCC does not
+  // either. Narrow the suppression to GCC + ASan.
+#if defined(__GNUC__) && !defined(__clang__) && defined(__SANITIZE_ADDRESS__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#endif
   CXXBasePaths Paths(/*FindAmbiguities=*/false, /*RecordPaths=*/true,
                      /*DetectVirtual=*/false);
+#if defined(__GNUC__) && !defined(__clang__) && defined(__SANITIZE_ADDRESS__)
+#pragma GCC diagnostic pop
+#endif
   DCXXRD->isDerivedFrom(BCXXRD, Paths);
 
   // FIXME: We might want to cache these requests as they seem expensive.

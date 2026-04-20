@@ -110,6 +110,13 @@ jobs:
             clang-runtime: '22'
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
+          - name: ubu24-x86-gcc12-clang-repl-21-asan
+            os: ubuntu-24.04
+            compiler: gcc-12
+            clang-runtime: '21'
+            llvm_enable_projects: "clang"
+            llvm_targets_to_build: "host;NVPTX"
+            sanitizer: "Address"
             python-version: '3.14'
           - name: selfh-ubu22-x86-gcc12-clang-repl-21-cuda
             os: [self-hosted, cuda, heavy]
@@ -290,8 +297,7 @@ jobs:
         path: |
           llvm-project
           ${{ matrix.cling=='On' && 'cling' || '' }}
-        key: ${{ env.CLING_HASH }}-${{ runner.os }}-${{ matrix.os }}-${{ matrix.compiler }}-clang-${{ matrix.clang-runtime }}-${{ matrix.root-llvm-tag || 'none' }}.x-patch-${{ hashFiles(format('patches/llvm/clang{0}-*.patch', matrix.clang-runtime)) || 'none' }}${{ matrix.oop-jit == 'On' && '-oop' || '' }}
-
+        key: ${{ env.CLING_HASH }}-${{ runner.os }}-${{ matrix.os }}-${{ matrix.compiler }}-clang-${{ matrix.clang-runtime }}-${{ matrix.root-llvm-tag || 'none' }}.x-patch-${{ hashFiles(format('patches/llvm/clang{0}-*.patch', matrix.clang-runtime)) || 'none' }}${{ matrix.oop-jit == 'On' && '-oop' || '' }}${{ matrix.sanitizer || '' }}
     - name: Setup default Build Type
       uses: ./.github/actions/Miscellaneous/Select_Default_Build_Type
 
