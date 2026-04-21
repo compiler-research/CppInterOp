@@ -17,8 +17,8 @@ runs:
         else
           if [[ "$(uname -m)" == "x86_64" ]]; then
             brew install llvm@15
-            echo "CC=/usr/local/opt/llvm@15/bin/clang" >> $GITHUB_ENV
-            echo "CXX=/usr/local/opt/llvm@15/bin/clang++" >> $GITHUB_ENV
+            echo "CC=/usr/local/opt/llvm@20/bin/clang" >> $GITHUB_ENV
+            echo "CXX=/usr/local/opt/llvm@20/bin/clang++" >> $GITHUB_ENV
           else
             echo "CC=/opt/homebrew/opt/llvm@20/bin/clang" >> $GITHUB_ENV
             echo "CXX=/opt/homebrew/opt/llvm@20/bin/clang++" >> $GITHUB_ENV

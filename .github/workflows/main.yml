@@ -178,24 +178,24 @@ jobs:
             llvm_targets_to_build: "host;NVPTX"
             python-version: '3.14'
           # MacOS X86 Jobs
-          - name: osx15-x86-clang-clang-repl-21-cppyy
-            os: macos-15-intel
+          - name: osx26-x86-clang-clang-repl-21-cppyy
+            os: macos-26-intel
             compiler: clang
             clang-runtime: '21'
             cppyy: On
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host"
             python-version: '3.14'
-          - name: osx15-x86-clang-clang-repl-20-cppyy
-            os: macos-15-intel
+          - name: osx26-x86-clang-clang-repl-20-cppyy
+            os: macos-26-intel
             compiler: clang
             clang-runtime: '20'
             cppyy: On
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host"
             python-version: '3.13'
-          - name: osx15-x86-clang-clang20-cling-cppyy
-            os: macos-15-intel
+          - name: osx26-x86-clang-clang20-cling-cppyy
+            os: macos-26-intel
             compiler: clang
             clang-runtime: '20'
             cling: On
