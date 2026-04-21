@@ -127,6 +127,16 @@ extern "C" void __clang_Interpreter_SetValueNoAlloc(void* This, void* OutVal,
                                                     void* OpaqueType, ...);
 #endif // CPPINTEROP_USE_CLING
 
+// LSan ships as part of ASan only on Linux and macOS. MSVC and
+// Emscripten set the ASan feature macros but do not provide
+// __lsan_ignore_object, so emitting the hook there would fail to
+// JIT-link the wrapper.
+#if !defined(_WIN32) && !defined(__EMSCRIPTEN__) &&                            \
+    (defined(__SANITIZE_ADDRESS__) ||                                          \
+     (defined(__has_feature) && __has_feature(address_sanitizer)))
+#define CPPINTEROP_ASAN_BUILD 1
+#endif
+
 namespace CppImpl {
 
 using namespace clang;
@@ -3500,12 +3510,25 @@ static JitCall::DestructorCall make_dtor_wrapper(compat::Interpreter& interp,
   //
   int indent_level = 0;
   std::ostringstream buf;
+#if CPPINTEROP_ASAN_BUILD
+  // ASan-only: the ORC JIT's resolution of the delete-expression below
+  // does not always route through libasan's operator-delete interposer
+  // (observed for classes with an out-of-line destructor), leaving the
+  // matching operator-new allocation live in LSan's shadow after the
+  // real free. Call __lsan_ignore_object on the object first so LSan
+  // treats the allocation as intentional. Real user-side leaks never
+  // reach this wrapper and stay fully visible. Exercised by
+  // FunctionReflection_GetFunctionCallWrapper in the unit tests;
+  // removing this block makes that test report a leak under LSan CI.
+  buf << "extern \"C\" void __lsan_ignore_object(const void*);\n";
+#endif
   buf << "__attribute__((used)) ";
   buf << "extern \"C\" void ";
   buf << wrapper_name;
   buf << "(void* obj, unsigned long nary, int withFree)\n";
   buf << "{\n";
   //    if (withFree) {
+  //       __lsan_ignore_object(obj);          // ASan builds only
   //       if (!nary) {
   //          delete (ClassName*) obj;
   //       }
@@ -3517,6 +3540,10 @@ static JitCall::DestructorCall make_dtor_wrapper(compat::Interpreter& interp,
   indent(buf, indent_level);
   buf << "if (withFree) {\n";
   ++indent_level;
+#if CPPINTEROP_ASAN_BUILD
+  indent(buf, indent_level);
+  buf << "__lsan_ignore_object(obj);\n";
+#endif
   indent(buf, indent_level);
   buf << "if (!nary) {\n";
   ++indent_level;
