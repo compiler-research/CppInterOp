@@ -12,6 +12,7 @@ set(CMAKE_CXX_EXTENSIONS NO)
 option(CPPINTEROP_USE_CLING "Use Cling as backend" OFF)
 option(CPPINTEROP_USE_REPL "Use clang-repl as backend" ON)
 option(CPPINTEROP_ENABLE_TESTING "Enable the CppInterOp testing infrastructure." ON)
+option(CPPINTEROP_BUILD_TABLEGEN_ONLY "Only build cppinterop-tblgen (for cross-compilation)" OFF)
 if(EMSCRIPTEN)
   set(CPPINTEROP_EXTRA_WASM_FLAGS "-fwasm-exceptions" CACHE STRING "Extra flags for wasm")
 endif()
@@ -23,6 +24,19 @@ endif()
 # project, using LLVM as an external library:
 if( CMAKE_SOURCE_DIR STREQUAL CMAKE_CURRENT_SOURCE_DIR )
   project(CppInterOp)
+
+  # When only building cppinterop-tblgen for cross-compilation, skip
+  # all find_package calls and library/test subdirectories. Only needs
+  # LLVM_DIR pointing to a native LLVM build with libLLVMTableGen.
+  if(CPPINTEROP_BUILD_TABLEGEN_ONLY)
+    find_package(LLVM REQUIRED CONFIG)
+    include_directories(${LLVM_INCLUDE_DIRS})
+    include(AddLLVM)
+    include(HandleLLVMOptions)
+    include(TableGen)
+    add_subdirectory(utils/TableGen)
+    return()
+  endif()
 
   if (NOT CMAKE_BUILD_TYPE AND NOT CMAKE_CONFIGURATION_TYPES)
     message(WARNING "No build type selected. Defaulted CMAKE_BUILD_TYPE=Release.\n"
@@ -300,9 +314,13 @@ endif()
 
   include(AddLLVM)
   include(HandleLLVMOptions)
+  include(TableGen)
 endif()
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
+
+# Generated .inc files from cppinterop-tblgen live under the build tree.
+include_directories(${CMAKE_BINARY_DIR}/include)
 
 # In rare cases we might want to have clang installed in a different place
 # than llvm and the header files should be found first (even though the
@@ -443,6 +461,7 @@ install(DIRECTORY include/
   FILES_MATCHING
   PATTERN "*.def"
   PATTERN "*.h"
+  PATTERN "*.inc"
   PATTERN ".svn" EXCLUDE
   )
 
@@ -548,6 +567,9 @@ if (CPPINTEROP_INCLUDE_DOCS)
   add_subdirectory(docs)
 endif()
 
+if(NOT EMSCRIPTEN AND NOT CPPINTEROP_TABLEGEN_EXE)
+  add_subdirectory(utils/TableGen)
+endif()
 add_subdirectory(lib)
 if (CPPINTEROP_ENABLE_TESTING)
   add_subdirectory(unittests)

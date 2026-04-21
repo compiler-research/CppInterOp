@@ -1,15 +1,16 @@
 #include <CppInterOp/Dispatch.h>
 
-#include <iostream> // for std::cerr
+#include <iostream>
 #include <string_view>
 #include <unordered_map>
 
+using namespace CppImpl;
+
 // NOLINTBEGIN(cppcoreguidelines-pro-type-cstyle-cast)
 static const std::unordered_map<std::string_view, CppFnPtrTy> DispatchMap = {
-#define DISPATCH_API(name, type)                                               \
-  {#name, (CppFnPtrTy) static_cast<type>(&CppImpl::name)},
-    CPPINTEROP_API_TABLE
-#undef DISPATCH_API
+#define CPPINTEROP_API_FUNC(DN, CN, Ret, DeclArgs, CallArgs, RawTypes)         \
+  {#DN, (CppFnPtrTy) static_cast<Ret(*) RawTypes>(&CppImpl::CN)},
+#include "CppInterOp/CppInterOpAPI.inc"
 };
 // NOLINTEND(cppcoreguidelines-pro-type-cstyle-cast)
 

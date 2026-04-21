@@ -87,6 +87,7 @@ add_cppinterop_unittest(TracingTests
 )
 target_compile_definitions(TracingTests PRIVATE
   "CPPINTEROP_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/../../\""
+  "CPPINTEROP_BINARY_DIR=\"${CMAKE_BINARY_DIR}\""
 )
 # GCC 12 and (less often) 13/14 emit a -Wmaybe-uninitialized false positive
 # inside libstdc++'s <regex> headers when the std::function subobject of

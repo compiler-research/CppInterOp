@@ -16,8 +16,8 @@ using namespace clang;
 // NOLINTBEGIN(cppcoreguidelines-pro-type-reinterpret-cast)
 
 TEST(CPPINTEROP_TEST_MODE, DispatchAPI_CppGetProcAddress_Basic) {
-  auto IsClassFn =
-      reinterpret_cast<CppAPIType::IsClass>(CppGetProcAddress("IsClass"));
+  using IsClassFn_t = bool (*)(Cpp::TCppScope_t);
+  auto IsClassFn = reinterpret_cast<IsClassFn_t>(CppGetProcAddress("IsClass"));
   EXPECT_NE(IsClassFn, nullptr) << "Failed to obtain API function pointer";
   std::vector<Decl*> Decls;
   GetAllTopLevelDecls("namespace N {} class C{}; int I;", Decls);
@@ -54,11 +54,12 @@ TEST(CPPINTEROP_TEST_MODE, DispatchAPI_CppGetProcAddress_Advanced) {
   compat::maybeMangleDeclName(Add_int, mangled_add_int);
   compat::maybeMangleDeclName(Add_double, mangled_add_double);
 
+  using DemangleFn_t = std::string (*)(const std::string&);
+  using GetQualNameFn_t = std::string (*)(Cpp::TCppScope_t);
   auto DemangleFn =
-      reinterpret_cast<CppAPIType::Demangle>(CppGetProcAddress("Demangle"));
-  auto GetQualifiedCompleteNameFn =
-      reinterpret_cast<CppAPIType::GetQualifiedCompleteName>(
-          CppGetProcAddress("GetQualifiedCompleteName"));
+      reinterpret_cast<DemangleFn_t>(CppGetProcAddress("Demangle"));
+  auto GetQualifiedCompleteNameFn = reinterpret_cast<GetQualNameFn_t>(
+      CppGetProcAddress("GetQualifiedCompleteName"));
 
   std::string demangled_add_int = DemangleFn(mangled_add_int);
   std::string demangled_add_double = DemangleFn(mangled_add_double);

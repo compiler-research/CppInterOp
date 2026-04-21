@@ -208,7 +208,44 @@ and
    $env:CMAKE_PREFIX_PATH=$env:PREFIX
    $env:CMAKE_SYSTEM_PREFIX_PATH=$env:PREFIX
 
-on Windows. Now to build and test your Emscripten build of CppInterOp on Linux and osx execute the following
+on Windows. Before building the Emscripten version of CppInterOp, we need
+to build ``cppinterop-tblgen`` natively. This tool generates ``.inc`` files
+from ``.td`` definitions and must run on the host (not under Emscripten).
+We use the native LLVM build from the earlier step since it has the required
+``libLLVMTableGen`` library.
+
+On Linux and osx:
+
+.. code:: bash
+
+   cd ../CppInterOp/
+   NATIVE_LLVM_BUILD_DIR=$(pwd)/../llvm-project/native_build
+   mkdir -p native_cppinterop_build && cd native_cppinterop_build
+   cmake -DCMAKE_BUILD_TYPE=Release \
+         -DLLVM_DIR=$NATIVE_LLVM_BUILD_DIR/lib/cmake/llvm \
+         -DCPPINTEROP_BUILD_TABLEGEN_ONLY=ON \
+         ../
+   cmake --build . --target cppinterop-tblgen -j $(nproc --all)
+   export CPPINTEROP_TBLGEN_EXE=$(find $PWD -name cppinterop-tblgen -type f | head -1)
+   cd ..
+
+On Windows:
+
+.. code:: powershell
+
+   cd ..\CppInterOp\
+   $env:NATIVE_LLVM_BUILD_DIR="$env:PWD_DIR\llvm-project\native_build"
+   mkdir native_cppinterop_build
+   cd native_cppinterop_build
+   cmake -DCMAKE_BUILD_TYPE=Release `
+         -DLLVM_DIR="$env:NATIVE_LLVM_BUILD_DIR\lib\cmake\llvm" `
+         -DCPPINTEROP_BUILD_TABLEGEN_ONLY=ON `
+         ..\
+   cmake --build . --target cppinterop-tblgen -j $(nproc --all)
+   $env:CPPINTEROP_TBLGEN_EXE = (Get-ChildItem -Recurse -Filter "cppinterop-tblgen.exe" | Select-Object -First 1).FullName
+   cd ..
+
+Now to build and test your Emscripten build of CppInterOp on Linux and osx execute the following
 (BUILD_SHARED_LIBS=ON is only needed if building xeus-cpp, as CppInterOp can be built as an Emscripten static library)
 
 .. code:: bash
@@ -223,6 +260,7 @@ on Windows. Now to build and test your Emscripten build of CppInterOp on Linux a
                  -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            \
                  -DCMAKE_INSTALL_PREFIX=$PREFIX         \
                  -DSYSROOT_PATH=$SYSROOT_PATH                                   \
+                 -DCPPINTEROP_TABLEGEN_EXE=$CPPINTEROP_TBLGEN_EXE \
                  ../
    emmake make -j $(nproc --all) check-cppinterop
 
@@ -241,6 +279,7 @@ To build and test your Emscripten build of CppInterOp on Windows execute the fol
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            `
                 -DLLVM_ENABLE_WERROR=On                      `
                 -DSYSROOT_PATH="$env:SYSROOT_PATH"                     `
+                -DCPPINTEROP_TABLEGEN_EXE="$env:CPPINTEROP_TBLGEN_EXE" `
                 ..\
    emmake make -j $(nproc --all) check-cppinterop
 
