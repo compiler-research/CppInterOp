@@ -45,15 +45,15 @@ function(add_cppinterop_unittest name)
     endif()
   endif()
   add_dependencies(CppInterOpUnitTests ${name})
-  target_include_directories(${name} PUBLIC ${CMAKE_CURRENT_BINARY_DIR} ${GTEST_INCLUDE_DIR})
+  target_include_directories(${name} PRIVATE ${CMAKE_CURRENT_BINARY_DIR} ${GTEST_INCLUDE_DIR})
   set_property(TARGET ${name} PROPERTY RUNTIME_OUTPUT_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR})
   export_executable_symbols(${name})
 
   if(WIN32)
-    target_link_libraries(${name} PUBLIC ${ARG_LIBRARIES} ${gtest_libs})
+    target_link_libraries(${name} PRIVATE ${gtest_libs})
     set_property(TARGET ${name} APPEND_STRING PROPERTY LINK_FLAGS "${MSVC_EXPORTS}")
   else()
-    target_link_libraries(${name} PRIVATE ${ARG_LIBRARIES} ${gtest_libs} ${link_pthreads_lib})
+    target_link_libraries(${name} PRIVATE ${gtest_libs} ${link_pthreads_lib})
   endif()
   target_link_libraries(${name} PRIVATE clangCppInterOp)
   if(EMSCRIPTEN)
@@ -76,9 +76,7 @@ function(add_cppinterop_unittest name)
 
   set_tests_properties(cppinterop-${name} PROPERTIES
                         TIMEOUT "${TIMEOUT_VALUE}"
-                        ENVIRONMENT "CPLUS_INCLUDE_PATH=${CMAKE_BINARY_DIR}/etc"
-                        LABELS
-                        DEPENDS)
+                        ENVIRONMENT "CPLUS_INCLUDE_PATH=${CMAKE_BINARY_DIR}/etc")
   # Auto-generate the dispatch version if shared libs are built by recursively calling
   # add_cppinterop_unittest with the necessary compile definitions
   # FIXME: Enable for WASM builds
