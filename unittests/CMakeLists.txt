@@ -36,7 +36,13 @@ function(add_cppinterop_unittest name)
     ""
     ${ARGN}
   )
-  add_executable(${name} EXCLUDE_FROM_ALL ${ARG_UNPARSED_ARGUMENTS})
+  # gtest_main is dropped from the Emscripten link set, so every Emscripten
+  # test binary needs its own main.cpp entry point.
+  if(EMSCRIPTEN)
+    add_executable(${name} EXCLUDE_FROM_ALL ${ARG_UNPARSED_ARGUMENTS} main.cpp)
+  else()
+    add_executable(${name} EXCLUDE_FROM_ALL ${ARG_UNPARSED_ARGUMENTS})
+  endif()
   if(NOT LLVM_ENABLE_RTTI)
     if(MSVC)
       target_compile_options(${name} PRIVATE "/GR-")
@@ -62,6 +68,8 @@ function(add_cppinterop_unittest name)
     else()
       target_compile_definitions(${name} PRIVATE "EMSCRIPTEN_STATIC_LIBRARY")
     endif()
+    target_compile_options(${name} PRIVATE ${CPPINTEROP_COMMON_WASM_TEST_COMPILE_FLAGS})
+    target_link_options(${name} PRIVATE ${CPPINTEROP_COMMON_WASM_TEST_LINK_FLAGS})
     # Without this cmake will try and get node to run the html file.
     # This guarantees that it runs the js file, and uses emsdks node.
     add_test(NAME cppinterop-${name} COMMAND $ENV{EMSDK_NODE} ${name}.js)
@@ -82,7 +90,7 @@ function(add_cppinterop_unittest name)
   # FIXME: Enable for WASM builds
   if (NOT EMSCRIPTEN AND ARG_ENABLE_DISPATCH AND BUILD_SHARED_LIBS)
     add_cppinterop_unittest(${name}Dispatch ${ARG_UNPARSED_ARGUMENTS} DispatchTest.cpp)
-    target_compile_definitions(${name}Dispatch PRIVATE 
+    target_compile_definitions(${name}Dispatch PRIVATE
       ENABLE_DISPATCH_TESTS
       CPPINTEROP_LIB_PATH="${CMAKE_BINARY_DIR}/lib/libclangCppInterOp${CMAKE_SHARED_LIBRARY_SUFFIX}"
     )
