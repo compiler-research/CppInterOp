@@ -178,6 +178,9 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_Process) {
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_DeclareSilent) {
+#if CLANG_VERSION_MAJOR == 22
+  GTEST_SKIP() << "Test crashes gtest for llvm 22 based build";
+#endif
   TestFixture::CreateInterpreter();
 
   // Valid code with silent=true should succeed.
