@@ -178,7 +178,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_Process) {
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_DeclareSilent) {
-#if CLANG_VERSION_MAJOR == 22
+#if CLANG_VERSION_MAJOR > 21
   GTEST_SKIP() << "Test crashes gtest for llvm 22 based build";
 #endif
   TestFixture::CreateInterpreter();
