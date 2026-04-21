@@ -469,11 +469,16 @@ std::string GetVersion() {
 
 std::string Demangle(const std::string& mangled_name) {
   INTEROP_TRACE(mangled_name);
+  // Both itaniumDemangle and microsoftDemangle return a malloc'd buffer
+  // that the caller owns; the implicit std::string conversion copies the
+  // bytes but never frees the original. See llvm/Demangle/Demangle.h.
 #ifdef _WIN32
-  std::string demangle = microsoftDemangle(mangled_name, nullptr, nullptr);
+  char* Raw = microsoftDemangle(mangled_name, nullptr, nullptr);
 #else
-  std::string demangle = itaniumDemangle(mangled_name);
+  char* Raw = llvm::itaniumDemangle(mangled_name);
 #endif
+  std::string demangle = Raw ? Raw : "";
+  std::free(Raw);
   return INTEROP_RETURN(demangle);
 }
 

@@ -175,9 +175,6 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_IsEnumConstant) {
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_Demangle) {
-  if (llvm::sys::RunningOnValgrind())
-    GTEST_SKIP() << "XFAIL due to Valgrind report";
-
   std::string code = R"(
     int add(int x, int y) { return x + y; }
     int add(double x, double y) { return x + y; }
