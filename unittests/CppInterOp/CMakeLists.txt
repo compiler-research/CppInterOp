@@ -86,8 +86,6 @@ if(EMSCRIPTEN)
   )
 endif()
 
-unset(LLVM_LINK_COMPONENTS)
-
 if (NOT EMSCRIPTEN)
   set(EXTRA_TEST_SOURCE_FILES "")
 endif()
@@ -129,8 +127,6 @@ if(EMSCRIPTEN)
   )
 endif()
 
-add_dependencies(DynamicLibraryManagerTests TestSharedLib)
-
-#export_executable_symbols_for_plugins(TestSharedLib)
 add_subdirectory(TestSharedLib)
+add_dependencies(DynamicLibraryManagerTests TestSharedLib)
 
