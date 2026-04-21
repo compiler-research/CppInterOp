@@ -104,7 +104,7 @@ add_cppinterop_unittest(TracingTests
   ${EXTRA_TEST_SOURCE_FILES}
 )
 target_compile_definitions(TracingTests PRIVATE
-  "CPPINTEROP_DIR=\"${CMAKE_SOURCE_DIR}\""
+  "CPPINTEROP_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/../../\""
 )
 
 if(EMSCRIPTEN)
