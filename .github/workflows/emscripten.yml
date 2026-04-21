@@ -27,7 +27,7 @@ jobs:
             llvm_enable_projects: "clang;lld"
             llvm_targets_to_build: "WebAssembly"
             emsdk_ver: "4.0.9"
-            build_static_library: On
+            build_static_library: ${{ github.event_name == 'schedule' && 'On' || 'Off' }}
             micromamba_shell_init: bash
             run-in-prs: true
           - name: osx26-arm-clang-repl-21-emscripten
@@ -36,7 +36,7 @@ jobs:
             llvm_enable_projects: "clang;lld"
             llvm_targets_to_build: "WebAssembly"
             emsdk_ver: "4.0.9"
-            build_static_library: On
+            build_static_library: ${{ github.event_name == 'schedule' && 'On' || 'Off' }}
             micromamba_shell_init: bash
           - name: ubu24-x86-clang-repl-21-emscripten
             os: ubuntu-24.04
@@ -44,7 +44,7 @@ jobs:
             llvm_enable_projects: "clang;lld"
             llvm_targets_to_build: "WebAssembly"
             emsdk_ver: "4.0.9"
-            build_static_library: On
+            build_static_library: ${{ github.event_name == 'schedule' && 'On' || 'Off' }}
             micromamba_shell_init: bash
           - name: win2025-x86-clang-repl-21-emscripten
             os: windows-2025
@@ -52,7 +52,7 @@ jobs:
             llvm_enable_projects: "clang;lld"
             llvm_targets_to_build: "WebAssembly"
             emsdk_ver: "4.0.9"
-            build_static_library: On
+            build_static_library: ${{ github.event_name == 'schedule' && 'On' || 'Off' }}
             micromamba_shell_init: powershell
 
     steps:
