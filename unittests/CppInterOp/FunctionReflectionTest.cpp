@@ -1980,6 +1980,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetFunctionCallWrapper) {
   bool boolean = false;
   FCI_op.Invoke((void*)&boolean, {args, /*args_size=*/1}, toperator);
   EXPECT_TRUE(boolean);
+  Cpp::Destruct(toperator, TOperator, /*withFree=*/true, /*count=*/0);
 
   Interp->process(R"(
     namespace N1 {
