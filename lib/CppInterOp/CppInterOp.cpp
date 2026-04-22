@@ -188,7 +188,8 @@ struct InterpreterInfo {
 
 static void DefaultProcessCrashHandler(void*);
 // Function-static storage for interpreters
-static std::deque<InterpreterInfo>& GetInterpreters() {
+static std::deque<InterpreterInfo>&
+GetInterpreters(bool SetCrashHandler = true) {
   // static int FakeArgc = 1;
   // static const std::string VersionStr = GetVersion();
   // static const char* ArgvBuffer[] = {VersionStr.c_str(), nullptr};
@@ -200,8 +201,9 @@ static std::deque<InterpreterInfo>& GetInterpreters() {
   // FIXME: Currently we never call llvm::llvm_shutdown and sInterpreters leaks.
   static llvm::ManagedStatic<std::deque<InterpreterInfo>> sInterpreters;
   static std::once_flag ProcessInitialized;
-  std::call_once(ProcessInitialized, []() {
-    llvm::sys::PrintStackTraceOnErrorSignal("CppInterOp");
+  std::call_once(ProcessInitialized, [SetCrashHandler]() {
+    if (SetCrashHandler)
+      llvm::sys::PrintStackTraceOnErrorSignal("CppInterOp");
 
     if (getenv("CPPINTEROP_LOG") != nullptr)
       CppInterOp::Tracing::InitTracing();
@@ -213,7 +215,9 @@ static std::deque<InterpreterInfo>& GetInterpreters() {
     llvm::InitializeAllAsmParsers();
     llvm::InitializeAllAsmPrinters();
 
-    llvm::sys::AddSignalHandler(DefaultProcessCrashHandler, /*Cookie=*/nullptr);
+    if (SetCrashHandler)
+      llvm::sys::AddSignalHandler(DefaultProcessCrashHandler,
+                                  /*Cookie=*/nullptr);
 
     // std::atexit(llvm::llvm_shutdown);
   });
@@ -262,7 +266,7 @@ static void DefaultProcessCrashHandler(void*) {
 }
 
 static void RegisterInterpreter(compat::Interpreter* I, bool Owned) {
-  std::deque<InterpreterInfo>& Interps = GetInterpreters();
+  std::deque<InterpreterInfo>& Interps = GetInterpreters(Owned);
   Interps.emplace_back(I, Owned);
 }
 
@@ -294,7 +298,7 @@ TInterp_t GetInterpreter() {
 
 void UseExternalInterpreter(TInterp_t I) {
   INTEROP_TRACE(I);
-  assert(GetInterpreters().empty() && "sInterpreter already in use!");
+  assert(GetInterpreters(false).empty() && "sInterpreter already in use!");
   RegisterInterpreter(static_cast<compat::Interpreter*>(I), /*Owned=*/false);
   return INTEROP_VOID_RETURN();
 }
