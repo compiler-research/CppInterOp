@@ -333,6 +333,8 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_IsBuiltin) {
   EXPECT_TRUE(Cpp::IsBuiltin(C.getComplexType(C.LongDoubleTy).getAsOpaquePtr()));
   EXPECT_TRUE(Cpp::IsBuiltin(C.getComplexType(C.Float128Ty).getAsOpaquePtr()));
 
+// FIXME as part of llvm 22 PR. getTypeDeclType was deleted between llvm 21 and 22
+#if CLANG_VERSION_MAJOR < 22
   // std::complex
   Interp->declare("#include <complex>");
   Sema &S = Interp->getCI()->getSema();
@@ -340,6 +342,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_IsBuiltin) {
   auto *CTD = cast<ClassTemplateDecl>(lookup.front());
   for (ClassTemplateSpecializationDecl *CTSD : CTD->specializations())
     EXPECT_TRUE(Cpp::IsBuiltin(C.getTypeDeclType(CTSD).getAsOpaquePtr()));
+#endif
 
   // User-defined records (even with "complex" in the name) are not builtins.
   Interp->declare("class complex_number {}; class regular_record {};");
@@ -501,7 +504,11 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_GetCompleteName) {
   EXPECT_EQ(Cpp::GetCompleteName(Cpp::GetScopeFromType(
                                              Cpp::GetVariableType(
                                                      Decls[9]))), "A<int>");
+#if CLANG_VERSION_MAJOR < 22
   EXPECT_EQ(Cpp::GetCompleteName(Decls[10]), "(unnamed)");
+#else
+  EXPECT_EQ(Cpp::GetCompleteName(Decls[10]), "(unnamed enum)");
+#endif
   EXPECT_EQ(Cpp::GetCompleteName(Decls[11]), "fn");
   EXPECT_EQ(Cpp::GetCompleteName(nullptr), "<unnamed>");
 
