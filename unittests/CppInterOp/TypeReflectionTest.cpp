@@ -714,12 +714,12 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, TypeReflection_IsIntegerType) {
   GetAllTopLevelDecls(code, Decls);
 
   Cpp::Signedness sign;
-  EXPECT_TRUE(Cpp::IsIntegerType(Cpp::GetVariableType(Decls[0])));
-  EXPECT_FALSE(Cpp::IsIntegerType(Cpp::GetVariableType(Decls[1])));
-  EXPECT_FALSE(Cpp::IsIntegerType(Cpp::GetVariableType(Decls[2])));
-  EXPECT_TRUE(Cpp::IsIntegerType(Cpp::GetVariableType(Decls[4])));
-  EXPECT_TRUE(Cpp::IsIntegerType(Cpp::GetVariableType(Decls[5])));
-  EXPECT_TRUE(Cpp::IsIntegerType(Cpp::GetVariableType(Decls[6])));
+  EXPECT_TRUE(Cpp::IsIntegerType(Cpp::GetVariableType(Decls[0]) DFLT_NULLPTR));
+  EXPECT_FALSE(Cpp::IsIntegerType(Cpp::GetVariableType(Decls[1]) DFLT_NULLPTR));
+  EXPECT_FALSE(Cpp::IsIntegerType(Cpp::GetVariableType(Decls[2]) DFLT_NULLPTR));
+  EXPECT_TRUE(Cpp::IsIntegerType(Cpp::GetVariableType(Decls[4]) DFLT_NULLPTR));
+  EXPECT_TRUE(Cpp::IsIntegerType(Cpp::GetVariableType(Decls[5]) DFLT_NULLPTR));
+  EXPECT_TRUE(Cpp::IsIntegerType(Cpp::GetVariableType(Decls[6]) DFLT_NULLPTR));
 
   // Check signedness via out parameter
   EXPECT_TRUE(Cpp::IsIntegerType(Cpp::GetVariableType(Decls[0]), &sign));
