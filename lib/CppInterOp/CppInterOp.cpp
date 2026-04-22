@@ -2063,10 +2063,49 @@ bool IsPODType(TCppType_t type) {
   return INTEROP_RETURN(QT.isPODType(getASTContext()));
 }
 
+bool IsIntegerType(TCppType_t type, Signedness* s) {
+  INTEROP_TRACE(type, s);
+  if (!type)
+    return INTEROP_RETURN(false);
+  QualType QT = QualType::getFromOpaquePtr(type);
+  if (!QT->hasIntegerRepresentation())
+    return INTEROP_RETURN(false);
+  if (s) {
+    *s = QT->hasSignedIntegerRepresentation() ? Signedness::kSigned
+                                              : Signedness::kUnsigned;
+  }
+  return INTEROP_RETURN(true);
+}
+
+bool IsFloatingType(TCppType_t type) {
+  INTEROP_TRACE(type);
+  if (!type)
+    return INTEROP_RETURN(false);
+  QualType QT = QualType::getFromOpaquePtr(type);
+  return INTEROP_RETURN(QT->hasFloatingRepresentation());
+}
+
+bool IsSameType(TCppType_t type_a, TCppType_t type_b) {
+  INTEROP_TRACE(type_a, type_b);
+  if (!type_a || !type_b)
+    return INTEROP_RETURN(false);
+  QualType QT1 = QualType::getFromOpaquePtr(type_a);
+  QualType QT2 = QualType::getFromOpaquePtr(type_b);
+  return INTEROP_RETURN(getASTContext().hasSameType(QT1, QT2));
+}
+
 bool IsPointerType(TCppType_t type) {
   INTEROP_TRACE(type);
   QualType QT = QualType::getFromOpaquePtr(type);
   return INTEROP_RETURN(QT->isPointerType());
+}
+
+bool IsVoidPointerType(TCppType_t type) {
+  INTEROP_TRACE(type);
+  if (!type)
+    return INTEROP_RETURN(false);
+  QualType QT = QualType::getFromOpaquePtr(type);
+  return INTEROP_RETURN(QT->isVoidPointerType());
 }
 
 TCppType_t GetPointeeType(TCppType_t type) {
@@ -2119,6 +2158,8 @@ TCppType_t GetNonReferenceType(TCppType_t type) {
 
 TCppType_t GetUnderlyingType(TCppType_t type) {
   INTEROP_TRACE(type);
+  if (!type)
+    return INTEROP_RETURN(nullptr);
   QualType QT = QualType::getFromOpaquePtr(type);
   QT = QT->getCanonicalTypeUnqualified();
 
