@@ -67,6 +67,14 @@ jobs:
       matrix:
         include:
           # Ubuntu Arm Jobs
+          - name: ubu24-arm-gcc12-clang-repl-22
+            os: ubuntu-24.04-arm
+            compiler: gcc-12
+            clang-runtime: '22'
+            llvm_enable_projects: "clang"
+            llvm_targets_to_build: "host;NVPTX"
+            Valgrind: On
+            python-version: '3.14'
           - name: ubu24-arm-gcc12-clang-repl-21-cppyy
             os: ubuntu-24.04-arm
             compiler: gcc-12
@@ -96,6 +104,13 @@ jobs:
             llvm_targets_to_build: "host;NVPTX"
             python-version: '3.14'
           # Ubuntu X86 Jobs
+          - name: ubu24-x86-gcc12-clang-repl-22
+            os: ubuntu-24.04
+            compiler: gcc-12
+            clang-runtime: '22'
+            llvm_enable_projects: "clang"
+            llvm_targets_to_build: "host;NVPTX"
+            python-version: '3.14'
           - name: selfh-ubu22-x86-gcc12-clang-repl-21-cuda
             os: [self-hosted, cuda, heavy]
             compiler: gcc-12
@@ -142,6 +157,13 @@ jobs:
             llvm_targets_to_build: "host;NVPTX"
             python-version: '3.14'
           # MacOS Arm Jobs
+          - name: osx26-arm-clang-clang-repl-22
+            os: macos-26
+            compiler: clang
+            clang-runtime: '22'
+            llvm_enable_projects: "clang"
+            llvm_targets_to_build: "host"
+            python-version: '3.14'
           - name: osx26-arm-clang-clang-repl-21-cppyy
             os: macos-26
             compiler: clang
@@ -178,6 +200,13 @@ jobs:
             llvm_targets_to_build: "host;NVPTX"
             python-version: '3.14'
           # MacOS X86 Jobs
+          - name: osx26-x86-clang-clang-repl-22
+            os: macos-26-intel
+            compiler: clang
+            clang-runtime: '22'
+            llvm_enable_projects: "clang"
+            llvm_targets_to_build: "host"
+            python-version: '3.14'
           - name: osx26-x86-clang-clang-repl-21-cppyy
             os: macos-26-intel
             compiler: clang
@@ -206,10 +235,10 @@ jobs:
             llvm_targets_to_build: "host;NVPTX"
             python-version: '3.14'
           # Windows Arm Jobs
-          - name: win11-msvc-clang-repl-21
+          - name: win11-msvc-clang-repl-22
             os: windows-11-arm
             compiler: msvc
-            clang-runtime: '21'
+            clang-runtime: '22'
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
             python-version: '3.14'
@@ -224,10 +253,10 @@ jobs:
             llvm_targets_to_build: "host;NVPTX"
             python-version: '3.14'
           # Windows X86 Jobs
-          - name: win2025-msvc-clang-repl-21
+          - name: win2025-msvc-clang-repl-22
             os: windows-2025
             compiler: msvc
-            clang-runtime: '21'
+            clang-runtime: '22'
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
             python-version: '3.14'
