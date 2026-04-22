@@ -17,6 +17,7 @@
 
 #include "gtest/gtest.h"
 
+#include <memory>
 #include <string>
 
 using namespace TestUtils;
@@ -175,9 +176,6 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_IsEnumConstant) {
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_Demangle) {
-  if (llvm::sys::RunningOnValgrind())
-    GTEST_SKIP() << "XFAIL due to Valgrind report";
-
   std::string code = R"(
     int add(int x, int y) { return x + y; }
     int add(double x, double y) { return x + y; }
@@ -927,21 +925,29 @@ CODE;
 #undef Stringify
 #undef CODE
 
-  auto *c = new C();
-  EXPECT_EQ(Cpp::GetBaseClassOffset(Decls[2], Decls[0]), (char *)(A*)c - (char *)c);
-  EXPECT_EQ(Cpp::GetBaseClassOffset(Decls[2], Decls[1]), (char *)(B*)c - (char *)c);
+  std::unique_ptr<C> c(new C());
+  EXPECT_EQ(Cpp::GetBaseClassOffset(Decls[2], Decls[0]),
+            (char*)(A*)c.get() - (char*)c.get());
+  EXPECT_EQ(Cpp::GetBaseClassOffset(Decls[2], Decls[1]),
+            (char*)(B*)c.get() - (char*)c.get());
 
-  auto *d = new D();
-  EXPECT_EQ(Cpp::GetBaseClassOffset(Decls[3], Decls[0]), (char *)(A*)d - (char *)d);
-  EXPECT_EQ(Cpp::GetBaseClassOffset(Decls[3], Decls[1]), (char *)(B*)d - (char *)d);
-  EXPECT_EQ(Cpp::GetBaseClassOffset(Decls[3], Decls[2]), (char *)(C*)d - (char *)d);
+  std::unique_ptr<D> d(new D());
+  EXPECT_EQ(Cpp::GetBaseClassOffset(Decls[3], Decls[0]),
+            (char*)(A*)d.get() - (char*)d.get());
+  EXPECT_EQ(Cpp::GetBaseClassOffset(Decls[3], Decls[1]),
+            (char*)(B*)d.get() - (char*)d.get());
+  EXPECT_EQ(Cpp::GetBaseClassOffset(Decls[3], Decls[2]),
+            (char*)(C*)d.get() - (char*)d.get());
 
-  auto *e = new E();
-  EXPECT_EQ(Cpp::GetBaseClassOffset(Decls[4], Decls[0]), (char *)(A*)e - (char *)e);
-  EXPECT_EQ(Cpp::GetBaseClassOffset(Decls[4], Decls[1]), (char *)(B*)e - (char *)e);
+  std::unique_ptr<E> e(new E());
+  EXPECT_EQ(Cpp::GetBaseClassOffset(Decls[4], Decls[0]),
+            (char*)(A*)e.get() - (char*)e.get());
+  EXPECT_EQ(Cpp::GetBaseClassOffset(Decls[4], Decls[1]),
+            (char*)(B*)e.get() - (char*)e.get());
 
-  auto *g = new G();
-  EXPECT_EQ(Cpp::GetBaseClassOffset(Decls[6], Decls[0]), (char *)(A*)g - (char *)g);
+  std::unique_ptr<G> g(new G());
+  EXPECT_EQ(Cpp::GetBaseClassOffset(Decls[6], Decls[0]),
+            (char*)(A*)g.get() - (char*)g.get());
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_GetAllCppNames) {

@@ -387,9 +387,9 @@ TEST_F(TracingTest, ClearWithRunningTimers) {
   TI.pushTimer(&T1);
   EXPECT_TRUE(T1.isRunning());
 
-  // clear() should stop running timers (covers lines 129-130).
+  // clear() stops running timers and destroys them.
+  // We only verify it doesn't crash — T1 is invalid after clear().
   TI.clear();
-  EXPECT_FALSE(T1.isRunning());
 }
 
 // ---------------------------------------------------------------------------

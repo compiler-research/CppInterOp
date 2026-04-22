@@ -104,6 +104,16 @@ add_cppinterop_unittest(TracingTests
 target_compile_definitions(TracingTests PRIVATE
   "CPPINTEROP_DIR=\"${CMAKE_CURRENT_SOURCE_DIR}/../../\""
 )
+# GCC 12 and (less often) 13/14 emit a -Wmaybe-uninitialized false positive
+# inside libstdc++'s <regex> headers when the std::function subobject of
+# std::__detail::_State is move-constructed. The analysis only fails once the
+# inliner is perturbed, so sanitizer builds (which insert shadow-memory
+# barriers and inline less) are where this reliably surfaces. Clang and newer
+# GCCs are fine. See gcc bug 105562 and friends.
+if (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+  set_source_files_properties(TracingTests.cpp
+    PROPERTIES COMPILE_FLAGS "-Wno-maybe-uninitialized")
+endif()
 
 if(EMSCRIPTEN)
   target_compile_options(TracingTests

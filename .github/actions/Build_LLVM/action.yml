@@ -54,6 +54,7 @@ runs:
                 -DCLANG_ENABLE_BOOTSTRAP=OFF                        \
                 -G Ninja                                            \
                 -DLLVM_INCLUDE_BENCHMARKS=OFF                   \
+                -DLLVM_USE_SANITIZER="${{ matrix.sanitizer }}"  \
                 -DLLVM_INCLUDE_EXAMPLES=OFF                     \
                 -DLLVM_INCLUDE_TESTS=OFF                        \
                 ../llvm

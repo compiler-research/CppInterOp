@@ -285,6 +285,19 @@ endif()
 
   set( CPPINTEROP_BUILT_STANDALONE 1 )
 
+  # LLVM_USE_SANITIZER is not exported via LLVMConfig.cmake. When building
+  # against an LLVM build tree (not an installed package), import the setting
+  # so that HandleLLVMOptions applies matching -fsanitize= flags.
+  if (NOT DEFINED LLVM_USE_SANITIZER
+      AND EXISTS "${LLVM_BINARY_DIR}/CMakeCache.txt")
+    load_cache("${LLVM_BINARY_DIR}" READ_WITH_PREFIX _LLVM_
+               LLVM_USE_SANITIZER)
+    if (_LLVM_LLVM_USE_SANITIZER)
+      set(LLVM_USE_SANITIZER "${_LLVM_LLVM_USE_SANITIZER}")
+      message(STATUS "Matching LLVM sanitizer: LLVM_USE_SANITIZER=${LLVM_USE_SANITIZER}")
+    endif ()
+  endif ()
+
   include(AddLLVM)
   include(HandleLLVMOptions)
 endif()
