@@ -118,10 +118,10 @@ jobs:
             llvm_targets_to_build: "host;NVPTX"
             sanitizer: "Address"
             python-version: '3.14'
-          - name: selfh-ubu22-x86-gcc12-clang-repl-21-cuda
+          - name: selfh-ubu22-x86-gcc12-clang-repl-22-cuda
             os: [self-hosted, cuda, heavy]
             compiler: gcc-12
-            clang-runtime: '21'
+            clang-runtime: '22'
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
             python-version: '3.14'
