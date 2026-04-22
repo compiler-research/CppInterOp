@@ -110,10 +110,10 @@ jobs:
             clang-runtime: '22'
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
-          - name: ubu24-x86-gcc12-clang-repl-21-asan
+          - name: ubu24-x86-gcc12-clang-repl-22-asan
             os: ubuntu-24.04
             compiler: gcc-12
-            clang-runtime: '21'
+            clang-runtime: '22'
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
             sanitizer: "Address"
