@@ -95,7 +95,8 @@ and osx
    cd native_build
    cmake -DLLVM_ENABLE_PROJECTS=clang -DLLVM_TARGETS_TO_BUILD=host -DCMAKE_BUILD_TYPE=Release ../llvm/
    cmake --build . --target llvm-tblgen clang-tblgen --parallel $(nproc --all)
-   export NATIVE_DIR=$PWD/bin/
+   export NATIVE_LLVM_BUILD_DIR==$PWD
+   export NATIVE_LLVM_BIN_DIR=$PWD/bin/
    cd ..
    mkdir build
    cd build
@@ -117,7 +118,7 @@ and osx
                  -DLLVM_BUILD_TOOLS=OFF                          \
                  -DLLVM_ENABLE_LIBPFM=OFF                        \
                  -DCLANG_BUILD_TOOLS=OFF                         \
-                 -DLLVM_NATIVE_TOOL_DIR=$NATIVE_DIR 		\
+                 -DLLVM_NATIVE_TOOL_DIR=$NATIVE_LLVM_BIN_DIR 		\
                  -DCMAKE_C_FLAGS_RELEASE="-Oz -g0 -DNDEBUG" \
                  -DCMAKE_CXX_FLAGS_RELEASE="-Oz -g0 -DNDEBUG" \
                  -DLLVM_ENABLE_LTO=Full \
@@ -133,7 +134,8 @@ or executing
    cmake -DLLVM_ENABLE_PROJECTS=clang -DLLVM_TARGETS_TO_BUILD=host -DCMAKE_BUILD_TYPE=Release -G Ninja ../llvm/
    cmake --build . --target llvm-tblgen clang-tblgen --parallel $(nproc --all)
    $env:PWD_DIR= $PWD.Path
-   $env:NATIVE_DIR="$env:PWD_DIR/bin/"
+   $env:NATIVE_LLVM_BUILD_DIR=="$env:PWD_DIR"
+   $env:NATIVE_LLVM_BIN_DIR=="$env:PWD_DIR/bin/"
    cd ..
    mkdir build
    cd build
@@ -155,7 +157,7 @@ or executing
                         -DLLVM_BUILD_TOOLS=OFF                          `
                         -DLLVM_ENABLE_LIBPFM=OFF                        `
                         -DCLANG_BUILD_TOOLS=OFF                         `
-                        -DLLVM_NATIVE_TOOL_DIR="$env:NATIVE_DIR" 		    `
+                        -DLLVM_NATIVE_TOOL_DIR="$env:NATIVE_BIN_DIR" 		    `
                         -G Ninja `
                         -DCMAKE_C_FLAGS_RELEASE="-Oz -g0 -DNDEBUG" `
                         -DCMAKE_CXX_FLAGS_RELEASE="-Oz -g0 -DNDEBUG" `
@@ -218,11 +220,10 @@ On Linux and osx:
 
 .. code:: bash
 
-   cd ../CppInterOp/
-   NATIVE_LLVM_BUILD_DIR=$(pwd)/../llvm-project/native_build
    mkdir -p native_cppinterop_build && cd native_cppinterop_build
    cmake -DCMAKE_BUILD_TYPE=Release \
          -DLLVM_DIR=$NATIVE_LLVM_BUILD_DIR/lib/cmake/llvm \
+	     -DCMAKE_CXX_STANDARD=17 \
          -DCPPINTEROP_BUILD_TABLEGEN_ONLY=ON \
          ../
    cmake --build . --target cppinterop-tblgen -j $(nproc --all)
@@ -233,12 +234,11 @@ On Windows:
 
 .. code:: powershell
 
-   cd ..\CppInterOp\
-   $env:NATIVE_LLVM_BUILD_DIR="$env:PWD_DIR\llvm-project\native_build"
    mkdir native_cppinterop_build
    cd native_cppinterop_build
    cmake -DCMAKE_BUILD_TYPE=Release `
          -DLLVM_DIR="$env:NATIVE_LLVM_BUILD_DIR\lib\cmake\llvm" `
+	     -DCMAKE_CXX_STANDARD=17 `
          -DCPPINTEROP_BUILD_TABLEGEN_ONLY=ON `
          ..\
    cmake --build . --target cppinterop-tblgen -j $(nproc --all)

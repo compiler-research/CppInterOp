@@ -210,7 +210,7 @@ jobs:
           EMCC_CFLAGS="-fwasm-exceptions" emmake ninja libclang clangInterpreter clangStaticAnalyzerCore
         fi
         cd ../
-        rm -rf $(find . -maxdepth 1 ! -name "build" ! -name "llvm" ! -name "clang" ! -name ".")
+        rm -rf $(find . -maxdepth 1 ! -name "build" ! -name "llvm" ! -name "clang" ! -name "." ! -name "native_build")
         if [[ "${cling_on}" == "ON" ]]; then
           cd ./llvm/
           rm -rf $(find . -maxdepth 1 ! -name "include" ! -name "lib" ! -name "cmake" ! -name "utils" ! -name ".")
@@ -343,7 +343,7 @@ jobs:
           $env:EMCC_CFLAGS=""
         }
         cd ..\
-        rm -r -force $(find.exe . -maxdepth 1 ! -name "build" ! -name "llvm" ! -name "clang" ! -name ".")
+        rm -r -force $(find.exe . -maxdepth 1 ! -name "build" ! -name "llvm" ! -name "clang" ! -name "." ! -name "native_build")
         if ( "${{ matrix.cling }}" -imatch "On" )
         {
           cd .\llvm\
