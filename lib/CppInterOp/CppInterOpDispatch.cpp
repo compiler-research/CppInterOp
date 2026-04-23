@@ -1,10 +1,16 @@
-#include <CppInterOp/Dispatch.h>
+// Implementation of the dispatch symbol table. Maps function names to
+// CppImpl:: addresses for dlopen consumers via CppGetProcAddress.
+// This is a library internal — it includes CppInterOp.h (not Dispatch.h)
+// because it needs the CppImpl:: function declarations.
+
+#include "CppInterOp/CppInterOp.h"
 
 #include <iostream>
 #include <string_view>
 #include <unordered_map>
 
 using namespace CppImpl;
+using CppFnPtrTy = void (*)();
 
 // NOLINTBEGIN(cppcoreguidelines-pro-type-cstyle-cast)
 static const std::unordered_map<std::string_view, CppFnPtrTy> DispatchMap = {
@@ -14,12 +20,11 @@ static const std::unordered_map<std::string_view, CppFnPtrTy> DispatchMap = {
 };
 // NOLINTEND(cppcoreguidelines-pro-type-cstyle-cast)
 
-CppFnPtrTy CppGetProcAddress(const char* funcName) {
+extern "C" CPPINTEROP_API CppFnPtrTy CppGetProcAddress(const char* funcName) {
   auto it = DispatchMap.find(funcName);
   if (it == DispatchMap.end()) {
-    std::cerr
-        << "[CppInterOp Dispatch] Failed to find API: " << funcName
-        << " May need to be ported to the symbol-address table in Dispatch.h\n";
+    std::cerr << "[CppInterOp Dispatch] Failed to find API: " << funcName
+              << " May need to be ported to CppInterOp.td\n";
     return nullptr;
   }
   // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
