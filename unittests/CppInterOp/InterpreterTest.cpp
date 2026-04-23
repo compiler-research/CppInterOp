@@ -18,6 +18,7 @@
 
 #include "llvm/ADT/SmallString.h"
 #include "llvm/Config/llvm-config.h"
+#include "llvm/Support/BuryPointer.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Path.h"
 
@@ -466,7 +467,10 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_ExternalInterpreter) {
   EXPECT_TRUE(Cpp::GetInterpreter()) << "External Interpreter not set";
 
 #ifndef CPPINTEROP_USE_CLING
-  I.release();
+  // Skip Interpreter destruction: the teardown-order bug tracked in
+  // CppInterOp#887 makes it unsafe. BuryPointer is used instead of
+  // release() so LSan sees the graph as reachable rather than leaked.
+  llvm::BuryPointer(std::move(I));
 #endif
 
 #ifdef CPPINTEROP_USE_CLING

@@ -82,13 +82,13 @@ jobs:
             clang-runtime: '22'
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
-          - name: ubu24-x86-gcc12-clang-repl-22-asan
+          - name: ubu24-x86-clang22-clang-repl-22-asan-ubsan
             os: ubuntu-24.04
-            compiler: gcc-12
+            compiler: clang-22
             clang-runtime: '22'
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
-            sanitizer: "Address"
+            sanitizer: "Address;Undefined"
             python-version: '3.14'
           - name: ubu24-x86-gcc12-clang-repl-21-cppyy
             os: ubuntu-24.04
