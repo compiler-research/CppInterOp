@@ -2833,6 +2833,27 @@ void make_narg_call(const FunctionDecl* FD, const std::string& return_type,
   callbuf << ")";
 }
 
+// Tag appended inside `new (ptr<tag>) T(...)` when emitting a scalar
+// placement new in a JitCall wrapper.
+//
+// clang-repl's Runtimes string declares the scalar tagged overload
+// `operator new(size_t, void*, __clang_Interpreter_NewTag)` (introduced
+// in llvm/llvm-project@1566f1ffc6b5, LLVM 18), so the spelling
+// `new (p, __ci_newtag) T(...)` binds without the user's TU having
+// `#include <new>` in scope. Array placement in
+// `make_narg_ctor_with_return` is implemented as a loop of scalar tagged
+// placements for the same reason.
+//
+// Cling has no such tag; its runtime makes `<new>` available by default,
+// so the empty tag suffices there (plain scalar placement new).
+inline const char* PlacementTag() {
+#ifdef CPPINTEROP_USE_CLING
+  return "";
+#else
+  return ", __ci_newtag";
+#endif
+}
+
 void make_narg_ctor_with_return(const FunctionDecl* FD, const unsigned N,
                                 const std::string& class_name,
                                 std::ostringstream& buf, int indent_level) {
@@ -2856,41 +2877,59 @@ void make_narg_ctor_with_return(const FunctionDecl* FD, const unsigned N,
     indent(callbuf, indent_level);
     const auto* CD = dyn_cast<CXXConstructorDecl>(FD);
 
-    // Activate this block only if array new is possible
-    // if (nary) {
-    //    (*(ClassName**)ret) = (obj) ? new (*(ClassName**)ret) ClassName[nary]
-    //    : new ClassName[nary];
-    //   }
-    // else {
+    // Array branch. The is_arena side emits a loop of scalar placement
+    // calls rather than `new (p) T[n]`. Two alternatives were considered
+    // and rejected:
+    //
+    //   (a) Forward-declare a tagged
+    //       `operator new[](size_t, void*, __clang_Interpreter_NewTag)`
+    //       and emit `new (p, __ci_newtag) T[n]`. Cheapest in per-wrapper
+    //       emission, but clang does not recognise a custom-signature
+    //       array allocator as the standard placement form and inserts
+    //       an array cookie for types with non-trivial destructors
+    //       (Itanium C++ ABI §2.7), breaking the
+    //       `Cpp::Construct(scope, arena, n) == arena` contract.
+    //
+    //   (b) Forward-declare the STANDARD-signature
+    //       `operator new[](size_t, void*)`. Clang would signature-match
+    //       this as the placement form (no cookie), but the declaration
+    //       is not portably replicable: libstdc++, libc++, and the MSVC
+    //       STL decorate it with different noexcept macros, calling
+    //       conventions, and `[[nodiscard]]` attributes. A
+    //       user-supplied `#include <new>` after interpreter creation
+    //       would clash with our declaration and crash the parse.
+    //
+    // The loop binds against the already-declared scalar tagged
+    // placement operator (PlacementTag()), adds only O(6) lines per
+    // wrapper, and works on cling too (`<new>` is pre-included there,
+    // so the empty tag is equivalent to plain scalar placement new).
     if (CD->isDefaultConstructor()) {
       callbuf << "if (nary > 1) {\n";
       indent(callbuf, indent_level);
-      callbuf << "(*(" << class_name << "**)ret) = ";
-      callbuf << "(is_arena) ? new (*(" << class_name << "**)ret) ";
+      callbuf << "if (is_arena)\n";
+      indent(callbuf, indent_level + 1);
+      callbuf << "for (unsigned long __i = 0; __i < nary; ++__i)\n";
+      indent(callbuf, indent_level + 2);
+      callbuf << "new ((void*)(*(" << class_name << "**)ret + __i)"
+              << PlacementTag() << ") " << class_name << "();\n";
+      indent(callbuf, indent_level);
+      callbuf << "else (*(" << class_name << "**)ret) = new ";
       make_narg_ctor(FD, N, typedefbuf, callbuf, class_name, indent_level,
                      true);
-
-      callbuf << ": new ";
-      //
-      //  Write the actual expression.
-      //
-      make_narg_ctor(FD, N, typedefbuf, callbuf, class_name, indent_level,
-                     true);
-      //
-      //  End the new expression statement.
-      //
       callbuf << ";\n";
       indent(callbuf, indent_level);
       callbuf << "}\n";
       callbuf << "else {\n";
     }
 
-    // Standard branch:
-    // (*(ClassName**)ret) = (obj) ? new (*(ClassName**)ret) ClassName(args...)
-    // : new ClassName(args...);
+    // Standard (scalar) branch:
+    // (*(ClassName**)ret) = (is_arena)
+    //   ? new (*(ClassName**)ret[, __ci_newtag]) ClassName(args...)
+    //   : new ClassName(args...);
     indent(callbuf, indent_level);
     callbuf << "(*(" << class_name << "**)ret) = ";
-    callbuf << "(is_arena) ? new (*(" << class_name << "**)ret) ";
+    callbuf << "(is_arena) ? new (*(" << class_name << "**)ret"
+            << PlacementTag() << ") ";
     make_narg_ctor(FD, N, typedefbuf, callbuf, class_name, indent_level);
 
     callbuf << ": new ";
@@ -2974,7 +3013,8 @@ void make_narg_call_with_return(compat::Interpreter& I, const FunctionDecl* FD,
       //  Write the placement part of the placement new.
       //
       indent(callbuf, indent_level);
-      callbuf << "new (ret) ";
+      // See PlacementTag for the rationale of the tag.
+      callbuf << "new (ret" << PlacementTag() << ") ";
       //
       //  Write the type part of the placement new.
       //
@@ -3931,7 +3971,8 @@ TInterp_t CreateInterpreter(const std::vector<const char*>& Args /*={}*/,
   // shields embedders that do not expose libclangInterpreter's symbols
   // (e.g. cppyy, or the DispatchTests binary which dlopens us with
   // RTLD_LOCAL) from `Symbols not found:
-  // [ _ZnwmPv26__clang_Interpreter_NewTag ]` at JIT link time.
+  // [ _ZnwmPv26__clang_Interpreter_NewTag ]` at JIT link time. The
+  // regression is caught by DispatchSmokeTest.PlacementConstructTaggedNew.
   {
     Sema& S = I->getSema();
     ASTContext& Ctx = S.getASTContext();

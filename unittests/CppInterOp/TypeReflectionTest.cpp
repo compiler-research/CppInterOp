@@ -561,8 +561,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, TypeReflection_IsSmartPtrType) {
   if (llvm::sys::RunningOnValgrind())
     GTEST_SKIP() << "XFAIL due to Valgrind report";
 
-  std::vector<const char*> interpreter_args = {"-include", "new"};
-  TestFixture::CreateInterpreter(interpreter_args);
+  TestFixture::CreateInterpreter();
 
   Interp->declare(R"(
     #include <memory>
@@ -600,8 +599,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, TypeReflection_IsSmartPtrType) {
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, TypeReflection_IsFunctionPointerType) {
-  std::vector<const char*> interpreter_args = {"-include", "new"};
-  TestFixture::CreateInterpreter(interpreter_args);
+  TestFixture::CreateInterpreter();
 
   Interp->declare(R"(
     typedef int (*int_func)(int, int);

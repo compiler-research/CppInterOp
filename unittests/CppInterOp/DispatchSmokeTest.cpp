@@ -101,7 +101,7 @@ TEST(DispatchSmokeTest, TemplateInstantiation) {
 // --- Construct / Destruct ---
 
 TEST(DispatchSmokeTest, ConstructDestruct) {
-  Cpp::CreateInterpreter({"-include", "new"});
+  Cpp::CreateInterpreter({});
   Cpp::Declare("struct DispObj { int x = 7; };");
 
   auto* scope = Cpp::GetNamed("DispObj");
@@ -110,6 +110,31 @@ TEST(DispatchSmokeTest, ConstructDestruct) {
   auto* obj = Cpp::Construct(scope);
   EXPECT_NE(obj, nullptr);
   Cpp::Destruct(obj, scope, /*withFree=*/true);
+}
+
+// End-to-end guard: after the JitCall wrapper is switched to emit
+// `, __ci_newtag` in scalar placement-new expressions, `Cpp::Construct`
+// on a user-supplied arena must land the object at the provided address
+// (no array cookie, no extra indirection). TaggedPlacementNewResolvable
+// above already pins the JIT-link side; this test pins the wrapper
+// emission side. Fires if a future change drops the tag, emits a
+// custom-signature array allocator that inserts an Itanium ABI cookie
+// (Itanium C++ ABI S2.7), or otherwise violates `Construct(s,a) == a`.
+TEST(DispatchSmokeTest, PlacementConstructTaggedNew) {
+  Cpp::CreateInterpreter({});
+  Cpp::Declare("struct DispPlace { int x = 42; };");
+
+  auto* scope = Cpp::GetNamed("DispPlace");
+  ASSERT_NE(scope, nullptr);
+
+  void* arena = Cpp::Allocate(scope);
+  ASSERT_NE(arena, nullptr);
+
+  EXPECT_EQ(Cpp::Construct(scope, arena), arena);
+  EXPECT_EQ(*reinterpret_cast<int*>(arena), 42);
+
+  Cpp::Destruct(arena, scope, /*withFree=*/false, 0);
+  Cpp::Deallocate(scope, arena);
 }
 
 // Regression guard for the tagged placement-new JIT-link path. clang-repl's

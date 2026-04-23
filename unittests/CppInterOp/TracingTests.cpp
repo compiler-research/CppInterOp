@@ -639,8 +639,6 @@ TEST_F(TracingTest, JitCallWrapperSourceLogged) {
   Cpp::CreateInterpreter({});
   ASSERT_NE(TraceInfo::TheTraceInfo, nullptr);
 
-  // Placement new requires <new>.
-  Cpp::Declare("#include <new>");
   Cpp::Declare("namespace WrapNS { int add(int a, int b) { return a + b; } }");
   auto* Func =
       static_cast<void*>(Cpp::GetNamed("add", Cpp::GetScope("WrapNS")));
@@ -664,7 +662,6 @@ TEST_F(TracingTest, JitCallInvokeLogged) {
   Cpp::CreateInterpreter({});
   ASSERT_NE(TraceInfo::TheTraceInfo, nullptr);
 
-  Cpp::Declare("#include <new>");
   Cpp::Declare("namespace InvNS { int square(int x) { return x * x; } }");
   auto* Func =
       static_cast<void*>(Cpp::GetNamed("square", Cpp::GetScope("InvNS")));
