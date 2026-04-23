@@ -131,20 +131,20 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_ActivateInterpreter) {
   auto* Cpp20 = TestFixture::CreateInterpreter({"-std=c++20"});
 
   EXPECT_TRUE(Cpp14 && Cpp17 && Cpp20);
-  EXPECT_TRUE(Cpp::Evaluate("__cplusplus" DFLT_NULLPTR) == 202002L)
+  EXPECT_TRUE(Cpp::Evaluate("__cplusplus") == 202002L)
       << "Failed to activate C++20";
 
   auto* UntrackedI = reinterpret_cast<void*>(static_cast<std::uintptr_t>(~0U));
   EXPECT_FALSE(Cpp::ActivateInterpreter(UntrackedI));
 
   EXPECT_TRUE(Cpp::ActivateInterpreter(Cpp14));
-  EXPECT_TRUE(Cpp::Evaluate("__cplusplus" DFLT_NULLPTR) == 201402L);
+  EXPECT_TRUE(Cpp::Evaluate("__cplusplus") == 201402L);
 
   Cpp::DeleteInterpreter(Cpp14);
   EXPECT_EQ(Cpp::GetInterpreter(), Cpp20);
 
   EXPECT_TRUE(Cpp::ActivateInterpreter(Cpp17));
-  EXPECT_TRUE(Cpp::Evaluate("__cplusplus" DFLT_NULLPTR) == 201703L);
+  EXPECT_TRUE(Cpp::Evaluate("__cplusplus") == 201703L);
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_Process) {
@@ -226,18 +226,18 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_CreateInterpreter) {
                "int cpp14() { return 2014; }\n"
                "#else\n"
                "void cppUnknown() {}\n"
-               "#endif" DFLT_FALSE);
-  EXPECT_TRUE(Cpp::GetNamed("cpp14" DFLT_NULLPTR));
-  EXPECT_FALSE(Cpp::GetNamed("cppUnknown" DFLT_NULLPTR));
+               "#endif");
+  EXPECT_TRUE(Cpp::GetNamed("cpp14"));
+  EXPECT_FALSE(Cpp::GetNamed("cppUnknown"));
 
   I = TestFixture::CreateInterpreter({"-std=c++17"});
   Cpp::Declare("#if __cplusplus==201703L\n"
                "int cpp17() { return 2017; }\n"
                "#else\n"
                "void cppUnknown() {}\n"
-               "#endif" DFLT_FALSE);
-  EXPECT_TRUE(Cpp::GetNamed("cpp17" DFLT_NULLPTR));
-  EXPECT_FALSE(Cpp::GetNamed("cppUnknown" DFLT_NULLPTR));
+               "#endif");
+  EXPECT_TRUE(Cpp::GetNamed("cpp17"));
+  EXPECT_FALSE(Cpp::GetNamed("cppUnknown"));
 
 #ifndef CPPINTEROP_USE_CLING
   // C API
@@ -342,7 +342,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_CodeCompletion) {
 #endif
   TestFixture::CreateInterpreter();
   std::vector<std::string> cc;
-  Cpp::Declare("int foo = 12;" DFLT_FALSE);
+  Cpp::Declare("int foo = 12;");
   Cpp::CodeComplete(cc, "f", 1, 2);
   // We check only for 'float' and 'foo', because they
   // must be present in the result. Other hints may appear
@@ -534,11 +534,11 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_WrapperCacheIsPerInterpreter) {
   auto* I1 = TestFixture::CreateInterpreter();
   ASSERT_NE(I1, nullptr);
   Cpp::ActivateInterpreter(I1);
-  Cpp::Declare("int add(int a, int b) { return a + b; }" DFLT_FALSE);
-  auto* AddDecl1 = Cpp::GetNamed("add" DFLT_NULLPTR);
+  Cpp::Declare("int add(int a, int b) { return a + b; }");
+  auto* AddDecl1 = Cpp::GetNamed("add");
   ASSERT_NE(AddDecl1, nullptr);
 
-  Cpp::Declare("#include <new>" DFLT_FALSE); // Needed by JitCall
+  Cpp::Declare("#include <new>"); // Needed by JitCall
   auto JC1 = Cpp::MakeFunctionCallable(AddDecl1);
   ASSERT_TRUE(JC1.isValid());
 
@@ -551,11 +551,11 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_WrapperCacheIsPerInterpreter) {
   auto* I2 = TestFixture::CreateInterpreter();
   ASSERT_NE(I2, nullptr);
   Cpp::ActivateInterpreter(I2);
-  Cpp::Declare("int add(int a, int b) { return a * b; }" DFLT_FALSE);
-  auto* AddDecl2 = Cpp::GetNamed("add" DFLT_NULLPTR);
+  Cpp::Declare("int add(int a, int b) { return a * b; }");
+  auto* AddDecl2 = Cpp::GetNamed("add");
   ASSERT_NE(AddDecl2, nullptr);
 
-  Cpp::Declare("#include <new>" DFLT_FALSE); // Needed by JitCall
+  Cpp::Declare("#include <new>"); // Needed by JitCall
   auto JC2 = Cpp::MakeFunctionCallable(AddDecl2);
   ASSERT_TRUE(JC2.isValid());
 

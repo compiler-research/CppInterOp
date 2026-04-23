@@ -19,9 +19,11 @@ using namespace clang;
 using namespace llvm;
 
 #if defined(ENABLE_DISPATCH_TESTS)
-#define DISPATCH_API(name, type) CppAPIType::name Cpp::name = nullptr;
-CPPINTEROP_API_TABLE
-#undef DISPATCH_API
+// Storage definitions for dispatch function pointers.
+using namespace CppImpl;
+#define CPPINTEROP_API_FUNC(DN, CN, Ret, DeclArgs, CallArgs, RawTypes)         \
+  Ret(*CppInternal::DispatchRaw::DN) RawTypes = nullptr;
+#include "CppInterOp/CppInterOpAPI.inc"
 namespace {
 struct DispatchInitializer {
   DispatchInitializer() {

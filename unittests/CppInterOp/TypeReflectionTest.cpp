@@ -586,7 +586,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, TypeReflection_IsSmartPtrType) {
   )");
 
   auto get_type_from_varname = [&](const std::string& varname) {
-    return Cpp::GetVariableType(Cpp::GetNamed(varname DFLT_NULLPTR));
+    return Cpp::GetVariableType(Cpp::GetNamed(varname));
   };
 
   //EXPECT_TRUE(Cpp::IsSmartPtrType(get_type_from_varname("smart_ptr1")));
@@ -610,10 +610,10 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, TypeReflection_IsFunctionPointerType) {
     int i = 2;
   )");
 
-  EXPECT_TRUE(Cpp::IsFunctionPointerType(
-      Cpp::GetVariableType(Cpp::GetNamed("f" DFLT_NULLPTR))));
-  EXPECT_FALSE(Cpp::IsFunctionPointerType(
-      Cpp::GetVariableType(Cpp::GetNamed("i" DFLT_NULLPTR))));
+  EXPECT_TRUE(
+      Cpp::IsFunctionPointerType(Cpp::GetVariableType(Cpp::GetNamed("f"))));
+  EXPECT_FALSE(
+      Cpp::IsFunctionPointerType(Cpp::GetVariableType(Cpp::GetNamed("i"))));
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, TypeReflection_OperatorSpelling) {
@@ -635,16 +635,16 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, TypeReflection_TypeQualifiers) {
     int *__restrict__ const f = nullptr;
     int *__restrict__ volatile g;
     int *__restrict__ const volatile h = nullptr;
-  )" DFLT_FALSE);
+  )");
 
-  Cpp::TCppType_t a = Cpp::GetVariableType(Cpp::GetNamed("a" DFLT_NULLPTR));
-  Cpp::TCppType_t b = Cpp::GetVariableType(Cpp::GetNamed("b" DFLT_NULLPTR));
-  Cpp::TCppType_t c = Cpp::GetVariableType(Cpp::GetNamed("c" DFLT_NULLPTR));
-  Cpp::TCppType_t d = Cpp::GetVariableType(Cpp::GetNamed("d" DFLT_NULLPTR));
-  Cpp::TCppType_t e = Cpp::GetVariableType(Cpp::GetNamed("e" DFLT_NULLPTR));
-  Cpp::TCppType_t f = Cpp::GetVariableType(Cpp::GetNamed("f" DFLT_NULLPTR));
-  Cpp::TCppType_t g = Cpp::GetVariableType(Cpp::GetNamed("g" DFLT_NULLPTR));
-  Cpp::TCppType_t h = Cpp::GetVariableType(Cpp::GetNamed("h" DFLT_NULLPTR));
+  Cpp::TCppType_t a = Cpp::GetVariableType(Cpp::GetNamed("a"));
+  Cpp::TCppType_t b = Cpp::GetVariableType(Cpp::GetNamed("b"));
+  Cpp::TCppType_t c = Cpp::GetVariableType(Cpp::GetNamed("c"));
+  Cpp::TCppType_t d = Cpp::GetVariableType(Cpp::GetNamed("d"));
+  Cpp::TCppType_t e = Cpp::GetVariableType(Cpp::GetNamed("e"));
+  Cpp::TCppType_t f = Cpp::GetVariableType(Cpp::GetNamed("f"));
+  Cpp::TCppType_t g = Cpp::GetVariableType(Cpp::GetNamed("g"));
+  Cpp::TCppType_t h = Cpp::GetVariableType(Cpp::GetNamed("h"));
 
   EXPECT_FALSE(Cpp::HasTypeQualifier(nullptr, Cpp::QualKind::Const));
   EXPECT_FALSE(Cpp::RemoveTypeQualifier(nullptr, Cpp::QualKind::Const));
@@ -714,12 +714,12 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, TypeReflection_IsIntegerType) {
   GetAllTopLevelDecls(code, Decls);
 
   Cpp::Signedness sign;
-  EXPECT_TRUE(Cpp::IsIntegerType(Cpp::GetVariableType(Decls[0]) DFLT_NULLPTR));
-  EXPECT_FALSE(Cpp::IsIntegerType(Cpp::GetVariableType(Decls[1]) DFLT_NULLPTR));
-  EXPECT_FALSE(Cpp::IsIntegerType(Cpp::GetVariableType(Decls[2]) DFLT_NULLPTR));
-  EXPECT_TRUE(Cpp::IsIntegerType(Cpp::GetVariableType(Decls[4]) DFLT_NULLPTR));
-  EXPECT_TRUE(Cpp::IsIntegerType(Cpp::GetVariableType(Decls[5]) DFLT_NULLPTR));
-  EXPECT_TRUE(Cpp::IsIntegerType(Cpp::GetVariableType(Decls[6]) DFLT_NULLPTR));
+  EXPECT_TRUE(Cpp::IsIntegerType(Cpp::GetVariableType(Decls[0])));
+  EXPECT_FALSE(Cpp::IsIntegerType(Cpp::GetVariableType(Decls[1])));
+  EXPECT_FALSE(Cpp::IsIntegerType(Cpp::GetVariableType(Decls[2])));
+  EXPECT_TRUE(Cpp::IsIntegerType(Cpp::GetVariableType(Decls[4])));
+  EXPECT_TRUE(Cpp::IsIntegerType(Cpp::GetVariableType(Decls[5])));
+  EXPECT_TRUE(Cpp::IsIntegerType(Cpp::GetVariableType(Decls[6])));
 
   // Check signedness via out parameter
   EXPECT_TRUE(Cpp::IsIntegerType(Cpp::GetVariableType(Decls[0]), &sign));

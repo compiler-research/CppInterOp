@@ -177,6 +177,22 @@ runs:
           CPLUS_INCLUDE_PATH="${LLVM_DIR}/llvm/include:${LLVM_DIR}/clang/include:${LLVM_BUILD_DIR}/include:${LLVM_BUILD_DIR}/tools/clang/include:$PWD/include"
         fi
 
+        # Build native cppinterop-tblgen for .inc file generation.
+        # Use the native LLVM build (not the Emscripten cross-build) since
+        # cppinterop-tblgen only needs libLLVMTableGen and libLLVMSupport.
+        NATIVE_LLVM_BUILD_DIR="$(pwd)/llvm-project/native_build"
+        mkdir -p native_cppinterop_build && pushd native_cppinterop_build
+        cmake -DCMAKE_BUILD_TYPE=Release \
+              -DLLVM_DIR=$NATIVE_LLVM_BUILD_DIR/lib/cmake/llvm \
+              -DCPPINTEROP_ENABLE_TESTING=OFF \
+              -DCPPINTEROP_BUILD_TABLEGEN_ONLY=ON \
+              ../
+        cmake --build . --target cppinterop-tblgen -j ${{ env.ncpus }}
+        export CPPINTEROP_TBLGEN_EXE=$(find $PWD -name cppinterop-tblgen -type f | head -1)
+        echo "Found cppinterop-tblgen at: $CPPINTEROP_TBLGEN_EXE"
+        echo "CPPINTEROP_TBLGEN_EXE=$CPPINTEROP_TBLGEN_EXE" >> $GITHUB_ENV
+        popd
+
         # Build CppInterOp next to cling and llvm-project.
         mkdir build
         cd build
@@ -195,6 +211,7 @@ runs:
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            \
                 -DLLVM_ENABLE_WERROR=On                      \
                 -DSYSROOT_PATH=$SYSROOT_PATH               \
+                -DCPPINTEROP_TABLEGEN_EXE=$CPPINTEROP_TBLGEN_EXE \
                 ../
         else
           emcmake cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    \
@@ -208,6 +225,7 @@ runs:
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            \
                 -DLLVM_ENABLE_WERROR=On                      \
                 -DSYSROOT_PATH=$SYSROOT_PATH                     \
+                -DCPPINTEROP_TABLEGEN_EXE=$CPPINTEROP_TBLGEN_EXE \
                 ../
         fi
         emmake make -j ${{ env.ncpus }} check-cppinterop
@@ -353,6 +371,7 @@ runs:
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            \
                 -DLLVM_ENABLE_WERROR=On                      \
                 -DSYSROOT_PATH=${{ env.SYSROOT_PATH }}              \
+                -DCPPINTEROP_TABLEGEN_EXE=$CPPINTEROP_TBLGEN_EXE \
                 ../
         else
           emcmake cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    \
@@ -365,6 +384,7 @@ runs:
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            \
                 -DLLVM_ENABLE_WERROR=On                      \
                 -DSYSROOT_PATH=${{ env.SYSROOT_PATH }}                  \
+                -DCPPINTEROP_TABLEGEN_EXE=$CPPINTEROP_TBLGEN_EXE \
                 ../
         fi
         os="${{ matrix.os }}"
@@ -461,6 +481,21 @@ runs:
           echo "CPLUS_INCLUDE_PATH=$env:CPLUS_INCLUDE_PATH" >> $env:GITHUB_ENV
         }
 
+        # Build native cppinterop-tblgen for .inc file generation.
+        mkdir native_cppinterop_build
+        pushd native_cppinterop_build
+        $env:NATIVE_LLVM_BUILD_DIR="$env:PWD_DIR\llvm-project\native_build"
+        cmake -DCMAKE_BUILD_TYPE=Release `
+              -DLLVM_DIR="$env:NATIVE_LLVM_BUILD_DIR\lib\cmake\llvm" `
+              -DCPPINTEROP_ENABLE_TESTING=OFF `
+              -DCPPINTEROP_BUILD_TABLEGEN_ONLY=ON `
+              ..\
+        cmake --build . --target cppinterop-tblgen -j ${{ env.ncpus }}
+        $env:CPPINTEROP_TBLGEN_EXE = (Get-ChildItem -Recurse -Filter "cppinterop-tblgen.exe" | Select-Object -First 1).FullName
+        echo "Found cppinterop-tblgen at: $env:CPPINTEROP_TBLGEN_EXE"
+        echo "CPPINTEROP_TBLGEN_EXE=$env:CPPINTEROP_TBLGEN_EXE" >> $env:GITHUB_ENV
+        popd
+
         # Build CppInterOp next to cling and llvm-project.
         mkdir build
         cd build
@@ -480,6 +515,7 @@ runs:
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            `
                 -DLLVM_ENABLE_WERROR=On                      `
                 -DSYSROOT_PATH="$env:SYSROOT_PATH"              `
+                -DCPPINTEROP_TABLEGEN_EXE="$env:CPPINTEROP_TBLGEN_EXE" `
                 ..\
         }
         else
@@ -495,6 +531,7 @@ runs:
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            `
                 -DLLVM_ENABLE_WERROR=On                      `
                 -DSYSROOT_PATH="$env:SYSROOT_PATH"                     `
+                -DCPPINTEROP_TABLEGEN_EXE="$env:CPPINTEROP_TBLGEN_EXE" `
                 ..\
         }
         function Error-OnFailure {
@@ -570,6 +607,7 @@ runs:
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            `
                 -DLLVM_ENABLE_WERROR=On                      `
                 -DSYSROOT_PATH=${{ env.SYSROOT_PATH }}             `
+                -DCPPINTEROP_TABLEGEN_EXE="${{ env.CPPINTEROP_TBLGEN_EXE }}" `
                 ..\
         }
         else
@@ -584,6 +622,7 @@ runs:
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            `
                 -DLLVM_ENABLE_WERROR=On                      `
                 -DSYSROOT_PATH=${{ env.SYSROOT_PATH }}                    `
+                -DCPPINTEROP_TABLEGEN_EXE="${{ env.CPPINTEROP_TBLGEN_EXE }}" `
                 ..\
         }
         Error-OnFailure { emmake make -j ${{ env.ncpus }} check-cppinterop }

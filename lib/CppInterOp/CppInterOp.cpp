@@ -4046,7 +4046,6 @@ void GetIncludePaths(std::vector<std::string>& IncludePaths, bool withSystem,
 }
 
 namespace {
-
 class clangSilent {
 public:
   clangSilent(clang::DiagnosticsEngine& diag) : fDiagEngine(diag) {
