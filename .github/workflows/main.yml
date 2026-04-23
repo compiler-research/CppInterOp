@@ -115,18 +115,15 @@ jobs:
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host;NVPTX"
             python-version: '3.14'
-          # oop-jit stays on clang-20 because the out-of-process JIT patch
-          # (patches/llvm/clang20-1-out-of-process.patch) only targets
-          # release/20.x; bump to clang-22 when a matching patch lands.
-          - name: ubu24-x86-gcc12-clang-repl-20-out-of-process
+          - name: ubu24-x86-gcc12-clang-repl-22-out-of-process
             os: ubuntu-24.04
             compiler: gcc-12
-            clang-runtime: '20'
+            clang-runtime: '22'
             llvm_enable_projects: "clang;compiler-rt"
             llvm_targets_to_build: "host;NVPTX"
             oop-jit: On
             Valgrind: On
-            python-version: '3.13'
+            python-version: '3.14'
           - name: ubu24-x86-gcc14-clang20-cling-cppyy
             os: ubuntu-24.04
             compiler: gcc-14
@@ -154,14 +151,14 @@ jobs:
             llvm_enable_projects: "clang"
             llvm_targets_to_build: "host"
             python-version: '3.14'
-          - name: osx26-arm-clang-clang-repl-20-out-of-process
+          - name: osx26-arm-clang-clang-repl-22-out-of-process
             os: macos-26
             compiler: clang
-            clang-runtime: '20'
+            clang-runtime: '22'
             llvm_enable_projects: "clang;compiler-rt"
             llvm_targets_to_build: "host"
             oop-jit: On
-            python-version: '3.13'
+            python-version: '3.14'
           - name: osx26-arm-clang-clang20-cling-cppyy
             os: macos-26
             compiler: clang
