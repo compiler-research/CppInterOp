@@ -1640,6 +1640,64 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_JitCallNoNewHeader) {
   EXPECT_EQ(ret, 25);
 }
 
+// Regression guard for cppyy's test_advancedcpp.py::test14_new_overloader.
+// A class that declares its own `operator new(size_t)` shadows the global
+// placement operators at class-scope name lookup -- per [class.free]
+// paragraph 2, if `operator new` is found in the class scope, the global
+// scope is NOT consulted. The ctor wrapper's is_arena branch emits a
+// placement-new expression with signature `(size_t, void*, Tag)` (or
+// `(size_t, void*)` on cling), so class-scope lookup finds the class's
+// single-arg op-new, overload resolution fails, and the whole
+// conditional in the wrapper fails to compile. `Cpp::Construct` then
+// returns null and cppyy falls through to move/copy ctors with wrong
+// argument counts. The fix is to force global-scope lookup via the
+// `::new` unary-`::` form in every placement-new emission.
+TYPED_TEST(CPPINTEROP_TEST_MODE,
+           FunctionReflection_ConstructClassWithOperatorNew) {
+  if (TypeParam::isOutOfProcess)
+    GTEST_SKIP() << "Test fails for OOP JIT builds";
+
+  TestFixture::CreateInterpreter();
+
+  // Redeclare the global operator new/delete with plain (non-noexcept)
+  // signatures so the class's forwarding calls bind without needing
+  // <new> in scope.
+  ASSERT_EQ(0, Cpp::Declare("void* operator new(__SIZE_TYPE__);\n"
+                            "void operator delete(void*);"));
+  ASSERT_EQ(0, Cpp::Declare(R"(
+    struct NewOverloader {
+      int x = 123;
+      static int s_op_new_calls;
+      void* operator new(__SIZE_TYPE__ sz) {
+        ++s_op_new_calls;
+        return ::operator new(sz);
+      }
+      void operator delete(void* p) { ::operator delete(p); }
+    };
+    int NewOverloader::s_op_new_calls = 0;
+  )"));
+  auto* scope = Cpp::GetNamed("NewOverloader");
+  ASSERT_NE(scope, nullptr);
+
+  // arena-path: the tagged placement new must bypass the class-level
+  // `operator new` and land the object at the user-supplied address.
+  void* arena = Cpp::Allocate(scope);
+  ASSERT_NE(arena, nullptr);
+  EXPECT_EQ(Cpp::Construct(scope, arena), arena)
+      << "Wrapper's placement-new expression failed to compile for a "
+         "class that declares its own operator new; add `::` to force "
+         "global-scope lookup.";
+  EXPECT_EQ(*reinterpret_cast<int*>(arena), 123);
+  Cpp::Destruct(arena, scope, /*withFree=*/false, 0);
+  Cpp::Deallocate(scope, arena);
+
+  // non-arena path: plain `new T()` must still route through the
+  // class's custom allocation function (no `::` there).
+  void* obj = Cpp::Construct(scope);
+  ASSERT_NE(obj, nullptr);
+  Cpp::Destruct(obj, scope, /*withFree=*/true);
+}
+
 TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_JitCallAdvanced) {
 #if CLANG_VERSION_MAJOR == 20 && defined(CPPINTEROP_USE_CLING) && defined(_WIN32)
   GTEST_SKIP() << "Test fails with Cling on Windows";

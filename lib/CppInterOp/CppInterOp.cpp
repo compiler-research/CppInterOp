@@ -2833,19 +2833,26 @@ void make_narg_call(const FunctionDecl* FD, const std::string& return_type,
   callbuf << ")";
 }
 
-// Tag appended inside `new (ptr<tag>) T(...)` when emitting a scalar
+// Tag appended inside `::new (ptr<tag>) T(...)` when emitting a scalar
 // placement new in a JitCall wrapper.
 //
 // clang-repl's Runtimes string declares the scalar tagged overload
 // `operator new(size_t, void*, __clang_Interpreter_NewTag)` (introduced
 // in llvm/llvm-project@1566f1ffc6b5, LLVM 18), so the spelling
-// `new (p, __ci_newtag) T(...)` binds without the user's TU having
+// `::new (p, __ci_newtag) T(...)` binds without the user's TU having
 // `#include <new>` in scope. Array placement in
 // `make_narg_ctor_with_return` is implemented as a loop of scalar tagged
 // placements for the same reason.
 //
 // Cling has no such tag; its runtime makes `<new>` available by default,
 // so the empty tag suffices there (plain scalar placement new).
+//
+// Every placement-new emission uses the unary `::` form so name lookup
+// skips any class-scope `operator new`. Per [class.free]/2, if the
+// allocated type is a class and a class-scope `operator new` exists,
+// global scope is not consulted -- overload resolution against the
+// class's single-arg allocator then fails and the whole wrapper
+// refuses to compile (observed on cppyy's test14_new_overloader).
 inline const char* PlacementTag() {
 #ifdef CPPINTEROP_USE_CLING
   return "";
@@ -2910,7 +2917,7 @@ void make_narg_ctor_with_return(const FunctionDecl* FD, const unsigned N,
       indent(callbuf, indent_level + 1);
       callbuf << "for (unsigned long __i = 0; __i < nary; ++__i)\n";
       indent(callbuf, indent_level + 2);
-      callbuf << "new ((void*)(*(" << class_name << "**)ret + __i)"
+      callbuf << "::new ((void*)(*(" << class_name << "**)ret + __i)"
               << PlacementTag() << ") " << class_name << "();\n";
       indent(callbuf, indent_level);
       callbuf << "else (*(" << class_name << "**)ret) = new ";
@@ -2924,15 +2931,18 @@ void make_narg_ctor_with_return(const FunctionDecl* FD, const unsigned N,
 
     // Standard (scalar) branch:
     // (*(ClassName**)ret) = (is_arena)
-    //   ? new (*(ClassName**)ret[, __ci_newtag]) ClassName(args...)
+    //   ? (::new (*(ClassName**)ret[, __ci_newtag]) ClassName(args...))
     //   : new ClassName(args...);
+    // The parentheses around `::new` are required: without them, clang
+    // mis-parses the `? ::new ...` sequence inside the conditional
+    // expression and reports `expected expression` at the `:`.
     indent(callbuf, indent_level);
     callbuf << "(*(" << class_name << "**)ret) = ";
-    callbuf << "(is_arena) ? new (*(" << class_name << "**)ret"
+    callbuf << "(is_arena) ? (::new (*(" << class_name << "**)ret"
             << PlacementTag() << ") ";
     make_narg_ctor(FD, N, typedefbuf, callbuf, class_name, indent_level);
 
-    callbuf << ": new ";
+    callbuf << ") : new ";
     //
     //  Write the actual expression.
     //
@@ -3013,8 +3023,8 @@ void make_narg_call_with_return(compat::Interpreter& I, const FunctionDecl* FD,
       //  Write the placement part of the placement new.
       //
       indent(callbuf, indent_level);
-      // See PlacementTag for the rationale of the tag.
-      callbuf << "new (ret" << PlacementTag() << ") ";
+      // See PlacementTag for the rationale of the tag and the `::`.
+      callbuf << "::new (ret" << PlacementTag() << ") ";
       //
       //  Write the type part of the placement new.
       //
