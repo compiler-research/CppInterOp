@@ -2795,14 +2795,16 @@ void make_narg_call(const FunctionDecl* FD, const std::string& return_type,
       // so check for the most common case: the trivial one, but not uniquely
       // available, while there is a move constructor.
 
-      // include utility header if not already included for std::move
-      DeclarationName DMove = &getASTContext().Idents.get("move");
-      auto result = getSema().getStdNamespace()->lookup(DMove);
-      if (result.empty())
-        Cpp::Declare("#include <utility>");
-
-      // move construction as needed for classes (note that this is implicit)
-      callbuf << "std::move(*(" << type_name.c_str() << "*)args[" << i << "])";
+      // Move construction as needed for classes (note that this is
+      // implicit). Emit `std::move`'s expansion directly rather than the
+      // name: a cast to T&& is the definition of std::move for
+      // non-reference T ([utility.swap]), and this avoids pulling
+      // <utility> into the user's TU just to obtain the name. It also
+      // sidesteps the `getSema().getStdNamespace()->lookup(...)` call,
+      // which dereferences a nullptr when no `std::` has been parsed
+      // yet in this interpreter's TU.
+      callbuf << "static_cast<" << type_name.c_str() << "&&>(*("
+              << type_name.c_str() << "*)args[" << i << "])";
     } else {
       // pointer falls back to non-pointer case; the argument preserves
       // the "pointerness" (i.e. doesn't reference the value).
