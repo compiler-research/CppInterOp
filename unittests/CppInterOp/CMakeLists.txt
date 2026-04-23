@@ -43,7 +43,6 @@ if (EMSCRIPTEN)
 endif()
 
 add_cppinterop_unittest(CppInterOpTests
-  ENABLE_DISPATCH
   CommentReflectionTest.cpp
   EnumReflectionTest.cpp
   FunctionReflectionTest.cpp
@@ -102,3 +101,41 @@ endif()
 
 add_subdirectory(TestSharedLib)
 add_dependencies(DynamicLibraryManagerTests TestSharedLib)
+
+# Dispatch Tests.
+# Load libclangCppInterOp via dlopen(RTLD_LOCAL) and must NOT link against it
+# directly, to verify true symbol isolation.
+if(NOT EMSCRIPTEN AND BUILD_SHARED_LIBS)
+  add_executable(DispatchTests EXCLUDE_FROM_ALL
+    DispatchInit.cpp
+    DispatchTest.cpp
+    DispatchSmokeTest.cpp
+  )
+  add_dependencies(CppInterOpUnitTests DispatchTests)
+  target_include_directories(DispatchTests PRIVATE
+    ${CMAKE_CURRENT_BINARY_DIR} ${GTEST_INCLUDE_DIR})
+  target_link_libraries(DispatchTests PRIVATE ${gtest_libs} ${link_pthreads_lib})
+  # Deliberately no target_link_libraries(... clangCppInterOp).
+  target_compile_definitions(DispatchTests PRIVATE
+    CPPINTEROP_LIB_PATH="${CMAKE_BINARY_DIR}/lib/libclangCppInterOp${CMAKE_SHARED_LIBRARY_SUFFIX}"
+  )
+  set_output_directory(DispatchTests
+    BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/bin/$<CONFIG>/
+    LIBRARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/bin/$<CONFIG>/
+  )
+  add_test(NAME cppinterop-DispatchTests COMMAND DispatchTests)
+  set_tests_properties(cppinterop-DispatchTests PROPERTIES
+    TIMEOUT "${TIMEOUT_VALUE}"
+    ENVIRONMENT "CPLUS_INCLUDE_PATH=${CMAKE_BINARY_DIR}/etc")
+  # Verify the binary is NOT linked against libclangCppInterOp. If this
+  # check fails, the dispatch tests are not truly testing RTLD_LOCAL.
+  if(UNIX AND NOT APPLE)
+    add_test(NAME cppinterop-DispatchTests-isolation
+      COMMAND sh -c "! ldd $<TARGET_FILE:DispatchTests> | grep -q $<TARGET_FILE_NAME:clangCppInterOp>"
+    )
+  elseif(APPLE)
+    add_test(NAME cppinterop-DispatchTests-isolation
+      COMMAND sh -c "! otool -L $<TARGET_FILE:DispatchTests> | grep -q $<TARGET_FILE_NAME:clangCppInterOp>"
+    )
+  endif()
+endif()

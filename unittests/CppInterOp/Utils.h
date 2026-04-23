@@ -6,13 +6,8 @@
 #include "clang-c/CXCppInterOp.h"
 #include "clang-c/CXString.h"
 
-#if defined(ENABLE_DISPATCH_TESTS)
-#include "CppInterOp/Dispatch.h"
-#define CPPINTEROP_TEST_MODE CppInterOpDispatchTest
-#else
 #include "CppInterOp/CppInterOp.h"
 #define CPPINTEROP_TEST_MODE CppInterOpTest
-#endif
 
 #include "llvm/Support/Valgrind.h"
 

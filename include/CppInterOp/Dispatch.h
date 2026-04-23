@@ -22,7 +22,7 @@
 #define CPPINTEROP_DISPATCH_H
 
 #ifdef CPPINTEROP_CPPINTEROP_H
-#error "To use the Dispatch mechanism, do not include CppInterOp.h directly."
+#error "CppInterOp.h and Dispatch.h are mutually exclusive — include only one."
 #endif
 
 #ifdef _WIN32
@@ -32,7 +32,7 @@
 #include <dlfcn.h>
 #endif
 
-#include <CppInterOp/CppInterOp.h>
+#include "CppInterOp/CppInterOpTypes.h"
 
 #include <cstdlib>
 #include <iostream>
