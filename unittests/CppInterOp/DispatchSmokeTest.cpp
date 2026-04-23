@@ -112,6 +112,34 @@ TEST(DispatchSmokeTest, ConstructDestruct) {
   Cpp::Destruct(obj, scope, /*withFree=*/true);
 }
 
+// Regression guard for the tagged placement-new JIT-link path. clang-repl's
+// Runtimes string declares `operator new(size_t, void*,
+// __clang_Interpreter_NewTag)`, and the definition lives in
+// libclangInterpreter. This binary loads libclangCppInterOp via
+// dlopen(RTLD_LOCAL) and does not link it directly, so the definition is
+// NOT reachable through the process symbol table. The only resolution
+// path is the DefineAbsoluteSymbol registration CppInterOp performs at
+// interpreter creation; if that registration is lost (or its name is
+// interned without the platform's global prefix), JIT link fails here
+// with `Symbols not found: [ _ZnwmPv26__clang_Interpreter_NewTag ]`.
+// The test drives the lookup directly via user-level code rather than
+// through a JitCall wrapper so it fires whether or not the wrapper
+// emitter has been switched to emit the tagged form.
+TEST(DispatchSmokeTest, TaggedPlacementNewResolvable) {
+#ifdef CPPINTEROP_USE_CLING
+  GTEST_SKIP() << "Cling does not use the __ci_newtag overload.";
+#endif
+  Cpp::CreateInterpreter({});
+  ASSERT_EQ(0, Cpp::Declare("struct DispTagProbe { int x = 0; };"));
+  EXPECT_EQ(0, Cpp::Process("char __buf[sizeof(DispTagProbe)];\n"
+                            "new (__buf, __ci_newtag) DispTagProbe();\n"))
+      << "Tagged placement-new resolution failed. If the JIT reports "
+         "'Symbols not found: _ZnwmPv26__clang_Interpreter_NewTag', the "
+         "CppInterOpPlacementNew forwarding definition is no longer "
+         "registered with the JIT dylib (or the name is interned without "
+         "the target's global-symbol prefix).";
+}
+
 // --- Enum ---
 
 TEST(DispatchSmokeTest, EnumReflection) {

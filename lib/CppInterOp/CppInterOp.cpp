@@ -115,6 +115,25 @@
 #if !defined(CPPINTEROP_USE_CLING) && !defined(EMSCRIPTEN)
 struct __clang_Interpreter_NewTag {
 } __ci_newtag;
+
+// Local forwarding definition of the tagged placement operator new that
+// JitCall wrappers emit against. clang-repl declares this overload in
+// its Runtimes string but the definition lives in libclangInterpreter.
+// JIT sessions in embedders that do not expose that library's symbols
+// (e.g. cppyy loading clang-repl via CppInterOp) cannot resolve it by
+// its mangled name and fail with
+// `Symbols not found: [ _ZnwmPv26__clang_Interpreter_NewTag ]`. We
+// register this function with the JIT dylib at interpreter creation
+// (see the DefineAbsoluteSymbol block in CreateInterpreter) so the
+// symbol is always resolvable there, even when the host's dynamic
+// linker does not expose libclangInterpreter's copy.
+namespace {
+void* CppInterOpPlacementNew(std::size_t, void* __p,
+                             __clang_Interpreter_NewTag) noexcept {
+  return __p;
+}
+} // namespace
+
 #if CLANG_VERSION_MAJOR > 21
 extern "C" void* __clang_Interpreter_SetValueWithAlloc(void* This, void* OutVal,
                                                        void* OpaqueType);
@@ -3725,8 +3744,12 @@ bool DefineAbsoluteSymbol(compat::Interpreter& I,
   llvm::orc::ExecutionSession& ES = Jit.getExecutionSession();
   JITDylib& DyLib = *Jit.getProcessSymbolsJITDylib().get();
 
+  // Apply the target-triple's symbol prefix (empty on ELF, `_` on macOS
+  // Mach-O / x86 Windows) so the interned name matches what the JIT
+  // will look up when resolving references from compiled modules.
+  MangleAndInterner Mangle(ES, Jit.getDataLayout());
   llvm::orc::SymbolMap InjectedSymbols{
-      {ES.intern(linker_mangled_name),
+      {Mangle(linker_mangled_name),
        ExecutorSymbolDef(ExecutorAddr(address), JITSymbolFlags::Exported)}};
 
   if (Error Err = DyLib.define(absoluteSymbols(InjectedSymbols))) {
@@ -3900,6 +3923,37 @@ TInterp_t CreateInterpreter(const std::vector<const char*>& Args /*={}*/,
 #if !defined(CPPINTEROP_USE_CLING) && !defined(EMSCRIPTEN)
   DefineAbsoluteSymbol(*I, "__ci_newtag",
                        reinterpret_cast<uint64_t>(&__ci_newtag));
+
+  // Register our forwarding definition of the tagged placement
+  // `operator new(size_t, void*, __clang_Interpreter_NewTag)`. Look up
+  // the Decl introduced by clang-repl's Runtimes string, compute its
+  // mangled name, and point it at CppInterOpPlacementNew above. This
+  // shields embedders that do not expose libclangInterpreter's symbols
+  // (e.g. cppyy, or the DispatchTests binary which dlopens us with
+  // RTLD_LOCAL) from `Symbols not found:
+  // [ _ZnwmPv26__clang_Interpreter_NewTag ]` at JIT link time.
+  {
+    Sema& S = I->getSema();
+    ASTContext& Ctx = S.getASTContext();
+    DeclarationName DN = Ctx.DeclarationNames.getCXXOperatorName(OO_New);
+    LookupResult R(S, DN, SourceLocation(), Sema::LookupOrdinaryName);
+    S.LookupQualifiedName(R, Ctx.getTranslationUnitDecl());
+    for (auto* D : R) {
+      auto* FD = dyn_cast<FunctionDecl>(D);
+      if (!FD || FD->getNumParams() != 3)
+        continue;
+      QualType LastTy = FD->getParamDecl(2)->getType();
+      const auto* RD = LastTy->getAsCXXRecordDecl();
+      if (!RD || RD->getName() != "__clang_Interpreter_NewTag")
+        continue;
+      std::string mangled;
+      compat::maybeMangleDeclName(GlobalDecl(FD), mangled);
+      DefineAbsoluteSymbol(*I, mangled.c_str(),
+                           reinterpret_cast<uint64_t>(&CppInterOpPlacementNew));
+      break;
+    }
+  }
+
 // llvm >= 21 has this defined as a C symbol that does not require mangling
 #if CLANG_VERSION_MAJOR >= 21
   DefineAbsoluteSymbol(
