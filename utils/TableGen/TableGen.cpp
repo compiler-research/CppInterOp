@@ -17,10 +17,14 @@ using namespace llvm;
 
 void EmitCppInterOpAPI(const RecordKeeper& Records, raw_ostream& OS);
 void EmitCppInterOpDecl(const RecordKeeper& Records, raw_ostream& OS);
+void EmitCXCppInterOpDecl(const RecordKeeper& Records, raw_ostream& OS);
+void EmitCXCppInterOpImpl(const RecordKeeper& Records, raw_ostream& OS);
 
 enum ActionType {
   GenCppInterOpAPI,
   GenCppInterOpDecl,
+  GenCXCppInterOpDecl,
+  GenCXCppInterOpImpl,
 };
 
 namespace {
@@ -30,7 +34,11 @@ cl::opt<ActionType> Action(
         clEnumValN(GenCppInterOpAPI, "gen-cppinterop-api",
                    "Generate CppInterOpAPI.inc X-macro file"),
         clEnumValN(GenCppInterOpDecl, "gen-cppinterop-decl",
-                   "Generate CppInterOpDecl.inc function declarations")));
+                   "Generate CppInterOpDecl.inc function declarations"),
+        clEnumValN(GenCXCppInterOpDecl, "gen-cx-cppinterop-decl",
+                   "Generate CXCppInterOpDecl.inc C API declarations"),
+        clEnumValN(GenCXCppInterOpImpl, "gen-cx-cppinterop-impl",
+                   "Generate CXCppInterOpImpl.inc C API implementations")));
 
 bool CppInterOpTableGenMain(raw_ostream& OS, const RecordKeeper& Records) {
   switch (Action) {
@@ -39,6 +47,12 @@ bool CppInterOpTableGenMain(raw_ostream& OS, const RecordKeeper& Records) {
     break;
   case GenCppInterOpDecl:
     EmitCppInterOpDecl(Records, OS);
+    break;
+  case GenCXCppInterOpDecl:
+    EmitCXCppInterOpDecl(Records, OS);
+    break;
+  case GenCXCppInterOpImpl:
+    EmitCXCppInterOpImpl(Records, OS);
     break;
   }
   return false;

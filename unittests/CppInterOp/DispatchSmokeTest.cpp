@@ -2,6 +2,8 @@
 
 #include "gtest/gtest.h"
 
+#include <cstdlib>
+#include <cstring>
 #include <string>
 #include <vector>
 
@@ -140,3 +142,100 @@ TEST(DispatchSmokeTest, GetVersion) {
   auto ver = Cpp::GetVersion();
   EXPECT_FALSE(ver.empty());
 }
+
+// --- C API through dlsym ---
+// The cppinterop_* functions are extern "C" symbols exported from
+// libclangCppInterOp. A real C consumer would dlopen the library and
+// dlsym them directly — that is what these tests verify. They open a
+// separate handle (RTLD_LOCAL) to prove the symbols are accessible
+// without linking the library.
+
+// NOLINTBEGIN(cppcoreguidelines-pro-type-reinterpret-cast)
+
+namespace {
+/// RAII wrapper for a dlopen handle used by the C API dispatch tests.
+class DlHandle {
+  void* H = nullptr;
+
+public:
+  DlHandle(const DlHandle&) = delete;
+  DlHandle& operator=(const DlHandle&) = delete;
+  explicit DlHandle(const char* path) {
+#ifndef _WIN32
+    H = dlopen(path, RTLD_LOCAL | RTLD_NOW);
+#endif
+  }
+  ~DlHandle() {
+#ifndef _WIN32
+    if (H)
+      dlclose(H);
+#endif
+  }
+  void* sym(const char* name) const {
+#ifndef _WIN32
+    return H ? dlsym(H, name) : nullptr;
+#else
+    return nullptr;
+#endif
+  }
+  explicit operator bool() const { return H != nullptr; }
+};
+} // namespace
+
+TEST(DispatchSmokeTest, CAPI_ScalarFunctions) {
+  Cpp::CreateInterpreter({});
+  Cpp::Declare("namespace DispCAPI { class Cls {}; int var = 1; }");
+
+  DlHandle lib(CPPINTEROP_LIB_PATH);
+  ASSERT_TRUE(lib) << "Failed to dlopen " << CPPINTEROP_LIB_PATH;
+
+  using IsClassFn = bool (*)(void*);
+  using GetNameFn = char* (*)(void*);
+  using GetNamedFn = void* (*)(const char*, void*);
+
+  auto* isClass = reinterpret_cast<IsClassFn>(lib.sym("cppinterop_IsClass"));
+  auto* getName = reinterpret_cast<GetNameFn>(lib.sym("cppinterop_GetName"));
+  auto* getNamed = reinterpret_cast<GetNamedFn>(lib.sym("cppinterop_GetNamed"));
+  ASSERT_NE(isClass, nullptr);
+  ASSERT_NE(getName, nullptr);
+  ASSERT_NE(getNamed, nullptr);
+
+  auto* cls = getNamed("DispCAPI", nullptr);
+  EXPECT_FALSE(isClass(cls)); // namespace, not class
+
+  auto* inner = getNamed("Cls", cls);
+  EXPECT_TRUE(isClass(inner));
+
+  char* name = getName(inner);
+  EXPECT_STREQ(name, "Cls");
+  free(name); // NOLINT
+}
+
+TEST(DispatchSmokeTest, CAPI_CollectionFunctions) {
+  Cpp::CreateInterpreter({});
+  Cpp::Declare("enum DispCAPIEnum { DA, DB, DC };");
+
+  DlHandle lib(CPPINTEROP_LIB_PATH);
+  ASSERT_TRUE(lib) << "Failed to dlopen " << CPPINTEROP_LIB_PATH;
+
+  using GetNamedFn = void* (*)(const char*, void*);
+  using GetEnumConstantsFn = Cpp::CppInterOpArray (*)(void*);
+  using DisposeArrayFn = void (*)(Cpp::CppInterOpArray);
+
+  auto* getNamed = reinterpret_cast<GetNamedFn>(lib.sym("cppinterop_GetNamed"));
+  auto* getEnumConstants = reinterpret_cast<GetEnumConstantsFn>(
+      lib.sym("cppinterop_GetEnumConstants"));
+  auto* disposeArray =
+      reinterpret_cast<DisposeArrayFn>(lib.sym("cppinterop_DisposeArray"));
+  ASSERT_NE(getNamed, nullptr);
+  ASSERT_NE(getEnumConstants, nullptr);
+  ASSERT_NE(disposeArray, nullptr);
+
+  auto* e = getNamed("DispCAPIEnum", nullptr);
+  auto arr = getEnumConstants(e);
+  EXPECT_EQ(arr.size, 3U);
+  EXPECT_NE(arr.data, nullptr);
+  disposeArray(arr);
+}
+
+// NOLINTEND(cppcoreguidelines-pro-type-reinterpret-cast)
