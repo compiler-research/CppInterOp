@@ -185,6 +185,8 @@ runs:
         cmake -DCMAKE_BUILD_TYPE=Release \
               -DLLVM_DIR=$NATIVE_LLVM_BUILD_DIR/lib/cmake/llvm \
               -DCPPINTEROP_ENABLE_TESTING=OFF \
+              -DCMAKE_CXX_STANDARD=17 \
+              -DLLVM_ENABLE_WERROR=On  \
               -DCPPINTEROP_BUILD_TABLEGEN_ONLY=ON \
               ../
         cmake --build . --target cppinterop-tblgen -j ${{ env.ncpus }}
@@ -488,6 +490,7 @@ runs:
         cmake -DCMAKE_BUILD_TYPE=Release `
               -DLLVM_DIR="$env:NATIVE_LLVM_BUILD_DIR\lib\cmake\llvm" `
               -DCPPINTEROP_ENABLE_TESTING=OFF `
+              -DCMAKE_CXX_STANDARD=17 -DLLVM_ENABLE_WERROR=On `
               -DCPPINTEROP_BUILD_TABLEGEN_ONLY=ON `
               ..\
         cmake --build . --target cppinterop-tblgen -j ${{ env.ncpus }}
