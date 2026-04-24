@@ -1,4 +1,4 @@
-name: Emscripten
+name: WASM
 on:
   pull_request:
     branches: [main]
@@ -13,6 +13,14 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
   cancel-in-progress: true
 
+env:
+  # Uniform across every wasm row; referenced below via env.* instead of
+  # being repeated on each matrix entry.
+  LLVM_ENABLE_PROJECTS: "clang;lld"
+  LLVM_TARGETS_TO_BUILD: "WebAssembly"
+  EMSDK_VER: "4.0.9"
+  BUILD_STATIC_LIBRARY: ${{ github.event_name == 'schedule' && 'On' || 'Off' }}
+
 jobs:
   build:
     name: ${{ matrix.name }}
@@ -20,40 +28,14 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # clang-runtime is pinned once via a YAML anchor on the first row
+        # (cache key reads matrix.clang-runtime, so the field must live on
+        # each row). micromamba_shell_init is derived below from runner.os.
         include:
-          - name: ubu24-arm-clang-repl-21-emscripten
-            os: ubuntu-24.04-arm
-            clang-runtime: '21'
-            llvm_enable_projects: "clang;lld"
-            llvm_targets_to_build: "WebAssembly"
-            emsdk_ver: "4.0.9"
-            build_static_library: ${{ github.event_name == 'schedule' && 'On' || 'Off' }}
-            micromamba_shell_init: bash
-            run-in-prs: true
-          - name: osx26-arm-clang-repl-21-emscripten
-            os: macos-26
-            clang-runtime: '21'
-            llvm_enable_projects: "clang;lld"
-            llvm_targets_to_build: "WebAssembly"
-            emsdk_ver: "4.0.9"
-            build_static_library: ${{ github.event_name == 'schedule' && 'On' || 'Off' }}
-            micromamba_shell_init: bash
-          - name: ubu24-x86-clang-repl-21-emscripten
-            os: ubuntu-24.04
-            clang-runtime: '21'
-            llvm_enable_projects: "clang;lld"
-            llvm_targets_to_build: "WebAssembly"
-            emsdk_ver: "4.0.9"
-            build_static_library: ${{ github.event_name == 'schedule' && 'On' || 'Off' }}
-            micromamba_shell_init: bash
-          - name: win2025-x86-clang-repl-21-emscripten
-            os: windows-2025
-            clang-runtime: '21'
-            llvm_enable_projects: "clang;lld"
-            llvm_targets_to_build: "WebAssembly"
-            emsdk_ver: "4.0.9"
-            build_static_library: ${{ github.event_name == 'schedule' && 'On' || 'Off' }}
-            micromamba_shell_init: powershell
+          - { name: ubu24-arm-emscr-llvm21,   os: ubuntu-24.04-arm, clang-runtime: &clang_rt '21', wasm: true, run-in-prs: true }
+          - { name: osx26-arm-emscr-llvm21,   os: macos-26,         clang-runtime: *clang_rt, wasm: true }
+          - { name: ubu24-x86-emscr-llvm21,   os: ubuntu-24.04,     clang-runtime: *clang_rt, wasm: true }
+          - { name: win2025-x86-emscr-llvm21, os: windows-2025,     clang-runtime: *clang_rt, wasm: true }
 
     steps:
     - uses: actions/checkout@v6
@@ -84,7 +66,7 @@ jobs:
       run: |
           git clone --depth=1 https://github.com/emscripten-core/emsdk.git
           cd emsdk
-          ./emsdk install  ${{ matrix.emsdk_ver }}
+          ./emsdk install  ${{ env.EMSDK_VER }}
 
     - name: Setup default Build Type
       if: ${{ !(github.event_name == 'pull_request' && matrix.run-in-prs != true) }}
@@ -124,7 +106,7 @@ jobs:
     - name: Build LLVM/Cling on Unix systems if the cache is invalid (emscripten)
       if: ${{ runner.os != 'windows' && steps.cache.outputs.cache-hit != 'true' && !(github.event_name == 'pull_request' && matrix.run-in-prs != true) }}
       run: |
-        ./emsdk/emsdk activate ${{matrix.emsdk_ver}}
+        ./emsdk/emsdk activate ${{ env.EMSDK_VER }}
         source ./emsdk/emsdk_env.sh
         cling_on=$(echo "${{ matrix.cling }}" | tr '[:lower:]' '[:upper:]')
         if [[ "${cling_on}" == "ON" ]]; then
@@ -152,9 +134,9 @@ jobs:
                         -DLLVM_EXTERNAL_CLING_SOURCE_DIR=../../cling  \
                         -DCMAKE_BUILD_TYPE=Release \
                         -DLLVM_HOST_TRIPLE=wasm32-unknown-emscripten \
-                        -DLLVM_TARGETS_TO_BUILD="${{ matrix.llvm_targets_to_build }}" \
+                        -DLLVM_TARGETS_TO_BUILD="${{ env.LLVM_TARGETS_TO_BUILD }}" \
                         -DLLVM_ENABLE_LIBEDIT=OFF \
-                        -DLLVM_ENABLE_PROJECTS="${{ matrix.llvm_enable_projects }}" \
+                        -DLLVM_ENABLE_PROJECTS="${{ env.LLVM_ENABLE_PROJECTS }}" \
                         -DLLVM_ENABLE_ZSTD=OFF \
                         -DLLVM_ENABLE_LIBXML2=OFF \
                         -DCLANG_ENABLE_STATIC_ANALYZER=OFF \
@@ -185,9 +167,9 @@ jobs:
           cd build
           emcmake cmake -DCMAKE_BUILD_TYPE=Release \
                         -DLLVM_HOST_TRIPLE=wasm32-unknown-emscripten \
-                        -DLLVM_TARGETS_TO_BUILD="${{ matrix.llvm_targets_to_build }}" \
+                        -DLLVM_TARGETS_TO_BUILD="${{ env.LLVM_TARGETS_TO_BUILD }}" \
                         -DLLVM_ENABLE_LIBEDIT=OFF \
-                        -DLLVM_ENABLE_PROJECTS="${{ matrix.llvm_enable_projects }}" \
+                        -DLLVM_ENABLE_PROJECTS="${{ env.LLVM_ENABLE_PROJECTS }}" \
                         -DLLVM_ENABLE_ZSTD=OFF \
                         -DLLVM_ENABLE_LIBXML2=OFF \
                         -DCLANG_ENABLE_STATIC_ANALYZER=OFF \
@@ -229,7 +211,7 @@ jobs:
     - name: Build LLVM/Cling on Windows systems if the cache is invalid (emscripten)
       if: ${{ runner.os == 'windows' && steps.cache.outputs.cache-hit != 'true' && !(github.event_name == 'pull_request' && matrix.run-in-prs != true)}}
       run: |
-        .\emsdk\emsdk activate ${{matrix.emsdk_ver}}
+        .\emsdk\emsdk activate ${{ env.EMSDK_VER }}
         .\emsdk\emsdk_env.ps1
         if ( "${{ matrix.cling }}" -imatch "On" )
         {
@@ -265,9 +247,9 @@ jobs:
                         -DLLVM_EXTERNAL_CLING_SOURCE_DIR=../../cling  `
                         -DCMAKE_BUILD_TYPE=Release `
                         -DLLVM_HOST_TRIPLE=wasm32-unknown-emscripten `
-                        -DLLVM_TARGETS_TO_BUILD="${{ matrix.llvm_targets_to_build }}" `
+                        -DLLVM_TARGETS_TO_BUILD="${{ env.LLVM_TARGETS_TO_BUILD }}" `
                         -DLLVM_ENABLE_LIBEDIT=OFF `
-                        -DLLVM_ENABLE_PROJECTS="${{ matrix.llvm_enable_projects }}" `
+                        -DLLVM_ENABLE_PROJECTS="${{ env.LLVM_ENABLE_PROJECTS }}" `
                         -DLLVM_ENABLE_ZSTD=OFF `
                         -DLLVM_ENABLE_LIBXML2=OFF `
                         -DCLANG_ENABLE_STATIC_ANALYZER=OFF `
@@ -316,9 +298,9 @@ jobs:
           echo "Apply clang${{ matrix.clang-runtime }}-*.patch patches:"
           emcmake cmake -DCMAKE_BUILD_TYPE=Release `
                         -DLLVM_HOST_TRIPLE=wasm32-unknown-emscripten `
-                        -DLLVM_TARGETS_TO_BUILD="${{ matrix.llvm_targets_to_build }}" `
+                        -DLLVM_TARGETS_TO_BUILD="${{ env.LLVM_TARGETS_TO_BUILD }}" `
                         -DLLVM_ENABLE_LIBEDIT=OFF `
-                        -DLLVM_ENABLE_PROJECTS="${{ matrix.llvm_enable_projects }}" `
+                        -DLLVM_ENABLE_PROJECTS="${{ env.LLVM_ENABLE_PROJECTS }}" `
                         -DLLVM_ENABLE_ZSTD=OFF `
                         -DLLVM_ENABLE_LIBXML2=OFF `
                         -DCLANG_ENABLE_STATIC_ANALYZER=OFF `
@@ -375,7 +357,7 @@ jobs:
       uses: mamba-org/setup-micromamba@main
       with:
         init-shell: >-
-          ${{ matrix.micromamba_shell_init }}
+          ${{ runner.os == 'Windows' && 'powershell' || 'bash' }}
 
     - name: micromamba shell hook
       if: ${{ runner.os == 'Windows' && !(github.event_name == 'pull_request' && matrix.run-in-prs != true) }}
@@ -391,7 +373,7 @@ jobs:
       if: ${{ runner.os != 'windows' && !(github.event_name == 'pull_request' && matrix.run-in-prs != true) }}
       shell: bash -l {0}
       run: |
-        ./emsdk/emsdk activate ${{matrix.emsdk_ver}}
+        ./emsdk/emsdk activate ${{ env.EMSDK_VER }}
         source ./emsdk/emsdk_env.sh
         micromamba activate CppInterOp-wasm
         git clone --depth=1 https://github.com/compiler-research/xeus-cpp.git
@@ -415,7 +397,7 @@ jobs:
       if: ${{ runner.os == 'windows' && !(github.event_name == 'pull_request' && matrix.run-in-prs != true) }}
       shell: powershell
       run: |
-        .\emsdk\emsdk activate ${{matrix.emsdk_ver}}
+        .\emsdk\emsdk activate ${{ env.EMSDK_VER }}
         .\emsdk\emsdk_env.ps1
         micromamba activate CppInterOp-wasm
         git clone --depth=1 https://github.com/compiler-research/xeus-cpp.git

@@ -13,6 +13,10 @@ permissions:
   pages: write
   id-token: write
 
+env:
+  EMSDK_VER: "4.0.9"
+  BUILD_STATIC_LIBRARY: Off
+
 jobs:
   build:
     runs-on: ${{ matrix.os }}
@@ -20,13 +24,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # micromamba_shell_init is derived below from runner.os.
         include:
-          - name: osx26-arm-clang-repl-21-emscripten
-            os: macos-26
-            clang-runtime: '21'
-            micromamba_shell_init: bash
-            emsdk_ver: "4.0.9"
-            build_static_library: Off
+          - { name: osx26-arm-emscr-llvm21, os: macos-26, clang-runtime: '21', wasm: true }
 
     steps:
     - uses: actions/checkout@v6
@@ -46,14 +46,14 @@ jobs:
       uses: mamba-org/setup-micromamba@main
       with:
         init-shell: >-
-          ${{ matrix.micromamba_shell_init }}
+          ${{ runner.os == 'Windows' && 'powershell' || 'bash' }}
 
     - name: Setup emsdk
       shell: bash -l {0}
       run: |
           git clone --depth=1 https://github.com/emscripten-core/emsdk.git
           cd emsdk
-          ./emsdk install  ${{ matrix.emsdk_ver }}
+          ./emsdk install  ${{ env.EMSDK_VER }}
 
     - name: Restore cached LLVM-${{ matrix.clang-runtime }} and ${{ matrix.cling == 'On' && 'Cling' || 'Clang-REPL' }} build
       uses: actions/cache/restore@v4
@@ -70,7 +70,7 @@ jobs:
     - name: Build xeus-cpp
       shell: bash -l {0}
       run: |
-        ./emsdk/emsdk activate ${{matrix.emsdk_ver}}
+        ./emsdk/emsdk activate ${{ env.EMSDK_VER }}
         source ./emsdk/emsdk_env.sh
         micromamba activate CppInterOp-wasm
         git clone --depth=1 https://github.com/compiler-research/xeus-cpp.git
