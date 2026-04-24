@@ -25,6 +25,8 @@ jobs:
   build:
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
+    # Skip the whole job on PRs unless the matrix row opts in via run-in-prs.
+    if: ${{ !(github.event_name == 'pull_request' && matrix.run-in-prs != true) }}
     strategy:
       fail-fast: false
       matrix:
@@ -39,20 +41,16 @@ jobs:
 
     steps:
     - uses: actions/checkout@v6
-      if: ${{ !(github.event_name == 'pull_request' && matrix.run-in-prs != true) }}
 
     - name: Set up Python
-      if: ${{ !(github.event_name == 'pull_request' && matrix.run-in-prs != true) }}
       uses: actions/setup-python@v6
       with:
         python-version: '3.11'
 
     - name: Save PR Info
-      if: ${{ !(github.event_name == 'pull_request' && matrix.run-in-prs != true) }}
       uses: ./.github/actions/Miscellaneous/Save_PR_Info
 
     - name: Restore cached LLVM-${{ matrix.clang-runtime }} and ${{ matrix.cling == 'On' && 'Cling' || 'Clang-REPL' }} build (Unix like systems emscripten)
-      if: ${{ !(github.event_name == 'pull_request' && matrix.run-in-prs != true) }}
       uses: actions/cache/restore@v4
       id: cache
       with:
@@ -62,25 +60,23 @@ jobs:
         key: ${{ env.CLING_HASH }}-${{ runner.os }}-${{ matrix.os }}-clang-${{ matrix.clang-runtime }}.x-emscripten
 
     - name: Setup emsdk
-      if: ${{ !(github.event_name == 'pull_request' && matrix.run-in-prs != true) }}
       run: |
           git clone --depth=1 https://github.com/emscripten-core/emsdk.git
           cd emsdk
           ./emsdk install  ${{ env.EMSDK_VER }}
 
     - name: Setup default Build Type
-      if: ${{ !(github.event_name == 'pull_request' && matrix.run-in-prs != true) }}
       uses: ./.github/actions/Miscellaneous/Select_Default_Build_Type
 
     - name: Install deps on Windows
-      if: ${{ runner.os == 'windows' && steps.cache.outputs.cache-hit != 'true' && !(github.event_name == 'pull_request' && matrix.run-in-prs != true) }}
+      if: ${{ runner.os == 'windows' && steps.cache.outputs.cache-hit != 'true' }}
       run: |
         choco install findutils ninja
         $env:PATH="C:\Program Files (x86)\GnuWin32\bin;$env:PATH"
         $env:PATH="C:\Program Files (x86)\Ninja\bin;$env:PATH"
 
     - name: Install deps on MacOS
-      if: ${{ runner.os == 'macOS' && steps.cache.outputs.cache-hit != 'true' && !(github.event_name == 'pull_request' && matrix.run-in-prs != true) }}
+      if: ${{ runner.os == 'macOS' && steps.cache.outputs.cache-hit != 'true' }}
       run: |
         brew update
         export ARCHITECHURE=$(uname -m)
@@ -95,7 +91,7 @@ jobs:
         brew install ninja
 
     - name: Install deps on Linux
-      if: ${{ runner.os == 'Linux' && steps.cache.outputs.cache-hit != 'true' && !(github.event_name == 'pull_request' && matrix.run-in-prs != true) }}
+      if: ${{ runner.os == 'Linux' && steps.cache.outputs.cache-hit != 'true' }}
       run: |
         # Install deps
         sudo apt-get update
@@ -104,7 +100,7 @@ jobs:
         sudo apt-get clean
 
     - name: Build LLVM/Cling on Unix systems if the cache is invalid (emscripten)
-      if: ${{ runner.os != 'windows' && steps.cache.outputs.cache-hit != 'true' && !(github.event_name == 'pull_request' && matrix.run-in-prs != true) }}
+      if: ${{ runner.os != 'windows' && steps.cache.outputs.cache-hit != 'true' }}
       run: |
         ./emsdk/emsdk activate ${{ env.EMSDK_VER }}
         source ./emsdk/emsdk_env.sh
@@ -209,7 +205,7 @@ jobs:
 
 
     - name: Build LLVM/Cling on Windows systems if the cache is invalid (emscripten)
-      if: ${{ runner.os == 'windows' && steps.cache.outputs.cache-hit != 'true' && !(github.event_name == 'pull_request' && matrix.run-in-prs != true)}}
+      if: ${{ runner.os == 'windows' && steps.cache.outputs.cache-hit != 'true'}}
       run: |
         .\emsdk\emsdk activate ${{ env.EMSDK_VER }}
         .\emsdk\emsdk_env.ps1
@@ -344,7 +340,7 @@ jobs:
         }
 
     - name: Cache LLVM-${{ matrix.clang-runtime }} and ${{ matrix.cling == 'On' && 'Cling' || 'Clang-REPL' }} build
-      if: ${{ steps.cache.outputs.cache-hit != 'true' && !(github.event_name == 'pull_request' && matrix.run-in-prs != true) }}
+      if: ${{ steps.cache.outputs.cache-hit != 'true' }}
       uses: actions/cache/save@v4
       with:
         path: |
@@ -353,24 +349,22 @@ jobs:
         key: ${{ steps.cache.outputs.cache-primary-key }}
 
     - name: install mamba
-      if: ${{ !(github.event_name == 'pull_request' && matrix.run-in-prs != true) }}
       uses: mamba-org/setup-micromamba@main
       with:
         init-shell: >-
           ${{ runner.os == 'Windows' && 'powershell' || 'bash' }}
 
     - name: micromamba shell hook
-      if: ${{ runner.os == 'Windows' && !(github.event_name == 'pull_request' && matrix.run-in-prs != true) }}
+      if: ${{ runner.os == 'Windows' }}
       shell: powershell
       run: |
         micromamba shell hook -s cmd.exe --root-prefix C:\Users\runneradmin\micromamba-root
 
     - name: Build and test CppInterOp
-      if: ${{ !(github.event_name == 'pull_request' && matrix.run-in-prs != true) }}
       uses: ./.github/actions/Build_and_Test_CppInterOp
 
     - name: Build xeus-cpp on Unix Systems
-      if: ${{ runner.os != 'windows' && !(github.event_name == 'pull_request' && matrix.run-in-prs != true) }}
+      if: ${{ runner.os != 'windows' }}
       shell: bash -l {0}
       run: |
         ./emsdk/emsdk activate ${{ env.EMSDK_VER }}
@@ -394,7 +388,7 @@ jobs:
         emmake make -j ${{ env.ncpus }} install
 
     - name: Build xeus-cpp on Windows systems
-      if: ${{ runner.os == 'windows' && !(github.event_name == 'pull_request' && matrix.run-in-prs != true) }}
+      if: ${{ runner.os == 'windows' }}
       shell: powershell
       run: |
         .\emsdk\emsdk activate ${{ env.EMSDK_VER }}
@@ -418,7 +412,7 @@ jobs:
         emmake make -j ${{ env.ncpus }} install
 
     - name: Test xeus-cpp C++ Emscripten on Unix Systems
-      if: ${{ runner.os != 'windows' && !(github.event_name == 'pull_request' && matrix.run-in-prs != true) }}
+      if: ${{ runner.os != 'windows' }}
       shell: bash -l {0}
       run: |
         set -e
@@ -427,7 +421,7 @@ jobs:
         node test_xeus_cpp.js
 
     - name: Test xeus-cpp C++ Emscripten on Windows Systems
-      if: ${{ runner.os == 'windows' && !(github.event_name == 'pull_request' && matrix.run-in-prs != true) }}
+      if: ${{ runner.os == 'windows' }}
       shell: powershell
       run: |
         function Error-OnFailure {
@@ -451,7 +445,7 @@ jobs:
         Error-OnFailure { emrun.bat --browser="chrome.exe" --kill_exit --timeout 60 --browser-args="--headless --no-sandbox"  test_xeus_cpp.html }
 
     - name: Jupyter Lite integration
-      if: ${{ runner.os != 'windows' && !(github.event_name == 'pull_request' && matrix.run-in-prs != true) }}
+      if: ${{ runner.os != 'windows' }}
       shell: bash -l {0}
       run: |
           cd ./xeus-cpp/
@@ -460,7 +454,7 @@ jobs:
           jupyter lite build --XeusAddon.prefix=${{ env.PREFIX }} --contents notebooks/xeus-cpp-lite-demo.ipynb --contents notebooks/tinyraytracer.ipynb --contents notebooks/images/marie.png --contents notebooks/audio/audio.wav --output-dir dist
 
     - name: Jupyter Lite integration
-      if: ${{ runner.os == 'windows' && !(github.event_name == 'pull_request' && matrix.run-in-prs != true)}}
+      if: ${{ runner.os == 'windows'}}
       shell: powershell
       run: |
           cd .\xeus-cpp\
