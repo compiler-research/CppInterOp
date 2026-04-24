@@ -13,8 +13,6 @@
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Sema/Sema.h"
 
-#include "llvm/Support/Valgrind.h"
-
 #include "gtest/gtest.h"
 
 #include <memory>
@@ -1066,8 +1064,6 @@ template<typename T> T TrivialFnTemplate() { return T(); }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE,
            ScopeReflection_InstantiateTemplateFunctionFromString) {
-  if (llvm::sys::RunningOnValgrind())
-    GTEST_SKIP() << "XFAIL due to Valgrind report";
   std::vector<const char*> interpreter_args = {"-include", "new"};
   TestFixture::CreateInterpreter(interpreter_args);
   std::string code = R"(#include <memory>)";
@@ -1212,8 +1208,6 @@ TYPED_TEST(CPPINTEROP_TEST_MODE,
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_IncludeVector) {
-  if (llvm::sys::RunningOnValgrind())
-      GTEST_SKIP() << "XFAIL due to Valgrind report";
   std::string code = R"(
     #include <vector>
     #include <iostream>
@@ -1224,8 +1218,6 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_IncludeVector) {
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_GetOperator) {
-  if (llvm::sys::RunningOnValgrind())
-    GTEST_SKIP() << "XFAIL due to Valgrind report";
 
   TestFixture::CreateInterpreter();
 
