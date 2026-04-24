@@ -68,8 +68,6 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_Evaluate) {
 #ifdef _WIN32
   GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
 #endif
-  if (llvm::sys::RunningOnValgrind())
-    GTEST_SKIP() << "XFAIL due to Valgrind report";
   if (TypeParam::isOutOfProcess)
     GTEST_SKIP() << "Test fails for OOP JIT builds";
   //  EXPECT_TRUE(Cpp::Evaluate(I, "") == 0);
@@ -157,8 +155,6 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_Process) {
 #endif
   if (TypeParam::isOutOfProcess)
     GTEST_SKIP() << "Test fails for OOP JIT builds";
-  if (llvm::sys::RunningOnValgrind())
-    GTEST_SKIP() << "XFAIL due to Valgrind report";
   std::vector<const char*> interpreter_args = { "-include", "new", "-Xclang", "-iwithsysroot/include/compat" };
   auto* I = TestFixture::CreateInterpreter(interpreter_args);
   EXPECT_TRUE(Cpp::Process("") == 0);
@@ -427,8 +423,6 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_GetLanguageStandardGNU) {
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_ExternalInterpreter) {
 
-  if (llvm::sys::RunningOnValgrind())
-    GTEST_SKIP() << "XFAIL due to Valgrind report";
 
 #ifndef CPPINTEROP_USE_CLING
   llvm::ExitOnError ExitOnErr;
