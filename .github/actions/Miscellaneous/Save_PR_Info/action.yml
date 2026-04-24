@@ -15,7 +15,7 @@ runs:
 
         cling_on=$(echo "${{ matrix.cling }}" | tr '[:lower:]' '[:upper:]')
         if [[ "$cling_on" == "ON" ]]; then
-          export CLING_HASH=$(git ls-remote https://github.com/root-project/cling.git refs/tags/v${{ matrix.cling-version }} | tr '\t' '-')
+          export CLING_HASH=$(git ls-remote https://github.com/root-project/cling.git refs/tags/v${{ matrix.cling-version || env.CLING_VERSION }} | tr '\t' '-')
           export LLVM_HASH=$(git ls-remote https://github.com/root-project/llvm-project.git cling-llvm${{ matrix.clang-runtime}} | tr '\t' '-')
         else
           export CLING_HASH="Repl"
@@ -38,7 +38,7 @@ runs:
 
         if ( "${{ matrix.cling }}" -imatch "On" )
         {
-          $env:CLING_HASH_TEMP = ( git ls-remote https://github.com/root-project/cling.git refs/tags/v${{ matrix.cling-version }} )
+          $env:CLING_HASH_TEMP = ( git ls-remote https://github.com/root-project/cling.git refs/tags/v${{ matrix.cling-version || env.CLING_VERSION }} )
           $env:CLING_HASH = $env:CLING_HASH_TEMP -replace "\t","-"
         }
         else

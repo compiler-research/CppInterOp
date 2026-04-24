@@ -13,7 +13,7 @@ runs:
       run: |
         cling_on=$(echo "${{ matrix.cling }}" | tr '[:lower:]' '[:upper:]')
         if [[ "${cling_on}" == "ON" ]]; then
-          git clone --depth=1 --branch v${{ matrix.cling-version }} https://github.com/root-project/cling.git
+          git clone --depth=1 --branch v${{ matrix.cling-version || env.CLING_VERSION }} https://github.com/root-project/cling.git
           git clone --depth=1 -b ${{ matrix.root-llvm-tag }} https://github.com/root-project/llvm-project.git
         else # repl
           git clone --depth=1 -b release/${{ matrix.clang-runtime }}.x https://github.com/llvm/llvm-project.git
@@ -23,10 +23,10 @@ runs:
         mkdir build
         if [[ "${cling_on}" == "ON" ]]; then
           cd build
-          cmake -DLLVM_ENABLE_PROJECTS="${{ matrix.llvm_enable_projects }}" \
+          cmake -DLLVM_ENABLE_PROJECTS="${{ matrix.llvm_enable_projects || 'clang' }}" \
                 -DLLVM_EXTERNAL_PROJECTS=cling                     \
                 -DLLVM_EXTERNAL_CLING_SOURCE_DIR=../../cling       \
-                -DLLVM_TARGETS_TO_BUILD="${{ matrix.llvm_targets_to_build }}" \
+                -DLLVM_TARGETS_TO_BUILD="${{ matrix.llvm_targets_to_build || 'host;NVPTX' }}" \
                 -DCMAKE_BUILD_TYPE=Release                         \
                 -DLLVM_ENABLE_ASSERTIONS=ON                        \
                 -DCLANG_ENABLE_STATIC_ANALYZER=OFF                 \
@@ -44,8 +44,8 @@ runs:
             echo "Apply clang20-1-out-of-process.patch:"
           fi
           cd build
-          cmake -DLLVM_ENABLE_PROJECTS="${{ matrix.llvm_enable_projects}}" \
-                -DLLVM_TARGETS_TO_BUILD="${{ matrix.llvm_targets_to_build }}"  \
+          cmake -DLLVM_ENABLE_PROJECTS="${{ matrix.llvm_enable_projects || 'clang' }}" \
+                -DLLVM_TARGETS_TO_BUILD="${{ matrix.llvm_targets_to_build || 'host;NVPTX' }}"  \
                 -DCMAKE_BUILD_TYPE=Release                          \
                 -DLLVM_ENABLE_ASSERTIONS=ON                         \
                 -DCLANG_ENABLE_STATIC_ANALYZER=OFF                  \
@@ -97,7 +97,7 @@ runs:
 
         if ( "${{ matrix.cling }}" -imatch "On" )
         {
-          git clone --depth=1 --branch v${{ matrix.cling-version }} https://github.com/root-project/cling.git
+          git clone --depth=1 --branch v${{ matrix.cling-version || env.CLING_VERSION }} https://github.com/root-project/cling.git
           git clone --depth=1 -b ${{ matrix.root-llvm-tag }} https://github.com/root-project/llvm-project.git
           $env:PWD_DIR= $PWD.Path
           $env:CLING_DIR="$env:PWD_DIR\cling"
@@ -114,10 +114,10 @@ runs:
         if ( "${{ matrix.cling }}" -imatch "On" )
         {
           cd build
-          cmake -DLLVM_ENABLE_PROJECTS="${{ matrix.llvm_enable_projects}}" `
+          cmake -DLLVM_ENABLE_PROJECTS="${{ matrix.llvm_enable_projects || 'clang' }}" `
                 -DLLVM_EXTERNAL_PROJECTS=cling                `
                 -DLLVM_EXTERNAL_CLING_SOURCE_DIR="$env:CLING_DIR"   `
-                -DLLVM_TARGETS_TO_BUILD="${{ matrix.llvm_targets_to_build }}" `
+                -DLLVM_TARGETS_TO_BUILD="${{ matrix.llvm_targets_to_build || 'host;NVPTX' }}" `
                 -DCMAKE_BUILD_TYPE=Release                         `
                 -DLLVM_ENABLE_ASSERTIONS=ON                        `
                 -DCLANG_ENABLE_STATIC_ANALYZER=OFF                 `
@@ -133,8 +133,8 @@ runs:
         {
           cd build
           echo "Apply clang${{ matrix.clang-runtime }}-*.patch patches:"
-          cmake -DLLVM_ENABLE_PROJECTS="${{ matrix.llvm_enable_projects}}"                   `
-                -DLLVM_TARGETS_TO_BUILD="${{ matrix.llvm_targets_to_build }}"          `
+          cmake -DLLVM_ENABLE_PROJECTS="${{ matrix.llvm_enable_projects || 'clang' }}"                   `
+                -DLLVM_TARGETS_TO_BUILD="${{ matrix.llvm_targets_to_build || 'host;NVPTX' }}"          `
                 -DCMAKE_BUILD_TYPE=Release                          `
                 -DLLVM_ENABLE_ASSERTIONS=ON                         `
                 -DCLANG_ENABLE_STATIC_ANALYZER=OFF                  `

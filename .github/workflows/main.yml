@@ -1,4 +1,4 @@
-name: Native Builds
+name: CI
 
 on:
   pull_request:
@@ -62,163 +62,64 @@ jobs:
     needs: prepare-dell
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
+    env:
+      # Default cling version for cling rows; override per-row if a bump is
+      # needed. The matching root-llvm-tag is pinned via a YAML anchor
+      # (&root_llvm_tag) on the first cling row and referenced via
+      # *root_llvm_tag on the rest: the cache key on this job literally
+      # reads matrix.root-llvm-tag, so the tag must live on the row.
+      CLING_VERSION: '1.3'
     strategy:
       fail-fast: false
       matrix:
+        # Rows omit fields that match these defaults (applied in
+        # Build_LLVM and in the setup-python step):
+        #   llvm_enable_projects: "clang"
+        #   llvm_targets_to_build: "host;NVPTX"
+        #   python-version:       '3.14'
+        # oop-jit stays on clang-20: patches/llvm/clang20-1-out-of-process.patch
+        # only targets release/20.x; bump when a matching patch lands.
         include:
-          # Ubuntu Arm Jobs
-          - name: ubu24-arm-gcc12-clang-repl-22
-            os: ubuntu-24.04-arm
-            compiler: gcc-12
-            clang-runtime: '22'
-            llvm_enable_projects: "clang"
-            llvm_targets_to_build: "host;NVPTX"
-            Valgrind: On
-            python-version: '3.14'
-          # Ubuntu X86 Jobs
-          - name: ubu24-x86-gcc12-clang-repl-22
-            os: ubuntu-24.04
-            compiler: gcc-12
-            clang-runtime: '22'
-            llvm_enable_projects: "clang"
-            llvm_targets_to_build: "host;NVPTX"
-          - name: ubu24-x86-clang22-clang-repl-22-asan-ubsan
-            os: ubuntu-24.04
-            compiler: clang-22
-            clang-runtime: '22'
-            llvm_enable_projects: "clang"
-            llvm_targets_to_build: "host;NVPTX"
-            sanitizer: "Address;Undefined"
-            python-version: '3.14'
-          - name: ubu24-x86-gcc12-clang-repl-21-cppyy
-            os: ubuntu-24.04
-            compiler: gcc-12
-            clang-runtime: '21'
-            cppyy: On
-            llvm_enable_projects: "clang"
-            llvm_targets_to_build: "host;NVPTX"
-            Valgrind: On
-            python-version: '3.14'
-          - name: selfh-ubu22-x86-gcc12-clang-repl-22-cuda
+          # Ubuntu Arm
+          - { name: ubu24-arm-gcc12-llvm22-vg, os: ubuntu-24.04-arm, compiler: gcc-12, clang-runtime: '22', Valgrind: On }
+          # Ubuntu X86
+          - { name: ubu24-x86-gcc12-llvm22, os: ubuntu-24.04, compiler: gcc-12, clang-runtime: '22' }
+          - { name: ubu24-x86-clang22-llvm22-asan-ubsan, os: ubuntu-24.04, compiler: clang-22, clang-runtime: '22', sanitizer: "Address;Undefined" }
+          - { name: ubu24-x86-gcc12-llvm21-cppyy-vg, os: ubuntu-24.04, compiler: gcc-12, clang-runtime: '21', cppyy: On, Valgrind: On }
+          - { name: ubu24-x86-gcc12-llvm22-cppyy, os: ubuntu-24.04, compiler: gcc-12, clang-runtime: '22', cppyy: On }
+          - { name: ubu24-x86-gcc14-cling-llvm20-cppyy, os: ubuntu-24.04, compiler: gcc-14, clang-runtime: '20', cling: On, cppyy: On, root-llvm-tag: &root_llvm_tag 'cling-llvm20-20260119-01' }
+          - name: selfh-ubu22-x86-gcc12-llvm22-cuda
             os: [self-hosted, cuda, heavy]
             compiler: gcc-12
             clang-runtime: '22'
-            llvm_enable_projects: "clang"
-            llvm_targets_to_build: "host;NVPTX"
-            python-version: '3.14'
             coverage: true
-          - name: ubu24-x86-gcc12-clang-repl-22-cppyy
-            os: ubuntu-24.04
-            compiler: gcc-12
-            clang-runtime: '22'
-            cppyy: On
-            llvm_enable_projects: "clang"
-            llvm_targets_to_build: "host;NVPTX"
-            python-version: '3.14'
-          # oop-jit stays on clang-20 because the out-of-process JIT patch
-          # (patches/llvm/clang20-1-out-of-process.patch) only targets
-          # release/20.x; bump to clang-22 when a matching patch lands.
-          - name: ubu24-x86-gcc12-clang-repl-20-out-of-process
+          - name: ubu24-x86-gcc12-llvm20-oop-vg
             os: ubuntu-24.04
             compiler: gcc-12
             clang-runtime: '20'
             llvm_enable_projects: "clang;compiler-rt"
-            llvm_targets_to_build: "host;NVPTX"
             oop-jit: On
             Valgrind: On
             python-version: '3.13'
-          - name: ubu24-x86-gcc14-clang20-cling-cppyy
-            os: ubuntu-24.04
-            compiler: gcc-14
-            clang-runtime: '20'
-            cling: On
-            cppyy: On
-            cling-version: '1.3'
-            root-llvm-tag: 'cling-llvm20-20260119-01'
-            llvm_enable_projects: "clang"
-            llvm_targets_to_build: "host;NVPTX"
-            python-version: '3.14'
-          # MacOS Arm Jobs
-          - name: osx26-arm-clang-clang-repl-22
-            os: macos-26
-            compiler: clang
-            clang-runtime: '22'
-            llvm_enable_projects: "clang"
-            llvm_targets_to_build: "host"
-            python-version: '3.14'
-          - name: osx26-arm-clang-clang-repl-21-cppyy
-            os: macos-26
-            compiler: clang
-            clang-runtime: '21'
-            cppyy: On
-            llvm_enable_projects: "clang"
-            llvm_targets_to_build: "host"
-            python-version: '3.14'
-          - name: osx26-arm-clang-clang-repl-20-out-of-process
+          # MacOS Arm
+          - { name: osx26-arm-clang-llvm22, os: macos-26, compiler: clang, clang-runtime: '22', llvm_targets_to_build: host }
+          - { name: osx26-arm-clang-llvm21-cppyy, os: macos-26, compiler: clang, clang-runtime: '21', cppyy: On, llvm_targets_to_build: host }
+          - { name: osx26-arm-clang-cling-llvm20-cppyy, os: macos-26, compiler: clang, clang-runtime: '20', cling: On, cppyy: On, root-llvm-tag: *root_llvm_tag }
+          - name: osx26-arm-clang-llvm20-oop
             os: macos-26
             compiler: clang
             clang-runtime: '20'
             llvm_enable_projects: "clang;compiler-rt"
-            llvm_targets_to_build: "host"
+            llvm_targets_to_build: host
             oop-jit: On
             python-version: '3.13'
-          - name: osx26-arm-clang-clang20-cling-cppyy
-            os: macos-26
-            compiler: clang
-            clang-runtime: '20'
-            cling: On
-            cppyy: On
-            cling-version: '1.3'
-            root-llvm-tag: 'cling-llvm20-20260119-01'
-            llvm_enable_projects: "clang"
-            llvm_targets_to_build: "host;NVPTX"
-            python-version: '3.14'
-          # MacOS X86 Jobs
-          - name: osx26-x86-clang-clang-repl-21-cppyy
-            os: macos-26-intel
-            compiler: clang
-            clang-runtime: '21'
-            cppyy: On
-            llvm_enable_projects: "clang"
-            llvm_targets_to_build: "host"
-            python-version: '3.14'
-          - name: osx26-x86-clang-clang20-cling-cppyy
-            os: macos-26-intel
-            compiler: clang
-            clang-runtime: '20'
-            cling: On
-            cppyy: On
-            cling-version: '1.3'
-            root-llvm-tag: 'cling-llvm20-20260119-01'
-            llvm_enable_projects: "clang"
-            llvm_targets_to_build: "host;NVPTX"
-            python-version: '3.14'
-          # Windows Arm Jobs
-          - name: win11-msvc-clang-repl-22
-            os: windows-11-arm
-            compiler: msvc
-            clang-runtime: '22'
-            llvm_enable_projects: "clang"
-            llvm_targets_to_build: "host;NVPTX"
-            python-version: '3.14'
-          # Windows X86 Jobs
-          - name: win2025-msvc-clang-repl-22
-            os: windows-2025
-            compiler: msvc
-            clang-runtime: '22'
-            llvm_enable_projects: "clang"
-            llvm_targets_to_build: "host;NVPTX"
-            python-version: '3.14'
-          - name: win2025-msvc-clang20-cling
-            os: windows-2025
-            compiler: msvc
-            clang-runtime: '20'
-            cling: On
-            cling-version: '1.3'
-            root-llvm-tag: 'cling-llvm20-20260119-01'
-            llvm_enable_projects: "clang"
-            llvm_targets_to_build: "host;NVPTX"
-            python-version: '3.14'
+          # MacOS X86
+          - { name: osx26-x86-clang-llvm21-cppyy, os: macos-26-intel, compiler: clang, clang-runtime: '21', cppyy: On, llvm_targets_to_build: host }
+          - { name: osx26-x86-clang-cling-llvm20-cppyy, os: macos-26-intel, compiler: clang, clang-runtime: '20', cling: On, cppyy: On, root-llvm-tag: *root_llvm_tag }
+          # Windows
+          - { name: win11-msvc-llvm22, os: windows-11-arm, compiler: msvc, clang-runtime: '22' }
+          - { name: win2025-msvc-llvm22, os: windows-2025, compiler: msvc, clang-runtime: '22' }
+          - { name: win2025-msvc-cling-llvm20, os: windows-2025, compiler: msvc, clang-runtime: '20', cling: On, root-llvm-tag: *root_llvm_tag }
 
     steps:
     - uses: actions/checkout@v6
@@ -226,7 +127,7 @@ jobs:
     - name: Set up Python
       uses: actions/setup-python@v6
       with:
-        python-version: ${{ matrix.python-version }}
+        python-version: ${{ matrix.python-version || '3.14' }}
 
     - name: Save PR Info
       uses: ./.github/actions/Miscellaneous/Save_PR_Info
