@@ -375,8 +375,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, TypeReflection_GetComplexType) {
   EXPECT_EQ(C_API_SHIM("double"), "_Complex double");
 
   // Clean up resources
-  clang_Interpreter_takeInterpreterAsPtr(I);
-  clang_Interpreter_dispose(I);
+  clang_Interpreter_deleteInterpreter(I);
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, TypeReflection_GetTypeFromScope) {

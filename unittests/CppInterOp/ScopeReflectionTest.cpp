@@ -1020,8 +1020,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_InstantiateNNTPClassTemplate) {
   };
   EXPECT_NE(C_API_SHIM(Decls[0]), nullptr);
   // Clean up resources
-  clang_Interpreter_takeInterpreterAsPtr(I);
-  clang_Interpreter_dispose(I);
+  clang_Interpreter_deleteInterpreter(I);
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_InstantiateVarTemplate) {

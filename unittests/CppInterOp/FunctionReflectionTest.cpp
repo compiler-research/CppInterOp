@@ -173,8 +173,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetClassMethods) {
   };
   EXPECT_EQ(C_API_SHIM(methods0[0]), "int A::f1(int a, int b)");
   // Clean up resources
-  clang_Interpreter_takeInterpreterAsPtr(I);
-  clang_Interpreter_dispose(I);
+  clang_Interpreter_deleteInterpreter(I);
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE,
@@ -239,8 +238,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_HasDefaultConstructor) {
   EXPECT_TRUE(clang_hasDefaultConstructor(make_scope(Decls[1], I)));
   EXPECT_FALSE(clang_hasDefaultConstructor(make_scope(Decls[3], I)));
   // Clean up resources
-  clang_Interpreter_takeInterpreterAsPtr(I);
-  clang_Interpreter_dispose(I);
+  clang_Interpreter_deleteInterpreter(I);
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetDestructor) {
@@ -275,8 +273,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetDestructor) {
   EXPECT_TRUE(clang_getDestructor(make_scope(Decls[0], I)).data[0]);
   EXPECT_TRUE(clang_getDestructor(make_scope(Decls[1], I)).data[0]);
   // Clean up resources
-  clang_Interpreter_takeInterpreterAsPtr(I);
-  clang_Interpreter_dispose(I);
+  clang_Interpreter_deleteInterpreter(I);
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetFunctionsUsingName) {
@@ -668,8 +665,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_IsTemplatedFunction) {
   EXPECT_FALSE(clang_isTemplatedFunction(make_scope(SubDeclsC1[1], I)));
   EXPECT_TRUE(clang_isTemplatedFunction(make_scope(SubDeclsC1[2], I)));
   // Clean up resources
-  clang_Interpreter_takeInterpreterAsPtr(I);
-  clang_Interpreter_dispose(I);
+  clang_Interpreter_deleteInterpreter(I);
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_ExistsFunctionTemplate) {
@@ -696,8 +692,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_ExistsFunctionTemplate) {
   EXPECT_TRUE(clang_existsFunctionTemplate("f", make_scope(Decls[1], I)));
   EXPECT_FALSE(clang_existsFunctionTemplate("f", make_scope(Decls[2], I)));
   // Clean up resources
-  clang_Interpreter_takeInterpreterAsPtr(I);
-  clang_Interpreter_dispose(I);
+  clang_Interpreter_deleteInterpreter(I);
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE,
@@ -1654,8 +1649,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_JitCallAdvanced) {
   EXPECT_TRUE(object_c) << "Failed to call the ctor.";
   clang_destruct(object_c, make_scope(Decls[1], I), true);
   // Clean up resources
-  clang_Interpreter_takeInterpreterAsPtr(I);
-  clang_Interpreter_dispose(I);
+  clang_Interpreter_deleteInterpreter(I);
 }
 
 #if !defined(NDEBUG) && GTEST_HAS_DEATH_TEST
@@ -2507,8 +2501,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_Construct) {
   EXPECT_TRUE(dummy);
   clang_deallocate(dummy);
   // Clean up resources
-  clang_Interpreter_takeInterpreterAsPtr(I);
-  clang_Interpreter_dispose(I);
+  clang_Interpreter_deleteInterpreter(I);
 }
 
 // Test zero initialization of PODs and default initialization cases
@@ -2723,8 +2716,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_Destruct) {
   EXPECT_EQ(output, "Destructor Executed");
   output.clear();
   // Clean up resources
-  clang_Interpreter_takeInterpreterAsPtr(I);
-  clang_Interpreter_dispose(I);
+  clang_Interpreter_deleteInterpreter(I);
 
   // Failure Test, this wrapper should not compile since we explicitly delete
   // the destructor
