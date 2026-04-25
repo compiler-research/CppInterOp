@@ -35,7 +35,7 @@ runs:
         # Apply repl-only emscripten patches; cling has its own patch flow above.
         if [[ "${cling_on}" != "ON" ]]; then
           rt='${{ matrix.clang-runtime }}'
-          if [[ "$rt" =~ ^(19|20|21)$ ]]; then
+          if [[ "$rt" =~ ^(19|20|21|22)$ ]]; then
             git apply -v ../patches/llvm/emscripten-clang${rt}-*.patch
             echo "Applied emscripten-clang${rt}-*.patch"
           fi
@@ -124,7 +124,7 @@ runs:
         # Apply repl-only emscripten patches; cling has its own patch flow above.
         if ( -not $cling_on ) {
           $rt = "${{ matrix.clang-runtime }}"
-          if ( $rt -match "^(19|20|21)$" ) {
+          if ( $rt -match "^(19|20|21|22)$" ) {
             Get-ChildItem -Path "..\patches\llvm" -Filter "emscripten-clang${rt}-*.patch" | ForEach-Object {
               git apply -v $_.FullName
             }
