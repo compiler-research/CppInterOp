@@ -40,8 +40,6 @@ bool CppInterOpTableGenMain(raw_ostream& OS, const RecordKeeper& Records) {
   case GenCppInterOpDecl:
     EmitCppInterOpDecl(Records, OS);
     break;
-  default:
-    return true;
   }
   return false;
 }

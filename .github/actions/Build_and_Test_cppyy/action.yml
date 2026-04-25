@@ -80,7 +80,11 @@ runs:
         python -m pip install --upgrade pip
         python -m pip install pytest
         python -m pip install pytest-xdist
-        if [[ "${{ matrix.python-version }}" != "3.14" ]]; then
+        # Detect the interpreter actually in use rather than matrix.python-version:
+        # the latter is empty when the row inherits the workflow default, and numba
+        # 0.61.2 refuses to build on Python >= 3.14.
+        py_ver=$(python -c 'import sys; print(f"{sys.version_info.major}.{sys.version_info.minor}")')
+        if [[ "$py_ver" != "3.14" ]]; then
           python -m uv pip install numba==0.61.2
         fi
         echo ::endgroup::

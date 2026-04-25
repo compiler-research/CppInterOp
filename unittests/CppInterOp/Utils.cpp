@@ -18,34 +18,6 @@
 using namespace clang;
 using namespace llvm;
 
-#if defined(ENABLE_DISPATCH_TESTS)
-// Storage definitions for dispatch function pointers.
-using namespace CppImpl;
-#define CPPINTEROP_API_FUNC(DN, CN, Ret, DeclArgs, CallArgs, RawTypes)         \
-  Ret(*CppInternal::DispatchRaw::DN) RawTypes = nullptr;
-#include "CppInterOp/CppInterOpAPI.inc"
-namespace {
-struct DispatchInitializer {
-  DispatchInitializer() {
-    if (!Cpp::LoadDispatchAPI(CPPINTEROP_LIB_PATH)) {
-      std::abort();
-    }
-  }
-  ~DispatchInitializer() = default;
-  DispatchInitializer(const DispatchInitializer&) = delete;
-  DispatchInitializer& operator=(const DispatchInitializer&) = delete;
-  DispatchInitializer(DispatchInitializer&&) noexcept = default;
-  DispatchInitializer& operator=(DispatchInitializer&&) noexcept = default;
-};
-// Thread-safe initialization using function-local static
-DispatchInitializer& GetDispatchInitializer() {
-  static DispatchInitializer instance;
-  return instance;
-}
-const DispatchInitializer& g_dispatch_init = GetDispatchInitializer();
-} // namespace
-#endif
-
 namespace TestUtils {
 TestConfig current_config;
 std::vector<const char*> GetInterpreterArgs(

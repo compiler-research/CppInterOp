@@ -158,7 +158,7 @@ endif()
 add_llvm_library(CppInterOp
   DISABLE_LLVM_LINK_LLVM_DYLIB
   CppInterOp.cpp
-  Dispatch.cpp
+  CppInterOpDispatch.cpp
   CXCppInterOp.cpp
   Tracing.cpp
   ${DLM}

@@ -30,18 +30,10 @@ add_dependencies(CppInterOpUnitTests CppInterOp)
 
 set (TIMEOUT_VALUE 2400)
 function(add_cppinterop_unittest name)
-  cmake_parse_arguments(ARG
-    "ENABLE_DISPATCH"
-    ""
-    ""
-    ${ARGN}
-  )
-  # gtest_main is dropped from the Emscripten link set, so every Emscripten
-  # test binary needs its own main.cpp entry point.
   if(EMSCRIPTEN)
-    add_executable(${name} EXCLUDE_FROM_ALL ${ARG_UNPARSED_ARGUMENTS} main.cpp)
+    add_executable(${name} EXCLUDE_FROM_ALL ${ARGN} main.cpp)
   else()
-    add_executable(${name} EXCLUDE_FROM_ALL ${ARG_UNPARSED_ARGUMENTS})
+    add_executable(${name} EXCLUDE_FROM_ALL ${ARGN})
   endif()
   if(NOT LLVM_ENABLE_RTTI)
     if(MSVC)
@@ -85,16 +77,6 @@ function(add_cppinterop_unittest name)
   set_tests_properties(cppinterop-${name} PROPERTIES
                         TIMEOUT "${TIMEOUT_VALUE}"
                         ENVIRONMENT "CPLUS_INCLUDE_PATH=${CMAKE_BINARY_DIR}/etc")
-  # Auto-generate the dispatch version if shared libs are built by recursively calling
-  # add_cppinterop_unittest with the necessary compile definitions
-  # FIXME: Enable for WASM builds
-  if (NOT EMSCRIPTEN AND ARG_ENABLE_DISPATCH AND BUILD_SHARED_LIBS)
-    add_cppinterop_unittest(${name}Dispatch ${ARG_UNPARSED_ARGUMENTS} DispatchTest.cpp)
-    target_compile_definitions(${name}Dispatch PRIVATE
-      ENABLE_DISPATCH_TESTS
-      CPPINTEROP_LIB_PATH="${CMAKE_BINARY_DIR}/lib/libCppInterOp${CMAKE_SHARED_LIBRARY_SUFFIX}"
-    )
-  endif()
 endfunction()
 
 add_subdirectory(CppInterOp)
