@@ -65,7 +65,7 @@ runs:
         else
           # Apply patches
           llvm_vers=$(echo "${{ matrix.clang-runtime }}" | tr '[:lower:]' '[:upper:]')
-          if [[ "${llvm_vers}" == "19" || "${llvm_vers}" == "20" || "${llvm_vers}" == "21"  ]]; then
+          if [[ "${llvm_vers}" == "19" || "${llvm_vers}" == "20" || "${llvm_vers}" == "21" || "${llvm_vers}" == "22" ]]; then
             git apply -v ../patches/llvm/emscripten-clang${{ matrix.clang-runtime }}-*.patch
             echo "Apply emscripten-clang${{ matrix.clang-runtime }}-*.patch patches:"
           fi
