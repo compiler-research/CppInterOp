@@ -87,7 +87,7 @@ jobs:
           - { name: ubu24-x86-clang22-llvm22-asan-ubsan, os: ubuntu-24.04, compiler: clang-22, clang-runtime: '22', sanitizer: "Address;Undefined" }
           - { name: ubu24-x86-gcc12-llvm21-cppyy-vg, os: ubuntu-24.04, compiler: gcc-12, clang-runtime: '21', cppyy: On, Valgrind: On }
           - { name: ubu24-x86-gcc12-llvm22-cppyy, os: ubuntu-24.04, compiler: gcc-12, clang-runtime: '22', cppyy: On }
-          - { name: ubu24-x86-gcc14-cling-llvm20-cppyy, os: ubuntu-24.04, compiler: gcc-14, clang-runtime: '20', cling: On, cppyy: On, root-llvm-tag: &root_llvm_tag 'cling-llvm20-20260119-01' }
+          - { name: ubu24-x86-gcc14-cling-llvm20-cppyy, os: ubuntu-24.04, compiler: gcc-14, clang-runtime: '20', cling: 'On', cppyy: On, root-llvm-tag: &root_llvm_tag 'cling-llvm20-20260119-01' }
           - name: selfh-ubu22-x86-gcc12-llvm22-cuda
             os: [self-hosted, cuda, heavy]
             compiler: gcc-12
@@ -104,7 +104,7 @@ jobs:
           # MacOS Arm
           - { name: osx26-arm-clang-llvm22, os: macos-26, compiler: clang, clang-runtime: '22', llvm_targets_to_build: host }
           - { name: osx26-arm-clang-llvm21-cppyy, os: macos-26, compiler: clang, clang-runtime: '21', cppyy: On, llvm_targets_to_build: host }
-          - { name: osx26-arm-clang-cling-llvm20-cppyy, os: macos-26, compiler: clang, clang-runtime: '20', cling: On, cppyy: On, root-llvm-tag: *root_llvm_tag }
+          - { name: osx26-arm-clang-cling-llvm20-cppyy, os: macos-26, compiler: clang, clang-runtime: '20', cling: 'On', cppyy: On, root-llvm-tag: *root_llvm_tag }
           - name: osx26-arm-clang-llvm20-oop
             os: macos-26
             compiler: clang
@@ -115,11 +115,11 @@ jobs:
             python-version: '3.13'
           # MacOS X86
           - { name: osx26-x86-clang-llvm21-cppyy, os: macos-26-intel, compiler: clang, clang-runtime: '21', cppyy: On, llvm_targets_to_build: host }
-          - { name: osx26-x86-clang-cling-llvm20-cppyy, os: macos-26-intel, compiler: clang, clang-runtime: '20', cling: On, cppyy: On, root-llvm-tag: *root_llvm_tag }
+          - { name: osx26-x86-clang-cling-llvm20-cppyy, os: macos-26-intel, compiler: clang, clang-runtime: '20', cling: 'On', cppyy: On, root-llvm-tag: *root_llvm_tag }
           # Windows
           - { name: win11-msvc-llvm22, os: windows-11-arm, compiler: msvc, clang-runtime: '22' }
           - { name: win2025-msvc-llvm22, os: windows-2025, compiler: msvc, clang-runtime: '22' }
-          - { name: win2025-msvc-cling-llvm20, os: windows-2025, compiler: msvc, clang-runtime: '20', cling: On, root-llvm-tag: *root_llvm_tag }
+          - { name: win2025-msvc-cling-llvm20, os: windows-2025, compiler: msvc, clang-runtime: '20', cling: 'On', root-llvm-tag: *root_llvm_tag }
 
     steps:
     - uses: actions/checkout@v6
