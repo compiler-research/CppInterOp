@@ -13,104 +13,82 @@ runs:
       run: |
         ./emsdk/emsdk activate ${{ env.EMSDK_VER }}
         source ./emsdk/emsdk_env.sh
+
         cling_on=$(echo "${{ matrix.cling }}" | tr '[:lower:]' '[:upper:]')
         if [[ "${cling_on}" == "ON" ]]; then
           git clone https://github.com/root-project/cling.git
-          cd ./cling
-          git checkout tags/v${{ matrix.cling-version }}
-          git apply -v ../patches/llvm/cling1.2-LookupHelper.patch
-          cd ..
+          (cd cling && git checkout tags/v${{ matrix.cling-version }} \
+                    && git apply -v ../patches/llvm/cling1.2-LookupHelper.patch)
           git clone --depth=1 -b cling-llvm${{ matrix.clang-runtime }} https://github.com/root-project/llvm-project.git
-        else # repl
+        else
           git clone --depth=1 -b release/${{ matrix.clang-runtime }}.x https://github.com/llvm/llvm-project.git
         fi
         cd llvm-project
-        # Build
+
+        # Native tblgen bootstrap (host-side llvm-tblgen + clang-tblgen).
         mkdir native_build
-        cd native_build
-        cmake -DLLVM_ENABLE_PROJECTS=clang -DLLVM_TARGETS_TO_BUILD=host -DCMAKE_BUILD_TYPE=Release ../llvm/
-        cmake --build . --target llvm-tblgen clang-tblgen --parallel $(nproc --all)
-        export NATIVE_DIR=$PWD/bin/
-        cd ..
-        mkdir build
-        if [[ "${cling_on}" == "ON" ]]; then
-          cd build
-          emcmake cmake -DLLVM_EXTERNAL_PROJECTS=cling \
-                        -DLLVM_EXTERNAL_CLING_SOURCE_DIR=../../cling  \
-                        -DCMAKE_BUILD_TYPE=Release \
-                        -DLLVM_HOST_TRIPLE=wasm32-unknown-emscripten \
-                        -DLLVM_TARGETS_TO_BUILD="${{ env.LLVM_TARGETS_TO_BUILD }}" \
-                        -DLLVM_ENABLE_LIBEDIT=OFF \
-                        -DLLVM_ENABLE_PROJECTS="${{ env.LLVM_ENABLE_PROJECTS }}" \
-                        -DLLVM_ENABLE_ZSTD=OFF \
-                        -DLLVM_ENABLE_LIBXML2=OFF \
-                        -DCLANG_ENABLE_STATIC_ANALYZER=OFF \
-                        -DCLANG_ENABLE_ARCMT=OFF \
-                        -DCLANG_ENABLE_BOOTSTRAP=OFF \
-                        -DCMAKE_CXX_FLAGS="-Dwait4=__syscall_wait4" \
-                        -DLLVM_INCLUDE_BENCHMARKS=OFF                   \
-                        -DLLVM_INCLUDE_EXAMPLES=OFF                     \
-                        -DLLVM_INCLUDE_TESTS=OFF                        \
-                        -DLLVM_ENABLE_THREADS=OFF                       \
-                        -G Ninja                                         \
-                        -DLLVM_BUILD_TOOLS=OFF                          \
-                        -DLLVM_ENABLE_LIBPFM=OFF                        \
-                        -DCLANG_BUILD_TOOLS=OFF                         \
-                        -DLLVM_NATIVE_TOOL_DIR=$NATIVE_DIR 		\
-                        -DCMAKE_C_FLAGS_RELEASE="-Oz -g0 -DNDEBUG" \
-                        -DCMAKE_CXX_FLAGS_RELEASE="-Oz -g0 -DNDEBUG" \
-                        -DLLVM_ENABLE_LTO=Full \
-                         ../llvm
-          EMCC_CFLAGS="-fwasm-exceptions" emmake ninja clang cling lld gtest_main
-        else
-          # Apply patches
-          llvm_vers=$(echo "${{ matrix.clang-runtime }}" | tr '[:lower:]' '[:upper:]')
-          if [[ "${llvm_vers}" == "19" || "${llvm_vers}" == "20" || "${llvm_vers}" == "21"  ]]; then
-            git apply -v ../patches/llvm/emscripten-clang${{ matrix.clang-runtime }}-*.patch
-            echo "Apply emscripten-clang${{ matrix.clang-runtime }}-*.patch patches:"
+        (cd native_build && \
+            cmake -DLLVM_ENABLE_PROJECTS=clang -DLLVM_TARGETS_TO_BUILD=host -DCMAKE_BUILD_TYPE=Release ../llvm/ && \
+            cmake --build . --target llvm-tblgen clang-tblgen --parallel $(nproc --all))
+        export NATIVE_DIR=$PWD/native_build/bin/
+
+        # Apply repl-only emscripten patches; cling has its own patch flow above.
+        if [[ "${cling_on}" != "ON" ]]; then
+          rt='${{ matrix.clang-runtime }}'
+          if [[ "$rt" =~ ^(19|20|21)$ ]]; then
+            git apply -v ../patches/llvm/emscripten-clang${rt}-*.patch
+            echo "Applied emscripten-clang${rt}-*.patch"
           fi
-          cd build
-          emcmake cmake -DCMAKE_BUILD_TYPE=Release \
-                        -DLLVM_HOST_TRIPLE=wasm32-unknown-emscripten \
-                        -DLLVM_TARGETS_TO_BUILD="${{ env.LLVM_TARGETS_TO_BUILD }}" \
-                        -DLLVM_ENABLE_LIBEDIT=OFF \
-                        -DLLVM_ENABLE_PROJECTS="${{ env.LLVM_ENABLE_PROJECTS }}" \
-                        -DLLVM_ENABLE_ZSTD=OFF \
-                        -DLLVM_ENABLE_LIBXML2=OFF \
-                        -DCLANG_ENABLE_STATIC_ANALYZER=OFF \
-                        -DCLANG_ENABLE_ARCMT=OFF \
-                        -DCLANG_ENABLE_BOOTSTRAP=OFF \
-                        -DCMAKE_CXX_FLAGS="-Dwait4=__syscall_wait4" \
-                        -DLLVM_INCLUDE_BENCHMARKS=OFF                   \
-                        -DLLVM_INCLUDE_EXAMPLES=OFF                     \
-                        -DLLVM_INCLUDE_TESTS=OFF                        \
-                        -DLLVM_ENABLE_THREADS=OFF                       \
-                        -DLLVM_BUILD_TOOLS=OFF                          \
-                        -DLLVM_ENABLE_LIBPFM=OFF                        \
-                        -DCLANG_BUILD_TOOLS=OFF                         \
-                        -G Ninja                                         \
-                        -DLLVM_NATIVE_TOOL_DIR=$NATIVE_DIR 		\
-                        -DCMAKE_C_FLAGS_RELEASE="-Oz -g0 -DNDEBUG" \
-                        -DCMAKE_CXX_FLAGS_RELEASE="-Oz -g0 -DNDEBUG" \
-                        -DLLVM_ENABLE_LTO=Full \
-                        ../llvm
-          EMCC_CFLAGS="-fwasm-exceptions" emmake ninja libclang clangInterpreter clangStaticAnalyzerCore
         fi
-        cd ../
-        rm -rf $(find . -maxdepth 1 ! -name "build" ! -name "llvm" ! -name "clang" ! -name ".")
+
+        common_flags=(
+          -G Ninja
+          -DCMAKE_BUILD_TYPE=Release
+          -DLLVM_HOST_TRIPLE=wasm32-unknown-emscripten
+          -DLLVM_TARGETS_TO_BUILD="${{ env.LLVM_TARGETS_TO_BUILD }}"
+          -DLLVM_ENABLE_PROJECTS="${{ env.LLVM_ENABLE_PROJECTS }}"
+          -DLLVM_NATIVE_TOOL_DIR="$NATIVE_DIR"
+          -DLLVM_ENABLE_LIBEDIT=OFF
+          -DLLVM_ENABLE_ZSTD=OFF
+          -DLLVM_ENABLE_LIBXML2=OFF
+          -DLLVM_ENABLE_LIBPFM=OFF
+          -DLLVM_ENABLE_THREADS=OFF
+          -DLLVM_INCLUDE_BENCHMARKS=OFF
+          -DLLVM_INCLUDE_EXAMPLES=OFF
+          -DLLVM_INCLUDE_TESTS=OFF
+          -DLLVM_BUILD_TOOLS=OFF
+          -DCLANG_BUILD_TOOLS=OFF
+          -DCLANG_ENABLE_STATIC_ANALYZER=OFF
+          -DCLANG_ENABLE_ARCMT=OFF
+          -DCLANG_ENABLE_BOOTSTRAP=OFF
+          -DCMAKE_CXX_FLAGS=-Dwait4=__syscall_wait4
+          "-DCMAKE_C_FLAGS_RELEASE=-Oz -g0 -DNDEBUG"
+          "-DCMAKE_CXX_FLAGS_RELEASE=-Oz -g0 -DNDEBUG"
+          -DLLVM_ENABLE_LTO=Full
+        )
         if [[ "${cling_on}" == "ON" ]]; then
-          cd ./llvm/
-          rm -rf $(find . -maxdepth 1 ! -name "include" ! -name "lib" ! -name "cmake" ! -name "utils" ! -name ".")
-          cd ../clang/
-          rm -rf $(find . -maxdepth 1 ! -name "include" ! -name "lib" ! -name "cmake" ! -name "utils" ! -name ".")
-          cd ../..
-        else # repl
-          cd ./llvm/
-          rm -rf $(find . -maxdepth 1 ! -name "include" ! -name "lib" ! -name "cmake" ! -name ".")
-          cd ../clang/
-          rm -rf $(find . -maxdepth 1 ! -name "include" ! -name "lib" ! -name "cmake" ! -name ".")
-          cd ../..
+          extra_flags=(-DLLVM_EXTERNAL_PROJECTS=cling -DLLVM_EXTERNAL_CLING_SOURCE_DIR=../../cling)
+          targets=(clang cling lld gtest_main)
+        else
+          extra_flags=()
+          targets=(libclang clangInterpreter clangStaticAnalyzerCore)
         fi
+
+        mkdir build && cd build
+        emcmake cmake "${common_flags[@]}" "${extra_flags[@]}" ../llvm
+        EMCC_CFLAGS="-fwasm-exceptions" emmake ninja "${targets[@]}"
+        cd ..
+
+        # Trim source trees so the cache stays small. Cling rows additionally
+        # need llvm/{utils} for runtime tablegen lookups.
+        rm -rf $(find . -maxdepth 1 ! -name "build" ! -name "llvm" ! -name "clang" ! -name ".")
+        keep=('!' -name include '!' -name lib '!' -name cmake '!' -name .)
+        if [[ "${cling_on}" == "ON" ]]; then
+          keep=('!' -name include '!' -name lib '!' -name cmake '!' -name utils '!' -name .)
+        fi
+        for d in llvm clang; do
+          (cd "$d" && rm -rf $(find . -maxdepth 1 "${keep[@]}"))
+        done
 
 
     - name: Build LLVM/Cling on Windows systems if the cache is invalid (emscripten)
@@ -119,132 +97,91 @@ runs:
       run: |
         .\emsdk\emsdk activate ${{ env.EMSDK_VER }}
         .\emsdk\emsdk_env.ps1
-        if ( "${{ matrix.cling }}" -imatch "On" )
-        {
+        $cling_on = "${{ matrix.cling }}" -imatch "On"
+        if ( $cling_on ) {
           git clone https://github.com/root-project/cling.git
-          cd ./cling
+          Push-Location ./cling
           git checkout tags/v${{ matrix.cling-version }}
           git apply -v ../patches/llvm/cling1.2-LookupHelper.patch
-          cd ..
+          Pop-Location
           git clone --depth=1 -b cling-llvm${{ matrix.clang-runtime }} https://github.com/root-project/llvm-project.git
-          $env:PWD_DIR= $PWD.Path
-          $env:CLING_DIR="$env:PWD_DIR\cling"
+          $env:CLING_DIR = Join-Path $PWD.Path "cling"
           echo "CLING_DIR=$env:CLING_DIR"
-        }
-        else
-        {
+        } else {
           git clone --depth=1 -b release/${{ matrix.clang-runtime }}.x https://github.com/llvm/llvm-project.git
         }
 
         cd llvm-project
-        # Build
-        mkdir native_build
-        cd native_build
+
+        # Native tblgen bootstrap (host-side llvm-tblgen + clang-tblgen).
+        mkdir native_build | Out-Null
+        Push-Location native_build
         cmake -DLLVM_ENABLE_PROJECTS=clang -DLLVM_TARGETS_TO_BUILD=host -DCMAKE_BUILD_TYPE=Release -G Ninja ../llvm/
         cmake --build . --target llvm-tblgen clang-tblgen --parallel $(nproc --all)
-        $env:PWD_DIR= $PWD.Path
-        $env:NATIVE_DIR="$env:PWD_DIR/bin/"
+        $env:NATIVE_DIR = Join-Path $PWD.Path "bin"
+        Pop-Location
+
+        # Apply repl-only emscripten patches; cling has its own patch flow above.
+        if ( -not $cling_on ) {
+          $rt = "${{ matrix.clang-runtime }}"
+          if ( $rt -match "^(19|20|21)$" ) {
+            Get-ChildItem -Path "..\patches\llvm" -Filter "emscripten-clang${rt}-*.patch" | ForEach-Object {
+              git apply -v $_.FullName
+            }
+            echo "Applied emscripten-clang${rt}-*.patch"
+          }
+        }
+
+        $common_flags = @(
+          "-G", "Ninja"
+          "-DCMAKE_BUILD_TYPE=Release"
+          "-DLLVM_HOST_TRIPLE=wasm32-unknown-emscripten"
+          "-DLLVM_TARGETS_TO_BUILD=${{ env.LLVM_TARGETS_TO_BUILD }}"
+          "-DLLVM_ENABLE_PROJECTS=${{ env.LLVM_ENABLE_PROJECTS }}"
+          "-DLLVM_NATIVE_TOOL_DIR=$env:NATIVE_DIR"
+          "-DLLVM_ENABLE_LIBEDIT=OFF"
+          "-DLLVM_ENABLE_ZSTD=OFF"
+          "-DLLVM_ENABLE_LIBXML2=OFF"
+          "-DLLVM_ENABLE_LIBPFM=OFF"
+          "-DLLVM_ENABLE_THREADS=OFF"
+          "-DLLVM_INCLUDE_BENCHMARKS=OFF"
+          "-DLLVM_INCLUDE_EXAMPLES=OFF"
+          "-DLLVM_INCLUDE_TESTS=OFF"
+          "-DLLVM_BUILD_TOOLS=OFF"
+          "-DCLANG_BUILD_TOOLS=OFF"
+          "-DCLANG_ENABLE_STATIC_ANALYZER=OFF"
+          "-DCLANG_ENABLE_ARCMT=OFF"
+          "-DCLANG_ENABLE_BOOTSTRAP=OFF"
+          "-DCMAKE_CXX_FLAGS=-Dwait4=__syscall_wait4"
+          "-DCMAKE_C_FLAGS_RELEASE=-Oz -g0 -DNDEBUG"
+          "-DCMAKE_CXX_FLAGS_RELEASE=-Oz -g0 -DNDEBUG"
+          "-DLLVM_ENABLE_LTO=Full"
+        )
+        if ( $cling_on ) {
+          $extra_flags = @("-DLLVM_EXTERNAL_PROJECTS=cling", "-DLLVM_EXTERNAL_CLING_SOURCE_DIR=../../cling")
+          $targets = @("clang", "cling", "lld", "gtest_main")
+        } else {
+          $extra_flags = @()
+          $targets = @("libclang", "clangInterpreter", "clangStaticAnalyzerCore")
+        }
+
+        mkdir build | Out-Null
+        cd build
+        emcmake cmake @common_flags @extra_flags ..\llvm
+        $env:EMCC_CFLAGS = "-fwasm-exceptions"
+        emmake ninja @targets
+        $env:EMCC_CFLAGS = ""
         cd ..
-        mkdir build
-        if ( "${{ matrix.cling }}" -imatch "On" )
-        {
-          cd build
-          emcmake cmake -DLLVM_EXTERNAL_PROJECTS=cling `
-                        -DLLVM_EXTERNAL_CLING_SOURCE_DIR=../../cling  `
-                        -DCMAKE_BUILD_TYPE=Release `
-                        -DLLVM_HOST_TRIPLE=wasm32-unknown-emscripten `
-                        -DLLVM_TARGETS_TO_BUILD="${{ env.LLVM_TARGETS_TO_BUILD }}" `
-                        -DLLVM_ENABLE_LIBEDIT=OFF `
-                        -DLLVM_ENABLE_PROJECTS="${{ env.LLVM_ENABLE_PROJECTS }}" `
-                        -DLLVM_ENABLE_ZSTD=OFF `
-                        -DLLVM_ENABLE_LIBXML2=OFF `
-                        -DCLANG_ENABLE_STATIC_ANALYZER=OFF `
-                        -DCLANG_ENABLE_ARCMT=OFF `
-                        -DCLANG_ENABLE_BOOTSTRAP=OFF `
-                        -DCMAKE_CXX_FLAGS="-Dwait4=__syscall_wait4" `
-                        -DLLVM_INCLUDE_BENCHMARKS=OFF                   `
-                        -DLLVM_INCLUDE_EXAMPLES=OFF                     `
-                        -DLLVM_INCLUDE_TESTS=OFF                        `
-                        -DLLVM_ENABLE_THREADS=OFF                       `
-                        -G Ninja                                         `
-                        -DLLVM_BUILD_TOOLS=OFF                          `
-                        -DLLVM_ENABLE_LIBPFM=OFF                        `
-                        -DCLANG_BUILD_TOOLS=OFF                         `
-                        -DCMAKE_C_FLAGS_RELEASE="-Oz -g0 -DNDEBUG" `
-                        -DCMAKE_CXX_FLAGS_RELEASE="-Oz -g0 -DNDEBUG" `
-                        -DLLVM_ENABLE_LTO=Full `
-                        -DLLVM_NATIVE_TOOL_DIR="$env:NATIVE_DIR" 		    `
-                ..\llvm
-          $env:EMCC_CFLAGS="-fwasm-exceptions"
-          emmake make clang cling lld gtest_main
-          $env:EMCC_CFLAGS=""
-        }
-        else
-        {
-          cp -r ..\patches\llvm\emscripten-clang${{ matrix.clang-runtime }}*
-          #FIXME: Apply patches without hardcoding
-          if ( "${{ matrix.clang-runtime }}" -imatch "19" )
-          {
-            git apply -v emscripten-clang19-2-shift-temporary-files-to-tmp-dir.patch
-            git apply -v emscripten-clang19-3-remove-zdefs.patch
-            git apply -v emscripten-clang19-4-enable_exception_handling.patch
-          }
-          elseif ( "${{ matrix.clang-runtime }}" -imatch "20" )
-          {
-            git apply -v emscripten-clang20-2-shift-temporary-files-to-tmp-dir.patch
-            git apply -v emscripten-clang20-3-enable_exception_handling.patch
-          }
-          elseif ( "${{ matrix.clang-runtime }}" -imatch "21" )
-          {
-            git apply -v emscripten-clang21-1-shift-temporary-files-to-tmp-dir.patch
-            git apply -v emscripten-clang21-2-enable_exception_handling.patch
-            git apply -v emscripten-clang21-3-webassembly_target_machine_reordering.patch
-          }
-          cd build
-          echo "Apply clang${{ matrix.clang-runtime }}-*.patch patches:"
-          emcmake cmake -DCMAKE_BUILD_TYPE=Release `
-                        -DLLVM_HOST_TRIPLE=wasm32-unknown-emscripten `
-                        -DLLVM_TARGETS_TO_BUILD="${{ env.LLVM_TARGETS_TO_BUILD }}" `
-                        -DLLVM_ENABLE_LIBEDIT=OFF `
-                        -DLLVM_ENABLE_PROJECTS="${{ env.LLVM_ENABLE_PROJECTS }}" `
-                        -DLLVM_ENABLE_ZSTD=OFF `
-                        -DLLVM_ENABLE_LIBXML2=OFF `
-                        -DCLANG_ENABLE_STATIC_ANALYZER=OFF `
-                        -DCLANG_ENABLE_ARCMT=OFF `
-                        -DCLANG_ENABLE_BOOTSTRAP=OFF `
-                        -DCMAKE_CXX_FLAGS="-Dwait4=__syscall_wait4" `
-                        -DLLVM_INCLUDE_BENCHMARKS=OFF                   `
-                        -DLLVM_INCLUDE_EXAMPLES=OFF                     `
-                        -DLLVM_INCLUDE_TESTS=OFF                        `
-                        -DLLVM_ENABLE_THREADS=OFF                       `
-                        -DLLVM_BUILD_TOOLS=OFF                          `
-                        -DLLVM_ENABLE_LIBPFM=OFF                        `
-                        -DCLANG_BUILD_TOOLS=OFF                         `
-                        -DCMAKE_C_FLAGS_RELEASE="-Oz -g0 -DNDEBUG" `
-                        -DCMAKE_CXX_FLAGS_RELEASE="-Oz -g0 -DNDEBUG" `
-                        -DLLVM_ENABLE_LTO=Full `
-                        -G Ninja `
-                        -DLLVM_NATIVE_TOOL_DIR="$env:NATIVE_DIR" 		          `
-                        ..\llvm
-          $env:EMCC_CFLAGS="-fwasm-exceptions"
-          emmake ninja libclang clangInterpreter clangStaticAnalyzerCore
-          $env:EMCC_CFLAGS=""
-        }
-        cd ..\
+
+        # Trim source trees so the cache stays small. Cling rows additionally
+        # need llvm/{utils} for runtime tablegen lookups.
         rm -r -force $(find.exe . -maxdepth 1 ! -name "build" ! -name "llvm" ! -name "clang" ! -name ".")
-        if ( "${{ matrix.cling }}" -imatch "On" )
-        {
-          cd .\llvm\
-          rm -r -force $(find.exe . -maxdepth 1 ! -name "include" ! -name "lib" ! -name "cmake" ! -name "utils" ! -name ".")
-          cd ..\clang\
-          rm -r -force $(find.exe . -maxdepth 1 ! -name "include" ! -name "lib" ! -name "cmake" ! -name "utils" ! -name ".")
-          cd ..\..
+        $keep = @("!", "-name", "include", "!", "-name", "lib", "!", "-name", "cmake", "!", "-name", ".")
+        if ( $cling_on ) {
+          $keep = @("!", "-name", "include", "!", "-name", "lib", "!", "-name", "cmake", "!", "-name", "utils", "!", "-name", ".")
         }
-        else
-        {
-          cd .\llvm\
-          rm -r -force $(find.exe . -maxdepth 1 ! -name "include" ! -name "lib" ! -name "cmake" ! -name ".")
-          cd ..\clang\
-          rm -r -force $(find.exe . -maxdepth 1 ! -name "include" ! -name "lib" ! -name "cmake"  ! -name ".")
-          cd ..\..
+        foreach ($d in @("llvm", "clang")) {
+          Push-Location $d
+          rm -r -force $(find.exe . -maxdepth 1 @keep)
+          Pop-Location
         }
