@@ -30,16 +30,17 @@ runs:
       if: runner.os == 'Linux' && runner.environment != 'self-hosted'
       shell: bash
       run: |
-        # Install deps
+        # Install deps. -y is required on environments without an
+        # `Assume-Yes` apt config (e.g. nektos/act runners).
         sudo apt-get update
-        sudo apt-get install valgrind ninja-build
-        sudo apt-get install git g++ debhelper devscripts gnupg python3 doxygen graphviz python3-sphinx
+        sudo apt-get install -y valgrind ninja-build
+        sudo apt-get install -y git g++ debhelper devscripts gnupg python3 doxygen graphviz python3-sphinx
         sudo apt-get install -y libc6-dbg
-        sudo apt autoremove
-        sudo apt clean
+        sudo apt-get autoremove -y
+        sudo apt-get clean
         # Install libraries used by the cppyy test suite
-        sudo apt install libeigen3-dev
-        sudo apt install libboost-all-dev
+        sudo apt-get install -y libeigen3-dev
+        sudo apt-get install -y libboost-all-dev
 
 
     - name: Install dependencies on Windows
