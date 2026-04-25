@@ -236,7 +236,7 @@ On Windows:
 
    mkdir native_cppinterop_build
    cd native_cppinterop_build
-   cmake -DCMAKE_BUILD_TYPE=Release `
+   cmake -G Ninja -DCMAKE_BUILD_TYPE=Release `
          -DLLVM_DIR="$env:NATIVE_LLVM_BUILD_DIR\lib\cmake\llvm" `
 	     -DCMAKE_CXX_STANDARD=17 `
          -DCPPINTEROP_BUILD_TABLEGEN_ONLY=ON `
