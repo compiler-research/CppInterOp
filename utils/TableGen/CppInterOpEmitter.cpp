@@ -24,7 +24,9 @@
 //===----------------------------------------------------------------------===//
 
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/ADT/Twine.h"
 #include "llvm/Support/raw_ostream.h"
 #include "llvm/TableGen/Record.h"
 
@@ -47,7 +49,17 @@ struct APIRecord {
   StringRef DispatchName;
   StringRef ReturnType;
   StringRef Doc;
+  bool NoCWrapper = false;
   std::vector<ArgInfo> Args;
+};
+
+/// C type mapping entry, read from CTypeMap records in the .td file.
+struct CTypeMapEntry {
+  std::string CType;
+  std::string ArgConversion;  // "$name" placeholder for the arg name
+  std::string RetConversion;  // "$result" placeholder for the return expr
+  std::string CollectionKind; // "return", "outparam", "inparam", or ""
+  std::string ElementCType;   // C element type for collections
 };
 
 std::vector<APIRecord> collectAPIs(const RecordKeeper& Records) {
@@ -59,6 +71,7 @@ std::vector<APIRecord> collectAPIs(const RecordKeeper& Records) {
     R.DispatchName = Rec->getValueAsString("DispatchName");
     R.ReturnType = Rec->getValueAsString("ReturnType");
     R.Doc = Rec->getValueAsString("Doc");
+    R.NoCWrapper = Rec->getValueAsBit("NoCWrapper");
     for (const auto* ArgRec : Rec->getValueAsListOfDefs("Args")) {
       ArgInfo A;
       A.Type = ArgRec->getValueAsString("Type");
@@ -69,6 +82,22 @@ std::vector<APIRecord> collectAPIs(const RecordKeeper& Records) {
     APIs.push_back(std::move(R));
   }
   return APIs;
+}
+
+/// Build the C++ → C type map from CTypeMap records in the .td file.
+StringMap<CTypeMapEntry> collectCTypeMaps(const RecordKeeper& Records) {
+  StringMap<CTypeMapEntry> Map;
+  for (const auto* Rec : Records.getAllDerivedDefinitions("CTypeMap")) {
+    CTypeMapEntry E;
+    StringRef CppType = Rec->getValueAsString("CppType");
+    E.CType = Rec->getValueAsString("CType").str();
+    E.ArgConversion = Rec->getValueAsString("ArgConversion").str();
+    E.RetConversion = Rec->getValueAsString("RetConversion").str();
+    E.CollectionKind = Rec->getValueAsString("CollectionKind").str();
+    E.ElementCType = Rec->getValueAsString("ElementCType").str();
+    Map[CppType] = std::move(E);
+  }
+  return Map;
 }
 
 } // end anonymous namespace
@@ -154,4 +183,324 @@ void EmitCppInterOpDecl(const RecordKeeper& Records, raw_ostream& OS) {
     }
     OS << ");\n\n";
   }
+}
+
+// The prefix for all generated C API functions. Change here to rename the
+// entire C API surface (e.g. "cppinterop_" -> "CppInterOp_").
+static constexpr const char* CAPIPrefix = "cppinterop_";
+
+/// Replace all occurrences of \p Placeholder with \p Value in \p Pattern.
+static std::string substPlaceholder(StringRef Pattern, StringRef Placeholder,
+                                    StringRef Value) {
+  std::string Result;
+  size_t Pos = 0;
+  while (true) {
+    size_t Found = Pattern.find(Placeholder, Pos);
+    if (Found == StringRef::npos) {
+      Result += Pattern.substr(Pos);
+      break;
+    }
+    Result += Pattern.substr(Pos, Found - Pos);
+    Result += Value;
+    Pos = Found + Placeholder.size();
+  }
+  return Result;
+}
+
+/// Returns true if all types in the function are in the CTypeMap.
+/// If not, and the function is not marked NoCWrapper, emits a warning.
+static bool canGenerateCWrapper(const APIRecord& R,
+                                const StringMap<CTypeMapEntry>& TypeMap,
+                                raw_ostream& Warnings) {
+  if (R.NoCWrapper)
+    return false;
+
+  bool Mappable = true;
+  if (!TypeMap.count(R.ReturnType)) {
+    Warnings << "// WARNING: " << R.CppName
+             << " has no C wrapper — unmappable return type: " << R.ReturnType
+             << ". Add a CTypeMap record or set NoCWrapper = true.\n";
+    Mappable = false;
+  }
+  for (const auto& A : R.Args) {
+    if (!TypeMap.count(A.Type)) {
+      Warnings << "// WARNING: " << R.CppName
+               << " has no C wrapper — unmappable arg type: " << A.Type << " "
+               << A.Name
+               << ". Add a CTypeMap record or set NoCWrapper = true.\n";
+      Mappable = false;
+      break;
+    }
+  }
+  return Mappable;
+}
+
+/// Emit the doxygen comment block for a function.
+static void emitDoxygen(const APIRecord& R, raw_ostream& OS) {
+  if (R.Doc.empty())
+    return;
+  SmallVector<StringRef, 4> Lines;
+  R.Doc.split(Lines, '\n');
+  OS << "/**\n";
+  for (const auto& Line : Lines) {
+    StringRef Trimmed = Line.ltrim();
+    if (Trimmed.empty())
+      OS << " *\n";
+    else
+      OS << " * " << Trimmed << "\n";
+  }
+  OS << " */\n";
+}
+
+/// Determine the C++ container type for a tmp variable from the CTypeMap
+/// CppType string. Strips trailing '&' from out-param types.
+/// E.g. "std::vector<TCppScope_t>&" → "std::vector<void*>".
+static std::string getCppTmpType(StringRef CppType, StringRef ElemCType) {
+  // Strip trailing '&' for out-params.
+  StringRef Base = CppType.rtrim('&').rtrim();
+  // Extract the container template: "std::vector" or "std::set".
+  size_t Open = Base.find('<');
+  if (Open == StringRef::npos)
+    return Base.str();
+  StringRef Container = Base.substr(0, Open);
+
+  // Map C element type back to C++ element type for the container.
+  std::string CppElem;
+  if (ElemCType == "char*")
+    CppElem = "std::string";
+  else
+    CppElem = ElemCType.str();
+
+  return (Container + "<" + CppElem + ">").str();
+}
+
+/// Emit code to convert a C++ collection (vector or set) into a
+/// CppInterOpArray or CppInterOpStringArray. \p VarName is the C++ variable
+/// holding the collection, \p Entry is the CTypeMap entry.
+static void emitCollectionToArray(StringRef VarName, const CTypeMapEntry& Entry,
+                                  raw_ostream& OS) {
+  StringRef ElemC = Entry.ElementCType;
+  OS << "  " << Entry.CType << " _arr = {nullptr, " << VarName << ".size()};\n";
+  OS << "  if (_arr.size) {\n";
+  if (ElemC == "char*") {
+    // String elements: strdup each.
+    OS << "    _arr.data = static_cast<char**>(malloc(_arr.size * "
+          "sizeof(char*)));\n";
+    OS << "    size_t _i = 0;\n";
+    OS << "    for (const auto& _s : " << VarName << ")\n";
+    OS << "      _arr.data[_i++] = strdup(_s.c_str());\n";
+  } else {
+    // POD elements: memcpy from contiguous storage (vectors only).
+    OS << "    _arr.data = static_cast<void**>(malloc(_arr.size * sizeof("
+       << ElemC << ")));\n";
+    OS << "    memcpy(_arr.data, " << VarName << ".data(), _arr.size * sizeof("
+       << ElemC << "));\n";
+  }
+  OS << "  }\n";
+}
+
+/// Shared analysis: determine C return type, C decl args, and C++ call args
+/// for a single API function. Returns false if the function should be skipped.
+static bool
+analyzeCWrapper(const APIRecord& R, const StringMap<CTypeMapEntry>& TypeMap,
+                std::string& CRetStr, std::string& CFuncName,
+                std::string& CDeclArgs, std::string& CCallArgs,
+                const CTypeMapEntry*& OutParamEntry, int& OutParamIdx,
+                const CTypeMapEntry*& RetCollEntry, raw_ostream& Warnings) {
+  OutParamEntry = nullptr;
+  RetCollEntry = nullptr;
+  OutParamIdx = -1;
+
+  // Check return type for collection.
+  auto RetIt = TypeMap.find(R.ReturnType);
+  if (RetIt != TypeMap.end() && RetIt->second.CollectionKind == "return")
+    RetCollEntry = &RetIt->second;
+
+  // Check args for collection types.
+  for (size_t I = 0; I < R.Args.size(); ++I) {
+    auto It = TypeMap.find(R.Args[I].Type);
+    if (It == TypeMap.end() || It->second.CollectionKind.empty())
+      continue;
+    if (It->second.CollectionKind == "outparam") {
+      OutParamEntry = &It->second;
+      OutParamIdx = static_cast<int>(I);
+    }
+  }
+
+  // Skip functions with both a non-void return AND an outparam collection.
+  if (OutParamEntry && R.ReturnType != "void") {
+    Warnings << "// WARNING: " << R.CppName
+             << " has no C wrapper — has both return value and collection "
+                "outparam. Needs manual wrapping.\n";
+    return false;
+  }
+
+  // Determine C return type.
+  if (OutParamEntry)
+    CRetStr = OutParamEntry->CType;
+  else if (RetCollEntry)
+    CRetStr = RetCollEntry->CType;
+  else
+    CRetStr = TypeMap.find(R.ReturnType)->second.CType;
+
+  CFuncName = (llvm::Twine(CAPIPrefix) + R.DispatchName).str();
+
+  // Build C declaration args and C++ call args.
+  llvm::raw_string_ostream DA(CDeclArgs);
+  llvm::raw_string_ostream CA(CCallArgs);
+  bool FirstDA = true;
+  bool FirstCA = true;
+
+  for (size_t I = 0; I < R.Args.size(); ++I) {
+    const auto& ArgEntry = TypeMap.find(R.Args[I].Type)->second;
+
+    if (ArgEntry.CollectionKind == "outparam") {
+      if (!FirstCA)
+        CA << ", ";
+      FirstCA = false;
+      CA << "_out";
+      continue;
+    }
+
+    if (ArgEntry.CollectionKind == "inparam") {
+      if (!FirstDA)
+        DA << ", ";
+      FirstDA = false;
+      DA << ArgEntry.CType << " " << R.Args[I].Name << "_data, size_t "
+         << R.Args[I].Name << "_size";
+      if (!FirstCA)
+        CA << ", ";
+      FirstCA = false;
+      CA << "{" << R.Args[I].Name << "_data, " << R.Args[I].Name << "_data + "
+         << R.Args[I].Name << "_size}";
+      continue;
+    }
+
+    if (!FirstDA)
+      DA << ", ";
+    FirstDA = false;
+    DA << ArgEntry.CType << " " << R.Args[I].Name;
+    if (!FirstCA)
+      CA << ", ";
+    FirstCA = false;
+    if (!ArgEntry.ArgConversion.empty())
+      CA << substPlaceholder(ArgEntry.ArgConversion, "$name", R.Args[I].Name);
+    else
+      CA << R.Args[I].Name;
+  }
+
+  return true;
+}
+
+void EmitCXCppInterOpDecl(const RecordKeeper& Records, raw_ostream& OS) {
+  OS << "// Auto-generated by cppinterop-tblgen. Do not edit.\n";
+  OS << "// C API declarations that forward to the Cpp:: C++ API.\n";
+  OS << "// Prefix: " << CAPIPrefix << "\n\n";
+  // In C++ mode, the C-compatible structs live inside namespace CppImpl.
+  // Pull them into the enclosing scope so extern "C" signatures compile.
+  OS << "#ifdef __cplusplus\n";
+  OS << "using Cpp::CppInterOpArray;\n";
+  OS << "using Cpp::CppInterOpStringArray;\n";
+  OS << "using Cpp::TemplateArgInfo;\n";
+  OS << "#endif\n\n";
+
+  auto TypeMap = collectCTypeMaps(Records);
+  std::string WarningStr;
+  llvm::raw_string_ostream Warnings(WarningStr);
+
+  for (const auto& R : collectAPIs(Records)) {
+    if (!canGenerateCWrapper(R, TypeMap, Warnings))
+      continue;
+
+    std::string CRetStr, CFuncName, CDeclArgs, CCallArgs;
+    const CTypeMapEntry *OutParamEntry, *RetCollEntry;
+    int OutParamIdx;
+    if (!analyzeCWrapper(R, TypeMap, CRetStr, CFuncName, CDeclArgs, CCallArgs,
+                         OutParamEntry, OutParamIdx, RetCollEntry, Warnings))
+      continue;
+
+    emitDoxygen(R, OS);
+    OS << "CPPINTEROP_API " << CRetStr << " " << CFuncName << "(" << CDeclArgs
+       << ");\n\n";
+  }
+
+  // Dispose functions.
+  OS << "/// Free a CppInterOpArray returned by a C API wrapper.\n";
+  OS << "CPPINTEROP_API void " << CAPIPrefix
+     << "DisposeArray(CppInterOpArray arr);\n";
+  OS << "/// Free a CppInterOpStringArray and all its strings.\n";
+  OS << "CPPINTEROP_API void " << CAPIPrefix
+     << "DisposeStringArray(CppInterOpStringArray arr);\n";
+
+  if (!WarningStr.empty()) {
+    OS << "\n// === Functions without C wrappers (unmappable types) ===\n";
+    OS << WarningStr;
+  }
+}
+
+void EmitCXCppInterOpImpl(const RecordKeeper& Records, raw_ostream& OS) {
+  OS << "// Auto-generated by cppinterop-tblgen. Do not edit.\n";
+  OS << "// C API implementations that forward to the Cpp:: C++ API.\n";
+  OS << "// Prefix: " << CAPIPrefix << "\n\n";
+
+  auto TypeMap = collectCTypeMaps(Records);
+  std::string WarningStr;
+  llvm::raw_string_ostream Warnings(WarningStr);
+
+  for (const auto& R : collectAPIs(Records)) {
+    if (!canGenerateCWrapper(R, TypeMap, Warnings))
+      continue;
+
+    std::string CRetStr, CFuncName, CDeclArgs, CCallArgs;
+    const CTypeMapEntry *OutParamEntry, *RetCollEntry;
+    int OutParamIdx;
+    if (!analyzeCWrapper(R, TypeMap, CRetStr, CFuncName, CDeclArgs, CCallArgs,
+                         OutParamEntry, OutParamIdx, RetCollEntry, Warnings))
+      continue;
+
+    OS << "CPPINTEROP_API " << CRetStr << " " << CFuncName << "(" << CDeclArgs
+       << ") {\n";
+
+    if (OutParamEntry) {
+      std::string TmpType =
+          getCppTmpType(R.Args[OutParamIdx].Type, OutParamEntry->ElementCType);
+      OS << "  " << TmpType << " _out;\n";
+      OS << "  Cpp::" << R.CppName << "(" << CCallArgs << ");\n";
+      emitCollectionToArray("_out", *OutParamEntry, OS);
+      OS << "  return _arr;\n";
+    } else if (RetCollEntry) {
+      OS << "  auto _out = Cpp::" << R.CppName << "(" << CCallArgs << ");\n";
+      emitCollectionToArray("_out", *RetCollEntry, OS);
+      OS << "  return _arr;\n";
+    } else {
+      const auto& RetEntry = TypeMap.find(R.ReturnType)->second;
+      bool HasRetConv = !RetEntry.RetConversion.empty();
+
+      if (R.ReturnType == "void") {
+        OS << "  Cpp::" << R.CppName << "(" << CCallArgs << ");\n";
+      } else if (HasRetConv) {
+        std::string CallExpr =
+            ("Cpp::" + R.CppName + "(" + CCallArgs + ")").str();
+        OS << "  return "
+           << substPlaceholder(RetEntry.RetConversion, "$result", CallExpr)
+           << ";\n";
+      } else {
+        OS << "  return Cpp::" << R.CppName << "(" << CCallArgs << ");\n";
+      }
+    }
+
+    OS << "}\n\n";
+  }
+
+  // Dispose functions.
+  OS << "CPPINTEROP_API void " << CAPIPrefix
+     << "DisposeArray(CppInterOpArray arr) {\n";
+  OS << "  free(arr.data);\n";
+  OS << "}\n\n";
+  OS << "CPPINTEROP_API void " << CAPIPrefix
+     << "DisposeStringArray(CppInterOpStringArray arr) {\n";
+  OS << "  for (size_t _i = 0; _i < arr.size; ++_i)\n";
+  OS << "    free(arr.data[_i]);\n";
+  OS << "  free(arr.data);\n";
+  OS << "}\n";
 }

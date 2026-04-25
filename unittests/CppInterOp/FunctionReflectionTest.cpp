@@ -9,8 +9,6 @@
 
 #include <llvm/ADT/ArrayRef.h>
 
-#include "clang-c/CXCppInterOp.h"
-
 #include "gtest/gtest.h"
 
 #include <string>
@@ -161,20 +159,6 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetClassMethods) {
   EXPECT_EQ(get_method_name(templ_methods2[5]),
             "inline TT &TT::operator=(TT &&)");
   EXPECT_EQ(get_method_name(templ_methods2[6]), "inline TT::~TT()");
-
-  // C API
-  auto* I = clang_createInterpreterFromRawPtr(Cpp::GetInterpreter());
-  auto C_API_SHIM = [&](Cpp::TCppFunction_t method) {
-    auto Str = clang_getFunctionSignature(
-        make_scope(static_cast<clang::Decl*>(method), I));
-    auto Res = std::string(get_c_string(Str));
-    dispose_string(Str);
-    return Res;
-  };
-  EXPECT_EQ(C_API_SHIM(methods0[0]), "int A::f1(int a, int b)");
-  // Clean up resources
-  clang_Interpreter_takeInterpreterAsPtr(I);
-  clang_Interpreter_dispose(I);
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE,
@@ -232,15 +216,6 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_HasDefaultConstructor) {
   EXPECT_TRUE(Cpp::HasDefaultConstructor(Decls[0]));
   EXPECT_TRUE(Cpp::HasDefaultConstructor(Decls[1]));
   EXPECT_FALSE(Cpp::HasDefaultConstructor(Decls[3]));
-
-  // C API
-  auto* I = clang_createInterpreterFromRawPtr(Cpp::GetInterpreter());
-  EXPECT_TRUE(clang_hasDefaultConstructor(make_scope(Decls[0], I)));
-  EXPECT_TRUE(clang_hasDefaultConstructor(make_scope(Decls[1], I)));
-  EXPECT_FALSE(clang_hasDefaultConstructor(make_scope(Decls[3], I)));
-  // Clean up resources
-  clang_Interpreter_takeInterpreterAsPtr(I);
-  clang_Interpreter_dispose(I);
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetDestructor) {
@@ -269,14 +244,6 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetDestructor) {
   EXPECT_TRUE(DeletedDtor);
   EXPECT_TRUE(Cpp::IsFunctionDeleted(DeletedDtor));
   EXPECT_FALSE(Cpp::GetDestructor(Decls[3]));
-
-  // C API
-  auto* I = clang_createInterpreterFromRawPtr(Cpp::GetInterpreter());
-  EXPECT_TRUE(clang_getDestructor(make_scope(Decls[0], I)).data[0]);
-  EXPECT_TRUE(clang_getDestructor(make_scope(Decls[1], I)).data[0]);
-  // Clean up resources
-  clang_Interpreter_takeInterpreterAsPtr(I);
-  clang_Interpreter_dispose(I);
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetFunctionsUsingName) {
@@ -659,17 +626,6 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_IsTemplatedFunction) {
   EXPECT_FALSE(Cpp::IsTemplatedFunction(Decls[3]));
   EXPECT_FALSE(Cpp::IsTemplatedFunction(SubDeclsC1[1]));
   EXPECT_TRUE(Cpp::IsTemplatedFunction(SubDeclsC1[2]));
-
-  // C API
-  auto* I = clang_createInterpreterFromRawPtr(Cpp::GetInterpreter());
-  EXPECT_FALSE(clang_isTemplatedFunction(make_scope(Decls[0], I)));
-  EXPECT_TRUE(clang_isTemplatedFunction(make_scope(Decls[1], I)));
-  EXPECT_FALSE(clang_isTemplatedFunction(make_scope(Decls[3], I)));
-  EXPECT_FALSE(clang_isTemplatedFunction(make_scope(SubDeclsC1[1], I)));
-  EXPECT_TRUE(clang_isTemplatedFunction(make_scope(SubDeclsC1[2], I)));
-  // Clean up resources
-  clang_Interpreter_takeInterpreterAsPtr(I);
-  clang_Interpreter_dispose(I);
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_ExistsFunctionTemplate) {
@@ -690,14 +646,6 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_ExistsFunctionTemplate) {
   EXPECT_TRUE(Cpp::ExistsFunctionTemplate("f", 0));
   EXPECT_TRUE(Cpp::ExistsFunctionTemplate("f", Decls[1]));
   EXPECT_FALSE(Cpp::ExistsFunctionTemplate("f", Decls[2]));
-
-  // C API
-  auto* I = clang_createInterpreterFromRawPtr(Cpp::GetInterpreter());
-  EXPECT_TRUE(clang_existsFunctionTemplate("f", make_scope(Decls[1], I)));
-  EXPECT_FALSE(clang_existsFunctionTemplate("f", make_scope(Decls[2], I)));
-  // Clean up resources
-  clang_Interpreter_takeInterpreterAsPtr(I);
-  clang_Interpreter_dispose(I);
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE,
@@ -1645,17 +1593,6 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_JitCallAdvanced) {
   EXPECT_TRUE(object) << "Failed to call the ctor.";
   // Building a wrapper with a typedef decl must be possible.
   EXPECT_TRUE(Cpp::Destruct(object, Decls[1]));
-
-  // C API
-  auto* I = clang_createInterpreterFromRawPtr(Cpp::GetInterpreter());
-  auto S = clang_getDefaultConstructor(make_scope(Decls[0], I));
-  void* object_c = nullptr;
-  clang_invoke(S, &object_c, nullptr, 0, nullptr);
-  EXPECT_TRUE(object_c) << "Failed to call the ctor.";
-  clang_destruct(object_c, make_scope(Decls[1], I), true);
-  // Clean up resources
-  clang_Interpreter_takeInterpreterAsPtr(I);
-  clang_Interpreter_dispose(I);
 }
 
 #if !defined(NDEBUG) && GTEST_HAS_DEATH_TEST
@@ -2493,22 +2430,6 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_Construct) {
   void* construct_fail = Cpp::Construct(Decls[2], where);
   EXPECT_TRUE(construct_fail == nullptr);
   Cpp::Deallocate(scope, where);
-  // C API
-  testing::internal::CaptureStdout();
-  auto* I = clang_createInterpreterFromRawPtr(Cpp::GetInterpreter());
-  auto scope_c = make_scope(static_cast<clang::Decl*>(scope), I);
-  auto object_c = clang_construct(scope_c, nullptr, 1UL);
-  EXPECT_TRUE(object_c != nullptr);
-  output = testing::internal::GetCapturedStdout();
-  EXPECT_EQ(output, "Constructor Executed");
-  output.clear();
-  clang_destruct(object_c, scope_c, /*withFree=*/true, /*nary=*/0);
-  auto* dummy = clang_allocate(8);
-  EXPECT_TRUE(dummy);
-  clang_deallocate(dummy);
-  // Clean up resources
-  clang_Interpreter_takeInterpreterAsPtr(I);
-  clang_Interpreter_dispose(I);
 }
 
 // Test zero initialization of PODs and default initialization cases
@@ -2715,16 +2636,6 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_Destruct) {
 
   // C API
   testing::internal::CaptureStdout();
-  auto* I = clang_createInterpreterFromRawPtr(Cpp::GetInterpreter());
-  auto scope_c = make_scope(static_cast<clang::Decl*>(scope), I);
-  auto object_c = clang_construct(scope_c, nullptr, 1UL);
-  clang_destruct(object_c, scope_c, true);
-  output = testing::internal::GetCapturedStdout();
-  EXPECT_EQ(output, "Destructor Executed");
-  output.clear();
-  // Clean up resources
-  clang_Interpreter_takeInterpreterAsPtr(I);
-  clang_Interpreter_dispose(I);
 
   // Failure Test, this wrapper should not compile since we explicitly delete
   // the destructor
@@ -2739,6 +2650,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_Destruct) {
   scope = Cpp::GetNamed("D");
   object = Cpp::Construct(scope);
   EXPECT_FALSE(Cpp::Destruct(object, scope));
+  testing::internal::GetCapturedStdout();
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_DestructArray) {

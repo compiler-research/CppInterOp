@@ -15,13 +15,6 @@
 #ifndef CPPINTEROP_CPPINTEROPTYPES_H
 #define CPPINTEROP_CPPINTEROPTYPES_H
 
-#include <cassert>
-#include <cstddef>
-#include <cstdint>
-#include <set>
-#include <string>
-#include <vector>
-
 // The cross-platform CPPINTEROP_API macro definition
 #if defined _WIN32 || defined __CYGWIN__
 #define CPPINTEROP_API __declspec(dllexport)
@@ -33,7 +26,52 @@
 #endif
 #endif
 
+// C-compatible headers — usable from both C and C++.
+#include <stdbool.h>
+#include <stddef.h>
+#include <stdint.h>
+
+#ifdef __cplusplus
+#include <cassert>
+#include <cstddef>
+#include <cstdint>
+#include <set>
+#include <string>
+#include <vector>
+
 namespace CppImpl {
+#endif // __cplusplus
+
+/// C-compatible array of opaque pointers, returned by generated C API
+/// wrappers for functions that produce collections. The caller must free
+/// the array by calling cppinterop_DisposeArray().
+typedef struct CppInterOpArray {
+  void** data;
+  size_t size;
+} CppInterOpArray;
+
+/// C-compatible array of strings, returned by generated C API wrappers
+/// for functions that produce string collections. Each string is
+/// individually allocated with strdup(). The caller must free the array
+/// by calling cppinterop_DisposeStringArray().
+typedef struct CppInterOpStringArray {
+  char** data;
+  size_t size;
+} CppInterOpStringArray;
+
+/// Holds information for instantiating a template.
+/// Standard-layout, C-compatible.
+typedef struct TemplateArgInfo {
+  void* m_Type;
+  const char* m_IntegralValue;
+#ifdef __cplusplus
+  TemplateArgInfo(void* type, const char* integral_value = nullptr)
+      : m_Type(type), m_IntegralValue(integral_value) {}
+#endif
+} TemplateArgInfo;
+
+#ifdef __cplusplus
+
 using TCppIndex_t = size_t;
 using TCppScope_t = void*;
 using TCppConstScope_t = const void*;
@@ -325,14 +363,6 @@ public:
   }
 };
 
-/// Holds information for instantiating a template.
-struct TemplateArgInfo {
-  TCppType_t m_Type;
-  const char* m_IntegralValue;
-  TemplateArgInfo(TCppScope_t type, const char* integral_value = nullptr)
-      : m_Type(type), m_IntegralValue(integral_value) {}
-};
-
 // FIXME: Rework GetDimensions to make this enum redundant.
 namespace DimensionValue {
 enum : long int {
@@ -352,4 +382,5 @@ enum CaptureStreamKind : char {
 
 } // namespace CppImpl
 
+#endif // __cplusplus
 #endif // CPPINTEROP_CPPINTEROPTYPES_H

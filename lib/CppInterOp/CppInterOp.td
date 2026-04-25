@@ -941,7 +941,8 @@ def IsConstVariable : CppInterOpAPI {
 
 def GetDimensions : CppInterOpAPI {
   let Doc = "Gets the size/dimensions of a multi-dimension array.";
-
+  // FIXME: Rework to use a C-compatible array type.
+  let NoCWrapper = true;
   let ReturnType = "std::vector<long int>";
   let Args = [
     Arg<"TCppType_t", "type">
@@ -1127,6 +1128,8 @@ def GetClassTemplateInstantiationArgs : CppInterOpAPI {
   let Doc = [{Sets the class template instantiation arguments of \c templ_instance.
 \param[in] templ_instance Pointer to the template instance.
 \param[out] args Vector of instantiation arguments.}];
+  // FIXME: Needs a dedicated array type — TemplateArgInfo is not pointer-sized.
+  let NoCWrapper = true;
   let ReturnType = "void";
   let Args = [
     Arg<"TCppScope_t", "templ_instance">,
@@ -1137,6 +1140,8 @@ def GetClassTemplateInstantiationArgs : CppInterOpAPI {
 def GetClassTemplatedMethods : CppInterOpAPI {
   let Doc = [{Sets a list of all the Templated Methods that are in the Class
 that is supplied as a parameter.}];
+  // Hand-written C wrapper: bool return dropped, caller checks arr.size.
+  let NoCWrapper = true;
   let ReturnType = "bool";
   let Args = [
     Arg<"const std::string&", "name">,
@@ -1376,6 +1381,8 @@ def MakeFunctionCallable_interp : CppInterOpAPI {
   let CppName = "MakeFunctionCallable";
   let Doc = [{Creates a trampoline function using a specific interpreter and returns
 a uniform interface to call it from compiled code.}];
+  // JitCall is a C++ class; no mechanical C mapping.
+  let NoCWrapper = true;
   let ReturnType = "JitCall";
   let Args = [
     Arg<"TInterp_t", "I">,
@@ -1418,6 +1425,8 @@ meant to be called before any other API calls.}];
 def MakeFunctionCallable : CppInterOpAPI {
   let Doc = [{Creates a trampoline function by using the interpreter and returns a
 uniform interface to call it from compiled code.}];
+  // JitCall is a C++ class; no mechanical C mapping.
+  let NoCWrapper = true;
   let ReturnType = "JitCall";
   let Args = [Arg<"TCppConstFunction_t", "func">];
 }

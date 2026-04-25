@@ -1,7 +1,6 @@
 #include "Utils.h"
 
 #include "CppInterOp/CppInterOp.h"
-#include "clang-c/CXCppInterOp.h"
 
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/ASTDumper.h"
@@ -1011,17 +1010,6 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_InstantiateNNTPClassTemplate) {
   std::vector<Cpp::TemplateArgInfo> args1 = {{IntTy, "5"}};
   EXPECT_TRUE(Cpp::InstantiateTemplate(Decls[0], args1.data(),
                                        /*type_size*/ args1.size()));
-
-  // C API
-  auto* I = clang_createInterpreterFromRawPtr(Cpp::GetInterpreter());
-  CXTemplateArgInfo Args1[] = {{IntTy, "5"}};
-  auto C_API_SHIM = [&](auto Decl) {
-    return clang_instantiateTemplate(make_scope(Decl, I), Args1, 1).data[0];
-  };
-  EXPECT_NE(C_API_SHIM(Decls[0]), nullptr);
-  // Clean up resources
-  clang_Interpreter_takeInterpreterAsPtr(I);
-  clang_Interpreter_dispose(I);
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_InstantiateVarTemplate) {

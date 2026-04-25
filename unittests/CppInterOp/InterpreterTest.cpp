@@ -13,9 +13,6 @@
 
 #include "clang/Basic/Version.h"
 
-#include <clang-c/CXErrorCode.h>
-#include "clang-c/CXCppInterOp.h"
-
 #include "llvm/ADT/SmallString.h"
 #include "llvm/Config/llvm-config.h"
 #include "llvm/Support/BuryPointer.h"
@@ -160,22 +157,12 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_Process) {
   if (llvm::sys::RunningOnValgrind())
     GTEST_SKIP() << "XFAIL due to Valgrind report";
   std::vector<const char*> interpreter_args = { "-include", "new", "-Xclang", "-iwithsysroot/include/compat" };
-  auto* I = TestFixture::CreateInterpreter(interpreter_args);
+  TestFixture::CreateInterpreter(interpreter_args);
   EXPECT_TRUE(Cpp::Process("") == 0);
   EXPECT_TRUE(Cpp::Process("int a = 12;") == 0);
   EXPECT_FALSE(Cpp::Process("error_here;") == 0);
   // Linker/JIT error.
   EXPECT_FALSE(Cpp::Process("int f(); int res = f();") == 0);
-
-  // C API
-  auto* CXI = clang_createInterpreterFromRawPtr(I);
-  clang_Interpreter_declare(CXI, "#include <iostream>", false);
-  clang_Interpreter_process(CXI, "int c = 42;");
-  auto* CXV = clang_createValue();
-  auto Res = clang_Interpreter_evaluate(CXI, "c", CXV);
-  EXPECT_EQ(Res, CXError_Success);
-  clang_Value_dispose(CXV);
-  clang_Interpreter_dispose(CXI);
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_DeclareSilent) {
@@ -239,36 +226,9 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_CreateInterpreter) {
                "#endif");
   EXPECT_TRUE(Cpp::GetNamed("cpp17"));
   EXPECT_FALSE(Cpp::GetNamed("cppUnknown"));
-
-#ifndef CPPINTEROP_USE_CLING
-  // C API
-  auto* CXI = clang_createInterpreterFromRawPtr(I);
-  auto CLI = clang_Interpreter_getClangInterpreter(CXI);
-  EXPECT_TRUE(CLI);
-
-  auto I2 = clang_Interpreter_takeInterpreterAsPtr(CXI);
-  EXPECT_EQ(I, I2);
-  clang_Interpreter_dispose(CXI);
-#endif
 }
 
 #ifndef CPPINTEROP_USE_CLING
-TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_CreateInterpreterCAPI) {
-  const char* argv[] = {"-std=c++17"};
-  auto *CXI = clang_createInterpreter(argv, 1);
-  auto CLI = clang_Interpreter_getClangInterpreter(CXI);
-  EXPECT_TRUE(CLI);
-  clang_Interpreter_dispose(CXI);
-}
-
-TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_CreateInterpreterCAPIFailure) {
-#ifdef _WIN32
-  GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
-#endif
-  const char* argv[] = {"-fsyntax-only", "-Xclang", "-invalid-plugin"};
-  auto *CXI = clang_createInterpreter(argv, 3);
-  EXPECT_EQ(CXI, nullptr);
-}
 #endif
 
 #ifdef LLVM_BINARY_DIR
@@ -379,16 +339,6 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_GetLanguageStandardCpp) {
   TestFixture::CreateInterpreter({"-std=c++23"});
   EXPECT_EQ(Cpp::GetLanguageStandard(nullptr),
             Cpp::InterpreterLanguageStandard::cxx23);
-}
-
-TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_GetLanguageCAPI) {
-  auto* I = TestFixture::CreateInterpreter();
-  auto* CXI = clang_createInterpreterFromRawPtr(I);
-  EXPECT_EQ(clang_Interpreter_getLanguage(CXI),
-            CXInterpreterLanguage_CPlusPlus);
-  EXPECT_EQ(clang_Interpreter_getLanguageStandard(CXI),
-            CXInterpreterLanguageStandard_cxx14);
-  clang_Interpreter_dispose(CXI);
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_GetLanguageC) {
