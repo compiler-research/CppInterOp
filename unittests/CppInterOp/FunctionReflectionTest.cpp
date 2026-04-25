@@ -704,8 +704,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE,
            FunctionReflection_InstantiateTemplateFunctionFromString) {
   if (llvm::sys::RunningOnValgrind())
     GTEST_SKIP() << "XFAIL due to Valgrind report";
-  std::vector<const char*> interpreter_args = { "-include", "new" };
-  TestFixture::CreateInterpreter(interpreter_args);
+  TestFixture::CreateInterpreter();
   std::string code = R"(#include <memory>)";
   Interp->process(code);
   const char* str = "std::make_unique<int,int>";
@@ -1554,7 +1553,8 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetFunctionAddress) {
 
   std::vector<Decl*> Decls;
   std::string code = "int f1(int i) { return i * i; }";
-  std::vector<const char*> interpreter_args = {"-include", "new", "-Xclang", "-iwithsysroot/include/compat"};
+  std::vector<const char*> interpreter_args = {"-Xclang",
+                                               "-iwithsysroot/include/compat"};
 
   GetAllTopLevelDecls(code, Decls, /*filter_implicitGenerated=*/false,
                       interpreter_args);
@@ -1611,6 +1611,93 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_IsVirtualMethod) {
   EXPECT_FALSE(Cpp::IsVirtualMethod(Decls[0]));
 }
 
+// Regression guard: JitCall wrappers must not require the user's TU to
+// pull in <new>. This test adds an explicit premise check and one
+// scalar-return JitCall so a refactor that accidentally makes <new>
+// reachable cannot silently mask a future revert of the wrapper contract.
+TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_JitCallNoNewHeader) {
+#ifdef CPPINTEROP_USE_CLING
+  GTEST_SKIP() << "Cling pre-includes <new>.";
+#endif
+  if (TypeParam::isOutOfProcess)
+    GTEST_SKIP() << "Test fails for OOP JIT builds";
+
+  TestFixture::CreateInterpreter();
+
+  // Per [new.delete.placement] the standard placement overloads are
+  // declared `noexcept`; this non-noexcept redeclaration only parses
+  // if <new> is NOT in scope.
+  ASSERT_EQ(0, Cpp::Declare("void* operator new(__SIZE_TYPE__, void*);"));
+
+  // One JitCall is enough — if the wrapper regresses to plain placement
+  // new, MakeFunctionCallable fails to compile without <new>.
+  Cpp::Declare("int jc_sq(int x) { return x * x; }");
+  auto JC = Cpp::MakeFunctionCallable(Cpp::GetNamed("jc_sq"));
+  ASSERT_TRUE(JC.isValid());
+  int arg = 5, ret = 0;
+  void* args[] = {&arg};
+  JC.Invoke(&ret, {args, 1});
+  EXPECT_EQ(ret, 25);
+}
+
+// Regression guard for cppyy's test_advancedcpp.py::test14_new_overloader.
+// A class that declares its own `operator new(size_t)` shadows the global
+// placement operators at class-scope name lookup -- per [class.free]
+// paragraph 2, if `operator new` is found in the class scope, the global
+// scope is NOT consulted. The ctor wrapper's is_arena branch emits a
+// placement-new expression with signature `(size_t, void*, Tag)` (or
+// `(size_t, void*)` on cling), so class-scope lookup finds the class's
+// single-arg op-new, overload resolution fails, and the whole
+// conditional in the wrapper fails to compile. `Cpp::Construct` then
+// returns null and cppyy falls through to move/copy ctors with wrong
+// argument counts. The fix is to force global-scope lookup via the
+// `::new` unary-`::` form in every placement-new emission.
+TYPED_TEST(CPPINTEROP_TEST_MODE,
+           FunctionReflection_ConstructClassWithOperatorNew) {
+  if (TypeParam::isOutOfProcess)
+    GTEST_SKIP() << "Test fails for OOP JIT builds";
+
+  TestFixture::CreateInterpreter();
+
+  // Redeclare the global operator new/delete with plain (non-noexcept)
+  // signatures so the class's forwarding calls bind without needing
+  // <new> in scope.
+  ASSERT_EQ(0, Cpp::Declare("void* operator new(__SIZE_TYPE__);\n"
+                            "void operator delete(void*);"));
+  ASSERT_EQ(0, Cpp::Declare(R"(
+    struct NewOverloader {
+      int x = 123;
+      static int s_op_new_calls;
+      void* operator new(__SIZE_TYPE__ sz) {
+        ++s_op_new_calls;
+        return ::operator new(sz);
+      }
+      void operator delete(void* p) { ::operator delete(p); }
+    };
+    int NewOverloader::s_op_new_calls = 0;
+  )"));
+  auto* scope = Cpp::GetNamed("NewOverloader");
+  ASSERT_NE(scope, nullptr);
+
+  // arena-path: the tagged placement new must bypass the class-level
+  // `operator new` and land the object at the user-supplied address.
+  void* arena = Cpp::Allocate(scope);
+  ASSERT_NE(arena, nullptr);
+  EXPECT_EQ(Cpp::Construct(scope, arena), arena)
+      << "Wrapper's placement-new expression failed to compile for a "
+         "class that declares its own operator new; add `::` to force "
+         "global-scope lookup.";
+  EXPECT_EQ(*reinterpret_cast<int*>(arena), 123);
+  Cpp::Destruct(arena, scope, /*withFree=*/false, 0);
+  Cpp::Deallocate(scope, arena);
+
+  // non-arena path: plain `new T()` must still route through the
+  // class's custom allocation function (no `::` there).
+  void* obj = Cpp::Construct(scope);
+  ASSERT_NE(obj, nullptr);
+  Cpp::Destruct(obj, scope, /*withFree=*/true);
+}
+
 TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_JitCallAdvanced) {
 #if CLANG_VERSION_MAJOR == 20 && defined(CPPINTEROP_USE_CLING) && defined(_WIN32)
   GTEST_SKIP() << "Test fails with Cling on Windows";
@@ -1632,10 +1719,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_JitCallAdvanced) {
       } name;
     )";
 
-  std::vector<const char*> interpreter_args = {"-include", "new"};
-
-  GetAllTopLevelDecls(code, Decls, /*filter_implicitGenerated=*/false,
-                      interpreter_args);
+  GetAllTopLevelDecls(code, Decls, /*filter_implicitGenerated=*/false);
   auto *CtorD
     = (clang::CXXConstructorDecl*)Cpp::GetDefaultConstructor(Decls[0]);
   auto Ctor = Cpp::MakeFunctionCallable(CtorD);
@@ -1676,8 +1760,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_JitCallDebug) {
       }
     };)";
 
-  std::vector<const char*> interpreter_args = {"-include", "new",
-                                               "-debug-only=jitcall"};
+  std::vector<const char*> interpreter_args = {"-debug-only=jitcall"};
   GetAllTopLevelDecls(code, Decls, /*filter_implicitGenerated=*/false,
                       interpreter_args);
 
@@ -1779,8 +1862,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetFunctionCallWrapper) {
     int f1(int i) { return i * i; }
     )";
 
-  std::vector<const char*> interpreter_args = {"-include", "new"};
-
+  std::vector<const char*> interpreter_args;
   GetAllTopLevelDecls(code, Decls, /*filter_implicitGenerated=*/false,
                       interpreter_args);
 
@@ -2432,11 +2514,9 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_Construct) {
 #endif
   if (TypeParam::isOutOfProcess)
     GTEST_SKIP() << "Test fails for OOP JIT builds";
-  std::vector<const char*> interpreter_args = {"-include", "new"};
   std::vector<Decl*> Decls, SubDecls;
 
   std::string code = R"(
-    #include <new>
     extern "C" int printf(const char*,...);
     class C {
     public:
@@ -2449,7 +2529,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_Construct) {
     void construct() { return; }
     )";
 
-  GetAllTopLevelDecls(code, Decls, false, interpreter_args);
+  GetAllTopLevelDecls(code, Decls, false);
   GetAllSubDecls(Decls[1], SubDecls);
   testing::internal::CaptureStdout();
   Cpp::TCppScope_t scope = Cpp::GetNamed("C");
@@ -2520,8 +2600,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_ConstructPOD) {
 #endif
   if (TypeParam::isOutOfProcess)
     GTEST_SKIP() << "Test fails for OOP JIT builds";
-  std::vector<const char*> interpreter_args = {"-include", "new"};
-  TestFixture::CreateInterpreter(interpreter_args);
+  TestFixture::CreateInterpreter();
 
   Interp->declare(R"(
     namespace PODS {
@@ -2563,11 +2642,9 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_ConstructNested) {
   if (TypeParam::isOutOfProcess)
     GTEST_SKIP() << "Test fails for OOP JIT builds";
 
-  std::vector<const char*> interpreter_args = {"-include", "new"};
-  TestFixture::CreateInterpreter(interpreter_args);
+  TestFixture::CreateInterpreter();
 
   Interp->declare(R"(
-    #include <new>
     extern "C" int printf(const char*,...);
     class A {
     public:
@@ -2629,7 +2706,6 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_ConstructArray) {
   TestFixture::CreateInterpreter();
 
   Interp->declare(R"(
-      #include <new>
       extern "C" int printf(const char*,...);
       class C {
         int x;
@@ -2681,11 +2757,9 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_Destruct) {
   if (TypeParam::isOutOfProcess)
     GTEST_SKIP() << "Test fails for OOP JIT builds";
 
-  std::vector<const char*> interpreter_args = {"-include", "new"};
-  TestFixture::CreateInterpreter(interpreter_args);
+  TestFixture::CreateInterpreter();
 
   Interp->declare(R"(
-    #include <new>
     extern "C" int printf(const char*,...);
     class C {
       C() {}
@@ -2754,11 +2828,9 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_DestructArray) {
   if (TypeParam::isOutOfProcess)
     GTEST_SKIP() << "Test fails for OOP JIT builds";
 
-  std::vector<const char*> interpreter_args = {"-include", "new"};
-  TestFixture::CreateInterpreter(interpreter_args);
+  TestFixture::CreateInterpreter();
 
   Interp->declare(R"(
-      #include <new>
       extern "C" int printf(const char*,...);
       class C {
         int x;
@@ -2818,6 +2890,68 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_DestructArray) {
             "\nDestructor Executed\n\nDestructor Executed\n\nDestructor "
             "Executed\n\nDestructor Executed\n\nDestructor Executed\n");
   output.clear();
+}
+
+// Regression guard for Itanium C++ ABI §2.7 array cookies. Any
+// placement `operator new[]` that clang does not recognise as the
+// standard placement form (standard signature, declared in <new>)
+// causes clang to insert an array cookie before the storage when the
+// element type has a non-trivial destructor. That would shift the
+// pointer returned by `Cpp::Construct(scope, arena, n)` past the
+// cookie, breaking the documented contract that the return equals
+// `arena`. The JitCall ctor wrapper works around this by emitting a
+// loop of scalar placement news rather than a single
+// `new (p) T[n]` with a custom-signature allocator — see the comment
+// on `make_narg_ctor_with_return` in lib/CppInterOp/CppInterOp.cpp.
+// This test fails immediately if that loop is ever replaced with a
+// tagged `operator new[]` or a non-standard forward declaration.
+TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_ArrayConstructNoCookie) {
+#ifdef EMSCRIPTEN
+  GTEST_SKIP() << "Test fails for Emscripten builds";
+#endif
+  if (llvm::sys::RunningOnValgrind())
+    GTEST_SKIP() << "XFAIL due to Valgrind report";
+#ifdef _WIN32
+  GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
+#endif
+  if (TypeParam::isOutOfProcess)
+    GTEST_SKIP() << "Test fails for OOP JIT builds";
+
+  TestFixture::CreateInterpreter();
+
+  // CookieProbe has a user-provided destructor, which makes it
+  // non-trivially destructible. Any non-placement-form `operator new[]`
+  // must reserve space for an array cookie in front of the storage.
+  Interp->declare(R"(
+    struct CookieProbe {
+      int v;
+      CookieProbe() : v(0xC0DE) {}
+      ~CookieProbe() {}
+    };
+  )");
+
+  auto* scope = Cpp::GetNamed("CookieProbe");
+  ASSERT_NE(scope, nullptr);
+
+  constexpr size_t kN = 4;
+  void* arena = Cpp::Allocate(scope, kN);
+  ASSERT_NE(arena, nullptr);
+
+  // Placement array construction must return the arena as-is.
+  EXPECT_EQ(Cpp::Construct(scope, arena, kN), arena)
+      << "Construct returned a pointer offset from arena; an array "
+         "cookie has been inserted. Placement-new signature regressed.";
+
+  // Cross-check: the i-th element's field lives at offset i*sizeof(T)
+  // from the arena base (not past a cookie header).
+  const size_t T = Cpp::SizeOf(scope);
+  for (size_t i = 0; i < kN; ++i) {
+    int* slot = reinterpret_cast<int*>(reinterpret_cast<char*>(arena) + i * T);
+    EXPECT_EQ(*slot, 0xC0DE) << "element " << i << " not at expected offset";
+  }
+
+  Cpp::Destruct(arena, scope, /*withFree=*/false, kN);
+  Cpp::Deallocate(scope, arena, kN);
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_UndoTest) {
@@ -2989,7 +3123,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_IsExplicitTemplated) {
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_IsExplicitDeductionGuide) {
   // Deduction guides are a C++17 feature
-  std::vector<const char*> interpreter_args = {"-include", "new", "-std=c++17"};
+  std::vector<const char*> interpreter_args = {"-std=c++17"};
   Cpp::CreateInterpreter(interpreter_args, {});
 
   Interp->declare(R"(

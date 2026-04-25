@@ -115,6 +115,25 @@
 #if !defined(CPPINTEROP_USE_CLING) && !defined(EMSCRIPTEN)
 struct __clang_Interpreter_NewTag {
 } __ci_newtag;
+
+// Local forwarding definition of the tagged placement operator new that
+// JitCall wrappers emit against. clang-repl declares this overload in
+// its Runtimes string but the definition lives in libclangInterpreter.
+// JIT sessions in embedders that do not expose that library's symbols
+// (e.g. cppyy loading clang-repl via CppInterOp) cannot resolve it by
+// its mangled name and fail with
+// `Symbols not found: [ _ZnwmPv26__clang_Interpreter_NewTag ]`. We
+// register this function with the JIT dylib at interpreter creation
+// (see the DefineAbsoluteSymbol block in CreateInterpreter) so the
+// symbol is always resolvable there, even when the host's dynamic
+// linker does not expose libclangInterpreter's copy.
+namespace {
+void* CppInterOpPlacementNew(std::size_t, void* __p,
+                             __clang_Interpreter_NewTag) noexcept {
+  return __p;
+}
+} // namespace
+
 #if CLANG_VERSION_MAJOR > 21
 extern "C" void* __clang_Interpreter_SetValueWithAlloc(void* This, void* OutVal,
                                                        void* OpaqueType);
@@ -2814,6 +2833,34 @@ void make_narg_call(const FunctionDecl* FD, const std::string& return_type,
   callbuf << ")";
 }
 
+// Tag appended inside `::new (ptr<tag>) T(...)` when emitting a scalar
+// placement new in a JitCall wrapper.
+//
+// clang-repl's Runtimes string declares the scalar tagged overload
+// `operator new(size_t, void*, __clang_Interpreter_NewTag)` (introduced
+// in llvm/llvm-project@1566f1ffc6b5, LLVM 18), so the spelling
+// `::new (p, __ci_newtag) T(...)` binds without the user's TU having
+// `#include <new>` in scope. Array placement in
+// `make_narg_ctor_with_return` is implemented as a loop of scalar tagged
+// placements for the same reason.
+//
+// Cling has no such tag; its runtime makes `<new>` available by default,
+// so the empty tag suffices there (plain scalar placement new).
+//
+// Every placement-new emission uses the unary `::` form so name lookup
+// skips any class-scope `operator new`. Per [class.free]/2, if the
+// allocated type is a class and a class-scope `operator new` exists,
+// global scope is not consulted -- overload resolution against the
+// class's single-arg allocator then fails and the whole wrapper
+// refuses to compile (observed on cppyy's test14_new_overloader).
+inline const char* PlacementTag() {
+#ifdef CPPINTEROP_USE_CLING
+  return "";
+#else
+  return ", __ci_newtag";
+#endif
+}
+
 void make_narg_ctor_with_return(const FunctionDecl* FD, const unsigned N,
                                 const std::string& class_name,
                                 std::ostringstream& buf, int indent_level) {
@@ -2837,44 +2884,65 @@ void make_narg_ctor_with_return(const FunctionDecl* FD, const unsigned N,
     indent(callbuf, indent_level);
     const auto* CD = dyn_cast<CXXConstructorDecl>(FD);
 
-    // Activate this block only if array new is possible
-    // if (nary) {
-    //    (*(ClassName**)ret) = (obj) ? new (*(ClassName**)ret) ClassName[nary]
-    //    : new ClassName[nary];
-    //   }
-    // else {
+    // Array branch. The is_arena side emits a loop of scalar placement
+    // calls rather than `new (p) T[n]`. Two alternatives were considered
+    // and rejected:
+    //
+    //   (a) Forward-declare a tagged
+    //       `operator new[](size_t, void*, __clang_Interpreter_NewTag)`
+    //       and emit `new (p, __ci_newtag) T[n]`. Cheapest in per-wrapper
+    //       emission, but clang does not recognise a custom-signature
+    //       array allocator as the standard placement form and inserts
+    //       an array cookie for types with non-trivial destructors
+    //       (Itanium C++ ABI §2.7), breaking the
+    //       `Cpp::Construct(scope, arena, n) == arena` contract.
+    //
+    //   (b) Forward-declare the STANDARD-signature
+    //       `operator new[](size_t, void*)`. Clang would signature-match
+    //       this as the placement form (no cookie), but the declaration
+    //       is not portably replicable: libstdc++, libc++, and the MSVC
+    //       STL decorate it with different noexcept macros, calling
+    //       conventions, and `[[nodiscard]]` attributes. A
+    //       user-supplied `#include <new>` after interpreter creation
+    //       would clash with our declaration and crash the parse.
+    //
+    // The loop binds against the already-declared scalar tagged
+    // placement operator (PlacementTag()), adds only O(6) lines per
+    // wrapper, and works on cling too (`<new>` is pre-included there,
+    // so the empty tag is equivalent to plain scalar placement new).
     if (CD->isDefaultConstructor()) {
       callbuf << "if (nary > 1) {\n";
       indent(callbuf, indent_level);
-      callbuf << "(*(" << class_name << "**)ret) = ";
-      callbuf << "(is_arena) ? new (*(" << class_name << "**)ret) ";
+      callbuf << "if (is_arena)\n";
+      indent(callbuf, indent_level + 1);
+      callbuf << "for (unsigned long __i = 0; __i < nary; ++__i)\n";
+      indent(callbuf, indent_level + 2);
+      callbuf << "::new ((void*)(*(" << class_name << "**)ret + __i)"
+              << PlacementTag() << ") " << class_name << "();\n";
+      indent(callbuf, indent_level);
+      callbuf << "else (*(" << class_name << "**)ret) = new ";
       make_narg_ctor(FD, N, typedefbuf, callbuf, class_name, indent_level,
                      true);
-
-      callbuf << ": new ";
-      //
-      //  Write the actual expression.
-      //
-      make_narg_ctor(FD, N, typedefbuf, callbuf, class_name, indent_level,
-                     true);
-      //
-      //  End the new expression statement.
-      //
       callbuf << ";\n";
       indent(callbuf, indent_level);
       callbuf << "}\n";
       callbuf << "else {\n";
     }
 
-    // Standard branch:
-    // (*(ClassName**)ret) = (obj) ? new (*(ClassName**)ret) ClassName(args...)
-    // : new ClassName(args...);
+    // Standard (scalar) branch:
+    // (*(ClassName**)ret) = (is_arena)
+    //   ? (::new (*(ClassName**)ret[, __ci_newtag]) ClassName(args...))
+    //   : new ClassName(args...);
+    // The parentheses around `::new` are required: without them, clang
+    // mis-parses the `? ::new ...` sequence inside the conditional
+    // expression and reports `expected expression` at the `:`.
     indent(callbuf, indent_level);
     callbuf << "(*(" << class_name << "**)ret) = ";
-    callbuf << "(is_arena) ? new (*(" << class_name << "**)ret) ";
+    callbuf << "(is_arena) ? (::new (*(" << class_name << "**)ret"
+            << PlacementTag() << ") ";
     make_narg_ctor(FD, N, typedefbuf, callbuf, class_name, indent_level);
 
-    callbuf << ": new ";
+    callbuf << ") : new ";
     //
     //  Write the actual expression.
     //
@@ -2955,7 +3023,8 @@ void make_narg_call_with_return(compat::Interpreter& I, const FunctionDecl* FD,
       //  Write the placement part of the placement new.
       //
       indent(callbuf, indent_level);
-      callbuf << "new (ret) ";
+      // See PlacementTag for the rationale of the tag and the `::`.
+      callbuf << "::new (ret" << PlacementTag() << ") ";
       //
       //  Write the type part of the placement new.
       //
@@ -3725,8 +3794,12 @@ bool DefineAbsoluteSymbol(compat::Interpreter& I,
   llvm::orc::ExecutionSession& ES = Jit.getExecutionSession();
   JITDylib& DyLib = *Jit.getProcessSymbolsJITDylib().get();
 
+  // Apply the target-triple's symbol prefix (empty on ELF, `_` on macOS
+  // Mach-O / x86 Windows) so the interned name matches what the JIT
+  // will look up when resolving references from compiled modules.
+  MangleAndInterner Mangle(ES, Jit.getDataLayout());
   llvm::orc::SymbolMap InjectedSymbols{
-      {ES.intern(linker_mangled_name),
+      {Mangle(linker_mangled_name),
        ExecutorSymbolDef(ExecutorAddr(address), JITSymbolFlags::Exported)}};
 
   if (Error Err = DyLib.define(absoluteSymbols(InjectedSymbols))) {
@@ -3900,6 +3973,38 @@ TInterp_t CreateInterpreter(const std::vector<const char*>& Args /*={}*/,
 #if !defined(CPPINTEROP_USE_CLING) && !defined(EMSCRIPTEN)
   DefineAbsoluteSymbol(*I, "__ci_newtag",
                        reinterpret_cast<uint64_t>(&__ci_newtag));
+
+  // Register our forwarding definition of the tagged placement
+  // `operator new(size_t, void*, __clang_Interpreter_NewTag)`. Look up
+  // the Decl introduced by clang-repl's Runtimes string, compute its
+  // mangled name, and point it at CppInterOpPlacementNew above. This
+  // shields embedders that do not expose libclangInterpreter's symbols
+  // (e.g. cppyy, or the DispatchTests binary which dlopens us with
+  // RTLD_LOCAL) from `Symbols not found:
+  // [ _ZnwmPv26__clang_Interpreter_NewTag ]` at JIT link time. The
+  // regression is caught by DispatchSmokeTest.PlacementConstructTaggedNew.
+  {
+    Sema& S = I->getSema();
+    ASTContext& Ctx = S.getASTContext();
+    DeclarationName DN = Ctx.DeclarationNames.getCXXOperatorName(OO_New);
+    LookupResult R(S, DN, SourceLocation(), Sema::LookupOrdinaryName);
+    S.LookupQualifiedName(R, Ctx.getTranslationUnitDecl());
+    for (auto* D : R) {
+      auto* FD = dyn_cast<FunctionDecl>(D);
+      if (!FD || FD->getNumParams() != 3)
+        continue;
+      QualType LastTy = FD->getParamDecl(2)->getType();
+      const auto* RD = LastTy->getAsCXXRecordDecl();
+      if (!RD || RD->getName() != "__clang_Interpreter_NewTag")
+        continue;
+      std::string mangled;
+      compat::maybeMangleDeclName(GlobalDecl(FD), mangled);
+      DefineAbsoluteSymbol(*I, mangled.c_str(),
+                           reinterpret_cast<uint64_t>(&CppInterOpPlacementNew));
+      break;
+    }
+  }
+
 // llvm >= 21 has this defined as a C symbol that does not require mangling
 #if CLANG_VERSION_MAJOR >= 21
   DefineAbsoluteSymbol(

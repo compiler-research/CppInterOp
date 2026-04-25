@@ -315,9 +315,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_IsBuiltin) {
   //  "int", "unsigned int", "long", "unsigned long", "long long", "unsigned long long",
   //  "float", "double", "long double", "void"}
 
-  std::vector<const char*> interpreter_args = { "-include", "new" };
-
-  TestFixture::CreateInterpreter(interpreter_args);
+  TestFixture::CreateInterpreter();
   ASTContext &C = Interp->getCI()->getASTContext();
   EXPECT_TRUE(Cpp::IsBuiltin(C.BoolTy.getAsOpaquePtr()));
   EXPECT_TRUE(Cpp::IsBuiltin(C.CharTy.getAsOpaquePtr()));
@@ -677,9 +675,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_GetNamed) {
                         }
                        )";
 
-  std::vector<const char*> interpreter_args = {"-include", "new"};
-
-  TestFixture::CreateInterpreter(interpreter_args);
+  TestFixture::CreateInterpreter();
 
   Interp->declare(code);
   Cpp::TCppScope_t ns_N1 = Cpp::GetNamed("N1", nullptr);
@@ -1068,8 +1064,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE,
            ScopeReflection_InstantiateTemplateFunctionFromString) {
   if (llvm::sys::RunningOnValgrind())
     GTEST_SKIP() << "XFAIL due to Valgrind report";
-  std::vector<const char*> interpreter_args = {"-include", "new"};
-  TestFixture::CreateInterpreter(interpreter_args);
+  TestFixture::CreateInterpreter();
   std::string code = R"(#include <memory>)";
   Interp->process(code);
   const char* str = "std::make_unique<int,int>";
@@ -1218,8 +1213,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_IncludeVector) {
     #include <vector>
     #include <iostream>
   )";
-  std::vector<const char*> interpreter_args = {"-include", "new"};
-  TestFixture::CreateInterpreter(interpreter_args);
+  TestFixture::CreateInterpreter();
   Interp->declare(code);
 }
 
