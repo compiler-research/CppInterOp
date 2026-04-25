@@ -1620,6 +1620,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_JitCallAdvanced) {
 #if CLANG_VERSION_MAJOR == 22
   GTEST_SKIP() << "Test fails for Emscipten builds using LLVM 22";
 #endif
+#endif
   if (llvm::sys::RunningOnValgrind())
     GTEST_SKIP() << "XFAIL due to Valgrind report";
 
@@ -2526,6 +2527,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_ConstructPOD) {
 #ifdef EMSCRIPTEN
 #if CLANG_VERSION_MAJOR == 22
   GTEST_SKIP() << "Test fails for Emscipten builds using LLVM 22";
+#endif
 #endif
   if (TypeParam::isOutOfProcess)
     GTEST_SKIP() << "Test fails for OOP JIT builds";
