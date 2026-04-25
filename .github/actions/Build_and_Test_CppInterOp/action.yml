@@ -574,7 +574,7 @@ runs:
         echo "PREFIX=$env:PREFIX" >> $GITHUB_ENV
 
     - name: Emscripten build of CppInterOp on Windows systems (static library)
-      if: ${{ runner.os == 'Windows' && matrix.wasm == true && env.BUILD_STATIC_LIBRARY == 'On' && env.BUILD_STATIC_LIBRARY == 'On' }}
+      if: ${{ runner.os == 'Windows' && matrix.wasm == true && env.BUILD_STATIC_LIBRARY == 'On' }}
       shell: powershell
       run: |
        .\emsdk\emsdk activate ${{ env.EMSDK_VER }}
