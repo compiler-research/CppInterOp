@@ -18,32 +18,6 @@
 using namespace clang;
 using namespace llvm;
 
-#if defined(ENABLE_DISPATCH_TESTS)
-#define DISPATCH_API(name, type) CppAPIType::name Cpp::name = nullptr;
-CPPINTEROP_API_TABLE
-#undef DISPATCH_API
-namespace {
-struct DispatchInitializer {
-  DispatchInitializer() {
-    if (!Cpp::LoadDispatchAPI(CPPINTEROP_LIB_PATH)) {
-      std::abort();
-    }
-  }
-  ~DispatchInitializer() = default;
-  DispatchInitializer(const DispatchInitializer&) = delete;
-  DispatchInitializer& operator=(const DispatchInitializer&) = delete;
-  DispatchInitializer(DispatchInitializer&&) noexcept = default;
-  DispatchInitializer& operator=(DispatchInitializer&&) noexcept = default;
-};
-// Thread-safe initialization using function-local static
-DispatchInitializer& GetDispatchInitializer() {
-  static DispatchInitializer instance;
-  return instance;
-}
-const DispatchInitializer& g_dispatch_init = GetDispatchInitializer();
-} // namespace
-#endif
-
 namespace TestUtils {
 TestConfig current_config;
 std::vector<const char*> GetInterpreterArgs(

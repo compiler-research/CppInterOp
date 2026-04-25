@@ -74,7 +74,8 @@ mkdir native_build
 cd native_build
 cmake -DLLVM_ENABLE_PROJECTS=clang -DLLVM_TARGETS_TO_BUILD=host -DCMAKE_BUILD_TYPE=Release ../llvm/
 cmake --build . --target llvm-tblgen clang-tblgen --parallel $(nproc --all)
-export NATIVE_DIR=$PWD/bin/
+export NATIVE_LLVM_BUILD_DIR=$PWD
+export NATIVE_LLVM_BIN_DIR=$PWD/bin/
 cd ..
 mkdir build
 cd build
@@ -96,7 +97,7 @@ emcmake cmake -DCMAKE_BUILD_TYPE=Release \
                         -DLLVM_BUILD_TOOLS=OFF                          \
                         -DLLVM_ENABLE_LIBPFM=OFF                        \
                         -DCLANG_BUILD_TOOLS=OFF                         \
-                        -DLLVM_NATIVE_TOOL_DIR=$NATIVE_DIR              \
+                        -DLLVM_NATIVE_TOOL_DIR=$NATIVE_LLVM_BIN_DIR              \
                         -DCMAKE_C_FLAGS_RELEASE="-Oz -g0 -DNDEBUG" \
                         -DCMAKE_CXX_FLAGS_RELEASE="-Oz -g0 -DNDEBUG" \
                         -DLLVM_ENABLE_LTO=Full \
@@ -112,7 +113,8 @@ cd native_build
 cmake -DLLVM_ENABLE_PROJECTS=clang -DLLVM_TARGETS_TO_BUILD=host -DCMAKE_BUILD_TYPE=Release -G Ninja ../llvm/
 cmake --build . --target llvm-tblgen clang-tblgen --parallel $(nproc --all)
 $env:PWD_DIR= $PWD.Path
-$env:NATIVE_DIR="$env:PWD_DIR/bin/"
+$env:NATIVE_LLVM_BUILD_DIR="$env:PWD_DIR"
+$env:NATIVE_LLVM_BIN_DIR="$env:PWD_DIR/bin/"
 cd ..
 mkdir build
 cd build
@@ -134,7 +136,7 @@ emcmake cmake -DCMAKE_BUILD_TYPE=Release `
                         -DLLVM_BUILD_TOOLS=OFF                          `
                         -DLLVM_ENABLE_LIBPFM=OFF                        `
                         -DCLANG_BUILD_TOOLS=OFF                         `
-                        -DLLVM_NATIVE_TOOL_DIR="$env:NATIVE_DIR"        `
+                        -DLLVM_NATIVE_TOOL_DIR="$env:NATIVE_LLVM_BIN_DIR"        `
                         -G Ninja `
                         -DCMAKE_C_FLAGS_RELEASE="-Oz -g0 -DNDEBUG" `
                         -DCMAKE_CXX_FLAGS_RELEASE="-Oz -g0 -DNDEBUG" `
@@ -183,7 +185,42 @@ $env:CMAKE_PREFIX_PATH=$env:PREFIX
 $env:CMAKE_SYSTEM_PREFIX_PATH=$env:PREFIX
 ```
 
-on Windows. Now to build and test your Emscripten build of CppInterOp using node on Linux and osx execute the following
+on Windows. efore building the Emscripten version of CppInterOp, we need
+to build ``cppinterop-tblgen`` natively. This tool generates ``.inc`` files
+from ``.td`` definitions and must run on the host (not under Emscripten).
+We use the native LLVM build from the earlier step since it has the required
+``libLLVMTableGen`` library.
+
+On Linux and osx:
+
+```bash
+mkdir -p native_cppinterop_build && cd native_cppinterop_build
+cmake -DCMAKE_BUILD_TYPE=Release \
+      -DLLVM_DIR=$NATIVE_LLVM_BUILD_DIR/lib/cmake/llvm \
+      -DCMAKE_CXX_STANDARD=17 \
+      -DCPPINTEROP_BUILD_TABLEGEN_ONLY=ON \
+       ../
+cmake --build . --target cppinterop-tblgen -j $(nproc --all)
+export CPPINTEROP_TBLGEN_EXE=$(find $PWD -name cppinterop-tblgen -type f | head -1)
+cd ..
+```
+
+On Windows:
+
+```powershell
+mkdir native_cppinterop_build
+cd native_cppinterop_build
+cmake -DCMAKE_BUILD_TYPE=Release `
+      -DLLVM_DIR="$env:NATIVE_LLVM_BUILD_DIR\lib\cmake\llvm" `
+      -DCMAKE_CXX_STANDARD=17 `
+      -DCPPINTEROP_BUILD_TABLEGEN_ONLY=ON `
+..\
+cmake --build . --target cppinterop-tblgen -j $(nproc --all)
+$env:CPPINTEROP_TBLGEN_EXE = (Get-ChildItem -Recurse -Filter "cppinterop-tblgen.exe" | Select-Object -First 1).FullName
+cd ..
+```
+
+Now to build and test your Emscripten build of CppInterOp using node on Linux and osx execute the following
 (BUILD_SHARED_LIBS=ON is only needed if building xeus-cpp, as CppInterOp can be built as an Emscripten static library)
 
 ```bash
@@ -197,6 +234,7 @@ emcmake cmake -DCMAKE_BUILD_TYPE=Release    \
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            \
                 -DCMAKE_INSTALL_PREFIX=$PREFIX         \
                 -DSYSROOT_PATH=$SYSROOT_PATH                                   \
+                -DCPPINTEROP_TABLEGEN_EXE=$CPPINTEROP_TBLGEN_EXE \
                 ../
 emmake make -j $(nproc --all) check-cppinterop
 ```
@@ -215,6 +253,7 @@ emcmake cmake -DCMAKE_BUILD_TYPE=Release    `
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            `
                 -DLLVM_ENABLE_WERROR=On                      `
                 -DSYSROOT_PATH="$env:SYSROOT_PATH"                     `
+                -DCPPINTEROP_TABLEGEN_EXE="$env:CPPINTEROP_TBLGEN_EXE" `
                 ..\
     emmake make -j $(nproc --all) check-cppinterop
 ```

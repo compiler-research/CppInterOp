@@ -513,8 +513,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_GetCompleteName) {
   ASTContext& C = Interp->getCI()->getASTContext();
   Cpp::TemplateArgInfo template_args[2] = {C.IntTy.getAsOpaquePtr(),
                                            C.DoubleTy.getAsOpaquePtr()};
-  Cpp::TCppScope_t fn =
-      Cpp::InstantiateTemplate(Decls[11], template_args, 2 DFLT_FALSE);
+  Cpp::TCppScope_t fn = Cpp::InstantiateTemplate(Decls[11], template_args, 2);
   EXPECT_TRUE(fn);
   EXPECT_EQ(Cpp::GetCompleteName(fn), "fn<int, double>");
 }
@@ -722,7 +721,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_GetParentScope) {
   TestFixture::CreateInterpreter();
 
   Interp->declare(code);
-  Cpp::TCppScope_t ns_N1 = Cpp::GetNamed("N1" DFLT_NULLPTR);
+  Cpp::TCppScope_t ns_N1 = Cpp::GetNamed("N1");
   Cpp::TCppScope_t ns_N2 = Cpp::GetNamed("N2", ns_N1);
   Cpp::TCppScope_t cl_C = Cpp::GetNamed("C", ns_N2);
   Cpp::TCppScope_t int_i = Cpp::GetNamed("i", cl_C);
@@ -850,13 +849,13 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_GetBaseClass) {
   EXPECT_EQ(get_base_class_name(Decls[4], 0), "D");
   EXPECT_EQ(get_base_class_name(Decls[10], 0), "<unnamed>");
 
-  auto* VD = Cpp::GetNamed("var" DFLT_NULLPTR);
+  auto* VD = Cpp::GetNamed("var");
   auto *VT = Cpp::GetVariableType(VD);
   auto *TC2_A_Decl = Cpp::GetScopeFromType(VT);
   auto *TC1_A_Decl = Cpp::GetBaseClass(TC2_A_Decl, 0);
   EXPECT_EQ(Cpp::GetCompleteName(TC1_A_Decl), "TC1<A>");
 
-  auto* VD1 = Cpp::GetNamed("var1" DFLT_NULLPTR);
+  auto* VD1 = Cpp::GetNamed("var1");
   auto* VT1 = Cpp::GetVariableType(VD1);
   auto* TC3_A_Decl = Cpp::GetScopeFromType(VT1);
   auto* A_class = Cpp::GetBaseClass(TC3_A_Decl, 0);
@@ -1011,7 +1010,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_InstantiateNNTPClassTemplate) {
   Cpp::TCppType_t IntTy = C.IntTy.getAsOpaquePtr();
   std::vector<Cpp::TemplateArgInfo> args1 = {{IntTy, "5"}};
   EXPECT_TRUE(Cpp::InstantiateTemplate(Decls[0], args1.data(),
-                                       /*type_size*/ args1.size() DFLT_FALSE));
+                                       /*type_size*/ args1.size()));
 
   // C API
   auto* I = clang_createInterpreterFromRawPtr(Cpp::GetInterpreter());
@@ -1035,11 +1034,10 @@ template<class T> constexpr T pi = T(3.1415926535897932385L);
   ASTContext& C = Interp->getCI()->getASTContext();
 
   std::vector<Cpp::TemplateArgInfo> args1 = {C.IntTy.getAsOpaquePtr()};
-  auto* Instance1 =
-      Cpp::InstantiateTemplate(Decls[0], args1.data(),
-                               /*type_size*/ args1.size() DFLT_FALSE);
-  EXPECT_TRUE(isa<VarDecl>((Decl*)Instance1));
-  auto* VD = cast<VarTemplateSpecializationDecl>((Decl*)Instance1);
+  auto* Instance1 = Cpp::InstantiateTemplate(Decls[0], args1.data(),
+                                             /*type_size*/ args1.size());
+  EXPECT_TRUE(isa<VarDecl>(static_cast<Decl*>(Instance1)));
+  auto* VD = cast<VarTemplateSpecializationDecl>(static_cast<Decl*>(Instance1));
   VarTemplateDecl* VDTD1 = VD->getSpecializedTemplate();
   EXPECT_TRUE(VDTD1->isThisDeclarationADefinition());
   TemplateArgument TA1 = (*VD->getTemplateArgsAsWritten())[0].getArgument();
@@ -1056,11 +1054,10 @@ template<typename T> T TrivialFnTemplate() { return T(); }
   ASTContext& C = Interp->getCI()->getASTContext();
 
   std::vector<Cpp::TemplateArgInfo> args1 = {C.IntTy.getAsOpaquePtr()};
-  auto* Instance1 =
-      Cpp::InstantiateTemplate(Decls[0], args1.data(),
-                               /*type_size*/ args1.size() DFLT_FALSE);
-  EXPECT_TRUE(isa<FunctionDecl>((Decl*)Instance1));
-  FunctionDecl* FD = cast<FunctionDecl>((Decl*)Instance1);
+  auto* Instance1 = Cpp::InstantiateTemplate(Decls[0], args1.data(),
+                                             /*type_size*/ args1.size());
+  EXPECT_TRUE(isa<FunctionDecl>(static_cast<Decl*>(Instance1)));
+  FunctionDecl* FD = cast<FunctionDecl>(static_cast<Decl*>(Instance1));
   FunctionDecl* FnTD1 = FD->getTemplateInstantiationPattern();
   EXPECT_TRUE(FnTD1->isThisDeclarationADefinition());
   TemplateArgument TA1 = FD->getTemplateSpecializationArgs()->get(0);
@@ -1076,7 +1073,8 @@ TYPED_TEST(CPPINTEROP_TEST_MODE,
   std::string code = R"(#include <memory>)";
   Interp->process(code);
   const char* str = "std::make_unique<int,int>";
-  auto* Instance1 = (Decl*)Cpp::InstantiateTemplateFunctionFromString(str);
+  auto* Instance1 =
+      static_cast<Decl*>(Cpp::InstantiateTemplateFunctionFromString(str));
   EXPECT_TRUE(Instance1);
 }
 
@@ -1124,10 +1122,10 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_InstantiateTemplate) {
   ASTContext &C = Interp->getCI()->getASTContext();
 
   std::vector<Cpp::TemplateArgInfo> args1 = {C.IntTy.getAsOpaquePtr()};
-  auto* Instance1 =
-      Cpp::InstantiateTemplate(Decls[0], args1.data(),
-                               /*type_size*/ args1.size() DFLT_FALSE);
-  EXPECT_TRUE(isa<ClassTemplateSpecializationDecl>((Decl*)Instance1));
+  auto* Instance1 = Cpp::InstantiateTemplate(Decls[0], args1.data(),
+                                             /*type_size*/ args1.size());
+  EXPECT_TRUE(
+      isa<ClassTemplateSpecializationDecl>(static_cast<Decl*>(Instance1)));
   auto *CTSD1 = static_cast<ClassTemplateSpecializationDecl*>(Instance1);
   EXPECT_TRUE(CTSD1->hasDefinition());
   TemplateArgument TA1 = CTSD1->getTemplateArgs().get(0);
@@ -1135,18 +1133,19 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_InstantiateTemplate) {
   EXPECT_TRUE(CTSD1->hasDefinition());
 
   auto Instance2 = Cpp::InstantiateTemplate(Decls[1], nullptr,
-                                            /*type_size*/ 0 DFLT_FALSE);
-  EXPECT_TRUE(isa<ClassTemplateSpecializationDecl>((Decl*)Instance2));
+                                            /*type_size*/ 0);
+  EXPECT_TRUE(
+      isa<ClassTemplateSpecializationDecl>(static_cast<Decl*>(Instance2)));
   auto *CTSD2 = static_cast<ClassTemplateSpecializationDecl*>(Instance2);
   EXPECT_TRUE(CTSD2->hasDefinition());
   TemplateArgument TA2 = CTSD2->getTemplateArgs().get(0);
   EXPECT_TRUE(TA2.getAsType()->isIntegerType());
 
   std::vector<Cpp::TemplateArgInfo> args3 = {C.IntTy.getAsOpaquePtr()};
-  auto* Instance3 =
-      Cpp::InstantiateTemplate(Decls[2], args3.data(),
-                               /*type_size*/ args3.size() DFLT_FALSE);
-  EXPECT_TRUE(isa<ClassTemplateSpecializationDecl>((Decl*)Instance3));
+  auto* Instance3 = Cpp::InstantiateTemplate(Decls[2], args3.data(),
+                                             /*type_size*/ args3.size());
+  EXPECT_TRUE(
+      isa<ClassTemplateSpecializationDecl>(static_cast<Decl*>(Instance3)));
   auto *CTSD3 = static_cast<ClassTemplateSpecializationDecl*>(Instance3);
   EXPECT_TRUE(CTSD3->hasDefinition());
   TemplateArgument TA3_0 = CTSD3->getTemplateArgs().get(0);
@@ -1161,11 +1160,11 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_InstantiateTemplate) {
 
   std::vector<Cpp::TemplateArgInfo> args4 = {C.IntTy.getAsOpaquePtr(),
                                                {C.IntTy.getAsOpaquePtr(), "3"}};
-  auto* Instance4 =
-      Cpp::InstantiateTemplate(Decls[3], args4.data(),
-                               /*type_size*/ args4.size() DFLT_FALSE);
+  auto* Instance4 = Cpp::InstantiateTemplate(Decls[3], args4.data(),
+                                             /*type_size*/ args4.size());
 
-  EXPECT_TRUE(isa<ClassTemplateSpecializationDecl>((Decl*)Instance4));
+  EXPECT_TRUE(
+      isa<ClassTemplateSpecializationDecl>(static_cast<Decl*>(Instance4)));
   auto *CTSD4 = static_cast<ClassTemplateSpecializationDecl*>(Instance4);
   EXPECT_TRUE(CTSD4->hasDefinition());
   TemplateArgument TA4_0 = CTSD4->getTemplateArgs().get(0);
@@ -1186,9 +1185,9 @@ TYPED_TEST(CPPINTEROP_TEST_MODE,
 
   GetAllTopLevelDecls(code, Decls);
 
-  auto* v1 = Cpp::GetNamed("v1" DFLT_NULLPTR);
-  auto* v2 = Cpp::GetNamed("v2" DFLT_NULLPTR);
-  auto* v3 = Cpp::GetNamed("v3" DFLT_NULLPTR);
+  auto* v1 = Cpp::GetNamed("v1");
+  auto* v2 = Cpp::GetNamed("v2");
+  auto* v3 = Cpp::GetNamed("v3");
   EXPECT_TRUE(v1 && v2 && v3);
 
   auto *v1_class = Cpp::GetScopeFromType(Cpp::GetVariableType(v1));
@@ -1262,44 +1261,39 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_GetOperator) {
     }
   )";
 
-  Cpp::Declare(code.c_str() DFLT_FALSE);
+  Cpp::Declare(code.c_str());
 
   std::vector<Cpp::TCppFunction_t> ops;
 
-  Cpp::GetOperator(Cpp::GetGlobalScope(), Cpp::Operator::OP_Plus,
-                   ops DFLT_OP_ARITY);
+  Cpp::GetOperator(Cpp::GetGlobalScope(), Cpp::Operator::OP_Plus, ops);
   EXPECT_EQ(ops.size(), 1);
   ops.clear();
 
-  Cpp::GetOperator(Cpp::GetGlobalScope(), Cpp::Operator::OP_Minus,
-                   ops DFLT_OP_ARITY);
+  Cpp::GetOperator(Cpp::GetGlobalScope(), Cpp::Operator::OP_Minus, ops);
   EXPECT_EQ(ops.size(), 1);
   ops.clear();
 
-  Cpp::GetOperator(Cpp::GetGlobalScope(), Cpp::Operator::OP_Star,
-                   ops DFLT_OP_ARITY);
+  Cpp::GetOperator(Cpp::GetGlobalScope(), Cpp::Operator::OP_Star, ops);
   EXPECT_EQ(ops.size(), 0);
   ops.clear();
 
   // operators defined within a namespace
-  Cpp::GetOperator(Cpp::GetScope("extra_ops" DFLT_0), Cpp::Operator::OP_Plus,
-                   ops DFLT_OP_ARITY);
+  Cpp::GetOperator(Cpp::GetScope("extra_ops"), Cpp::Operator::OP_Plus, ops);
   EXPECT_EQ(ops.size(), 2);
   ops.clear();
 
   // unary operator
-  Cpp::GetOperator(Cpp::GetScope("extra_ops" DFLT_0), Cpp::Operator::OP_Tilde,
-                   ops DFLT_OP_ARITY);
+  Cpp::GetOperator(Cpp::GetScope("extra_ops"), Cpp::Operator::OP_Tilde, ops);
   EXPECT_EQ(ops.size(), 1);
   ops.clear();
 
-  Cpp::GetOperator(Cpp::GetScope("extra_ops" DFLT_0), Cpp::Operator::OP_Tilde,
-                   ops, Cpp::OperatorArity::kUnary);
+  Cpp::GetOperator(Cpp::GetScope("extra_ops"), Cpp::Operator::OP_Tilde, ops,
+                   Cpp::OperatorArity::kUnary);
   EXPECT_EQ(ops.size(), 1);
   ops.clear();
 
-  Cpp::GetOperator(Cpp::GetScope("extra_ops" DFLT_0), Cpp::Operator::OP_Tilde,
-                   ops, Cpp::OperatorArity::kBinary);
+  Cpp::GetOperator(Cpp::GetScope("extra_ops"), Cpp::Operator::OP_Tilde, ops,
+                   Cpp::OperatorArity::kBinary);
   EXPECT_EQ(ops.size(), 0);
 
   std::string inheritance_code = R"(
@@ -1318,15 +1312,13 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_GetOperator) {
     }
   };
   )";
-  Cpp::Declare(inheritance_code.c_str() DFLT_FALSE);
+  Cpp::Declare(inheritance_code.c_str());
 
   ops.clear();
-  Cpp::GetOperator(Cpp::GetScope("Child" DFLT_0), Cpp::Operator::OP_Plus,
-                   ops DFLT_OP_ARITY);
+  Cpp::GetOperator(Cpp::GetScope("Child"), Cpp::Operator::OP_Plus, ops);
   EXPECT_EQ(ops.size(), 1);
 
   ops.clear();
-  Cpp::GetOperator(Cpp::GetScope("Child" DFLT_0), Cpp::Operator::OP_Minus,
-                   ops DFLT_OP_ARITY);
+  Cpp::GetOperator(Cpp::GetScope("Child"), Cpp::Operator::OP_Minus, ops);
   EXPECT_EQ(ops.size(), 1);
 }

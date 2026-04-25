@@ -104,10 +104,61 @@ if (LLVM_LINK_LLVM_DYLIB)
     )
 endif(LLVM_LINK_LLVM_DYLIB)
 
+# Generate .inc files from CppInterOp.td using cppinterop-tblgen.
+# The .td source lives here; generated output goes to the build tree's
+# include/CppInterOp/ so that CppInterOp.h can #include them.
+#
+# For cross-compilation (Emscripten), set CPPINTEROP_TABLEGEN_EXE to a
+# pre-built native cppinterop-tblgen binary, or build one in a native
+# build directory first.
+set(CPPINTEROP_TD_DIR ${CMAKE_CURRENT_SOURCE_DIR})
+set(CPPINTEROP_TD_FILE ${CPPINTEROP_TD_DIR}/CppInterOp.td)
+set(CPPINTEROP_GEN_DIR ${CMAKE_BINARY_DIR}/include/CppInterOp)
+set(CPPINTEROP_TD_DEPS ${CPPINTEROP_TD_FILE}
+                        ${CPPINTEROP_TD_DIR}/CppInterOpAPI.td)
+
+if(CPPINTEROP_TABLEGEN_EXE)
+  # Cross-compilation: use the provided native binary.
+  set(CPPINTEROP_TBLGEN_CMD ${CPPINTEROP_TABLEGEN_EXE})
+  set(CPPINTEROP_TBLGEN_DEPS ${CPPINTEROP_TD_DEPS})
+elseif(NOT EMSCRIPTEN)
+  # Native build: use the just-built target.
+  set(CPPINTEROP_TBLGEN_CMD $<TARGET_FILE:cppinterop-tblgen>)
+  set(CPPINTEROP_TBLGEN_DEPS cppinterop-tblgen ${CPPINTEROP_TD_DEPS})
+endif()
+
+if(CPPINTEROP_TBLGEN_CMD)
+  file(MAKE_DIRECTORY ${CPPINTEROP_GEN_DIR})
+
+  add_custom_command(
+    OUTPUT ${CPPINTEROP_GEN_DIR}/CppInterOpAPI.inc
+    COMMAND ${CPPINTEROP_TBLGEN_CMD}
+      -I${CPPINTEROP_TD_DIR} -gen-cppinterop-api
+      ${CPPINTEROP_TD_FILE} -o ${CPPINTEROP_GEN_DIR}/CppInterOpAPI.inc
+    DEPENDS ${CPPINTEROP_TBLGEN_DEPS}
+    COMMENT "Generating CppInterOpAPI.inc...")
+
+  add_custom_command(
+    OUTPUT ${CPPINTEROP_GEN_DIR}/CppInterOpDecl.inc
+    COMMAND ${CPPINTEROP_TBLGEN_CMD}
+      -I${CPPINTEROP_TD_DIR} -gen-cppinterop-decl
+      ${CPPINTEROP_TD_FILE} -o ${CPPINTEROP_GEN_DIR}/CppInterOpDecl.inc
+    DEPENDS ${CPPINTEROP_TBLGEN_DEPS}
+    COMMENT "Generating CppInterOpDecl.inc...")
+
+  add_custom_target(CppInterOpTableGen DEPENDS
+    ${CPPINTEROP_GEN_DIR}/CppInterOpAPI.inc
+    ${CPPINTEROP_GEN_DIR}/CppInterOpDecl.inc)
+else()
+  message(FATAL_ERROR
+    "Cannot generate .inc files: set CPPINTEROP_TABLEGEN_EXE to a native "
+    "cppinterop-tblgen binary when cross-compiling.")
+endif()
+
 add_llvm_library(clangCppInterOp
   DISABLE_LLVM_LINK_LLVM_DYLIB
   CppInterOp.cpp
-  Dispatch.cpp
+  CppInterOpDispatch.cpp
   CXCppInterOp.cpp
   Tracing.cpp
   ${DLM}
@@ -156,6 +207,9 @@ if(EMSCRIPTEN)
   endif(CPPINTEROP_ENABLE_TESTING)
 endif(EMSCRIPTEN)
 
+if(TARGET CppInterOpTableGen)
+  add_dependencies(clangCppInterOp CppInterOpTableGen)
+endif()
 target_compile_definitions(clangCppInterOp PUBLIC "_CINDEX_LIB_") # workaround for the use of `CINDEX_LINKAGE`
 
 string(REPLACE ";" "\;" _VER CPPINTEROP_VERSION)

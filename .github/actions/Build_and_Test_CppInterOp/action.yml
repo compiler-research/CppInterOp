@@ -5,7 +5,7 @@ runs:
   using: composite
   steps:
     - name: Build and Test/Install CppInterOp (native shared library build)
-      if: ${{ runner.os != 'Windows' && !endsWith(matrix.name, '-emscripten') }}
+      if: ${{ runner.os != 'Windows' && matrix.wasm != true }}
       shell: bash
       run: |
         if [[ "${{ runner.environment }}" == "self-hosted" ]]; then
@@ -86,7 +86,7 @@ runs:
         echo "CPLUS_INCLUDE_PATH=$CPLUS_INCLUDE_PATH" >> $GITHUB_ENV
 
     - name: Build and Test/Install CppInterOp on Windows systems (native static library build)
-      if: ${{ runner.os == 'Windows' && !endsWith(matrix.name, '-emscripten') }}
+      if: ${{ runner.os == 'Windows' && matrix.wasm != true }}
       shell: powershell
       run: |
         $env:PWD_DIR= $PWD.Path
@@ -154,11 +154,11 @@ runs:
         cmake --build . --config ${{ env.BUILD_TYPE }} --target check-cppinterop --parallel ${{ env.ncpus }}
 
     - name: Emscripten build of CppInterOp on Unix systems (shared library)
-      if: ${{ runner.os != 'Windows' && endsWith(matrix.name, '-emscripten') }}
+      if: ${{ runner.os != 'Windows' && matrix.wasm == true }}
       shell: bash -l {0}
       run: |
         set -e
-        ./emsdk/emsdk activate ${{matrix.emsdk_ver}}
+        ./emsdk/emsdk activate ${{ env.EMSDK_VER }}
         source ./emsdk/emsdk_env.sh
         micromamba create -f environment-wasm.yml --platform=emscripten-wasm32 -c https://prefix.dev/emscripten-forge-4x -c https://prefix.dev/conda-forge
         export SYSROOT_PATH=$PWD/emsdk/upstream/emscripten/cache/sysroot
@@ -176,6 +176,24 @@ runs:
         else
           CPLUS_INCLUDE_PATH="${LLVM_DIR}/llvm/include:${LLVM_DIR}/clang/include:${LLVM_BUILD_DIR}/include:${LLVM_BUILD_DIR}/tools/clang/include:$PWD/include"
         fi
+
+        # Build native cppinterop-tblgen for .inc file generation.
+        # Use the native LLVM build (not the Emscripten cross-build) since
+        # cppinterop-tblgen only needs libLLVMTableGen and libLLVMSupport.
+        NATIVE_LLVM_BUILD_DIR="$(pwd)/llvm-project/native_build"
+        mkdir -p native_cppinterop_build && pushd native_cppinterop_build
+        cmake -DCMAKE_BUILD_TYPE=Release \
+              -DLLVM_DIR=$NATIVE_LLVM_BUILD_DIR/lib/cmake/llvm \
+              -DCPPINTEROP_ENABLE_TESTING=OFF \
+              -DCMAKE_CXX_STANDARD=17 \
+              -DLLVM_ENABLE_WERROR=On  \
+              -DCPPINTEROP_BUILD_TABLEGEN_ONLY=ON \
+              ../
+        cmake --build . --target cppinterop-tblgen -j ${{ env.ncpus }}
+        export CPPINTEROP_TBLGEN_EXE=$(find $PWD -name cppinterop-tblgen -type f | head -1)
+        echo "Found cppinterop-tblgen at: $CPPINTEROP_TBLGEN_EXE"
+        echo "CPPINTEROP_TBLGEN_EXE=$CPPINTEROP_TBLGEN_EXE" >> $GITHUB_ENV
+        popd
 
         # Build CppInterOp next to cling and llvm-project.
         mkdir build
@@ -195,6 +213,7 @@ runs:
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            \
                 -DLLVM_ENABLE_WERROR=On                      \
                 -DSYSROOT_PATH=$SYSROOT_PATH               \
+                -DCPPINTEROP_TABLEGEN_EXE=$CPPINTEROP_TBLGEN_EXE \
                 ../
         else
           emcmake cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    \
@@ -208,6 +227,7 @@ runs:
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            \
                 -DLLVM_ENABLE_WERROR=On                      \
                 -DSYSROOT_PATH=$SYSROOT_PATH                     \
+                -DCPPINTEROP_TABLEGEN_EXE=$CPPINTEROP_TBLGEN_EXE \
                 ../
         fi
         emmake make -j ${{ env.ncpus }} check-cppinterop
@@ -327,13 +347,13 @@ runs:
         echo "PREFIX=$PREFIX" >> $GITHUB_ENV
   
     - name: Emscripten build of CppInterOp on Unix systems (static library)
-      if: runner.os != 'Windows' && !(startsWith(matrix.os, 'ubuntu') && matrix.clang-runtime == '19' && endsWith(matrix.os, 'arm')) && endsWith(matrix.name, '-emscripten') && matrix.build_static_library == 'On' 
+      if: runner.os != 'Windows' && !(startsWith(matrix.os, 'ubuntu') && matrix.clang-runtime == '19' && endsWith(matrix.os, 'arm')) && matrix.wasm == true && env.BUILD_STATIC_LIBRARY == 'On' 
       shell: bash -l {0}
       run: |
         # FIXME: Static library builds, but tests fail to build on Github runner for Ubuntu arm llvm 19 case
         #        Disabled build for now
         set -e
-        ./emsdk/emsdk activate ${{matrix.emsdk_ver}}
+        ./emsdk/emsdk activate ${{ env.EMSDK_VER }}
         source ./emsdk/emsdk_env.sh
 
         # Build CppInterOp next to cling and llvm-project.
@@ -353,6 +373,7 @@ runs:
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            \
                 -DLLVM_ENABLE_WERROR=On                      \
                 -DSYSROOT_PATH=${{ env.SYSROOT_PATH }}              \
+                -DCPPINTEROP_TABLEGEN_EXE=$CPPINTEROP_TBLGEN_EXE \
                 ../
         else
           emcmake cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    \
@@ -365,6 +386,7 @@ runs:
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            \
                 -DLLVM_ENABLE_WERROR=On                      \
                 -DSYSROOT_PATH=${{ env.SYSROOT_PATH }}                  \
+                -DCPPINTEROP_TABLEGEN_EXE=$CPPINTEROP_TBLGEN_EXE \
                 ../
         fi
         os="${{ matrix.os }}"
@@ -414,11 +436,11 @@ runs:
         cd ../../..
 
     - name: Emscripten build of CppInterOp on Windows systems (shared library)
-      if: ${{ runner.os == 'Windows' && endsWith(matrix.name, '-emscripten') }}
+      if: ${{ runner.os == 'Windows' && matrix.wasm == true }}
       shell: powershell
       run: |
         micromamba create -f environment-wasm.yml --platform=emscripten-wasm32 -c https://prefix.dev/emscripten-forge-4x -c https://prefix.dev/conda-forge
-        .\emsdk\emsdk activate ${{matrix.emsdk_ver}}
+        .\emsdk\emsdk activate ${{ env.EMSDK_VER }}
         .\emsdk\emsdk_env.ps1
         $env:PWD_DIR= $PWD.Path
         $env:SYSROOT_PATH="$env:EMSDK/upstream/emscripten/cache/sysroot"
@@ -461,6 +483,22 @@ runs:
           echo "CPLUS_INCLUDE_PATH=$env:CPLUS_INCLUDE_PATH" >> $env:GITHUB_ENV
         }
 
+        # Build native cppinterop-tblgen for .inc file generation.
+        mkdir native_cppinterop_build
+        pushd native_cppinterop_build
+        $env:NATIVE_LLVM_BUILD_DIR="$env:PWD_DIR\llvm-project\native_build"
+        cmake -DCMAKE_BUILD_TYPE=Release `
+              -DLLVM_DIR="$env:NATIVE_LLVM_BUILD_DIR\lib\cmake\llvm" `
+              -DCPPINTEROP_ENABLE_TESTING=OFF `
+              -DCMAKE_CXX_STANDARD=17 -DLLVM_ENABLE_WERROR=On `
+              -DCPPINTEROP_BUILD_TABLEGEN_ONLY=ON `
+              ..\
+        cmake --build . --target cppinterop-tblgen -j ${{ env.ncpus }}
+        $env:CPPINTEROP_TBLGEN_EXE = (Get-ChildItem -Recurse -Filter "cppinterop-tblgen.exe" | Select-Object -First 1).FullName
+        echo "Found cppinterop-tblgen at: $env:CPPINTEROP_TBLGEN_EXE"
+        echo "CPPINTEROP_TBLGEN_EXE=$env:CPPINTEROP_TBLGEN_EXE" >> $env:GITHUB_ENV
+        popd
+
         # Build CppInterOp next to cling and llvm-project.
         mkdir build
         cd build
@@ -480,6 +518,7 @@ runs:
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            `
                 -DLLVM_ENABLE_WERROR=On                      `
                 -DSYSROOT_PATH="$env:SYSROOT_PATH"              `
+                -DCPPINTEROP_TABLEGEN_EXE="$env:CPPINTEROP_TBLGEN_EXE" `
                 ..\
         }
         else
@@ -495,6 +534,7 @@ runs:
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            `
                 -DLLVM_ENABLE_WERROR=On                      `
                 -DSYSROOT_PATH="$env:SYSROOT_PATH"                     `
+                -DCPPINTEROP_TABLEGEN_EXE="$env:CPPINTEROP_TBLGEN_EXE" `
                 ..\
         }
         function Error-OnFailure {
@@ -534,10 +574,10 @@ runs:
         echo "PREFIX=$env:PREFIX" >> $GITHUB_ENV
 
     - name: Emscripten build of CppInterOp on Windows systems (static library)
-      if: ${{ runner.os == 'Windows' && endsWith(matrix.name, '-emscripten') && matrix.build_static_library == 'On' && matrix.build_static_library == 'On' }}
+      if: ${{ runner.os == 'Windows' && matrix.wasm == true && env.BUILD_STATIC_LIBRARY == 'On' }}
       shell: powershell
       run: |
-       .\emsdk\emsdk activate ${{matrix.emsdk_ver}}
+       .\emsdk\emsdk activate ${{ env.EMSDK_VER }}
         .\emsdk\emsdk_env.ps1
         function Error-OnFailure {
           param (
@@ -570,6 +610,7 @@ runs:
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            `
                 -DLLVM_ENABLE_WERROR=On                      `
                 -DSYSROOT_PATH=${{ env.SYSROOT_PATH }}             `
+                -DCPPINTEROP_TABLEGEN_EXE="${{ env.CPPINTEROP_TBLGEN_EXE }}" `
                 ..\
         }
         else
@@ -584,6 +625,7 @@ runs:
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            `
                 -DLLVM_ENABLE_WERROR=On                      `
                 -DSYSROOT_PATH=${{ env.SYSROOT_PATH }}                    `
+                -DCPPINTEROP_TABLEGEN_EXE="${{ env.CPPINTEROP_TBLGEN_EXE }}" `
                 ..\
         }
         Error-OnFailure { emmake make -j ${{ env.ncpus }} check-cppinterop }

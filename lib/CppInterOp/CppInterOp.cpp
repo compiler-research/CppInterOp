@@ -188,7 +188,8 @@ struct InterpreterInfo {
 
 static void DefaultProcessCrashHandler(void*);
 // Function-static storage for interpreters
-static std::deque<InterpreterInfo>& GetInterpreters() {
+static std::deque<InterpreterInfo>&
+GetInterpreters(bool SetCrashHandler = true) {
   // static int FakeArgc = 1;
   // static const std::string VersionStr = GetVersion();
   // static const char* ArgvBuffer[] = {VersionStr.c_str(), nullptr};
@@ -200,8 +201,9 @@ static std::deque<InterpreterInfo>& GetInterpreters() {
   // FIXME: Currently we never call llvm::llvm_shutdown and sInterpreters leaks.
   static llvm::ManagedStatic<std::deque<InterpreterInfo>> sInterpreters;
   static std::once_flag ProcessInitialized;
-  std::call_once(ProcessInitialized, []() {
-    llvm::sys::PrintStackTraceOnErrorSignal("CppInterOp");
+  std::call_once(ProcessInitialized, [SetCrashHandler]() {
+    if (SetCrashHandler)
+      llvm::sys::PrintStackTraceOnErrorSignal("CppInterOp");
 
     if (getenv("CPPINTEROP_LOG") != nullptr)
       CppInterOp::Tracing::InitTracing();
@@ -213,7 +215,9 @@ static std::deque<InterpreterInfo>& GetInterpreters() {
     llvm::InitializeAllAsmParsers();
     llvm::InitializeAllAsmPrinters();
 
-    llvm::sys::AddSignalHandler(DefaultProcessCrashHandler, /*Cookie=*/nullptr);
+    if (SetCrashHandler)
+      llvm::sys::AddSignalHandler(DefaultProcessCrashHandler,
+                                  /*Cookie=*/nullptr);
 
     // std::atexit(llvm::llvm_shutdown);
   });
@@ -262,7 +266,7 @@ static void DefaultProcessCrashHandler(void*) {
 }
 
 static void RegisterInterpreter(compat::Interpreter* I, bool Owned) {
-  std::deque<InterpreterInfo>& Interps = GetInterpreters();
+  std::deque<InterpreterInfo>& Interps = GetInterpreters(Owned);
   Interps.emplace_back(I, Owned);
 }
 
@@ -294,7 +298,7 @@ TInterp_t GetInterpreter() {
 
 void UseExternalInterpreter(TInterp_t I) {
   INTEROP_TRACE(I);
-  assert(GetInterpreters().empty() && "sInterpreter already in use!");
+  assert(GetInterpreters(false).empty() && "sInterpreter already in use!");
   RegisterInterpreter(static_cast<compat::Interpreter*>(I), /*Owned=*/false);
   return INTEROP_VOID_RETURN();
 }
@@ -2063,10 +2067,49 @@ bool IsPODType(TCppType_t type) {
   return INTEROP_RETURN(QT.isPODType(getASTContext()));
 }
 
+bool IsIntegerType(TCppType_t type, Signedness* s) {
+  INTEROP_TRACE(type, s);
+  if (!type)
+    return INTEROP_RETURN(false);
+  QualType QT = QualType::getFromOpaquePtr(type);
+  if (!QT->hasIntegerRepresentation())
+    return INTEROP_RETURN(false);
+  if (s) {
+    *s = QT->hasSignedIntegerRepresentation() ? Signedness::kSigned
+                                              : Signedness::kUnsigned;
+  }
+  return INTEROP_RETURN(true);
+}
+
+bool IsFloatingType(TCppType_t type) {
+  INTEROP_TRACE(type);
+  if (!type)
+    return INTEROP_RETURN(false);
+  QualType QT = QualType::getFromOpaquePtr(type);
+  return INTEROP_RETURN(QT->hasFloatingRepresentation());
+}
+
+bool IsSameType(TCppType_t type_a, TCppType_t type_b) {
+  INTEROP_TRACE(type_a, type_b);
+  if (!type_a || !type_b)
+    return INTEROP_RETURN(false);
+  QualType QT1 = QualType::getFromOpaquePtr(type_a);
+  QualType QT2 = QualType::getFromOpaquePtr(type_b);
+  return INTEROP_RETURN(getASTContext().hasSameType(QT1, QT2));
+}
+
 bool IsPointerType(TCppType_t type) {
   INTEROP_TRACE(type);
   QualType QT = QualType::getFromOpaquePtr(type);
   return INTEROP_RETURN(QT->isPointerType());
+}
+
+bool IsVoidPointerType(TCppType_t type) {
+  INTEROP_TRACE(type);
+  if (!type)
+    return INTEROP_RETURN(false);
+  QualType QT = QualType::getFromOpaquePtr(type);
+  return INTEROP_RETURN(QT->isVoidPointerType());
 }
 
 TCppType_t GetPointeeType(TCppType_t type) {
@@ -2119,6 +2162,8 @@ TCppType_t GetNonReferenceType(TCppType_t type) {
 
 TCppType_t GetUnderlyingType(TCppType_t type) {
   INTEROP_TRACE(type);
+  if (!type)
+    return INTEROP_RETURN(nullptr);
   QualType QT = QualType::getFromOpaquePtr(type);
   QT = QT->getCanonicalTypeUnqualified();
 
@@ -2750,14 +2795,16 @@ void make_narg_call(const FunctionDecl* FD, const std::string& return_type,
       // so check for the most common case: the trivial one, but not uniquely
       // available, while there is a move constructor.
 
-      // include utility header if not already included for std::move
-      DeclarationName DMove = &getASTContext().Idents.get("move");
-      auto result = getSema().getStdNamespace()->lookup(DMove);
-      if (result.empty())
-        Cpp::Declare("#include <utility>");
-
-      // move construction as needed for classes (note that this is implicit)
-      callbuf << "std::move(*(" << type_name.c_str() << "*)args[" << i << "])";
+      // Move construction as needed for classes (note that this is
+      // implicit). Emit `std::move`'s expansion directly rather than the
+      // name: a cast to T&& is the definition of std::move for
+      // non-reference T ([utility.swap]), and this avoids pulling
+      // <utility> into the user's TU just to obtain the name. It also
+      // sidesteps the `getSema().getStdNamespace()->lookup(...)` call,
+      // which dereferences a nullptr when no `std::` has been parsed
+      // yet in this interpreter's TU.
+      callbuf << "static_cast<" << type_name.c_str() << "&&>(*("
+              << type_name.c_str() << "*)args[" << i << "])";
     } else {
       // pointer falls back to non-pointer case; the argument preserves
       // the "pointerness" (i.e. doesn't reference the value).
@@ -4001,7 +4048,6 @@ void GetIncludePaths(std::vector<std::string>& IncludePaths, bool withSystem,
 }
 
 namespace {
-
 class clangSilent {
 public:
   clangSilent(clang::DiagnosticsEngine& diag) : fDiagEngine(diag) {

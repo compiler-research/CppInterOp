@@ -616,6 +616,8 @@ TEST_F(TracingTest, ReproducerCompilesViaInterpreter) {
   // Create a fresh interpreter and #include the reproducer file as-is.
   Cpp::CreateInterpreter({});
   Cpp::AddIncludePath(CPPINTEROP_DIR "/include");
+  // Generated .inc files live under the build tree.
+  Cpp::AddIncludePath(CPPINTEROP_BINARY_DIR "/include");
 
   std::string includeDirective = "#include \"" + Path + "\"";
   EXPECT_EQ(Cpp::Process(includeDirective.c_str()), 0)
@@ -859,10 +861,18 @@ TEST_F(TracingTest, WriteToFileWhenStdErrDisabled) {
 // ---------------------------------------------------------------------------
 
 TEST(TracingCoverageTest, AllPublicAPIsAreTraced) {
-  // 1. Parse the header to extract all CPPINTEROP_API function names.
+  // 1. Parse the header and generated declarations to extract all
+  //    CPPINTEROP_API function names.
   std::string Header =
       ReadFileToString(CPPINTEROP_DIR "/include/CppInterOp/CppInterOp.h");
   ASSERT_FALSE(Header.empty()) << "Could not read CppInterOp.h";
+  // Function declarations are generated into CppInterOpDecl.inc.
+  std::string DeclInc = ReadFileToString(
+      CPPINTEROP_BINARY_DIR "/include/CppInterOp/CppInterOpDecl.inc");
+  if (DeclInc.empty())
+    DeclInc = ReadFileToString(CPPINTEROP_DIR
+                               "/include/CppInterOp/CppInterOpDecl.inc");
+  Header += DeclInc;
 
   std::regex ApiRe(R"(CPPINTEROP_API\s+[\w:<>\s\*&]+?\s+(\w+)\s*\()");
   std::set<std::string> ApiNames;

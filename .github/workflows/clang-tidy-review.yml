@@ -35,17 +35,34 @@ jobs:
         id: review
         with:
           build_dir: build
-          apt_packages: cmake,libxml2,libxml2-dev,libtinfo-dev,zlib1g-dev,libzstd-dev
+          # llvm-dev provides linkable libLLVMTableGen.a for building
+          # cppinterop-tblgen. The KyleMayes binary LLVM distribution has
+          # incompatible .a files. The system LLVM version doesn't need to
+          # match CppInterOp's minimum (19) since the TableGen library API
+          # is stable — only the tblgen binary is built against it. The
+          # real CppInterOp analysis uses the KyleMayes LLVM via LLVM_DIR.
+          apt_packages: cmake,libxml2,libxml2-dev,libtinfo-dev,zlib1g-dev,libzstd-dev,llvm-dev
           split_workflow: true
           config_file: .clang-tidy
+          # Two-stage cmake: (1) build cppinterop-tblgen against system
+          # LLVM, (2) configure CppInterOp against KyleMayes LLVM with the
+          # native tblgen binary, then generate .inc files.
           cmake_command: >
+            SYSTEM_LLVM_DIR=$(find /usr/lib/llvm-* -path '*/cmake/llvm/LLVMConfig.cmake' -printf '%h' -quit 2>/dev/null || echo "/usr/lib/llvm-18/lib/cmake/llvm") &&
+            cmake . -B tblgen_build -DCMAKE_BUILD_TYPE=Release
+            -DLLVM_DIR=$SYSTEM_LLVM_DIR
+            -DCPPINTEROP_BUILD_TABLEGEN_ONLY=ON &&
+            cmake --build tblgen_build --target cppinterop-tblgen --parallel $(nproc --all) &&
+            TBLGEN_EXE=$(find $(pwd)/tblgen_build -name cppinterop-tblgen -type f | head -1) &&
             cmake . -B build -DCMAKE_BUILD_TYPE="Release"
             -DCMAKE_C_COMPILER="$GITHUB_WORKSPACE/llvm/bin/clang"
             -DCMAKE_CXX_COMPILER="$GITHUB_WORKSPACE/llvm/bin/clang++"
             -DLLVM_DIR="$GITHUB_WORKSPACE/llvm"
             -DBUILD_SHARED_LIBS=ON
-            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON &&
+            -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
+            -DCPPINTEROP_TABLEGEN_EXE=$TBLGEN_EXE &&
             cd build &&
+            cmake --build . --target CppInterOpTableGen --parallel $(nproc --all) &&
             cmake --build . --target googletest --parallel $(nproc --all)
 
       - name: Upload artifacts
