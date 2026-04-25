@@ -35,7 +35,7 @@ jobs:
           - { name: ubu24-arm-emscr-llvm21,   os: ubuntu-24.04-arm, clang-runtime: &clang_rt '21', wasm: true }
           - { name: osx26-arm-emscr-llvm21,   os: macos-26,         clang-runtime: *clang_rt, wasm: true }
           - { name: ubu24-x86-emscr-llvm21,   os: ubuntu-24.04,     clang-runtime: *clang_rt, wasm: true }
-          - { name: win2025-x86-emscr-llvm21, os: windows-2025,     clang-runtime: *clang_rt, wasm: true }
+          - { name: win2025-x86-emscr-llvm21, os: windows-2025,     clang-runtime: *clang_rt, wasm: true, skip-in-prs: true }
 
     steps:
     - uses: actions/checkout@v6
