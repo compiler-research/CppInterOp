@@ -200,6 +200,11 @@ runs:
             git apply -v emscripten-clang21-2-enable_exception_handling.patch
             git apply -v emscripten-clang21-3-webassembly_target_machine_reordering.patch
           }
+          elseif ( "${{ matrix.clang-runtime }}" -imatch "22" )
+          {
+            git apply -v emscripten-clang22-1-enable_exception_handling.patch
+            git apply -v emscripten-clang22-2-webassembly_target_machine_reordering.patch
+          }
           cd build
           echo "Apply clang${{ matrix.clang-runtime }}-*.patch patches:"
           emcmake cmake -DCMAKE_BUILD_TYPE=Release `
