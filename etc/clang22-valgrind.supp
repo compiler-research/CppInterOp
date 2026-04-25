@@ -1,0 +1,119 @@
+# Upstream LLVM write(buf) uninit-bytes via the EPC transport, still
+# present in release/22.x. No llvm/llvm-project issue filed yet; if you
+# touch this file, please file one and add a reference here.
+{
+   Clang 22 Out of Process: uninitialised bytes in FDSimpleRemoteEPCTransport::sendMessage
+   Memcheck:Param
+   write(buf)
+   fun:__libc_write
+   fun:write
+   fun:_ZN4llvm3orc26FDSimpleRemoteEPCTransport11sendMessageENS0_21SimpleRemoteEPCOpcodeEmNS0_12ExecutorAddrENS_8ArrayRefIcEE
+   ...
+}
+
+# llvm/llvm-project#194147: clang-22 on x86_64 reads uninitialised bytes
+# in many AST/Sema paths (regression vs clang-20). Architecture-dependent
+# (clean on aarch64). Drop this whole block once the upstream issue lands.
+
+{
+   llvm/llvm-project#194147: InitListExpr::isTransparent
+   Memcheck:Cond
+   fun:_ZNK5clang12InitListExpr13isTransparentEv
+   ...
+}
+{
+   llvm/llvm-project#194147: InitListExpr::getInit
+   Memcheck:Cond
+   fun:_ZN5clang12InitListExpr7getInitEj
+   ...
+}
+{
+   llvm/llvm-project#194147: InitListExpr::getInit const
+   Memcheck:Cond
+   fun:_ZNK5clang12InitListExpr7getInitEj
+   ...
+}
+{
+   llvm/llvm-project#194147: InitListExpr::setInit
+   Memcheck:Cond
+   fun:_ZN5clang12InitListExpr7setInitEjPNS_4ExprE
+   ...
+}
+{
+   llvm/llvm-project#194147: InitListExpr::resizeInits
+   Memcheck:Cond
+   fun:_ZN5clang12InitListExpr11resizeInitsERKNS_10ASTContextEj
+   ...
+}
+{
+   llvm/llvm-project#194147: InitListExpr::resizeInits via memset
+   Memcheck:Cond
+   fun:memset
+   fun:_ZN5clang12InitListExpr11resizeInitsERKNS_10ASTContextEj
+   ...
+}
+
+{
+   llvm/llvm-project#194147: Sema::CheckForIntOverflow Cond
+   Memcheck:Cond
+   fun:_ZN5clang4Sema18CheckForIntOverflowEPKNS_4ExprE
+   ...
+}
+{
+   llvm/llvm-project#194147: Sema::CheckForIntOverflow Value8
+   Memcheck:Value8
+   fun:_ZN5clang4Sema18CheckForIntOverflowEPKNS_4ExprE
+   ...
+}
+{
+   llvm/llvm-project#194147: SequenceChecker::SequenceExpressionsInOrder
+   Memcheck:Cond
+   fun:*SequenceChecker*SequenceExpressionsInOrder*
+   ...
+}
+
+{
+   llvm/llvm-project#194147: Stmt::children via AnalyzeImplicitConversions
+   Memcheck:Cond
+   fun:_ZN5clang4Stmt8childrenEv
+   fun:*AnalyzeImplicitConversions*
+   ...
+}
+{
+   llvm/llvm-project#194147: CFGBuilder::Visit Cond
+   Memcheck:Cond
+   fun:*CFGBuilder*Visit*
+   ...
+}
+{
+   llvm/llvm-project#194147: CFGBuilder::Visit Value8
+   Memcheck:Value8
+   fun:*CFGBuilder*Visit*
+   ...
+}
+
+{
+   llvm/llvm-project#194147: RecordExprEvaluator::VisitCXXParenListOrInitListExpr
+   Memcheck:Cond
+   fun:*RecordExprEvaluator*VisitCXXParenListOrInitListExpr*
+   ...
+}
+{
+   llvm/llvm-project#194147: AggExprEmitter init-list visits
+   Memcheck:Cond
+   fun:*AggExprEmitter*Visit*InitListExpr*
+   ...
+}
+
+{
+   llvm/llvm-project#194147: InitListChecker::FillInEmptyInitForField
+   Memcheck:Cond
+   fun:*InitListChecker*FillInEmptyInitForField*
+   ...
+}
+{
+   llvm/llvm-project#194147: InitListChecker::FillInEmptyInitializations
+   Memcheck:Cond
+   fun:*InitListChecker*FillInEmptyInitializations*
+   ...
+}
