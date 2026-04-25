@@ -3,7 +3,7 @@
 
 #include "../../lib/CppInterOp/Compatibility.h"
 
-#include "clang-c/CXCppInterOp.h"
+#include "CppInterOp/CXCppInterOp.h"
 #include "clang-c/CXString.h"
 
 #include "CppInterOp/CppInterOp.h"

@@ -14,7 +14,7 @@
 #include "clang/Basic/Version.h"
 
 #include <clang-c/CXErrorCode.h>
-#include "clang-c/CXCppInterOp.h"
+#include "CppInterOp/CXCppInterOp.h"
 
 #include "llvm/ADT/SmallString.h"
 #include "llvm/Config/llvm-config.h"

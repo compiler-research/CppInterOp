@@ -1,7 +1,7 @@
 #include "Utils.h"
 
 #include "CppInterOp/CppInterOp.h"
-#include "clang-c/CXCppInterOp.h"
+#include "CppInterOp/CXCppInterOp.h"
 #include "clang-c/CXString.h"
 #include "gtest/gtest.h"
 

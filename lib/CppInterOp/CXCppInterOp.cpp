@@ -1,4 +1,4 @@
-#include "clang-c/CXCppInterOp.h"
+#include "CppInterOp/CXCppInterOp.h"
 #include "CppInterOp/CppInterOp.h"
 
 #include "Compatibility.h"

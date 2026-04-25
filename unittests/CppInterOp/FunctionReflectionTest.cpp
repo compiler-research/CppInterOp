@@ -9,7 +9,7 @@
 
 #include <llvm/ADT/ArrayRef.h>
 
-#include "clang-c/CXCppInterOp.h"
+#include "CppInterOp/CXCppInterOp.h"
 
 #include "gtest/gtest.h"
 
