@@ -640,6 +640,7 @@ TEST_F(TracingTest, JitCallWrapperSourceLogged) {
 #if CLANG_VERSION_MAJOR == 22
   GTEST_SKIP() << "Test fails for Emscipten builds using LLVM 22";
 #endif
+#endif
   Cpp::CreateInterpreter({});
   ASSERT_NE(TraceInfo::TheTraceInfo, nullptr);
 
