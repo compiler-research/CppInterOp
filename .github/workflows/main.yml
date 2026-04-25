@@ -1,8 +1,11 @@
 name: CI
 
 on:
-  pull_request:
-    branches: [main]
+  # XXX(ci-root-integration): pull_request disabled on this branch so the
+  # ROOT integration workflow gets the runner pool to itself while we
+  # iterate. Restore before landing.
+  # pull_request:
+  #   branches: [main]
   push:
     branches: [main]
   release:
