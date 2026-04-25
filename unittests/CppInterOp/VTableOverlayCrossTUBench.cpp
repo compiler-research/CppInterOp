@@ -36,7 +36,7 @@ extern "C" int xtu_replacement(void* /*self*/, int x) { return x + 100; }
 
 // Reflect OverlayBase (definition mirrors TestSharedLib) so the overlay is
 // driven through the public reflected API -- the language-binding setting.
-Cpp::TCppScope_t ReflectOverlayBase() {
+Cpp::DeclRef ReflectOverlayBase() {
   Cpp::CreateInterpreter({});
   Cpp::Declare("struct OverlayBase {"
                "  OverlayBase();"
@@ -46,16 +46,16 @@ Cpp::TCppScope_t ReflectOverlayBase() {
   return Cpp::GetNamed("OverlayBase");
 }
 
-Cpp::TCppFunction_t Frob(Cpp::TCppScope_t scope) {
-  std::vector<Cpp::TCppFunction_t> methods;
+Cpp::FuncRef Frob(Cpp::DeclRef scope) {
+  std::vector<Cpp::FuncRef> methods;
   Cpp::GetClassMethods(scope, methods);
-  for (auto* m : methods)
-    if (Cpp::GetName(m) == "frob")
+  for (auto m : methods)
+    if (Cpp::GetName(Cpp::DeclRef{m.data}) == "frob")
       return m;
   return nullptr;
 }
 
-Cpp::UniqueVTableOverlay OverlayFrob(void* inst, Cpp::TCppScope_t base) {
+Cpp::UniqueVTableOverlay OverlayFrob(void* inst, Cpp::DeclRef base) {
   return Cpp::MakeUniqueVTableOverlay(
       inst, base, {{Frob(base), TestUtils::BitCastFn<void*>(&xtu_replacement)}});
 }
@@ -64,7 +64,7 @@ Cpp::UniqueVTableOverlay OverlayFrob(void* inst, Cpp::TCppScope_t base) {
 
 TEST(VTableOverlayCrossTU, OverlayDispatchesAcrossDSO) {
   Impl impl;
-  auto* base = ReflectOverlayBase();
+  auto base = ReflectOverlayBase();
   ASSERT_NE(base, nullptr);
   auto ov = OverlayFrob(&impl, base);
   ASSERT_TRUE(ov);
@@ -81,7 +81,7 @@ BENCHMARK(BM_XTU_BareVirtual);
 
 static void BM_XTU_OverlayDirectFn(benchmark::State& state) {
   Impl impl;
-  auto* base = ReflectOverlayBase();
+  auto base = ReflectOverlayBase();
   auto ov = OverlayFrob(&impl, base);
   for (auto _ : state)
     benchmark::DoNotOptimize(OverlayDispatchOnce(&impl, 7));
@@ -132,7 +132,7 @@ Handler g_handler{100};
 
 TEST(VTableOverlayCrossTU, ExtraPrefixSlotDispatch) {
   Impl impl;
-  auto* base = ReflectOverlayBase();
+  auto base = ReflectOverlayBase();
   ASSERT_NE(base, nullptr);
   auto ov = Cpp::MakeUniqueVTableOverlay(
       &impl, base,
@@ -145,7 +145,7 @@ TEST(VTableOverlayCrossTU, ExtraPrefixSlotDispatch) {
 
 static void BM_XTU_OverlayExtraSlot(benchmark::State& state) {
   Impl impl;
-  auto* base = ReflectOverlayBase();
+  auto base = ReflectOverlayBase();
   auto ov = Cpp::MakeUniqueVTableOverlay(
       &impl, base,
       {{Frob(base), TestUtils::BitCastFn<void*>(&xtu_thunk_extra_slot)}},
@@ -158,7 +158,7 @@ BENCHMARK(BM_XTU_OverlayExtraSlot);
 
 static void BM_XTU_OverlayGlobalMap(benchmark::State& state) {
   Impl impl;
-  auto* base = ReflectOverlayBase();
+  auto base = ReflectOverlayBase();
   auto ov = Cpp::MakeUniqueVTableOverlay(
       &impl, base,
       {{Frob(base), TestUtils::BitCastFn<void*>(&xtu_thunk_global_map)}});
@@ -197,9 +197,9 @@ extern "C" void xtu_noop_cleanup(void* /*inst*/, void* /*data*/) {}
 
 static void BM_XTU_OverlayWithDtorHook(benchmark::State& state) {
   Impl impl;
-  auto* base = ReflectOverlayBase();
+  auto base = ReflectOverlayBase();
   void* fn = TestUtils::BitCastFn<void*>(&xtu_replacement);
-  Cpp::TCppConstFunction_t method = Frob(base);
+  Cpp::ConstFuncRef method = Frob(base);
   auto* ov = Cpp::MakeVTableOverlay(
       &impl, base, &method, &fn, /*n=*/1,
       /*n_extra_prefix_slots=*/0,

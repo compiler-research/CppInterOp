@@ -67,7 +67,7 @@
 #endif
 #endif
 
-namespace CppImpl {
+namespace Cpp {
 
 // FIXME: clang's REPL_BUILTIN_TYPES lists `unsigned char` twice (Char_U +
 // UChar) to disambiguate the platform-default signedness of `char` from an
@@ -286,13 +286,6 @@ public:
 CPP_BOX_BUILTIN_TYPES
 #undef X
 
-} // namespace CppImpl
-
-// The `Cpp` alias is mutually exclusive with Dispatch.h's own alias to
-// CppInternal::Dispatch, so skip it on that path (Dispatch.h sets it).
-#ifndef CPPINTEROP_DISPATCH_H
-// NOLINTNEXTLINE(misc-unused-alias-decls)
-namespace Cpp = CppImpl;
-#endif
+} // namespace Cpp
 
 #endif // CPPINTEROP_BOX_H

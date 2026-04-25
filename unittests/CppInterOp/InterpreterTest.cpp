@@ -291,9 +291,9 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_Evaluate_NonValueStatement) {
 TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_DeleteInterpreter) {
   if (TypeParam::isOutOfProcess)
     GTEST_SKIP() << "Test fails for OOP JIT builds";
-  auto* I1 = TestFixture::CreateInterpreter();
-  auto* I2 = TestFixture::CreateInterpreter();
-  auto* I3 = TestFixture::CreateInterpreter();
+  auto I1 = TestFixture::CreateInterpreter();
+  auto I2 = TestFixture::CreateInterpreter();
+  auto I3 = TestFixture::CreateInterpreter();
   EXPECT_TRUE(I1 && I2 && I3) << "Failed to create interpreters";
 
   EXPECT_EQ(I3, Cpp::GetInterpreter()) << "I3 is not active";
@@ -301,7 +301,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_DeleteInterpreter) {
   EXPECT_TRUE(Cpp::DeleteInterpreter(/*I=*/nullptr));
   EXPECT_EQ(I2, Cpp::GetInterpreter());
 
-  auto* I4 = reinterpret_cast<void*>(static_cast<std::uintptr_t>(~0U));
+  Cpp::InterpRef I4{reinterpret_cast<void*>(static_cast<std::uintptr_t>(~0U))};
   EXPECT_FALSE(Cpp::DeleteInterpreter(I4));
 
   EXPECT_TRUE(Cpp::DeleteInterpreter(I1));
@@ -315,8 +315,8 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_StaticDtorsRunOnDelete) {
   if (TypeParam::isOutOfProcess)
     GTEST_SKIP() << "Test fails for OOP JIT builds";
 
-  auto* I = TestFixture::CreateInterpreter();
-  ASSERT_NE(I, nullptr);
+  auto I = TestFixture::CreateInterpreter();
+  ASSERT_TRUE(I);
 
   // Host-side flag the JIT writes to; survives the interpreter deletion
   // that frees JIT memory. Reset explicitly for --gtest_repeat.
@@ -325,11 +325,10 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_StaticDtorsRunOnDelete) {
   std::string Inject = "extern \"C\" void* dtor_sink = (void*)" +
                        std::to_string(reinterpret_cast<uintptr_t>(&HostFlag)) +
                        ";";
-  Cpp::Declare(Inject.c_str(), I);
+  Cpp::Declare(Inject.c_str());
   Cpp::Declare(R"(
     struct DtorNotify { ~DtorNotify() { *static_cast<int*>(dtor_sink) = 1; } };
-  )",
-               I);
+  )");
   Cpp::Process("static DtorNotify notify;");
 
   EXPECT_EQ(HostFlag, 0);
@@ -364,8 +363,8 @@ TYPED_TEST(CPPINTEROP_TEST_MODE,
 #else
   EXPECT_EXIT(
       {
-        auto* I1 = TestFixture::CreateInterpreter();
-        auto* I2 = TestFixture::CreateInterpreter();
+        auto I1 = TestFixture::CreateInterpreter();
+        auto I2 = TestFixture::CreateInterpreter();
         Cpp::ActivateInterpreter(I1);
         Cpp::Process("struct S1 { S1() {} ~S1() {} }; static S1 s1;");
         Cpp::ActivateInterpreter(I2);
@@ -383,15 +382,16 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_ActivateInterpreter) {
   if (TypeParam::isOutOfProcess)
     GTEST_SKIP() << "Test fails for OOP JIT builds";
   EXPECT_FALSE(Cpp::ActivateInterpreter(nullptr));
-  auto* Cpp14 = TestFixture::CreateInterpreter({"-std=c++14"});
-  auto* Cpp17 = TestFixture::CreateInterpreter({"-std=c++17"});
-  auto* Cpp20 = TestFixture::CreateInterpreter({"-std=c++20"});
+  auto Cpp14 = TestFixture::CreateInterpreter({"-std=c++14"});
+  auto Cpp17 = TestFixture::CreateInterpreter({"-std=c++17"});
+  auto Cpp20 = TestFixture::CreateInterpreter({"-std=c++20"});
 
   EXPECT_TRUE(Cpp14 && Cpp17 && Cpp20);
   EXPECT_EQ(Cpp::Evaluate("__cplusplus").unbox<long>(), 202002L)
       << "Failed to activate C++20";
 
-  auto* UntrackedI = reinterpret_cast<void*>(static_cast<std::uintptr_t>(~0U));
+  Cpp::InterpRef UntrackedI{
+      reinterpret_cast<void*>(static_cast<std::uintptr_t>(~0U))};
   EXPECT_FALSE(Cpp::ActivateInterpreter(UntrackedI));
 
   EXPECT_TRUE(Cpp::ActivateInterpreter(Cpp14));
@@ -488,7 +488,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_EmscriptenExceptionHandling) {
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_CreateInterpreter) {
-  auto* I = TestFixture::CreateInterpreter();
+  auto I = TestFixture::CreateInterpreter();
   EXPECT_TRUE(I);
   // Check if the default standard is c++14
 
@@ -721,7 +721,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, SignalHandler_BasicBanner) {
   // EXPECT_FALSE(Cpp::GetInterpreter()) << "Failed to delete all interpreters";
 
   // // Create an interpreter (this calls RegisterInterpreter internally)
-  // TInterp_t I = TestFixture::CreateInterpreter();
+  // InterpRef I = TestFixture::CreateInterpreter();
   // ASSERT_NE(I, nullptr);
 
   // We expect the banner to appear in stderr when the process dies
@@ -743,8 +743,8 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, SignalHandler_BasicBanner) {
 // Verify that the handler correctly lists multiple interpreters
 #ifdef GTEST_HAS_DEATH_TEST
 TYPED_TEST(CPPINTEROP_TEST_MODE, SignalHandler_MultipleInterpreters) {
-  ASSERT_NE(TestFixture::CreateInterpreter(), nullptr);
-  ASSERT_NE(TestFixture::CreateInterpreter(), nullptr);
+  ASSERT_TRUE(TestFixture::CreateInterpreter());
+  ASSERT_TRUE(TestFixture::CreateInterpreter());
 
   // The handler iterates through the deque and prints the pointers
 
@@ -765,15 +765,15 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_WrapperCacheIsPerInterpreter) {
     GTEST_SKIP() << "Test fails for OOP JIT builds";
 
   // Create first interpreter: add(a,b) returns a + b.
-  auto* I1 = TestFixture::CreateInterpreter();
-  ASSERT_NE(I1, nullptr);
+  auto I1 = TestFixture::CreateInterpreter();
+  ASSERT_TRUE(I1);
   Cpp::ActivateInterpreter(I1);
   Cpp::Declare("int add(int a, int b) { return a + b; }");
-  auto* AddDecl1 = Cpp::GetNamed("add");
-  ASSERT_NE(AddDecl1, nullptr);
+  auto AddDecl1 = Cpp::GetNamed("add");
+  ASSERT_TRUE(AddDecl1);
 
   Cpp::Declare("#include <new>"); // Needed by JitCall
-  auto JC1 = Cpp::MakeFunctionCallable(AddDecl1);
+  auto JC1 = Cpp::MakeFunctionCallable(Cpp::FuncRef{AddDecl1.data});
   ASSERT_TRUE(JC1.isValid());
 
   int a1 = 3, b1 = 4, r1 = 0;
@@ -782,15 +782,15 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_WrapperCacheIsPerInterpreter) {
   EXPECT_EQ(r1, 7);
 
   // Create second interpreter: add(a,b) returns a * b.
-  auto* I2 = TestFixture::CreateInterpreter();
-  ASSERT_NE(I2, nullptr);
+  auto I2 = TestFixture::CreateInterpreter();
+  ASSERT_TRUE(I2);
   Cpp::ActivateInterpreter(I2);
   Cpp::Declare("int add(int a, int b) { return a * b; }");
-  auto* AddDecl2 = Cpp::GetNamed("add");
-  ASSERT_NE(AddDecl2, nullptr);
+  auto AddDecl2 = Cpp::GetNamed("add");
+  ASSERT_TRUE(AddDecl2);
 
   Cpp::Declare("#include <new>"); // Needed by JitCall
-  auto JC2 = Cpp::MakeFunctionCallable(AddDecl2);
+  auto JC2 = Cpp::MakeFunctionCallable(Cpp::FuncRef{AddDecl2.data});
   ASSERT_TRUE(JC2.isValid());
 
   // Delete the first interpreter.
@@ -824,8 +824,8 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_DLMIsPerInterpreter) {
   ASSERT_FALSE(BinaryPath.empty());
   llvm::StringRef BinDir = llvm::sys::path::parent_path(BinaryPath);
 
-  auto* I1 = TestFixture::CreateInterpreter();
-  ASSERT_NE(I1, nullptr);
+  auto I1 = TestFixture::CreateInterpreter();
+  ASSERT_TRUE(I1);
   Cpp::ActivateInterpreter(I1);
   Cpp::AddSearchPath(BinDir.str().c_str());
 
@@ -836,8 +836,8 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_DLMIsPerInterpreter) {
   // With a single function-local-static DLM, the path added on I1
   // would reach I2 and the lookup below would succeed; the per-
   // interpreter DLM means I2 starts with a fresh path set.
-  auto* I2 = TestFixture::CreateInterpreter();
-  ASSERT_NE(I2, nullptr);
+  auto I2 = TestFixture::CreateInterpreter();
+  ASSERT_TRUE(I2);
   Cpp::ActivateInterpreter(I2);
 
   std::string R2 = Cpp::SearchLibrariesForSymbol(kSym, /*system_search=*/false);

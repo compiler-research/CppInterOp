@@ -58,17 +58,17 @@ TEST(CppInterOpThunks, DispatchForwardsThroughTraits) {
   Handler H{100};
 
   // (Slot=0, R=int, Args=int)
-  int (*Fn0)(void*, int) = &CppImpl::Thunks::dispatch<AccumTraits, 0, int, int>;
+  int (*Fn0)(void*, int) = &Cpp::Thunks::dispatch<AccumTraits, 0, int, int>;
   EXPECT_EQ(Fn0(&H, 7), 107); // 100 + 0 + 7
 
   // (Slot=3, R=long long, Args=int, int) -- exercises a wider signature
   long long (*Fn1)(void*, int, int) =
-      &CppImpl::Thunks::dispatch<AccumTraits, 3, long long, int, int>;
+      &Cpp::Thunks::dispatch<AccumTraits, 3, long long, int, int>;
   EXPECT_EQ(Fn1(&H, 4, 5), 112); // 100 + 3 + 4 + 5
 
   // (Slot=2, R=double, Args=double) -- non-integral return
   double (*Fn2)(void*, double) =
-      &CppImpl::Thunks::dispatch<AccumTraits, 2, double, double>;
+      &Cpp::Thunks::dispatch<AccumTraits, 2, double, double>;
   EXPECT_DOUBLE_EQ(Fn2(&H, 0.5), 102.5); // 100 + 2 + 0.5
 }
 
@@ -76,10 +76,10 @@ TEST(CppInterOpThunks, DispatchForwardsThroughTraits) {
 // pointers; the dispatcher is not folded across slots even when the
 // underlying Call is the same template.
 TEST(CppInterOpThunks, DistinctInstantiationsHaveDistinctAddresses) {
-  void* A = reinterpret_cast<void*>(
-      &CppImpl::Thunks::dispatch<AccumTraits, 0, int, int>);
-  void* B = reinterpret_cast<void*>(
-      &CppImpl::Thunks::dispatch<AccumTraits, 1, int, int>);
+  void* A =
+      reinterpret_cast<void*>(&Cpp::Thunks::dispatch<AccumTraits, 0, int, int>);
+  void* B =
+      reinterpret_cast<void*>(&Cpp::Thunks::dispatch<AccumTraits, 1, int, int>);
   EXPECT_NE(A, B); // Slot 0 vs Slot 1
 }
 
@@ -88,7 +88,7 @@ TEST(CppInterOpThunks, DistinctInstantiationsHaveDistinctAddresses) {
 // overlay would install.
 TEST(CppInterOpThunks, DispatchWithNoArgsAndVoidReturn) {
   int H = 0;
-  void (*Fn)(void*) = &CppImpl::Thunks::dispatch<VoidTraits, 5, void>;
+  void (*Fn)(void*) = &Cpp::Thunks::dispatch<VoidTraits, 5, void>;
   Fn(&H);
   EXPECT_EQ(H, 6); // 0 + 5 + 1
 }

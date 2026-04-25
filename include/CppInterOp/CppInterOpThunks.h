@@ -39,7 +39,7 @@
 
 #include <cstddef>
 
-namespace CppImpl {
+namespace Cpp {
 namespace Thunks {
 
 template <class T, std::size_t Slot, class R, class... Args>
@@ -48,6 +48,6 @@ R dispatch(void* self, Args... args) {
 }
 
 } // namespace Thunks
-} // namespace CppImpl
+} // namespace Cpp
 
 #endif // CPPINTEROP_CPPINTEROPTHUNKS_H
