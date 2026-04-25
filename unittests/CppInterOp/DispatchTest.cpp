@@ -6,7 +6,7 @@
 
 // These tests verify the dispatch mechanism itself (dlGetProcAddress,
 // LoadDispatchAPI, UnloadDispatchAPI). They must NOT link against
-// libclangCppInterOp to ensure true RTLD_LOCAL isolation.
+// libCppInterOp to ensure true RTLD_LOCAL isolation.
 
 // NOLINTBEGIN(cppcoreguidelines-pro-type-reinterpret-cast)
 

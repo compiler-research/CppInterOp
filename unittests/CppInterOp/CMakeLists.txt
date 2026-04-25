@@ -103,7 +103,7 @@ add_subdirectory(TestSharedLib)
 add_dependencies(DynamicLibraryManagerTests TestSharedLib)
 
 # Dispatch Tests.
-# Load libclangCppInterOp via dlopen(RTLD_LOCAL) and must NOT link against it
+# Load libCppInterOp via dlopen(RTLD_LOCAL) and must NOT link against it
 # directly, to verify true symbol isolation.
 if(NOT EMSCRIPTEN AND BUILD_SHARED_LIBS)
   add_executable(DispatchTests EXCLUDE_FROM_ALL
@@ -115,9 +115,9 @@ if(NOT EMSCRIPTEN AND BUILD_SHARED_LIBS)
   target_include_directories(DispatchTests PRIVATE
     ${CMAKE_CURRENT_BINARY_DIR} ${GTEST_INCLUDE_DIR})
   target_link_libraries(DispatchTests PRIVATE ${gtest_libs} ${link_pthreads_lib})
-  # Deliberately no target_link_libraries(... clangCppInterOp).
+  # Deliberately no target_link_libraries(... CppInterOp).
   target_compile_definitions(DispatchTests PRIVATE
-    CPPINTEROP_LIB_PATH="${CMAKE_BINARY_DIR}/lib/libclangCppInterOp${CMAKE_SHARED_LIBRARY_SUFFIX}"
+    CPPINTEROP_LIB_PATH="${CMAKE_BINARY_DIR}/lib/libCppInterOp${CMAKE_SHARED_LIBRARY_SUFFIX}"
   )
   set_output_directory(DispatchTests
     BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/bin/$<CONFIG>/
@@ -127,15 +127,15 @@ if(NOT EMSCRIPTEN AND BUILD_SHARED_LIBS)
   set_tests_properties(cppinterop-DispatchTests PROPERTIES
     TIMEOUT "${TIMEOUT_VALUE}"
     ENVIRONMENT "CPLUS_INCLUDE_PATH=${CMAKE_BINARY_DIR}/etc")
-  # Verify the binary is NOT linked against libclangCppInterOp. If this
+  # Verify the binary is NOT linked against libCppInterOp. If this
   # check fails, the dispatch tests are not truly testing RTLD_LOCAL.
   if(UNIX AND NOT APPLE)
     add_test(NAME cppinterop-DispatchTests-isolation
-      COMMAND sh -c "! ldd $<TARGET_FILE:DispatchTests> | grep -q $<TARGET_FILE_NAME:clangCppInterOp>"
+      COMMAND sh -c "! ldd $<TARGET_FILE:DispatchTests> | grep -q $<TARGET_FILE_NAME:CppInterOp>"
     )
   elseif(APPLE)
     add_test(NAME cppinterop-DispatchTests-isolation
-      COMMAND sh -c "! otool -L $<TARGET_FILE:DispatchTests> | grep -q $<TARGET_FILE_NAME:clangCppInterOp>"
+      COMMAND sh -c "! otool -L $<TARGET_FILE:DispatchTests> | grep -q $<TARGET_FILE_NAME:CppInterOp>"
     )
   endif()
 endif()

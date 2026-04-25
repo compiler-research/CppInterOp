@@ -233,10 +233,10 @@ runs:
         emmake make -j ${{ env.ncpus }} check-cppinterop
         os="${{ matrix.os }}"
         if [[ "${os}" != macos* ]] ; then
-          actual_size=$(stat -c%s "./lib/libclangCppInterOp.so")
+          actual_size=$(stat -c%s "./lib/libCppInterOp.so")
           max_size=$((50 * 1024 * 1024))
           if [[ "$actual_size" -gt "$max_size" ]]; then
-            echo "Error: libclangCppInterOp.so is larger than 50 MB."
+            echo "Error: libCppInterOp.so is larger than 50 MB."
             exit 1
           fi
         fi
