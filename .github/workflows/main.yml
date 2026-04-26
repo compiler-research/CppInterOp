@@ -77,8 +77,6 @@ jobs:
         #   llvm_enable_projects: "clang"
         #   llvm_targets_to_build: "host;NVPTX"
         #   python-version:       '3.14'
-        # oop-jit stays on clang-20: patches/llvm/clang20-1-out-of-process.patch
-        # only targets release/20.x; bump when a matching patch lands.
         include:
           # Ubuntu Arm
           - { name: ubu24-arm-gcc12-llvm22-vg, os: ubuntu-24.04-arm, compiler: gcc-12, clang-runtime: '22', Valgrind: On }
@@ -93,26 +91,24 @@ jobs:
             compiler: gcc-12
             clang-runtime: '22'
             coverage: true
-          - name: ubu24-x86-gcc12-llvm20-oop-vg
+          - name: ubu24-x86-gcc12-llvm22-oop-vg
             os: ubuntu-24.04
             compiler: gcc-12
-            clang-runtime: '20'
+            clang-runtime: '22'
             llvm_enable_projects: "clang;compiler-rt"
             oop-jit: On
             Valgrind: On
-            python-version: '3.13'
           # MacOS Arm
           - { name: osx26-arm-clang-llvm22, os: macos-26, compiler: clang, clang-runtime: '22', llvm_targets_to_build: host }
           - { name: osx26-arm-clang-llvm21-cppyy, os: macos-26, compiler: clang, clang-runtime: '21', cppyy: On, llvm_targets_to_build: host }
           - { name: osx26-arm-clang-cling-llvm20-cppyy, os: macos-26, compiler: clang, clang-runtime: '20', cling: On, cppyy: On, root-llvm-tag: *root_llvm_tag }
-          - name: osx26-arm-clang-llvm20-oop
+          - name: osx26-arm-clang-llvm22-oop
             os: macos-26
             compiler: clang
-            clang-runtime: '20'
+            clang-runtime: '22'
             llvm_enable_projects: "clang;compiler-rt"
             llvm_targets_to_build: host
             oop-jit: On
-            python-version: '3.13'
           # MacOS X86
           - { name: osx26-x86-clang-llvm21-cppyy, os: macos-26-intel, compiler: clang, clang-runtime: '21', cppyy: On, llvm_targets_to_build: host }
           - { name: osx26-x86-clang-cling-llvm20-cppyy, os: macos-26-intel, compiler: clang, clang-runtime: '20', cling: On, cppyy: On, root-llvm-tag: *root_llvm_tag }

@@ -237,6 +237,7 @@ inline void codeComplete(std::vector<std::string>& Results,
 
 #ifdef LLVM_BUILT_WITH_OOP_JIT
 #include "clang/Basic/Version.h"
+#include "clang/Interpreter/IncrementalExecutor.h"
 
 #include "llvm/ExecutionEngine/Orc/Debugging/DebuggerSupport.h"
 
@@ -392,6 +393,29 @@ createClangInterpreter(std::vector<const char*>& args, int stdin_fd = -1,
   clang::IncrementalCompilerBuilder CB;
   CB.SetCompilerArgs(CompilerArgs);
 
+  bool outOfProcess;
+#if defined(_WIN32) || !defined(LLVM_BUILT_WITH_OOP_JIT)
+  outOfProcess = false;
+#else
+  outOfProcess = std::any_of(args.begin(), args.end(), [](const char* arg) {
+    return llvm::StringRef(arg).trim() == "--use-oop-jit";
+  });
+#endif
+
+#ifdef LLVM_BUILT_WITH_OOP_JIT
+  // Why: UpdateOrcRuntimePathCB is the upstream hook that discovers the
+  // orc_rt location from the driver's toolchain during CreateCpp() /
+  // CreateCudaHost(); it only fires when IsOutOfProcess is already true,
+  // so the flag and the callback must be set before the CompilerInstance
+  // is built.
+  auto OutOfProcessConfig =
+      std::make_unique<clang::IncrementalExecutorBuilder>();
+  if (outOfProcess) {
+    OutOfProcessConfig->IsOutOfProcess = true;
+    CB.SetDriverCompilationCallback(OutOfProcessConfig->UpdateOrcRuntimePathCB);
+  }
+#endif
+
   std::unique_ptr<clang::CompilerInstance> DeviceCI;
   if (CudaEnabled) {
     if (OffloadArch.empty())
@@ -421,26 +445,14 @@ createClangInterpreter(std::vector<const char*>& args, int stdin_fd = -1,
   if (CudaEnabled)
     DeviceCI->LoadRequestedPlugins();
 
-  bool outOfProcess;
-#if defined(_WIN32) || !defined(LLVM_BUILT_WITH_OOP_JIT)
-  outOfProcess = false;
-#else
-  outOfProcess = std::any_of(args.begin(), args.end(), [](const char* arg) {
-    return llvm::StringRef(arg).trim() == "--use-oop-jit";
-  });
-#endif
-
 #ifdef LLVM_BUILT_WITH_OOP_JIT
-
-  clang::Interpreter::JITConfig OutOfProcessConfig;
   if (outOfProcess) {
-    OutOfProcessConfig.IsOutOfProcess = true;
-    OutOfProcessConfig.OOPExecutor =
+    OutOfProcessConfig->OOPExecutor =
         LLVM_BINARY_LIB_DIR "/bin/llvm-jitlink-executor";
-    OutOfProcessConfig.UseSharedMemory = false;
-    OutOfProcessConfig.SlabAllocateSize = 0;
-    OutOfProcessConfig.CustomizeFork = [stdin_fd, stdout_fd,
-                                        stderr_fd]() { // Lambda defined inline
+    OutOfProcessConfig->UseSharedMemory = false;
+    OutOfProcessConfig->SlabAllocateSize = 0;
+    OutOfProcessConfig->CustomizeFork = [stdin_fd, stdout_fd,
+                                         stderr_fd]() { // Lambda defined inline
       dup2(stdin_fd, STDIN_FILENO);
       dup2(stdout_fd, STDOUT_FILENO);
       dup2(stderr_fd, STDERR_FILENO);
@@ -448,21 +460,14 @@ createClangInterpreter(std::vector<const char*>& args, int stdin_fd = -1,
       setvbuf(fdopen(stdout_fd, "w+"), nullptr, _IONBF, 0);
       setvbuf(fdopen(stderr_fd, "w+"), nullptr, _IONBF, 0);
     };
-
-#ifdef __APPLE__
-    std::string OrcRuntimePath = LLVM_BINARY_LIB_DIR "/lib/clang/" STRINGIFY(
-        LLVM_VERSION_MAJOR) "/lib/darwin/liborc_rt_osx.a";
-#else
-    std::string OrcRuntimePath = LLVM_BINARY_LIB_DIR "/lib/clang/" STRINGIFY(
-        LLVM_VERSION_MAJOR) "/lib/x86_64-unknown-linux-gnu/liborc_rt.a";
-#endif
-    OutOfProcessConfig.OrcRuntimePath = OrcRuntimePath;
+    // OrcRuntimePath was populated by UpdateOrcRuntimePathCB above.
   }
   auto innerOrErr =
-      CudaEnabled
-          ? clang::Interpreter::createWithCUDA(std::move(*ciOrErr),
-                                               std::move(DeviceCI))
-          : clang::Interpreter::create(std::move(*ciOrErr), OutOfProcessConfig);
+      CudaEnabled ? clang::Interpreter::createWithCUDA(std::move(*ciOrErr),
+                                                       std::move(DeviceCI))
+                  : clang::Interpreter::create(
+                        std::move(*ciOrErr),
+                        outOfProcess ? std::move(OutOfProcessConfig) : nullptr);
 #else
   if (outOfProcess) {
     llvm::errs()
