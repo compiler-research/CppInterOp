@@ -1,5 +1,7 @@
 #include "../../lib/CppInterOp/Tracing.h"
 
+#include "clang/Basic/Version.h"
+
 #include "CppInterOp/CppInterOp.h"
 
 #include "llvm/Support/FileSystem.h"

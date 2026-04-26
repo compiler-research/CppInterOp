@@ -2436,6 +2436,11 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_Construct) {
 #ifdef _WIN32
   GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
 #endif
+#ifdef EMSCRIPTEN
+#if CLANG_VERSION_MAJOR > 21
+  GTEST_SKIP() << "Test fails for Emscipten builds using LLVM 22";
+#endif
+#endif
   if (TypeParam::isOutOfProcess)
     GTEST_SKIP() << "Test fails for OOP JIT builds";
   std::vector<const char*> interpreter_args = {"-include", "new"};
@@ -2570,6 +2575,11 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_ConstructNested) {
     GTEST_SKIP() << "XFAIL due to Valgrind report";
 #ifdef _WIN32
   GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
+#endif
+#ifdef EMSCRIPTEN
+#if CLANG_VERSION_MAJOR > 21
+  GTEST_SKIP() << "Test fails for Emscipten builds using LLVM 22";
+#endif
 #endif
   if (TypeParam::isOutOfProcess)
     GTEST_SKIP() << "Test fails for OOP JIT builds";
