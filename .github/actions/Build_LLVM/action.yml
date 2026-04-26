@@ -23,7 +23,7 @@ runs:
         mkdir build
         if [[ "${cling_on}" == "ON" ]]; then
           cd build
-          cmake -DLLVM_ENABLE_PROJECTS="${{ matrix.llvm_enable_projects || 'clang' }}" \
+          cmake -DLLVM_ENABLE_PROJECTS="clang" \
                 -DLLVM_EXTERNAL_PROJECTS=cling                     \
                 -DLLVM_EXTERNAL_CLING_SOURCE_DIR=../../cling       \
                 -DLLVM_TARGETS_TO_BUILD="${{ matrix.llvm_targets_to_build || 'host;NVPTX' }}" \
@@ -39,8 +39,32 @@ runs:
           ninja LLVMOrcDebugging -j ${{ env.ncpus }}
           ninja clingInterpreter -j ${{ env.ncpus }}
         else
+          # Non-cling, LLVM >= 22: bundle the OOP-JIT runtime into the
+          # cache. compiler-rt is enabled with everything except the
+          # ORC runtime turned off so the build stays cheap.
+          NEED_OOP=0
+          if [[ "${{ matrix.clang-runtime }}" -ge 22 ]]; then
+            NEED_OOP=1
+          fi
+          if [[ "${NEED_OOP}" == "1" ]]; then
+            PROJECTS="clang;compiler-rt"
+            COMPILER_RT_FLAGS=(
+              -DCOMPILER_RT_BUILD_BUILTINS=OFF
+              -DCOMPILER_RT_BUILD_LIBFUZZER=OFF
+              -DCOMPILER_RT_BUILD_PROFILE=OFF
+              -DCOMPILER_RT_BUILD_MEMPROF=OFF
+              -DCOMPILER_RT_BUILD_SANITIZERS=OFF
+              -DCOMPILER_RT_BUILD_XRAY=OFF
+              -DCOMPILER_RT_BUILD_GWP_ASAN=OFF
+              -DCOMPILER_RT_BUILD_CTX_PROFILE=OFF
+            )
+          else
+            PROJECTS="clang"
+            COMPILER_RT_FLAGS=()
+          fi
+
           cd build
-          cmake -DLLVM_ENABLE_PROJECTS="${{ matrix.llvm_enable_projects || 'clang' }}" \
+          cmake -DLLVM_ENABLE_PROJECTS="${PROJECTS}" \
                 -DLLVM_TARGETS_TO_BUILD="${{ matrix.llvm_targets_to_build || 'host;NVPTX' }}"  \
                 -DCMAKE_BUILD_TYPE=Release                          \
                 -DLLVM_ENABLE_ASSERTIONS=ON                         \
@@ -53,15 +77,17 @@ runs:
                 -DLLVM_USE_SANITIZER="${{ matrix.sanitizer }}"  \
                 -DLLVM_INCLUDE_EXAMPLES=OFF                     \
                 -DLLVM_INCLUDE_TESTS=OFF                        \
+                "${COMPILER_RT_FLAGS[@]}" \
                 ../llvm
           ninja clang clangInterpreter clangStaticAnalyzerCore
-          if [[ "${{ matrix.oop-jit }}" == "On" ]]; then
-            if [[ "${{ matrix.os }}" == macos* ]]; then
-              SUFFIX="_osx"
-            elif [[ "${{ matrix.os }}" == ubuntu* ]]; then
-              SUFFIX="-x86_64"
-            fi
-            ninja llvm-jitlink-executor orc_rt${SUFFIX} -j ${{ env.ncpus }}       
+          if [[ "${NEED_OOP}" == "1" ]]; then
+            # orc_rt's per-target ninja target name varies; find it by
+            # asking ninja for everything matching `orc_rt*`. Building
+            # the executor unconditionally is safe -- it's always a
+            # valid target when compiler-rt is in the build.
+            OOP_TARGETS=$(ninja -t targets all 2>/dev/null | \
+              awk -F: '/^orc_rt[^:]*:/{print $1}' | sort -u | tr '\n' ' ')
+            ninja llvm-jitlink-executor ${OOP_TARGETS} -j ${{ env.ncpus }}
           fi
           cd ./tools/
           rm -rf $(find . -maxdepth 1 ! -name "clang" ! -name ".")
@@ -110,7 +136,7 @@ runs:
         if ( "${{ matrix.cling }}" -imatch "On" )
         {
           cd build
-          cmake -DLLVM_ENABLE_PROJECTS="${{ matrix.llvm_enable_projects || 'clang' }}" `
+          cmake -DLLVM_ENABLE_PROJECTS="clang" `
                 -DLLVM_EXTERNAL_PROJECTS=cling                `
                 -DLLVM_EXTERNAL_CLING_SOURCE_DIR="$env:CLING_DIR"   `
                 -DLLVM_TARGETS_TO_BUILD="${{ matrix.llvm_targets_to_build || 'host;NVPTX' }}" `
@@ -129,7 +155,7 @@ runs:
         {
           cd build
           echo "Apply clang${{ matrix.clang-runtime }}-*.patch patches:"
-          cmake -DLLVM_ENABLE_PROJECTS="${{ matrix.llvm_enable_projects || 'clang' }}"                   `
+          cmake -DLLVM_ENABLE_PROJECTS="clang"                   `
                 -DLLVM_TARGETS_TO_BUILD="${{ matrix.llvm_targets_to_build || 'host;NVPTX' }}"          `
                 -DCMAKE_BUILD_TYPE=Release                          `
                 -DLLVM_ENABLE_ASSERTIONS=ON                         `

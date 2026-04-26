@@ -63,7 +63,7 @@ struct InProcessJITConfig {
   static constexpr const char* name = "InProcessJIT";
 };
 
-#ifdef LLVM_BUILT_WITH_OOP_JIT
+#if LLVM_VERSION_MAJOR > 21 && !defined(_WIN32)
 struct OutOfProcessJITConfig {
   static constexpr bool isOutOfProcess = true;
   static constexpr const char* name = "OutOfProcessJIT";
@@ -97,7 +97,7 @@ struct JITConfigNameGenerator {
   }
 };
 
-#ifdef LLVM_BUILT_WITH_OOP_JIT
+#if LLVM_VERSION_MAJOR > 21 && !defined(_WIN32)
 using CppInterOpTestTypes = ::testing::Types<InProcessJITConfig, OutOfProcessJITConfig>;
 #else
 using CppInterOpTestTypes = ::testing::Types<InProcessJITConfig>;
