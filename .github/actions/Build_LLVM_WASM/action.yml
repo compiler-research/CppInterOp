@@ -81,7 +81,7 @@ runs:
 
         # Trim source trees so the cache stays small. Cling rows additionally
         # need llvm/{utils} for runtime tablegen lookups.
-        rm -rf $(find . -maxdepth 1 ! -name "build" ! -name "llvm" ! -name "clang" ! -name "." ! -name "native_build"
+        rm -rf $(find . -maxdepth 1 ! -name "build" ! -name "llvm" ! -name "clang" ! -name "." ! -name "native_build")
         keep=('!' -name include '!' -name lib '!' -name cmake '!' -name .)
         if [[ "${cling_on}" == "ON" ]]; then
           keep=('!' -name include '!' -name lib '!' -name cmake '!' -name utils '!' -name .)
