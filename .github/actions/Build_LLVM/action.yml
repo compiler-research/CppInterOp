@@ -55,14 +55,6 @@ runs:
                 -DLLVM_INCLUDE_TESTS=OFF                        \
                 ../llvm
           ninja clang clangInterpreter clangStaticAnalyzerCore
-          if [[ "${{ matrix.oop-jit }}" == "On" ]]; then
-            if [[ "${{ matrix.os }}" == macos* ]]; then
-              SUFFIX="_osx"
-            elif [[ "${{ matrix.os }}" == ubuntu* ]]; then
-              SUFFIX="-x86_64"
-            fi
-            ninja llvm-jitlink-executor orc_rt${SUFFIX} -j ${{ env.ncpus }}       
-          fi
           cd ./tools/
           rm -rf $(find . -maxdepth 1 ! -name "clang" ! -name ".")
           cd ..

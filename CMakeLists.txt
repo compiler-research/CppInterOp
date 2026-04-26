@@ -342,13 +342,20 @@ add_definitions(${LLVM_DEFINITIONS_LIST})
 string(REGEX REPLACE "/lib/cmake/llvm$" "" LLVM_BINARY_LIB_DIR "${LLVM_DIR}")
 add_definitions(-DLLVM_BINARY_LIB_DIR="${LLVM_BINARY_LIB_DIR}")
 
-if(LLVM_BUILT_WITH_OOP_JIT)
-  if((CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND CMAKE_SYSTEM_PROCESSOR MATCHES "arm64") OR
-     (CMAKE_SYSTEM_NAME STREQUAL "Linux" AND CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|aarch64|arm64"))
-    add_definitions(-DLLVM_BUILT_WITH_OOP_JIT)
-  else()
-    message(FATAL_ERROR "LLVM_BUILT_WITH_OOP_JIT is only supported on MacOS arm64 or Linux (x86_64/aarch64). Build aborted.")
-  endif()
+# OOP-JIT support is auto-detected from the LLVM version we're
+# building against. Upstream `release/22.x` ships
+# `clang::IncrementalExecutorBuilder` -- the API the OOP path in
+# `lib/CppInterOp/Compatibility.h` calls into (see fb595acb /
+# PR #924, which retired the local clang20 backport patch in favour
+# of the upstream surface). Older runtimes don't have that API, so
+# the OOP code path stays excluded there and tests fall back to
+# in-process JIT only. The platform predicate matches the set
+# CppInterOp's OOP path has been validated against; relax as more
+# platforms get tested.
+if(LLVM_VERSION_MAJOR GREATER_EQUAL 22 AND
+   ((CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND CMAKE_SYSTEM_PROCESSOR MATCHES "arm64") OR
+    (CMAKE_SYSTEM_NAME STREQUAL "Linux"  AND CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|aarch64|arm64")))
+  add_definitions(-DLLVM_BUILT_WITH_OOP_JIT)
 endif()
 
 # If the llvm sources are present add them with higher priority.
