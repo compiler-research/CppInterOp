@@ -487,7 +487,11 @@ runs:
         mkdir native_cppinterop_build
         pushd native_cppinterop_build
         $env:NATIVE_LLVM_BUILD_DIR="$env:PWD_DIR\llvm-project\native_build"
-        cmake -DCMAKE_BUILD_TYPE=Release `
+        # Use -G Ninja explicitly: cmake's default on Windows is the
+        # Visual Studio multi-config generator, which ignores
+        # CMAKE_BUILD_TYPE and builds Debug, then fails to link against
+        # the Release LLVM static libs produced by the native LLVM build.
+        cmake -G Ninja -DCMAKE_BUILD_TYPE=Release `
               -DLLVM_DIR="$env:NATIVE_LLVM_BUILD_DIR\lib\cmake\llvm" `
               -DCPPINTEROP_ENABLE_TESTING=OFF `
               -DCMAKE_CXX_STANDARD=17 -DLLVM_ENABLE_WERROR=On `

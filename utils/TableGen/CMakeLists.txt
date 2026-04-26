@@ -1,4 +1,4 @@
-set(LLVM_LINK_COMPONENTS Support)
+set(LLVM_LINK_COMPONENTS Support TableGen)
 
 add_tablegen(cppinterop-tblgen CPPINTEROP
   CppInterOpEmitter.cpp
