@@ -235,12 +235,16 @@ inline void codeComplete(std::vector<std::string>& Results,
 #include "llvm/Support/Error.h"
 #include "llvm/TargetParser/Host.h"
 
-#ifdef LLVM_BUILT_WITH_OOP_JIT
+#if LLVM_VERSION_MAJOR > 21
 #include "clang/Basic/Version.h"
 #include "clang/Interpreter/IncrementalExecutor.h"
 
 #include "llvm/ExecutionEngine/Orc/Debugging/DebuggerSupport.h"
+#include "llvm/Support/FileSystem.h"
+#include "llvm/Support/Path.h"
+#endif
 
+#if LLVM_VERSION_MAJOR > 21 && !defined(_WIN32)
 #include <unistd.h>
 #endif
 
@@ -366,6 +370,41 @@ inline bool detectNVPTXArch(std::string& Arch) {
   return true;
 }
 
+#if LLVM_VERSION_MAJOR > 21
+/// Wire CppInterOp's bundled OOP runtime parts into `B`. CMakeLists.txt
+/// bakes `CPPINTEROP_RUNTIME_BUILD_DIR` and `CPPINTEROP_RUNTIME_INSTALL_DIR`
+/// at configure time; we probe the build-tree path first so an in-tree
+/// test run picks up the freshly staged files, then fall back to the
+/// install path. `UpdateOrcRuntimePathCB` is replaced with a no-op so
+/// the upstream resource-dir prefix check inside
+/// `IncrementalExecutorBuilder::UpdateOrcRuntimePath`
+/// (`clang/lib/Interpreter/IncrementalExecutor.cpp`, the
+/// `consume_front(parent_path(D.Dir))` guard) doesn't run -- our
+/// runtime lives outside the host's clang resource tree.
+inline bool configureBundledOOPRuntime(clang::IncrementalExecutorBuilder& B) {
+#if defined(CPPINTEROP_RUNTIME_BUILD_DIR) &&                                   \
+    defined(CPPINTEROP_RUNTIME_INSTALL_DIR)
+  for (llvm::StringRef Dir :
+       {llvm::StringRef(CPPINTEROP_RUNTIME_BUILD_DIR),
+        llvm::StringRef(CPPINTEROP_RUNTIME_INSTALL_DIR)}) {
+    llvm::SmallString<256> OrcRT(Dir);
+    llvm::sys::path::append(OrcRT, "liborc_rt.a");
+    llvm::SmallString<256> Exec(Dir);
+    llvm::sys::path::append(Exec, "llvm-jitlink-executor");
+    if (!llvm::sys::fs::exists(OrcRT) || !llvm::sys::fs::exists(Exec))
+      continue;
+    B.OrcRuntimePath = std::string(OrcRT.str());
+    B.OOPExecutor = std::string(Exec.str());
+    B.UpdateOrcRuntimePathCB = [](const clang::driver::Compilation&) {
+      return llvm::Error::success();
+    };
+    return true;
+  }
+#endif
+  return false;
+}
+#endif // LLVM_VERSION_MAJOR > 21
+
 inline std::unique_ptr<clang::Interpreter>
 createClangInterpreter(std::vector<const char*>& args, int stdin_fd = -1,
                        int stdout_fd = -1, int stderr_fd = -1) {
@@ -393,26 +432,31 @@ createClangInterpreter(std::vector<const char*>& args, int stdin_fd = -1,
   clang::IncrementalCompilerBuilder CB;
   CB.SetCompilerArgs(CompilerArgs);
 
-  bool outOfProcess;
-#if defined(_WIN32) || !defined(LLVM_BUILT_WITH_OOP_JIT)
-  outOfProcess = false;
-#else
-  outOfProcess = std::any_of(args.begin(), args.end(), [](const char* arg) {
-    return llvm::StringRef(arg).trim() == "--use-oop-jit";
-  });
-#endif
-
-#ifdef LLVM_BUILT_WITH_OOP_JIT
-  // Why: UpdateOrcRuntimePathCB is the upstream hook that discovers the
-  // orc_rt location from the driver's toolchain during CreateCpp() /
-  // CreateCudaHost(); it only fires when IsOutOfProcess is already true,
-  // so the flag and the callback must be set before the CompilerInstance
-  // is built.
-  auto OutOfProcessConfig =
-      std::make_unique<clang::IncrementalExecutorBuilder>();
-  if (outOfProcess) {
+#if LLVM_VERSION_MAJOR > 21 && !defined(_WIN32)
+  bool outOfProcess = false;
+  const bool oopRequested =
+      std::any_of(args.begin(), args.end(), [](const char* arg) {
+        return llvm::StringRef(arg).trim() == "--use-oop-jit";
+      });
+  // The IncrementalExecutorBuilder must outlive the IncrementalCompiler
+  // it gets attached to, so it's a unique_ptr at function scope.
+  std::unique_ptr<clang::IncrementalExecutorBuilder> OutOfProcessConfig;
+  if (oopRequested) {
+    OutOfProcessConfig = std::make_unique<clang::IncrementalExecutorBuilder>();
     OutOfProcessConfig->IsOutOfProcess = true;
-    CB.SetDriverCompilationCallback(OutOfProcessConfig->UpdateOrcRuntimePathCB);
+    if (configureBundledOOPRuntime(*OutOfProcessConfig)) {
+      outOfProcess = true;
+      CB.SetDriverCompilationCallback(
+          OutOfProcessConfig->UpdateOrcRuntimePathCB);
+    } else {
+      llvm::errs()
+          << "[CreateClangInterpreter]: --use-oop-jit requested but the "
+             "bundled OOP runtime "
+             "(<libdir>/cppinterop-rt/{liborc_rt.a,llvm-jitlink-executor}) "
+             "is missing from CppInterOp's build/install tree. Falling "
+             "back to in-process JIT.\n";
+      OutOfProcessConfig.reset();
+    }
   }
 #endif
 
@@ -445,22 +489,21 @@ createClangInterpreter(std::vector<const char*>& args, int stdin_fd = -1,
   if (CudaEnabled)
     DeviceCI->LoadRequestedPlugins();
 
-#ifdef LLVM_BUILT_WITH_OOP_JIT
+#if LLVM_VERSION_MAJOR > 21 && !defined(_WIN32)
   if (outOfProcess) {
-    OutOfProcessConfig->OOPExecutor =
-        LLVM_BINARY_LIB_DIR "/bin/llvm-jitlink-executor";
+    // OrcRuntimePath and OOPExecutor were populated by
+    // configureBundledOOPRuntime() above; UpdateOrcRuntimePathCB was
+    // replaced with a no-op there too, so the upstream auto-discovery
+    // safety check doesn't run.
     OutOfProcessConfig->UseSharedMemory = false;
     OutOfProcessConfig->SlabAllocateSize = 0;
-    OutOfProcessConfig->CustomizeFork = [stdin_fd, stdout_fd,
-                                         stderr_fd]() { // Lambda defined inline
+    OutOfProcessConfig->CustomizeFork = [stdin_fd, stdout_fd, stderr_fd]() {
       dup2(stdin_fd, STDIN_FILENO);
       dup2(stdout_fd, STDOUT_FILENO);
       dup2(stderr_fd, STDERR_FILENO);
-
       setvbuf(fdopen(stdout_fd, "w+"), nullptr, _IONBF, 0);
       setvbuf(fdopen(stderr_fd, "w+"), nullptr, _IONBF, 0);
     };
-    // OrcRuntimePath was populated by UpdateOrcRuntimePathCB above.
   }
   auto innerOrErr =
       CudaEnabled ? clang::Interpreter::createWithCUDA(std::move(*ciOrErr),
@@ -469,13 +512,6 @@ createClangInterpreter(std::vector<const char*>& args, int stdin_fd = -1,
                         std::move(*ciOrErr),
                         outOfProcess ? std::move(OutOfProcessConfig) : nullptr);
 #else
-  if (outOfProcess) {
-    llvm::errs()
-        << "[CreateClangInterpreter]: No compatibility with out-of-process "
-           "JIT. Running in-process JIT execution."
-        << "(To enable recompile CppInterOp with -DLLVM_BUILT_WITH_OOP_JIT=ON)"
-        << "\n";
-  }
   auto innerOrErr =
       CudaEnabled ? clang::Interpreter::createWithCUDA(std::move(*ciOrErr),
                                                        std::move(DeviceCI))
