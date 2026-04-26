@@ -4833,16 +4833,4 @@ int Undo(unsigned N) {
 #endif
 }
 
-#ifndef _WIN32
-pid_t GetExecutorPID() {
-  INTEROP_TRACE();
-#ifdef LLVM_BUILT_WITH_OOP_JIT
-  auto& I = getInterp();
-  return INTEROP_RETURN(I.getOutOfProcessExecutorPID());
-#endif
-  return INTEROP_RETURN(getpid());
-}
-
-#endif
-
 } // namespace CppImpl

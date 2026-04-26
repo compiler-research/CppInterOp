@@ -1,0 +1,62 @@
+name: Line endings
+
+# Whitespace hygiene: forbid CRLF/mixed line endings anywhere in the
+# tree, and forbid trailing whitespace on any line a PR adds or
+# changes. A `.gitattributes` with `* text=auto eol=lf` would catch
+# CRLF at commit time on contributor machines, but this CI check
+# stays as the guarantee for the canonical history regardless of
+# local config.
+
+on:
+  pull_request:
+    branches: [main]
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
+  cancel-in-progress: true
+
+jobs:
+  text-hygiene:
+    name: Forbid CRLF and trailing whitespace
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          # Need the PR base in history so `git diff --check` can compare
+          # against it. `ref: head.sha` makes HEAD point at the PR tip
+          # rather than the synthetic merge ref, so the diff range below
+          # corresponds to what the PR actually adds.
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+
+      - name: Scan tracked files for CRLF / mixed line endings
+        shell: bash
+        run: |
+          set -eu
+          # `git ls-files --eol` columns: i/<eol>  w/<eol>  attr/...  <path>.
+          # Check the index column (`i/`) so a contributor's local CRLF in
+          # the working tree alone (e.g. a Windows checkout without
+          # `core.autocrlf`) doesn't trip CI -- only what's committed
+          # counts. Binary files get `i/-text` and are skipped here.
+          bad=$(git ls-files --eol \
+                  | awk '$1 == "i/crlf" || $1 == "i/mixed" { print $4 }')
+          if [ -n "$bad" ]; then
+            printf '::error::Files committed with CRLF or mixed line endings:\n%s\n' "$bad"
+            printf '::notice::To fix locally: git add --renormalize <file> && git commit\n'
+            exit 1
+          fi
+          echo "All tracked text files use LF line endings."
+
+      - name: Forbid trailing whitespace introduced by this PR
+        shell: bash
+        run: |
+          set -eu
+          # `git diff --check A...HEAD` reports whitespace errors --
+          # trailing whitespace, conflict markers, and (configurably)
+          # mixed-indent issues -- on lines added or changed since the
+          # merge base with A. It's the same logic git uses to render
+          # whitespace warnings in `git diff` output. Existing trailing
+          # whitespace on lines this PR doesn't touch is intentionally
+          # not flagged, mirroring how `clang-format.yml` only checks
+          # diff-introduced changes.
+          git diff --check "${{ github.event.pull_request.base.sha }}...HEAD"
