@@ -9,8 +9,6 @@
 #include "CppInterOp/CppInterOp.h"
 #define CPPINTEROP_TEST_MODE CppInterOpTest
 
-#include "llvm/Support/Valgrind.h"
-
 #include <memory>
 #include <string>
 #include <utility>
