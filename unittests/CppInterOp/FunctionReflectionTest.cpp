@@ -702,8 +702,6 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_ExistsFunctionTemplate) {
 
 TYPED_TEST(CPPINTEROP_TEST_MODE,
            FunctionReflection_InstantiateTemplateFunctionFromString) {
-  if (llvm::sys::RunningOnValgrind())
-    GTEST_SKIP() << "XFAIL due to Valgrind report";
   std::vector<const char*> interpreter_args = { "-include", "new" };
   TestFixture::CreateInterpreter(interpreter_args);
   std::string code = R"(#include <memory>)";
@@ -763,8 +761,6 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_InstantiateTemplateMethod) {
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_LookupConstructors) {
-  if (llvm::sys::RunningOnValgrind())
-    GTEST_SKIP() << "XFAIL due to Valgrind report";
 
   std::vector<Decl*> Decls;
   std::string code = R"(
@@ -804,8 +800,6 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_LookupConstructors) {
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetClassTemplatedMethods) {
-  if (llvm::sys::RunningOnValgrind())
-    GTEST_SKIP() << "XFAIL due to Valgrind report";
 
   std::vector<Decl*> Decls;
   std::string code = R"(
@@ -1543,8 +1537,6 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_IsStaticMethod) {
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetFunctionAddress) {
-  if (llvm::sys::RunningOnValgrind())
-    GTEST_SKIP() << "XFAIL due to Valgrind report";
 #ifdef _WIN32
   GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
 #endif
@@ -1615,15 +1607,11 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_JitCallAdvanced) {
 #if CLANG_VERSION_MAJOR == 20 && defined(CPPINTEROP_USE_CLING) && defined(_WIN32)
   GTEST_SKIP() << "Test fails with Cling on Windows";
 #endif
-
 #ifdef EMSCRIPTEN
 #if CLANG_VERSION_MAJOR > 21
   GTEST_SKIP() << "Test fails for Emscipten builds using LLVM 22";
 #endif
 #endif
-  if (llvm::sys::RunningOnValgrind())
-    GTEST_SKIP() << "XFAIL due to Valgrind report";
-
   if (TypeParam::isOutOfProcess)
     GTEST_SKIP() << "Test fails for OOP JIT builds";
 
@@ -1667,8 +1655,6 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_JitCallAdvanced) {
 #if !defined(NDEBUG) && GTEST_HAS_DEATH_TEST
 #ifndef _WIN32 // Death tests do not work on Windows
 TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_JitCallDebug) {
-  if (llvm::sys::RunningOnValgrind())
-    GTEST_SKIP() << "XFAIL due to Valgrind report";
 
   if (TypeParam::isOutOfProcess)
     GTEST_SKIP() << "Test fails for OOP JIT builds";
@@ -1773,8 +1759,6 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetFunctionCallWrapper) {
 #ifdef EMSCRIPTEN
   GTEST_SKIP() << "Test fails for Emscipten builds";
 #endif
-  if (llvm::sys::RunningOnValgrind())
-    GTEST_SKIP() << "XFAIL due to Valgrind report";
 #if defined(CPPINTEROP_USE_CLING) && defined(_WIN32)
   GTEST_SKIP() << "Disabled, invoking functions containing printf does not work with Cling on Windows";
 #endif
@@ -2431,8 +2415,6 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetFunctionArgDefault) {
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_Construct) {
-  if (llvm::sys::RunningOnValgrind())
-    GTEST_SKIP() << "XFAIL due to Valgrind report";
 #ifdef _WIN32
   GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
 #endif
@@ -2524,8 +2506,6 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_Construct) {
 
 // Test zero initialization of PODs and default initialization cases
 TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_ConstructPOD) {
-  if (llvm::sys::RunningOnValgrind())
-    GTEST_SKIP() << "XFAIL due to Valgrind report";
 #ifdef _WIN32
   GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
 #endif
@@ -2571,8 +2551,6 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_ConstructPOD) {
 
 // Test nested constructor calls
 TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_ConstructNested) {
-  if (llvm::sys::RunningOnValgrind())
-    GTEST_SKIP() << "XFAIL due to Valgrind report";
 #ifdef _WIN32
   GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
 #endif
@@ -2639,8 +2617,6 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_ConstructArray) {
 #if defined(EMSCRIPTEN)
   GTEST_SKIP() << "Test fails for Emscripten builds";
 #endif
-  if (llvm::sys::RunningOnValgrind())
-    GTEST_SKIP() << "XFAIL due to Valgrind report";
 #ifdef _WIN32
   GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
 #endif
@@ -2693,8 +2669,6 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_Destruct) {
 #ifdef EMSCRIPTEN
   GTEST_SKIP() << "Test fails for Emscipten builds";
 #endif
-  if (llvm::sys::RunningOnValgrind())
-    GTEST_SKIP() << "XFAIL due to Valgrind report";
 
 #ifdef _WIN32
   GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
@@ -2766,8 +2740,6 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_DestructArray) {
 #ifdef EMSCRIPTEN
   GTEST_SKIP() << "Test fails for Emscipten builds";
 #endif
-  if (llvm::sys::RunningOnValgrind())
-    GTEST_SKIP() << "XFAIL due to Valgrind report";
 
 #ifdef _WIN32
   GTEST_SKIP() << "Disabled on Windows. Needs fixing.";

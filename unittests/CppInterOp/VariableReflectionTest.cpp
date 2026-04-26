@@ -117,8 +117,6 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, VariableReflection_DatamembersWithAnonymousStru
 #if CLANG_VERSION_MAJOR == 20 && defined(CPPINTEROP_USE_CLING) && defined(_WIN32)
   GTEST_SKIP() << "Test fails with Cling on Windows";
 #endif
-  if (llvm::sys::RunningOnValgrind())
-    GTEST_SKIP() << "XFAIL due to Valgrind report";
 
   std::vector<Decl*> Decls;
 #define Stringify(s) Stringifyx(s)
@@ -168,8 +166,6 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, VariableReflection_DatamembersWithAnonymousStru
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, VariableReflection_GetTypeAsString) {
-  if (llvm::sys::RunningOnValgrind())
-    GTEST_SKIP() << "XFAIL due to Valgrind report";
 
   std::string code = R"(
   namespace my_namespace {
@@ -385,8 +381,6 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, VariableReflection_VariableOffsetsWithInheritan
 #if CLANG_VERSION_MAJOR == 20 && defined(CPPINTEROP_USE_CLING) && defined(_WIN32)
   GTEST_SKIP() << "Test fails with Cling on Windows";
 #endif
-  if (llvm::sys::RunningOnValgrind())
-    GTEST_SKIP() << "XFAIL due to Valgrind report";
 
   std::vector<const char*> interpreter_args = {"-include", "new"};
   TestFixture::CreateInterpreter(interpreter_args);
@@ -560,8 +554,6 @@ TYPED_TEST(CPPINTEROP_TEST_MODE,
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, VariableReflection_StaticConstExprDatamember) {
-  if (llvm::sys::RunningOnValgrind())
-    GTEST_SKIP() << "XFAIL due to Valgrind report";
 
 #ifdef _WIN32
   GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
