@@ -95,7 +95,6 @@ jobs:
             os: ubuntu-24.04
             compiler: gcc-12
             clang-runtime: '22'
-            llvm_enable_projects: "clang;compiler-rt"
             oop-jit: On
             Valgrind: On
           # MacOS Arm
@@ -106,7 +105,6 @@ jobs:
             os: macos-26
             compiler: clang
             clang-runtime: '22'
-            llvm_enable_projects: "clang;compiler-rt"
             llvm_targets_to_build: host
             oop-jit: On
           # MacOS X86
@@ -136,7 +134,7 @@ jobs:
         path: |
           llvm-project
           ${{ matrix.cling=='On' && 'cling' || '' }}
-        key: ${{ env.CLING_HASH }}-${{ runner.os }}-${{ matrix.os }}-${{ matrix.compiler }}-clang-${{ matrix.clang-runtime }}-${{ matrix.root-llvm-tag || 'none' }}.x-patch-${{ hashFiles(format('patches/llvm/clang{0}-*.patch', matrix.clang-runtime)) || 'none' }}${{ matrix.oop-jit == 'On' && '-oop' || '' }}${{ matrix.sanitizer || '' }}
+        key: ${{ env.CLING_HASH }}-${{ runner.os }}-${{ matrix.os }}-${{ matrix.compiler }}-clang-${{ matrix.clang-runtime }}-${{ matrix.root-llvm-tag || 'none' }}.x-patch-${{ hashFiles(format('patches/llvm/clang{0}-*.patch', matrix.clang-runtime)) || 'none' }}${{ matrix.sanitizer || '' }}
     - name: Setup default Build Type
       uses: ./.github/actions/Miscellaneous/Select_Default_Build_Type
 
@@ -170,6 +168,67 @@ jobs:
           llvm-project
           ${{ matrix.cling=='On' && 'cling' || '' }}
         key: ${{ steps.cache.outputs.cache-primary-key }}
+
+    - name: Install OOP-JIT runtime
+      # OOP rows used to bake `llvm-jitlink-executor` and
+      # `orc_rt-<arch>` into the cached LLVM build (under a
+      # `-oop`-suffixed cache slot). The cache slot is gone, so the
+      # runtime parts are layered on top from system packages
+      # instead. Symlinks point at the test binary's expected
+      # resource-dir layout (`<test-bin-dir>/lib/clang/<major>/lib/
+      # <triple>/`) -- that's where clang::IncrementalExecutorBuilder
+      # looks at runtime, computed from getMainExecutable(). The
+      # cached LLVM keeps `LLVM_ENABLE_ASSERTIONS=ON`, so the
+      # in-process JIT compiler still fires its assertions during
+      # tests; orc_rt and the executor are runtime support, not the
+      # assertion-rich JIT, so sourcing them from packages doesn't
+      # change the assertion signal.
+      if: ${{ matrix.oop-jit == 'On' && runner.environment != 'self-hosted' }}
+      shell: bash
+      run: |
+        set -eu
+        BIN_DIR="${GITHUB_WORKSPACE}/build/unittests/CppInterOp/bin/${{ env.BUILD_TYPE }}"
+        # Pre-create the resource-dir layout so symlinks land in
+        # place before CppInterOp builds the test binary into the
+        # same directory.
+        mkdir -p "${BIN_DIR}"
+        if [[ "${{ runner.os }}" == "Linux" ]]; then
+          wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key \
+            | sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc > /dev/null
+          codename="$(. /etc/os-release && echo $UBUNTU_CODENAME)"
+          echo "deb http://apt.llvm.org/${codename}/ llvm-toolchain-${codename}-${{ matrix.clang-runtime }} main" \
+            | sudo tee /etc/apt/sources.list.d/llvm.list > /dev/null
+          sudo apt-get update
+          sudo apt-get install -y \
+            llvm-${{ matrix.clang-runtime }} \
+            libclang-rt-${{ matrix.clang-runtime }}-dev
+          PFX=/usr/lib/llvm-${{ matrix.clang-runtime }}
+          mkdir -p "${BIN_DIR}/bin"
+          ln -sf "${PFX}/bin/llvm-jitlink-executor" "${BIN_DIR}/bin/llvm-jitlink-executor"
+          RT_SRC="${PFX}/lib/clang/${{ matrix.clang-runtime }}/lib"
+          RT_DST="${BIN_DIR}/lib/clang/${{ matrix.clang-runtime }}/lib"
+          for triple_dir in "${RT_SRC}"/*/; do
+            [[ -d "${triple_dir}" ]] || continue
+            triple=$(basename "${triple_dir}")
+            mkdir -p "${RT_DST}/${triple}"
+            for archive in "${triple_dir}"liborc_rt*.a; do
+              [[ -f "${archive}" ]] || continue
+              ln -sf "${archive}" "${RT_DST}/${triple}/$(basename "${archive}")"
+            done
+          done
+        elif [[ "${{ runner.os }}" == "macOS" ]]; then
+          brew install "llvm@${{ matrix.clang-runtime }}" || brew install llvm
+          PFX="$(brew --prefix llvm@${{ matrix.clang-runtime }} 2>/dev/null || brew --prefix llvm)"
+          mkdir -p "${BIN_DIR}/bin"
+          ln -sf "${PFX}/bin/llvm-jitlink-executor" "${BIN_DIR}/bin/llvm-jitlink-executor"
+          RT_SRC="${PFX}/lib/clang/${{ matrix.clang-runtime }}/lib/darwin"
+          RT_DST="${BIN_DIR}/lib/clang/${{ matrix.clang-runtime }}/lib/darwin"
+          mkdir -p "${RT_DST}"
+          for archive in "${RT_SRC}"/liborc_rt*.a; do
+            [[ -f "${archive}" ]] || continue
+            ln -sf "${archive}" "${RT_DST}/$(basename "${archive}")"
+          done
+        fi
 
     - name: Setup code coverage
       if: ${{ success() && (matrix.coverage == true) }}

@@ -28,8 +28,15 @@ runs:
         export CB_PYTHON_DIR="$PWD/cppyy-backend/python"
         export CPPINTEROP_DIR="$CB_PYTHON_DIR/cppyy_backend"
 
-        # Build CppInterOp next to cling and llvm-project.
-        mkdir build && cd build
+        # Build CppInterOp next to cling and llvm-project. `-p` so we
+        # tolerate the directory pre-existing -- the OOP-JIT install
+        # step in `main.yml` symlinks runtime parts under
+        # `<workspace>/build/unittests/CppInterOp/bin/<config>/` before
+        # this step runs, which implicitly creates the top-level
+        # `build/`. Without `-p`, the bare `mkdir` would fail and the
+        # `&& cd build` short-circuit would leave us in `<workspace>`
+        # with `cmake ../` resolving one level too high.
+        mkdir -p build && cd build
         export CPPINTEROP_BUILD_DIR=$PWD
         cling_on=$(echo "${{ matrix.cling }}" | tr '[:lower:]' '[:upper:]')
         if [[ "${cling_on}" == "ON" ]]; then
