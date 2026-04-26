@@ -339,16 +339,52 @@ include_directories(SYSTEM ${LLVM_INCLUDE_DIRS})
 separate_arguments(LLVM_DEFINITIONS_LIST NATIVE_COMMAND ${LLVM_DEFINITIONS})
 add_definitions(${LLVM_DEFINITIONS_LIST})
 
-string(REGEX REPLACE "/lib/cmake/llvm$" "" LLVM_BINARY_LIB_DIR "${LLVM_DIR}")
-add_definitions(-DLLVM_BINARY_LIB_DIR="${LLVM_BINARY_LIB_DIR}")
+# Bundle the ORC runtime + executor inside CppInterOp's distribution
+# so the OOP-JIT path is self-contained: no extra package to install,
+# no resource-dir scan in the host's clang tree at runtime. Paths are
+# baked at build time (CPPINTEROP_RUNTIME_{BUILD,INSTALL}_DIR in
+# Compatibility.h) and probed via fs::exists.
+set(CPPINTEROP_RUNTIME_SUBDIR "cppinterop-rt")
+set(CPPINTEROP_RUNTIME_BUILDTREE_DIR
+    "${CMAKE_BINARY_DIR}/lib/${CPPINTEROP_RUNTIME_SUBDIR}")
 
-if(LLVM_BUILT_WITH_OOP_JIT)
-  if((CMAKE_SYSTEM_NAME STREQUAL "Darwin" AND CMAKE_SYSTEM_PROCESSOR MATCHES "arm64") OR
-     (CMAKE_SYSTEM_NAME STREQUAL "Linux" AND CMAKE_SYSTEM_PROCESSOR MATCHES "x86_64|aarch64|arm64"))
-    add_definitions(-DLLVM_BUILT_WITH_OOP_JIT)
-  else()
-    message(FATAL_ERROR "LLVM_BUILT_WITH_OOP_JIT is only supported on MacOS arm64 or Linux (x86_64/aarch64). Build aborted.")
-  endif()
+if(LLVM_VERSION_MAJOR GREATER 21)
+  find_package(LLVMOrcRuntime QUIET MODULE)
+endif()
+
+if(LLVMOrcRuntime_FOUND)
+  message(STATUS "CppInterOp OOP-JIT runtime:")
+  message(STATUS "  orc_rt:   ${LLVMOrcRuntime_LIBRARY}")
+  message(STATUS "  executor: ${LLVMOrcRuntime_EXECUTOR}")
+
+  file(MAKE_DIRECTORY "${CPPINTEROP_RUNTIME_BUILDTREE_DIR}")
+  configure_file("${LLVMOrcRuntime_LIBRARY}"
+                 "${CPPINTEROP_RUNTIME_BUILDTREE_DIR}/liborc_rt.a"
+                 COPYONLY)
+  configure_file("${LLVMOrcRuntime_EXECUTOR}"
+                 "${CPPINTEROP_RUNTIME_BUILDTREE_DIR}/llvm-jitlink-executor"
+                 COPYONLY)
+
+  install(FILES "${LLVMOrcRuntime_LIBRARY}"
+          DESTINATION "${CMAKE_INSTALL_LIBDIR}/${CPPINTEROP_RUNTIME_SUBDIR}"
+          RENAME liborc_rt.a)
+  install(PROGRAMS "${LLVMOrcRuntime_EXECUTOR}"
+          DESTINATION "${CMAKE_INSTALL_LIBDIR}/${CPPINTEROP_RUNTIME_SUBDIR}"
+          RENAME llvm-jitlink-executor)
+
+  # Bake build-tree and install-tree runtime locations into the library
+  # so it can locate the bundled parts at runtime without dladdr or any
+  # platform-specific self-DSO discovery.
+  add_definitions(
+    "-DCPPINTEROP_RUNTIME_BUILD_DIR=\"${CPPINTEROP_RUNTIME_BUILDTREE_DIR}\""
+    "-DCPPINTEROP_RUNTIME_INSTALL_DIR=\"${CMAKE_INSTALL_FULL_LIBDIR}/${CPPINTEROP_RUNTIME_SUBDIR}\"")
+elseif(LLVM_VERSION_MAJOR GREATER 21)
+  message(STATUS
+    "CppInterOp: OOP-JIT runtime (liborc_rt + llvm-jitlink-executor) "
+    "not found in ${LLVM_LIBRARY_DIR}. Out-of-process JIT support will "
+    "be unavailable. To enable it, build LLVM with compiler-rt and "
+    "ninja the llvm-jitlink-executor + orc_rt* targets, or install a "
+    "compiler-rt package that ships them.")
 endif()
 
 # If the llvm sources are present add them with higher priority.

@@ -54,7 +54,6 @@ runs:
                 -DCODE_COVERAGE=${{ env.CODE_COVERAGE }}     \
                 -DCMAKE_INSTALL_PREFIX=$CPPINTEROP_DIR       \
                 -DLLVM_ENABLE_WERROR=On                      \
-                -DLLVM_BUILT_WITH_OOP_JIT=${{ matrix.oop-jit }} \
                 ../
         fi
         docs_on=$(echo "${{ matrix.documentation }}" | tr '[:lower:]' '[:upper:]')
@@ -63,10 +62,57 @@ runs:
           cmake --build . --target sphinx-cppinterop --parallel ${{ env.ncpus }}
         else
           cmake --build . --target check-cppinterop --parallel ${{ env.ncpus }}
+          # Verify the source-side `LLVM_VERSION_MAJOR > 21 &&
+          # !defined(_WIN32)` gate in unittests/CppInterOp/Utils.h:
+          # `InProcessJIT` always registers; `OutOfProcessJIT` must
+          # not register on clang-runtime <= 21. Missing OOP fixture
+          # on clang-runtime >= 22 is currently allowed (transitional;
+          # tighten to required once every cache row is rebuilt with
+          # compiler-rt).
+          TESTS_BIN=unittests/CppInterOp/bin/${{ env.BUILD_TYPE }}/CppInterOpTests
+          if [[ -x "${TESTS_BIN}" ]]; then
+            FIXTURES=$("${TESTS_BIN}" --gtest_list_tests 2>/dev/null | \
+              grep '^CppInterOpTest/' || true)
+            if ! echo "${FIXTURES}" | grep -q '^CppInterOpTest/InProcessJIT'; then
+              echo "FAIL: InProcessJIT fixture missing -- typed-test setup broken"
+              exit 1
+            fi
+            if [[ "${{ matrix.clang-runtime }}" -lt 22 ]]; then
+              if echo "${FIXTURES}" | grep -q '^CppInterOpTest/OutOfProcessJIT'; then
+                echo "FAIL: OutOfProcessJIT fixture registered on clang-runtime=${{ matrix.clang-runtime }}; LLVM_VERSION_MAJOR>21 source gate broken"
+                exit 1
+              fi
+            fi
+          fi
+          # Install-layout smoke test: install into a scratch prefix
+          # and assert the bundled runtime parts ship to
+          # `<libdir>/cppinterop-rt/` with the right modes. Catches
+          # install(FILES/PROGRAMS) destination/exec-bit regressions
+          # the in-tree path doesn't see.
+          INSTALL_DIR="${RUNNER_TEMP:-/tmp}/cppinterop-install-check"
+          rm -rf "${INSTALL_DIR}"
+          cmake --install . --prefix "${INSTALL_DIR}" >/dev/null
+          ls "${INSTALL_DIR}"/lib/libclangCppInterOp.* >/dev/null 2>&1 || \
+            { echo "FAIL: libclangCppInterOp not installed"; exit 1; }
+          if [[ -d "${INSTALL_DIR}/lib/cppinterop-rt" ]]; then
+            test -f "${INSTALL_DIR}/lib/cppinterop-rt/liborc_rt.a" || \
+              { echo "FAIL: liborc_rt.a missing from install"; exit 1; }
+            test -x "${INSTALL_DIR}/lib/cppinterop-rt/llvm-jitlink-executor" || \
+              { echo "FAIL: llvm-jitlink-executor missing or not executable"; exit 1; }
+            echo "OK: bundled OOP runtime installed under lib/cppinterop-rt/"
+          elif [[ "${{ matrix.clang-runtime }}" -lt 22 ]]; then
+            echo "OK: lib/cppinterop-rt/ absent, expected for clang-runtime <= 21"
+          else
+            echo "INFO: lib/cppinterop-rt/ absent on clang-runtime=${{ matrix.clang-runtime }} (transitional cache row without compiler-rt)"
+          fi
           os="${{ matrix.os }}"
           if [[ "${os}" != "macos"* && "${{ matrix.Valgrind }}" == "On" ]]; then
             CLANG_VERSION="${{ matrix.clang-runtime }}"
-            if [[ "${{ matrix.oop-jit }}" == "On" ]]; then
+            if [[ "${CLANG_VERSION}" -ge 22 ]]; then
+              # OOP-JIT runs by default on LLVM 22+ where the bundled
+              # runtime is available; OOP introduces extra valgrind
+              # noise (fork/exec, pipes) that the suppression file
+              # filters out.
               SUPPRESSION_FILE="../etc/clang${CLANG_VERSION}-valgrind.supp"
               valgrind --show-error-list=yes --track-origins=yes --error-exitcode=1 \
                 --show-leak-kinds=definite,possible \
