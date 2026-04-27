@@ -100,6 +100,41 @@ runs:
             test -x "${INSTALL_DIR}/lib/cppinterop-rt/llvm-jitlink-executor" || \
               { echo "FAIL: llvm-jitlink-executor missing or not executable"; exit 1; }
             echo "OK: bundled OOP runtime installed under lib/cppinterop-rt/"
+
+            # Probe-chain validation: relocate the install and override
+            # CPPINTEROP_RUNTIME_DIR. Both must keep the bundled runtime
+            # discoverable -- assert no fallback warning fires.
+            RELOC_MOVED="${INSTALL_DIR}-moved"
+            rm -rf "${RELOC_MOVED}"
+            mv "${INSTALL_DIR}" "${RELOC_MOVED}"
+            LIB_KEY=LD_LIBRARY_PATH
+            [[ "$(uname)" == "Darwin" ]] && LIB_KEY=DYLD_LIBRARY_PATH
+            OOP_FILTER='CppInterOpTest/OutOfProcessJIT.*'
+            assert_no_fallback() {
+              local desc="$1" log="$2"
+              if echo "${log}" | grep -q "bundled OOP runtime.*is missing"; then
+                echo "FAIL: ${desc} -- OOP fallback warning fired"
+                echo "${log}" | tail -10
+                exit 1
+              fi
+              echo "OK: ${desc}"
+            }
+            # 1. dladdr probe finds runtime alongside the moved .so.
+            out=$(env "${LIB_KEY}=${RELOC_MOVED}/lib" \
+                  "${TESTS_BIN}" --gtest_filter="${OOP_FILTER}" 2>&1) || true
+            assert_no_fallback "dladdr probe survives install relocation" "${out}"
+            # 2. CPPINTEROP_RUNTIME_DIR override: stage runtime at a third
+            #    location, wipe the bundled subdir, point the env-var at
+            #    the staged copy.
+            ENV_RT="${RUNNER_TEMP:-/tmp}/cppinterop-rt-env"
+            rm -rf "${ENV_RT}"; mkdir -p "${ENV_RT}"
+            cp "${RELOC_MOVED}/lib/cppinterop-rt/liborc_rt.a" "${ENV_RT}/"
+            cp "${RELOC_MOVED}/lib/cppinterop-rt/llvm-jitlink-executor" "${ENV_RT}/"
+            rm -rf "${RELOC_MOVED}/lib/cppinterop-rt"
+            out=$(env "${LIB_KEY}=${RELOC_MOVED}/lib" \
+                      "CPPINTEROP_RUNTIME_DIR=${ENV_RT}" \
+                  "${TESTS_BIN}" --gtest_filter="${OOP_FILTER}" 2>&1) || true
+            assert_no_fallback "CPPINTEROP_RUNTIME_DIR env-var override" "${out}"
           elif [[ "${{ matrix.clang-runtime }}" -lt 22 ]]; then
             echo "OK: lib/cppinterop-rt/ absent, expected for clang-runtime <= 21"
           else
