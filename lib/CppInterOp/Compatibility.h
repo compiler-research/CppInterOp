@@ -245,6 +245,7 @@ inline void codeComplete(std::vector<std::string>& Results,
 #endif
 
 #if LLVM_VERSION_MAJOR > 21 && !defined(_WIN32)
+#include <dlfcn.h>
 #include <unistd.h>
 #endif
 
@@ -371,22 +372,55 @@ inline bool detectNVPTXArch(std::string& Arch) {
 }
 
 #if LLVM_VERSION_MAJOR > 21
-/// Wire CppInterOp's bundled OOP runtime parts into `B`. CMakeLists.txt
-/// bakes `CPPINTEROP_RUNTIME_BUILD_DIR` and `CPPINTEROP_RUNTIME_INSTALL_DIR`
-/// at configure time; we probe the build-tree path first so an in-tree
-/// test run picks up the freshly staged files, then fall back to the
-/// install path. `UpdateOrcRuntimePathCB` is replaced with a no-op so
-/// the upstream resource-dir prefix check inside
+/// Directory containing libclangCppInterOp itself, derived via
+/// `dladdr` of an in-library function pointer. Returns empty when the
+/// platform has no self-DSO discovery (Windows -- a `GetModuleHandleEx`
+/// port can be added when Windows OOP support arrives).
+inline std::string findOwnLibraryDir() {
+#if !defined(_WIN32)
+  Dl_info info{};
+  if (!dladdr(reinterpret_cast<const void*>(&findOwnLibraryDir), &info) ||
+      !info.dli_fname || !*info.dli_fname)
+    return {};
+  llvm::SmallString<256> P(info.dli_fname);
+  llvm::sys::path::remove_filename(P);
+  return std::string(P.str());
+#else
+  return {};
+#endif
+}
+
+/// Wire CppInterOp's bundled OOP runtime parts into `B`. Probes a
+/// layered list of candidate directories, in priority order:
+///   1. `$CPPINTEROP_RUNTIME_DIR` -- sysadmin override.
+///   2. `<dir of libclangCppInterOp>/cppinterop-rt` -- relocatable, follows
+///      the .so wherever a package manager moved it.
+///   3. `CPPINTEROP_RUNTIME_BUILD_DIR` -- in-tree test runs.
+///   4. `CPPINTEROP_RUNTIME_INSTALL_DIR` -- baked install path; last
+///      resort when self-DSO discovery isn't available (e.g. static
+///      link of CppInterOp into a host binary).
+/// `UpdateOrcRuntimePathCB` is replaced with a no-op so the upstream
+/// resource-dir prefix check inside
 /// `IncrementalExecutorBuilder::UpdateOrcRuntimePath`
 /// (`clang/lib/Interpreter/IncrementalExecutor.cpp`, the
 /// `consume_front(parent_path(D.Dir))` guard) doesn't run -- our
 /// runtime lives outside the host's clang resource tree.
 inline bool configureBundledOOPRuntime(clang::IncrementalExecutorBuilder& B) {
-#if defined(CPPINTEROP_RUNTIME_BUILD_DIR) &&                                   \
-    defined(CPPINTEROP_RUNTIME_INSTALL_DIR)
-  for (llvm::StringRef Dir :
-       {llvm::StringRef(CPPINTEROP_RUNTIME_BUILD_DIR),
-        llvm::StringRef(CPPINTEROP_RUNTIME_INSTALL_DIR)}) {
+  llvm::SmallVector<std::string, 4> Candidates;
+  if (const char* Env = std::getenv("CPPINTEROP_RUNTIME_DIR"))
+    Candidates.emplace_back(Env);
+  if (std::string OwnDir = findOwnLibraryDir(); !OwnDir.empty()) {
+    llvm::SmallString<256> P(OwnDir);
+    llvm::sys::path::append(P, "cppinterop-rt");
+    Candidates.emplace_back(P.str());
+  }
+#if defined(CPPINTEROP_RUNTIME_BUILD_DIR)
+  Candidates.emplace_back(CPPINTEROP_RUNTIME_BUILD_DIR);
+#endif
+#if defined(CPPINTEROP_RUNTIME_INSTALL_DIR)
+  Candidates.emplace_back(CPPINTEROP_RUNTIME_INSTALL_DIR);
+#endif
+  for (const std::string& Dir : Candidates) {
     llvm::SmallString<256> OrcRT(Dir);
     llvm::sys::path::append(OrcRT, "liborc_rt.a");
     llvm::SmallString<256> Exec(Dir);
@@ -400,7 +434,6 @@ inline bool configureBundledOOPRuntime(clang::IncrementalExecutorBuilder& B) {
     };
     return true;
   }
-#endif
   return false;
 }
 #endif // LLVM_VERSION_MAJOR > 21
