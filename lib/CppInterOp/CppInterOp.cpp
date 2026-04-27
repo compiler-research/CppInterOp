@@ -3883,16 +3883,7 @@ TInterp_t CreateInterpreter(const std::vector<const char*>& Args /*={}*/,
 
   if (GetLanguage(I) != InterpreterLanguage::C) {
     I->declare(R"(
-    namespace __internal_CppInterOp {
-    template <typename Signature>
-    struct function;
-    template <typename Res, typename... ArgTypes>
-    struct function<Res(ArgTypes...)> {
-      typedef Res result_type;
-    };
-    }  // namespace __internal_CppInterOp
-  )");
-  }
+    #include <CppInterOp/CppInterOpRuntime.h>
 
   RegisterInterpreter(I, /*Owned=*/true);
 
