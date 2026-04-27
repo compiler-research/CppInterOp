@@ -11,7 +11,7 @@ runs:
         echo "BUILD_TYPE=Release" >> $GITHUB_ENV
         echo "CODE_COVERAGE=0" >> $GITHUB_ENV
         if [[ "${{ matrix.os }}" != "macos"* ]]; then
-          echo "ncpus=$(nproc --all)" >> $GITHUB_ENV      
+          echo "ncpus=$(nproc --all)" >> $GITHUB_ENV
         else
           echo "ncpus=$(sysctl -n hw.ncpu)" >> $GITHUB_ENV
         fi

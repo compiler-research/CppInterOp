@@ -32,10 +32,10 @@ jobs:
         # (cache key reads matrix.clang-runtime, so the field must live on
         # each row). micromamba_shell_init is derived below from runner.os.
         include:
-          - { name: ubu24-arm-emscr-llvm21,   os: ubuntu-24.04-arm, clang-runtime: &clang_rt '21', wasm: true }
-          - { name: osx26-arm-emscr-llvm21,   os: macos-26,         clang-runtime: *clang_rt, wasm: true }
-          - { name: ubu24-x86-emscr-llvm21,   os: ubuntu-24.04,     clang-runtime: *clang_rt, wasm: true }
-          - { name: win2025-x86-emscr-llvm21, os: windows-2025,     clang-runtime: *clang_rt, wasm: true, skip-in-prs: true }
+          - { name: ubu24-arm-emscr-llvm22,   os: ubuntu-24.04-arm, clang-runtime: &clang_rt '22', wasm: true }
+          - { name: osx26-arm-emscr-llvm22,   os: macos-26,         clang-runtime: *clang_rt, wasm: true }
+          - { name: ubu24-x86-emscr-llvm22,   os: ubuntu-24.04,     clang-runtime: *clang_rt, wasm: true }
+          - { name: win2025-x86-emscr-llvm22, os: windows-2025,     clang-runtime: *clang_rt, wasm: true, skip-in-prs: true }
 
     steps:
     - uses: actions/checkout@v6

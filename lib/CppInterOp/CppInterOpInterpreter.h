@@ -216,9 +216,7 @@ public:
     auto io_ctx = std::make_unique<IOContext>();
     bool outOfProcess = false;
 
-#if defined(_WIN32) || !defined(LLVM_BUILT_WITH_OOP_JIT)
-    outOfProcess = false;
-#else
+#if LLVM_VERSION_MAJOR > 21 && !defined(_WIN32)
     outOfProcess = std::any_of(vargs.begin(), vargs.end(), [](const char* arg) {
       return llvm::StringRef(arg).trim() == "--use-oop-jit";
     });
@@ -334,15 +332,6 @@ public:
       return std::move(Err);
     return llvm::orc::ExecutorAddr(*AddrOrErr);
   }
-
-#ifndef _WIN32
-  [[nodiscard]] pid_t getOutOfProcessExecutorPID() const {
-#ifdef LLVM_BUILT_WITH_OOP_JIT
-    return inner->getOutOfProcessExecutorPID();
-#endif
-    return 0;
-  }
-#endif
 
   /// \returns the \c ExecutorAddr of a given name as written in the object
   /// file.
