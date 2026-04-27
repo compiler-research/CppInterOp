@@ -702,6 +702,20 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_ExistsFunctionTemplate) {
 
 TYPED_TEST(CPPINTEROP_TEST_MODE,
            FunctionReflection_InstantiateTemplateFunctionFromString) {
+  // Skip under OOP+sanitizer: same upstream LLVM ORC
+  // `Resolving symbol with incorrect flags` issue as
+  // EnumReflection_GetEnums (Core.cpp:2800) -- sanitizer-instrumented
+  // common symbols cross the EPC boundary with mismatched
+  // JITSymbolFlags.
+#if (defined(__has_feature) &&                                                 \
+     (__has_feature(address_sanitizer) ||                                      \
+      __has_feature(memory_sanitizer) ||                                       \
+      __has_feature(thread_sanitizer))) ||                                     \
+    defined(__SANITIZE_ADDRESS__) || defined(__SANITIZE_THREAD__)
+  if (this->IsOutOfProcess())
+    GTEST_SKIP() << "OOP+sanitizer trips LLVM ORC symbol-flag assertion";
+#endif
+
   std::vector<const char*> interpreter_args = { "-include", "new" };
   TestFixture::CreateInterpreter(interpreter_args);
   std::string code = R"(#include <memory>)";
