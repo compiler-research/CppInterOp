@@ -254,20 +254,6 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, EnumReflection_GetEnumConstantValue) {
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, EnumReflection_GetEnums) {
-  // Skip under OOP+sanitizer: upstream LLVM ORC asserts on
-  // `Resolving symbol with incorrect flags`
-  // (`llvm/lib/ExecutionEngine/Orc/Core.cpp:2800`) when
-  // sanitizer-instrumented common symbols cross the EPC boundary --
-  // the host's JITSymbolFlags don't match what the executor reports.
-#if (defined(__has_feature) &&                                                 \
-     (__has_feature(address_sanitizer) ||                                      \
-      __has_feature(memory_sanitizer) ||                                       \
-      __has_feature(thread_sanitizer))) ||                                     \
-    defined(__SANITIZE_ADDRESS__) || defined(__SANITIZE_THREAD__)
-  if (this->IsOutOfProcess())
-    GTEST_SKIP() << "OOP+sanitizer trips LLVM ORC symbol-flag assertion";
-#endif
-
   std::string code = R"(
     enum Color {
       Red,

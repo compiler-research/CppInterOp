@@ -57,13 +57,40 @@ CXScope make_scope(const clang::Decl* D, const CXInterpreter I);
 
 bool IsTargetX86();
 
+// OOP-JIT is incompatible with two configurations and is excluded
+// from the typed-test matrix wholesale (rather than per-test) when
+// either applies:
+//   * Any sanitizer (ASan/MSan/TSan): upstream LLVM ORC trips
+//     `Resolving symbol with incorrect flags`
+//     (`llvm/lib/ExecutionEngine/Orc/Core.cpp`, the JITSymbolFlags
+//     compare under `OL_notifyResolved`) because
+//     sanitizer-instrumented common symbols carry flags the host
+//     process didn't declare; the EPC boundary surfaces the
+//     mismatch. In-process JIT is unaffected.
+//   * Emscripten: the OOP path requires fork/exec + a separate
+//     executor binary, which the wasm runtime doesn't provide.
+#if defined(__has_feature)
+#  if __has_feature(address_sanitizer) ||                                      \
+      __has_feature(memory_sanitizer) ||                                       \
+      __has_feature(thread_sanitizer)
+#    define CPPINTEROP_OOP_DISABLED 1
+#  endif
+#endif
+#if defined(__SANITIZE_ADDRESS__) || defined(__SANITIZE_THREAD__)
+#  define CPPINTEROP_OOP_DISABLED 1
+#endif
+#if defined(__EMSCRIPTEN__)
+#  define CPPINTEROP_OOP_DISABLED 1
+#endif
+
 // Define type tags for each configuration
 struct InProcessJITConfig {
   static constexpr bool isOutOfProcess = false;
   static constexpr const char* name = "InProcessJIT";
 };
 
-#if LLVM_VERSION_MAJOR > 21 && !defined(_WIN32)
+#if LLVM_VERSION_MAJOR > 21 && !defined(_WIN32) &&                             \
+    !defined(CPPINTEROP_OOP_DISABLED)
 struct OutOfProcessJITConfig {
   static constexpr bool isOutOfProcess = true;
   static constexpr const char* name = "OutOfProcessJIT";
@@ -97,7 +124,8 @@ struct JITConfigNameGenerator {
   }
 };
 
-#if LLVM_VERSION_MAJOR > 21 && !defined(_WIN32)
+#if LLVM_VERSION_MAJOR > 21 && !defined(_WIN32) &&                             \
+    !defined(CPPINTEROP_OOP_DISABLED)
 using CppInterOpTestTypes = ::testing::Types<InProcessJITConfig, OutOfProcessJITConfig>;
 #else
 using CppInterOpTestTypes = ::testing::Types<InProcessJITConfig>;
