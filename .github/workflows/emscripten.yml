@@ -33,7 +33,7 @@ jobs:
         # each row). micromamba_shell_init is derived below from runner.os.
         include:
           - { name: ubu24-arm-emscr-llvm22,   os: ubuntu-24.04-arm, clang-runtime: &clang_rt '22', wasm: true }
-          - { name: osx26-arm-emscr-llvm22,   os: macos-26,         clang-runtime: *clang_rt, wasm: true }
+          - { name: osx26-arm-emscr-llvm22,   os: macos-26,         clang-runtime: *clang_rt, wasm: true deploy: true }
           - { name: ubu24-x86-emscr-llvm22,   os: ubuntu-24.04,     clang-runtime: *clang_rt, wasm: true }
           - { name: win2025-x86-emscr-llvm22, os: windows-2025,     clang-runtime: *clang_rt, wasm: true, skip-in-prs: true }
 
@@ -233,3 +233,23 @@ jobs:
           micromamba create -n xeus-lite-host jupyterlite-core jupyterlite-xeus jupyter_server jupyterlab notebook python-libarchive-c -c conda-forge
           micromamba activate xeus-lite-host
           jupyter lite build --XeusAddon.prefix=${{ env.PREFIX }} --contents notebooks/xeus-cpp-lite-demo.ipynb --contents notebooks/tinyraytracer.ipynb --contents notebooks/images/marie.png --contents notebooks/audio/audio.wav --output-dir dist
+
+    - name: Upload artifact
+      if: ${{ matrix.deploy == true }}
+      uses: actions/upload-pages-artifact@v3
+      with:
+        path: ./xeus-cpp/dist/
+
+  deploy:
+    needs: build
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
