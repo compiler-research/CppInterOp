@@ -89,7 +89,7 @@ jobs:
           - { name: ubu24-arm-gcc12-llvm22-vg, os: ubuntu-24.04-arm, compiler: gcc-12, clang-runtime: '22', Valgrind: On }
           # Ubuntu X86
           - { name: ubu24-x86-gcc12-llvm22, os: ubuntu-24.04, compiler: gcc-12, clang-runtime: '22' }
-          - { name: ubu24-x86-clang22-llvm22-asan-ubsan, os: ubuntu-24.04, compiler: clang-22, clang-runtime: '22', sanitizer: "Address;Undefined" }
+          - { name: ubu24-x86-clang22-llvm22-asan-ubsan, os: ubuntu-24.04, compiler: clang-22, clang-runtime: '22', sanitizer: "Address;Undefined", use-recipe: 'llvm-asan' }
           - { name: ubu24-x86-gcc12-llvm21-cppyy-vg, os: ubuntu-24.04, compiler: gcc-12, clang-runtime: '21', cppyy: On, Valgrind: On }
           - { name: ubu24-x86-gcc12-llvm22-cppyy, os: ubuntu-24.04, compiler: gcc-12, clang-runtime: '22', cppyy: On }
           - { name: ubu24-x86-gcc14-cling-llvm20-cppyy, os: ubuntu-24.04, compiler: gcc-14, clang-runtime: '20', cling: 'On', cppyy: On, root-llvm-tag: &root_llvm_tag 'ROOT-llvm20-20260408-01' }
@@ -127,7 +127,7 @@ jobs:
       uses: ./.github/actions/Miscellaneous/Save_PR_Info
 
     - name: Restore cached LLVM-${{ matrix.clang-runtime }} and ${{ matrix.cling == 'On' && 'Cling' || 'Clang-REPL' }} build
-      if: ${{ runner.environment != 'self-hosted' }}
+      if: ${{ runner.environment != 'self-hosted' && !matrix.use-recipe }}
       uses: actions/cache/restore@v4
       id: cache
       with:
@@ -155,14 +155,43 @@ jobs:
         sudo apt-get install -y llvm-${{ matrix.clang-runtime }}-dev libclang-${{ matrix.clang-runtime }}-dev clang-${{ matrix.clang-runtime }} libpolly-${{ matrix.clang-runtime }}-dev libzstd-dev
 
     - name: Build LLVM-${{ matrix.clang-runtime }} and ${{ matrix.cling == 'On' && 'Cling' || 'Clang-REPL' }}
-      if: ${{ runner.environment != 'self-hosted' }}
+      if: ${{ runner.environment != 'self-hosted' && !matrix.use-recipe }}
       uses: ./.github/actions/Build_LLVM
       with:
         cache-hit: ${{ steps.cache.outputs.cache-hit }}
 
+    # When matrix.use-recipe is set, this row pulls a prebuilt LLVM tree
+    # from compiler-research/ci-workflows' Releases cache. The actions/
+    # cache restore + Build_LLVM + cache save trio above is gated by
+    # !matrix.use-recipe so it doesn't run for these rows; the recipe
+    # cache is the only place LLVM comes from. Downstream
+    # Build_and_Test_* discovers the tree at
+    # $GITHUB_WORKSPACE/llvm-project automatically.
+    #
+    # build-on-miss: false — refuse to rebuild LLVM inline on a cache
+    # miss. A miss here means the publish-recipe pipeline didn't warm
+    # the cell we asked for; rebuilding inline (~30 min) on every PR
+    # run would defeat the point of the cache. Fail fast with a
+    # populate-via-gh-workflow-run hint instead, and let the operator
+    # warm the cell explicitly.
+    #
+    # Pinned to a ci-workflows commit sha for reproducibility; bump
+    # explicitly when consuming new behaviour. arch is hard-coded to
+    # x86_64 since the only use-recipe row today is the ubuntu-24.04
+    # asan one — generalise to runner.arch when more rows migrate.
+    - name: Setup recipe ${{ matrix.use-recipe }} (LLVM ${{ matrix.clang-runtime }})
+      if: ${{ runner.environment != 'self-hosted' && matrix.use-recipe }}
+      uses: compiler-research/ci-workflows/actions/setup-recipe@2959f335445995fff4613bc1fa868171657b7672
+      with:
+        recipe: ${{ matrix.use-recipe }}
+        version: ${{ matrix.clang-runtime }}
+        os: ${{ matrix.os }}
+        arch: x86_64
+        build-on-miss: 'false'
+
     - name: Cache LLVM-${{ matrix.clang-runtime }} and ${{ matrix.cling == 'On' && 'Cling' || 'Clang-REPL' }} build
       uses: actions/cache/save@v4
-      if: ${{ runner.environment != 'self-hosted' && steps.cache.outputs.cache-hit != 'true' }}
+      if: ${{ runner.environment != 'self-hosted' && !matrix.use-recipe && steps.cache.outputs.cache-hit != 'true' }}
       with:
         path: |
           llvm-project

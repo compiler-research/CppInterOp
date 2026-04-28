@@ -14,14 +14,36 @@ runs:
           CPLUS_INCLUDE_PATH="/usr/lib/llvm-${{ matrix.clang-runtime }}/include:$PWD/include"
         else
           LLVM_DIR="$(pwd)/llvm-project"
-          LLVM_BUILD_DIR="$(pwd)/llvm-project/build"
+          # Two layouts coexist on github-hosted runners:
+          #   - rows that build LLVM from source (everything except the
+          #     asan row today) leave a build tree at llvm-project/build/.
+          #   - rows that pull a prebuilt asset via setup-recipe extract
+          #     a cmake --install tree directly under llvm-project/, with
+          #     LLVMConfig.cmake at lib/cmake/llvm/ (no build/ prefix).
+          # Probe for lib/cmake/llvm to pick LLVM_BUILD_DIR; LLVMConfig.cmake
+          # lives there in either layout.
+          if [[ -d "$LLVM_DIR/lib/cmake/llvm" ]]; then
+            LLVM_BUILD_DIR="$LLVM_DIR"
+          else
+            LLVM_BUILD_DIR="$LLVM_DIR/build"
+          fi
           cling_on=$(echo "${{ matrix.cling }}" | tr '[:lower:]' '[:upper:]')
+          # FIXME: CPLUS_INCLUDE_PATH itself is a workaround for missing
+          # target-based include propagation in CppInterOp's cmake;
+          # find_package(LLVM)/Clang already export INTERFACE_INCLUDE_DIRECTORIES.
+          # Drop this whole CPLUS_INCLUDE_PATH plumbing once the cmake side
+          # depends on imported targets correctly.
+          #
+          # CPLUS_INCLUDE_PATH unions both layouts' include roots:
+          # ${LLVM_DIR}/include is the install-tree flat header directory;
+          # ${LLVM_DIR}/{llvm,clang}/include and ${LLVM_BUILD_DIR}/{include,tools/clang/include}
+          # are the build-tree split. Non-existent paths in the union are harmless.
           if [[ "${cling_on}" == "ON" ]]; then
             CLING_DIR="$(pwd)/cling"
             CLING_BUILD_DIR="$(pwd)/cling/build"
-            CPLUS_INCLUDE_PATH="${CLING_DIR}/tools/cling/include:${CLING_BUILD_DIR}/include:${LLVM_DIR}/llvm/include:${LLVM_DIR}/clang/include:${LLVM_BUILD_DIR}/include:${LLVM_BUILD_DIR}/tools/clang/include:$PWD/include"
+            CPLUS_INCLUDE_PATH="${CLING_DIR}/tools/cling/include:${CLING_BUILD_DIR}/include:${LLVM_DIR}/include:${LLVM_DIR}/llvm/include:${LLVM_DIR}/clang/include:${LLVM_BUILD_DIR}/include:${LLVM_BUILD_DIR}/tools/clang/include:$PWD/include"
           else
-            CPLUS_INCLUDE_PATH="${LLVM_DIR}/llvm/include:${LLVM_DIR}/clang/include:${LLVM_BUILD_DIR}/include:${LLVM_BUILD_DIR}/tools/clang/include:$PWD/include"
+            CPLUS_INCLUDE_PATH="${LLVM_DIR}/include:${LLVM_DIR}/llvm/include:${LLVM_DIR}/clang/include:${LLVM_BUILD_DIR}/include:${LLVM_BUILD_DIR}/tools/clang/include:$PWD/include"
           fi
         fi
 
@@ -32,6 +54,13 @@ runs:
         mkdir build && cd build
         export CPPINTEROP_BUILD_DIR=$PWD
         cling_on=$(echo "${{ matrix.cling }}" | tr '[:lower:]' '[:upper:]')
+        # Propagate matrix.sanitizer to CppInterOp's cmake. CppInterOp's
+        # CMakeLists tried to recover this from the LLVM build's
+        # CMakeCache.txt via load_cache(); install trees don't ship
+        # CMakeCache.txt (it's build state, not install state), so on
+        # the recipe-cached path CppInterOp would compile without
+        # -fsanitize=address while libLLVMSupport.a is asan-instrumented,
+        # leaving __asan_* symbols unresolved at link.
         if [[ "${cling_on}" == "ON" ]]; then
           cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}        \
                 -DCPPINTEROP_USE_CLING=ON                                  \
@@ -40,6 +69,7 @@ runs:
                 -DCling_DIR=$LLVM_BUILD_DIR/tools/cling         \
                 -DLLVM_DIR=$LLVM_BUILD_DIR/lib/cmake/llvm       \
                 -DClang_DIR=$LLVM_BUILD_DIR/lib/cmake/clang     \
+                -DLLVM_USE_SANITIZER="${{ matrix.sanitizer }}"  \
                 -DBUILD_SHARED_LIBS=ON                          \
                 -DCODE_COVERAGE=${{ env.CODE_COVERAGE }}        \
                 -DCMAKE_INSTALL_PREFIX=$CPPINTEROP_DIR          \
@@ -50,6 +80,7 @@ runs:
                 -DCPPINTEROP_INCLUDE_DOCS=${{ matrix.documentation }} \
                 -DLLVM_DIR=$LLVM_BUILD_DIR/lib/cmake/llvm    \
                 -DClang_DIR=$LLVM_BUILD_DIR/lib/cmake/clang  \
+                -DLLVM_USE_SANITIZER="${{ matrix.sanitizer }}" \
                 -DBUILD_SHARED_LIBS=ON                       \
                 -DCODE_COVERAGE=${{ env.CODE_COVERAGE }}     \
                 -DCMAKE_INSTALL_PREFIX=$CPPINTEROP_DIR       \
