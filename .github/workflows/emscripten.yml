@@ -51,7 +51,7 @@ jobs:
       if: ${{ !(github.event_name == 'pull_request' && matrix.skip-in-prs == true) }}
       uses: ./.github/actions/Miscellaneous/Save_PR_Info
 
-    - name: Restore cached LLVM-${{ matrix.clang-runtime }} and ${{ matrix.cling == 'On' && 'Cling' || 'Clang-REPL' }} build (Unix like systems emscripten)
+    - name: Restore cached LLVM-${{ matrix.clang-runtime }}
       if: ${{ !(github.event_name == 'pull_request' && matrix.skip-in-prs == true) }}
       uses: actions/cache/restore@v4
       id: cache
@@ -103,9 +103,9 @@ jobs:
         sudo apt-get autoremove
         sudo apt-get clean
 
-    - name: Build LLVM/Cling if the cache is invalid (emscripten)
+    - name: Build LLVM-${{ matrix.clang-runtime }} (Emscripten)
       if: ${{ !(github.event_name == 'pull_request' && matrix.skip-in-prs == true) }}
-      uses: ./.github/actions/Build_LLVM_WASM
+      uses: ./.github/actions/Build_LLVM
       with:
         cache-hit: ${{ steps.cache.outputs.cache-hit }}
 

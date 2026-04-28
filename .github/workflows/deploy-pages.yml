@@ -55,7 +55,7 @@ jobs:
           cd emsdk
           ./emsdk install  ${{ env.EMSDK_VER }}
 
-    - name: Restore cached LLVM-${{ matrix.clang-runtime }} and ${{ matrix.cling == 'On' && 'Cling' || 'Clang-REPL' }} build
+    - name: Restore cached LLVM-${{ matrix.clang-runtime }}
       uses: actions/cache/restore@v4
       id: cache
       with:

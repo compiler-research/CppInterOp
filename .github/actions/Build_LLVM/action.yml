@@ -1,5 +1,5 @@
 name: 'Builds LLVM'
-description: 'This action builds LLVM for native platforms'
+description: 'This action builds LLVM'
 inputs:
   cache-hit:
     required: true
@@ -8,7 +8,7 @@ runs:
   using: composite
   steps:
     - name: Build LLVM/Cling if the cache is invalid
-      if: ${{ inputs.cache-hit != 'true'  && runner.os != 'Windows' }}
+      if: ${{ inputs.cache-hit != 'true'  && runner.os != 'Windows' && matrix.wasm != true }}
       shell: bash
       run: |
         cling_on=$(echo "${{ matrix.cling }}" | tr '[:lower:]' '[:upper:]')
@@ -113,7 +113,7 @@ runs:
 
 
     - name: Build LLVM/Cling on Windows systems if the cache is invalid
-      if: ${{ inputs.cache-hit != 'true'  && runner.os == 'Windows' }}
+      if: ${{ inputs.cache-hit != 'true'  && runner.os == 'Windows' && matrix.wasm != true }}
       shell: powershell
       run: |
 
@@ -184,4 +184,138 @@ runs:
           cd ..\clang\
           rm -r -force $(find.exe . -maxdepth 1 ! -name "include" ! -name "lib" ! -name "cmake"  ! -name ".")
           cd ..\..
+        }
+
+    - name: Build LLVM/Cling on Unix systems if the cache is invalid (emscripten)
+      if: ${{ inputs.cache-hit != 'true' && runner.os != 'Windows' && matrix.wasm == true }}
+      shell: bash
+      run: |
+        ./emsdk/emsdk activate ${{ env.EMSDK_VER }}
+        source ./emsdk/emsdk_env.sh
+        git clone --depth=1 -b release/${{ matrix.clang-runtime }}.x https://github.com/llvm/llvm-project.git
+        cd llvm-project
+
+        # Native tblgen bootstrap (host-side llvm-tblgen + clang-tblgen).
+        mkdir native_build
+        (cd native_build && \
+            cmake -DLLVM_ENABLE_PROJECTS=clang -DLLVM_TARGETS_TO_BUILD=host -DCMAKE_BUILD_TYPE=Release ../llvm/ && \
+            cmake --build . --target llvm-tblgen clang-tblgen --parallel $(nproc --all))
+        export NATIVE_DIR=$PWD/native_build/bin/
+
+        rt='${{ matrix.clang-runtime }}'
+        if [[ "$rt" =~ ^(19|20|21|22)$ ]]; then
+          git apply -v ../patches/llvm/emscripten-clang${rt}-*.patch
+          echo "Applied emscripten-clang${rt}-*.patch"
+        fi
+
+        cmake_flags=(
+          -G Ninja
+          -DCMAKE_BUILD_TYPE=Release
+          -DLLVM_HOST_TRIPLE=wasm32-unknown-emscripten
+          -DLLVM_TARGETS_TO_BUILD="${{ env.LLVM_TARGETS_TO_BUILD }}"
+          -DLLVM_ENABLE_PROJECTS="${{ env.LLVM_ENABLE_PROJECTS }}"
+          -DLLVM_NATIVE_TOOL_DIR="$NATIVE_DIR"
+          -DLLVM_ENABLE_LIBEDIT=OFF
+          -DLLVM_ENABLE_ZSTD=OFF
+          -DLLVM_ENABLE_LIBXML2=OFF
+          -DLLVM_ENABLE_LIBPFM=OFF
+          -DLLVM_ENABLE_THREADS=OFF
+          -DLLVM_INCLUDE_BENCHMARKS=OFF
+          -DLLVM_INCLUDE_EXAMPLES=OFF
+          -DLLVM_INCLUDE_TESTS=OFF
+          -DLLVM_BUILD_TOOLS=OFF
+          -DCLANG_BUILD_TOOLS=OFF
+          -DCLANG_ENABLE_STATIC_ANALYZER=OFF
+          -DCLANG_ENABLE_ARCMT=OFF
+          -DCLANG_ENABLE_BOOTSTRAP=OFF
+          -DCMAKE_CXX_FLAGS=-Dwait4=__syscall_wait4
+          "-DCMAKE_C_FLAGS_RELEASE=-Oz -g0 -DNDEBUG"
+          "-DCMAKE_CXX_FLAGS_RELEASE=-Oz -g0 -DNDEBUG"
+          -DLLVM_ENABLE_LTO=Full
+        )
+
+        targets=(libclang clangInterpreter clangStaticAnalyzerCore)
+
+        mkdir build && cd build
+        emcmake cmake "${cmake_flags[@]}"  ../llvm
+        EMCC_CFLAGS="-fwasm-exceptions" emmake ninja "${targets[@]}"
+        cd ..
+
+        # Trim source trees so the cache stays small.
+        rm -rf $(find . -maxdepth 1 ! -name "build" ! -name "llvm" ! -name "clang" ! -name "." ! -name "native_build")
+        keep=('!' -name include '!' -name lib '!' -name cmake '!' -name .)
+        for d in llvm clang; do
+          (cd "$d" && rm -rf $(find . -maxdepth 1 "${keep[@]}"))
+        done
+
+
+    - name: Build LLVM/Cling on Windows systems if the cache is invalid (emscripten)
+      if: ${{ inputs.cache-hit != 'true' && runner.os == 'Windows' && matrix.wasm == true }}
+      shell: powershell
+      run: |
+        .\emsdk\emsdk activate ${{ env.EMSDK_VER }}
+        .\emsdk\emsdk_env.ps1
+
+        git clone --depth=1 -b release/${{ matrix.clang-runtime }}.x https://github.com/llvm/llvm-project.git
+
+        cd llvm-project
+
+        # Native tblgen bootstrap (host-side llvm-tblgen + clang-tblgen).
+        mkdir native_build | Out-Null
+        Push-Location native_build
+        cmake -DLLVM_ENABLE_PROJECTS=clang -DLLVM_TARGETS_TO_BUILD=host -DCMAKE_BUILD_TYPE=Release -G Ninja ../llvm/
+        cmake --build . --target llvm-tblgen clang-tblgen --parallel $(nproc --all)
+        $env:NATIVE_DIR = Join-Path $PWD.Path "bin"
+        Pop-Location
+
+        $rt = "${{ matrix.clang-runtime }}"
+        if ( $rt -match "^(19|20|21|22)$" ) {
+          Get-ChildItem -Path "..\patches\llvm" -Filter "emscripten-clang${rt}-*.patch" | ForEach-Object {
+            git apply -v $_.FullName
+          }
+          echo "Applied emscripten-clang${rt}-*.patch"
+        }
+
+        $cmake_flags = @(
+          "-G", "Ninja"
+          "-DCMAKE_BUILD_TYPE=Release"
+          "-DLLVM_HOST_TRIPLE=wasm32-unknown-emscripten"
+          "-DLLVM_TARGETS_TO_BUILD=${{ env.LLVM_TARGETS_TO_BUILD }}"
+          "-DLLVM_ENABLE_PROJECTS=${{ env.LLVM_ENABLE_PROJECTS }}"
+          "-DLLVM_NATIVE_TOOL_DIR=$env:NATIVE_DIR"
+          "-DLLVM_ENABLE_LIBEDIT=OFF"
+          "-DLLVM_ENABLE_ZSTD=OFF"
+          "-DLLVM_ENABLE_LIBXML2=OFF"
+          "-DLLVM_ENABLE_LIBPFM=OFF"
+          "-DLLVM_ENABLE_THREADS=OFF"
+          "-DLLVM_INCLUDE_BENCHMARKS=OFF"
+          "-DLLVM_INCLUDE_EXAMPLES=OFF"
+          "-DLLVM_INCLUDE_TESTS=OFF"
+          "-DLLVM_BUILD_TOOLS=OFF"
+          "-DCLANG_BUILD_TOOLS=OFF"
+          "-DCLANG_ENABLE_STATIC_ANALYZER=OFF"
+          "-DCLANG_ENABLE_ARCMT=OFF"
+          "-DCLANG_ENABLE_BOOTSTRAP=OFF"
+          "-DCMAKE_CXX_FLAGS=-Dwait4=__syscall_wait4"
+          "-DCMAKE_C_FLAGS_RELEASE=-Oz -g0 -DNDEBUG"
+          "-DCMAKE_CXX_FLAGS_RELEASE=-Oz -g0 -DNDEBUG"
+          "-DLLVM_ENABLE_LTO=Full"
+        )
+        $targets = @("libclang", "clangInterpreter", "clangStaticAnalyzerCore")
+
+        mkdir build | Out-Null
+        cd build
+        emcmake cmake @cmake_flags ..\llvm
+        $env:EMCC_CFLAGS = "-fwasm-exceptions"
+        emmake ninja @targets
+        $env:EMCC_CFLAGS = ""
+        cd ..
+
+        # Trim source trees so the cache stays small.
+        rm -r -force $(find.exe . -maxdepth 1 ! -name "build" ! -name "llvm" ! -name "clang" ! -name "." ! -name "native_build")
+        $keep = @("!", "-name", "include", "!", "-name", "lib", "!", "-name", "cmake", "!", "-name", ".")
+        foreach ($d in @("llvm", "clang")) {
+          Push-Location $d
+          rm -r -force $(find.exe . -maxdepth 1 @keep)
+          Pop-Location
         }
