@@ -2,10 +2,12 @@
 name: Markdown-Linter
 
 on:
-  pull_request:
-    branches: [main]
-    paths:
-      - '**.md'
+  # XXX(ci-root-integration): disabled on this branch; restore before landing.
+  # pull_request:
+  #   branches: [main]
+  #   paths:
+  #     - '**.md'
+  workflow_dispatch:
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number }}

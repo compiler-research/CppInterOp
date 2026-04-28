@@ -33,10 +33,22 @@ runs:
                 -DCLANG_ENABLE_ARCMT=OFF                           \
                 -DCLANG_ENABLE_FORMAT=OFF                          \
                 -DCLANG_ENABLE_BOOTSTRAP=OFF                       \
+                -DLLVM_INCLUDE_BENCHMARKS=OFF                      \
+                -DLLVM_INCLUDE_EXAMPLES=OFF                        \
                 -G Ninja                                           \
                 ../llvm
           ninja clang -j ${{ env.ncpus }}
           ninja LLVMOrcDebugging -j ${{ env.ncpus }}
+          # `clangInterpreter` (clang-repl's Interpreter library) is not
+          # a transitive dep of the `clang` driver, and the cling version
+          # we cache (v1.3) doesn't list it in its `LIBS`. ROOT's bundled
+          # `interpreter/cling/lib/Interpreter/CMakeLists.txt:14` does,
+          # so downstream consumers (the ROOT integration job) link
+          # against `libclangInterpreter.a` and fail with `missing and
+          # no known rule to make it` if it isn't in the cached build.
+          # The trim removes top-level `llvm/CMakeLists.txt`, so we can't
+          # ninja it later from the cache -- it has to be built here.
+          ninja clangInterpreter -j ${{ env.ncpus }}
           ninja clingInterpreter -j ${{ env.ncpus }}
         else
           # Non-cling, LLVM >= 22: bundle the OOP-JIT runtime into the
@@ -96,18 +108,24 @@ runs:
         fi
         cd ../
         rm -rf $(find . -maxdepth 1 ! -name "build" ! -name "llvm" ! -name "clang" ! -name ".")
+        # Source-tree `lib/` dirs hold .cpp already linked into
+        # build/lib/*.a. CppInterOp consumers reference llvm/include and
+        # clang/include via CPLUS_INCLUDE_PATH, never the source `lib/`
+        # (see Build_and_Test_CppInterOp/action.yml). cling/lib stays --
+        # ROOT and downstream consumers may pick up cling header internals
+        # from there.
         if [[ "${cling_on}" == "ON" ]]; then
           cd ./llvm/
-          rm -rf $(find . -maxdepth 1 ! -name "include" ! -name "lib" ! -name "cmake" ! -name "utils" ! -name ".")
+          rm -rf $(find . -maxdepth 1 ! -name "include" ! -name "cmake" ! -name "utils" ! -name ".")
           cd ../clang/
-          rm -rf $(find . -maxdepth 1 ! -name "include" ! -name "lib" ! -name "cmake" ! -name "utils" ! -name ".")
+          rm -rf $(find . -maxdepth 1 ! -name "include" ! -name "cmake" ! -name "utils" ! -name ".")
           cd ../../cling/
           rm -rf $(find . -maxdepth 1 ! -name "include" ! -name "lib" ! -name "cmake" ! -name ".")
         else # repl
           cd ./llvm/
-          rm -rf $(find . -maxdepth 1 ! -name "include" ! -name "lib" ! -name "cmake" ! -name ".")
+          rm -rf $(find . -maxdepth 1 ! -name "include" ! -name "cmake" ! -name ".")
           cd ../clang/
-          rm -rf $(find . -maxdepth 1 ! -name "include" ! -name "lib" ! -name "cmake" ! -name ".")
+          rm -rf $(find . -maxdepth 1 ! -name "include" ! -name "cmake" ! -name ".")
           cd ../..
         fi
 
@@ -146,9 +164,13 @@ runs:
                 -DCLANG_ENABLE_ARCMT=OFF                           `
                 -DCLANG_ENABLE_FORMAT=OFF                          `
                 -DCLANG_ENABLE_BOOTSTRAP=OFF                       `
+                -DLLVM_INCLUDE_BENCHMARKS=OFF                      `
+                -DLLVM_INCLUDE_EXAMPLES=OFF                        `
                 ..\llvm
           cmake --build . --config Release --target clang --parallel ${{ env.ncpus }}
           cmake --build . --config Release --target LLVMOrcDebugging --parallel ${{ env.ncpus }}
+          # See Linux block above for why clangInterpreter is built here.
+          cmake --build . --config Release --target clangInterpreter --parallel ${{ env.ncpus }}
           cmake --build . --config Release --target clingInterpreter --parallel ${{ env.ncpus }}
         }
         else
@@ -168,20 +190,21 @@ runs:
         }
         cd ..\
         rm -r -force $(find.exe . -maxdepth 1 ! -name "build" ! -name "llvm" ! -name "clang" ! -name ".")
+        # See Linux block above for why source `lib/` is dropped.
         if ( "${{ matrix.cling }}" -imatch "On" )
         {
           cd .\llvm\
-          rm -r -force $(find.exe . -maxdepth 1 ! -name "include" ! -name "lib" ! -name "cmake" ! -name "utils" ! -name ".")
+          rm -r -force $(find.exe . -maxdepth 1 ! -name "include" ! -name "cmake" ! -name "utils" ! -name ".")
           cd ..\clang\
-          rm -r -force $(find.exe . -maxdepth 1 ! -name "include" ! -name "lib" ! -name "cmake" ! -name "utils" ! -name ".")
+          rm -r -force $(find.exe . -maxdepth 1 ! -name "include" ! -name "cmake" ! -name "utils" ! -name ".")
           cd ..\..\cling\
           rm -r -force $(find.exe . -maxdepth 1 ! -name "include" ! -name "lib" ! -name "cmake" ! -name ".")
         }
         else
         {
           cd .\llvm\
-          rm -r -force $(find.exe . -maxdepth 1 ! -name "include" ! -name "lib" ! -name "cmake" ! -name ".")
+          rm -r -force $(find.exe . -maxdepth 1 ! -name "include" ! -name "cmake" ! -name ".")
           cd ..\clang\
-          rm -r -force $(find.exe . -maxdepth 1 ! -name "include" ! -name "lib" ! -name "cmake"  ! -name ".")
+          rm -r -force $(find.exe . -maxdepth 1 ! -name "include" ! -name "cmake"  ! -name ".")
           cd ..\..
         }
