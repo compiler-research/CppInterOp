@@ -30,43 +30,17 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Mirror main.yml's `ubu24-x86-gcc14-cling-llvm20-cppyy` row's
-        # cache-key inputs: same OS, compiler, clang-runtime,
-        # root-llvm-tag. cppyy is set Off to keep the row's identity
-        # distinct in CI logs while leaving the cache key bit-identical
-        # to the cppyy variant (cppyy isn't in the cache key).
-        # `root-llvm-tag` must match main.yml's `&root_llvm_tag` value
-        # exactly -- the cache key uses it directly, so any drift would
-        # split the cache slot. The tag is `ROOT-llvm20-...`, a superset
-        # of `cling-llvm20-...` carrying ROOT's extra clang patches
-        # (`Sema::DelayedInfoRAII`, `GlobalModuleIndex::FileNameHitSet`,
-        # ...); cling builds against the superset unchanged, so the same
-        # cache serves both.
         include:
           # cling is quoted so YAML parsers that read `On` as a boolean
           # (e.g. nektos/act) still produce the string "On" that
-          # Save_PR_Info compares against; without the quotes act takes
-          # the else-branch and computes CLING_HASH=Repl, breaking the
-          # cache-key alignment with main.yml's cling row.
-          - { name: ubu24-x86-gcc14-cling-llvm20-root, os: ubuntu-24.04, compiler: gcc-14, clang-runtime: '20', cling: 'On', root-llvm-tag: 'ROOT-llvm20-20260408-01' }
+          # Save_PR_Info compares against.
+          - { name: ubu24-x86-gcc14-cling-llvm20-root, os: ubuntu-24.04, compiler: gcc-14, clang-runtime: '20', cling: 'On' }
 
     steps:
     - name: Checkout CppInterOp PR
       uses: actions/checkout@v6
       with:
         path: cppinterop
-
-    - name: Stage CppInterOp's patches at workspace root
-      shell: bash
-      run: |
-        # main.yml's cache key uses `hashFiles('patches/llvm/clang{0}-*.patch')`,
-        # which resolves relative to the workspace root. With the PR checked
-        # out into `cppinterop/`, the symlink lets `hashFiles` find the same
-        # files at the same path, keeping the cache key bit-identical to
-        # the cling row in main.yml. Build_LLVM's cling-side `git apply
-        # ../patches/llvm/cling1.2-LookupHelper.patch` also resolves through
-        # the symlink on cache-miss runs.
-        ln -s cppinterop/patches patches
 
     - name: Set up Python
       uses: actions/setup-python@v6
@@ -76,39 +50,14 @@ jobs:
     - name: Save PR Info
       uses: ./cppinterop/.github/actions/Miscellaneous/Save_PR_Info
 
-    - name: Restore cached LLVM-${{ matrix.clang-runtime }} and Cling build
-      uses: actions/cache/restore@v4
-      id: cache
+    - name: Setup llvm-root recipe (LLVM ${{ matrix.clang-runtime }} / ROOT-llvm20)
+      uses: compiler-research/ci-workflows/actions/setup-recipe@main
       with:
-        path: |
-          llvm-project
-          cling
-        # Verbatim copy of main.yml's cache key so this job hits the cache
-        # the cppyy cling row populates. This job is read-only against
-        # the cache: it never builds or saves. If the cache is missing,
-        # the job fails (see the next step) -- the expectation is that
-        # main.yml's cppyy cling row has already populated the same key.
-        key: ${{ env.CLING_HASH }}-${{ runner.os }}-${{ matrix.os }}-${{ matrix.compiler }}-clang-${{ matrix.clang-runtime }}-${{ matrix.root-llvm-tag || 'none' }}.x-patch-${{ hashFiles(format('patches/llvm/clang{0}-*.patch', matrix.clang-runtime)) || 'none' }}${{ matrix.oop-jit == 'On' && '-oop' || '' }}${{ matrix.sanitizer || '' }}
-
-    - name: Require LLVM/Cling cache hit
-      if: ${{ steps.cache.outputs.cache-hit != 'true' }}
-      shell: bash
-      run: |
-        # ROOT integration deliberately does not build LLVM/Cling. The
-        # ~30-minute Build_LLVM run is owned by main.yml's cppyy cling
-        # row, which uses an identical cache key; this job free-rides
-        # the artifact. Erroring out keeps the contract explicit: if
-        # the cache key here can't find a hit, something has drifted
-        # (either main.yml's row hasn't run yet on this PR, the cache
-        # entry was evicted, or the key formula has diverged) and the
-        # right fix is to wait for / re-run main.yml, not to silently
-        # rebuild here.
-        echo "::error::Required LLVM/Cling cache entry missing."
-        echo "::error::Expected key:"
-        echo "::error::  ${{ steps.cache.outputs.cache-primary-key }}"
-        echo "::error::This job free-rides main.yml's cppyy cling row."
-        echo "::error::Re-run / wait for that row to populate the cache, then retry."
-        exit 1
+        recipe: llvm-root
+        version: ROOT-llvm20
+        os: ${{ matrix.os }}
+        arch: x86_64
+        build-on-miss: 'false'
 
     - name: Setup default Build Type
       uses: ./cppinterop/.github/actions/Miscellaneous/Select_Default_Build_Type
@@ -140,14 +89,13 @@ jobs:
         #     CPLUS_INCLUDE_PATH; an over-aggressive trim that nukes
         #     `clang/include` would surface here instead of as a
         #     `RStl.cxx.o` compile failure mid-ROOT-build).
-        SRC="$GITHUB_WORKSPACE/llvm-project"
-        BUILD="$SRC/build"
+        LLVM="$GITHUB_WORKSPACE/llvm-project"
         fail=0
         for f in \
-            "$BUILD/lib/cmake/llvm/LLVMConfig.cmake" \
-            "$BUILD/lib/cmake/clang/ClangConfig.cmake" \
-            "$BUILD/lib/libclangInterpreter.a" \
-            "$SRC/clang/include/clang/Basic/Module.h"; do
+            "$LLVM/lib/cmake/llvm/LLVMConfig.cmake" \
+            "$LLVM/lib/cmake/clang/ClangConfig.cmake" \
+            "$LLVM/lib/libclangInterpreter.a" \
+            "$LLVM/include/clang/Basic/Module.h"; do
           if [[ ! -f "$f" ]]; then
             echo "::error::missing $f"
             fail=1
@@ -155,16 +103,16 @@ jobs:
             echo "ok: $f"
           fi
         done
-        if [[ ! -d "$BUILD/lib/clang" ]]; then
-          echo "::error::missing $BUILD/lib/clang"
+        if [[ ! -d "$LLVM/lib/clang" ]]; then
+          echo "::error::missing $LLVM/lib/clang"
           fail=1
         else
-          versions=$(ls "$BUILD/lib/clang" 2>/dev/null | tr '\n' ' ')
+          versions=$(ls "$LLVM/lib/clang" 2>/dev/null | tr '\n' ' ')
           echo "lib/clang/ entries: ${versions:-<empty>}"
           # ROOT requires exactly one entry in this directory.
-          count=$(ls "$BUILD/lib/clang" 2>/dev/null | wc -l)
+          count=$(ls "$LLVM/lib/clang" 2>/dev/null | wc -l)
           if [[ "$count" -ne 1 ]]; then
-            echo "::error::expected exactly 1 entry under $BUILD/lib/clang, found $count"
+            echo "::error::expected exactly 1 entry under $LLVM/lib/clang, found $count"
             fail=1
           fi
         fi
@@ -222,13 +170,10 @@ jobs:
         # don't pass it. Resolution happens via CMAKE_PREFIX_PATH instead.
         # `fail-on-missing=ON` mirrors the nixpkgs ROOT recipe so any
         # silently-disabled feature surfaces as a configure-time error.
-        # `-DCLANG_INSTALL_PREFIX` is required because our cached LLVM
-        # ships its build-tree `ClangConfig.cmake`, whose @CLANG_CONFIG_CODE@
-        # substitution is empty (only the install-tree variant emits the
-        # `find_prefix_from_config` snippet). Without this, ROOT's
-        # `core/clingutils/CMakeLists.txt:87` resolves
-        # `${CLANG_INSTALL_PREFIX}/lib/clang` to `/lib/clang` and globs the
-        # runner's residual system clangs at `/usr/lib/clang/*`.
+        # `-DCLANG_INSTALL_PREFIX` points at the recipe's install root
+        # so ROOT's `core/clingutils/CMakeLists.txt` resolves
+        # `${CLANG_INSTALL_PREFIX}/lib/clang` to the recipe-installed
+        # clang (rather than globbing `/usr/lib/clang/*`).
         # CppInterOp's `.td`-driven dispatch (introduced in #906) emits
         # `CppInterOpDecl.inc` and `CppInterOpAPI.inc` via cppinterop-tblgen.
         # CppInterOp's CMakeLists writes them to `${CMAKE_BINARY_DIR}/include/
@@ -247,9 +192,9 @@ jobs:
               -Dfail-on-missing=ON \
               -Dbuiltin_llvm=OFF \
               -Dbuiltin_clang=OFF \
-              -DCMAKE_PREFIX_PATH="$GITHUB_WORKSPACE/llvm-project/build" \
-              -DClang_DIR="$GITHUB_WORKSPACE/llvm-project/build/lib/cmake/clang" \
-              -DCLANG_INSTALL_PREFIX="$GITHUB_WORKSPACE/llvm-project/build" \
+              -DCMAKE_PREFIX_PATH="$GITHUB_WORKSPACE/llvm-project" \
+              -DClang_DIR="$GITHUB_WORKSPACE/llvm-project/lib/cmake/clang" \
+              -DCLANG_INSTALL_PREFIX="$GITHUB_WORKSPACE/llvm-project" \
               -DCMAKE_CXX_FLAGS="-I${CPPINTEROP_GEN_INC}" \
               ../root
 
@@ -263,7 +208,7 @@ jobs:
         # `CPLUS_INCLUDE_PATH` -- the same way main.yml's cling rows
         # resolve clang headers in `Build_and_Test_CppInterOp/action.yml`.
         # Mirror that env here so `RStl.cxx` and friends find their
-        # clang/cling headers from the cached LLVM tree.
+        # clang/cling headers from the recipe's install tree.
         LLVM="$GITHUB_WORKSPACE/llvm-project"
-        export CPLUS_INCLUDE_PATH="$LLVM/llvm/include:$LLVM/clang/include:$LLVM/build/include:$LLVM/build/tools/clang/include"
+        export CPLUS_INCLUDE_PATH="$LLVM/include"
         cmake --build root-build --parallel ${{ env.ncpus }}
