@@ -1,16 +1,21 @@
 name: ROOT
 
 # Build ROOT (root-project/root master) against the CppInterOp tree
-# carried by the PR, by overwriting `interpreter/CppInterOp` in ROOT
-# with our checkout. Any breaking change CppInterOp introduces that
-# ROOT relies on shows up here as a configure or compile error.
+# carried by the PR. This mirrors the manual upgrade flow we follow
+# when bumping the CppInterOp commit pinned in ROOT:
+#   1. clone ROOT master (cached, git fetched incrementally on cache hit)
+#   2. drop the PR's CppInterOp HEAD in over interpreter/CppInterOp
+#   3. strip the few files that don't belong in the embedded copy
+#   4. run a standard ROOT build using from LLVM/Cling in-tree (cached)
+#   5. run ROOT's ctest suite against that build
 #
-# The job pins to the same axes as `main.yml`'s
-# ubu24-x86-gcc14-cling-llvm20-cppyy row so the LLVM/Cling cache key
-# resolves to the same string and the artifact is shared.
+#
+# Any breaking change CppInterOp introduces that ROOT relies on shows
+# up here as a configure, compile, or test failure.
 
 on:
   pull_request:
+    types: [opened, synchronize, reopened, labeled]
     branches: [main]
   workflow_dispatch:
 
@@ -22,19 +27,21 @@ jobs:
   build-root:
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
+    # Opt-in: PR only runs on the `ROOT-build` label, or when the
+    # workflow is dispatched manually.
+    if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.pull_request.labels.*.name, 'ROOT-build') }}
     env:
-      # Match main.yml's job-level CLING_VERSION so Save_PR_Info computes
-      # CLING_HASH against the same git tag (refs/tags/v1.3) and the cache
-      # key prefix matches.
+      # Save_PR_Info reads CLING_VERSION when matrix.cling is 'On' to
+      # compute CLING_HASH from refs/tags/v<version> on root-project/cling.
+      # ROOT builds Cling from its own bundled sources here, so the
+      # hash is informational only, can be used when extending this job to test
+      # against ROOT with external ROOT LLVM + Clang patches, etc.
       CLING_VERSION: '1.3'
     strategy:
       fail-fast: false
       matrix:
         include:
-          # cling is quoted so YAML parsers that read `On` as a boolean
-          # (e.g. nektos/act) still produce the string "On" that
-          # Save_PR_Info compares against.
-          - { name: ubu24-x86-gcc14-cling-llvm20-root, os: ubuntu-24.04, compiler: gcc-14, clang-runtime: '20', cling: 'On' }
+          - { name: ubu24-x86-gcc14-root-master, os: ubuntu-24.04, compiler: gcc-14, clang-runtime: '20', cling: 'On' }
 
     steps:
     - name: Checkout CppInterOp PR
@@ -50,73 +57,11 @@ jobs:
     - name: Save PR Info
       uses: ./cppinterop/.github/actions/Miscellaneous/Save_PR_Info
 
-    - name: Setup llvm-root recipe (LLVM ${{ matrix.clang-runtime }} / ROOT-llvm20)
-      uses: compiler-research/ci-workflows/actions/setup-recipe@main
-      with:
-        recipe: llvm-root
-        version: ROOT-llvm20
-        os: ${{ matrix.os }}
-        arch: x86_64
-        build-on-miss: 'false'
-
     - name: Setup default Build Type
       uses: ./cppinterop/.github/actions/Miscellaneous/Select_Default_Build_Type
 
     - name: Setup compiler
       uses: ./cppinterop/.github/actions/Miscellaneous/Setup_Compiler
-
-    - name: Install dependencies
-      uses: ./cppinterop/.github/actions/Miscellaneous/Install_Dependencies
-
-    - name: Verify cached LLVM/Clang layout
-      shell: bash
-      run: |
-        # Sanity-check the artifact ROOT will consume. Catches drift
-        # in `Build_LLVM`'s trim or ninja targets early, with a clear
-        # error, instead of cascading into an opaque ROOT cmake or
-        # link failure several steps later. We assert:
-        #   - LLVMConfig.cmake / ClangConfig.cmake exist (else ROOT's
-        #     find_package falls back to system paths -- that's how we
-        #     previously got `Found LLVM 17`).
-        #   - lib/clang/<version> has exactly one entry (ROOT's
-        #     core/clingutils/CMakeLists.txt:95 globs and requires a
-        #     unique version).
-        #   - libclangInterpreter.a is present (ROOT's bundled cling
-        #     links it; cache built before that target was added to
-        #     Build_LLVM's ninja line would be missing it).
-        #   - clang/include/clang/Basic/Module.h survived the trim
-        #     (ROOT's core/clingutils/res/TClingUtils.h includes it via
-        #     CPLUS_INCLUDE_PATH; an over-aggressive trim that nukes
-        #     `clang/include` would surface here instead of as a
-        #     `RStl.cxx.o` compile failure mid-ROOT-build).
-        LLVM="$GITHUB_WORKSPACE/llvm-project"
-        fail=0
-        for f in \
-            "$LLVM/lib/cmake/llvm/LLVMConfig.cmake" \
-            "$LLVM/lib/cmake/clang/ClangConfig.cmake" \
-            "$LLVM/lib/libclangInterpreter.a" \
-            "$LLVM/include/clang/Basic/Module.h"; do
-          if [[ ! -f "$f" ]]; then
-            echo "::error::missing $f"
-            fail=1
-          else
-            echo "ok: $f"
-          fi
-        done
-        if [[ ! -d "$LLVM/lib/clang" ]]; then
-          echo "::error::missing $LLVM/lib/clang"
-          fail=1
-        else
-          versions=$(ls "$LLVM/lib/clang" 2>/dev/null | tr '\n' ' ')
-          echo "lib/clang/ entries: ${versions:-<empty>}"
-          # ROOT requires exactly one entry in this directory.
-          count=$(ls "$LLVM/lib/clang" 2>/dev/null | wc -l)
-          if [[ "$count" -ne 1 ]]; then
-            echo "::error::expected exactly 1 entry under $LLVM/lib/clang, found $count"
-            fail=1
-          fi
-        fi
-        exit $fail
 
     - name: Install ROOT system dependencies
       shell: bash
@@ -127,88 +72,103 @@ jobs:
         # opting in to ROOT's `-Dbuiltin_*` fallbacks (slower build).
         sudo apt-get update
         sudo apt-get install -y --no-install-recommends \
+          ninja-build \
           dpkg-dev binutils \
           libx11-dev libxpm-dev libxft-dev libxext-dev \
           libssl-dev liblzma-dev libpcre3-dev libpcre2-dev \
           libxxhash-dev libzstd-dev libtbb-dev libxml2-dev \
           nlohmann-json3-dev
-        # The ubuntu-24.04 runner image ships llvm-17 dev packages,
-        # whose `/usr/lib/llvm-17/lib/cmake/llvm` is found by ROOT's
-        # `find_package(LLVM)` before our `-DLLVM_DIR` hint takes
-        # effect (ROOT's interpreter subtree re-invokes find_package
-        # in nested scopes). Purge them so only our cached LLVM 20
-        # remains visible.
-        sudo apt-get purge -y 'llvm-17*' 'clang-17*' 'libclang-17*' 'libllvm17*' || true
-        sudo apt-get autoremove -y
+
+    - name: Restore ROOT source + build cache
+      if: ${{ runner.environment != 'self-hosted' }}
+      uses: actions/cache/restore@v4
+      id: cache
+      with:
+        # Cache both the ROOT source checkout and the build tree.
+        # Caching `root/` lets us update via `git fetch && git reset
+        # --hard`. Caching only `root-build/` without `root/` would
+        # force a fresh clone each run, every source mtime would be
+        # newer than its `.o`, and ninja would recompile everything.
+        path: |
+          root
+          root-build
+        # `github.run_id` makes every run save a new cache; the
+        # restore-keys ladder picks the most recent cache for this
+        # matrix row. The `v1` prefix is a manual invalidation knob:
+        # modify when if something incompatible changes (toolchain,
+        # ROOT bumps LLVM major, etc) and old caches need to be ignored
+        # on purpose.
+        key: root-build-v1-${{ matrix.name }}-${{ github.run_id }}
+        restore-keys: |
+          root-build-v1-${{ matrix.name }}-
 
     - name: Substitute the PR's CppInterOp into ROOT
       shell: bash
       run: |
-        git clone --depth=1 --branch master https://github.com/root-project/root.git
-        # ROOT bundles a copy of CppInterOp under interpreter/CppInterOp.
-        # Replace it with the PR's tree so the integration build exercises
-        # this PR's headers, sources, and CMake glue.
+        # Mirror of the current upgrade process for CppInterOp in ROOT:
+        # clone ROOT master, replace bundled interpreter/CppInterOp with
+        # current PR's, strip files that don't live in the embedded copy,
+        # build and test
+        #
+        # Cache hit: previous run's `root/` checkout is already on
+        # disk. Update it in place so files unchanged on master keep 
+        # their old mtimes. `git clean -fdx` scrubs the previous
+        # CppInterOp swap (untracked files dropped in interpreter/CppInterOp
+        # by prior run).
+        if [[ -d root/.git ]]; then
+          git -C root fetch --depth=1 origin master
+          git -C root reset --hard origin/master
+          git -C root clean -fdx
+        else
+          git clone --depth=1 --branch master \
+            https://github.com/root-project/root.git
+        fi
+        # Swap the PR's HEAD into ROOT, then strip files that don't
+        # belong in the embedded copy (acts on just-swapped-in tree)
         rm -rf root/interpreter/CppInterOp
         cp -a cppinterop root/interpreter/CppInterOp
-        # Strip the nested `.git` so ROOT's CMake doesn't get confused by
-        # a sub-repository inside its own source tree.
-        rm -rf root/interpreter/CppInterOp/.git
+        rm -rf root/interpreter/CppInterOp/.git \
+               root/interpreter/CppInterOp/.github \
+               root/interpreter/CppInterOp/discord.svg
 
     - name: Configure ROOT
       shell: bash
       run: |
-        mkdir root-build
-        cd root-build
-        # ROOT uses our cached external LLVM and Clang (builtin_llvm /
-        # builtin_clang off) but rebuilds cling from its own bundled
-        # sources under interpreter/cling -- the bundled sources are
-        # what ROOT's own version of CppInterOp is wired against, so
-        # letting ROOT do that rebuild keeps the integration honest.
-        # `-DLLVM_DIR` would be wiped by `interpreter/CMakeLists.txt:63`
-        # (`set(LLVM_DIR "${CMAKE_CURRENT_BINARY_DIR}/llvm-project/llvm")`)
-        # before ROOT's `find_package(LLVM REQUIRED CONFIG)` runs, so we
-        # don't pass it. Resolution happens via CMAKE_PREFIX_PATH instead.
-        # `fail-on-missing=ON` mirrors the nixpkgs ROOT recipe so any
-        # silently-disabled feature surfaces as a configure-time error.
-        # `-DCLANG_INSTALL_PREFIX` points at the recipe's install root
-        # so ROOT's `core/clingutils/CMakeLists.txt` resolves
-        # `${CLANG_INSTALL_PREFIX}/lib/clang` to the recipe-installed
-        # clang (rather than globbing `/usr/lib/clang/*`).
-        # CppInterOp's `.td`-driven dispatch (introduced in #906) emits
-        # `CppInterOpDecl.inc` and `CppInterOpAPI.inc` via cppinterop-tblgen.
-        # CppInterOp's CMakeLists writes them to `${CMAKE_BINARY_DIR}/include/
-        # CppInterOp/` -- which under ROOT's `add_subdirectory` resolves to
-        # `<root-build>/include/CppInterOp/`, NOT to the bundled subtree's
-        # build dir. ROOT's `core/metacling/CMakeLists.txt` only adds the
-        # CppInterOp source `include/` to MetaCling's compile rules, so
-        # `TClingCallFunc.h`'s `#include "CppInterOp/CppInterOpDecl.inc"`
-        # fails. Inject the top-level build/include globally via
-        # `CMAKE_CXX_FLAGS`.
-        CPPINTEROP_GEN_INC="$PWD/include"
+        # Standard ROOT build, in-tree LLVM/Clang/Cling, minimal
+        #
+        # CppInterOp's tablegen-driven dispatch writes
+        # `CppInterOpDecl.inc` / `CppInterOpAPI.inc` to
+        # `${CMAKE_BINARY_DIR}/include/CppInterOp/`, which under
+        # ROOT's `add_subdirectory` resolves to
+        # `<root-build>/include/CppInterOp/`. ROOT's core/metacling
+        # sources include those headers but obtain paths to
+        # CppInterOp source `include/` during compile line, so we
+        # surface the build-tree include globally via CMAKE_CXX_FLAGS.
+        # `cmake -B root-build` creates the build tree if it doesn't
+        # exist (cache miss) and reuses CMakeCache.txt if it does
+        # (cache hit), so no explicit `mkdir` needed.
         cmake -G Ninja \
+              -S root -B root-build \
               -DCMAKE_BUILD_TYPE=Release \
               -Dminimal=ON \
-              -Dtesting=OFF \
-              -Dfail-on-missing=ON \
-              -Dbuiltin_llvm=OFF \
-              -Dbuiltin_clang=OFF \
-              -DCMAKE_PREFIX_PATH="$GITHUB_WORKSPACE/llvm-project" \
-              -DClang_DIR="$GITHUB_WORKSPACE/llvm-project/lib/cmake/clang" \
-              -DCLANG_INSTALL_PREFIX="$GITHUB_WORKSPACE/llvm-project" \
-              -DCMAKE_CXX_FLAGS="-I${CPPINTEROP_GEN_INC}" \
-              ../root
+              -DCMAKE_CXX_FLAGS="-I$PWD/root-build/include"
 
     - name: Build ROOT
       shell: bash
+      run: cmake --build root-build --parallel ${{ env.ncpus }}
+
+    - name: Save ROOT source + build cache
+      if: ${{ runner.environment != 'self-hosted' && steps.cache.outputs.cache-hit != 'true' }}
+      uses: actions/cache/save@v4
+      with:
+        path: |
+          root
+          root-build
+        key: ${{ steps.cache.outputs.cache-primary-key }}
+
+    - name: Test ROOT
+      shell: bash
+      working-directory: root-build
       run: |
-        # ROOT's `core/clingutils` target is configured against LLVM's
-        # public include dirs but doesn't propagate `CLANG_INCLUDE_DIRS`
-        # to its compile rules, so `TClingUtils.h`'s
-        # `#include "clang/Basic/Module.h"` resolves only via
-        # `CPLUS_INCLUDE_PATH` -- the same way main.yml's cling rows
-        # resolve clang headers in `Build_and_Test_CppInterOp/action.yml`.
-        # Mirror that env here so `RStl.cxx` and friends find their
-        # clang/cling headers from the recipe's install tree.
-        LLVM="$GITHUB_WORKSPACE/llvm-project"
-        export CPLUS_INCLUDE_PATH="$LLVM/include"
-        cmake --build root-build --parallel ${{ env.ncpus }}
+        source bin/thisroot.sh
+        ctest --parallel ${{ env.ncpus }} --output-on-failure
