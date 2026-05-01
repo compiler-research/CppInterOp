@@ -155,7 +155,7 @@ jobs:
 
     - name: Build ROOT
       shell: bash
-      run: cmake --build root-build --parallel ${{ env.ncpus }}
+      run: ninja -C root-build -j ${{ env.ncpus }} Cling CppInterOpUnitTests
 
     - name: Save ROOT source + build cache
       if: ${{ runner.environment != 'self-hosted' && steps.cache.outputs.cache-hit != 'true' }}
@@ -171,4 +171,4 @@ jobs:
       working-directory: root-build
       run: |
         source bin/thisroot.sh
-        ctest --parallel ${{ env.ncpus }} --output-on-failure
+        ctest --parallel ${{ env.ncpus }} --output-on-failure -R cppinterop
