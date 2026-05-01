@@ -29,18 +29,21 @@ runs:
     - name: Install dependencies on Linux
       if: runner.os == 'Linux' && runner.environment != 'self-hosted'
       shell: bash
+      env:
+        DEBIAN_FRONTEND: noninteractive
       run: |
-        # Install deps. -y is required on environments without an
-        # `Assume-Yes` apt config (e.g. nektos/act runners).
-        sudo apt-get update
-        sudo apt-get install -y valgrind ninja-build
-        sudo apt-get install -y git g++ debhelper devscripts gnupg python3 doxygen graphviz python3-sphinx
-        sudo apt-get install -y libc6-dbg
-        sudo apt-get autoremove -y
+        # One install call (one lock acquire, one resolve, one dpkg
+        # trigger sweep) instead of four. --no-install-recommends to
+        # skip the "suggests" closure (~30-60% smaller download).
+        # cmake is preinstalled on github-hosted runners but absent
+        # from nektos/act's lean act-XX.04 image, so list it
+        # explicitly -- a no-op on github-hosted, makes act work.
+        sudo apt-get update -qq
+        sudo apt-get install -y --no-install-recommends \
+          cmake ninja-build g++ git python3 \
+          valgrind libc6-dbg \
+          libeigen3-dev libboost-dev
         sudo apt-get clean
-        # Install libraries used by the cppyy test suite
-        sudo apt-get install -y libeigen3-dev
-        sudo apt-get install -y libboost-all-dev
 
 
     - name: Install dependencies on Windows
