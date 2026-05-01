@@ -39,9 +39,19 @@ runs:
           # ${LLVM_DIR}/{llvm,clang}/include and ${LLVM_BUILD_DIR}/{include,tools/clang/include}
           # are the build-tree split. Non-existent paths in the union are harmless.
           if [[ "${cling_on}" == "ON" ]]; then
-            CLING_DIR="$(pwd)/cling"
-            CLING_BUILD_DIR="$(pwd)/cling/build"
-            CPLUS_INCLUDE_PATH="${CLING_DIR}/tools/cling/include:${CLING_BUILD_DIR}/include:${LLVM_DIR}/include:${LLVM_DIR}/llvm/include:${LLVM_DIR}/clang/include:${LLVM_BUILD_DIR}/include:${LLVM_BUILD_DIR}/tools/clang/include:$PWD/include"
+            if [[ -f "$LLVM_DIR/lib/cmake/cling/ClingConfig.cmake" ]]; then
+              # Recipe install tree: cling integrated under llvm-project,
+              # cmake config at lib/cmake/cling/, headers under include/cling/.
+              CLING_DIR="$LLVM_DIR"
+              CLING_CMAKE_DIR="$LLVM_DIR/lib/cmake/cling"
+              CPLUS_INCLUDE_PATH="${LLVM_DIR}/include:$PWD/include"
+            else
+              # Build tree: cling lives in a sibling checkout.
+              CLING_DIR="$(pwd)/cling"
+              CLING_BUILD_DIR="$(pwd)/cling/build"
+              CLING_CMAKE_DIR="$LLVM_BUILD_DIR/tools/cling"
+              CPLUS_INCLUDE_PATH="${CLING_DIR}/tools/cling/include:${CLING_BUILD_DIR}/include:${LLVM_DIR}/include:${LLVM_DIR}/llvm/include:${LLVM_DIR}/clang/include:${LLVM_BUILD_DIR}/include:${LLVM_BUILD_DIR}/tools/clang/include:$PWD/include"
+            fi
           else
             CPLUS_INCLUDE_PATH="${LLVM_DIR}/include:${LLVM_DIR}/llvm/include:${LLVM_DIR}/clang/include:${LLVM_BUILD_DIR}/include:${LLVM_BUILD_DIR}/tools/clang/include:$PWD/include"
           fi
@@ -66,7 +76,7 @@ runs:
                 -DCPPINTEROP_USE_CLING=ON                                  \
                 -DCPPINTEROP_USE_REPL=OFF                                  \
                 -DCPPINTEROP_INCLUDE_DOCS=${{ matrix.documentation }} \
-                -DCling_DIR=$LLVM_BUILD_DIR/tools/cling         \
+                -DCling_DIR=$CLING_CMAKE_DIR                    \
                 -DLLVM_DIR=$LLVM_BUILD_DIR/lib/cmake/llvm       \
                 -DClang_DIR=$LLVM_BUILD_DIR/lib/cmake/clang     \
                 -DLLVM_USE_SANITIZER="${{ matrix.sanitizer }}"  \
@@ -207,22 +217,33 @@ runs:
         echo "LLVM_DIR=$env:LLVM_DIR"
         echo "LLVM_DIR=$env:LLVM_DIR" >> $env:GITHUB_ENV
 
-        $env:LLVM_BUILD_DIR="$env:PWD_DIR\llvm-project\build"
+        # Probe install vs build tree (mirrors the bash branch above):
+        # recipe install trees ship LLVMConfig.cmake at lib/cmake/llvm
+        # directly; source builds leave a build/ subdir.
+        if ( Test-Path "$env:LLVM_DIR\lib\cmake\llvm" ) {
+          $env:LLVM_BUILD_DIR="$env:LLVM_DIR"
+        } else {
+          $env:LLVM_BUILD_DIR="$env:PWD_DIR\llvm-project\build"
+        }
         echo "LLVM_BUILD_DIR=$env:LLVM_BUILD_DIR"
         echo "LLVM_BUILD_DIR=$env:LLVM_BUILD_DIR" >> $env:GITHUB_ENV
 
         if ( "${{ matrix.cling }}" -imatch "On" )
         {
-          $env:CLING_DIR="$env:PWD_DIR\cling"
-          echo "CLING_DIR=$env:CLING_DIR"
+          if ( Test-Path "$env:LLVM_DIR\lib\cmake\cling\ClingConfig.cmake" ) {
+            # Recipe install tree: cling integrated under llvm-project.
+            $env:CLING_DIR="$env:LLVM_DIR"
+            $env:CLING_CMAKE_DIR="$env:LLVM_DIR\lib\cmake\cling"
+            $env:CPLUS_INCLUDE_PATH="$env:LLVM_DIR\include;$env:PWD_DIR\include;"
+          } else {
+            $env:CLING_DIR="$env:PWD_DIR\cling"
+            $env:CLING_BUILD_DIR="$env:PWD_DIR\cling\build"
+            $env:CLING_CMAKE_DIR="$env:LLVM_BUILD_DIR\tools\cling"
+            $env:CPLUS_INCLUDE_PATH="$env:CLING_DIR\tools\cling\include;$env:CLING_BUILD_DIR\include;$env:LLVM_DIR\llvm\include;$env:LLVM_DIR\clang\include;$env:LLVM_BUILD_DIR\include;$env:LLVM_BUILD_DIR\tools\clang\include;$env:PWD_DIR\include;"
+            echo "CLING_BUILD_DIR=$env:CLING_BUILD_DIR" >> $env:GITHUB_ENV
+          }
           echo "CLING_DIR=$env:CLING_DIR" >> $env:GITHUB_ENV
-
-          $env:CLING_BUILD_DIR="$env:PWD_DIR\cling\build"
-          echo "CLING_BUILD_DIR=$env:CLING_BUILD_DIR"
-          echo "CLING_BUILD_DIR=$env:CLING_BUILD_DIR" >> $env:GITHUB_ENV
-
-          $env:CPLUS_INCLUDE_PATH="$env:CLING_DIR\tools\cling\include;$env:CLING_BUILD_DIR\include;$env:LLVM_DIR\llvm\include;$env:LLVM_DIR\clang\include;$env:LLVM_BUILD_DIR\include;$env:LLVM_BUILD_DIR\tools\clang\include;$env:PWD_DIR\include;"
-          echo "CPLUS_INCLUDE_PATH=$env:CPLUS_INCLUDE_PATH"
+          echo "CLING_CMAKE_DIR=$env:CLING_CMAKE_DIR" >> $env:GITHUB_ENV
           echo "CPLUS_INCLUDE_PATH=$env:CPLUS_INCLUDE_PATH" >> $env:GITHUB_ENV
         }
         else
@@ -251,7 +272,7 @@ runs:
           cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    `
                 -DCPPINTEROP_USE_CLING=ON                                  `
                 -DCPPINTEROP_USE_REPL=OFF                                  `
-                -DCling_DIR="$env:LLVM_BUILD_DIR\tools\cling"   `
+                -DCling_DIR="$env:CLING_CMAKE_DIR"   `
                 -DLLVM_DIR="$env:LLVM_BUILD_DIR" `
                 -DLLVM_ENABLE_WERROR=On                          `
                 -DClang_DIR="$env:LLVM_BUILD_DIR"  -DCODE_COVERAGE=${{ env.CODE_COVERAGE }} -DCMAKE_INSTALL_PREFIX="$env:CPPINTEROP_DIR"  ..\

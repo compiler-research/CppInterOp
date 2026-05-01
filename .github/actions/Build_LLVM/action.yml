@@ -7,204 +7,107 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Build LLVM/Cling if the cache is invalid
+    - name: Build LLVM if the cache is invalid
       if: ${{ inputs.cache-hit != 'true'  && runner.os != 'Windows' }}
       shell: bash
       run: |
-        cling_on=$(echo "${{ matrix.cling }}" | tr '[:lower:]' '[:upper:]')
-        if [[ "${cling_on}" == "ON" ]]; then
-          git clone --depth=1 --branch v${{ matrix.cling-version || env.CLING_VERSION }} https://github.com/root-project/cling.git
-          git clone --depth=1 -b ${{ matrix.root-llvm-tag }} https://github.com/root-project/llvm-project.git
-        else # repl
-          git clone --depth=1 -b release/${{ matrix.clang-runtime }}.x https://github.com/llvm/llvm-project.git
-        fi
+        git clone --depth=1 -b release/${{ matrix.clang-runtime }}.x https://github.com/llvm/llvm-project.git
         cd llvm-project
         # Build
         mkdir build
-        if [[ "${cling_on}" == "ON" ]]; then
-          cd build
-          cmake -DLLVM_ENABLE_PROJECTS="clang" \
-                -DLLVM_EXTERNAL_PROJECTS=cling                     \
-                -DLLVM_EXTERNAL_CLING_SOURCE_DIR=../../cling       \
-                -DLLVM_TARGETS_TO_BUILD="${{ matrix.llvm_targets_to_build || 'host;NVPTX' }}" \
-                -DCMAKE_BUILD_TYPE=Release                         \
-                -DLLVM_ENABLE_ASSERTIONS=ON                        \
-                -DCLANG_ENABLE_STATIC_ANALYZER=OFF                 \
-                -DCLANG_ENABLE_ARCMT=OFF                           \
-                -DCLANG_ENABLE_FORMAT=OFF                          \
-                -DCLANG_ENABLE_BOOTSTRAP=OFF                       \
-                -DLLVM_INCLUDE_BENCHMARKS=OFF                      \
-                -DLLVM_INCLUDE_EXAMPLES=OFF                        \
-                -G Ninja                                           \
-                ../llvm
-          ninja clang -j ${{ env.ncpus }}
-          ninja LLVMOrcDebugging -j ${{ env.ncpus }}
-          # `clangInterpreter` (clang-repl's Interpreter library) is not
-          # a transitive dep of the `clang` driver, and the cling version
-          # we cache (v1.3) doesn't list it in its `LIBS`. ROOT's bundled
-          # `interpreter/cling/lib/Interpreter/CMakeLists.txt:14` does,
-          # so downstream consumers (the ROOT integration job) link
-          # against `libclangInterpreter.a` and fail with `missing and
-          # no known rule to make it` if it isn't in the cached build.
-          # The trim removes top-level `llvm/CMakeLists.txt`, so we can't
-          # ninja it later from the cache -- it has to be built here.
-          ninja clangInterpreter -j ${{ env.ncpus }}
-          ninja clingInterpreter -j ${{ env.ncpus }}
-        else
-          # Non-cling, LLVM >= 22: bundle the OOP-JIT runtime into the
-          # cache. compiler-rt is enabled with everything except the
-          # ORC runtime turned off so the build stays cheap.
-          NEED_OOP=0
-          if [[ "${{ matrix.clang-runtime }}" -ge 22 ]]; then
-            NEED_OOP=1
-          fi
-          if [[ "${NEED_OOP}" == "1" ]]; then
-            PROJECTS="clang;compiler-rt"
-            COMPILER_RT_FLAGS=(
-              -DCOMPILER_RT_BUILD_BUILTINS=OFF
-              -DCOMPILER_RT_BUILD_LIBFUZZER=OFF
-              -DCOMPILER_RT_BUILD_PROFILE=OFF
-              -DCOMPILER_RT_BUILD_MEMPROF=OFF
-              -DCOMPILER_RT_BUILD_SANITIZERS=OFF
-              -DCOMPILER_RT_BUILD_XRAY=OFF
-              -DCOMPILER_RT_BUILD_GWP_ASAN=OFF
-              -DCOMPILER_RT_BUILD_CTX_PROFILE=OFF
-            )
-          else
-            PROJECTS="clang"
-            COMPILER_RT_FLAGS=()
-          fi
-
-          cd build
-          cmake -DLLVM_ENABLE_PROJECTS="${PROJECTS}" \
-                -DLLVM_TARGETS_TO_BUILD="${{ matrix.llvm_targets_to_build || 'host;NVPTX' }}"  \
-                -DCMAKE_BUILD_TYPE=Release                          \
-                -DLLVM_ENABLE_ASSERTIONS=ON                         \
-                -DCLANG_ENABLE_STATIC_ANALYZER=OFF                  \
-                -DCLANG_ENABLE_ARCMT=OFF                            \
-                -DCLANG_ENABLE_FORMAT=OFF                           \
-                -DCLANG_ENABLE_BOOTSTRAP=OFF                        \
-                -G Ninja                                            \
-                -DLLVM_INCLUDE_BENCHMARKS=OFF                   \
-                -DLLVM_USE_SANITIZER="${{ matrix.sanitizer }}"  \
-                -DLLVM_INCLUDE_EXAMPLES=OFF                     \
-                -DLLVM_INCLUDE_TESTS=OFF                        \
-                "${COMPILER_RT_FLAGS[@]}" \
-                ../llvm
-          ninja clang clangInterpreter clangStaticAnalyzerCore
-          if [[ "${NEED_OOP}" == "1" ]]; then
-            # orc_rt's per-target ninja target name varies; find it by
-            # asking ninja for everything matching `orc_rt*`. Building
-            # the executor unconditionally is safe -- it's always a
-            # valid target when compiler-rt is in the build.
-            OOP_TARGETS=$(ninja -t targets all 2>/dev/null | \
-              awk -F: '/^orc_rt[^:]*:/{print $1}' | sort -u | tr '\n' ' ')
-            ninja llvm-jitlink-executor ${OOP_TARGETS} -j ${{ env.ncpus }}
-          fi
-          cd ./tools/
-          rm -rf $(find . -maxdepth 1 ! -name "clang" ! -name ".")
-          cd ..
-          rm compile_commands.json build.ninja
+        # LLVM >= 22: bundle the OOP-JIT runtime into the cache.
+        # compiler-rt is enabled with everything except the ORC
+        # runtime turned off so the build stays cheap.
+        NEED_OOP=0
+        if [[ "${{ matrix.clang-runtime }}" -ge 22 ]]; then
+          NEED_OOP=1
         fi
+        if [[ "${NEED_OOP}" == "1" ]]; then
+          PROJECTS="clang;compiler-rt"
+          COMPILER_RT_FLAGS=(
+            -DCOMPILER_RT_BUILD_BUILTINS=OFF
+            -DCOMPILER_RT_BUILD_LIBFUZZER=OFF
+            -DCOMPILER_RT_BUILD_PROFILE=OFF
+            -DCOMPILER_RT_BUILD_MEMPROF=OFF
+            -DCOMPILER_RT_BUILD_SANITIZERS=OFF
+            -DCOMPILER_RT_BUILD_XRAY=OFF
+            -DCOMPILER_RT_BUILD_GWP_ASAN=OFF
+            -DCOMPILER_RT_BUILD_CTX_PROFILE=OFF
+          )
+        else
+          PROJECTS="clang"
+          COMPILER_RT_FLAGS=()
+        fi
+
+        cd build
+        cmake -DLLVM_ENABLE_PROJECTS="${PROJECTS}" \
+              -DLLVM_TARGETS_TO_BUILD="${{ matrix.llvm_targets_to_build || 'host;NVPTX' }}"  \
+              -DCMAKE_BUILD_TYPE=Release                          \
+              -DLLVM_ENABLE_ASSERTIONS=ON                         \
+              -DCLANG_ENABLE_STATIC_ANALYZER=OFF                  \
+              -DCLANG_ENABLE_ARCMT=OFF                            \
+              -DCLANG_ENABLE_FORMAT=OFF                           \
+              -DCLANG_ENABLE_BOOTSTRAP=OFF                        \
+              -G Ninja                                            \
+              -DLLVM_INCLUDE_BENCHMARKS=OFF                   \
+              -DLLVM_USE_SANITIZER="${{ matrix.sanitizer }}"  \
+              -DLLVM_INCLUDE_EXAMPLES=OFF                     \
+              -DLLVM_INCLUDE_TESTS=OFF                        \
+              "${COMPILER_RT_FLAGS[@]}" \
+              ../llvm
+        ninja clang clangInterpreter clangStaticAnalyzerCore
+        if [[ "${NEED_OOP}" == "1" ]]; then
+          # orc_rt's per-target ninja target name varies; find it by
+          # asking ninja for everything matching `orc_rt*`. Building
+          # the executor unconditionally is safe -- it's always a
+          # valid target when compiler-rt is in the build.
+          OOP_TARGETS=$(ninja -t targets all 2>/dev/null | \
+            awk -F: '/^orc_rt[^:]*:/{print $1}' | sort -u | tr '\n' ' ')
+          ninja llvm-jitlink-executor ${OOP_TARGETS} -j ${{ env.ncpus }}
+        fi
+        cd ./tools/
+        rm -rf $(find . -maxdepth 1 ! -name "clang" ! -name ".")
+        cd ..
+        rm compile_commands.json build.ninja
         cd ../
         rm -rf $(find . -maxdepth 1 ! -name "build" ! -name "llvm" ! -name "clang" ! -name ".")
         # Source-tree `lib/` dirs hold .cpp already linked into
         # build/lib/*.a. CppInterOp consumers reference llvm/include and
         # clang/include via CPLUS_INCLUDE_PATH, never the source `lib/`
-        # (see Build_and_Test_CppInterOp/action.yml). cling/lib stays --
-        # ROOT and downstream consumers may pick up cling header internals
-        # from there.
-        if [[ "${cling_on}" == "ON" ]]; then
-          cd ./llvm/
-          rm -rf $(find . -maxdepth 1 ! -name "include" ! -name "cmake" ! -name "utils" ! -name ".")
-          cd ../clang/
-          rm -rf $(find . -maxdepth 1 ! -name "include" ! -name "cmake" ! -name "utils" ! -name ".")
-          cd ../../cling/
-          rm -rf $(find . -maxdepth 1 ! -name "include" ! -name "lib" ! -name "cmake" ! -name ".")
-        else # repl
-          cd ./llvm/
-          rm -rf $(find . -maxdepth 1 ! -name "include" ! -name "cmake" ! -name ".")
-          cd ../clang/
-          rm -rf $(find . -maxdepth 1 ! -name "include" ! -name "cmake" ! -name ".")
-          cd ../..
-        fi
+        # (see Build_and_Test_CppInterOp/action.yml).
+        cd ./llvm/
+        rm -rf $(find . -maxdepth 1 ! -name "include" ! -name "cmake" ! -name ".")
+        cd ../clang/
+        rm -rf $(find . -maxdepth 1 ! -name "include" ! -name "cmake" ! -name ".")
+        cd ../..
 
 
-    - name: Build LLVM/Cling on Windows systems if the cache is invalid
+    - name: Build LLVM on Windows systems if the cache is invalid
       if: ${{ inputs.cache-hit != 'true'  && runner.os == 'Windows' }}
       shell: powershell
       run: |
-
-        if ( "${{ matrix.cling }}" -imatch "On" )
-        {
-          git clone --depth=1 --branch v${{ matrix.cling-version || env.CLING_VERSION }} https://github.com/root-project/cling.git
-          git clone --depth=1 -b ${{ matrix.root-llvm-tag }} https://github.com/root-project/llvm-project.git
-          $env:PWD_DIR= $PWD.Path
-          $env:CLING_DIR="$env:PWD_DIR\cling"
-          echo "CLING_DIR=$env:CLING_DIR"
-        }
-        else
-        {
-          git clone --depth=1 -b release/${{ matrix.clang-runtime }}.x https://github.com/llvm/llvm-project.git
-        }
+        git clone --depth=1 -b release/${{ matrix.clang-runtime }}.x https://github.com/llvm/llvm-project.git
 
         cd llvm-project
         # Build
         mkdir build
-        if ( "${{ matrix.cling }}" -imatch "On" )
-        {
-          cd build
-          cmake -DLLVM_ENABLE_PROJECTS="clang" `
-                -DLLVM_EXTERNAL_PROJECTS=cling                `
-                -DLLVM_EXTERNAL_CLING_SOURCE_DIR="$env:CLING_DIR"   `
-                -DLLVM_TARGETS_TO_BUILD="${{ matrix.llvm_targets_to_build || 'host;NVPTX' }}" `
-                -DCMAKE_BUILD_TYPE=Release                         `
-                -DLLVM_ENABLE_ASSERTIONS=ON                        `
-                -DCLANG_ENABLE_STATIC_ANALYZER=OFF                 `
-                -DCLANG_ENABLE_ARCMT=OFF                           `
-                -DCLANG_ENABLE_FORMAT=OFF                          `
-                -DCLANG_ENABLE_BOOTSTRAP=OFF                       `
-                -DLLVM_INCLUDE_BENCHMARKS=OFF                      `
-                -DLLVM_INCLUDE_EXAMPLES=OFF                        `
-                ..\llvm
-          cmake --build . --config Release --target clang --parallel ${{ env.ncpus }}
-          cmake --build . --config Release --target LLVMOrcDebugging --parallel ${{ env.ncpus }}
-          # See Linux block above for why clangInterpreter is built here.
-          cmake --build . --config Release --target clangInterpreter --parallel ${{ env.ncpus }}
-          cmake --build . --config Release --target clingInterpreter --parallel ${{ env.ncpus }}
-        }
-        else
-        {
-          cd build
-          echo "Apply clang${{ matrix.clang-runtime }}-*.patch patches:"
-          cmake -DLLVM_ENABLE_PROJECTS="clang"                   `
-                -DLLVM_TARGETS_TO_BUILD="${{ matrix.llvm_targets_to_build || 'host;NVPTX' }}"          `
-                -DCMAKE_BUILD_TYPE=Release                          `
-                -DLLVM_ENABLE_ASSERTIONS=ON                         `
-                -DCLANG_ENABLE_STATIC_ANALYZER=OFF                  `
-                -DCLANG_ENABLE_ARCMT=OFF                            `
-                -DCLANG_ENABLE_FORMAT=OFF                           `
-                -DCLANG_ENABLE_BOOTSTRAP=OFF                        `
-                ..\llvm
-          cmake --build . --config Release --target clang clangInterpreter clangStaticAnalyzerCore --parallel ${{ env.ncpus }}
-        }
+        cd build
+        echo "Apply clang${{ matrix.clang-runtime }}-*.patch patches:"
+        cmake -DLLVM_ENABLE_PROJECTS="clang"                   `
+              -DLLVM_TARGETS_TO_BUILD="${{ matrix.llvm_targets_to_build || 'host;NVPTX' }}"          `
+              -DCMAKE_BUILD_TYPE=Release                          `
+              -DLLVM_ENABLE_ASSERTIONS=ON                         `
+              -DCLANG_ENABLE_STATIC_ANALYZER=OFF                  `
+              -DCLANG_ENABLE_ARCMT=OFF                            `
+              -DCLANG_ENABLE_FORMAT=OFF                           `
+              -DCLANG_ENABLE_BOOTSTRAP=OFF                        `
+              ..\llvm
+        cmake --build . --config Release --target clang clangInterpreter clangStaticAnalyzerCore --parallel ${{ env.ncpus }}
         cd ..\
         rm -r -force $(find.exe . -maxdepth 1 ! -name "build" ! -name "llvm" ! -name "clang" ! -name ".")
         # See Linux block above for why source `lib/` is dropped.
-        if ( "${{ matrix.cling }}" -imatch "On" )
-        {
-          cd .\llvm\
-          rm -r -force $(find.exe . -maxdepth 1 ! -name "include" ! -name "cmake" ! -name "utils" ! -name ".")
-          cd ..\clang\
-          rm -r -force $(find.exe . -maxdepth 1 ! -name "include" ! -name "cmake" ! -name "utils" ! -name ".")
-          cd ..\..\cling\
-          rm -r -force $(find.exe . -maxdepth 1 ! -name "include" ! -name "lib" ! -name "cmake" ! -name ".")
-        }
-        else
-        {
-          cd .\llvm\
-          rm -r -force $(find.exe . -maxdepth 1 ! -name "include" ! -name "cmake" ! -name ".")
-          cd ..\clang\
-          rm -r -force $(find.exe . -maxdepth 1 ! -name "include" ! -name "cmake"  ! -name ".")
-          cd ..\..
-        }
+        cd .\llvm\
+        rm -r -force $(find.exe . -maxdepth 1 ! -name "include" ! -name "cmake" ! -name ".")
+        cd ..\clang\
+        rm -r -force $(find.exe . -maxdepth 1 ! -name "include" ! -name "cmake"  ! -name ".")
+        cd ..\..
