@@ -61,7 +61,13 @@ runs:
         export CPPINTEROP_DIR="$CB_PYTHON_DIR/cppyy_backend"
 
         # Build CppInterOp next to cling and llvm-project.
-        mkdir build && cd build
+        # `rm -rf` guards against a stale build/ from a prior run --
+        # github-hosted runners start with an empty workspace, but
+        # local reproductions via nektos/act reuse the host workspace
+        # (or a persisted container's overlay) where build/ may
+        # already exist; `mkdir build` would otherwise fail with
+        # "File exists" under set -e.
+        rm -rf build && mkdir build && cd build
         export CPPINTEROP_BUILD_DIR=$PWD
         cling_on=$(echo "${{ matrix.cling }}" | tr '[:lower:]' '[:upper:]')
         # Propagate matrix.sanitizer to CppInterOp's cmake. CppInterOp's
@@ -276,6 +282,8 @@ runs:
         echo "CPPINTEROP_DIR=$env:CPPINTEROP_DIR" >> $env:GITHUB_ENV
 
         # Build CppInterOp next to cling and llvm-project.
+        # See bash sites above re: stale build/ on local repro paths.
+        if (Test-Path build) { Remove-Item -Recurse -Force build }
         mkdir build
         cd build
         $env:CPPINTEROP_BUILD_DIR="$env:PWD_DIR"
@@ -343,6 +351,8 @@ runs:
         popd
 
         # Build CppInterOp next to cling and llvm-project.
+        # See native-shared site above re: stale build/ on local repro.
+        rm -rf build
         mkdir build
         cd build
         if [[ "${cling_on}" == "ON" ]]; then
@@ -504,6 +514,8 @@ runs:
         source ./emsdk/emsdk_env.sh
 
         # Build CppInterOp next to cling and llvm-project.
+        # See native-shared site above re: stale build/ on local repro.
+        rm -rf build_static
         mkdir build_static
         cd build_static
         if [[ "${cling_on}" == "ON" ]]; then
@@ -651,6 +663,8 @@ runs:
         popd
 
         # Build CppInterOp next to cling and llvm-project.
+        # See bash sites above re: stale build/ on local repro paths.
+        if (Test-Path build) { Remove-Item -Recurse -Force build }
         mkdir build
         cd build
         if ( "${{ matrix.cling }}" -imatch "On" )
@@ -744,6 +758,8 @@ runs:
         }
 
         # Build CppInterOp next to cling and llvm-project.
+        # See bash sites above re: stale build/ on local repro paths.
+        if (Test-Path build_static) { Remove-Item -Recurse -Force build_static }
         mkdir build_static
         cd build_static
         if ( "${{ matrix.cling }}" -imatch "On" )
