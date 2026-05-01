@@ -155,7 +155,15 @@ else()
     "cppinterop-tblgen binary when cross-compiling.")
 endif()
 
-add_llvm_library(clangCppInterOp
+# When CppInterOp is embedded in ROOT, the symbols are folded into
+# libCling rather than shipped as a standalone library, so AddLLVM
+# must not register/export the target. BUILDTREE_ONLY suppresses both.
+set(_clangCppInterOp_extra_args)
+if(NOT CPPINTEROP_BUILT_STANDALONE AND CPPINTEROP_USE_CLING)
+  list(APPEND _clangCppInterOp_extra_args BUILDTREE_ONLY)
+endif()
+
+add_llvm_library(clangCppInterOp ${_clangCppInterOp_extra_args}
   DISABLE_LLVM_LINK_LLVM_DYLIB
   CppInterOp.cpp
   CppInterOpDispatch.cpp
