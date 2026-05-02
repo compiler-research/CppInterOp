@@ -188,9 +188,26 @@ jobs:
 
     - name: Show debug info
       if: ${{ failure() }}
+      shell: bash
+      env:
+        REPO: ${{ github.repository }}
+        REPO_NAME: ${{ github.event.repository.name }}
+        SHA: ${{ github.sha }}
+        ROW: ${{ matrix.name }}
       run: |
+        echo "::group::Reproduce this failure locally (requires Docker + nektos/act)"
+        cat <<EOF
+            git clone https://github.com/compiler-research/ci-workflows.git
+            git clone https://github.com/$REPO.git
+            cd $REPO_NAME
+            git checkout $SHA
+            ../ci-workflows/bin/repro $ROW
+        EOF
+        echo "::endgroup::"
+        echo "::group::Environment"
         export
-        echo $GITHUB_ENV
+        echo "$GITHUB_ENV"
+        echo "::endgroup::"
 
     - name: Setup tmate session
       if: ${{ failure() && runner.debug }}
