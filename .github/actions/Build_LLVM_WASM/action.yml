@@ -29,7 +29,7 @@ runs:
         mkdir native_build
         (cd native_build && \
             cmake -DLLVM_ENABLE_PROJECTS=clang -DLLVM_TARGETS_TO_BUILD=host -DCMAKE_BUILD_TYPE=Release ../llvm/ && \
-            cmake --build . --target llvm-tblgen clang-tblgen --parallel $(nproc --all))
+            cmake --build . --target llvm-tblgen clang-tblgen --parallel ${{ env.ncpus }})
         export NATIVE_DIR=$PWD/native_build/bin/
 
         # Apply repl-only emscripten patches; cling has its own patch flow above.
@@ -119,7 +119,7 @@ runs:
         mkdir native_build | Out-Null
         Push-Location native_build
         cmake -DLLVM_ENABLE_PROJECTS=clang -DLLVM_TARGETS_TO_BUILD=host -DCMAKE_BUILD_TYPE=Release -G Ninja ../llvm/
-        cmake --build . --target llvm-tblgen clang-tblgen --parallel $(nproc --all)
+        cmake --build . --target llvm-tblgen clang-tblgen --parallel ${{ env.ncpus }}
         $env:NATIVE_DIR = Join-Path $PWD.Path "bin"
         Pop-Location
 

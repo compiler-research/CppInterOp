@@ -54,7 +54,7 @@ jobs:
             cmake . -B tblgen_build -DCMAKE_BUILD_TYPE=Release
             -DLLVM_DIR=$SYSTEM_LLVM_DIR
             -DCPPINTEROP_BUILD_TABLEGEN_ONLY=ON &&
-            cmake --build tblgen_build --target cppinterop-tblgen --parallel $(nproc --all) &&
+            cmake --build tblgen_build --target cppinterop-tblgen --parallel $(nproc) &&
             TBLGEN_EXE=$(find $(pwd)/tblgen_build -name cppinterop-tblgen -type f | head -1) &&
             cmake . -B build -DCMAKE_BUILD_TYPE="Release"
             -DCMAKE_C_COMPILER="$GITHUB_WORKSPACE/llvm/bin/clang"
@@ -64,8 +64,8 @@ jobs:
             -DCMAKE_EXPORT_COMPILE_COMMANDS=ON
             -DCPPINTEROP_TABLEGEN_EXE=$TBLGEN_EXE &&
             cd build &&
-            cmake --build . --target CppInterOpTableGen --parallel $(nproc --all) &&
-            cmake --build . --target googletest --parallel $(nproc --all)
+            cmake --build . --target CppInterOpTableGen --parallel $(nproc) &&
+            cmake --build . --target googletest --parallel $(nproc)
 
       - name: Upload artifacts
         uses: ZedThree/clang-tidy-review/upload@v0.21.0
