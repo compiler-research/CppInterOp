@@ -3812,8 +3812,10 @@ TInterp_t CreateInterpreter(const std::vector<const char*>& Args /*={}*/,
       (T.isOSDarwin() || T.isOSLinux()))
     ResourceDir = DetectResourceDir();
 
-  std::vector<const char*> ClingArgv = {"-resource-dir", ResourceDir.c_str(),
-                                        "-std=c++14"};
+  std::vector<const char*> ClingArgv = {"-std=c++14"};
+  if (!ResourceDir.empty()) {
+    ClingArgv.insert(ClingArgv.begin(), {"-resource-dir", ResourceDir.c_str()});
+  }
   ClingArgv.insert(ClingArgv.begin(), MainExecutableName.c_str());
 #ifdef _WIN32
   // FIXME : Workaround Sema::PushDeclContext assert on windows
