@@ -138,6 +138,61 @@ jobs:
         arch: ${{ matrix.recipe-arch || 'x86_64' }}
         build-on-miss: 'false'
 
+    # llvm-root recipe ships LLVM+Clang only; install ClingConfig.cmake
+    # into the same prefix. Workarounds for upstream cling bugs (drop
+    # both once root-project/root#22123 lands and root-project/cling
+    # syncs):
+    # * UserInterface gate (2fdcb6d) -- forced via CLING_INCLUDE_TESTS=ON.
+    # * libcling LIBS missing clangInterpreter (0307632f31) -- patched
+    #   inline below.
+    - name: Build cling on top of recipe LLVM
+      if: ${{ runner.environment != 'self-hosted' && matrix.cling == 'On' && matrix.use-recipe == 'llvm-root' && runner.os != 'Windows' }}
+      shell: bash
+      run: |
+        LLVM_PREFIX="$(pwd)/llvm-project"
+        rm -rf cling
+        git clone --depth=1 https://github.com/root-project/cling.git
+        # GNU vs BSD sed: `a\TEXT` is GNU-only; awk is portable.
+        f=cling/tools/libcling/CMakeLists.txt
+        awk '/^  clangEdit$/ {print; print "  clangInterpreter"; next} 1' "$f" > "$f.tmp" && mv "$f.tmp" "$f"
+        mkdir cling/build && cd cling/build
+        cmake .. \
+            -GNinja \
+            -DCMAKE_BUILD_TYPE=Release \
+            -DLLVM_DIR="$LLVM_PREFIX/lib/cmake/llvm" \
+            -DClang_DIR="$LLVM_PREFIX/lib/cmake/clang" \
+            -DCMAKE_INSTALL_PREFIX="$LLVM_PREFIX" \
+            -DCLING_INCLUDE_TESTS=ON \
+            -DLLVM_INCLUDE_TESTS=OFF
+        cmake --build . --parallel ${{ env.ncpus }}
+        cmake --install .
+
+    - name: Build cling on top of recipe LLVM (Windows)
+      if: ${{ runner.environment != 'self-hosted' && matrix.cling == 'On' && matrix.use-recipe == 'llvm-root' && runner.os == 'Windows' }}
+      shell: pwsh
+      run: |
+        $LLVM_PREFIX = "$pwd\llvm-project"
+        if (Test-Path cling) { Remove-Item -Recurse -Force cling }
+        git clone --depth=1 https://github.com/root-project/cling.git
+        # Mirror the bash awk: insert clangInterpreter after clangEdit
+        # in tools/libcling/CMakeLists.txt LIBS.
+        $f = "cling\tools\libcling\CMakeLists.txt"
+        (Get-Content $f) | ForEach-Object {
+          $_
+          if ($_ -ceq "  clangEdit") { "  clangInterpreter" }
+        } | Set-Content $f
+        New-Item -ItemType Directory -Path cling\build | Out-Null
+        Set-Location cling\build
+        cmake .. `
+          -DCMAKE_BUILD_TYPE=Release `
+          "-DLLVM_DIR=$LLVM_PREFIX\lib\cmake\llvm" `
+          "-DClang_DIR=$LLVM_PREFIX\lib\cmake\clang" `
+          "-DCMAKE_INSTALL_PREFIX=$LLVM_PREFIX" `
+          -DCLING_INCLUDE_TESTS=ON `
+          -DLLVM_INCLUDE_TESTS=OFF
+        cmake --build . --config Release --parallel ${{ env.ncpus }}
+        cmake --install . --config Release
+
     - name: Cache LLVM-${{ matrix.clang-runtime }} (Clang-REPL) build
       uses: actions/cache/save@v4
       if: ${{ runner.environment != 'self-hosted' && !matrix.use-recipe && steps.cache.outputs.cache-hit != 'true' }}

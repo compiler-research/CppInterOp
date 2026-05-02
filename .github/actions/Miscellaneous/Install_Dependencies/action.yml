@@ -42,7 +42,8 @@ runs:
         sudo apt-get install -y --no-install-recommends \
           cmake ninja-build g++ git python3 \
           valgrind libc6-dbg \
-          libeigen3-dev libboost-dev
+          libeigen3-dev libboost-dev \
+          libedit-dev
         sudo apt-get clean
 
 
