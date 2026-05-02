@@ -1,11 +1,14 @@
-# Must match the actual ExternalProject_Add binary_dir below
-# (`-B ${CMAKE_BINARY_DIR}/unittests/googletest-prefix/src/googletest-build/`).
-# Stale `downloads/` prefix here meant BUILD_BYPRODUCTS pointed at a path
-# that's never produced; with Make's permissive missing-rule handling this
-# was invisible, but `-GNinja` rejects it with "no known rule to make
-# unittests/googletest-prefix/src/googletest-build/lib/libgtest.a".
+# BUILD_BYPRODUCTS, the explicit -B in CONFIGURE_COMMAND, and
+# IMPORTED_LOCATION (resolved via ExternalProject_Get_Property
+# binary_dir) all need to agree on where googletest builds.
+# ExternalProject's binary_dir defaults to
+# ${CMAKE_CURRENT_BINARY_DIR}/<name>-prefix/src/<name>-build, so
+# tracking CMAKE_CURRENT_BINARY_DIR keeps the three in sync whether
+# this module is consumed standalone or via add_subdirectory (e.g.
+# under root-project/root, where CMAKE_BINARY_DIR is root-build but
+# this directory is root-build/interpreter/CppInterOp/unittests).
 set(_gtest_byproduct_binary_dir
-  ${CMAKE_BINARY_DIR}/unittests/googletest-prefix/src/googletest-build)
+  ${CMAKE_CURRENT_BINARY_DIR}/googletest-prefix/src/googletest-build)
 set(_gtest_byproducts
   ${_gtest_byproduct_binary_dir}/lib/libgtest.a
   ${_gtest_byproduct_binary_dir}/lib/libgtest_main.a
@@ -37,7 +40,7 @@ if (EMSCRIPTEN)
   endif()
 else()
   set(config_cmd ${CMAKE_COMMAND})
-  set(build_cmd ${CMAKE_COMMAND} --build ${CMAKE_BINARY_DIR}/unittests/googletest-prefix/src/googletest-build/ --config $<CONFIG>)
+  set(build_cmd ${CMAKE_COMMAND} --build ${CMAKE_CURRENT_BINARY_DIR}/googletest-prefix/src/googletest-build/ --config $<CONFIG>)
 endif()
 
 ExternalProject_Add(
@@ -52,8 +55,8 @@ ExternalProject_Add(
   #            -DCMAKE_ARCHIVE_OUTPUT_DIRECTORY_RELEASE:PATH=ReleaseLibs
   #            -Dgtest_force_shared_crt=ON
   CONFIGURE_COMMAND ${config_cmd} -G ${CMAKE_GENERATOR}
-  		-S ${CMAKE_BINARY_DIR}/unittests/googletest-prefix/src/googletest/
-		-B ${CMAKE_BINARY_DIR}/unittests/googletest-prefix/src/googletest-build/
+  		-S ${CMAKE_CURRENT_BINARY_DIR}/googletest-prefix/src/googletest/
+		-B ${CMAKE_CURRENT_BINARY_DIR}/googletest-prefix/src/googletest-build/
                 -DCMAKE_BUILD_TYPE=$<CONFIG>
                 -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}
                 -DCMAKE_C_FLAGS=${CMAKE_C_FLAGS}
