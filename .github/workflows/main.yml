@@ -154,6 +154,12 @@ jobs:
 
     - name: Build and test CppInterOp
       uses: ./.github/actions/Build_and_Test_CppInterOp
+      with:
+        cling: ${{ matrix.cling }}
+        clang_runtime: ${{ matrix.clang-runtime }}
+        documentation: ${{ matrix.documentation }}
+        sanitizer: ${{ matrix.sanitizer }}
+        valgrind: ${{ matrix.Valgrind }}
 
     - name: Prepare code coverage report
       if: ${{ success() && (matrix.coverage == true) }}
