@@ -10,11 +10,21 @@ runs:
       run: |
         echo "BUILD_TYPE=Release" >> $GITHUB_ENV
         echo "CODE_COVERAGE=0" >> $GITHUB_ENV
-        if [[ "${{ matrix.os }}" != "macos"* ]]; then
-          echo "ncpus=$(nproc --all)" >> $GITHUB_ENV
+        if [[ "${{ runner.os }}" == "macOS" ]]; then
+          ncpus=$(sysctl -n hw.ncpu)
         else
-          echo "ncpus=$(sysctl -n hw.ncpu)" >> $GITHUB_ENV
+          ncpus=$(nproc)
+          if [[ -r /sys/fs/cgroup/cpu.max ]]; then
+            read -r quota period < /sys/fs/cgroup/cpu.max || true
+            if [[ "${quota:-max}" != "max" && "${period:-0}" -gt 0 ]]; then
+              capped=$(( (quota + period - 1) / period ))
+              if [[ "$capped" -ge 1 && "$capped" -lt "$ncpus" ]]; then
+                ncpus="$capped"
+              fi
+            fi
+          fi
         fi
+        echo "ncpus=$ncpus" >> $GITHUB_ENV
 
     - name: Select default build type on Windows
       if: runner.os == 'Windows'
