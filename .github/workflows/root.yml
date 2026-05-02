@@ -132,8 +132,9 @@ jobs:
           dpkg-dev binutils \
           libx11-dev libxpm-dev libxft-dev libxext-dev \
           libssl-dev liblzma-dev libpcre3-dev libpcre2-dev \
-          libxxhash-dev libzstd-dev libtbb-dev libxml2-dev \
-          nlohmann-json3-dev
+          libxxhash-dev libzstd-dev liblz4-dev libtbb-dev libxml2-dev \
+          nlohmann-json3-dev \
+          libgtest-dev libgmock-dev
         # The ubuntu-24.04 runner image ships llvm-17 dev packages,
         # whose `/usr/lib/llvm-17/lib/cmake/llvm` is found by ROOT's
         # `find_package(LLVM)` before our `-DLLVM_DIR` hint takes
@@ -146,6 +147,7 @@ jobs:
     - name: Substitute the PR's CppInterOp into ROOT
       shell: bash
       run: |
+        rm -rf root
         git clone --depth=1 --branch master https://github.com/root-project/root.git
         # ROOT bundles a copy of CppInterOp under interpreter/CppInterOp.
         # Replace it with the PR's tree so the integration build exercises
@@ -159,6 +161,7 @@ jobs:
     - name: Configure ROOT
       shell: bash
       run: |
+        rm -rf root-build
         mkdir root-build
         cd root-build
         # ROOT uses our cached external LLVM and Clang (builtin_llvm /
@@ -191,6 +194,9 @@ jobs:
               -DCMAKE_BUILD_TYPE=Release \
               -Dminimal=ON \
               -Dtesting=OFF \
+              -Dtestsupport=ON \
+              -Dbuiltin_gtest=OFF \
+              -DCPPINTEROP_ENABLE_TESTING=ON \
               -Dfail-on-missing=ON \
               -Dbuiltin_llvm=OFF \
               -Dbuiltin_clang=OFF \
@@ -214,3 +220,14 @@ jobs:
         LLVM="$GITHUB_WORKSPACE/llvm-project"
         export CPLUS_INCLUDE_PATH="$LLVM/include"
         cmake --build root-build --parallel ${{ env.ncpus }}
+
+    # ROOT's top-level enable_testing() is gated on -Dtesting=ON, so a
+    # bare `ctest` from root-build can't see CppInterOp's subdir tests.
+    # The check-cppinterop custom target (CppInterOp's
+    # unittests/CMakeLists.txt:106) calls ctest with WORKING_DIRECTORY
+    # set to the unittests binary dir, where the CTestTestfile.cmake
+    # actually lives.
+    - name: Run CppInterOp unittests
+      shell: bash
+      run: |
+        cmake --build root-build --target check-cppinterop --parallel ${{ env.ncpus }}
