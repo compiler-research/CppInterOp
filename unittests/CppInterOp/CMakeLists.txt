@@ -43,6 +43,7 @@ if (EMSCRIPTEN)
 endif()
 
 add_cppinterop_unittest(CppInterOpTests
+  CAPITest.cpp
   CommentReflectionTest.cpp
   EnumReflectionTest.cpp
   FunctionReflectionTest.cpp
@@ -63,6 +64,20 @@ if(NOT WIN32)
     "-Wno-pedantic"
   )
 endif()
+
+# CAPITestC.c is a pure C compilation test. Build it as a separate object
+# library so it does not inherit C++-only flags (-Wno-deprecated-copy,
+# -fno-rtti) that GCC's C frontend rejects under -Werror.
+add_library(CAPITestC OBJECT CAPITestC.c)
+target_compile_options(CAPITestC PRIVATE
+  $<$<NOT:$<C_COMPILER_ID:MSVC>>:-Werror -Wall>
+  $<$<C_COMPILER_ID:MSVC>:/WX /W3>)
+target_include_directories(CAPITestC PRIVATE
+  ${CMAKE_SOURCE_DIR}/include ${CMAKE_BINARY_DIR}/include)
+if(TARGET CppInterOpTableGen)
+  add_dependencies(CAPITestC CppInterOpTableGen)
+endif()
+target_link_libraries(CppInterOpTests PRIVATE CAPITestC)
 
 set_source_files_properties(InterpreterTest.cpp PROPERTIES COMPILE_DEFINITIONS
   "LLVM_BINARY_DIR=\"${LLVM_BINARY_DIR}\""
@@ -112,6 +127,9 @@ if(NOT EMSCRIPTEN AND BUILD_SHARED_LIBS)
     DispatchSmokeTest.cpp
   )
   add_dependencies(CppInterOpUnitTests DispatchTests)
+  if(TARGET CppInterOpTableGen)
+    add_dependencies(DispatchTests CppInterOpTableGen)
+  endif()
   target_include_directories(DispatchTests PRIVATE
     ${CMAKE_CURRENT_BINARY_DIR} ${GTEST_INCLUDE_DIR})
   target_link_libraries(DispatchTests PRIVATE ${gtest_libs} ${link_pthreads_lib})

@@ -146,9 +146,27 @@ if(CPPINTEROP_TBLGEN_CMD)
     DEPENDS ${CPPINTEROP_TBLGEN_DEPS}
     COMMENT "Generating CppInterOpDecl.inc...")
 
+  add_custom_command(
+    OUTPUT ${CPPINTEROP_GEN_DIR}/CXCppInterOpDecl.inc
+    COMMAND ${CPPINTEROP_TBLGEN_CMD}
+      -I${CPPINTEROP_TD_DIR} -gen-cx-cppinterop-decl
+      ${CPPINTEROP_TD_FILE} -o ${CPPINTEROP_GEN_DIR}/CXCppInterOpDecl.inc
+    DEPENDS ${CPPINTEROP_TBLGEN_DEPS}
+    COMMENT "Generating CXCppInterOpDecl.inc...")
+
+  add_custom_command(
+    OUTPUT ${CPPINTEROP_GEN_DIR}/CXCppInterOpImpl.inc
+    COMMAND ${CPPINTEROP_TBLGEN_CMD}
+      -I${CPPINTEROP_TD_DIR} -gen-cx-cppinterop-impl
+      ${CPPINTEROP_TD_FILE} -o ${CPPINTEROP_GEN_DIR}/CXCppInterOpImpl.inc
+    DEPENDS ${CPPINTEROP_TBLGEN_DEPS}
+    COMMENT "Generating CXCppInterOpImpl.inc...")
+
   add_custom_target(CppInterOpTableGen DEPENDS
     ${CPPINTEROP_GEN_DIR}/CppInterOpAPI.inc
-    ${CPPINTEROP_GEN_DIR}/CppInterOpDecl.inc)
+    ${CPPINTEROP_GEN_DIR}/CppInterOpDecl.inc
+    ${CPPINTEROP_GEN_DIR}/CXCppInterOpDecl.inc
+    ${CPPINTEROP_GEN_DIR}/CXCppInterOpImpl.inc)
 else()
   message(FATAL_ERROR
     "Cannot generate .inc files: set CPPINTEROP_TABLEGEN_EXE to a native "
@@ -160,6 +178,7 @@ add_llvm_library(clangCppInterOp
   CppInterOp.cpp
   CppInterOpDispatch.cpp
   CXCppInterOp.cpp
+  CXCppInterOpGenerated.cpp
   Tracing.cpp
   ${DLM}
   LINK_LIBS
