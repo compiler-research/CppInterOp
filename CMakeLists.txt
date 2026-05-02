@@ -485,34 +485,39 @@ configure_file(
   ${CMAKE_CURRENT_SOURCE_DIR}/cmake/CppInterOp/CppInterOpConfigVersion.cmake.in
   ${CMAKE_CURRENT_BINARY_DIR}/lib/cmake/CppInterOp/CppInterOpConfigVersion.cmake
   @ONLY)
-install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/lib/cmake/CppInterOp/
-  DESTINATION lib/cmake/CppInterOp
-  FILES_MATCHING
-  PATTERN "*.cmake"
-  )
+
+# Skip install rules when CppInterOp is consumed via add_subdirectory() in an external project,
+# In ROOT, headers and the cmake config are installed through libCling's own layout
+if(CPPINTEROP_BUILT_STANDALONE OR NOT CPPINTEROP_USE_CLING)
+  install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/lib/cmake/CppInterOp/
+    DESTINATION lib/cmake/CppInterOp
+    FILES_MATCHING
+    PATTERN "*.cmake"
+    )
 
 
-install(DIRECTORY include/
-  DESTINATION include
-  FILES_MATCHING
-  PATTERN "*.def"
-  PATTERN "*.h"
-  PATTERN "*.inc"
-  PATTERN ".svn" EXCLUDE
-  )
+  install(DIRECTORY include/
+    DESTINATION include
+    FILES_MATCHING
+    PATTERN "*.def"
+    PATTERN "*.h"
+    PATTERN "*.inc"
+    PATTERN ".svn" EXCLUDE
+    )
 
-install(DIRECTORY tools/
-  DESTINATION include/CppInterOp/tools
-  FILES_MATCHING
-  PATTERN "*.h"
-)
+  install(DIRECTORY tools/
+    DESTINATION include/CppInterOp/tools
+    FILES_MATCHING
+    PATTERN "*.h"
+    )
 
-install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/include/
-  DESTINATION include
-  FILES_MATCHING
-  PATTERN "CMakeFiles" EXCLUDE
-  PATTERN "*.inc"
-  )
+  install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/include/
+    DESTINATION include
+    FILES_MATCHING
+    PATTERN "CMakeFiles" EXCLUDE
+    PATTERN "*.inc"
+    )
+endif()
 
 add_definitions( -D_GNU_SOURCE )
 
