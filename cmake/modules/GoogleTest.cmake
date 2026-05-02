@@ -1,5 +1,11 @@
+# Must match the actual ExternalProject_Add binary_dir below
+# (`-B ${CMAKE_BINARY_DIR}/unittests/googletest-prefix/src/googletest-build/`).
+# Stale `downloads/` prefix here meant BUILD_BYPRODUCTS pointed at a path
+# that's never produced; with Make's permissive missing-rule handling this
+# was invisible, but `-GNinja` rejects it with "no known rule to make
+# unittests/googletest-prefix/src/googletest-build/lib/libgtest.a".
 set(_gtest_byproduct_binary_dir
-  ${CMAKE_BINARY_DIR}/downloads/googletest-prefix/src/googletest-build)
+  ${CMAKE_BINARY_DIR}/unittests/googletest-prefix/src/googletest-build)
 set(_gtest_byproducts
   ${_gtest_byproduct_binary_dir}/lib/libgtest.a
   ${_gtest_byproduct_binary_dir}/lib/libgtest_main.a

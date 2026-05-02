@@ -86,6 +86,8 @@ jobs:
 
     - name: Setup compiler
       uses: ./.github/actions/Miscellaneous/Setup_Compiler
+      with:
+        compiler: ${{ matrix.compiler }}
 
     - name: Install dependencies
       uses: ./.github/actions/Miscellaneous/Install_Dependencies
@@ -177,7 +179,12 @@ jobs:
         token: ${{ secrets.CODECOV_TOKEN }}
 
     - name: Build and test cppyy
-      uses: ./.github/actions/Build_and_Test_cppyy        
+      uses: ./.github/actions/Build_and_Test_cppyy
+      with:
+        cppyy: ${{ matrix.cppyy }}
+        cling: ${{ matrix.cling }}
+        valgrind: ${{ matrix.Valgrind }}
+        clang_runtime: ${{ matrix.clang-runtime }}
 
     - name: Show debug info
       if: ${{ failure() }}

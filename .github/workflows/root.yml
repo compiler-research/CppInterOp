@@ -64,6 +64,8 @@ jobs:
 
     - name: Setup compiler
       uses: ./cppinterop/.github/actions/Miscellaneous/Setup_Compiler
+      with:
+        compiler: ${{ matrix.compiler }}
 
     - name: Install dependencies
       uses: ./cppinterop/.github/actions/Miscellaneous/Install_Dependencies

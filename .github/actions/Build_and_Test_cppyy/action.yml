@@ -1,11 +1,35 @@
 name: 'Builds and test cppyy'
 description: 'This action builds and tests cppyy for native platforms'
 
+# `${{ matrix.* }}` is reliably available inside composite-action steps
+# only on github-hosted runners; nektos/act does not propagate the
+# caller's matrix context, so every `${{ matrix.cppyy }}` in step
+# `if:` keys expands to "" -- evaluating to `'' == 'On' && ...` ->
+# false, every step is skipped, and the action runs in 200ms doing
+# nothing. Forward each matrix value via explicit inputs so the
+# behaviour matches across both runtimes.
+inputs:
+  cppyy:
+    required: true
+    description: 'Forward of matrix.cppyy ("On"/"Off"). Drives every step gate in this action.'
+  cling:
+    required: false
+    default: ''
+    description: 'Forward of matrix.cling ("On"/"Off"). Selects valgrind suppressions.'
+  valgrind:
+    required: false
+    default: ''
+    description: 'Forward of matrix.Valgrind ("On"/"Off"). Gates the valgrind test pass.'
+  clang_runtime:
+    required: false
+    default: ''
+    description: 'Forward of matrix.clang-runtime (numeric LLVM major). Selects valgrind suppression file.'
+
 runs:
   using: composite
   steps:
     - name: Build and Install cppyy-backend
-      if: ${{ matrix.cppyy == 'On' && runner.os != 'Windows' }}
+      if: ${{ inputs.cppyy == 'On' && runner.os != 'Windows' }}
       shell: bash
       run: |
         # Download cppyy-backend
@@ -17,8 +41,7 @@ runs:
         # Build and Install cppyy-backend
         cmake -DCppInterOp_DIR=$CPPINTEROP_DIR ..
         cmake --build . --parallel ${{ env.ncpus }}
-        os="${{ matrix.os }}"
-        if [[ "${os}" == "macos"* ]]; then
+        if [[ "${{ runner.os }}" == "macOS" ]]; then
           cp libcppyy-backend.dylib $CPPINTEROP_DIR/lib/
         else
           cp libcppyy-backend.so $CPPINTEROP_DIR/lib/
@@ -26,7 +49,7 @@ runs:
         cd ..
 
     - name: Install CPyCppyy
-      if: ${{ matrix.cppyy == 'On' && runner.os != 'Windows' }}
+      if: ${{ inputs.cppyy == 'On' && runner.os != 'Windows' }}
       shell: bash
       run: |
         python3 -m venv .venv
@@ -44,7 +67,7 @@ runs:
         echo "CPYCPPYY_DIR=$CPYCPPYY_DIR" >> $GITHUB_ENV
 
     - name: Install cppyy
-      if: ${{ matrix.cppyy == 'On' && runner.os != 'Windows' }}
+      if: ${{ inputs.cppyy == 'On' && runner.os != 'Windows' }}
       shell: bash
       run: |
         # source virtual environment
@@ -57,7 +80,7 @@ runs:
         cd ..
 
     - name: Run cppyy
-      if: ${{ matrix.cppyy == 'On' && runner.os != 'Windows' }}
+      if: ${{ inputs.cppyy == 'On' && runner.os != 'Windows' }}
       shell: bash
       run: |
         # Run cppyy
@@ -68,7 +91,7 @@ runs:
         echo "PYTHONPATH=$PYTHONPATH" >> $GITHUB_ENV
 
     - name: Run the tests
-      if: ${{ matrix.cppyy == 'On' && runner.os != 'Windows' }}
+      if: ${{ inputs.cppyy == 'On' && runner.os != 'Windows' }}
       shell: bash
       run: |
         # Run the tests
@@ -112,18 +135,17 @@ runs:
         declare -i RETCODE=0
 
         set -o pipefail
-        os="${{ matrix.os }}"
-        if [[ "${os}" != "macos"* && "${{ matrix.Valgrind }}" == "On" ]]; then
+        if [[ "${{ runner.os }}" != "macOS" && "${{ inputs.valgrind }}" == "On" ]]; then
           echo "Running valgrind on passing tests"
-          CLANG_VERSION="${{ matrix.clang-runtime }}"
+          CLANG_VERSION="${{ inputs.clang_runtime }}"
 
-          if [[ "${{ matrix.cling }}" == "On" ]]; then
+          if [[ "${{ inputs.cling }}" == "On" ]]; then
             CLANG_INTERPRETER="cling"
           else
             CLANG_INTERPRETER="clang"
           fi
-        
-          if [[ "${{ matrix.os }}" == *"arm"* ]]; then
+
+          if [[ "${{ runner.arch }}" == "ARM64" ]]; then
             SUPPRESSION_FILE="../etc/${CLANG_INTERPRETER}${CLANG_VERSION}-valgrind_arm.supp"
           else
             SUPPRESSION_FILE="../etc/${CLANG_INTERPRETER}${CLANG_VERSION}-valgrind.supp"

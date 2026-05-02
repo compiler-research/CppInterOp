@@ -71,8 +71,21 @@ runs:
         # the recipe-cached path CppInterOp would compile without
         # -fsanitize=address while libLLVMSupport.a is asan-instrumented,
         # leaving __asan_* symbols unresolved at link.
+        # -GNinja: outer cmake uses Ninja, ExternalProject inherits
+        # the generator (so googletest's inner build is also Ninja).
+        # Sidesteps the make->cmake->make recursive jobserver fd
+        # inheritance that breaks under nektos/act's bash invocation
+        # ("gmake[5]: *** write jobserver: Bad file descriptor").
+        # ninja-build is in Install_Dependencies' apt list (github-
+        # hosted + act); the self-hosted apt step in main.yml /
+        # root.yml installs it explicitly. The adjacent fix to
+        # cmake/modules/GoogleTest.cmake (correcting BUILD_BYPRODUCTS
+        # to point at the real binary_dir) is what makes Ninja's
+        # strict missing-rule semantics work for the
+        # ExternalProject_Add output.
         if [[ "${cling_on}" == "ON" ]]; then
-          cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}        \
+          cmake -GNinja                                     \
+                -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}        \
                 -DCPPINTEROP_USE_CLING=ON                                  \
                 -DCPPINTEROP_USE_REPL=OFF                                  \
                 -DCPPINTEROP_INCLUDE_DOCS=${{ matrix.documentation }} \
@@ -86,7 +99,8 @@ runs:
                 -DLLVM_ENABLE_WERROR=On                         \
                 ../
         else
-          cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}     \
+          cmake -GNinja                                  \
+                -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}     \
                 -DCPPINTEROP_INCLUDE_DOCS=${{ matrix.documentation }} \
                 -DLLVM_DIR=$LLVM_BUILD_DIR/lib/cmake/llvm    \
                 -DClang_DIR=$LLVM_BUILD_DIR/lib/cmake/clang  \
