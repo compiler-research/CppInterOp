@@ -40,7 +40,7 @@ runs:
         # explicitly -- a no-op on github-hosted, makes act work.
         sudo apt-get update -qq
         sudo apt-get install -y --no-install-recommends \
-          cmake ninja-build g++ git python3 \
+          cmake ninja-build g++ git python3 ccache \
           valgrind libc6-dbg \
           libeigen3-dev libboost-dev \
           libedit-dev

@@ -144,6 +144,18 @@ jobs:
         sudo apt-get purge -y 'llvm-17*' 'clang-17*' 'libclang-17*' 'libllvm17*' || true
         sudo apt-get autoremove -y
 
+    # CCACHE_DIR is pinned inside $github.workspace so the cache state
+    # survives container teardowns under nektos/act (which bind-mounts
+    # the workspace). On github-hosted runners the workspace is wiped
+    # at job end so ccache stays cold; this is a local-iteration
+    # speedup, not a CI optimization.
+    - name: Setup ccache
+      shell: bash
+      run: |
+        mkdir -p "${{ github.workspace }}/.ccache"
+        echo "CCACHE_DIR=${{ github.workspace }}/.ccache" >> "$GITHUB_ENV"
+        ccache --max-size=5G
+
     - name: Substitute the PR's CppInterOp into ROOT
       shell: bash
       run: |
@@ -192,6 +204,8 @@ jobs:
         CPPINTEROP_GEN_INC="$PWD/include"
         cmake -G Ninja \
               -DCMAKE_BUILD_TYPE=Release \
+              -DCMAKE_C_COMPILER_LAUNCHER=ccache \
+              -DCMAKE_CXX_COMPILER_LAUNCHER=ccache \
               -Dminimal=ON \
               -Dtesting=OFF \
               -Dtestsupport=ON \
