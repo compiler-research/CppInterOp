@@ -513,13 +513,8 @@ static void InstantiateFunctionDefinition(Decl* D) {
     getSema().InstantiateFunctionDefinition(SourceLocation(), FD,
                                             /*Recursive=*/true,
                                             /*DefinitionRequired=*/true);
-    // FIXME: this can go into a RAII object
-    clang::DiagnosticsEngine& Diags = getSema().getDiagnostics();
-    if (!FD->isDefined() && Diags.hasErrorOccurred()) {
-      // instantiation failed, need to reset DiagnosticsEngine
-      Diags.Reset(/*soft=*/true);
-      Diags.getClient()->clear();
-    }
+    compat::DiagnosticsEngineRAII diagsRAII(getSema().getDiagnostics(),
+                                            !FD->isDefined());
   }
 }
 
