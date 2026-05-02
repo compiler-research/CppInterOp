@@ -1,6 +1,30 @@
 name: 'Builds and test CppInterOp'
 description: 'This action builds and tests CppInterOp for native platforms'
 
+# `${{ matrix.* }}` doesn't reach composite-action expressions under
+# nektos/act; github-hosted runners propagate it. Forward via inputs
+# (same pattern as Setup_Compiler / Build_and_Test_cppyy post #957).
+inputs:
+  cling:
+    required: false
+    default: ''
+    description: 'matrix.cling. Gates the find_package(Cling) cmake branch.'
+  clang_runtime:
+    required: true
+    description: 'matrix.clang-runtime. /usr/lib/llvm-N paths + source-side fixture gates.'
+  documentation:
+    required: false
+    default: ''
+    description: 'matrix.documentation. Selects docs vs check-cppinterop targets.'
+  sanitizer:
+    required: false
+    default: ''
+    description: 'matrix.sanitizer. Forwarded to LLVM_USE_SANITIZER.'
+  valgrind:
+    required: false
+    default: ''
+    description: 'matrix.Valgrind. Gates the in-process valgrind run.'
+
 runs:
   using: composite
   steps:
@@ -9,9 +33,9 @@ runs:
       shell: bash
       run: |
         if [[ "${{ runner.environment }}" == "self-hosted" ]]; then
-          LLVM_DIR="/usr/lib/llvm-${{ matrix.clang-runtime }}"
-          LLVM_BUILD_DIR="/usr/lib/llvm-${{ matrix.clang-runtime }}"
-          CPLUS_INCLUDE_PATH="/usr/lib/llvm-${{ matrix.clang-runtime }}/include:$PWD/include"
+          LLVM_DIR="/usr/lib/llvm-${{ inputs.clang_runtime }}"
+          LLVM_BUILD_DIR="/usr/lib/llvm-${{ inputs.clang_runtime }}"
+          CPLUS_INCLUDE_PATH="/usr/lib/llvm-${{ inputs.clang_runtime }}/include:$PWD/include"
         else
           LLVM_DIR="$(pwd)/llvm-project"
           # Two layouts coexist on github-hosted runners:
@@ -27,7 +51,7 @@ runs:
           else
             LLVM_BUILD_DIR="$LLVM_DIR/build"
           fi
-          cling_on=$(echo "${{ matrix.cling }}" | tr '[:lower:]' '[:upper:]')
+          cling_on=$(echo "${{ inputs.cling }}" | tr '[:lower:]' '[:upper:]')
           # FIXME: CPLUS_INCLUDE_PATH itself is a workaround for missing
           # target-based include propagation in CppInterOp's cmake;
           # find_package(LLVM)/Clang already export INTERFACE_INCLUDE_DIRECTORIES.
@@ -63,7 +87,7 @@ runs:
         # Build CppInterOp next to cling and llvm-project.
         mkdir build && cd build
         export CPPINTEROP_BUILD_DIR=$PWD
-        cling_on=$(echo "${{ matrix.cling }}" | tr '[:lower:]' '[:upper:]')
+        cling_on=$(echo "${{ inputs.cling }}" | tr '[:lower:]' '[:upper:]')
         # Propagate matrix.sanitizer to CppInterOp's cmake. CppInterOp's
         # CMakeLists tried to recover this from the LLVM build's
         # CMakeCache.txt via load_cache(); install trees don't ship
@@ -88,11 +112,11 @@ runs:
                 -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}        \
                 -DCPPINTEROP_USE_CLING=ON                                  \
                 -DCPPINTEROP_USE_REPL=OFF                                  \
-                -DCPPINTEROP_INCLUDE_DOCS=${{ matrix.documentation }} \
+                -DCPPINTEROP_INCLUDE_DOCS=${{ inputs.documentation }} \
                 -DCling_DIR=$CLING_CMAKE_DIR                    \
                 -DLLVM_DIR=$LLVM_BUILD_DIR/lib/cmake/llvm       \
                 -DClang_DIR=$LLVM_BUILD_DIR/lib/cmake/clang     \
-                -DLLVM_USE_SANITIZER="${{ matrix.sanitizer }}"  \
+                -DLLVM_USE_SANITIZER="${{ inputs.sanitizer }}"  \
                 -DBUILD_SHARED_LIBS=ON                          \
                 -DCODE_COVERAGE=${{ env.CODE_COVERAGE }}        \
                 -DCMAKE_INSTALL_PREFIX=$CPPINTEROP_DIR          \
@@ -101,17 +125,17 @@ runs:
         else
           cmake -GNinja                                  \
                 -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}     \
-                -DCPPINTEROP_INCLUDE_DOCS=${{ matrix.documentation }} \
+                -DCPPINTEROP_INCLUDE_DOCS=${{ inputs.documentation }} \
                 -DLLVM_DIR=$LLVM_BUILD_DIR/lib/cmake/llvm    \
                 -DClang_DIR=$LLVM_BUILD_DIR/lib/cmake/clang  \
-                -DLLVM_USE_SANITIZER="${{ matrix.sanitizer }}" \
+                -DLLVM_USE_SANITIZER="${{ inputs.sanitizer }}" \
                 -DBUILD_SHARED_LIBS=ON                       \
                 -DCODE_COVERAGE=${{ env.CODE_COVERAGE }}     \
                 -DCMAKE_INSTALL_PREFIX=$CPPINTEROP_DIR       \
                 -DLLVM_ENABLE_WERROR=On                      \
                 ../
         fi
-        docs_on=$(echo "${{ matrix.documentation }}" | tr '[:lower:]' '[:upper:]')
+        docs_on=$(echo "${{ inputs.documentation }}" | tr '[:lower:]' '[:upper:]')
         if [[ "${docs_on}" == "ON" ]]; then
           cmake --build . --target doxygen-cppinterop --parallel ${{ env.ncpus }}
           cmake --build . --target sphinx-cppinterop --parallel ${{ env.ncpus }}
@@ -132,9 +156,9 @@ runs:
               echo "FAIL: InProcessJIT fixture missing -- typed-test setup broken"
               exit 1
             fi
-            if [[ "${{ matrix.clang-runtime }}" -lt 22 ]]; then
+            if [[ "${{ inputs.clang_runtime }}" -lt 22 ]]; then
               if echo "${FIXTURES}" | grep -q '^CppInterOpTest/OutOfProcessJIT'; then
-                echo "FAIL: OutOfProcessJIT fixture registered on clang-runtime=${{ matrix.clang-runtime }}; LLVM_VERSION_MAJOR>21 source gate broken"
+                echo "FAIL: OutOfProcessJIT fixture registered on clang-runtime=${{ inputs.clang_runtime }}; LLVM_VERSION_MAJOR>21 source gate broken"
                 exit 1
               fi
             fi
@@ -190,14 +214,13 @@ runs:
                       "CPPINTEROP_RUNTIME_DIR=${ENV_RT}" \
                   "${TESTS_BIN}" --gtest_filter="${OOP_FILTER}" 2>&1) || true
             assert_no_fallback "CPPINTEROP_RUNTIME_DIR env-var override" "${out}"
-          elif [[ "${{ matrix.clang-runtime }}" -lt 22 ]]; then
+          elif [[ "${{ inputs.clang_runtime }}" -lt 22 ]]; then
             echo "OK: lib/cppinterop-rt/ absent, expected for clang-runtime <= 21"
           else
-            echo "INFO: lib/cppinterop-rt/ absent on clang-runtime=${{ matrix.clang-runtime }} (transitional cache row without compiler-rt)"
+            echo "INFO: lib/cppinterop-rt/ absent on clang-runtime=${{ inputs.clang_runtime }} (transitional cache row without compiler-rt)"
           fi
-          os="${{ matrix.os }}"
-          if [[ "${os}" != "macos"* && "${{ matrix.Valgrind }}" == "On" ]]; then
-            CLANG_VERSION="${{ matrix.clang-runtime }}"
+          if [[ "${{ runner.os }}" != "macOS" && "${{ inputs.valgrind }}" == "On" ]]; then
+            CLANG_VERSION="${{ inputs.clang_runtime }}"
             if [[ "${CLANG_VERSION}" -ge 22 ]]; then
               # OOP-JIT runs by default on LLVM 22+ where the bundled
               # runtime is available; OOP introduces extra valgrind
@@ -315,7 +338,7 @@ runs:
 
         LLVM_DIR="$(pwd)/llvm-project"
         LLVM_BUILD_DIR="$(pwd)/llvm-project/build"
-        cling_on=$(echo "${{ matrix.cling }}" | tr '[:lower:]' '[:upper:]')
+        cling_on=$(echo "${{ inputs.cling }}" | tr '[:lower:]' '[:upper:]')
         if [[ "${cling_on}" == "ON" ]]; then
           CLING_DIR="$(pwd)/cling"
           CLING_BUILD_DIR="$(pwd)/cling/build"
