@@ -34,6 +34,7 @@
 #include <functional>
 #include <memory>
 #include <string>
+#include <string_view>
 #include <type_traits>
 #include <unordered_map>
 #include <vector>
@@ -46,7 +47,7 @@ class TraceInfo {
   llvm::StringMap<std::unique_ptr<llvm::Timer>> m_Timers;
   std::vector<llvm::Timer*> m_TimerStack;
 
-  std::unordered_map<void*, std::string> m_HandleMap;
+  std::unordered_map<const void*, std::string> m_HandleMap;
   unsigned m_VarCount = 0;
 
   std::vector<std::string> m_Log;
@@ -86,7 +87,7 @@ public:
       m_TimerStack.back()->startTimer();
   }
 
-  std::string getOrRegisterHandle(void* p) {
+  std::string getOrRegisterHandle(const void* p) {
     if (!p)
       return "";
     auto it = m_HandleMap.find(p);
@@ -95,7 +96,7 @@ public:
     return m_HandleMap[p] = "v" + std::to_string(++m_VarCount);
   }
 
-  std::string lookupHandle(void* p) {
+  std::string lookupHandle(const void* p) {
     if (!p)
       return "nullptr";
     auto it = m_HandleMap.find(p);
@@ -205,11 +206,30 @@ struct ReproBuffer {
   ReproBuffer() : OS(Buffer) {}
 
   // Opaque handle pointers — resolved to their registered name.
-  void append(void* p) { OS << TraceInfo::TheTraceInfo->lookupHandle(p); }
+  // const void* subsumes void* via the standard add-const conversion,
+  // so one overload covers both TCppFunction_t (= void*) and
+  // TCppConstFunction_t (= const void*) public typedefs.
+  void append(const void* p) {
+    if (!p) {
+      OS << "nullptr";
+      return;
+    }
+    auto h = TraceInfo::TheTraceInfo->lookupHandle(p);
+    if (h.empty())
+      OS << "nullptr /*unknown*/";
+    else
+      OS << h;
+  }
 
-  // Strings — quoted.
-  void append(const char* s) { OS << "\"" << s << "\""; }
-  void append(const std::string& s) { OS << "\"" << s << "\""; }
+  // Strings — emit as a raw string literal R"CPPI(...)CPPI" so newlines,
+  // quotes, and backslashes pass through verbatim. The CPPI delimiter
+  // makes accidental in-content collisions vanishingly unlikely (would
+  // need the literal sequence )CPPI" inside a traced string).
+  void appendRaw(std::string_view s) { OS << "R\"CPPI(" << s << ")CPPI\""; }
+  void append(const char* s) {
+    appendRaw(s ? std::string_view(s) : std::string_view());
+  }
+  void append(const std::string& s) { appendRaw(s); }
 
   // Numeric types — printed directly.
   void append(bool v) { OS << (v ? "true" : "false"); }
@@ -225,8 +245,50 @@ struct ReproBuffer {
   // Containers — not meaningfully printable; emit a placeholder.
   template <typename T> void append(const std::vector<T>&) { OS << "{...}"; }
 
-  // Anything else we haven't accounted for.
-  template <typename T> void append(const T&) { OS << "?"; }
+  // Enums: emit "static_cast<EnumName>(N)" so the reproducer compiles.
+  // EnumName comes from the compiler's pretty signature -- no RTTI.
+  // Compute outside any lambda: gcc/clang substitute T into a lambda's
+  // signature, which drops the "T = " marker we parse from.
+  static std::string parseEnumName(const char* sig) {
+    llvm::StringRef s(sig);
+#ifdef _MSC_VER
+    // MSVC: "... ReproBuffer::append<enum QualKind>(enum QualKind)"
+    auto pos = s.find("append<");
+    if (pos == llvm::StringRef::npos)
+      return {};
+    s = s.drop_front(pos + 7);
+    for (auto kw : {"enum ", "class ", "struct "})
+      if (s.consume_front(kw))
+        break;
+    return s.take_until([](char c) { return c == '>'; }).str();
+#else
+    // gcc:   "... [with T = QualKind; ...]"
+    // clang: "... [T = QualKind]"
+    auto pos = s.find("T = ");
+    if (pos == llvm::StringRef::npos)
+      return {};
+    return s.drop_front(pos + 4)
+        .take_until([](char c) { return c == ',' || c == ';' || c == ']'; })
+        .str();
+#endif
+  }
+  template <typename T, std::enable_if_t<std::is_enum_v<T>, int> = 0>
+  void append(T v) {
+#ifdef _MSC_VER
+    static const std::string TN = parseEnumName(__FUNCSIG__);
+#else
+    static const std::string TN = parseEnumName(__PRETTY_FUNCTION__);
+#endif
+    OS << "static_cast<" << TN << ">("
+       << +static_cast<std::underlying_type_t<T>>(v) << ")";
+  }
+  // Catch-all for non-enum, non-pointer types.
+  template <
+      typename T,
+      std::enable_if_t<!std::is_enum_v<T> && !std::is_pointer_v<T>, int> = 0>
+  void append(const T&) {
+    OS << "?";
+  }
 
   /// Format a comma-separated argument list, skipping OutParam entries.
   template <typename... Args> void format(Args&&... args) {

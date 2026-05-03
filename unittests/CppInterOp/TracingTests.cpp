@@ -222,7 +222,8 @@ TEST_F(TracingTest, ArgFormattingHandle) {
 TEST_F(TracingTest, ArgFormattingString) {
   FuncTakingString("hello");
   auto output = TraceInfo::TheTraceInfo->getLastLogEntry();
-  EXPECT_THAT(output, HasSubstr("Cpp::FuncTakingString(\"hello\")"));
+  // Raw literal form: R"CPPI(hello)CPPI" preserves bytes verbatim.
+  EXPECT_THAT(output, HasSubstr("Cpp::FuncTakingString(R\"CPPI(hello)CPPI\")"));
 }
 
 TEST_F(TracingTest, ArgFormattingInt) {
@@ -235,7 +236,8 @@ TEST_F(TracingTest, ArgFormattingMixed) {
   void* h = FuncReturningHandle();
   FuncTakingMixed(h, "world", 99);
   auto output = getFullLog();
-  EXPECT_THAT(output, HasSubstr("Cpp::FuncTakingMixed(v1, \"world\", 99)"));
+  EXPECT_THAT(output,
+              HasSubstr("Cpp::FuncTakingMixed(v1, R\"CPPI(world)CPPI\", 99)"));
 }
 
 TEST_F(TracingTest, ArgFormattingOutParamSkipped) {
@@ -322,6 +324,80 @@ TEST_F(TracingTest, ArgFormattingNonStreamable) {
   auto output = TraceInfo::TheTraceInfo->getLastLogEntry();
   // Non-streamable types should get a {...} placeholder.
   EXPECT_THAT(output, HasSubstr("Cpp::FuncTakingVector({...})"));
+}
+
+// ---------------------------------------------------------------------------
+// Reproducer-compilability fixtures: enum cast, escaped strings, const void*.
+// Each one used to emit "?" or invalid C++ in the captured trace; the tests
+// pin the new behaviour so the auto-generated reproducer compiles.
+// ---------------------------------------------------------------------------
+
+namespace tracing_test_enum {
+enum Flavor : unsigned char { Red = 1, Green = 2, Blue = 3 };
+} // namespace tracing_test_enum
+
+void FuncTakingEnum(tracing_test_enum::Flavor f) {
+  INTEROP_TRACE(f);
+  return INTEROP_VOID_RETURN();
+}
+
+TEST_F(TracingTest, ArgFormattingEnumStaticCast) {
+  // Enums route through the std::is_enum_v overload and emit
+  // "static_cast<EnumName>(N)" so the reproducer compiles. Used to
+  // emit "?" via the catch-all template.
+  FuncTakingEnum(tracing_test_enum::Blue);
+  auto output = TraceInfo::TheTraceInfo->getLastLogEntry();
+  EXPECT_THAT(output, HasSubstr("static_cast<"));
+  EXPECT_THAT(output, HasSubstr("Flavor"));
+  EXPECT_THAT(output, HasSubstr(">(3)"));
+  EXPECT_THAT(output, Not(HasSubstr("?")));
+}
+
+void FuncTakingTrickyString(const char* s) {
+  INTEROP_TRACE(s);
+  return INTEROP_VOID_RETURN();
+}
+
+TEST_F(TracingTest, ArgFormattingStringEscapes) {
+  // Strings are emitted as a raw literal R"CPPI(...)CPPI" so newlines,
+  // quotes, and backslashes flow through verbatim and the reproducer
+  // compiles without a separate escape pass.
+  FuncTakingTrickyString("line1\nline2\twith \"quotes\" and a \\backslash");
+  auto output = TraceInfo::TheTraceInfo->getLastLogEntry();
+  EXPECT_THAT(output, HasSubstr("R\"CPPI("));
+  EXPECT_THAT(output, HasSubstr(")CPPI\""));
+  // Verbatim content survives -- the raw literal preserves the
+  // newline / tab / quote / backslash bytes as-is.
+  EXPECT_THAT(output,
+              HasSubstr("line1\nline2\twith \"quotes\" and a \\backslash"));
+}
+
+const void* FuncReturningConstHandle() {
+  INTEROP_TRACE();
+  return INTEROP_RETURN((const void*)0xC0FFEE);
+}
+
+void FuncTakingConstHandle(const void* h) {
+  INTEROP_TRACE(h);
+  return INTEROP_VOID_RETURN();
+}
+
+TEST_F(TracingTest, ArgFormattingConstVoidHandle) {
+  // const void* takes the second overload; before this fix the catch-all
+  // template absorbed "const T&" matches and emitted "?".
+  const void* h = FuncReturningConstHandle();
+  FuncTakingConstHandle(h);
+  auto output = getFullLog();
+  EXPECT_THAT(output, HasSubstr("auto v1 = Cpp::FuncReturningConstHandle()"));
+  EXPECT_THAT(output, HasSubstr("Cpp::FuncTakingConstHandle(v1)"));
+  EXPECT_THAT(output, Not(HasSubstr("?")));
+}
+
+TEST_F(TracingTest, ArgFormattingConstVoidNullptr) {
+  // null const void* must emit literal nullptr, not the empty handle name.
+  FuncTakingConstHandle(nullptr);
+  auto output = TraceInfo::TheTraceInfo->getLastLogEntry();
+  EXPECT_THAT(output, HasSubstr("Cpp::FuncTakingConstHandle(nullptr)"));
 }
 
 // ---------------------------------------------------------------------------
