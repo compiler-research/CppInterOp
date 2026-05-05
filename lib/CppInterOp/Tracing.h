@@ -261,8 +261,21 @@ struct ReproBuffer {
   void append(double d) { OS << llvm::formatv("{0:f}", d); }
   void append(float f) { OS << llvm::formatv("{0:f}", f); }
 
-  // Containers — not meaningfully printable; emit a placeholder.
-  template <typename T> void append(const std::vector<T>&) { OS << "{...}"; }
+  // Vector input args -- emit a braced init list of recursively-formatted
+  // elements so the reproducer's call-site literal compiles. The previous
+  // `{...}` placeholder leaked through to generated reproducers and made
+  // them un-buildable as soon as a non-OutParam vector was passed in.
+  template <typename T> void append(const std::vector<T>& V) {
+    OS << "{";
+    bool First = true;
+    for (const auto& E : V) {
+      if (!First)
+        OS << ", ";
+      First = false;
+      append(E);
+    }
+    OS << "}";
+  }
 
   // Enums: emit "static_cast<EnumName>(N)" so the reproducer compiles.
   // EnumName comes from the compiler's pretty signature -- no RTTI.
