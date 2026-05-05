@@ -227,12 +227,15 @@ runs:
           fi
           if [[ "${{ runner.os }}" != "macOS" && "${{ inputs.valgrind }}" == "On" ]]; then
             CLANG_VERSION="${{ inputs.clang_runtime }}"
-            if [[ "${CLANG_VERSION}" -ge 22 ]]; then
-              # OOP-JIT runs by default on LLVM 22+ where the bundled
-              # runtime is available; OOP introduces extra valgrind
-              # noise (fork/exec, pipes) that the suppression file
-              # filters out.
-              SUPPRESSION_FILE="../etc/clang${CLANG_VERSION}-valgrind.supp"
+            # Per-major suppression file. Loaded when present; absent
+            # files mean "no suppressions for this major" (valgrind runs
+            # bare). Tracks llvm/llvm-project#194147 in clang-21 and
+            # clang-22 today; older majors don't need a file because
+            # they pre-date the regression. The OOP-JIT noise (fork/
+            # exec/pipes) suppression that LLVM 22+ uniquely needs
+            # also lives in the per-major file.
+            SUPPRESSION_FILE="../etc/clang${CLANG_VERSION}-valgrind.supp"
+            if [[ -f "${SUPPRESSION_FILE}" ]]; then
               valgrind --show-error-list=yes --track-origins=yes --error-exitcode=1 \
                 --show-leak-kinds=definite,possible \
                 --suppressions="${SUPPRESSION_FILE}" \

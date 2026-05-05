@@ -18,29 +18,31 @@ jobs:
   build:
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
-    env: &build_env
-      # Default cling version for cling rows; override per-row if a bump
-      # is needed. cling rows now consume the llvm-root recipe, which
-      # bakes the ROOT-llvm20 / cling-llvm20 source branches into the
-      # recipe.yaml -- the date-stamped tag no longer lives in this
-      # matrix.
-      CLING_VERSION: '1.3'
     strategy:
       fail-fast: false
       matrix:
-        # Rows omit fields that match these defaults (applied in
-        # Build_LLVM and in the setup-python step):
-        #   llvm_targets_to_build: "host;NVPTX"
+        # Rows omit fields that match these defaults:
         #   python-version:       '3.14'
+        #   flavor:               '' (default — pull llvm-release from
+        #                            ci-workflows' Releases cache)
+        # arch is derived from the os slug inside setup-llvm; pass an
+        # explicit `flavor-arch` only on hosts whose os name doesn't
+        # carry the architecture (none of GHA's runner images today).
+        # `flavor` selects the LLVM source per row:
+        #   ''       latest LLVM (cells.yaml carries the cell)
+        #   system   apt-llvm.org / brew llvm@N — for older majors
+        #            the package manager already ships
+        #   asan     llvm-asan recipe
+        #   cling    llvm-root recipe + cling built on top
         include:
           # Ubuntu Arm
           - { name: ubu24-arm-gcc12-llvm22-vg, os: ubuntu-24.04-arm, compiler: gcc-12, clang-runtime: '22', Valgrind: On }
           # Ubuntu X86
           - { name: ubu24-x86-gcc12-llvm22, os: ubuntu-24.04, compiler: gcc-12, clang-runtime: '22' }
-          - { name: ubu24-x86-clang22-llvm22-asan-ubsan, os: ubuntu-24.04, compiler: clang-22, clang-runtime: '22', sanitizer: "Address;Undefined", use-recipe: 'llvm-asan' }
-          - { name: ubu24-x86-gcc12-llvm21-cppyy-vg, os: ubuntu-24.04, compiler: gcc-12, clang-runtime: '21', cppyy: On, Valgrind: On }
+          - { name: ubu24-x86-clang22-llvm22-asan-ubsan, os: ubuntu-24.04, compiler: clang-22, clang-runtime: '22', sanitizer: "Address;Undefined", flavor: asan }
+          - { name: ubu24-x86-gcc12-llvm21-cppyy-vg, os: ubuntu-24.04, compiler: gcc-12, clang-runtime: '21', cppyy: On, Valgrind: On, flavor: system }
           - { name: ubu24-x86-gcc12-llvm22-cppyy, os: ubuntu-24.04, compiler: gcc-12, clang-runtime: '22', cppyy: On }
-          - { name: ubu24-x86-gcc14-cling-llvm20-cppyy, os: ubuntu-24.04, compiler: gcc-14, clang-runtime: '20', cling: 'On', cppyy: On, use-recipe: 'llvm-root', recipe-version: 'cling-llvm20' }
+          - { name: ubu24-x86-gcc14-cling-llvm20-cppyy, os: ubuntu-24.04, compiler: gcc-14, clang-runtime: '20', cling: 'On', cppyy: On, flavor: cling, flavor-version: 'cling-llvm20' }
           # selfh-ubu22-x86-gcc12-llvm22-cuda lives in `build-selfhost`
           # below; it's the only row that needs the dell awake.
           - name: ubu24-x86-gcc12-llvm22-vg
@@ -49,16 +51,20 @@ jobs:
             clang-runtime: '22'
             Valgrind: On
           # MacOS Arm
-          - { name: osx26-arm-clang-llvm22, os: macos-26, compiler: clang, clang-runtime: '22', llvm_targets_to_build: host }
-          - { name: osx26-arm-clang-llvm21-cppyy, os: macos-26, compiler: clang, clang-runtime: '21', cppyy: On, llvm_targets_to_build: host }
-          - { name: osx26-arm-clang-cling-llvm20-cppyy, os: macos-26, compiler: clang, clang-runtime: '20', cling: 'On', cppyy: On, use-recipe: 'llvm-root', recipe-version: 'ROOT-llvm20', recipe-arch: 'arm64' }
+          - { name: osx26-arm-clang-llvm22, os: macos-26, compiler: clang, clang-runtime: '22' }
+          - { name: osx26-arm-clang-llvm21-cppyy, os: macos-26, compiler: clang, clang-runtime: '21', cppyy: On, flavor: system }
+          - { name: osx26-arm-clang-cling-llvm20-cppyy, os: macos-26, compiler: clang, clang-runtime: '20', cling: 'On', cppyy: On, flavor: cling, flavor-version: 'ROOT-llvm20' }
           # MacOS X86
-          - { name: osx26-x86-clang-llvm21-cppyy, os: macos-26-intel, compiler: clang, clang-runtime: '21', cppyy: On, llvm_targets_to_build: host }
-          - { name: osx26-x86-clang-cling-llvm20-cppyy, os: macos-26-intel, compiler: clang, clang-runtime: '20', cling: 'On', cppyy: On, use-recipe: 'llvm-root', recipe-version: 'ROOT-llvm20' }
+          - { name: osx26-x86-clang-llvm21-cppyy, os: macos-26-intel, compiler: clang, clang-runtime: '21', cppyy: On, flavor: system }
+          - { name: osx26-x86-clang-cling-llvm20-cppyy, os: macos-26-intel, compiler: clang, clang-runtime: '20', cling: 'On', cppyy: On, flavor: cling, flavor-version: 'ROOT-llvm20' }
           # Windows
-          - { name: win11-msvc-llvm22, os: windows-11-arm, compiler: msvc, clang-runtime: '22' }
+          # No windows-11-arm row: x86 (win2025-msvc-llvm22) covers the
+          # same MSVC+LLVM22 surface, and the arm runner ships an x64
+          # MSVC environment by default. ci-workflows can publish arm64
+          # .libs once `arch: arm64` lands in install-build-deps and the
+          # poisoned arm64 cache entry is purged; restore the row then.
           - { name: win2025-msvc-llvm22, os: windows-2025, compiler: msvc, clang-runtime: '22' }
-          - { name: win2025-msvc-cling-llvm20, os: windows-2025, compiler: msvc, clang-runtime: '20', cling: 'On', use-recipe: 'llvm-root', recipe-version: 'ROOT-llvm20' }
+          - { name: win2025-msvc-cling-llvm20, os: windows-2025, compiler: msvc, clang-runtime: '20', cling: 'On', flavor: cling, flavor-version: 'ROOT-llvm20' }
 
     steps: &build_steps
     - uses: actions/checkout@v6
@@ -68,19 +74,6 @@ jobs:
       with:
         python-version: ${{ matrix.python-version || '3.14' }}
 
-    - name: Save PR Info
-      uses: ./.github/actions/Miscellaneous/Save_PR_Info
-
-    - name: Restore cached LLVM-${{ matrix.clang-runtime }} (Clang-REPL) build
-      if: ${{ runner.environment != 'self-hosted' && !matrix.use-recipe }}
-      uses: actions/cache/restore@v4
-      id: cache
-      with:
-        path: llvm-project
-        # `-none.x-patch-` is the historical key segment from when the
-        # cache key carried `matrix.root-llvm-tag` (always 'none' for
-        # non-cling rows). Kept verbatim so existing entries match.
-        key: ${{ env.CLING_HASH }}-${{ runner.os }}-${{ matrix.os }}-${{ matrix.compiler }}-clang-${{ matrix.clang-runtime }}-none.x-patch-${{ hashFiles(format('patches/llvm/clang{0}-*.patch', matrix.clang-runtime)) || 'none' }}${{ matrix.sanitizer || '' }}
     - name: Setup default Build Type
       uses: ./.github/actions/Miscellaneous/Select_Default_Build_Type
 
@@ -91,114 +84,27 @@ jobs:
 
     - name: Install dependencies
       uses: ./.github/actions/Miscellaneous/Install_Dependencies
-    
-    - name: Install LLVM-${{ matrix.clang-runtime }} dependencies on self-hosted
-      if: ${{ runner.environment == 'self-hosted' }}
-      shell: bash
-      run: |
-        wget -qO- https://apt.llvm.org/llvm-snapshot.gpg.key | sudo tee /etc/apt/trusted.gpg.d/apt.llvm.org.asc
-        codename="$(. /etc/os-release && echo $UBUNTU_CODENAME)"
-        echo "deb http://apt.llvm.org/${codename}/ llvm-toolchain-${codename}-${{ matrix.clang-runtime }} main" | sudo tee /etc/apt/sources.list.d/llvm.list
-        sudo apt-get update
-        sudo apt-get install -y llvm-${{ matrix.clang-runtime }}-dev libclang-${{ matrix.clang-runtime }}-dev clang-${{ matrix.clang-runtime }} libpolly-${{ matrix.clang-runtime }}-dev libzstd-dev
 
-    - name: Build LLVM-${{ matrix.clang-runtime }} (Clang-REPL)
-      if: ${{ runner.environment != 'self-hosted' && !matrix.use-recipe }}
-      uses: ./.github/actions/Build_LLVM
+    # One step replaces the old Restore-cache + Build_LLVM +
+    # Setup-recipe + cling-on-top + Save-cache trio. flavor selects
+    # the source: '' = llvm-release recipe (latest LLVM from
+    # compiler-research/ci-workflows' Releases cache); 'system' =
+    # apt-llvm.org or brew llvm@N for older majors the package
+    # manager already ships; 'asan' = llvm-asan recipe; 'cling' =
+    # llvm-root recipe + cling built on top inside the action.
+    # `os:` reads matrix.self-hosted-os first so the self-hosted CUDA
+    # row (whose matrix.os is the runs-on label array
+    # `[self-hosted, cuda, heavy]`) can supply a string slug for
+    # setup-llvm's string-typed input. Hosted-runner rows leave
+    # self-hosted-os unset and fall through to matrix.os, which is
+    # already a string for them.
+    - name: Setup LLVM ${{ matrix.clang-runtime }}${{ matrix.flavor && format(' [{0}]', matrix.flavor) || '' }}
+      uses: compiler-research/ci-workflows/actions/setup-llvm@main
       with:
-        cache-hit: ${{ steps.cache.outputs.cache-hit }}
-
-    # When matrix.use-recipe is set, this row pulls a prebuilt LLVM tree
-    # from compiler-research/ci-workflows' Releases cache. The actions/
-    # cache restore + Build_LLVM + cache save trio above is gated by
-    # !matrix.use-recipe so it doesn't run for these rows; the recipe
-    # cache is the only place LLVM comes from. Downstream
-    # Build_and_Test_* discovers the tree at
-    # $GITHUB_WORKSPACE/llvm-project automatically.
-    #
-    # build-on-miss: false -- refuse to rebuild LLVM inline on a cache
-    # miss. A miss here means the publish-recipe pipeline didn't warm
-    # the cell we asked for; rebuilding inline (~30 min) on every PR
-    # run would defeat the point of the cache. Fail fast with a
-    # populate-via-gh-workflow-run hint instead, and let the operator
-    # warm the cell explicitly.
-    #
-    # version: asan rows reuse matrix.clang-runtime ('22'); cling rows
-    # pass an explicit recipe-version flavor ('cling-llvm20' Linux,
-    # 'ROOT-llvm20' mac/win) since llvm-root keys on flavor, not on
-    # numeric clang-runtime.
-    # arch: defaults to x86_64; mac arm passes recipe-arch: arm64.
-    - name: Setup recipe ${{ matrix.use-recipe }} (LLVM ${{ matrix.clang-runtime }})
-      if: ${{ runner.environment != 'self-hosted' && matrix.use-recipe }}
-      uses: compiler-research/ci-workflows/actions/setup-recipe@main
-      with:
-        recipe: ${{ matrix.use-recipe }}
-        version: ${{ matrix.recipe-version || matrix.clang-runtime }}
-        os: ${{ matrix.os }}
-        arch: ${{ matrix.recipe-arch || 'x86_64' }}
-        build-on-miss: 'false'
-
-    # llvm-root recipe ships LLVM+Clang only; install ClingConfig.cmake
-    # into the same prefix. Workarounds for upstream cling bugs (drop
-    # both once root-project/root#22123 lands and root-project/cling
-    # syncs):
-    # * UserInterface gate (2fdcb6d) -- forced via CLING_INCLUDE_TESTS=ON.
-    # * libcling LIBS missing clangInterpreter (0307632f31) -- patched
-    #   inline below.
-    - name: Build cling on top of recipe LLVM
-      if: ${{ runner.environment != 'self-hosted' && matrix.cling == 'On' && matrix.use-recipe == 'llvm-root' && runner.os != 'Windows' }}
-      shell: bash
-      run: |
-        LLVM_PREFIX="$(pwd)/llvm-project"
-        rm -rf cling
-        git clone --depth=1 https://github.com/root-project/cling.git
-        # GNU vs BSD sed: `a\TEXT` is GNU-only; awk is portable.
-        f=cling/tools/libcling/CMakeLists.txt
-        awk '/^  clangEdit$/ {print; print "  clangInterpreter"; next} 1' "$f" > "$f.tmp" && mv "$f.tmp" "$f"
-        mkdir cling/build && cd cling/build
-        cmake .. \
-            -GNinja \
-            -DCMAKE_BUILD_TYPE=Release \
-            -DLLVM_DIR="$LLVM_PREFIX/lib/cmake/llvm" \
-            -DClang_DIR="$LLVM_PREFIX/lib/cmake/clang" \
-            -DCMAKE_INSTALL_PREFIX="$LLVM_PREFIX" \
-            -DCLING_INCLUDE_TESTS=ON \
-            -DLLVM_INCLUDE_TESTS=OFF
-        cmake --build . --parallel ${{ env.ncpus }}
-        cmake --install .
-
-    - name: Build cling on top of recipe LLVM (Windows)
-      if: ${{ runner.environment != 'self-hosted' && matrix.cling == 'On' && matrix.use-recipe == 'llvm-root' && runner.os == 'Windows' }}
-      shell: pwsh
-      run: |
-        $LLVM_PREFIX = "$pwd\llvm-project"
-        if (Test-Path cling) { Remove-Item -Recurse -Force cling }
-        git clone --depth=1 https://github.com/root-project/cling.git
-        # Mirror the bash awk: insert clangInterpreter after clangEdit
-        # in tools/libcling/CMakeLists.txt LIBS.
-        $f = "cling\tools\libcling\CMakeLists.txt"
-        (Get-Content $f) | ForEach-Object {
-          $_
-          if ($_ -ceq "  clangEdit") { "  clangInterpreter" }
-        } | Set-Content $f
-        New-Item -ItemType Directory -Path cling\build | Out-Null
-        Set-Location cling\build
-        cmake .. `
-          -DCMAKE_BUILD_TYPE=Release `
-          "-DLLVM_DIR=$LLVM_PREFIX\lib\cmake\llvm" `
-          "-DClang_DIR=$LLVM_PREFIX\lib\cmake\clang" `
-          "-DCMAKE_INSTALL_PREFIX=$LLVM_PREFIX" `
-          -DCLING_INCLUDE_TESTS=ON `
-          -DLLVM_INCLUDE_TESTS=OFF
-        cmake --build . --config Release --parallel ${{ env.ncpus }}
-        cmake --install . --config Release
-
-    - name: Cache LLVM-${{ matrix.clang-runtime }} (Clang-REPL) build
-      uses: actions/cache/save@v4
-      if: ${{ runner.environment != 'self-hosted' && !matrix.use-recipe && steps.cache.outputs.cache-hit != 'true' }}
-      with:
-        path: llvm-project
-        key: ${{ steps.cache.outputs.cache-primary-key }}
+        version:        ${{ matrix.clang-runtime }}
+        os:             ${{ matrix.self-hosted-os || matrix.os }}
+        flavor:         ${{ matrix.flavor }}
+        flavor-version: ${{ matrix.flavor-version }}
 
     - name: Setup code coverage
       if: ${{ success() && (matrix.coverage == true) }}
@@ -290,14 +196,23 @@ jobs:
     needs: prepare-dell
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
-    env: *build_env
     strategy:
       fail-fast: false
       matrix:
         include:
+          # Self-hosted runs ubuntu-22.04 (jammy); no llvm-release cell
+          # for that runner image. flavor: system pulls from
+          # apt-llvm.org, which mirrors what the old in-line
+          # `Install LLVM-N dependencies on self-hosted` block did.
+          # self-hosted-os is the string slug setup-llvm needs for
+          # downstream cache-key purposes; matrix.os here is an array
+          # (the runs-on label set), and arrays can't flow into
+          # string-typed action inputs.
           - name: selfh-ubu22-x86-gcc12-llvm22-cuda
             os: [self-hosted, cuda, heavy]
+            self-hosted-os: ubuntu-22.04
             compiler: gcc-12
             clang-runtime: '22'
+            flavor: system
             coverage: true
     steps: *build_steps

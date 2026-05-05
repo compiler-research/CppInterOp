@@ -150,8 +150,21 @@ runs:
           else
             SUPPRESSION_FILE="../etc/${CLANG_INTERPRETER}${CLANG_VERSION}-valgrind.supp"
           fi
+          # CppInterOp's per-major valgrind supp file (the one
+          # Build_and_Test_CppInterOp loads) covers the post-recipe
+          # #194147 expansion -- the cppyy-side supp file in
+          # cppyy/etc/ is owned by a different repo and lags. Stack
+          # both via repeated --suppressions= flags so the cppyy
+          # valgrind run inherits the same coverage CppInterOp's own
+          # tests get without a cross-repo PR.
+          CPPINTEROP_SUPP="${GITHUB_WORKSPACE}/etc/clang${CLANG_VERSION}-valgrind.supp"
+          if [[ -f "${CPPINTEROP_SUPP}" ]]; then
+            EXTRA_SUPP=(--suppressions="${CPPINTEROP_SUPP}")
+          else
+            EXTRA_SUPP=()
+          fi
           export IS_VALGRIND=true
-          valgrind --show-error-list=yes --error-exitcode=1 --track-origins=yes --gen-suppressions=all --suppressions="${SUPPRESSION_FILE}" --suppressions=../etc/valgrind-cppyy-cling.supp python -m pytest -m "not xfail" -sv -ra --ignore=test_leakcheck.py
+          valgrind --show-error-list=yes --error-exitcode=1 --track-origins=yes --gen-suppressions=all --suppressions="${SUPPRESSION_FILE}" --suppressions=../etc/valgrind-cppyy-cling.supp "${EXTRA_SUPP[@]}" python -m pytest -m "not xfail" -sv -ra --ignore=test_leakcheck.py
           unset IS_VALGRIND
         fi
         export RETCODE=+$?

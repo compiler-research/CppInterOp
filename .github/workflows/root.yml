@@ -22,19 +22,11 @@ jobs:
   build-root:
     name: ${{ matrix.name }}
     runs-on: ${{ matrix.os }}
-    env:
-      # Match main.yml's job-level CLING_VERSION so Save_PR_Info computes
-      # CLING_HASH against the same git tag (refs/tags/v1.3) and the cache
-      # key prefix matches.
-      CLING_VERSION: '1.3'
     strategy:
       fail-fast: false
       matrix:
         include:
-          # cling is quoted so YAML parsers that read `On` as a boolean
-          # (e.g. nektos/act) still produce the string "On" that
-          # Save_PR_Info compares against.
-          - { name: ubu24-x86-gcc14-cling-llvm20-root, os: ubuntu-24.04, compiler: gcc-14, clang-runtime: '20', cling: 'On' }
+          - { name: ubu24-x86-gcc14-cling-llvm20-root, os: ubuntu-24.04, compiler: gcc-14, clang-runtime: '20' }
 
     steps:
     - name: Checkout CppInterOp PR
@@ -47,18 +39,6 @@ jobs:
       with:
         python-version: '3.14'
 
-    - name: Save PR Info
-      uses: ./cppinterop/.github/actions/Miscellaneous/Save_PR_Info
-
-    - name: Setup llvm-root recipe (LLVM ${{ matrix.clang-runtime }} / ROOT-llvm20)
-      uses: compiler-research/ci-workflows/actions/setup-recipe@main
-      with:
-        recipe: llvm-root
-        version: ROOT-llvm20
-        os: ${{ matrix.os }}
-        arch: x86_64
-        build-on-miss: 'false'
-
     - name: Setup default Build Type
       uses: ./cppinterop/.github/actions/Miscellaneous/Select_Default_Build_Type
 
@@ -70,11 +50,26 @@ jobs:
     - name: Install dependencies
       uses: ./cppinterop/.github/actions/Miscellaneous/Install_Dependencies
 
+    # ROOT consumes the same llvm-root tree the cling-on-top rows in
+    # main.yml use. The setup-llvm action pulls llvm-root with the
+    # ROOT-llvm20 flavor (cling's patches plus ROOT's extra clang
+    # patches) and builds cling on top. ROOT's bundled cling sources
+    # in the substituted CppInterOp tree below pick this install up
+    # via CMAKE_PREFIX_PATH.
+    - name: Setup LLVM 20 [cling, ROOT-llvm20]
+      uses: compiler-research/ci-workflows/actions/setup-llvm@main
+      with:
+        version: '20'
+        os: ${{ matrix.os }}
+        arch: x86_64
+        flavor: cling
+        flavor-version: 'ROOT-llvm20'
+
     - name: Verify cached LLVM/Clang layout
       shell: bash
       run: |
         # Sanity-check the artifact ROOT will consume. Catches drift
-        # in `Build_LLVM`'s trim or ninja targets early, with a clear
+        # in the recipe trim or ninja targets early, with a clear
         # error, instead of cascading into an opaque ROOT cmake or
         # link failure several steps later. We assert:
         #   - LLVMConfig.cmake / ClangConfig.cmake exist (else ROOT's
@@ -84,8 +79,8 @@ jobs:
         #     core/clingutils/CMakeLists.txt:95 globs and requires a
         #     unique version).
         #   - libclangInterpreter.a is present (ROOT's bundled cling
-        #     links it; cache built before that target was added to
-        #     Build_LLVM's ninja line would be missing it).
+        #     links it; recipe built before that target was added to
+        #     the recipe's ninja line would be missing it).
         #   - clang/include/clang/Basic/Module.h survived the trim
         #     (ROOT's core/clingutils/res/TClingUtils.h includes it via
         #     CPLUS_INCLUDE_PATH; an over-aggressive trim that nukes
