@@ -220,10 +220,66 @@ TEST_F(TracingTest, ArgFormattingHandle) {
 }
 
 TEST_F(TracingTest, ArgFormattingString) {
+  // Plain printable-ASCII content takes the `"..."` branch -- the
+  // raw-literal form is reserved for content that would mis-encode as
+  // a plain literal (see ArgFormattingString* tests below).
   FuncTakingString("hello");
   auto output = TraceInfo::TheTraceInfo->getLastLogEntry();
-  // Raw literal form: R"CPPI(hello)CPPI" preserves bytes verbatim.
-  EXPECT_THAT(output, HasSubstr("Cpp::FuncTakingString(R\"CPPI(hello)CPPI\")"));
+  EXPECT_THAT(output, HasSubstr("Cpp::FuncTakingString(\"hello\")"));
+}
+
+TEST_F(TracingTest, ArgFormattingEmptyStringIsPlain) {
+  // Empty string takes the no-special-char branch -- emit `""` rather
+  // than `R"CPPI()CPPI"`.
+  FuncTakingString("");
+  auto output = TraceInfo::TheTraceInfo->getLastLogEntry();
+  EXPECT_THAT(output, HasSubstr("Cpp::FuncTakingString(\"\")"));
+  EXPECT_THAT(output, Not(HasSubstr("R\"CPPI(")));
+}
+
+TEST_F(TracingTest, ArgFormattingStringWithEmbeddedDoubleQuote) {
+  // Double quote forces the raw-literal fallback -- a plain `"..."`
+  // would terminate the string at the embedded quote.
+  FuncTakingString("a\"b");
+  auto output = TraceInfo::TheTraceInfo->getLastLogEntry();
+  EXPECT_THAT(output, HasSubstr("R\"CPPI(a\"b)CPPI\""));
+}
+
+TEST_F(TracingTest, ArgFormattingStringWithEmbeddedBackslash) {
+  // Backslash forces raw-literal -- in a plain literal it would start
+  // an escape sequence.
+  FuncTakingString("a\\b");
+  auto output = TraceInfo::TheTraceInfo->getLastLogEntry();
+  EXPECT_THAT(output, HasSubstr("R\"CPPI(a\\b)CPPI\""));
+}
+
+TEST_F(TracingTest, ArgFormattingStringWithControlChar) {
+  // Newline (a control char, < 0x20) forces raw-literal so the line
+  // doesn't get split mid-string in the reproducer.
+  FuncTakingString("a\nb");
+  auto output = TraceInfo::TheTraceInfo->getLastLogEntry();
+  EXPECT_THAT(output, HasSubstr("R\"CPPI(a\nb)CPPI\""));
+}
+
+TEST_F(TracingTest, ArgFormattingMultiLineStringUsesRawLiteral) {
+  // Multi-line source blocks (typical of Cpp::Declare / Cpp::Process)
+  // have several embedded newlines; raw-literal preserves the layout
+  // verbatim so the reproducer compiles unchanged.
+  FuncTakingString("void f() {\n  return 42;\n}\n");
+  auto output = TraceInfo::TheTraceInfo->getLastLogEntry();
+  EXPECT_THAT(output,
+              HasSubstr("R\"CPPI(void f() {\n  return 42;\n}\n)CPPI\""));
+}
+
+TEST_F(TracingTest, ArgFormattingStringWithHighBitStaysPlain) {
+  // High-bit (UTF-8) bytes are >= 0x20 and != 0x7f, so they keep the
+  // plain-literal path -- the source bytes pass through unchanged and
+  // the reproducer compiles with the same encoding.
+  FuncTakingString("r\xc3\xa9sum\xc3\xa9"); // "résumé" in UTF-8
+  auto output = TraceInfo::TheTraceInfo->getLastLogEntry();
+  EXPECT_THAT(output,
+              HasSubstr("Cpp::FuncTakingString(\"r\xc3\xa9sum\xc3\xa9\")"));
+  EXPECT_THAT(output, Not(HasSubstr("R\"CPPI(")));
 }
 
 TEST_F(TracingTest, ArgFormattingInt) {
@@ -237,7 +293,7 @@ TEST_F(TracingTest, ArgFormattingMixed) {
   FuncTakingMixed(h, "world", 99);
   auto output = getFullLog();
   EXPECT_THAT(output,
-              HasSubstr("Cpp::FuncTakingMixed(v1, R\"CPPI(world)CPPI\", 99)"));
+              HasSubstr("Cpp::FuncTakingMixed(v1, \"world\", 99)"));
 }
 
 TEST_F(TracingTest, ArgFormattingOutParamSkipped) {
