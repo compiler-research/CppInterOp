@@ -2879,6 +2879,33 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_FailingTest1) {
   EXPECT_FALSE(Cpp::Declare("int y = x;"));
 }
 
+TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_DeletedCopyConstrutor) {
+  std::vector<Decl*> Decls;
+  std::vector<Decl*> SubDecls;
+  std::string code = R"(
+        struct GH {
+           int fMember;
+           GH(int m = 1) : fMember(m) {}
+           GH(const GH&) = delete;
+           GH(GH&&) = default;
+        };
+        struct GH_Default {
+           int fMember;
+           GH_Default(GH p = GH()) : fMember(p.fMember) {}
+        };
+      )";
+
+  GetAllTopLevelDecls(code, Decls, false, {"-include", "new"});
+  EXPECT_EQ(Decls.size(), 2);
+
+  GetAllSubDecls(Decls[1], SubDecls);
+  EXPECT_EQ(SubDecls.size(), 3);
+
+  EXPECT_TRUE(Cpp::IsConstructor(SubDecls[2]));
+  auto Fn = Cpp::MakeFunctionCallable(SubDecls[2]);
+  EXPECT_EQ(Fn.getKind(), Cpp::JitCall::kConstructorCall);
+}
+
 TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_IsExplicit) {
   std::vector<Decl*> Decls;
   std::vector<Decl*> SubDecls;
