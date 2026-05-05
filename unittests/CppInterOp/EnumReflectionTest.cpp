@@ -238,6 +238,10 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, EnumReflection_GetEnumConstantValue) {
       MinusNine
     };
     int a = 10;
+
+    enum TooLong : unsigned long long {
+      BIG = ((unsigned long long)1)<<63
+    };
   )";
 
   GetAllTopLevelDecls(code, Decls);
@@ -250,7 +254,12 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, EnumReflection_GetEnumConstantValue) {
   EXPECT_EQ(Cpp::GetEnumConstantValue(EnumConstants[4]), 54);
   EXPECT_EQ(Cpp::GetEnumConstantValue(EnumConstants[5]), -10);
   EXPECT_EQ(Cpp::GetEnumConstantValue(EnumConstants[6]), -9);
+
   EXPECT_EQ(Cpp::GetEnumConstantValue(Decls[1]), 0); // Checking value of non enum constant
+
+  EnumConstants = Cpp::GetEnumConstants(Decls[2]);
+  EXPECT_EQ(Cpp::GetEnumConstantValue(EnumConstants[0]), ((unsigned long long)1)
+                                                             << 63);
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, EnumReflection_GetEnums) {
