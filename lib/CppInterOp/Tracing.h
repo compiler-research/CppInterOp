@@ -221,11 +221,30 @@ struct ReproBuffer {
       OS << h;
   }
 
-  // Strings — emit as a raw string literal R"CPPI(...)CPPI" so newlines,
-  // quotes, and backslashes pass through verbatim. The CPPI delimiter
-  // makes accidental in-content collisions vanishingly unlikely (would
-  // need the literal sequence )CPPI" inside a traced string).
-  void appendRaw(std::string_view s) { OS << "R\"CPPI(" << s << ")CPPI\""; }
+  // Strings -- emit a plain `"..."` literal when the content is
+  // printable ASCII without `"`, `\`, or control chars; otherwise
+  // fall back to `R"CPPI(...)CPPI"`, which passes the bytes through
+  // verbatim. The raw form is reserved for the cases that actually
+  // need it (quotes, backslashes, newlines from Cpp::Process /
+  // Cpp::Declare source blocks); plain literals keep the trace lines
+  // short and human-readable for the common case (identifiers,
+  // paths, simple expressions).
+  void appendRaw(std::string_view s) {
+    bool NeedsRaw = false;
+    for (char c : s) {
+      auto u = static_cast<unsigned char>(c);
+      // 0x20 is space: anything below it is a C0 control char (incl. \n,
+      // \t, \r) that would break a plain quoted literal; 0x7f is DEL.
+      if (c == '"' || c == '\\' || u < 0x20 || u == 0x7f) {
+        NeedsRaw = true;
+        break;
+      }
+    }
+    if (NeedsRaw)
+      OS << "R\"CPPI(" << s << ")CPPI\"";
+    else
+      OS << '"' << s << '"';
+  }
   void append(const char* s) {
     appendRaw(s ? std::string_view(s) : std::string_view());
   }
