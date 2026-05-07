@@ -7,6 +7,7 @@
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/raw_ostream.h"
 
+#include <cstdint>
 #include <fstream>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
@@ -217,6 +218,29 @@ TEST_F(TracingTest, ArgFormattingHandle) {
   // The handle should be registered as v1, then reused.
   EXPECT_THAT(output, HasSubstr("auto v1 = Cpp::FuncReturningHandle()"));
   EXPECT_THAT(output, HasSubstr("Cpp::FuncTakingHandle(v1)"));
+}
+
+TEST_F(TracingTest, ArgFormattingUnregisteredHandleAnnotated) {
+  // A non-null pointer the tracer never produced -- the call is the
+  // first reference to it. The reproducer cannot bind it to a name,
+  // so flag the gap with `nullptr /*unknown*/` rather than silently
+  // collapsing to a bare `nullptr` (the previously-dead branch in
+  // ReproBuffer::append; lookupHandle now returns "" for unregistered).
+  // 0xDEADBEEF is unsigned int (>= 2^31) -- cast through uintptr_t
+  // to keep MSVC's C4312 silent on 64-bit, where void* is wider.
+  FuncTakingHandle(reinterpret_cast<void*>(static_cast<uintptr_t>(0xDEADBEEF)));
+  auto output = TraceInfo::TheTraceInfo->getLastLogEntry();
+  EXPECT_THAT(output, HasSubstr("Cpp::FuncTakingHandle(nullptr /*unknown*/)"));
+}
+
+TEST_F(TracingTest, ArgFormattingNullHandlePlain) {
+  // Genuine null renders as plain `nullptr` -- never carries the
+  // /*unknown*/ annotation, which is reserved for unregistered
+  // non-null pointers.
+  FuncTakingHandle(nullptr);
+  auto output = TraceInfo::TheTraceInfo->getLastLogEntry();
+  EXPECT_THAT(output, HasSubstr("Cpp::FuncTakingHandle(nullptr)"));
+  EXPECT_THAT(output, Not(HasSubstr("/*unknown*/")));
 }
 
 TEST_F(TracingTest, ArgFormattingString) {
@@ -610,6 +634,12 @@ TEST_F(TracingTest, HandleRegistry) {
   EXPECT_EQ(TI.lookupHandle(ptr2), v2);
 
   EXPECT_EQ(TI.lookupHandle(nullptr), "nullptr");
+
+  // An unregistered non-null pointer returns "" so callers can tell
+  // "the tracer has no handle for this" from "this is the literal
+  // nullptr". The two cases used to collide on "nullptr" and the
+  // distinction is what lets ReproBuffer annotate unknown args.
+  EXPECT_EQ(TI.lookupHandle((const void*)0xBADADD), "");
 
   // getOrRegisterHandle(nullptr) should return empty, not register.
   EXPECT_EQ(TI.getOrRegisterHandle(nullptr), "");
