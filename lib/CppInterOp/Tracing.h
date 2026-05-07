@@ -262,9 +262,7 @@ struct ReproBuffer {
   void append(float f) { OS << llvm::formatv("{0:f}", f); }
 
   // Vector input args -- emit a braced init list of recursively-formatted
-  // elements so the reproducer's call-site literal compiles. The previous
-  // `{...}` placeholder leaked through to generated reproducers and made
-  // them un-buildable as soon as a non-OutParam vector was passed in.
+  // elements so the reproducer's call-site literal compiles.
   template <typename T> void append(const std::vector<T>& V) {
     OS << "{";
     bool First = true;
