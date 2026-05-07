@@ -704,6 +704,97 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_GetNamed) {
   EXPECT_EQ(Cpp::GetQualifiedName(std_string_npos_var), "std::basic_string<char>::npos");
 }
 
+TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_GetNamedWithUsing) {
+  // Each subcase covers one form of [namespace.udecl] / [namespace.udir].
+  // GetNamed must look through the alias and return the original decl,
+  // identified by canonical-decl identity.
+  std::string code = R"(
+    namespace N {
+      class C {};
+      int x;
+      void f();
+    }
+    namespace M {
+      using N::C;          // using-declaration: type
+      using N::x;          // using-declaration: variable
+      using N::f;          // using-declaration: function
+    }
+    namespace P {
+      using namespace N;   // using-directive
+    }
+  )";
+
+  TestFixture::CreateInterpreter();
+  Interp->declare(code);
+
+  Cpp::TCppScope_t ns_N = Cpp::GetNamed("N");
+  Cpp::TCppScope_t ns_M = Cpp::GetNamed("M");
+  Cpp::TCppScope_t ns_P = Cpp::GetNamed("P");
+  ASSERT_TRUE(ns_N);
+  ASSERT_TRUE(ns_M);
+  ASSERT_TRUE(ns_P);
+
+  Cpp::TCppScope_t N_C = Cpp::GetNamed("C", ns_N);
+  Cpp::TCppScope_t N_x = Cpp::GetNamed("x", ns_N);
+  Cpp::TCppScope_t N_f = Cpp::GetNamed("f", ns_N);
+  ASSERT_TRUE(N_C);
+  ASSERT_TRUE(N_x);
+  ASSERT_TRUE(N_f);
+
+  // using-declaration: GetNamed inside M should resolve through the
+  // UsingShadowDecl to the original target in N.
+  EXPECT_EQ(Cpp::GetNamed("C", ns_M), N_C)
+      << "using N::C; GetNamed(\"C\", M) should return N::C";
+  EXPECT_EQ(Cpp::GetNamed("x", ns_M), N_x)
+      << "using N::x; GetNamed(\"x\", M) should return N::x";
+  EXPECT_EQ(Cpp::GetNamed("f", ns_M), N_f)
+      << "using N::f; GetNamed(\"f\", M) should return N::f";
+
+  // using-directive: names in N are visible inside P; GetNamed should
+  // surface them as the canonical decls in N.
+  EXPECT_EQ(Cpp::GetNamed("C", ns_P), N_C)
+      << "using namespace N; GetNamed(\"C\", P) should return N::C";
+  EXPECT_EQ(Cpp::GetNamed("x", ns_P), N_x)
+      << "using namespace N; GetNamed(\"x\", P) should return N::x";
+  EXPECT_EQ(Cpp::GetNamed("f", ns_P), N_f)
+      << "using namespace N; GetNamed(\"f\", P) should return N::f";
+
+  // Transitive using-directive ([namespace.udir]p3): names visible via
+  // the closure of using-directives, not just the first hop. Exercises
+  // UnqualUsingDirectiveSet::addUsingDirectives' transitive walk.
+  Interp->declare(R"(
+    namespace P2 { using namespace N; }
+    namespace Q  { using namespace P2; }
+  )");
+  Cpp::TCppScope_t ns_Q = Cpp::GetNamed("Q");
+  ASSERT_TRUE(ns_Q);
+  EXPECT_EQ(Cpp::GetNamed("C", ns_Q), N_C)
+      << "using namespace P2 (which uses N); GetNamed(\"C\", Q) "
+         "should chase Q -> P2 -> N::C";
+
+  // Ambiguous using-directives: two namespaces define the same name,
+  // both made visible by sibling using-directives. GetNamed must
+  // collapse the ambiguity to nullptr (LookupResult2Decl returns -1
+  // for non-single results, GetNamed turns that into nullptr).
+  Interp->declare(R"(
+    namespace N3 { class C {}; }
+    namespace AmbU { using namespace N; using namespace N3; }
+  )");
+  Cpp::TCppScope_t ns_Amb = Cpp::GetNamed("AmbU");
+  ASSERT_TRUE(ns_Amb);
+  EXPECT_EQ(Cpp::GetNamed("C", ns_Amb), nullptr)
+      << "ambiguous using-directives must return nullptr, not silently "
+         "pick one";
+
+  // Anonymous-namespace member visible at TU scope: Within=nullptr
+  // takes the TUScope short-circuit, which already runs unqualified
+  // lookup. Pin that the short-circuit still finds the name (the
+  // synthetic-scope path never runs here).
+  Interp->declare("namespace { int hidden_y = 42; }");
+  EXPECT_TRUE(Cpp::GetNamed("hidden_y"))
+      << "anonymous-namespace member should be visible at TU scope";
+}
+
 TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_GetParentScope) {
   std::string code = R"(namespace N1 {
                         namespace N2 {
