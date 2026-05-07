@@ -1015,6 +1015,112 @@ TCppScope_t GetScopeFromCompleteName(const std::string& name) {
   return INTEROP_RETURN(GetScope(name.substr(start, end), curr_scope));
 }
 
+// Sema::CurScope is private, but we need to reseat it briefly to drive
+// Sema::LookupName at a synthesized point inside `Within`. The
+// ALLOW_ACCESS/ACCESS pair from Sins.h gets us there without patching
+// clang.
+ALLOW_ACCESS(clang::Sema, CurScope, clang::Scope*);
+
+namespace {
+// Mirror DC's enclosing namespace nesting as a chain of clang::Scope*
+// rooted at S.TUScope, each Scope's entity set to the matching
+// DeclContext. Sema::CppLookupName walks this chain via getParent() and
+// reads using-directives off each entity's NamespaceDecl, so this is
+// enough to make unqualified lookup honour `using namespace ...;`
+// declared inside DC.
+clang::Scope* BuildSyntheticScopeChain(clang::Sema& S, clang::DeclContext* DC) {
+  if (!DC || DC->isTranslationUnit())
+    return S.TUScope;
+  auto* Parent = BuildSyntheticScopeChain(S, DC->getParent());
+  auto* Mine = new clang::Scope(Parent, clang::Scope::DeclScope, S.Diags);
+  Mine->setEntity(DC);
+  return Mine;
+}
+
+// RAII: build a synthetic scope chain for `Within`, install it as
+// Sema::CurScope, restore + delete on destruction. CppLookupName is
+// read-only on Scope/Sema state (only getParent/getEntity/
+// getLookupEntity/isDeclScope reads, plus a stack-local
+// UnqualUsingDirectiveSet); freeing the synthetic scopes is the
+// entire teardown — no ActOnPopScope needed because we never pushed
+// any decl onto these scopes.
+class SyntheticScopeChain {
+public:
+  SyntheticScopeChain(clang::Sema& Sema, clang::DeclContext* Within)
+      : S(Sema), Innermost(BuildSyntheticScopeChain(Sema, Within)),
+        Saved(ACCESS(Sema, CurScope)) {
+    ACCESS(S, CurScope) = Innermost;
+  }
+  ~SyntheticScopeChain() {
+    ACCESS(S, CurScope) = Saved;
+    while (Innermost && Innermost != S.TUScope) {
+      auto* Next = Innermost->getParent();
+      delete Innermost;
+      Innermost = Next;
+    }
+  }
+  SyntheticScopeChain(const SyntheticScopeChain&) = delete;
+  SyntheticScopeChain& operator=(const SyntheticScopeChain&) = delete;
+
+  clang::Scope* get() const { return Innermost; }
+
+private:
+  clang::Sema& S;
+  clang::Scope* Innermost;
+  clang::Scope* Saved;
+};
+
+// Unqualified lookup of `Name` from a synthesized point inside `Within`
+// ([basic.lookup.unqual]). Honours using-directives reachable from
+// Within, which Sema::LookupQualifiedName does not.
+//
+// FIXME: longer-term we want two distinct routes — one wrapping
+// LookupQualifiedName and one this — exposed as separate operations so
+// callers can pick the C++ semantics they actually want. For now
+// GetNamed gates this behind a qualified-lookup-miss + reachable
+// using-directive check, so the common case stays on the cheap path.
+clang::NamedDecl* LookupUnqualified(clang::Sema& S,
+                                    const clang::DeclarationName& Name,
+                                    clang::DeclContext* Within) {
+  SyntheticScopeChain Chain(S, Within);
+  // NotForRedeclaration: ForVisibleRedeclaration causes Sema::CppLookupName
+  // to return as soon as the innermost namespace doesn't directly contain
+  // the name (SemaLookup.cpp:1545), which prevents using-directives from
+  // an enclosing common-ancestor namespace from firing. We're doing
+  // ordinary name lookup, not collecting redeclarations.
+  clang::LookupResult R(S, Name, clang::SourceLocation(),
+                        clang::Sema::LookupOrdinaryName,
+                        RedeclarationKind::NotForRedeclaration);
+  R.suppressDiagnostics();
+  S.LookupName(R, Chain.get());
+  // Match LookupResult2Decl from CppInterOpInterpreter.h (clang-repl-only
+  // header, not included in CPPINTEROP_USE_CLING builds). Empty -> null;
+  // single -> found decl; multi -> (D*)-1 sentinel that GetNamed treats
+  // as "ambiguous, give up".
+  if (R.empty())
+    return nullptr;
+  R.resolveKind();
+  if (R.isSingleResult())
+    return llvm::dyn_cast<clang::NamedDecl>(R.getFoundDecl());
+  return (clang::NamedDecl*)-1;
+}
+
+// Cheap probe: does any namespace from `DC` up to TU carry at least
+// one using-directive? Gates the synthetic-scope-chain build below so
+// the common case (no using-directives anywhere on the path) doesn't
+// pay the heap-allocation tax.
+bool HasReachableUsingDirective(const clang::DeclContext* DC) {
+  for (; DC && !DC->isTranslationUnit(); DC = DC->getParent()) {
+    if (const auto* NS = llvm::dyn_cast<clang::NamespaceDecl>(DC)) {
+      auto UDs = NS->using_directives();
+      if (UDs.begin() != UDs.end())
+        return true;
+    }
+  }
+  return false;
+}
+} // namespace
+
 TCppScope_t GetNamed(const std::string& name,
                      TCppScope_t parent /*= nullptr*/) {
   INTEROP_TRACE(name, parent);
@@ -1029,10 +1135,26 @@ TCppScope_t GetNamed(const std::string& name,
     Within->getPrimaryContext()->buildLookup();
 #endif
   compat::SynthesizingCodeRAII RAII(&getInterp());
+
+  // Fast path: qualified lookup. Cheap, no scope-chain allocation, and
+  // resolves every name not brought into `Within` via a using-directive.
+  // Lookup::Named falls back to LookupName(R, TUScope) when Within is
+  // null, so TU-level using-directives are already handled there.
   auto* ND = CppInternal::utils::Lookup::Named(&getSema(), name, Within);
-  if (ND && ND != (clang::NamedDecl*)-1) {
+  if (ND && ND != (clang::NamedDecl*)-1)
     return INTEROP_RETURN((TCppScope_t)(ND->getCanonicalDecl()));
-  }
+
+  // Slow path: only when qualified lookup missed AND `Within` is a
+  // namespace whose enclosing chain carries at least one using-directive
+  // (the only reason qualified-vs-unqualified disagree at namespace
+  // scope per [basic.lookup.unqual] vs [basic.lookup.qual]).
+  if (!Within || !llvm::isa<clang::NamespaceDecl>(Within) ||
+      !HasReachableUsingDirective(Within))
+    return INTEROP_RETURN(nullptr);
+  clang::DeclarationName DName = &getSema().Context.Idents.get(name);
+  ND = LookupUnqualified(getSema(), DName, Within);
+  if (ND && ND != (clang::NamedDecl*)-1)
+    return INTEROP_RETURN((TCppScope_t)(ND->getCanonicalDecl()));
 
   return INTEROP_RETURN(nullptr);
 }
