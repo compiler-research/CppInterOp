@@ -368,18 +368,57 @@ TEST_F(TracingTest, NonPointerReturnNoAnnotation) {
   EXPECT_THAT(output, HasSubstr("Cpp::ReturnInt()"));
 }
 
-// Test: non-streamable types (e.g. std::vector) are formatted as placeholders.
-void FuncTakingVector(const std::vector<const char*>& args) {
+// Vector input args are formatted as braced init lists of
+// recursively-formatted elements -- no longer the `{...}` placeholder
+// that produced uncompilable reproducers.
+void FuncTakingStrVector(const std::vector<const char*>& args) {
   INTEROP_TRACE(args);
   return INTEROP_VOID_RETURN();
 }
 
-TEST_F(TracingTest, ArgFormattingNonStreamable) {
+void FuncTakingIntVector(const std::vector<int>& args) {
+  INTEROP_TRACE(args);
+  return INTEROP_VOID_RETURN();
+}
+
+void FuncTakingNestedVector(const std::vector<std::vector<int>>& args) {
+  INTEROP_TRACE(args);
+  return INTEROP_VOID_RETURN();
+}
+
+TEST_F(TracingTest, ArgFormattingVectorOfStrings) {
+  // Exercises the per-element loop with the `, ` separator (>1 element)
+  // and the const-char* overload of append (plain-quote form).
   std::vector<const char*> v = {"a", "b"};
-  FuncTakingVector(v);
+  FuncTakingStrVector(v);
   auto output = TraceInfo::TheTraceInfo->getLastLogEntry();
-  // Non-streamable types should get a {...} placeholder.
-  EXPECT_THAT(output, HasSubstr("Cpp::FuncTakingVector({...})"));
+  EXPECT_THAT(output, HasSubstr("Cpp::FuncTakingStrVector({\"a\", \"b\"})"));
+}
+
+TEST_F(TracingTest, ArgFormattingVectorOfInts) {
+  // Pins the integer-element path through append(int).
+  std::vector<int> v = {1, 2, 3};
+  FuncTakingIntVector(v);
+  auto output = TraceInfo::TheTraceInfo->getLastLogEntry();
+  EXPECT_THAT(output, HasSubstr("Cpp::FuncTakingIntVector({1, 2, 3})"));
+}
+
+TEST_F(TracingTest, ArgFormattingEmptyVector) {
+  // Empty vector skips the loop -- emit `{}` with no separator. Pins
+  // the First-flag branch where it never flips.
+  std::vector<int> v;
+  FuncTakingIntVector(v);
+  auto output = TraceInfo::TheTraceInfo->getLastLogEntry();
+  EXPECT_THAT(output, HasSubstr("Cpp::FuncTakingIntVector({})"));
+}
+
+TEST_F(TracingTest, ArgFormattingNestedVector) {
+  // Recursive call: append(vector<vector<int>>) dispatches to
+  // append(vector<int>) for each element.
+  std::vector<std::vector<int>> v = {{1, 2}, {3}};
+  FuncTakingNestedVector(v);
+  auto output = TraceInfo::TheTraceInfo->getLastLogEntry();
+  EXPECT_THAT(output, HasSubstr("Cpp::FuncTakingNestedVector({{1, 2}, {3}})"));
 }
 
 // ---------------------------------------------------------------------------
