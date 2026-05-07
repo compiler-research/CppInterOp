@@ -2382,13 +2382,13 @@ static std::optional<QualType> GetTypeInternal(Decl* D) {
   return {};
 }
 
-TCppType_t GetType(const std::string& name) {
-  INTEROP_TRACE(name);
+TCppType_t GetType(const std::string& name, TCppScope_t parent /*= nullptr*/) {
+  INTEROP_TRACE(name, parent);
   QualType builtin = findBuiltinType(name, getASTContext());
   if (!builtin.isNull())
     return INTEROP_RETURN(builtin.getAsOpaquePtr());
 
-  return INTEROP_RETURN(GetTypeFromScope(GetNamed(name, /*parent=*/nullptr)));
+  return INTEROP_RETURN(GetTypeFromScope(GetNamed(name, parent)));
 }
 
 TCppType_t GetComplexType(TCppType_t type) {
