@@ -3841,17 +3841,23 @@ CPPINTEROP_API JitCall MakeFunctionCallable(TCppConstFunction_t func) {
 
 namespace {
 #if !defined(CPPINTEROP_USE_CLING) && !defined(EMSCRIPTEN)
-bool DefineAbsoluteSymbol(compat::Interpreter& I,
-                          const char* linker_mangled_name, uint64_t address) {
+bool DefineAbsoluteSymbol(compat::Interpreter& I, const char* unmangled_name,
+                          uint64_t address) {
   using namespace llvm;
   using namespace llvm::orc;
 
   llvm::orc::LLJIT& Jit = *compat::getExecutionEngine(I);
-  llvm::orc::ExecutionSession& ES = Jit.getExecutionSession();
   JITDylib& DyLib = *Jit.getProcessSymbolsJITDylib().get();
 
+  // mangleAndIntern applies the target DataLayout's symbol prefix
+  // (leading `_` on Mach-O, no-op on ELF) so the registered key
+  // matches what the JIT computes when it lowers an IR-level symbol
+  // reference for lookup. Plain ES.intern() bypasses the prefix and
+  // silently breaks lookup on Mach-O — e.g.
+  // `__clang_Interpreter_SetValueNoAlloc` registered, but the JIT
+  // looks up `___clang_Interpreter_SetValueNoAlloc`.
   llvm::orc::SymbolMap InjectedSymbols{
-      {ES.intern(linker_mangled_name),
+      {Jit.mangleAndIntern(unmangled_name),
        ExecutorSymbolDef(ExecutorAddr(address), JITSymbolFlags::Exported)}};
 
   if (Error Err = DyLib.define(absoluteSymbols(InjectedSymbols))) {
