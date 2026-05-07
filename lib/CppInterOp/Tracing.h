@@ -53,6 +53,8 @@ class TraceInfo {
   /// that returns std::vector<P*>. Separate from m_VarCount so the
   /// vN handle namespace stays dense.
   unsigned m_RetCount = 0;
+  /// Monotonic suffix for `_outN` -- one slot per OUT pointer-container.
+  unsigned m_OutCount = 0;
 
   std::vector<std::string> m_Log;
   size_t m_RegionStart = 0; ///< Log index where current region began.
@@ -117,6 +119,10 @@ public:
   /// Allocate the next `_retN` index for a vector-return placeholder.
   unsigned nextRetIndex() { return m_RetCount++; }
 
+  /// Allocate the next `_outN` index. One per OUT argument, not per
+  /// call -- two OUT pointer-containers in one call get _out0/_out1.
+  unsigned nextOutIndex() { return m_OutCount++; }
+
   void appendToLog(const std::string& line) {
     m_Log.push_back(line);
     if (m_InRegion && m_WriteOnStdErr)
@@ -157,6 +163,7 @@ public:
     m_Log.clear();
     m_VarCount = 0;
     m_RetCount = 0;
+    m_OutCount = 0;
   }
 
   CPPINTEROP_TRACE_API static TraceInfo* TheTraceInfo;
@@ -194,9 +201,15 @@ inline void StopTracing(const std::string& Version = "") {
 /// all downstream code (ReproBuffer, TraceRegion) works with a single
 /// concrete type — no template specializations or detection traits needed.
 struct OutParam {
-  /// Callback that registers the container's pointer elements as handles.
-  /// Null when the container doesn't hold pointers (e.g. vector<string>).
-  std::function<void(TraceInfo&)> RegisterHandles;
+  /// Register the container's pointer elements as handles and emit
+  /// one `void* vN = _outN[i] : nullptr;` decl per newly-registered
+  /// element so a later call referencing the registered name finds a
+  /// real binding.
+  std::function<void(TraceInfo&, unsigned OutIdx)> RegisterHandles;
+  /// Drives the `_outN` preamble + alias path. Non-pointer containers
+  /// stay on the legacy "skip in arg list" rendering -- their type is
+  /// not erasable to void*, so the preamble decl would not type-check.
+  bool IsPointerContainer = false;
 };
 
 /// Create an OutParam for any container. Only sets up handle registration
@@ -205,9 +218,22 @@ template <typename Container> OutParam MakeOutParam(const Container& C) {
   OutParam OP;
   using Value = typename Container::value_type;
   if constexpr (std::is_pointer_v<Value>) {
-    OP.RegisterHandles = [&C](TraceInfo& TI) {
-      for (const auto& Elem : C)
-        TI.getOrRegisterHandle(reinterpret_cast<void*>(Elem));
+    OP.IsPointerContainer = true;
+    OP.RegisterHandles = [&C](TraceInfo& TI, unsigned OutIdx) {
+      size_t I = 0;
+      for (const auto& Elem : C) {
+        const void* P = static_cast<const void*>(Elem);
+        bool isNew = TI.lookupHandle(P).empty();
+        std::string Name = TI.getOrRegisterHandle(P);
+        // Bounds-guard with `.size() > i` for replays where the
+        // function fills fewer elements than the original call did.
+        if (isNew && P)
+          TI.appendToLog(llvm::formatv("  void* {0} = _out{1}.size() > {2} ? "
+                                       "_out{1}[{2}] : nullptr;",
+                                       Name, OutIdx, I)
+                             .str());
+        ++I;
+      }
     };
   }
   return OP;
@@ -335,11 +361,23 @@ struct ReproBuffer {
     OS << "?";
   }
 
-  /// Format a comma-separated argument list, skipping OutParam entries.
-  template <typename... Args> void format(Args&&... args) {
+  /// Format a comma-separated argument list. Pointer-container OUTs
+  /// emit `_outN` (next index from \p OutIndices); non-pointer OUTs
+  /// are skipped, matching the legacy rendering.
+  template <typename... Args>
+  void format(llvm::ArrayRef<unsigned> OutIndices, Args&&... args) {
     bool first = true;
+    size_t nextOut = 0;
     auto appendOne = [&](auto&& val) {
-      if constexpr (!std::is_same_v<std::decay_t<decltype(val)>, OutParam>) {
+      using V = std::decay_t<decltype(val)>;
+      if constexpr (std::is_same_v<V, OutParam>) {
+        if (val.IsPointerContainer) {
+          if (!first)
+            OS << ", ";
+          first = false;
+          OS << "_out" << OutIndices[nextOut++];
+        }
+      } else {
         if (!first)
           OS << ", ";
         first = false;
@@ -378,14 +416,22 @@ struct TraceData {
   llvm::SmallVector<const void*, 8> RetVecPtrs;
   double StartTime = 0;
   bool Returned = false;
-  llvm::SmallVector<std::function<void(TraceInfo&)>, 2> OutCallbacks;
+  llvm::SmallVector<std::function<void(TraceInfo&, unsigned)>, 2> OutCallbacks;
+  /// `_outN` indices for this call's OUT pointer-containers, in
+  /// left-to-right order. Consumed by format() at the call site and
+  /// by ~TraceRegion to emit the preamble decls.
+  llvm::SmallVector<unsigned, 2> OutIndices;
 };
 
 class TraceRegion {
   std::unique_ptr<TraceData> m_Data;
 
-  // Capture an OutParam's handle-registration callback; ignore everything else.
+  /// Allocate the OUT pointer-container's `_outN` index here, before
+  /// format() runs and consumes them. Non-pointer containers allocate
+  /// no index and fall through to the legacy skip rendering.
   void captureArg(OutParam&& op) {
+    if (op.IsPointerContainer)
+      m_Data->OutIndices.push_back(TraceInfo::TheTraceInfo->nextOutIndex());
     if (op.RegisterHandles)
       m_Data->OutCallbacks.push_back(std::move(op.RegisterHandles));
   }
@@ -397,10 +443,12 @@ public:
       return;
     m_Data = std::make_unique<TraceData>();
     m_Data->Name = Name;
+    // captureArg before format(): it fills OutIndices that format()
+    // consumes.
     (captureArg(std::forward<Args>(args)), ...);
     if constexpr (sizeof...(args) > 0) {
       ReproBuffer RB;
-      RB.format(std::forward<Args>(args)...);
+      RB.format(m_Data->OutIndices, std::forward<Args>(args)...);
       m_Data->ArgStr = RB.Buffer;
     }
     TraceInfo& TI = *TraceInfo::TheTraceInfo;
@@ -424,10 +472,6 @@ public:
     auto Dur = static_cast<long long>((EndTime - m_Data->StartTime) * 1e9);
     TraceInfo& TI = *TraceInfo::TheTraceInfo;
     TI.popTimer();
-
-    // Register out-param handles now that the function has filled them.
-    for (auto& cb : m_Data->OutCallbacks)
-      cb(TI);
 
     // Allocate a `_retN` slot up-front for vector-of-pointer returns so
     // the call line spells `auto _retN = ...` and the per-element decls
@@ -460,11 +504,23 @@ public:
       VarPart = llvm::formatv("auto _ret{0} = ", RetIdx).str();
     }
 
+    // Preamble: declare a fresh buffer per OUT pointer-container.
+    // void* element type matches the public API's erasure of
+    // TCpp*Scope_t et al.
+    for (unsigned Idx : m_Data->OutIndices)
+      TI.appendToLog(llvm::formatv("  std::vector<void*> _out{0};", Idx).str());
+
     std::string Call = llvm::formatv("  {0}Cpp::{1}({2}); // [{3} ns]", VarPart,
                                      m_Data->Name, m_Data->ArgStr, Dur);
 
     // Store in log for the reproducer file.
     TI.appendToLog(Call);
+
+    // After the call: register OUT-element handles and emit one
+    // `void* vN = _outN[i] : nullptr;` decl per newly-seen element so a
+    // later call referencing the registered name finds a real binding.
+    for (size_t i = 0; i < m_Data->OutCallbacks.size(); ++i)
+      m_Data->OutCallbacks[i](TI, m_Data->OutIndices[i]);
 
     // Per-element extractions for vector returns. Bounds-guard so the
     // line is safe even if the replay produces a shorter vector than
