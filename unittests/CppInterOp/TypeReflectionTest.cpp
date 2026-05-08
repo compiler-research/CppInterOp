@@ -133,6 +133,52 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, TypeReflection_GetType) {
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetType("struct")),"NULL TYPE");
 }
 
+TYPED_TEST(CPPINTEROP_TEST_MODE, TypeReflection_GetTypeWithParent) {
+  TestFixture::CreateInterpreter();
+
+  Interp->declare(R"(
+    namespace NS {
+      struct Test {};
+      using testptr = Test*;       // alias whose target is Test*, not Test
+      using testref = Test&;       // alias whose target is a reference
+      typedef Test testtd;         // classic typedef to a class
+      class Member {};
+    }
+  )");
+
+  Cpp::TCppScope_t ns = Cpp::GetNamed("NS");
+  ASSERT_TRUE(ns);
+
+  // Builtin fast-path is independent of parent: `int` resolves
+  // identically with and without a scope.
+  EXPECT_EQ(Cpp::GetType("int"), Cpp::GetType("int", ns));
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetType("int", ns)), "int");
+
+  // Direct-member lookup via parent.
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetType("Test", ns)), "NS::Test");
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetType("Member", ns)), "NS::Member");
+
+  // The motivating case: a type alias whose underlying QualType carries
+  // a pointer must round-trip with the pointer intact. GetTypeFromScope
+  // routes TypeAliasDecl through TND->getUnderlyingType(), preserving
+  // pointer / reference / cv qualifiers.
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetType("testptr", ns)), "NS::Test *");
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetType("testref", ns)), "NS::Test &");
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetType("testtd", ns)), "NS::Test");
+
+  // TU-only lookup (no parent) does NOT see members of NS.
+  EXPECT_EQ(Cpp::GetType("testptr"), nullptr)
+      << "GetType(name) without a parent must not reach NS members";
+
+  // Negative: name not declared in the parent scope returns nullptr.
+  EXPECT_EQ(Cpp::GetType("nope", ns), nullptr);
+
+  // parent==nullptr is the historical behavior: TU-scope lookup,
+  // builtins still resolved.
+  EXPECT_EQ(Cpp::GetType("int", nullptr), Cpp::GetType("int"));
+  EXPECT_EQ(Cpp::GetType("testptr", nullptr), nullptr);
+}
+
 TYPED_TEST(CPPINTEROP_TEST_MODE, TypeReflection_IsRecordType) {
   std::vector<Decl *> Decls;
 

@@ -126,10 +126,13 @@ def IsClass : CppInterOpAPI {
 
 def GetType : CppInterOpAPI {
   let Doc = [{Used to either get the built-in type of the provided string, or
-use the name to lookup the actual type.}];
+use the name to lookup the actual type. When `parent` is non-null, scoped
+lookup honours using-directives and type aliases declared inside it; passing
+`nullptr` (the default) limits lookup to TU scope.}];
 
   let ReturnType = "TCppType_t";
-  let Args = [Arg<"const std::string&", "name">];
+  let Args = [Arg<"const std::string&", "name">,
+              Arg<"TCppScope_t", "parent", "nullptr">];
 }
 
 def GetTypeFromScope : CppInterOpAPI {
