@@ -1525,6 +1525,10 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_IsStaticMethod) {
     class C {
       void f1() {}
       static void f2() {}
+      template <typename T>
+      static void f3() {}
+      template <typename T>
+      void f4() {}
     };
     )";
 
@@ -1534,6 +1538,8 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_IsStaticMethod) {
   EXPECT_FALSE(Cpp::IsStaticMethod(Decls[0]));
   EXPECT_FALSE(Cpp::IsStaticMethod(SubDecls[1]));
   EXPECT_TRUE(Cpp::IsStaticMethod(SubDecls[2]));
+  EXPECT_TRUE(Cpp::IsStaticMethod(SubDecls[3]));
+  EXPECT_FALSE(Cpp::IsStaticMethod(SubDecls[4]));
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetFunctionAddress) {
