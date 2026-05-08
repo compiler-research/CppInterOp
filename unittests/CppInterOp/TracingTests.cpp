@@ -422,6 +422,100 @@ TEST_F(TracingTest, ArgFormattingNestedVector) {
 }
 
 // ---------------------------------------------------------------------------
+// Tests: returned std::vector<P*> -- elements registered as handles
+// ---------------------------------------------------------------------------
+
+std::vector<void*> ReturnPointerVector() {
+  INTEROP_TRACE();
+  std::vector<void*> v;
+  v.push_back((void*)0x101);
+  v.push_back((void*)0x202);
+  return INTEROP_RETURN(v);
+}
+
+std::vector<void*> ReturnEmptyPointerVector() {
+  INTEROP_TRACE();
+  std::vector<void*> v;
+  return INTEROP_RETURN(v);
+}
+
+std::vector<void*> ReturnVectorWithNullElement() {
+  INTEROP_TRACE();
+  std::vector<void*> v;
+  v.push_back((void*)0x303);
+  v.push_back(nullptr);
+  v.push_back((void*)0x404);
+  return INTEROP_RETURN(v);
+}
+
+TEST_F(TracingTest, ReturnedPointerVectorProducerAndConsumer) {
+  // Producer side: `auto _retN = ...` prelude + bounds-guarded
+  // `_retN[i]` per element. Consumer side: a subsequent call taking
+  // one of those pointers prints it by the same handle name (vN), so
+  // the reproducer's producing line and the consumer's argument refer
+  // to the same binding.
+  TraceInfo& TI = *TraceInfo::TheTraceInfo;
+  auto v = ReturnPointerVector();
+  std::string h0 = TI.lookupHandle(v[0]);
+  std::string h1 = TI.lookupHandle(v[1]);
+  ASSERT_NE(h0, "nullptr");
+  ASSERT_NE(h1, "nullptr");
+
+  FuncTakingHandle(v[0]);
+  auto output = getFullLog();
+  EXPECT_THAT(output, HasSubstr("auto _ret0 = Cpp::ReturnPointerVector()"));
+  EXPECT_THAT(output,
+              HasSubstr("void* " + h0 + " = _ret0.size() > 0 ? _ret0[0]"));
+  EXPECT_THAT(output,
+              HasSubstr("void* " + h1 + " = _ret0.size() > 1 ? _ret0[1]"));
+  EXPECT_THAT(output, HasSubstr("Cpp::FuncTakingHandle(" + h0 + ")"));
+}
+
+TEST_F(TracingTest, ReturnedPointerVectorEmptyEmitsNoDecls) {
+  // Empty vector returns the placeholder + zero element decls. The
+  // RetDecls loop never appends, so the only log line for this call is
+  // the call itself.
+  size_t before = TraceInfo::TheTraceInfo->getLog().size();
+  ReturnEmptyPointerVector();
+  size_t after = TraceInfo::TheTraceInfo->getLog().size();
+  EXPECT_EQ(after - before, 1u)
+      << "Empty vector return should emit only the call line, no element decls";
+  auto output = TraceInfo::TheTraceInfo->getLastLogEntry();
+  EXPECT_THAT(output,
+              HasSubstr("auto _ret0 = Cpp::ReturnEmptyPointerVector()"));
+}
+
+TEST_F(TracingTest, ReturnedPointerVectorDuplicateElementSkipsDecl) {
+  // If two returned vectors share an element pointer, only the first
+  // call registers (and emits a decl for) it; the second skips
+  // because lookupHandle no longer says "nullptr".
+  ReturnPointerVector();
+  ReturnPointerVector();
+  auto output = getFullLog();
+  // First call's decls are present; the second call's decls are
+  // suppressed (the elements already have names).
+  EXPECT_THAT(output, HasSubstr("auto _ret0 = Cpp::ReturnPointerVector()"));
+  EXPECT_THAT(output, HasSubstr("auto _ret1 = Cpp::ReturnPointerVector()"));
+  // _ret1 should have no `void* vN = _ret1[i]` lines for elements that
+  // were already registered.
+  EXPECT_THAT(output, Not(HasSubstr("_ret1.size() > 0 ? _ret1[0]")));
+}
+
+TEST_F(TracingTest, ReturnedPointerVectorNullElementSkipsDecl) {
+  // Null elements are skipped (`if (!p) continue;`) so the reproducer
+  // doesn't emit a decl that would shadow the global `nullptr`. The
+  // surrounding non-null elements still get their decls at their
+  // original indices.
+  ReturnVectorWithNullElement();
+  auto output = getFullLog();
+  EXPECT_THAT(output,
+              HasSubstr("auto _ret0 = Cpp::ReturnVectorWithNullElement()"));
+  EXPECT_THAT(output, HasSubstr("_ret0.size() > 0 ? _ret0[0] : nullptr"));
+  EXPECT_THAT(output, Not(HasSubstr("_ret0.size() > 1 ? _ret0[1]")));
+  EXPECT_THAT(output, HasSubstr("_ret0.size() > 2 ? _ret0[2] : nullptr"));
+}
+
+// ---------------------------------------------------------------------------
 // Reproducer-compilability fixtures: enum cast, escaped strings, const void*.
 // Each one used to emit "?" or invalid C++ in the captured trace; the tests
 // pin the new behaviour so the auto-generated reproducer compiles.

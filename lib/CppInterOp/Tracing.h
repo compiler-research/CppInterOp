@@ -49,6 +49,10 @@ class TraceInfo {
 
   std::unordered_map<const void*, std::string> m_HandleMap;
   unsigned m_VarCount = 0;
+  /// Monotonic suffix for `_retN` placeholders -- one slot per call
+  /// that returns std::vector<P*>. Separate from m_VarCount so the
+  /// vN handle namespace stays dense.
+  unsigned m_RetCount = 0;
 
   std::vector<std::string> m_Log;
   size_t m_RegionStart = 0; ///< Log index where current region began.
@@ -103,6 +107,9 @@ public:
     return (it != m_HandleMap.end()) ? it->second : "nullptr";
   }
 
+  /// Allocate the next `_retN` index for a vector-return placeholder.
+  unsigned nextRetIndex() { return m_RetCount++; }
+
   void appendToLog(const std::string& line) {
     m_Log.push_back(line);
     if (m_InRegion && m_WriteOnStdErr)
@@ -142,6 +149,7 @@ public:
     m_HandleMap.clear();
     m_Log.clear();
     m_VarCount = 0;
+    m_RetCount = 0;
   }
 
   CPPINTEROP_TRACE_API static TraceInfo* TheTraceInfo;
@@ -335,6 +343,16 @@ struct ReproBuffer {
   }
 };
 
+/// Matches std::vector<T*> for any pointer element type. Used by
+/// TraceRegion::record to recognise functions whose return value is a
+/// vector of opaque handles (e.g. GetFunctionsUsingName), so the
+/// reproducer can name the vector and read its elements out by index.
+template <typename T> struct is_pointer_vector : std::false_type {};
+template <typename T>
+struct is_pointer_vector<std::vector<T*>> : std::true_type {};
+template <typename T>
+inline constexpr bool is_pointer_vector_v = is_pointer_vector<T>::value;
+
 /// Holds all the data that is only needed when tracing is active.
 /// Heap-allocated only when TheTraceInfo != nullptr, so disabled tracing
 /// pays zero cost beyond a single pointer + bool on the stack.
@@ -343,6 +361,14 @@ struct TraceData {
   llvm::SmallString<128> ArgStr;
   void* Result = nullptr;
   bool HasPtrResult = false;
+  /// Set when the call returned std::vector<P*>; ~TraceRegion uses this
+  /// to spell `auto _retN = Cpp::Foo(...)` so element decls can read
+  /// `_retN[i]` and the replay sees the original pointers.
+  bool HasRetVec = false;
+  /// Snapshot of the returned vector's pointer elements, taken at
+  /// record() time -- the source vector goes out of scope before
+  /// ~TraceRegion runs.
+  llvm::SmallVector<const void*, 8> RetVecPtrs;
   double StartTime = 0;
   bool Returned = false;
   llvm::SmallVector<std::function<void(TraceInfo&)>, 2> OutCallbacks;
@@ -396,6 +422,25 @@ public:
     for (auto& cb : m_Data->OutCallbacks)
       cb(TI);
 
+    // Allocate a `_retN` slot up-front for vector-of-pointer returns so
+    // the call line spells `auto _retN = ...` and the per-element decls
+    // below can read `_retN[i]` (the replay sees the original
+    // pointers, not literal nulls).
+    int RetIdx = -1;
+    llvm::SmallVector<std::pair<size_t, std::string>, 8> RetDecls;
+    if (m_Data->HasRetVec) {
+      RetIdx = static_cast<int>(TI.nextRetIndex());
+      for (size_t i = 0; i < m_Data->RetVecPtrs.size(); ++i) {
+        const void* p = m_Data->RetVecPtrs[i];
+        if (!p)
+          continue;
+        bool isNew = TI.lookupHandle(p) == "nullptr";
+        std::string Name = TI.getOrRegisterHandle(p);
+        if (isNew)
+          RetDecls.emplace_back(i, std::move(Name));
+      }
+    }
+
     std::string VarPart;
     if (m_Data->Result) {
       bool isNew = TI.lookupHandle(m_Data->Result) == "nullptr";
@@ -404,6 +449,8 @@ public:
           llvm::formatv(isNew ? "auto {0} = " : "/*{0}*/ ", HandleName).str();
     } else if (m_Data->HasPtrResult) {
       VarPart = "/*nullptr*/ ";
+    } else if (RetIdx >= 0) {
+      VarPart = llvm::formatv("auto _ret{0} = ", RetIdx).str();
     }
 
     std::string Call = llvm::formatv("  {0}Cpp::{1}({2}); // [{3} ns]", VarPart,
@@ -411,6 +458,16 @@ public:
 
     // Store in log for the reproducer file.
     TI.appendToLog(Call);
+
+    // Per-element extractions for vector returns. Bounds-guard so the
+    // line is safe even if the replay produces a shorter vector than
+    // the original.
+    for (auto& [Idx, Name] : RetDecls)
+      TI.appendToLog(
+          llvm::formatv(
+              "  void* {0} = _ret{1}.size() > {2} ? _ret{1}[{2}] : nullptr;",
+              Name, RetIdx, Idx)
+              .str());
 
     m_Data.reset();
   }
@@ -434,6 +491,12 @@ public:
       m_Data->Result = const_cast<void*>(static_cast<const void*>(val));
     } else if constexpr (std::is_null_pointer_v<T>) {
       m_Data->HasPtrResult = true;
+    } else if constexpr (is_pointer_vector_v<T>) {
+      // Snapshot the element pointers; the source vector is owned by
+      // the API call site and goes out of scope before ~TraceRegion.
+      m_Data->HasRetVec = true;
+      for (auto* p : val)
+        m_Data->RetVecPtrs.push_back(static_cast<const void*>(p));
     }
     return val;
   }
