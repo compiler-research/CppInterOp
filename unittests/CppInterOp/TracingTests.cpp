@@ -348,17 +348,31 @@ TEST_F(TracingTest, ArgFormattingTwoOutParamsGetDistinctIndices) {
   EXPECT_THAT(output, HasSubstr("Cpp::FuncWithTwoOuts(_out0, _out1);"));
 }
 
-TEST_F(TracingTest, ArgFormattingOutParamIndicesAreMonotonic) {
-  // The counter is region-global, not per-call -- two calls each with
-  // one OUT do not collide on _out0 (C++ redefinition error). Reusing
-  // the same source vector across calls still yields a fresh _outN
-  // each time, since the reproducer's buffers are independent.
+TEST_F(TracingTest, ArgFormattingOutParamDistinctSourcesGetDistinctIndices) {
+  // Two calls with DIFFERENT source vectors get distinct `_outN`
+  // slots, both declared in the preamble.
+  std::vector<void*> a, b;
+  WithOutParamTrace(a);
+  WithOutParamTrace(b);
+  auto output = getFullLog();
+  EXPECT_THAT(output, HasSubstr("std::vector<void*> _out0;"));
+  EXPECT_THAT(output, HasSubstr("std::vector<void*> _out1;"));
+  EXPECT_THAT(output, HasSubstr("Cpp::WithOutParamTrace(_out0);"));
+  EXPECT_THAT(output, HasSubstr("Cpp::WithOutParamTrace(_out1);"));
+}
+
+TEST_F(TracingTest, ArgFormattingOutParamSameSourceAliasesSlot) {
+  // Reusing the same source vector across calls reuses the same
+  // `_outN` -- one preamble decl, both call sites alias it -- so the
+  // reproducer faithfully replays the API's append-on-call contract.
   std::vector<void*> v;
   WithOutParamTrace(v);
   WithOutParamTrace(v);
   auto output = getFullLog();
+  EXPECT_THAT(output, HasSubstr("std::vector<void*> _out0;"));
+  EXPECT_THAT(output, Not(HasSubstr("std::vector<void*> _out1;")));
   EXPECT_THAT(output, HasSubstr("Cpp::WithOutParamTrace(_out0);"));
-  EXPECT_THAT(output, HasSubstr("Cpp::WithOutParamTrace(_out1);"));
+  EXPECT_THAT(output, Not(HasSubstr("Cpp::WithOutParamTrace(_out1);")));
 }
 
 TEST_F(TracingTest, OutParamElementUsableInLaterCall) {
