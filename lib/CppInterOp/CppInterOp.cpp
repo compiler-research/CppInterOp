@@ -1802,6 +1802,9 @@ bool IsDestructor(TCppConstFunction_t method) {
 bool IsStaticMethod(TCppConstFunction_t method) {
   INTEROP_TRACE(method);
   const auto* D = static_cast<const Decl*>(method);
+  if (const auto* FTD = llvm::dyn_cast_or_null<FunctionTemplateDecl>(D))
+    D = FTD->getTemplatedDecl();
+
   if (auto* CXXMD = llvm::dyn_cast_or_null<CXXMethodDecl>(D)) {
     return INTEROP_RETURN(CXXMD->isStatic());
   }
