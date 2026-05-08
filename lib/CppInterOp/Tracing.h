@@ -100,11 +100,18 @@ public:
     return m_HandleMap[p] = "v" + std::to_string(++m_VarCount);
   }
 
+  /// Resolve a pointer to a printable form.
+  /// - "nullptr" for an actual null pointer.
+  /// - "vN" for a pointer registered via getOrRegisterHandle.
+  /// - "" (empty) for a non-null pointer never seen by the tracer --
+  ///   the caller decides how to render the unknown case (e.g.
+  ///   `nullptr /*unknown*/` in argument lists, "is this new?" in the
+  ///   producer-side `auto vN = ...` gating logic).
   std::string lookupHandle(const void* p) {
     if (!p)
       return "nullptr";
     auto it = m_HandleMap.find(p);
-    return (it != m_HandleMap.end()) ? it->second : "nullptr";
+    return (it != m_HandleMap.end()) ? it->second : "";
   }
 
   /// Allocate the next `_retN` index for a vector-return placeholder.
@@ -434,7 +441,7 @@ public:
         const void* p = m_Data->RetVecPtrs[i];
         if (!p)
           continue;
-        bool isNew = TI.lookupHandle(p) == "nullptr";
+        bool isNew = TI.lookupHandle(p).empty();
         std::string Name = TI.getOrRegisterHandle(p);
         if (isNew)
           RetDecls.emplace_back(i, std::move(Name));
@@ -443,7 +450,7 @@ public:
 
     std::string VarPart;
     if (m_Data->Result) {
-      bool isNew = TI.lookupHandle(m_Data->Result) == "nullptr";
+      bool isNew = TI.lookupHandle(m_Data->Result).empty();
       std::string HandleName = TI.getOrRegisterHandle(m_Data->Result);
       VarPart =
           llvm::formatv(isNew ? "auto {0} = " : "/*{0}*/ ", HandleName).str();
