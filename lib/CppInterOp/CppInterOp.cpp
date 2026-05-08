@@ -4189,17 +4189,22 @@ protected:
 } // namespace
 
 int Declare(compat::Interpreter& I, const char* code, bool silent) {
+  // Trap diagnostics on both paths: I.declare's rc is 0 even when
+  // Parse recovered from emitted errors, so callers need the trap to
+  // distinguish "parsed cleanly" from "parsed with errors".
+  clang::DiagnosticsEngine& Diag = I.getSema().getDiagnostics();
+  clang::DiagnosticErrorTrap Trap(Diag);
   if (silent) {
-    clang::DiagnosticsEngine& Diag = I.getSema().getDiagnostics();
     clangSilent diagSuppr(Diag);
-    clang::DiagnosticErrorTrap Trap(Diag);
     auto result = I.declare(code);
     if (Trap.hasErrorOccurred())
       return 1;
     return result;
   }
-
-  return I.declare(code);
+  auto result = I.declare(code);
+  if (Trap.hasErrorOccurred())
+    return 1;
+  return result;
 }
 
 int Declare(const char* code, bool silent) {
