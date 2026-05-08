@@ -145,11 +145,16 @@ public:
     return {idx, true};
   }
 
-  void appendToLog(const std::string& line) {
+  /// Append a line; the returned index pairs with setLogEntry to
+  /// rewrite the same slot later (TraceRegion's placeholder pattern).
+  size_t appendToLog(const std::string& line) {
+    size_t idx = m_Log.size();
     m_Log.push_back(line);
     if (m_InRegion && m_WriteOnStdErr)
       llvm::errs() << line << "\n";
+    return idx;
   }
+  void setLogEntry(size_t idx, const std::string& line) { m_Log[idx] = line; }
   const std::vector<std::string>& getLog() const { return m_Log; }
   std::string getLastLogEntry() const {
     return m_Log.empty() ? "" : m_Log.back();
@@ -474,6 +479,8 @@ struct TraceData {
   /// Set when another TraceRegion was already active at construction.
   /// Nested calls skip log emission but still register handles.
   bool Nested = false;
+  /// Slot for the ctor-emitted placeholder; the dtor rewrites it.
+  size_t LogIndex = 0;
 };
 
 class TraceRegion {
@@ -514,6 +521,19 @@ public:
         RB.format(m_Data->OutIndices, std::forward<Args>(args)...);
         m_Data->ArgStr = RB.Buffer;
       }
+      // `_outN` preamble + placeholder so an abort before the dtor
+      // still leaves a record of the failing call. Emit the preamble
+      // only on first use of each source container; reused ones alias
+      // the existing slot.
+      for (size_t i = 0; i < m_Data->OutIndices.size(); ++i)
+        if (m_Data->OutFirstUse[i])
+          TI.appendToLog(llvm::formatv("  std::vector<void*> _out{0};",
+                                       m_Data->OutIndices[i])
+                             .str());
+      m_Data->LogIndex = TI.appendToLog(
+          llvm::formatv("  Cpp::{0}({1}); // [aborted before return]",
+                        m_Data->Name, m_Data->ArgStr)
+              .str());
     }
     TI.pushTimer(&TI.getTimer(Name));
     m_Data->StartTime = llvm::TimeRecord::getCurrentTime(false).getWallTime();
@@ -574,21 +594,10 @@ public:
       VarPart = llvm::formatv("auto _ret{0} = ", RetIdx).str();
     }
 
-    // Preamble: declare a fresh buffer for first-use OUT containers.
-    // Reused containers (same source address) skip the decl and just
-    // alias the existing `_outN`. void* element type matches the
-    // public API's erasure of TCpp*Scope_t et al.
-    for (size_t i = 0; i < m_Data->OutIndices.size(); ++i)
-      if (m_Data->OutFirstUse[i])
-        TI.appendToLog(llvm::formatv("  std::vector<void*> _out{0};",
-                                     m_Data->OutIndices[i])
-                           .str());
-
+    // Rewrite the placeholder with the completed call line.
     std::string Call = llvm::formatv("  {0}Cpp::{1}({2}); // [{3} ns]", VarPart,
                                      m_Data->Name, m_Data->ArgStr, Dur);
-
-    // Store in log for the reproducer file.
-    TI.appendToLog(Call);
+    TI.setLogEntry(m_Data->LogIndex, Call);
 
     // After the call: register OUT-element handles and emit one
     // `void* vN = _outN[i] : nullptr;` decl per newly-seen element so a
