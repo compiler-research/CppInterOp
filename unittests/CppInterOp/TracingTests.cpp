@@ -168,11 +168,12 @@ TEST_F(TracingTest, TraceWithNoArgs) {
 }
 
 TEST_F(TracingTest, TraceWithOutParamArg) {
+  // OUT pointer-container: preamble decl + alias at the call site.
   std::vector<void*> v;
   WithOutParamTrace(v);
-  auto output = TraceInfo::TheTraceInfo->getLastLogEntry();
-  // OutParam should not appear in the arg list.
-  EXPECT_THAT(output, HasSubstr("Cpp::WithOutParamTrace();"));
+  auto output = getFullLog();
+  EXPECT_THAT(output, HasSubstr("std::vector<void*> _out0;"));
+  EXPECT_THAT(output, HasSubstr("Cpp::WithOutParamTrace(_out0);"));
   EXPECT_EQ(v.size(), 1u);
 }
 
@@ -320,15 +321,64 @@ TEST_F(TracingTest, ArgFormattingMixed) {
               HasSubstr("Cpp::FuncTakingMixed(v1, \"world\", 99)"));
 }
 
-TEST_F(TracingTest, ArgFormattingOutParamSkipped) {
-  // OutParam should not appear in the formatted args,
-  // but regular args before it should.
+TEST_F(TracingTest, ArgFormattingOutParamAliased) {
+  // OUT alias preserves left-to-right argument order: (v1, _out0).
   void* h = FuncReturningHandle();
   std::vector<void*> out;
   FuncWithHandleAndOut(h, out);
   auto output = getFullLog();
-  // Should show only the handle arg, not the OutParam.
-  EXPECT_THAT(output, HasSubstr("Cpp::FuncWithHandleAndOut(v1)"));
+  EXPECT_THAT(output, HasSubstr("std::vector<void*> _out0;"));
+  EXPECT_THAT(output, HasSubstr("Cpp::FuncWithHandleAndOut(v1, _out0);"));
+}
+
+void FuncWithTwoOuts(std::vector<void*>& a, std::vector<void*>& b) {
+  INTEROP_TRACE(INTEROP_OUT(a), INTEROP_OUT(b));
+  a.push_back((void*)0x11);
+  b.push_back((void*)0x22);
+  return INTEROP_VOID_RETURN();
+}
+
+TEST_F(TracingTest, ArgFormattingTwoOutParamsGetDistinctIndices) {
+  // Two OUTs on one call get distinct indices in arg order.
+  std::vector<void*> a, b;
+  FuncWithTwoOuts(a, b);
+  auto output = getFullLog();
+  EXPECT_THAT(output, HasSubstr("std::vector<void*> _out0;"));
+  EXPECT_THAT(output, HasSubstr("std::vector<void*> _out1;"));
+  EXPECT_THAT(output, HasSubstr("Cpp::FuncWithTwoOuts(_out0, _out1);"));
+}
+
+TEST_F(TracingTest, ArgFormattingOutParamIndicesAreMonotonic) {
+  // The counter is region-global, not per-call -- two calls each with
+  // one OUT do not collide on _out0 (C++ redefinition error). Reusing
+  // the same source vector across calls still yields a fresh _outN
+  // each time, since the reproducer's buffers are independent.
+  std::vector<void*> v;
+  WithOutParamTrace(v);
+  WithOutParamTrace(v);
+  auto output = getFullLog();
+  EXPECT_THAT(output, HasSubstr("Cpp::WithOutParamTrace(_out0);"));
+  EXPECT_THAT(output, HasSubstr("Cpp::WithOutParamTrace(_out1);"));
+}
+
+TEST_F(TracingTest, OutParamElementUsableInLaterCall) {
+  // The OUT-param element decl makes the handle bind in the
+  // reproducer: a downstream call that takes one of the elements as
+  // input renders to a name that's actually declared earlier.
+  void* h = FuncReturningHandle();
+  std::vector<void*> out;
+  FuncWithHandleAndOut(h, out);
+  ASSERT_FALSE(out.empty());
+  FuncTakingHandle(out[0]);
+  auto output = getFullLog();
+  // The element's decl reads `_out0[0]` and binds a handle name (vN);
+  // the downstream call references the same name.
+  TraceInfo& TI = *TraceInfo::TheTraceInfo;
+  std::string elem = TI.lookupHandle(out[0]);
+  ASSERT_FALSE(elem.empty());
+  EXPECT_THAT(output,
+              HasSubstr("void* " + elem + " = _out0.size() > 0 ? _out0[0]"));
+  EXPECT_THAT(output, HasSubstr("Cpp::FuncTakingHandle(" + elem + ")"));
 }
 
 // Test: when two functions return the same pointer, the second should not
@@ -790,14 +840,17 @@ void FillStrings(std::vector<std::string>& out) {
 }
 
 TEST_F(TracingTest, OutParamNonPointerElementType) {
+  // Non-pointer OUTs stay on the legacy skip path -- no `_outN`
+  // preamble is emitted and the call has zero args.
   std::vector<std::string> results;
   FillStrings(results);
-  auto output = TraceInfo::TheTraceInfo->getLastLogEntry();
+  auto output = getFullLog();
 
   EXPECT_EQ(results.size(), 2u);
   EXPECT_EQ(results[0], "hello");
   EXPECT_EQ(results[1], "world");
   EXPECT_THAT(output, HasSubstr("Cpp::FillStrings();"));
+  EXPECT_THAT(output, Not(HasSubstr("_out0")));
 }
 
 TEST_F(NoTracingTest, OutParamNonPointerDisabled) {
@@ -851,7 +904,9 @@ TEST_F(TracingTest, WriteToFileContainsOutParamCalls) {
   std::string content((std::istreambuf_iterator<char>(ifs)),
                       std::istreambuf_iterator<char>());
 
-  EXPECT_THAT(content, HasSubstr("Cpp::FillHandles();"));
+  // Persisted reproducer mirrors the in-memory log.
+  EXPECT_THAT(content, HasSubstr("std::vector<void*> _out0;"));
+  EXPECT_THAT(content, HasSubstr("Cpp::FillHandles(_out0);"));
 
   llvm::sys::fs::remove(Path);
 }
