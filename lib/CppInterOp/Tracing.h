@@ -23,6 +23,8 @@
 #define CPPINTEROP_TRACE_API
 #endif
 
+#include "CppInterOp/CppInterOpTypes.h"
+
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringMap.h"
@@ -338,6 +340,22 @@ struct ReproBuffer {
       First = false;
       append(E);
     }
+    OS << "}";
+  }
+
+  // TemplateArgInfo: brace-init through the (TCppScope_t, const char*)
+  // ctor so the reproducer compiles. m_Type takes the void* path
+  // (renders as vN); nullptr m_IntegralValue must render as `nullptr`
+  // (the ctor's default), not the empty string the const char* path
+  // would produce.
+  void append(const CppImpl::TemplateArgInfo& tai) {
+    OS << "Cpp::TemplateArgInfo{";
+    append(static_cast<const void*>(tai.m_Type));
+    OS << ", ";
+    if (tai.m_IntegralValue == nullptr)
+      OS << "nullptr";
+    else
+      appendRaw(tai.m_IntegralValue);
     OS << "}";
   }
 
