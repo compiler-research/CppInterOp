@@ -677,6 +677,35 @@ TEST_F(TracingTest, ArgFormattingConstVoidNullptr) {
   EXPECT_THAT(output, HasSubstr("Cpp::FuncTakingConstHandle(nullptr)"));
 }
 
+void FuncTakingTemplateArg(Cpp::TemplateArgInfo tai) {
+  INTEROP_TRACE(tai);
+  return INTEROP_VOID_RETURN();
+}
+
+TEST_F(TracingTest, ArgFormattingTemplateArgInfoTypeAndIntegralValue) {
+  // m_Type renders as the registered handle name; m_IntegralValue
+  // takes the raw-string path.
+  TraceInfo& TI = *TraceInfo::TheTraceInfo;
+  void* tp = reinterpret_cast<void*>(static_cast<uintptr_t>(0x12340000));
+  std::string h = TI.getOrRegisterHandle(tp);
+  Cpp::TemplateArgInfo tai{tp, "5"};
+  FuncTakingTemplateArg(tai);
+  auto output = TraceInfo::TheTraceInfo->getLastLogEntry();
+  EXPECT_THAT(output, HasSubstr("Cpp::FuncTakingTemplateArg(Cpp::"
+                                "TemplateArgInfo{" +
+                                h + ", \"5\"})"));
+}
+
+TEST_F(TracingTest, ArgFormattingTemplateArgInfoNullFields) {
+  // Null m_IntegralValue must round-trip to `nullptr` (the
+  // constructor's default), not the empty string `""`.
+  Cpp::TemplateArgInfo tai{nullptr, nullptr};
+  FuncTakingTemplateArg(tai);
+  auto output = TraceInfo::TheTraceInfo->getLastLogEntry();
+  EXPECT_THAT(output, HasSubstr("Cpp::FuncTakingTemplateArg(Cpp::"
+                                "TemplateArgInfo{nullptr, nullptr})"));
+}
+
 // ---------------------------------------------------------------------------
 // Tests: handle registry
 // ---------------------------------------------------------------------------
