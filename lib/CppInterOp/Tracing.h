@@ -53,8 +53,14 @@ class TraceInfo {
   /// that returns std::vector<P*>. Separate from m_VarCount so the
   /// vN handle namespace stays dense.
   unsigned m_RetCount = 0;
-  /// Monotonic suffix for `_outN` -- one slot per OUT pointer-container.
+  /// Monotonic suffix for `_outN` -- one slot per distinct OUT
+  /// pointer-container source. Multiple calls passing the same
+  /// container alias the same slot (see m_OutAliases).
   unsigned m_OutCount = 0;
+  /// Source address of an OUT container -> its `_outN` index. Lets
+  /// the reproducer faithfully replay the API's append-on-call
+  /// contract: a vector reused across calls keeps its single buffer.
+  std::unordered_map<const void*, unsigned> m_OutAliases;
 
   std::vector<std::string> m_Log;
   size_t m_RegionStart = 0; ///< Log index where current region began.
@@ -119,9 +125,20 @@ public:
   /// Allocate the next `_retN` index for a vector-return placeholder.
   unsigned nextRetIndex() { return m_RetCount++; }
 
-  /// Allocate the next `_outN` index. One per OUT argument, not per
-  /// call -- two OUT pointer-containers in one call get _out0/_out1.
-  unsigned nextOutIndex() { return m_OutCount++; }
+  /// Resolve an OUT-container source address to its `_outN` index.
+  /// First call with a given address allocates a fresh slot; later
+  /// calls return the same slot so the reproducer reuses the buffer.
+  /// \pre \p Addr is non-null (MakeOutParam captures `&C`).
+  /// \returns {idx, true} on first use, {idx, false} on alias.
+  std::pair<unsigned, bool> outIndexFor(const void* Addr) {
+    assert(Addr && "OutParam without a source address");
+    auto it = m_OutAliases.find(Addr);
+    if (it != m_OutAliases.end())
+      return {it->second, false};
+    unsigned idx = m_OutCount++;
+    m_OutAliases.emplace(Addr, idx);
+    return {idx, true};
+  }
 
   void appendToLog(const std::string& line) {
     m_Log.push_back(line);
@@ -164,6 +181,7 @@ public:
     m_VarCount = 0;
     m_RetCount = 0;
     m_OutCount = 0;
+    m_OutAliases.clear();
   }
 
   CPPINTEROP_TRACE_API static TraceInfo* TheTraceInfo;
@@ -210,12 +228,19 @@ struct OutParam {
   /// stay on the legacy "skip in arg list" rendering -- their type is
   /// not erasable to void*, so the preamble decl would not type-check.
   bool IsPointerContainer = false;
+  /// Address of the source container object (not its data buffer);
+  /// multiple calls with the same container alias the same `_outN`
+  /// buffer in the reproducer so accumulation across calls replays
+  /// faithfully. Stable across capacity growth -- a `push_back` that
+  /// reallocates the heap buffer leaves the object's address put.
+  const void* SourceAddr = nullptr;
 };
 
 /// Create an OutParam for any container. Only sets up handle registration
 /// when the container's value_type is a pointer.
 template <typename Container> OutParam MakeOutParam(const Container& C) {
   OutParam OP;
+  OP.SourceAddr = static_cast<const void*>(&C);
   using Value = typename Container::value_type;
   if constexpr (std::is_pointer_v<Value>) {
     OP.IsPointerContainer = true;
@@ -421,17 +446,26 @@ struct TraceData {
   /// left-to-right order. Consumed by format() at the call site and
   /// by ~TraceRegion to emit the preamble decls.
   llvm::SmallVector<unsigned, 2> OutIndices;
+  /// Per-OUT argument flag: true on the first call with this source
+  /// container (preamble decl needed), false on later calls reusing
+  /// the same slot.
+  llvm::SmallVector<bool, 2> OutFirstUse;
 };
 
 class TraceRegion {
   std::unique_ptr<TraceData> m_Data;
 
-  /// Allocate the OUT pointer-container's `_outN` index here, before
-  /// format() runs and consumes them. Non-pointer containers allocate
-  /// no index and fall through to the legacy skip rendering.
+  /// Resolve the OUT pointer-container's `_outN` index up-front so
+  /// format() can render the call site's alias and the dtor knows
+  /// whether to emit the preamble decl (only for the first use of a
+  /// given source container; later calls reuse the same slot).
   void captureArg(OutParam&& op) {
-    if (op.IsPointerContainer)
-      m_Data->OutIndices.push_back(TraceInfo::TheTraceInfo->nextOutIndex());
+    if (op.IsPointerContainer) {
+      auto [idx, firstUse] =
+          TraceInfo::TheTraceInfo->outIndexFor(op.SourceAddr);
+      m_Data->OutIndices.push_back(idx);
+      m_Data->OutFirstUse.push_back(firstUse);
+    }
     if (op.RegisterHandles)
       m_Data->OutCallbacks.push_back(std::move(op.RegisterHandles));
   }
@@ -504,11 +538,15 @@ public:
       VarPart = llvm::formatv("auto _ret{0} = ", RetIdx).str();
     }
 
-    // Preamble: declare a fresh buffer per OUT pointer-container.
-    // void* element type matches the public API's erasure of
-    // TCpp*Scope_t et al.
-    for (unsigned Idx : m_Data->OutIndices)
-      TI.appendToLog(llvm::formatv("  std::vector<void*> _out{0};", Idx).str());
+    // Preamble: declare a fresh buffer for first-use OUT containers.
+    // Reused containers (same source address) skip the decl and just
+    // alias the existing `_outN`. void* element type matches the
+    // public API's erasure of TCpp*Scope_t et al.
+    for (size_t i = 0; i < m_Data->OutIndices.size(); ++i)
+      if (m_Data->OutFirstUse[i])
+        TI.appendToLog(llvm::formatv("  std::vector<void*> _out{0};",
+                                     m_Data->OutIndices[i])
+                           .str());
 
     std::string Call = llvm::formatv("  {0}Cpp::{1}({2}); // [{3} ns]", VarPart,
                                      m_Data->Name, m_Data->ArgStr, Dur);
