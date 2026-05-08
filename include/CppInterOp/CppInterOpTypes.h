@@ -33,6 +33,17 @@
 #endif
 #endif
 
+// Cross-platform deprecation attribute. Older Clang versions (Cling)
+// mis-parse C++11 `[[deprecated]]` near the return type, so we use
+// the vendor-specific spelling on each compiler.
+#if defined(_MSC_VER)
+#define CPPINTEROP_DEPRECATED(msg) __declspec(deprecated(msg))
+#elif defined(__GNUC__) || defined(__clang__)
+#define CPPINTEROP_DEPRECATED(msg) __attribute__((deprecated(msg)))
+#else
+#define CPPINTEROP_DEPRECATED(msg)
+#endif
+
 namespace CppImpl {
 using TCppIndex_t = size_t;
 using TCppScope_t = void*;

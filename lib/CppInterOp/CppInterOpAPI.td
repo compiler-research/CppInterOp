@@ -56,4 +56,6 @@ class CppInterOpAPI {
   APITypeKind ReturnKind = NoKind;
   // Doxygen documentation string (may contain newlines).
   string Doc = "";
+  // If non-empty, emit `[[deprecated(message)]]` on the declaration.
+  string Deprecated = "";
 }

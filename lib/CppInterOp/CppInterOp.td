@@ -451,6 +451,22 @@ variable templates
     Arg<"size_t", "template_args_size">,
     Arg<"bool", "instantiate_body", "false">
   ];
+  let Deprecated = "use the const std::vector<TemplateArgInfo>& overload";
+}
+
+def InstantiateTemplateVec : CppInterOpAPI {
+  let Doc = [{Convenience overload of \c InstantiateTemplate that takes the
+template argument list by const reference. Equivalent to calling the
+pointer+size overload with \c template_args.data() and
+\c template_args.size().}];
+
+  let CppName = "InstantiateTemplate";
+  let ReturnType = "TCppScope_t";
+  let Args = [
+    Arg<"TCppScope_t", "tmpl">,
+    Arg<"const std::vector<TemplateArgInfo>&", "template_args">,
+    Arg<"bool", "instantiate_body", "false">
+  ];
 }
 
 def GetParentScope : CppInterOpAPI {

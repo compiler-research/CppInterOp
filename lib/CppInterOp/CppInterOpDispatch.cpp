@@ -13,11 +13,25 @@ using namespace CppImpl;
 using CppFnPtrTy = void (*)();
 
 // NOLINTBEGIN(cppcoreguidelines-pro-type-cstyle-cast)
+// Suppress deprecation: the dispatch table intentionally exposes all
+// overloads, including those marked [[deprecated]] in the public API.
+#if defined(__GNUC__) || defined(__clang__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wdeprecated-declarations"
+#elif defined(_MSC_VER)
+#pragma warning(push)
+#pragma warning(disable : 4996)
+#endif
 static const std::unordered_map<std::string_view, CppFnPtrTy> DispatchMap = {
 #define CPPINTEROP_API_FUNC(DN, CN, Ret, DeclArgs, CallArgs, RawTypes)         \
   {#DN, (CppFnPtrTy) static_cast<Ret(*) RawTypes>(&CppImpl::CN)},
 #include "CppInterOp/CppInterOpAPI.inc"
 };
+#if defined(__GNUC__) || defined(__clang__)
+#pragma GCC diagnostic pop
+#elif defined(_MSC_VER)
+#pragma warning(pop)
+#endif
 // NOLINTEND(cppcoreguidelines-pro-type-cstyle-cast)
 
 extern "C" CPPINTEROP_API CppFnPtrTy CppGetProcAddress(const char* funcName) {

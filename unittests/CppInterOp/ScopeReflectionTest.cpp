@@ -509,9 +509,9 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_GetCompleteName) {
   EXPECT_EQ(Cpp::GetCompleteName(nullptr), "<unnamed>");
 
   ASTContext& C = Interp->getCI()->getASTContext();
-  Cpp::TemplateArgInfo template_args[2] = {C.IntTy.getAsOpaquePtr(),
-                                           C.DoubleTy.getAsOpaquePtr()};
-  Cpp::TCppScope_t fn = Cpp::InstantiateTemplate(Decls[11], template_args, 2);
+  std::vector<Cpp::TemplateArgInfo> template_args = {
+      C.IntTy.getAsOpaquePtr(), C.DoubleTy.getAsOpaquePtr()};
+  Cpp::TCppScope_t fn = Cpp::InstantiateTemplate(Decls[11], template_args);
   EXPECT_TRUE(fn);
   EXPECT_EQ(Cpp::GetCompleteName(fn), "fn<int, double>");
 }
@@ -1098,8 +1098,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_InstantiateNNTPClassTemplate) {
   ASTContext &C = Interp->getCI()->getASTContext();
   Cpp::TCppType_t IntTy = C.IntTy.getAsOpaquePtr();
   std::vector<Cpp::TemplateArgInfo> args1 = {{IntTy, "5"}};
-  EXPECT_TRUE(Cpp::InstantiateTemplate(Decls[0], args1.data(),
-                                       /*type_size*/ args1.size()));
+  EXPECT_TRUE(Cpp::InstantiateTemplate(Decls[0], args1));
 
   // C API
   auto* I = clang_createInterpreterFromRawPtr(Cpp::GetInterpreter());
@@ -1123,8 +1122,7 @@ template<class T> constexpr T pi = T(3.1415926535897932385L);
   ASTContext& C = Interp->getCI()->getASTContext();
 
   std::vector<Cpp::TemplateArgInfo> args1 = {C.IntTy.getAsOpaquePtr()};
-  auto* Instance1 = Cpp::InstantiateTemplate(Decls[0], args1.data(),
-                                             /*type_size*/ args1.size());
+  auto* Instance1 = Cpp::InstantiateTemplate(Decls[0], args1);
   EXPECT_TRUE(isa<VarDecl>(static_cast<Decl*>(Instance1)));
   auto* VD = cast<VarTemplateSpecializationDecl>(static_cast<Decl*>(Instance1));
   VarTemplateDecl* VDTD1 = VD->getSpecializedTemplate();
@@ -1143,8 +1141,7 @@ template<typename T> T TrivialFnTemplate() { return T(); }
   ASTContext& C = Interp->getCI()->getASTContext();
 
   std::vector<Cpp::TemplateArgInfo> args1 = {C.IntTy.getAsOpaquePtr()};
-  auto* Instance1 = Cpp::InstantiateTemplate(Decls[0], args1.data(),
-                                             /*type_size*/ args1.size());
+  auto* Instance1 = Cpp::InstantiateTemplate(Decls[0], args1);
   EXPECT_TRUE(isa<FunctionDecl>(static_cast<Decl*>(Instance1)));
   FunctionDecl* FD = cast<FunctionDecl>(static_cast<Decl*>(Instance1));
   FunctionDecl* FnTD1 = FD->getTemplateInstantiationPattern();
@@ -1209,8 +1206,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_InstantiateTemplate) {
   ASTContext &C = Interp->getCI()->getASTContext();
 
   std::vector<Cpp::TemplateArgInfo> args1 = {C.IntTy.getAsOpaquePtr()};
-  auto* Instance1 = Cpp::InstantiateTemplate(Decls[0], args1.data(),
-                                             /*type_size*/ args1.size());
+  auto* Instance1 = Cpp::InstantiateTemplate(Decls[0], args1);
   EXPECT_TRUE(
       isa<ClassTemplateSpecializationDecl>(static_cast<Decl*>(Instance1)));
   auto *CTSD1 = static_cast<ClassTemplateSpecializationDecl*>(Instance1);
@@ -1219,8 +1215,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_InstantiateTemplate) {
   EXPECT_TRUE(TA1.getAsType()->isIntegerType());
   EXPECT_TRUE(CTSD1->hasDefinition());
 
-  auto Instance2 = Cpp::InstantiateTemplate(Decls[1], nullptr,
-                                            /*type_size*/ 0);
+  auto Instance2 = Cpp::InstantiateTemplate(Decls[1], {});
   EXPECT_TRUE(
       isa<ClassTemplateSpecializationDecl>(static_cast<Decl*>(Instance2)));
   auto *CTSD2 = static_cast<ClassTemplateSpecializationDecl*>(Instance2);
@@ -1229,8 +1224,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_InstantiateTemplate) {
   EXPECT_TRUE(TA2.getAsType()->isIntegerType());
 
   std::vector<Cpp::TemplateArgInfo> args3 = {C.IntTy.getAsOpaquePtr()};
-  auto* Instance3 = Cpp::InstantiateTemplate(Decls[2], args3.data(),
-                                             /*type_size*/ args3.size());
+  auto* Instance3 = Cpp::InstantiateTemplate(Decls[2], args3);
   EXPECT_TRUE(
       isa<ClassTemplateSpecializationDecl>(static_cast<Decl*>(Instance3)));
   auto *CTSD3 = static_cast<ClassTemplateSpecializationDecl*>(Instance3);
@@ -1247,8 +1241,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_InstantiateTemplate) {
 
   std::vector<Cpp::TemplateArgInfo> args4 = {C.IntTy.getAsOpaquePtr(),
                                                {C.IntTy.getAsOpaquePtr(), "3"}};
-  auto* Instance4 = Cpp::InstantiateTemplate(Decls[3], args4.data(),
-                                             /*type_size*/ args4.size());
+  auto* Instance4 = Cpp::InstantiateTemplate(Decls[3], args4);
 
   EXPECT_TRUE(
       isa<ClassTemplateSpecializationDecl>(static_cast<Decl*>(Instance4)));
