@@ -190,6 +190,31 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_DeclareSilent) {
   EXPECT_EQ(0, Cpp::Declare("int y = 123;", /*silent=*/false));
 }
 
+TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_DeclareReportsParseErrors) {
+#ifdef _WIN32
+  // The non-silent parse-error case emits an `error: expected expression`
+  // diagnostic to stderr, which MSBuild's check-cppinterop custom-build
+  // rule scans and treats as a build failure regardless of the gtest
+  // result.
+  GTEST_SKIP()
+      << "non-silent diagnostic trips MSBuild error scanning on Windows";
+#endif
+#if CLANG_VERSION_MAJOR > 21
+  GTEST_SKIP() << "Test crashes gtest for llvm 22 based build";
+#endif
+  TestFixture::CreateInterpreter();
+
+  // Valid input still returns 0.
+  EXPECT_EQ(0, Cpp::Declare("int z = 7;", /*silent=*/false));
+
+  // Parse error -> rc != 0 (Parse-recovered case the trap catches).
+  EXPECT_NE(0, Cpp::Declare("int err = ;", /*silent=*/false));
+
+  // Warning-only diagnostics must not trip the trap.
+  EXPECT_EQ(0, Cpp::Declare("int __attribute__((deprecated)) v = 0;",
+                            /*silent=*/false));
+}
+
 TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_EmscriptenExceptionHandling) {
 #ifndef EMSCRIPTEN
   GTEST_SKIP() << "This test is intended to check exception handling for Emscripten builds.";
