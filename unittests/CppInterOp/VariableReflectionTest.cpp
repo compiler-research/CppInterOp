@@ -331,8 +331,8 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, VariableReflection_GetVariableOffset) {
   ASTContext& C = Interp->getCI()->getASTContext();
   std::vector<Cpp::TemplateArgInfo> template_args = {
       {C.IntTy.getAsOpaquePtr()}};
-  Cpp::TCppScope_t klass_instantiated = Cpp::InstantiateTemplate(
-      klass, template_args.data(), template_args.size());
+  Cpp::TCppScope_t klass_instantiated =
+      Cpp::InstantiateTemplate(klass, template_args);
   EXPECT_TRUE(klass_instantiated);
 
   Cpp::TCppScope_t var = Cpp::GetNamed("ref_value", klass_instantiated);
@@ -598,9 +598,8 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, VariableReflection_StaticConstExprDatamember) {
   std::vector<Cpp::TemplateArgInfo> template_args = {
       {C.IntTy.getAsOpaquePtr(), "5"}};
 
-  Cpp::TCppFunction_t MyTemplatedClass =
-      Cpp::InstantiateTemplate(Cpp::GetNamed("MyTemplatedClass"),
-                               template_args.data(), template_args.size());
+  Cpp::TCppFunction_t MyTemplatedClass = Cpp::InstantiateTemplate(
+      Cpp::GetNamed("MyTemplatedClass"), template_args);
   EXPECT_TRUE(MyTemplatedClass);
 
   datamembers.clear();
@@ -613,9 +612,8 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, VariableReflection_StaticConstExprDatamember) {
   std::vector<Cpp::TemplateArgInfo> ele_template_args = {
       {C.IntTy.getAsOpaquePtr()}, {C.FloatTy.getAsOpaquePtr()}};
 
-  Cpp::TCppFunction_t Elements = Cpp::InstantiateTemplate(
-      Cpp::GetNamed("Elements"), ele_template_args.data(),
-      ele_template_args.size());
+  Cpp::TCppFunction_t Elements =
+      Cpp::InstantiateTemplate(Cpp::GetNamed("Elements"), ele_template_args);
   EXPECT_TRUE(Elements);
 
   EXPECT_EQ(1, Cpp::GetNumBases(Elements));

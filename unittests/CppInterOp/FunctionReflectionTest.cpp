@@ -490,7 +490,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetFunctionReturnType) {
 
   std::vector<Cpp::TemplateArgInfo> args2 = {C.DoubleTy.getAsOpaquePtr()};
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetFunctionReturnType(Cpp::GetNamed(
-                "func", Cpp::InstantiateTemplate(Decls[15], args2.data(), 1)))),
+                "func", Cpp::InstantiateTemplate(Decls[15], args2)))),
             "double");
 }
 
@@ -722,8 +722,7 @@ template<typename T> T TrivialFnTemplate() { return T(); }
   ASTContext& C = Interp->getCI()->getASTContext();
 
   std::vector<Cpp::TemplateArgInfo> args1 = {C.IntTy.getAsOpaquePtr()};
-  auto Instance1 = Cpp::InstantiateTemplate(Decls[0], args1.data(),
-                                            /*type_size*/ args1.size());
+  auto Instance1 = Cpp::InstantiateTemplate(Decls[0], args1);
   EXPECT_TRUE(isa<FunctionDecl>((Decl*)Instance1));
   FunctionDecl* FD = cast<FunctionDecl>((Decl*)Instance1);
   FunctionDecl* FnTD1 = FD->getTemplateInstantiationPattern();
@@ -750,8 +749,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_InstantiateTemplateMethod) {
   ASTContext& C = Interp->getCI()->getASTContext();
 
   std::vector<Cpp::TemplateArgInfo> args1 = {C.IntTy.getAsOpaquePtr()};
-  auto Instance1 = Cpp::InstantiateTemplate(Decls[1], args1.data(),
-                                            /*type_size*/ args1.size());
+  auto Instance1 = Cpp::InstantiateTemplate(Decls[1], args1);
   EXPECT_TRUE(isa<FunctionDecl>((Decl*)Instance1));
   FunctionDecl* FD = cast<FunctionDecl>((Decl*)Instance1);
   FunctionDecl* FnTD1 = FD->getTemplateInstantiationPattern();
@@ -928,8 +926,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE,
 
   std::vector<Cpp::TemplateArgInfo> args1 = {C.DoubleTy.getAsOpaquePtr(),
                                              C.IntTy.getAsOpaquePtr()};
-  auto Instance1 = Cpp::InstantiateTemplate(Decls[1], args1.data(),
-                                            /*type_size*/ args1.size());
+  auto Instance1 = Cpp::InstantiateTemplate(Decls[1], args1);
   EXPECT_TRUE(Cpp::IsTemplatedFunction(Instance1));
   EXPECT_EQ(Cpp::GetFunctionSignature(Instance1),
             "template<> void VariadicFn<<double, int>>(double args, int args)");
@@ -951,8 +948,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE,
                                              C.DoubleTy.getAsOpaquePtr()};
 
   // instantiate VariadicFnExtended
-  auto Instance2 =
-      Cpp::InstantiateTemplate(Decls[2], args2.data(), args2.size(), true);
+  auto Instance2 = Cpp::InstantiateTemplate(Decls[2], args2, true);
   EXPECT_TRUE(Cpp::IsTemplatedFunction(Instance2));
 
   FunctionDecl* FD2 = cast<FunctionDecl>((Decl*)Instance2);
@@ -1016,12 +1012,10 @@ TYPED_TEST(CPPINTEROP_TEST_MODE,
   fn = Cpp::BestOverloadFunctionMatch(candidates, explicit_args2, args0);
   EXPECT_EQ(fn, fn0);
 
-  fn = Cpp::InstantiateTemplate(Decls[0], explicit_args1.data(),
-                                explicit_args1.size());
+  fn = Cpp::InstantiateTemplate(Decls[0], explicit_args1);
   EXPECT_EQ(fn, fn0);
 
-  fn = Cpp::InstantiateTemplate(Decls[0], explicit_args2.data(),
-                                explicit_args2.size());
+  fn = Cpp::InstantiateTemplate(Decls[0], explicit_args2);
   EXPECT_EQ(fn, fn0);
 }
 
@@ -1351,8 +1345,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE,
       C.IntTy.getAsOpaquePtr(),
   };
 
-  Cpp::TCppScope_t callme = Cpp::InstantiateTemplate(
-      Decls[0], explicit_params.data(), explicit_params.size());
+  Cpp::TCppScope_t callme = Cpp::InstantiateTemplate(Decls[0], explicit_params);
   EXPECT_TRUE(callme);
 
   std::vector<Cpp::TemplateArgInfo> arg_types = {
@@ -1582,8 +1575,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetFunctionAddress) {
 
   ASTContext& C = Interp->getCI()->getASTContext();
   std::vector<Cpp::TemplateArgInfo> argument = {C.DoubleTy.getAsOpaquePtr()};
-  Cpp::TCppScope_t add1_double =
-      Cpp::InstantiateTemplate(funcs[0], argument.data(), argument.size());
+  Cpp::TCppScope_t add1_double = Cpp::InstantiateTemplate(funcs[0], argument);
   EXPECT_TRUE(add1_double);
 
   EXPECT_TRUE(Cpp::GetFunctionAddress(add1_double));
@@ -1880,8 +1872,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetFunctionCallWrapper) {
   ASTContext& C = Interp->getCI()->getASTContext();
 
   std::vector<Cpp::TemplateArgInfo> argument = {C.IntTy.getAsOpaquePtr()};
-  auto Instance1 = Cpp::InstantiateTemplate(Decls1[0], argument.data(),
-                                            /*type_size*/ argument.size());
+  auto Instance1 = Cpp::InstantiateTemplate(Decls1[0], argument);
   EXPECT_TRUE(isa<ClassTemplateSpecializationDecl>((Decl*)Instance1));
   auto* CTSD1 = static_cast<ClassTemplateSpecializationDecl*>(Instance1);
   auto* Add_D = Cpp::GetNamed("Add", CTSD1);
@@ -1962,7 +1953,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetFunctionCallWrapper) {
 
   Cpp::TCppScope_t op_templated = operators[0];
   auto TAI = Cpp::TemplateArgInfo(Cpp::GetType("int"));
-  Cpp::TCppScope_t op = Cpp::InstantiateTemplate(op_templated, &TAI, 1);
+  Cpp::TCppScope_t op = Cpp::InstantiateTemplate(op_templated, {TAI});
   auto FCI_op = Cpp::MakeFunctionCallable(op);
   bool boolean = false;
   FCI_op.Invoke((void*)&boolean, {args, /*args_size=*/1}, toperator);
@@ -2224,11 +2215,11 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetFunctionCallWrapper) {
   EXPECT_TRUE(KlassProduct);
 
   Cpp::TCppScope_t KlassProduct_int =
-      Cpp::InstantiateTemplate(KlassProduct, &TAI, 1);
+      Cpp::InstantiateTemplate(KlassProduct, {TAI});
   EXPECT_TRUE(KlassProduct_int);
   TAI = Cpp::TemplateArgInfo(Cpp::GetType("float"));
   Cpp::TCppScope_t KlassProduct_float =
-      Cpp::InstantiateTemplate(KlassProduct, &TAI, 1);
+      Cpp::InstantiateTemplate(KlassProduct, {TAI});
   EXPECT_TRUE(KlassProduct_float);
 
   operators.clear();
@@ -2260,7 +2251,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetFunctionCallWrapper) {
   auto TAI_enum =
       Cpp::TemplateArgInfo(Cpp::GetTypeFromScope(Cpp::GetNamed("MyEnum")), "1");
   Cpp::TCppScope_t TemplatedEnum_instantiated =
-      Cpp::InstantiateTemplate(TemplatedEnum, &TAI_enum, 1);
+      Cpp::InstantiateTemplate(TemplatedEnum, {TAI_enum});
   EXPECT_TRUE(TemplatedEnum_instantiated);
 
   Cpp::TCppObject_t obj = Cpp::Construct(TemplatedEnum_instantiated);
@@ -2276,7 +2267,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetFunctionCallWrapper) {
                                       "MyEnum", Cpp::GetScope("MyNameSpace"))),
                                   "1");
   Cpp::TCppScope_t MyNameSpace_TemplatedEnum_instantiated =
-      Cpp::InstantiateTemplate(MyNameSpace_TemplatedEnum, &TAI_enum, 1);
+      Cpp::InstantiateTemplate(MyNameSpace_TemplatedEnum, {TAI_enum});
   EXPECT_TRUE(TemplatedEnum_instantiated);
 
   obj = Cpp::Construct(MyNameSpace_TemplatedEnum_instantiated);
@@ -2406,9 +2397,9 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetFunctionArgDefault) {
   EXPECT_EQ(Cpp::GetFunctionArgDefault(Decls[4], 3), "0.");
 
   ASTContext& C = Interp->getCI()->getASTContext();
-  Cpp::TemplateArgInfo template_args[1] = {C.IntTy.getAsOpaquePtr()};
+  std::vector<Cpp::TemplateArgInfo> template_args = {C.IntTy.getAsOpaquePtr()};
   Cpp::TCppScope_t my_struct =
-      Cpp::InstantiateTemplate(Decls[6], &template_args[0], 1);
+      Cpp::InstantiateTemplate(Decls[6], template_args);
   EXPECT_TRUE(my_struct);
 
   std::vector<Cpp::TCppFunction_t> fns =
@@ -2875,8 +2866,8 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_FailingTest1) {
   Cpp::GetClassTemplatedMethods("is_equal", Cpp::GetGlobalScope(), fns);
   EXPECT_EQ(fns.size(), 1);
 
-  Cpp::TemplateArgInfo args[2] = {{o1}, {o2}};
-  Cpp::TCppScope_t fn = Cpp::InstantiateTemplate(fns[0], &args[0], 2);
+  std::vector<Cpp::TemplateArgInfo> args = {{o1}, {o2}};
+  Cpp::TCppScope_t fn = Cpp::InstantiateTemplate(fns[0], args);
   EXPECT_TRUE(fn);
 
   Cpp::JitCall jit_call = Cpp::MakeFunctionCallable(fn);

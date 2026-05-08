@@ -47,6 +47,7 @@ struct APIRecord {
   StringRef DispatchName;
   StringRef ReturnType;
   StringRef Doc;
+  StringRef Deprecated;
   std::vector<ArgInfo> Args;
 };
 
@@ -59,6 +60,7 @@ std::vector<APIRecord> collectAPIs(const RecordKeeper& Records) {
     R.DispatchName = Rec->getValueAsString("DispatchName");
     R.ReturnType = Rec->getValueAsString("ReturnType");
     R.Doc = Rec->getValueAsString("Doc");
+    R.Deprecated = Rec->getValueAsString("Deprecated");
     for (const auto* ArgRec : Rec->getValueAsListOfDefs("Args")) {
       ArgInfo A;
       A.Type = ArgRec->getValueAsString("Type");
@@ -143,8 +145,13 @@ void EmitCppInterOpDecl(const RecordKeeper& Records, raw_ostream& OS) {
       }
     }
 
-    // Emit the declaration.
-    OS << "CPPINTEROP_API " << R.ReturnType << " " << R.CppName << "(";
+    // Emit the declaration. CPPINTEROP_DEPRECATED expands to the
+    // vendor-specific deprecation attribute -- older Clang (Cling)
+    // mis-parses C++11 [[deprecated]] near the return type.
+    OS << "CPPINTEROP_API ";
+    if (!R.Deprecated.empty())
+      OS << "CPPINTEROP_DEPRECATED(\"" << R.Deprecated << "\") ";
+    OS << R.ReturnType << " " << R.CppName << "(";
     for (size_t I = 0; I < R.Args.size(); ++I) {
       if (I)
         OS << ", ";

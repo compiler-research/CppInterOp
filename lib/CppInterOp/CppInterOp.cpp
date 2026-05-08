@@ -4464,6 +4464,18 @@ TCppScope_t InstantiateTemplate(TCppScope_t tmpl,
       getInterp(), tmpl, template_args, template_args_size, instantiate_body));
 }
 
+TCppScope_t
+InstantiateTemplate(TCppScope_t tmpl,
+                    const std::vector<TemplateArgInfo>& template_args,
+                    bool instantiate_body) {
+  INTEROP_TRACE(tmpl, template_args, instantiate_body);
+  // Forward to the static helper directly (not the deprecated public
+  // overload) to avoid a nested INTEROP_TRACE.
+  return INTEROP_RETURN(
+      InstantiateTemplate(getInterp(), tmpl, template_args.data(),
+                          template_args.size(), instantiate_body));
+}
+
 void GetClassTemplateInstantiationArgs(TCppScope_t templ_instance,
                                        std::vector<TemplateArgInfo>& args) {
   INTEROP_TRACE(templ_instance, INTEROP_OUT(args));
