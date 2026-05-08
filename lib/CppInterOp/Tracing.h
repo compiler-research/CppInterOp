@@ -85,6 +85,9 @@ public:
     return *T;
   }
 
+  /// True when at least one TraceRegion is currently active.
+  bool insideTracedRegion() const { return !m_TimerStack.empty(); }
+
   void pushTimer(llvm::Timer* T) {
     if (!m_TimerStack.empty())
       m_TimerStack.back()->stopTimer();
@@ -468,6 +471,9 @@ struct TraceData {
   /// container (preamble decl needed), false on later calls reusing
   /// the same slot.
   llvm::SmallVector<bool, 2> OutFirstUse;
+  /// Set when another TraceRegion was already active at construction.
+  /// Nested calls skip log emission but still register handles.
+  bool Nested = false;
 };
 
 class TraceRegion {
@@ -475,10 +481,11 @@ class TraceRegion {
 
   /// Resolve the OUT pointer-container's `_outN` index up-front so
   /// format() can render the call site's alias and the dtor knows
-  /// whether to emit the preamble decl (only for the first use of a
-  /// given source container; later calls reuse the same slot).
+  /// whether to emit the preamble decl (only on first use of a given
+  /// source container). Skipped for nested calls (no emission); the
+  /// handle callback still queues so the outer call can resolve names.
   void captureArg(OutParam&& op) {
-    if (op.IsPointerContainer) {
+    if (!m_Data->Nested && op.IsPointerContainer) {
       auto [idx, firstUse] =
           TraceInfo::TheTraceInfo->outIndexFor(op.SourceAddr);
       m_Data->OutIndices.push_back(idx);
@@ -495,15 +502,19 @@ public:
       return;
     m_Data = std::make_unique<TraceData>();
     m_Data->Name = Name;
+    TraceInfo& TI = *TraceInfo::TheTraceInfo;
+    // Detect nesting before pushing this call's frame.
+    m_Data->Nested = TI.insideTracedRegion();
     // captureArg before format(): it fills OutIndices that format()
     // consumes.
     (captureArg(std::forward<Args>(args)), ...);
-    if constexpr (sizeof...(args) > 0) {
-      ReproBuffer RB;
-      RB.format(m_Data->OutIndices, std::forward<Args>(args)...);
-      m_Data->ArgStr = RB.Buffer;
+    if (!m_Data->Nested) {
+      if constexpr (sizeof...(args) > 0) {
+        ReproBuffer RB;
+        RB.format(m_Data->OutIndices, std::forward<Args>(args)...);
+        m_Data->ArgStr = RB.Buffer;
+      }
     }
-    TraceInfo& TI = *TraceInfo::TheTraceInfo;
     TI.pushTimer(&TI.getTimer(Name));
     m_Data->StartTime = llvm::TimeRecord::getCurrentTime(false).getWallTime();
   }
@@ -524,6 +535,13 @@ public:
     auto Dur = static_cast<long long>((EndTime - m_Data->StartTime) * 1e9);
     TraceInfo& TI = *TraceInfo::TheTraceInfo;
     TI.popTimer();
+
+    // Nested calls don't reach the log -- their args reference
+    // outer-scope locals the reproducer doesn't have.
+    if (m_Data->Nested) {
+      m_Data.reset();
+      return;
+    }
 
     // Allocate a `_retN` slot up-front for vector-of-pointer returns so
     // the call line spells `auto _retN = ...` and the per-element decls

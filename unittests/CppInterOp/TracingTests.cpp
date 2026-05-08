@@ -840,6 +840,56 @@ TEST_F(TracingTest, ChainedReproducerLogic) {
 }
 
 // ---------------------------------------------------------------------------
+// Tests: nested-call suppression
+// ---------------------------------------------------------------------------
+
+void* NestedInnerReturn() {
+  INTEROP_TRACE();
+  return INTEROP_RETURN((void*)0x2000);
+}
+
+void* NestedOuterReturn() {
+  INTEROP_TRACE();
+  return INTEROP_RETURN(NestedInnerReturn());
+}
+
+TEST_F(TracingTest, NestedCallSuppressedButHandleRegistered) {
+  // The inner call doesn't appear in the log, yet its handle is
+  // registered so the outer call's `auto vN = ...` line binds the
+  // pointer the inner produced.
+  void* h = NestedOuterReturn();
+  TraceInfo& TI = *TraceInfo::TheTraceInfo;
+  EXPECT_FALSE(TI.lookupHandle(h).empty());
+  auto output = getFullLog();
+  EXPECT_THAT(output, HasSubstr("auto v1 = Cpp::NestedOuterReturn()"));
+  EXPECT_THAT(output, Not(HasSubstr("Cpp::NestedInnerReturn")));
+}
+
+void NestedInnerNoOp() {
+  INTEROP_TRACE();
+  return INTEROP_VOID_RETURN();
+}
+
+void NestedOuterWithOut(std::vector<void*>& out) {
+  INTEROP_TRACE(INTEROP_OUT(out));
+  NestedInnerNoOp();
+  out.push_back((void*)0x3000);
+  return INTEROP_VOID_RETURN();
+}
+
+TEST_F(TracingTest, NestedSuppressionDoesNotLeakOutCounter) {
+  // captureArg must not bump m_OutCount for nested OUT-params --
+  // otherwise the outer call would emit `_out1` while the inner
+  // claimed `_out0` silently.
+  std::vector<void*> v;
+  NestedOuterWithOut(v);
+  auto output = getFullLog();
+  EXPECT_THAT(output, HasSubstr("std::vector<void*> _out0;"));
+  EXPECT_THAT(output, HasSubstr("Cpp::NestedOuterWithOut(_out0);"));
+  EXPECT_THAT(output, Not(HasSubstr("_out1")));
+}
+
+// ---------------------------------------------------------------------------
 // Tests: out-parameters
 // ---------------------------------------------------------------------------
 
