@@ -32,13 +32,25 @@ static std::string getFullLog() {
 
 class TracingTest : public ::testing::Test {
 protected:
+  static void SetUpTestSuite() {
+    saved_death_test_style_ = ::testing::GTEST_FLAG(death_test_style);
+    GTEST_FLAG_SET(death_test_style, "threadsafe");
+  }
+  static void TearDownTestSuite() {
+    GTEST_FLAG_SET(death_test_style, saved_death_test_style_);
+  }
   void SetUp() override {
     if (TraceInfo::TheTraceInfo)
       TraceInfo::TheTraceInfo->clear();
     TraceInfo::TheTraceInfo = nullptr;
     InitTracing();
   }
+
+private:
+  static std::string saved_death_test_style_;
 };
+
+std::string TracingTest::saved_death_test_style_;
 
 class NoTracingTest : public ::testing::Test {
 protected:
