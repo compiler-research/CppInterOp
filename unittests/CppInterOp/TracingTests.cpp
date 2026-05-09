@@ -1003,9 +1003,17 @@ TEST_F(TracingTest, WriteToFileProducesValidReproducer) {
   std::string content((std::istreambuf_iterator<char>(ifs)),
                       std::istreambuf_iterator<char>());
 
+  // Both prologue branches must travel together.
+  EXPECT_THAT(content, HasSubstr("#ifdef CPPINTEROP_USE_DISPATCH"));
+  EXPECT_THAT(content, HasSubstr("#include <CppInterOp/Dispatch.h>"));
   EXPECT_THAT(content, HasSubstr("#include <CppInterOp/CppInterOp.h>"));
+  EXPECT_THAT(content, HasSubstr("CPPINTEROP_API_FUNC"));
+  EXPECT_THAT(content, HasSubstr("Cpp::LoadDispatchAPI"));
   EXPECT_THAT(content, HasSubstr("void reproducer()"));
   EXPECT_THAT(content, HasSubstr("Cpp::"));
+  EXPECT_THAT(content, HasSubstr("Build context"));
+  EXPECT_THAT(content, HasSubstr("build type:"));
+  EXPECT_THAT(content, HasSubstr("cmake-cache:"));
 
   // Clean up.
   llvm::sys::fs::remove(Path);
@@ -1080,7 +1088,7 @@ TEST_F(TracingTest, ReproducerCompilesViaInterpreter) {
   ifs.close();
 
   // Verify the reproducer has proper structure and content.
-  EXPECT_THAT(content, HasSubstr("#include <CppInterOp/CppInterOp.h>"));
+  EXPECT_THAT(content, HasSubstr("#include <CppInterOp/Dispatch.h>"));
   EXPECT_THAT(content, HasSubstr("void reproducer()"));
   EXPECT_THAT(content, HasSubstr("Cpp::"));
 
@@ -1095,7 +1103,8 @@ TEST_F(TracingTest, ReproducerCompilesViaInterpreter) {
       << "Reproducer failed to compile via #include:\n"
       << content;
 
-  // Execute the reproducer in clean interpreter state.
+  // Drives the static-link `#else` branch via the in-process interpreter;
+  // the dispatch path is for standalone builds, not exercised here.
   EXPECT_EQ(Cpp::Process("reproducer();"), 0) << "Reproducer failed to execute";
 
   llvm::sys::fs::remove(Path);
@@ -1203,7 +1212,7 @@ TEST_F(TracingTest, StartStopTracingWritesToFile) {
   ASSERT_FALSE(content.empty());
   EXPECT_THAT(content, HasSubstr("Cpp::VoidFunc()"));
   EXPECT_THAT(content, HasSubstr("Cpp::AnnotatedFunction("));
-  EXPECT_THAT(content, HasSubstr("#include <CppInterOp/CppInterOp.h>"));
+  EXPECT_THAT(content, HasSubstr("#include <CppInterOp/Dispatch.h>"));
 
   llvm::sys::fs::remove(Path);
 }
@@ -1326,7 +1335,7 @@ TEST_F(TracingTest, WriteToFileWhenStdErrDisabled) {
 
   // The file should contain the full reproducer.
   std::string FileContent = ReadFileToString(Path);
-  EXPECT_THAT(FileContent, HasSubstr("#include <CppInterOp/CppInterOp.h>"));
+  EXPECT_THAT(FileContent, HasSubstr("#include <CppInterOp/Dispatch.h>"));
   EXPECT_THAT(FileContent, HasSubstr("Cpp::AnnotatedFunction(77)"));
 
   llvm::sys::fs::remove(Path);
