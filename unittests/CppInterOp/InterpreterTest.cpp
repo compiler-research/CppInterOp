@@ -109,6 +109,26 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_Evaluate) {
   EXPECT_FALSE(HadError);
 }
 
+// Regression (cppyy test12): no-Value-after-success used to abort in
+// convertTo. A pure class decl is no-Value across all clang-repl
+// versions; `int x = 5;` is bound on newer ones.
+TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_Evaluate_NonValueStatement) {
+#ifdef EMSCRIPTEN
+  GTEST_SKIP() << "Test fails for Emscipten builds";
+#endif
+#ifdef _WIN32
+  GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
+#endif
+  if (TypeParam::isOutOfProcess)
+    GTEST_SKIP() << "Test fails for OOP JIT builds";
+  TestFixture::CreateInterpreter();
+
+  bool HadError = false;
+  EXPECT_EQ(Cpp::Evaluate("class EvalRegression_NoValue {};", &HadError),
+            (intptr_t)~0UL);
+  EXPECT_TRUE(HadError);
+}
+
 TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_DeleteInterpreter) {
   if (TypeParam::isOutOfProcess)
     GTEST_SKIP() << "Test fails for OOP JIT builds";

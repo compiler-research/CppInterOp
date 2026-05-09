@@ -4234,17 +4234,18 @@ int Process(const char* code) {
   return INTEROP_RETURN(getInterp().process(code));
 }
 
-intptr_t Evaluate(const char* code, bool* HadError /*=nullptr*/) {
-  INTEROP_TRACE(code, HadError);
+intptr_t Evaluate(const char* code, bool* IsValueInvalid /*=nullptr*/) {
+  INTEROP_TRACE(code, IsValueInvalid);
   compat::Value V;
 
-  if (HadError)
-    *HadError = false;
+  if (IsValueInvalid)
+    *IsValueInvalid = false;
 
   auto res = getInterp().evaluate(code, V);
-  if (res != 0) { // 0 is success
-    if (HadError)
-      *HadError = true;
+  // 0 is success; an unset V on success means convertTo would assert.
+  if (res != 0 || !V.hasValue()) {
+    if (IsValueInvalid)
+      *IsValueInvalid = true;
     // FIXME: Make this return llvm::Expected
     return INTEROP_RETURN(~0UL);
   }
