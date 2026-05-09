@@ -19,6 +19,10 @@
 #include <cassert>
 #include <system_error>
 
+#if defined(__linux__) || defined(__APPLE__)
+#include <dlfcn.h>
+#endif
+
 namespace CppInterOp {
 namespace Tracing {
 
@@ -42,6 +46,97 @@ static void WriteVersionComment(llvm::raw_ostream& OS,
   }
 }
 
+/// dladdr-based path to libclangCppInterOp, used as the dispatch-mode
+/// fallback. Empty for statically-linked images (where dladdr returns
+/// the executable, not a real shared object) so the reproducer falls
+/// through to CPPINTEROP_LIBRARY_PATH.
+static std::string GetCppInterOpLibPath() {
+#if defined(__linux__) || defined(__APPLE__)
+  Dl_info info;
+  if (dladdr(reinterpret_cast<const void*>(&CppImpl::GetVersion), &info) &&
+      info.dli_fname) {
+    llvm::StringRef Name(info.dli_fname);
+    if (Name.contains(".so") || Name.ends_with(".dylib") ||
+        Name.ends_with(".dll"))
+      return info.dli_fname;
+  }
+#endif
+  return {};
+}
+
+/// Stream Cpp::GetBuildInfo() into the prologue as `//` comments.
+static void WriteBuildContext(llvm::raw_ostream& OS) {
+  OS << "// Build context (CppInterOp configure-time snapshot):\n";
+  // Bind to a local: StringRef of the GetBuildInfo() rvalue would
+  // dangle past the next `;`.
+  std::string Snapshot = CppImpl::GetBuildInfo();
+  llvm::StringRef Info(Snapshot);
+  while (!Info.empty()) {
+    auto [Line, Rest] = Info.split('\n');
+    if (!Line.empty())
+      OS << "//" << Line << "\n";
+    Info = Rest;
+  }
+}
+
+/// Emit a prologue compilable in two modes selected by -D:
+///   default                       <CppInterOp/CppInterOp.h>, static-link
+///   -DCPPINTEROP_USE_DISPATCH     <CppInterOp/Dispatch.h>, dlopen-based
+/// The dispatch path reads CPPINTEROP_LIBRARY_PATH and falls back to
+/// the dladdr-captured libclangCppInterOp path (when available).
+static void WriteReproducerPrologue(llvm::raw_ostream& OS,
+                                    llvm::StringRef Title,
+                                    const std::string& Version,
+                                    llvm::StringRef Footnote) {
+  OS << "// CppInterOp " << Title << "\n";
+  WriteVersionComment(OS, Version);
+  if (!Footnote.empty())
+    OS << "// " << Footnote << "\n";
+  OS << "//\n";
+  WriteBuildContext(OS);
+  OS << "//\n";
+  OS << "// Build (default, static link):\n";
+  OS << "//   c++ -std=c++17 -I<CppInterOp-include-dir>"
+        " reproducer.cpp -lclangCppInterOp -o reproducer\n";
+  OS << "// Build (dlopen via Dispatch.h):\n";
+  OS << "//   c++ -std=c++17 -DCPPINTEROP_USE_DISPATCH"
+        " -I<CppInterOp-include-dir>"
+        " reproducer.cpp -ldl -o reproducer\n";
+  std::string LibPath = GetCppInterOpLibPath();
+  OS << "// Run: ./reproducer";
+  if (LibPath.empty())
+    OS << "  (dispatch build: set "
+          "CPPINTEROP_LIBRARY_PATH=<libclangCppInterOp.so>)";
+  else
+    OS << "  (dispatch build: CPPINTEROP_LIBRARY_PATH overrides the captured "
+          "path)";
+  OS << "\n\n";
+
+  OS << "#ifdef CPPINTEROP_USE_DISPATCH\n";
+  OS << "#include <CppInterOp/Dispatch.h>\n\n";
+  // X-macro defines one DispatchRaw slot per public API entry.
+  OS << "using namespace CppImpl;\n";
+  OS << "#define CPPINTEROP_API_FUNC(DN, CN, Ret, DeclArgs, CallArgs, "
+        "RawTypes) \\\n"
+        "  Ret(*CppInternal::DispatchRaw::DN) RawTypes = nullptr;\n"
+        "#include \"CppInterOp/CppInterOpAPI.inc\"\n\n";
+  // Lazy: lets a cling-driven harness call reproducer() before main().
+  OS << "static void initCppInterOpReproducer() {\n";
+  OS << "  static bool inited = false;\n";
+  OS << "  if (inited) return;\n";
+  OS << "  const char* path = std::getenv(\"CPPINTEROP_LIBRARY_PATH\");\n";
+  if (!LibPath.empty())
+    OS << "  if (!path) path = R\"PATH(" << LibPath << ")PATH\";\n";
+  OS << "  Cpp::LoadDispatchAPI(path);\n";
+  OS << "  inited = true;\n";
+  OS << "}\n";
+  OS << "#else\n";
+  OS << "#include <CppInterOp/CppInterOp.h>\n";
+  // Static-link path: no-op so reproducer()'s init call is harmless.
+  OS << "static void initCppInterOpReproducer() {}\n";
+  OS << "#endif\n\n";
+}
+
 std::string TraceInfo::writeToFile(const std::string& Version) {
   llvm::SmallString<128> TmpDir;
   llvm::sys::path::system_temp_directory(/*ErasedOnReboot=*/true, TmpDir);
@@ -55,12 +150,11 @@ std::string TraceInfo::writeToFile(const std::string& Version) {
 
   llvm::raw_fd_ostream OS(FD, /*shouldClose=*/true);
 
-  OS << "// CppInterOp crash reproducer\n";
   std::string Ver = Version.empty() ? CppImpl::GetVersion() : Version;
-  WriteVersionComment(OS, Ver);
-  OS << "// Generated automatically — re-run to reproduce the crash.\n";
-  OS << "#include <CppInterOp/CppInterOp.h>\n\n";
+  WriteReproducerPrologue(OS, "crash reproducer", Ver,
+                          "Generated automatically — re-run to reproduce.");
   OS << "void reproducer() {\n";
+  OS << "  initCppInterOpReproducer();\n";
   for (const auto& Line : m_Log)
     OS << Line << "\n";
   OS << "}\n\n";
@@ -108,12 +202,9 @@ void TraceInfo::StopRegion(const std::string& Version) {
     return;
 
   std::string Ver = Version.empty() ? CppImpl::GetVersion() : Version;
-
-  OS << "// CppInterOp trace region\n";
-  WriteVersionComment(OS, Ver);
-  OS << "// Generated automatically.\n";
-  OS << "#include <CppInterOp/CppInterOp.h>\n\n";
+  WriteReproducerPrologue(OS, "trace region", Ver, "Generated automatically.");
   OS << "void reproducer() {\n";
+  OS << "  initCppInterOpReproducer();\n";
   for (size_t i = m_RegionStart; i < m_Log.size(); ++i)
     OS << m_Log[i] << "\n";
   OS << "}\n\n";
