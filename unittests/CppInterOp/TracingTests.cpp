@@ -890,6 +890,32 @@ TEST_F(TracingTest, NestedSuppressionDoesNotLeakOutCounter) {
 }
 
 // ---------------------------------------------------------------------------
+// Tests: ctor-side placeholder for aborted calls
+// ---------------------------------------------------------------------------
+
+void PlaceholderProbe() {
+  INTEROP_TRACE();
+  // Mid-call: the ctor-emitted placeholder is already in the log.
+  auto& log = TraceInfo::TheTraceInfo->getLog();
+  ASSERT_FALSE(log.empty());
+  EXPECT_THAT(log.back(), HasSubstr("Cpp::PlaceholderProbe"));
+  EXPECT_THAT(log.back(), HasSubstr("[aborted before return]"));
+  return INTEROP_VOID_RETURN();
+}
+
+TEST_F(TracingTest, PlaceholderInCtorReplacedByDtor) {
+  // Mid-call assertions live inside PlaceholderProbe; here we only
+  // verify the replacement: after the call returns, the slot reads
+  // the completed `// [N ns]` line, not the placeholder.
+  PlaceholderProbe();
+  auto& log = TraceInfo::TheTraceInfo->getLog();
+  ASSERT_FALSE(log.empty());
+  EXPECT_THAT(log.back(), Not(HasSubstr("aborted before return")));
+  EXPECT_THAT(log.back(),
+              ::testing::MatchesRegex(R"(.*Cpp::PlaceholderProbe.*ns\].*)"));
+}
+
+// ---------------------------------------------------------------------------
 // Tests: out-parameters
 // ---------------------------------------------------------------------------
 
