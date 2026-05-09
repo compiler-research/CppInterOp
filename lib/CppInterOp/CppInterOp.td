@@ -70,12 +70,15 @@ def Declare : CppInterOpAPI {
 
 def Evaluate : CppInterOpAPI {
   let Doc = [{Declares, executes and returns the execution result as a intptr_t.
+\param[in] code - the snippet to declare and execute.
+\param[out] IsValueInvalid - if non-null, set true when the result is
+            unusable (parse error or no-Value-after-success).
 \returns the expression results as a intptr_t.}];
 
   let ReturnType = "intptr_t";
   let Args = [
     Arg<"const char*", "code">,
-    Arg<"bool*", "HadError", "nullptr">
+    Arg<"bool*", "IsValueInvalid", "nullptr">
   ];
 }
 
