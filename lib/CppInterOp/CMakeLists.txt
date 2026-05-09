@@ -155,20 +155,29 @@ else()
     "cppinterop-tblgen binary when cross-compiling.")
 endif()
 
-# Capture the relevant subset of CMake cache vars that the user passed at
-# configure time, so Cpp::GetBuildInfo() can return a self-contained
-# reproducer-friendly snapshot. We filter to LLVM_*, CPPINTEROP_* plus
-# the CMAKE_* names listed below; the rest is noise for a bug report.
+# Filter cache entries to those CMake marks with HELPSTRING="No help,
+# variable specified on the command line." -- the property is left on
+# -D vars the project never reclaimed via set(... CACHE), so what
+# survives is the user's extra args.
+# See https://gitlab.kitware.com/cmake/cmake/-/work_items/19622
 get_cmake_property(_cppinterop_cache_vars CACHE_VARIABLES)
-set(_cppinterop_keep_cmake_vars
-    CMAKE_BUILD_TYPE CMAKE_CXX_STANDARD CMAKE_PREFIX_PATH)
-set(CPPINTEROP_CMAKE_CONFIGURE_FLAGS "")
+set(CPPINTEROP_CMAKE_INVOCATION "")
 foreach(_v ${_cppinterop_cache_vars})
-  if(_v MATCHES "^(LLVM_|CPPINTEROP_)"
-     OR _v IN_LIST _cppinterop_keep_cmake_vars)
-    string(APPEND CPPINTEROP_CMAKE_CONFIGURE_FLAGS " -D${_v}=${${_v}}")
+  get_property(_help CACHE ${_v} PROPERTY HELPSTRING)
+  if(NOT _help STREQUAL
+     "No help, variable specified on the command line.")
+    continue()
   endif()
+  get_property(_type CACHE ${_v} PROPERTY TYPE)
+  if(_type STREQUAL "UNINITIALIZED")
+    set(_type "")
+  else()
+    set(_type ":${_type}")
+  endif()
+  string(APPEND CPPINTEROP_CMAKE_INVOCATION
+         " -D${_v}${_type}=\"${${_v}}\"")
 endforeach()
+string(STRIP "${CPPINTEROP_CMAKE_INVOCATION}" CPPINTEROP_CMAKE_INVOCATION)
 configure_file(BuildInfo.inc.in
                ${CPPINTEROP_GEN_DIR}/BuildInfo.inc
                @ONLY)
