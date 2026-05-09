@@ -3851,11 +3851,9 @@ bool DefineAbsoluteSymbol(compat::Interpreter& I, const char* unmangled_name,
 
   // mangleAndIntern applies the target DataLayout's symbol prefix
   // (leading `_` on Mach-O, no-op on ELF) so the registered key
-  // matches what the JIT computes when it lowers an IR-level symbol
+  // matches what the JIT computes when it lowers an IR symbol
   // reference for lookup. Plain ES.intern() bypasses the prefix and
-  // silently breaks lookup on Mach-O — e.g.
-  // `__clang_Interpreter_SetValueNoAlloc` registered, but the JIT
-  // looks up `___clang_Interpreter_SetValueNoAlloc`.
+  // silently breaks lookup on Mach-O.
   llvm::orc::SymbolMap InjectedSymbols{
       {Jit.mangleAndIntern(unmangled_name),
        ExecutorSymbolDef(ExecutorAddr(address), JITSymbolFlags::Exported)}};
