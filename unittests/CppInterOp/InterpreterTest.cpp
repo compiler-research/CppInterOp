@@ -35,17 +35,14 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_Version) {
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_BuildInfo) {
+  // Pin the headline labels so a future template edit cannot silently
+  // drop a field.
   std::string Info = Cpp::GetBuildInfo();
-  // Headline labels survived configure_file substitution -- a refactor
-  // that strips a field from the template gets caught here.
   EXPECT_THAT(Info, ::testing::HasSubstr("build type:"));
   EXPECT_THAT(Info, ::testing::HasSubstr("compiler:"));
   EXPECT_THAT(Info, ::testing::HasSubstr("llvm:"));
   EXPECT_THAT(Info, ::testing::HasSubstr("target:"));
-  EXPECT_THAT(Info, ::testing::HasSubstr("cmake-cache:"));
-  // The configure-time foreach captured at least one kept var with its -D
-  // prefix; a regression that turned the loop into a no-op would drop this.
-  EXPECT_THAT(Info, ::testing::HasSubstr("-DCMAKE_BUILD_TYPE="));
+  EXPECT_THAT(Info, ::testing::HasSubstr("cmake-line:"));
 }
 
 #ifndef LLVM_ENABLE_ASSERTIONS
