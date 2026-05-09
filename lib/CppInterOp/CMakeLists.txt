@@ -155,6 +155,24 @@ else()
     "cppinterop-tblgen binary when cross-compiling.")
 endif()
 
+# Capture the relevant subset of CMake cache vars that the user passed at
+# configure time, so Cpp::GetBuildInfo() can return a self-contained
+# reproducer-friendly snapshot. We filter to LLVM_*, CPPINTEROP_* plus
+# the CMAKE_* names listed below; the rest is noise for a bug report.
+get_cmake_property(_cppinterop_cache_vars CACHE_VARIABLES)
+set(_cppinterop_keep_cmake_vars
+    CMAKE_BUILD_TYPE CMAKE_CXX_STANDARD CMAKE_PREFIX_PATH)
+set(CPPINTEROP_CMAKE_CONFIGURE_FLAGS "")
+foreach(_v ${_cppinterop_cache_vars})
+  if(_v MATCHES "^(LLVM_|CPPINTEROP_)"
+     OR _v IN_LIST _cppinterop_keep_cmake_vars)
+    string(APPEND CPPINTEROP_CMAKE_CONFIGURE_FLAGS " -D${_v}=${${_v}}")
+  endif()
+endforeach()
+configure_file(BuildInfo.inc.in
+               ${CPPINTEROP_GEN_DIR}/BuildInfo.inc
+               @ONLY)
+
 add_llvm_library(clangCppInterOp
   DISABLE_LLVM_LINK_LLVM_DYLIB
   CppInterOp.cpp

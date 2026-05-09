@@ -1304,6 +1304,15 @@ def GetVersion : CppInterOpAPI {
   let ReturnType = "std::string";
 }
 
+def GetBuildInfo : CppInterOpAPI {
+  let Doc = [{\returns a multi-line snapshot of the CppInterOp configure-
+time build context (build type, compiler, LLVM version, target, the
+filtered cmake cache flags). Embedded in trace reproducers and bug
+reports so a reviewer can compare their build to the reporter's.}];
+
+  let ReturnType = "std::string";
+}
+
 def HasDefaultConstructor : CppInterOpAPI {
   let Doc = "\\returns if a class has a default constructor.";
   let ReturnType = "bool";

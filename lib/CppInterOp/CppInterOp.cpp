@@ -481,6 +481,19 @@ std::string GetVersion() {
                         "])\n");
 }
 
+std::string GetBuildInfo() {
+  INTEROP_TRACE();
+  // The right-hand side is a raw-string literal expression generated from
+  // BuildInfo.inc.in via configure_file at CMake-configure time; it carries
+  // the filtered CACHE_VARIABLES snapshot. Kept out of the INTEROP_RETURN
+  // macro call so the preprocessor is not asked to expand a directive
+  // inside macro arguments.
+  std::string Info =
+#include "CppInterOp/BuildInfo.inc"
+      ;
+  return INTEROP_RETURN(Info);
+}
+
 std::string Demangle(const std::string& mangled_name) {
   INTEROP_TRACE(mangled_name);
   // Both itaniumDemangle and microsoftDemangle return a malloc'd buffer
