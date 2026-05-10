@@ -45,6 +45,35 @@
 #endif
 
 namespace CppImpl {
+class JitCall;
+}
+namespace CppInternal {
+namespace DispatchRaw {
+/// JitCall::Invoke trace-hook slots. Dispatch.h consumers get a per-DSO
+/// inline (vague-linkage) variable -- no UND symbol crosses the link --
+/// populated by LoadDispatchAPI. Linked consumers share a single extern
+/// definition in libclangCppInterOp, populated by InitTracing. Nullptr
+/// means tracing is off.
+#ifdef CPPINTEROP_DISPATCH_H
+inline void (*TraceJitCallInvoke)(const CppImpl::JitCall* JC, void* result,
+                                  void** args, std::size_t nargs,
+                                  void* self) noexcept = nullptr;
+inline void (*TraceJitCallInvokeDestructor)(const CppImpl::JitCall* JC,
+                                            void* object, unsigned long nary,
+                                            int withFree) noexcept = nullptr;
+#else
+extern CPPINTEROP_API void (*TraceJitCallInvoke)(const CppImpl::JitCall* JC,
+                                                 void* result, void** args,
+                                                 std::size_t nargs,
+                                                 void* self) noexcept;
+extern CPPINTEROP_API void (*TraceJitCallInvokeDestructor)(
+    const CppImpl::JitCall* JC, void* object, unsigned long nary,
+    int withFree) noexcept;
+#endif
+} // namespace DispatchRaw
+} // namespace CppInternal
+
+namespace CppImpl {
 using TCppIndex_t = size_t;
 using TCppScope_t = void*;
 using TCppConstScope_t = const void*;
@@ -236,16 +265,19 @@ private:
   JitCall(Kind K, DestructorCall C, TCppConstFunction_t Dtor)
       : m_DestructorCall(C), m_Kind(K), m_FD(Dtor) {}
 
+  // Trace-hook impls need private m_FD for the function-name lookup.
+  friend void CppInterOpTraceJitCallInvokeImpl(const JitCall*, void* result,
+                                               void** args, std::size_t nargs,
+                                               void* self) noexcept;
+  friend void CppInterOpTraceJitCallInvokeDestructorImpl(const JitCall*,
+                                                         void* object,
+                                                         unsigned long nary,
+                                                         int withFree) noexcept;
+
   /// Checks if the passed arguments are valid for the given function.
   CPPINTEROP_API bool AreArgumentsValid(void* result, ArgList args, void* self,
                                         size_t nary) const;
 
-  /// This function is used for debugging, it reports when the function was
-  /// called.
-  CPPINTEROP_API void ReportInvokeStart(void* result, ArgList args,
-                                        void* self) const;
-  CPPINTEROP_API void ReportInvokeStart(void* object, unsigned long nary,
-                                        int withFree) const;
   void ReportInvokeEnd() const;
 
 public:
@@ -278,11 +310,10 @@ public:
       break;
 
     case kGenericCall:
-#ifndef NDEBUG
       // We pass 1UL to nary which is only relevant for structors
       assert(AreArgumentsValid(result, args, self, 1UL) && "Invalid args!");
-      ReportInvokeStart(result, args, self);
-#endif // NDEBUG
+      if (auto fn = ::CppInternal::DispatchRaw::TraceJitCallInvoke)
+        fn(this, result, args.m_Args, args.m_ArgSize, self);
       m_GenericCall(self, args.m_ArgSize, args.m_Args, result);
       break;
 
@@ -309,9 +340,8 @@ public:
   void InvokeDestructor(void* object, unsigned long nary = 0,
                         int withFree = true) const {
     assert(m_Kind == kDestructorCall && "Wrong overload!");
-#ifndef NDEBUG
-    ReportInvokeStart(object, nary, withFree);
-#endif // NDEBUG
+    if (auto fn = ::CppInternal::DispatchRaw::TraceJitCallInvokeDestructor)
+      fn(this, object, nary, withFree);
     m_DestructorCall(object, nary, withFree);
   }
 
@@ -327,11 +357,10 @@ public:
   void InvokeConstructor(void* result, unsigned long nary = 1,
                          ArgList args = {}, void* is_arena = nullptr) const {
     assert(m_Kind == kConstructorCall && "Wrong overload!");
-#ifndef NDEBUG
     assert(AreArgumentsValid(result, args, /*self=*/nullptr, nary) &&
            "Invalid args!");
-    ReportInvokeStart(result, args, nullptr);
-#endif // NDEBUG
+    if (auto fn = CppInternal::DispatchRaw::TraceJitCallInvoke)
+      fn(this, result, args.m_Args, args.m_ArgSize, nullptr);
     m_ConstructorCall(result, nary, args.m_ArgSize, args.m_Args, is_arena);
   }
 };

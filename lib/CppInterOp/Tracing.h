@@ -46,6 +46,14 @@
 namespace CppInterOp {
 namespace Tracing {
 
+class TraceInfo;
+
+/// Process-global tracer pointer. Exported because TracingTests and
+/// the crash handler (linked-mode consumers) read it directly; cppyy
+/// and Dispatch.h consumers go through the DispatchRaw trace slots
+/// declared in CppInterOpTypes.h instead.
+extern CPPINTEROP_TRACE_API TraceInfo* TheTraceInfo;
+
 class TraceInfo {
   llvm::TimerGroup m_TG;
   llvm::StringMap<std::unique_ptr<llvm::Timer>> m_Timers;
@@ -206,8 +214,6 @@ public:
     m_OutCount = 0;
     m_OutAliases.clear();
   }
-
-  CPPINTEROP_TRACE_API static TraceInfo* TheTraceInfo;
 };
 
 /// Activate tracing. Called once during process initialization.
@@ -218,16 +224,16 @@ CPPINTEROP_TRACE_API void InitTracing();
 /// it. Returns the path where StopTracing() will write the reproducer.
 /// \param WriteOnStdErr if true, also emit the reproducer to stderr on stop.
 inline std::string StartTracing(bool WriteOnStdErr = true) {
-  if (!TraceInfo::TheTraceInfo)
+  if (!TheTraceInfo)
     InitTracing();
-  return TraceInfo::TheTraceInfo->StartRegion(WriteOnStdErr);
+  return TheTraceInfo->StartRegion(WriteOnStdErr);
 }
 
 /// End the traced region and write the reproducer file containing only the
 /// calls made between StartTracing() and this call.
 inline void StopTracing(const std::string& Version = "") {
-  if (TraceInfo::TheTraceInfo)
-    TraceInfo::TheTraceInfo->StopRegion(Version);
+  if (TheTraceInfo)
+    TheTraceInfo->StopRegion(Version);
 }
 
 /// Marks a function parameter as an output container (e.g. std::vector<T>&
@@ -313,7 +319,7 @@ struct ReproBuffer {
       OS << "nullptr";
       return;
     }
-    auto h = TraceInfo::TheTraceInfo->lookupHandle(p);
+    auto h = TheTraceInfo->lookupHandle(p);
     if (h.empty())
       OS << "nullptr /*unknown*/";
     else
@@ -522,8 +528,7 @@ class TraceRegion {
   /// handle callback still queues so the outer call can resolve names.
   void captureArg(OutParam&& op) {
     if (!m_Data->Nested && op.IsPointerContainer) {
-      auto [idx, firstUse] =
-          TraceInfo::TheTraceInfo->outIndexFor(op.SourceAddr);
+      auto [idx, firstUse] = TheTraceInfo->outIndexFor(op.SourceAddr);
       m_Data->OutIndices.push_back(idx);
       m_Data->OutFirstUse.push_back(firstUse);
     }
@@ -534,11 +539,11 @@ class TraceRegion {
 
 public:
   template <typename... Args> TraceRegion(const char* Name, Args&&... args) {
-    if (!TraceInfo::TheTraceInfo)
+    if (!TheTraceInfo)
       return;
     m_Data = std::make_unique<TraceData>();
     m_Data->Name = Name;
-    TraceInfo& TI = *TraceInfo::TheTraceInfo;
+    TraceInfo& TI = *TheTraceInfo;
     // Detect nesting before pushing this call's frame.
     m_Data->Nested = TI.insideTracedRegion();
     // captureArg before format(): it fills OutIndices that format()
@@ -582,7 +587,7 @@ public:
 
     auto EndTime = llvm::TimeRecord::getCurrentTime(false).getWallTime();
     auto Dur = static_cast<long long>((EndTime - m_Data->StartTime) * 1e9);
-    TraceInfo& TI = *TraceInfo::TheTraceInfo;
+    TraceInfo& TI = *TheTraceInfo;
     TI.popTimer();
 
     // Nested calls don't reach the log -- their args reference
@@ -768,7 +773,7 @@ public:
       // so the per-call cost off-trace is one load + branch. The diagnostic
       // is unconditional; assert() is a no-op in NDEBUG, so Release reports
       // the drift via stderr without aborting.
-      if (TraceInfo::TheTraceInfo) {
+      if (TheTraceInfo) {
         if (auto Expected = lookupOutMask(Name)) {
           uint64_t actual_out = computeOutMask<Args...>();
           if (*Expected != actual_out) {

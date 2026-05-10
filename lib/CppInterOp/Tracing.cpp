@@ -25,15 +25,42 @@
 #include <dlfcn.h>
 #endif
 
+// Forward-declare impls (defined in CppInterOp.cpp) so InitTracing can
+// take their address.
+namespace CppImpl {
+void CppInterOpTraceJitCallInvokeImpl(const JitCall* JC, void* result,
+                                      void** args, std::size_t nargs,
+                                      void* self) noexcept;
+void CppInterOpTraceJitCallInvokeDestructorImpl(const JitCall* JC, void* object,
+                                                unsigned long nary,
+                                                int withFree) noexcept;
+} // namespace CppImpl
+
+// Linked-mode slot definitions; Dispatch.h consumers use per-DSO inline.
+namespace CppInternal {
+namespace DispatchRaw {
+void (*TraceJitCallInvoke)(const CppImpl::JitCall*, void*, void**, std::size_t,
+                           void*) noexcept = nullptr;
+void (*TraceJitCallInvokeDestructor)(const CppImpl::JitCall*, void*,
+                                     unsigned long, int) noexcept = nullptr;
+} // namespace DispatchRaw
+} // namespace CppInternal
+
 namespace CppInterOp {
 namespace Tracing {
 
-TraceInfo* TraceInfo::TheTraceInfo = nullptr;
+CPPINTEROP_TRACE_API TraceInfo* TheTraceInfo = nullptr;
 
 void InitTracing() {
-  assert(!TraceInfo::TheTraceInfo);
+  assert(!TheTraceInfo);
   static llvm::ManagedStatic<TraceInfo> TI;
-  TraceInfo::TheTraceInfo = &*TI;
+  TheTraceInfo = &*TI;
+  // Wire libclangCppInterOp's own DispatchRaw slot; Dispatch.h
+  // consumers wire their per-DSO copy at LoadDispatchAPI time.
+  ::CppInternal::DispatchRaw::TraceJitCallInvoke =
+      &CppImpl::CppInterOpTraceJitCallInvokeImpl;
+  ::CppInternal::DispatchRaw::TraceJitCallInvokeDestructor =
+      &CppImpl::CppInterOpTraceJitCallInvokeDestructorImpl;
 }
 
 std::optional<uint64_t> TraceRegion::lookupOutMask(llvm::StringRef Name) {

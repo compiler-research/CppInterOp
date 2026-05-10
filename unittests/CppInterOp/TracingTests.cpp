@@ -21,7 +21,7 @@ using ::testing::Not;
 // Helper: join the full trace log into a single string for matching.
 static std::string getFullLog() {
   std::string result;
-  for (const auto& entry : TraceInfo::TheTraceInfo->getLog())
+  for (const auto& entry : TheTraceInfo->getLog())
     result += entry + "\n";
   return result;
 }
@@ -40,9 +40,9 @@ protected:
     GTEST_FLAG_SET(death_test_style, saved_death_test_style_);
   }
   void SetUp() override {
-    if (TraceInfo::TheTraceInfo)
-      TraceInfo::TheTraceInfo->clear();
-    TraceInfo::TheTraceInfo = nullptr;
+    if (TheTraceInfo)
+      TheTraceInfo->clear();
+    TheTraceInfo = nullptr;
     InitTracing();
   }
 
@@ -54,7 +54,7 @@ std::string TracingTest::saved_death_test_style_;
 
 class NoTracingTest : public ::testing::Test {
 protected:
-  void SetUp() override { TraceInfo::TheTraceInfo = nullptr; }
+  void SetUp() override { TheTraceInfo = nullptr; }
 };
 
 // ---------------------------------------------------------------------------
@@ -191,7 +191,7 @@ intptr_t ScalarOutDummy(const char* code, bool* err) {
 TEST_F(TracingTest, ScalarPointerOutRendersAsNullptr) {
   bool err = true;
   EXPECT_EQ(ScalarOutDummy("x", &err), 42);
-  auto output = TraceInfo::TheTraceInfo->getLastLogEntry();
+  auto output = TheTraceInfo->getLastLogEntry();
   EXPECT_THAT(output, HasSubstr("Cpp::ScalarOutDummy(\"x\", nullptr)"));
 }
 
@@ -217,7 +217,7 @@ TEST_F(TracingTest, ValidAnnotatedBranch) {
 
 TEST_F(TracingTest, VoidFunctionTracing) {
   VoidFunc();
-  auto output = TraceInfo::TheTraceInfo->getLastLogEntry();
+  auto output = TheTraceInfo->getLastLogEntry();
   EXPECT_THAT(output, HasSubstr("Cpp::VoidFunc();"));
 }
 
@@ -238,7 +238,7 @@ void WithOutParamTrace(std::vector<void*>& out) {
 
 TEST_F(TracingTest, TraceWithNoArgs) {
   NoArgTrace();
-  auto output = TraceInfo::TheTraceInfo->getLastLogEntry();
+  auto output = TheTraceInfo->getLastLogEntry();
   EXPECT_THAT(output, HasSubstr("Cpp::NoArgTrace();"));
 }
 
@@ -305,7 +305,7 @@ TEST_F(TracingTest, ArgFormattingUnregisteredHandleAnnotated) {
   // 0xDEADBEEF is unsigned int (>= 2^31) -- cast through uintptr_t
   // to keep MSVC's C4312 silent on 64-bit, where void* is wider.
   FuncTakingHandle(reinterpret_cast<void*>(static_cast<uintptr_t>(0xDEADBEEF)));
-  auto output = TraceInfo::TheTraceInfo->getLastLogEntry();
+  auto output = TheTraceInfo->getLastLogEntry();
   EXPECT_THAT(output, HasSubstr("Cpp::FuncTakingHandle(nullptr /*unknown*/)"));
 }
 
@@ -314,7 +314,7 @@ TEST_F(TracingTest, ArgFormattingNullHandlePlain) {
   // /*unknown*/ annotation, which is reserved for unregistered
   // non-null pointers.
   FuncTakingHandle(nullptr);
-  auto output = TraceInfo::TheTraceInfo->getLastLogEntry();
+  auto output = TheTraceInfo->getLastLogEntry();
   EXPECT_THAT(output, HasSubstr("Cpp::FuncTakingHandle(nullptr)"));
   EXPECT_THAT(output, Not(HasSubstr("/*unknown*/")));
 }
@@ -324,7 +324,7 @@ TEST_F(TracingTest, ArgFormattingString) {
   // raw-literal form is reserved for content that would mis-encode as
   // a plain literal (see ArgFormattingString* tests below).
   FuncTakingString("hello");
-  auto output = TraceInfo::TheTraceInfo->getLastLogEntry();
+  auto output = TheTraceInfo->getLastLogEntry();
   EXPECT_THAT(output, HasSubstr("Cpp::FuncTakingString(\"hello\")"));
 }
 
@@ -332,7 +332,7 @@ TEST_F(TracingTest, ArgFormattingEmptyStringIsPlain) {
   // Empty string takes the no-special-char branch -- emit `""` rather
   // than `R"CPPI()CPPI"`.
   FuncTakingString("");
-  auto output = TraceInfo::TheTraceInfo->getLastLogEntry();
+  auto output = TheTraceInfo->getLastLogEntry();
   EXPECT_THAT(output, HasSubstr("Cpp::FuncTakingString(\"\")"));
   EXPECT_THAT(output, Not(HasSubstr("R\"CPPI(")));
 }
@@ -341,7 +341,7 @@ TEST_F(TracingTest, ArgFormattingStringWithEmbeddedDoubleQuote) {
   // Double quote forces the raw-literal fallback -- a plain `"..."`
   // would terminate the string at the embedded quote.
   FuncTakingString("a\"b");
-  auto output = TraceInfo::TheTraceInfo->getLastLogEntry();
+  auto output = TheTraceInfo->getLastLogEntry();
   EXPECT_THAT(output, HasSubstr("R\"CPPI(a\"b)CPPI\""));
 }
 
@@ -349,7 +349,7 @@ TEST_F(TracingTest, ArgFormattingStringWithEmbeddedBackslash) {
   // Backslash forces raw-literal -- in a plain literal it would start
   // an escape sequence.
   FuncTakingString("a\\b");
-  auto output = TraceInfo::TheTraceInfo->getLastLogEntry();
+  auto output = TheTraceInfo->getLastLogEntry();
   EXPECT_THAT(output, HasSubstr("R\"CPPI(a\\b)CPPI\""));
 }
 
@@ -357,7 +357,7 @@ TEST_F(TracingTest, ArgFormattingStringWithControlChar) {
   // Newline (a control char, < 0x20) forces raw-literal so the line
   // doesn't get split mid-string in the reproducer.
   FuncTakingString("a\nb");
-  auto output = TraceInfo::TheTraceInfo->getLastLogEntry();
+  auto output = TheTraceInfo->getLastLogEntry();
   EXPECT_THAT(output, HasSubstr("R\"CPPI(a\nb)CPPI\""));
 }
 
@@ -366,7 +366,7 @@ TEST_F(TracingTest, ArgFormattingMultiLineStringUsesRawLiteral) {
   // have several embedded newlines; raw-literal preserves the layout
   // verbatim so the reproducer compiles unchanged.
   FuncTakingString("void f() {\n  return 42;\n}\n");
-  auto output = TraceInfo::TheTraceInfo->getLastLogEntry();
+  auto output = TheTraceInfo->getLastLogEntry();
   EXPECT_THAT(output,
               HasSubstr("R\"CPPI(void f() {\n  return 42;\n}\n)CPPI\""));
 }
@@ -376,7 +376,7 @@ TEST_F(TracingTest, ArgFormattingStringWithHighBitStaysPlain) {
   // plain-literal path -- the source bytes pass through unchanged and
   // the reproducer compiles with the same encoding.
   FuncTakingString("r\xc3\xa9sum\xc3\xa9"); // "résumé" in UTF-8
-  auto output = TraceInfo::TheTraceInfo->getLastLogEntry();
+  auto output = TheTraceInfo->getLastLogEntry();
   EXPECT_THAT(output,
               HasSubstr("Cpp::FuncTakingString(\"r\xc3\xa9sum\xc3\xa9\")"));
   EXPECT_THAT(output, Not(HasSubstr("R\"CPPI(")));
@@ -384,7 +384,7 @@ TEST_F(TracingTest, ArgFormattingStringWithHighBitStaysPlain) {
 
 TEST_F(TracingTest, ArgFormattingInt) {
   FuncTakingInt(42);
-  auto output = TraceInfo::TheTraceInfo->getLastLogEntry();
+  auto output = TheTraceInfo->getLastLogEntry();
   EXPECT_THAT(output, HasSubstr("Cpp::FuncTakingInt(42)"));
 }
 
@@ -462,7 +462,7 @@ TEST_F(TracingTest, OutParamElementUsableInLaterCall) {
   auto output = getFullLog();
   // The element's decl reads `_out0[0]` and binds a handle name (vN);
   // the downstream call references the same name.
-  TraceInfo& TI = *TraceInfo::TheTraceInfo;
+  TraceInfo& TI = *TheTraceInfo;
   std::string elem = TI.lookupHandle(out[0]);
   ASSERT_FALSE(elem.empty());
   EXPECT_THAT(output,
@@ -511,7 +511,7 @@ void* ReturnNull() {
 
 TEST_F(TracingTest, NullptrReturnAnnotated) {
   ReturnNull();
-  auto output = TraceInfo::TheTraceInfo->getLastLogEntry();
+  auto output = TheTraceInfo->getLastLogEntry();
   EXPECT_THAT(output, HasSubstr("/*nullptr*/"));
   EXPECT_THAT(output, HasSubstr("Cpp::ReturnNull()"));
 }
@@ -525,7 +525,7 @@ int ReturnInt() {
 
 TEST_F(TracingTest, NonPointerReturnNoAnnotation) {
   ReturnInt();
-  auto output = TraceInfo::TheTraceInfo->getLastLogEntry();
+  auto output = TheTraceInfo->getLastLogEntry();
   EXPECT_THAT(output, Not(HasSubstr("auto")));
   EXPECT_THAT(output, Not(HasSubstr("nullptr")));
   EXPECT_THAT(output, HasSubstr("Cpp::ReturnInt()"));
@@ -554,7 +554,7 @@ TEST_F(TracingTest, ArgFormattingVectorOfStrings) {
   // and the const-char* overload of append (plain-quote form).
   std::vector<const char*> v = {"a", "b"};
   FuncTakingStrVector(v);
-  auto output = TraceInfo::TheTraceInfo->getLastLogEntry();
+  auto output = TheTraceInfo->getLastLogEntry();
   EXPECT_THAT(output, HasSubstr("Cpp::FuncTakingStrVector({\"a\", \"b\"})"));
 }
 
@@ -562,7 +562,7 @@ TEST_F(TracingTest, ArgFormattingVectorOfInts) {
   // Pins the integer-element path through append(int).
   std::vector<int> v = {1, 2, 3};
   FuncTakingIntVector(v);
-  auto output = TraceInfo::TheTraceInfo->getLastLogEntry();
+  auto output = TheTraceInfo->getLastLogEntry();
   EXPECT_THAT(output, HasSubstr("Cpp::FuncTakingIntVector({1, 2, 3})"));
 }
 
@@ -571,7 +571,7 @@ TEST_F(TracingTest, ArgFormattingEmptyVector) {
   // the First-flag branch where it never flips.
   std::vector<int> v;
   FuncTakingIntVector(v);
-  auto output = TraceInfo::TheTraceInfo->getLastLogEntry();
+  auto output = TheTraceInfo->getLastLogEntry();
   EXPECT_THAT(output, HasSubstr("Cpp::FuncTakingIntVector({})"));
 }
 
@@ -580,7 +580,7 @@ TEST_F(TracingTest, ArgFormattingNestedVector) {
   // append(vector<int>) for each element.
   std::vector<std::vector<int>> v = {{1, 2}, {3}};
   FuncTakingNestedVector(v);
-  auto output = TraceInfo::TheTraceInfo->getLastLogEntry();
+  auto output = TheTraceInfo->getLastLogEntry();
   EXPECT_THAT(output, HasSubstr("Cpp::FuncTakingNestedVector({{1, 2}, {3}})"));
 }
 
@@ -617,7 +617,7 @@ TEST_F(TracingTest, ReturnedPointerVectorProducerAndConsumer) {
   // one of those pointers prints it by the same handle name (vN), so
   // the reproducer's producing line and the consumer's argument refer
   // to the same binding.
-  TraceInfo& TI = *TraceInfo::TheTraceInfo;
+  TraceInfo& TI = *TheTraceInfo;
   auto v = ReturnPointerVector();
   std::string h0 = TI.lookupHandle(v[0]);
   std::string h1 = TI.lookupHandle(v[1]);
@@ -638,12 +638,12 @@ TEST_F(TracingTest, ReturnedPointerVectorEmptyEmitsNoDecls) {
   // Empty vector returns the placeholder + zero element decls. The
   // RetDecls loop never appends, so the only log line for this call is
   // the call itself.
-  size_t before = TraceInfo::TheTraceInfo->getLog().size();
+  size_t before = TheTraceInfo->getLog().size();
   ReturnEmptyPointerVector();
-  size_t after = TraceInfo::TheTraceInfo->getLog().size();
+  size_t after = TheTraceInfo->getLog().size();
   EXPECT_EQ(after - before, 1u)
       << "Empty vector return should emit only the call line, no element decls";
-  auto output = TraceInfo::TheTraceInfo->getLastLogEntry();
+  auto output = TheTraceInfo->getLastLogEntry();
   EXPECT_THAT(output,
               HasSubstr("auto _ret0 = Cpp::ReturnEmptyPointerVector()"));
 }
@@ -698,7 +698,7 @@ TEST_F(TracingTest, ArgFormattingEnumStaticCast) {
   // "static_cast<EnumName>(N)" so the reproducer compiles. Used to
   // emit "?" via the catch-all template.
   FuncTakingEnum(tracing_test_enum::Blue);
-  auto output = TraceInfo::TheTraceInfo->getLastLogEntry();
+  auto output = TheTraceInfo->getLastLogEntry();
   EXPECT_THAT(output, HasSubstr("static_cast<"));
   EXPECT_THAT(output, HasSubstr("Flavor"));
   EXPECT_THAT(output, HasSubstr(">(3)"));
@@ -715,7 +715,7 @@ TEST_F(TracingTest, ArgFormattingStringEscapes) {
   // quotes, and backslashes flow through verbatim and the reproducer
   // compiles without a separate escape pass.
   FuncTakingTrickyString("line1\nline2\twith \"quotes\" and a \\backslash");
-  auto output = TraceInfo::TheTraceInfo->getLastLogEntry();
+  auto output = TheTraceInfo->getLastLogEntry();
   EXPECT_THAT(output, HasSubstr("R\"CPPI("));
   EXPECT_THAT(output, HasSubstr(")CPPI\""));
   // Verbatim content survives -- the raw literal preserves the
@@ -748,7 +748,7 @@ TEST_F(TracingTest, ArgFormattingConstVoidHandle) {
 TEST_F(TracingTest, ArgFormattingConstVoidNullptr) {
   // null const void* must emit literal nullptr, not the empty handle name.
   FuncTakingConstHandle(nullptr);
-  auto output = TraceInfo::TheTraceInfo->getLastLogEntry();
+  auto output = TheTraceInfo->getLastLogEntry();
   EXPECT_THAT(output, HasSubstr("Cpp::FuncTakingConstHandle(nullptr)"));
 }
 
@@ -760,12 +760,12 @@ void FuncTakingTemplateArg(Cpp::TemplateArgInfo tai) {
 TEST_F(TracingTest, ArgFormattingTemplateArgInfoTypeAndIntegralValue) {
   // m_Type renders as the registered handle name; m_IntegralValue
   // takes the raw-string path.
-  TraceInfo& TI = *TraceInfo::TheTraceInfo;
+  TraceInfo& TI = *TheTraceInfo;
   void* tp = reinterpret_cast<void*>(static_cast<uintptr_t>(0x12340000));
   std::string h = TI.getOrRegisterHandle(tp);
   Cpp::TemplateArgInfo tai{tp, "5"};
   FuncTakingTemplateArg(tai);
-  auto output = TraceInfo::TheTraceInfo->getLastLogEntry();
+  auto output = TheTraceInfo->getLastLogEntry();
   EXPECT_THAT(output, HasSubstr("Cpp::FuncTakingTemplateArg(Cpp::"
                                 "TemplateArgInfo{" +
                                 h + ", \"5\"})"));
@@ -776,7 +776,7 @@ TEST_F(TracingTest, ArgFormattingTemplateArgInfoNullFields) {
   // constructor's default), not the empty string `""`.
   Cpp::TemplateArgInfo tai{nullptr, nullptr};
   FuncTakingTemplateArg(tai);
-  auto output = TraceInfo::TheTraceInfo->getLastLogEntry();
+  auto output = TheTraceInfo->getLastLogEntry();
   EXPECT_THAT(output, HasSubstr("Cpp::FuncTakingTemplateArg(Cpp::"
                                 "TemplateArgInfo{nullptr, nullptr})"));
 }
@@ -786,7 +786,7 @@ TEST_F(TracingTest, ArgFormattingTemplateArgInfoNullFields) {
 // ---------------------------------------------------------------------------
 
 TEST_F(TracingTest, HandleRegistry) {
-  TraceInfo& TI = *TraceInfo::TheTraceInfo;
+  TraceInfo& TI = *TheTraceInfo;
   void* ptr1 = (void*)0x1234;
   void* ptr2 = (void*)0x5678;
 
@@ -818,7 +818,7 @@ TEST_F(TracingTest, HandleRegistry) {
 // ---------------------------------------------------------------------------
 
 TEST_F(TracingTest, TimerStackPushPop) {
-  TraceInfo& TI = *TraceInfo::TheTraceInfo;
+  TraceInfo& TI = *TheTraceInfo;
 
   llvm::Timer& T1 = TI.getTimer("FuncA");
   llvm::Timer& T2 = TI.getTimer("FuncB");
@@ -846,7 +846,7 @@ TEST_F(TracingTest, TimerStackPushPop) {
 }
 
 TEST_F(TracingTest, ClearWithRunningTimers) {
-  TraceInfo& TI = *TraceInfo::TheTraceInfo;
+  TraceInfo& TI = *TheTraceInfo;
 
   llvm::Timer& T1 = TI.getTimer("RunningTimer");
   TI.pushTimer(&T1);
@@ -863,19 +863,19 @@ TEST_F(TracingTest, ClearWithRunningTimers) {
 
 TEST(StartTracingActivation, ActivatesIfNotActive) {
   // Save and clear TheTraceInfo to simulate tracing not being active.
-  auto* saved = TraceInfo::TheTraceInfo;
-  TraceInfo::TheTraceInfo = nullptr;
+  auto* saved = TheTraceInfo;
+  TheTraceInfo = nullptr;
 
   // StartTracing should call InitTracing (covers line 151).
   std::string Path = CppInterOp::Tracing::StartTracing(/*WriteOnStdErr=*/false);
-  ASSERT_NE(TraceInfo::TheTraceInfo, nullptr);
+  ASSERT_NE(TheTraceInfo, nullptr);
   ASSERT_FALSE(Path.empty());
 
   CppInterOp::Tracing::StopTracing();
   llvm::sys::fs::remove(Path);
 
   // Restore so other tests aren't affected.
-  TraceInfo::TheTraceInfo = saved;
+  TheTraceInfo = saved;
 }
 
 // ---------------------------------------------------------------------------
@@ -933,7 +933,7 @@ TEST_F(TracingTest, NestedCallSuppressedButHandleRegistered) {
   // registered so the outer call's `auto vN = ...` line binds the
   // pointer the inner produced.
   void* h = NestedOuterReturn();
-  TraceInfo& TI = *TraceInfo::TheTraceInfo;
+  TraceInfo& TI = *TheTraceInfo;
   EXPECT_FALSE(TI.lookupHandle(h).empty());
   auto output = getFullLog();
   EXPECT_THAT(output, HasSubstr("auto v1 = Cpp::NestedOuterReturn()"));
@@ -971,7 +971,7 @@ TEST_F(TracingTest, NestedSuppressionDoesNotLeakOutCounter) {
 void PlaceholderProbe() {
   INTEROP_TRACE();
   // Mid-call: the ctor-emitted placeholder is already in the log.
-  auto& log = TraceInfo::TheTraceInfo->getLog();
+  auto& log = TheTraceInfo->getLog();
   ASSERT_FALSE(log.empty());
   EXPECT_THAT(log.back(), HasSubstr("Cpp::PlaceholderProbe"));
   EXPECT_THAT(log.back(), HasSubstr("[aborted before return]"));
@@ -983,7 +983,7 @@ TEST_F(TracingTest, PlaceholderInCtorReplacedByDtor) {
   // verify the replacement: after the call returns, the slot reads
   // the completed `// [N ns]` line, not the placeholder.
   PlaceholderProbe();
-  auto& log = TraceInfo::TheTraceInfo->getLog();
+  auto& log = TheTraceInfo->getLog();
   ASSERT_FALSE(log.empty());
   EXPECT_THAT(log.back(), Not(HasSubstr("aborted before return")));
   EXPECT_THAT(log.back(),
@@ -995,7 +995,7 @@ TEST_F(TracingTest, PlaceholderInCtorReplacedByDtor) {
 // ---------------------------------------------------------------------------
 
 TEST_F(TracingTest, OutParamRegistersHandles) {
-  TraceInfo& TI = *TraceInfo::TheTraceInfo;
+  TraceInfo& TI = *TheTraceInfo;
 
   std::vector<void*> results;
   FillHandles(results);
@@ -1007,7 +1007,7 @@ TEST_F(TracingTest, OutParamRegistersHandles) {
 }
 
 TEST_F(TracingTest, OutParamHandlesUsableInLaterCalls) {
-  TraceInfo& TI = *TraceInfo::TheTraceInfo;
+  TraceInfo& TI = *TheTraceInfo;
 
   std::vector<void*> results;
   FillHandles(results);
@@ -1068,7 +1068,7 @@ TEST_F(TracingTest, WriteToFileProducesValidReproducer) {
     return INTEROP_VOID_RETURN();
   }
 
-  TraceInfo& TI = *TraceInfo::TheTraceInfo;
+  TraceInfo& TI = *TheTraceInfo;
   std::string Path = TI.writeToFile();
   ASSERT_FALSE(Path.empty());
 
@@ -1098,7 +1098,7 @@ TEST_F(TracingTest, WriteToFileContainsOutParamCalls) {
   std::vector<void*> results;
   FillHandles(results);
 
-  TraceInfo& TI = *TraceInfo::TheTraceInfo;
+  TraceInfo& TI = *TheTraceInfo;
   std::string Path = TI.writeToFile();
   ASSERT_FALSE(Path.empty());
 
@@ -1119,7 +1119,7 @@ TEST_F(TracingTest, WriteToFileSuppressesSelfTrace) {
   AnnotatedFunction(7);
   AnnotatedFunction(8);
 
-  TraceInfo& TI = *TraceInfo::TheTraceInfo;
+  TraceInfo& TI = *TheTraceInfo;
   size_t before = TI.getLog().size();
   std::string Path = TI.writeToFile();
   ASSERT_FALSE(Path.empty());
@@ -1145,11 +1145,11 @@ TEST_F(TracingTest, ReproducerCompilesViaInterpreter) {
   Cpp::CreateInterpreter({});
 
   // Verify tracing is active after interpreter creation.
-  ASSERT_NE(TraceInfo::TheTraceInfo, nullptr)
+  ASSERT_NE(TheTraceInfo, nullptr)
       << "TheTraceInfo was cleared during CreateInterpreter";
 
   // Clear any prior trace state so the reproducer only contains our calls.
-  TraceInfo::TheTraceInfo->clear();
+  TheTraceInfo->clear();
 
   // Exercise real API calls that will be recorded.
   auto GlobalScope = Cpp::GetGlobalScope();
@@ -1173,7 +1173,7 @@ TEST_F(TracingTest, ReproducerCompilesViaInterpreter) {
   Cpp::SizeOf(Foo);
 
   // Write the reproducer.
-  TraceInfo& TI = *TraceInfo::TheTraceInfo;
+  TraceInfo& TI = *TheTraceInfo;
   std::string Path = TI.writeToFile();
   ASSERT_FALSE(Path.empty());
 
@@ -1219,7 +1219,7 @@ TEST_F(TracingTest, JitCallWrapperSourceLogged) {
 #endif
 #endif
   Cpp::CreateInterpreter({});
-  ASSERT_NE(TraceInfo::TheTraceInfo, nullptr);
+  ASSERT_NE(TheTraceInfo, nullptr);
 
   // Placement new requires <new>.
   Cpp::Declare("#include <new>");
@@ -1228,7 +1228,7 @@ TEST_F(TracingTest, JitCallWrapperSourceLogged) {
       static_cast<void*>(Cpp::GetNamed("add", Cpp::GetScope("WrapNS")));
   ASSERT_NE(Func, nullptr);
 
-  TraceInfo::TheTraceInfo->clear();
+  TheTraceInfo->clear();
 
   // MakeFunctionCallable triggers make_wrapper which logs the wrapper source.
   auto JC = Cpp::MakeFunctionCallable(Func);
@@ -1244,7 +1244,7 @@ TEST_F(TracingTest, JitCallWrapperSourceLogged) {
 #ifndef NDEBUG
 TEST_F(TracingTest, JitCallInvokeLogged) {
   Cpp::CreateInterpreter({});
-  ASSERT_NE(TraceInfo::TheTraceInfo, nullptr);
+  ASSERT_NE(TheTraceInfo, nullptr);
 
   Cpp::Declare("#include <new>");
   Cpp::Declare("namespace InvNS { int square(int x) { return x * x; } }");
@@ -1256,7 +1256,7 @@ TEST_F(TracingTest, JitCallInvokeLogged) {
   ASSERT_TRUE(JC.isValid());
 
   // Clear so only the Invoke shows up.
-  TraceInfo::TheTraceInfo->clear();
+  TheTraceInfo->clear();
 
   int arg = 7;
   int result = 0;
@@ -1272,12 +1272,79 @@ TEST_F(TracingTest, JitCallInvokeLogged) {
   // And the function should have actually executed.
   EXPECT_EQ(result, 49);
 }
+
+TEST_F(TracingTest, JitCallConstructorInvokeLogged) {
+  // Pins the InvokeConstructor inline-guard: ReportInvokeStart must fire
+  // for kConstructorCall just as it does for kGenericCall.
+  Cpp::CreateInterpreter({});
+  ASSERT_NE(TheTraceInfo, nullptr);
+
+  Cpp::Declare("#include <new>");
+  Cpp::Declare("namespace InvCtorNS { struct Bar { int x = 7; }; }");
+  auto* ClassBar = Cpp::GetScope("Bar", Cpp::GetScope("InvCtorNS"));
+  ASSERT_NE(ClassBar, nullptr);
+  auto* CtorD = Cpp::GetDefaultConstructor(ClassBar);
+  ASSERT_NE(CtorD, nullptr);
+  // Resolve the dtor up-front so the cleanup at the end of the test
+  // can free the heap-allocated Bar (LeakSanitizer otherwise flags
+  // the 4-byte `int x` payload).
+  auto* DtorD = Cpp::GetDestructor(ClassBar);
+  ASSERT_NE(DtorD, nullptr);
+
+  auto CtorJC = Cpp::MakeFunctionCallable(CtorD);
+  auto DtorJC = Cpp::MakeFunctionCallable(DtorD);
+  ASSERT_TRUE(CtorJC.isValid());
+  ASSERT_TRUE(DtorJC.isValid());
+
+  TheTraceInfo->clear();
+  void* obj = nullptr;
+  CtorJC.Invoke(&obj);
+  ASSERT_NE(obj, nullptr);
+
+  auto log = getFullLog();
+  EXPECT_THAT(log, HasSubstr("JitCall::Invoke"));
+  EXPECT_THAT(log, HasSubstr("Bar"));
+
+  DtorJC.Invoke(obj);
+}
+
+TEST_F(TracingTest, JitCallDestructorInvokeLogged) {
+  // Pins the InvokeDestructor inline-guard: ReportInvokeStart must emit
+  // a JitCall::InvokeDestructor line for the dtor path.
+  Cpp::CreateInterpreter({});
+  ASSERT_NE(TheTraceInfo, nullptr);
+
+  Cpp::Declare("#include <new>");
+  Cpp::Declare("namespace InvDtorNS { struct Baz { ~Baz() {} }; }");
+  auto* ClassBaz = Cpp::GetScope("Baz", Cpp::GetScope("InvDtorNS"));
+  ASSERT_NE(ClassBaz, nullptr);
+  auto* CtorD = Cpp::GetDefaultConstructor(ClassBaz);
+  ASSERT_NE(CtorD, nullptr);
+  auto* DtorD = Cpp::GetDestructor(ClassBaz);
+  ASSERT_NE(DtorD, nullptr);
+
+  auto CtorJC = Cpp::MakeFunctionCallable(CtorD);
+  auto DtorJC = Cpp::MakeFunctionCallable(DtorD);
+  ASSERT_TRUE(CtorJC.isValid());
+  ASSERT_TRUE(DtorJC.isValid());
+
+  void* obj = nullptr;
+  CtorJC.Invoke(&obj);
+  ASSERT_NE(obj, nullptr);
+
+  TheTraceInfo->clear();
+  DtorJC.Invoke(obj);
+
+  auto log = getFullLog();
+  EXPECT_THAT(log, HasSubstr("JitCall::InvokeDestructor"));
+  EXPECT_THAT(log, HasSubstr("Baz"));
+}
 #endif
 
 // Verify that log entries include timing annotations.
 TEST_F(TracingTest, LogEntriesIncludeTimingAnnotation) {
   VoidFunc();
-  auto output = TraceInfo::TheTraceInfo->getLastLogEntry();
+  auto output = TheTraceInfo->getLastLogEntry();
   EXPECT_THAT(output, HasSubstr("// ["));
   EXPECT_THAT(output, HasSubstr("ns]"));
 }
@@ -1346,7 +1413,7 @@ TEST_F(TracingTest, OnlyRegionCallsAreRecorded) {
 TEST_F(TracingTest, StartTracingWithEnvVarNarrowsToRegion) {
   // When CPPINTEROP_LOG=1 is set (tracing already active from SetUp),
   // StartTracing/StopTracing should still narrow to just the region.
-  ASSERT_NE(TraceInfo::TheTraceInfo, nullptr);
+  ASSERT_NE(TheTraceInfo, nullptr);
 
   // This call is before the region.
   VoidFunc();
@@ -1512,4 +1579,5 @@ TEST(TracingCoverageTest, AllPublicAPIsAreTraced) {
     FAIL() << Msg;
   }
 }
+
 #endif // !EMSCRIPTEN
