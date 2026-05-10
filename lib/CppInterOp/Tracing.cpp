@@ -50,6 +50,17 @@ std::optional<uint64_t> TraceRegion::lookupOutMask(llvm::StringRef Name) {
   return It->second;
 }
 
+/// RAII: hold m_Dumping while the reproducer is being emitted.
+namespace {
+class DumpScope {
+  TraceInfo& TI;
+
+public:
+  explicit DumpScope(TraceInfo& T) : TI(T) { TI.setDumping(true); }
+  ~DumpScope() { TI.setDumping(false); }
+};
+} // namespace
+
 /// Helper: emit version info as comment lines.
 static void WriteVersionComment(llvm::raw_ostream& OS,
                                 const std::string& Version) {
@@ -109,6 +120,12 @@ static void WriteReproducerPrologue(llvm::raw_ostream& OS,
   if (!Footnote.empty())
     OS << "// " << Footnote << "\n";
   OS << "//\n";
+  OS << "// Replay scope: re-runs recorded CppInterOp API calls. JIT\n";
+  OS << "// wrappers (Cpp::JitCall::Invoke) are not replayed -- their\n";
+  OS << "// pointer args reference the original process's memory. The\n";
+  OS << "// trailing `// JitCall::Invoke ...` comment, if present,\n";
+  OS << "// names the call active at the crash site.\n";
+  OS << "//\n";
   WriteBuildContext(OS);
   OS << "//\n";
   OS << "// Build (default, static link):\n";
@@ -165,6 +182,7 @@ std::string TraceInfo::writeToFile(const std::string& Version) {
     return "";
 
   llvm::raw_fd_ostream OS(FD, /*shouldClose=*/true);
+  DumpScope Guard(*this);
 
   std::string Ver = Version.empty() ? CppImpl::GetVersion() : Version;
   WriteReproducerPrologue(OS, "crash reproducer", Ver,
@@ -217,6 +235,7 @@ void TraceInfo::StopRegion(const std::string& Version) {
   if (EC)
     return;
 
+  DumpScope Guard(*this);
   std::string Ver = Version.empty() ? CppImpl::GetVersion() : Version;
   WriteReproducerPrologue(OS, "trace region", Ver, "Generated automatically.");
   OS << "void reproducer() {\n";
