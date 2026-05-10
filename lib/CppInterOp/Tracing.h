@@ -69,6 +69,10 @@ class TraceInfo {
   std::vector<std::string> m_Log;
   size_t m_RegionStart = 0; ///< Log index where current region began.
   bool m_InRegion = false;  ///< True between StartTracing/StopTracing.
+  /// Set while the reproducer is being emitted. Gates appendToLog and
+  /// setLogEntry so the dumper's own INTEROP_TRACE-wrapped calls
+  /// (GetVersion, GetBuildInfo) don't recurse into m_Log.
+  bool m_Dumping = false;
 
 public:
   TraceInfo() : m_TG("CppInterOp", "CppInterOp Timing Report") {}
@@ -150,13 +154,20 @@ public:
   /// Append a line; the returned index pairs with setLogEntry to
   /// rewrite the same slot later (TraceRegion's placeholder pattern).
   size_t appendToLog(const std::string& line) {
+    if (m_Dumping)
+      return 0;
     size_t idx = m_Log.size();
     m_Log.push_back(line);
     if (m_InRegion && m_WriteOnStdErr)
       llvm::errs() << line << "\n";
     return idx;
   }
-  void setLogEntry(size_t idx, const std::string& line) { m_Log[idx] = line; }
+  void setLogEntry(size_t idx, const std::string& line) {
+    if (m_Dumping)
+      return;
+    m_Log[idx] = line;
+  }
+  void setDumping(bool v) { m_Dumping = v; }
   const std::vector<std::string>& getLog() const { return m_Log; }
   std::string getLastLogEntry() const {
     return m_Log.empty() ? "" : m_Log.back();

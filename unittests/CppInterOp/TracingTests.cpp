@@ -1113,6 +1113,28 @@ TEST_F(TracingTest, WriteToFileContainsOutParamCalls) {
   llvm::sys::fs::remove(Path);
 }
 
+TEST_F(TracingTest, WriteToFileSuppressesSelfTrace) {
+  // Without the m_Dumping guard, GetVersion/GetBuildInfo (both
+  // INTEROP_TRACE'd) would leak into the reproducer body.
+  AnnotatedFunction(7);
+  AnnotatedFunction(8);
+
+  TraceInfo& TI = *TraceInfo::TheTraceInfo;
+  size_t before = TI.getLog().size();
+  std::string Path = TI.writeToFile();
+  ASSERT_FALSE(Path.empty());
+  EXPECT_EQ(TI.getLog().size(), before);
+
+  std::ifstream ifs(Path);
+  std::string content((std::istreambuf_iterator<char>(ifs)),
+                      std::istreambuf_iterator<char>());
+  EXPECT_THAT(content, Not(HasSubstr("Cpp::GetVersion()")));
+  EXPECT_THAT(content, Not(HasSubstr("Cpp::GetBuildInfo()")));
+  EXPECT_THAT(content, HasSubstr("// Replay scope:"));
+
+  llvm::sys::fs::remove(Path);
+}
+
 // ---------------------------------------------------------------------------
 // Tests: reproducer compiles via interpreter
 // ---------------------------------------------------------------------------
