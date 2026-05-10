@@ -4235,7 +4235,7 @@ int Process(const char* code) {
 }
 
 intptr_t Evaluate(const char* code, bool* IsValueInvalid /*=nullptr*/) {
-  INTEROP_TRACE(code, IsValueInvalid);
+  INTEROP_TRACE(code, INTEROP_OUT(IsValueInvalid));
   compat::Value V;
 
   if (IsValueInvalid)

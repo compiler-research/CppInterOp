@@ -10,6 +10,7 @@
 
 #include "CppInterOp/CppInterOp.h"
 
+#include "llvm/ADT/StringMap.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/ManagedStatic.h"
 #include "llvm/Support/Path.h"
@@ -17,6 +18,7 @@
 #include "llvm/Support/raw_ostream.h"
 
 #include <cassert>
+#include <cstdint>
 #include <system_error>
 
 #if defined(__linux__) || defined(__APPLE__)
@@ -32,6 +34,20 @@ void InitTracing() {
   assert(!TraceInfo::TheTraceInfo);
   static llvm::ManagedStatic<TraceInfo> TI;
   TraceInfo::TheTraceInfo = &*TI;
+}
+
+std::optional<uint64_t> TraceRegion::lookupOutMask(llvm::StringRef Name) {
+  // Built once from CppInterOpAPI.inc via the OUT-only X-macro;
+  // CPPINTEROP_API_FUNC stays a no-op.
+  static const llvm::StringMap<uint64_t> Map = {
+#define CPPINTEROP_API_FUNC(DN, CN, Ret, DA, CA, RT)
+#define CPPINTEROP_API_OUT(CN, OutMask) {#CN, OutMask},
+#include "CppInterOp/CppInterOpAPI.inc"
+  };
+  auto It = Map.find(Name);
+  if (It == Map.end())
+    return std::nullopt;
+  return It->second;
 }
 
 /// Helper: emit version info as comment lines.

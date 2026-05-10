@@ -148,6 +148,69 @@ TEST_F(TracingTest, CountParamsHandlesVoidParamList) {
   EXPECT_EQ(TR::countParams("void foo(int, std::vector<int>&)"), 2U);
 }
 
+TEST_F(TracingTest, OutMaskLookupMatchesTd) {
+  using TR = CppInterOp::Tracing::TraceRegion;
+  // Public APIs marked OutArg<...> in CppInterOp.td.
+  EXPECT_EQ(TR::lookupOutMask("GetAllCppNames"), 0b10ULL); // arg 1 OUT
+  EXPECT_EQ(TR::lookupOutMask("CodeComplete"), 0b1ULL);    // arg 0 OUT
+  EXPECT_EQ(TR::lookupOutMask("GetOperator"), 0b100ULL);   // arg 2 OUT
+  // Public APIs without OUT args.
+  EXPECT_EQ(TR::lookupOutMask("Process"), 0ULL);
+  // Test helpers / unknown names produce nullopt -- the runtime check
+  // skips them, so helpers like FillHandles can still use INTEROP_OUT.
+  EXPECT_FALSE(TR::lookupOutMask("FillHandles").has_value());
+}
+
+TEST_F(TracingTest, ComputeOutMaskFromArgTypes) {
+  using TR = CppInterOp::Tracing::TraceRegion;
+  using OP = CppInterOp::Tracing::OutParam;
+  EXPECT_EQ((TR::computeOutMask<int, double>()), 0ULL);
+  EXPECT_EQ((TR::computeOutMask<int, OP>()), 0b10ULL);
+  EXPECT_EQ((TR::computeOutMask<OP, int, OP>()), 0b101ULL);
+}
+
+TEST_F(TracingTest, FormatOutMaskMismatchMessage) {
+  // Pure formatter; non-death test gives real coverage on the diagnostic
+  // path that EXPECT_DEATH hides inside a forked child.
+  using TR = CppInterOp::Tracing::TraceRegion;
+  std::string Msg = TR::formatOutMaskMismatchMessage("FooApi", 0b10ULL, 0b1ULL);
+  EXPECT_THAT(Msg, HasSubstr("INTEROP_OUT coverage mismatch in 'FooApi'"));
+  EXPECT_THAT(Msg, HasSubstr("mask 0x2"));
+  EXPECT_THAT(Msg, HasSubstr("args 0x1"));
+}
+
+// Scalar-pointer OUT helper: a function with a `bool*` out-param can
+// now wrap it with INTEROP_OUT and the reproducer renders `nullptr`.
+intptr_t ScalarOutDummy(const char* code, bool* err) {
+  INTEROP_TRACE(code, INTEROP_OUT(err));
+  if (err)
+    *err = false;
+  return INTEROP_RETURN((intptr_t)42);
+}
+
+TEST_F(TracingTest, ScalarPointerOutRendersAsNullptr) {
+  bool err = true;
+  EXPECT_EQ(ScalarOutDummy("x", &err), 42);
+  auto output = TraceInfo::TheTraceInfo->getLastLogEntry();
+  EXPECT_THAT(output, HasSubstr("Cpp::ScalarOutDummy(\"x\", nullptr)"));
+}
+
+// Shadows the public API name Cpp::Process (which is not OUT in the .td)
+// to drive lookupOutMask("Process") -> 0 while wrapping the arg with
+// INTEROP_OUT yields actual=1; the mismatch must fire the OUT-coverage
+// assert, not silently pass.
+void Process(int* x) {
+  INTEROP_TRACE(INTEROP_OUT(x));
+  (void)x;
+}
+
+TEST_F(TracingTest, DetectOutCoverageMismatch) {
+#ifndef NDEBUG
+  int dummy = 0;
+  EXPECT_DEATH({ Process(&dummy); }, "INTEROP_OUT coverage mismatch");
+#endif
+}
+
 TEST_F(TracingTest, ValidAnnotatedBranch) {
   EXPECT_EQ(AnnotatedFunction(5), 10);
 }

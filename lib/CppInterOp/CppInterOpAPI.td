@@ -33,6 +33,15 @@ class Arg<string type, string name, string default_ = ""> {
   string Name = name;
   string Default = default_;
   APITypeKind Kind = NoKind;
+  // True when the function writes through this argument (output parameter).
+  // Drives the INTEROP_OUT-coverage runtime check.
+  bit IsOut = 0;
+}
+
+// An output argument -- the function writes to *this argument.
+class OutArg<string type, string name, string default_ = "">
+  : Arg<type, name, default_> {
+  let IsOut = 1;
 }
 
 // A typed argument — carries semantic kind for future strong-type generation.
