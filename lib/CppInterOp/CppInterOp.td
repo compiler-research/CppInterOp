@@ -78,7 +78,7 @@ def Evaluate : CppInterOpAPI {
   let ReturnType = "intptr_t";
   let Args = [
     Arg<"const char*", "code">,
-    Arg<"bool*", "IsValueInvalid", "nullptr">
+    OutArg<"bool*", "IsValueInvalid", "nullptr">
   ];
 }
 
@@ -622,7 +622,7 @@ def GetAllCppNames : CppInterOpAPI {
   let ReturnType = "void";
   let Args = [
     Arg<"TCppScope_t", "scope">,
-    Arg<"std::set<std::string>&", "names">
+    OutArg<"std::set<std::string>&", "names">
   ];
 }
 
@@ -714,7 +714,7 @@ def GetOperator : CppInterOpAPI {
   let Args = [
     Arg<"TCppScope_t", "scope">,
     Arg<"Operator", "op">,
-    Arg<"std::vector<TCppFunction_t>&", "operators">,
+    OutArg<"std::vector<TCppFunction_t>&", "operators">,
     Arg<"OperatorArity", "kind", "kBoth">
   ];
 }
@@ -740,7 +740,7 @@ supplied as a parameter.
   let ReturnType = "void";
   let Args = [
     Arg<"TCppScope_t", "klass">,
-    Arg<"std::vector<TCppFunction_t>&", "methods">
+    OutArg<"std::vector<TCppFunction_t>&", "methods">
   ];
 }
 
@@ -860,7 +860,7 @@ def GetDatamembers : CppInterOpAPI {
   let ReturnType = "void";
   let Args = [
     Arg<"TCppScope_t", "scope">,
-    Arg<"std::vector<TCppScope_t>&", "datamembers">
+    OutArg<"std::vector<TCppScope_t>&", "datamembers">
   ];
 }
 
@@ -872,7 +872,7 @@ def GetStaticDatamembers : CppInterOpAPI {
   let ReturnType = "void";
   let Args = [
     Arg<"TCppScope_t", "scope">,
-    Arg<"std::vector<TCppScope_t>&", "datamembers">
+    OutArg<"std::vector<TCppScope_t>&", "datamembers">
   ];
 }
 
@@ -1104,7 +1104,7 @@ def CodeComplete : CppInterOpAPI {
 \param[in] complete_column Position (column) in code for suggestion.}];
   let ReturnType = "void";
   let Args = [
-    Arg<"std::vector<std::string>&", "Results">,
+    OutArg<"std::vector<std::string>&", "Results">,
     Arg<"const char*", "code">,
     Arg<"unsigned", "complete_line", "1U">,
     Arg<"unsigned", "complete_column", "1U">
@@ -1125,7 +1125,7 @@ def DetectSystemCompilerIncludePaths : CppInterOpAPI {
 \param[in] CompilerName The name or full path of the compiler binary.}];
   let ReturnType = "void";
   let Args = [
-    Arg<"std::vector<std::string>&", "Paths">,
+    OutArg<"std::vector<std::string>&", "Paths">,
     Arg<"const char*", "CompilerName", "\"c++\"">
   ];
 }
@@ -1152,7 +1152,7 @@ def GetClassTemplateInstantiationArgs : CppInterOpAPI {
   let ReturnType = "void";
   let Args = [
     Arg<"TCppScope_t", "templ_instance">,
-    Arg<"std::vector<TemplateArgInfo>&", "args">
+    OutArg<"std::vector<TemplateArgInfo>&", "args">
   ];
 }
 
@@ -1163,7 +1163,7 @@ that is supplied as a parameter.}];
   let Args = [
     Arg<"const std::string&", "name">,
     Arg<"TCppScope_t", "parent">,
-    Arg<"std::vector<TCppFunction_t>&", "funcs">
+    OutArg<"std::vector<TCppFunction_t>&", "funcs">
   ];
 }
 
@@ -1181,7 +1181,7 @@ def GetEnumConstantDatamembers : CppInterOpAPI {
   let ReturnType = "void";
   let Args = [
     Arg<"TCppScope_t", "scope">,
-    Arg<"std::vector<TCppScope_t>&", "datamembers">,
+    OutArg<"std::vector<TCppScope_t>&", "datamembers">,
     Arg<"bool", "include_enum_class", "true">
   ];
 }
@@ -1191,7 +1191,7 @@ def GetEnums : CppInterOpAPI {
   let ReturnType = "void";
   let Args = [
     Arg<"TCppScope_t", "scope">,
-    Arg<"std::vector<std::string>&", "Result">
+    OutArg<"std::vector<std::string>&", "Result">
   ];
 }
 
@@ -1229,7 +1229,7 @@ un-instantiated/non-overloaded templated methods.}];
   let ReturnType = "void";
   let Args = [
     Arg<"TCppScope_t", "klass">,
-    Arg<"std::vector<TCppFunction_t>&", "methods">
+    OutArg<"std::vector<TCppFunction_t>&", "methods">
   ];
 }
 
@@ -1249,7 +1249,7 @@ def GetIncludePaths : CppInterOpAPI {
 \\param[in] withFlags Include flag-based paths.}];
   let ReturnType = "void";
   let Args = [
-    Arg<"std::vector<std::string>&", "IncludePaths">,
+    OutArg<"std::vector<std::string>&", "IncludePaths">,
     Arg<"bool", "withSystem", "false">,
     Arg<"bool", "withFlags", "false">
   ];
@@ -1392,7 +1392,7 @@ supplied as a parameter.}];
   let Args = [
     Arg<"const std::string&", "name">,
     Arg<"TCppScope_t", "parent">,
-    Arg<"std::vector<TCppFunction_t>&", "funcs">
+    OutArg<"std::vector<TCppFunction_t>&", "funcs">
   ];
 }
 

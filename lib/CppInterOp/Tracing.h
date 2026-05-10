@@ -33,8 +33,10 @@
 #include "llvm/Support/raw_ostream.h"
 
 #include <cassert>
+#include <cstdint>
 #include <functional>
 #include <memory>
+#include <optional>
 #include <string>
 #include <string_view>
 #include <type_traits>
@@ -238,6 +240,8 @@ struct OutParam {
   /// stay on the legacy "skip in arg list" rendering -- their type is
   /// not erasable to void*, so the preamble decl would not type-check.
   bool IsPointerContainer = false;
+  /// Scalar pointer OUT (e.g. `bool*`); rendered as `nullptr`.
+  bool IsScalarPointer = false;
   /// Address of the source container object (not its data buffer);
   /// multiple calls with the same container alias the same `_outN`
   /// buffer in the reproducer so accumulation across calls replays
@@ -271,6 +275,14 @@ template <typename Container> OutParam MakeOutParam(const Container& C) {
       }
     };
   }
+  return OP;
+}
+
+/// Scalar pointer overload (e.g. `bool* HadError`). Rendered as
+/// `nullptr` at the call site -- replay only needs the call sequence.
+template <typename T> OutParam MakeOutParam(T*) {
+  OutParam OP;
+  OP.IsScalarPointer = true;
   return OP;
 }
 
@@ -413,8 +425,9 @@ struct ReproBuffer {
   }
 
   /// Format a comma-separated argument list. Pointer-container OUTs
-  /// emit `_outN` (next index from \p OutIndices); non-pointer OUTs
-  /// are skipped, matching the legacy rendering.
+  /// emit `_outN` (next index from \p OutIndices); scalar pointer OUTs
+  /// emit `nullptr` (the replay does not consume the value); non-pointer
+  /// containers are skipped, matching the legacy rendering.
   template <typename... Args>
   void format(llvm::ArrayRef<unsigned> OutIndices, Args&&... args) {
     bool first = true;
@@ -427,6 +440,11 @@ struct ReproBuffer {
             OS << ", ";
           first = false;
           OS << "_out" << OutIndices[nextOut++];
+        } else if (val.IsScalarPointer) {
+          if (!first)
+            OS << ", ";
+          first = false;
+          OS << "nullptr";
         }
       } else {
         if (!first)
@@ -703,6 +721,18 @@ public:
     return count;
   }
 
+  /// Bit i set iff Args[i] is OutParam (i.e. wrapped in INTEROP_OUT).
+  /// The trailing `false` keeps the array non-empty for sizeof...(Args)==0.
+  template <typename... Args> static constexpr uint64_t computeOutMask() {
+    constexpr bool isOut[] = {std::is_same_v<std::decay_t<Args>, OutParam>...,
+                              false};
+    uint64_t mask = 0;
+    for (std::size_t i = 0; i < sizeof...(Args); ++i)
+      if (isOut[i])
+        mask |= 1ULL << i;
+    return mask;
+  }
+
   /// Helper to allow INTEROP_TRACE() to work with zero or more arguments
   /// without relying on non-standard ##__VA_ARGS__ comma elision.
   struct Proxy {
@@ -723,9 +753,44 @@ public:
                "parameters. Update the INTEROP_TRACE call.");
       }
 #endif
+      // OUT-mask check runs in any build but only when tracing is active,
+      // so the per-call cost off-trace is one load + branch. The diagnostic
+      // is unconditional; assert() is a no-op in NDEBUG, so Release reports
+      // the drift via stderr without aborting.
+      if (TraceInfo::TheTraceInfo) {
+        if (auto Expected = lookupOutMask(Name)) {
+          uint64_t actual_out = computeOutMask<Args...>();
+          if (*Expected != actual_out) {
+            llvm::errs() << formatOutMaskMismatchMessage(Name, *Expected,
+                                                         actual_out);
+            assert(
+                *Expected == actual_out &&
+                "INTEROP_TRACE OUT-arg coverage does not match the .td "
+                "OutArg<...> declarations. Wrap or unwrap with INTEROP_OUT.");
+          }
+        }
+      }
       return TraceRegion(Name, std::forward<Args>(args)...);
     }
   };
+
+  /// .td-declared OUT-arg bitmask for \p Name (matches CppName /
+  /// __func__), or std::nullopt for non-public-API tracepoints.
+  CPPINTEROP_TRACE_API static std::optional<uint64_t>
+  lookupOutMask(llvm::StringRef Name);
+
+  /// Pure-function diagnostic for the OUT-mask mismatch. Extracted so a
+  /// non-death test can cover the format path -- the assert path itself
+  /// runs in a forked child whose coverage data is not merged back.
+  static std::string formatOutMaskMismatchMessage(llvm::StringRef Name,
+                                                  uint64_t expected,
+                                                  uint64_t actual) {
+    return llvm::formatv("ERROR: INTEROP_OUT coverage mismatch in '{0}': .td "
+                         "OutArg mask {1:X} vs INTEROP_OUT-wrapped args "
+                         "{2:X}.\n",
+                         Name, expected, actual)
+        .str();
+  }
 };
 
 } // namespace Tracing
