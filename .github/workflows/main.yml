@@ -33,6 +33,7 @@ jobs:
         #   system   apt-llvm.org / brew llvm@N — for older majors
         #            the package manager already ships
         #   asan     llvm-asan recipe
+        #   msan     llvm-msan recipe (Linux x86_64 only)
         #   cling    llvm-root recipe + cling built on top
         include:
           # Ubuntu Arm
@@ -40,6 +41,7 @@ jobs:
           # Ubuntu X86
           - { name: ubu24-x86-gcc12-llvm22, os: ubuntu-24.04, compiler: gcc-12, clang-runtime: '22' }
           - { name: ubu24-x86-clang22-llvm22-asan-ubsan, os: ubuntu-24.04, compiler: clang-22, clang-runtime: '22', sanitizer: "Address;Undefined", flavor: asan }
+          - { name: ubu24-x86-clang22-llvm22-msan, os: ubuntu-24.04, compiler: clang-22, clang-runtime: '22', sanitizer: "Memory", flavor: msan }
           - { name: ubu24-x86-gcc12-llvm21-cppyy-vg, os: ubuntu-24.04, compiler: gcc-12, clang-runtime: '21', cppyy: On, Valgrind: On, flavor: system }
           - { name: ubu24-x86-gcc12-llvm22-cppyy, os: ubuntu-24.04, compiler: gcc-12, clang-runtime: '22', cppyy: On }
           - { name: ubu24-x86-gcc14-cling-llvm20-cppyy, os: ubuntu-24.04, compiler: gcc-14, clang-runtime: '20', cling: 'On', cppyy: On, flavor: cling, flavor-version: 'cling-llvm20' }
@@ -90,7 +92,8 @@ jobs:
     # the source: '' = llvm-release recipe (latest LLVM from
     # compiler-research/ci-workflows' Releases cache); 'system' =
     # apt-llvm.org or brew llvm@N for older majors the package
-    # manager already ships; 'asan' = llvm-asan recipe; 'cling' =
+    # manager already ships; 'asan' = llvm-asan recipe; 'msan' =
+    # llvm-msan recipe (Linux x86_64 only, bundled libc++); 'cling' =
     # llvm-root recipe + cling built on top inside the action.
     # `os:` reads matrix.self-hosted-os first so the self-hosted CUDA
     # row (whose matrix.os is the runs-on label array

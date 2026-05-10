@@ -13,6 +13,22 @@
 #include "Sins.h" // for access to private members
 #include "Tracing.h"
 
+// MSan workaround for clang-repl <= 22: __clang_Interpreter_SetValueNoAlloc
+// receives JIT-emitted values through varargs, and MSan cannot track shadow
+// across that JIT/native boundary -- the returned Value carries correct bits
+// but an uninit shadow, which trips downstream reads (convertTo, ~Value).
+// Fixed upstream in llvm/llvm-project#196894; unpoison locally for older LLVM.
+#if defined(__has_feature)
+#if __has_feature(memory_sanitizer) && LLVM_VERSION_MAJOR <= 22
+#include <sanitizer/msan_interface.h>
+#define CPPINTEROP_MSAN_UNPOISON_VALUE(v) __msan_unpoison(&(v), sizeof(v))
+#else
+#define CPPINTEROP_MSAN_UNPOISON_VALUE(v) ((void)0)
+#endif
+#else
+#define CPPINTEROP_MSAN_UNPOISON_VALUE(v) ((void)0)
+#endif
+
 #include "clang/AST/Attrs.inc"
 #include "clang/AST/CXXInheritance.h"
 #include "clang/AST/Comment.h"
@@ -3048,6 +3064,13 @@ void make_narg_ctor_with_return(const FunctionDecl* FD, const unsigned N,
     indent(callbuf, --indent_level);
     if (CD->isDefaultConstructor())
       callbuf << "}\n";
+#if __has_feature(memory_sanitizer)
+    // Outside the if/else so the array-new (nary > 1) and single-new
+    // branches are both covered.
+    indent(callbuf, indent_level);
+    callbuf << "__msan_unpoison(*(void**)ret, sizeof(" << class_name
+            << ") * (nary > 1 ? nary : 1));\n";
+#endif
 
     //
     //  Output the whole new expression and return statement.
@@ -3140,6 +3163,10 @@ void make_narg_call_with_return(compat::Interpreter& I, const FunctionDecl* FD,
       //  End the placement new.
       //
       callbuf << ");\n";
+#if __has_feature(memory_sanitizer)
+      indent(callbuf, indent_level);
+      callbuf << "__msan_unpoison(ret, sizeof(" << type_name << "));\n";
+#endif
       indent(callbuf, indent_level);
       callbuf << "return;\n";
       //
@@ -3553,8 +3580,14 @@ int get_wrapper_code(compat::Interpreter& I, const FunctionDecl* FD,
   int indent_level = 0;
   std::ostringstream buf;
   buf << "#pragma clang diagnostic push\n"
-         "#pragma clang diagnostic ignored \"-Wformat-security\"\n"
-         "__attribute__((used)) "
+         "#pragma clang diagnostic ignored \"-Wformat-security\"\n";
+#if __has_feature(memory_sanitizer)
+  // Declared (not #include'd) so the wrapper compiles with no need
+  // for sanitizer headers in the JIT search path.
+  buf << "extern \"C\" void __msan_unpoison(const volatile void*, "
+         "unsigned long);\n";
+#endif
+  buf << "__attribute__((used)) "
          "__attribute__((annotate(\"__cling__ptrcheck(off)\")))\n"
          "extern \"C\" void ";
   buf << wrapper_name;
@@ -3985,6 +4018,33 @@ TInterp_t CreateInterpreter(const std::vector<const char*>& Args /*={}*/,
   // FIXME : Workaround Sema::PushDeclContext assert on windows
   ClingArgv.push_back("-fno-delayed-template-parsing");
 #endif
+#if __has_feature(memory_sanitizer)
+  // Match the host stdlib (msan setup is libc++ end to end; the
+  // in-process clang otherwise defaults to libstdc++ on Linux and
+  // JIT'd `std::__cxx11::*` won't resolve against the host's
+  // `std::__1::*`). User Args appended below can override.
+  ClingArgv.push_back("-stdlib=libc++");
+  // -stdlib=libc++ alone misses <install>/include/c++/v1: in-process
+  // clang derives Driver::Dir from /proc/self/exe (= host binary),
+  // not argv[0], so the force-include of `<new>` SIGSEGVs in
+  // GenModule. Derive the include from -resource-dir, which IS the
+  // cell. Gating on memory_sanitizer (not _LIBCPP_VERSION) keeps
+  // this away from generic libc++ builds where the cell-derived
+  // path may not be the libc++ the host actually uses.
+  std::string LibcxxIncDir;
+  if (!ResourceDir.empty()) {
+    SmallString<256> P(ResourceDir);
+    sys::path::remove_filename(P);
+    sys::path::remove_filename(P);
+    sys::path::remove_filename(P);
+    sys::path::append(P, "include", "c++", "v1");
+    if (sys::fs::is_directory(P)) {
+      LibcxxIncDir = P.str().str();
+      ClingArgv.push_back("-cxx-isystem");
+      ClingArgv.push_back(LibcxxIncDir.c_str());
+    }
+  }
+#endif
   ClingArgv.insert(ClingArgv.end(), Args.begin(), Args.end());
   // To keep the Interpreter creation interface between cling and clang-repl
   // to some extent compatible we should put Args and GpuArgs together. On the
@@ -4266,6 +4326,7 @@ intptr_t Evaluate(const char* code, bool* IsValueInvalid /*=nullptr*/) {
     *IsValueInvalid = false;
 
   auto res = getInterp().evaluate(code, V);
+  CPPINTEROP_MSAN_UNPOISON_VALUE(V);
   // 0 is success; an unset V on success means convertTo would assert.
   if (res != 0 || !V.hasValue()) {
     if (IsValueInvalid)

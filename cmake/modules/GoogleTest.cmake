@@ -28,10 +28,14 @@ elseif(APPLE)
 endif()
 
 include(ExternalProject)
+# Forward parent CMAKE_CXX_FLAGS to the gtest sub-build so sanitizer
+# and -stdlib=libc++ additions don't get dropped (else gtest builds
+# against system defaults and ABI-clashes with the parent at link).
+set(GOOGLETEST_CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 if (EMSCRIPTEN)
   # FIXME: -sSUPPORT_LONGJMP=wasm in the default option causes a warning in the Emscripten build of Googletest
   # and as we treat warnings as errors in the ci, it causes the ci to fail.
-  string(REPLACE "-sSUPPORT_LONGJMP=wasm" "" GOOGLETEST_CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+  string(REPLACE "-sSUPPORT_LONGJMP=wasm" "" GOOGLETEST_CMAKE_CXX_FLAGS "${GOOGLETEST_CMAKE_CXX_FLAGS}")
   set(config_cmd emcmake${EMCC_SUFFIX} cmake)
   if(CMAKE_GENERATOR STREQUAL "Ninja")
     set(build_cmd emmake${EMCC_SUFFIX} ninja)
@@ -62,6 +66,11 @@ ExternalProject_Add(
                 -DCMAKE_C_FLAGS=${CMAKE_C_FLAGS}
                 -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}
                 -DCMAKE_CXX_FLAGS=${GOOGLETEST_CMAKE_CXX_FLAGS}
+                # HandleLLVMOptions puts -stdlib=libc++ / -fsanitize=*
+                # in CMAKE_*_LINKER_FLAGS for LLVM_USE_SANITIZER.
+                -DCMAKE_EXE_LINKER_FLAGS=${CMAKE_EXE_LINKER_FLAGS}
+                -DCMAKE_MODULE_LINKER_FLAGS=${CMAKE_MODULE_LINKER_FLAGS}
+                -DCMAKE_SHARED_LINKER_FLAGS=${CMAKE_SHARED_LINKER_FLAGS}
                 -DCMAKE_AR=${CMAKE_AR}
                 -DCMAKE_INSTALL_PREFIX=${CMAKE_INSTALL_PREFIX}
                 ${EXTRA_GTEST_OPTS}
