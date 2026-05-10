@@ -1339,6 +1339,38 @@ TEST_F(TracingTest, JitCallDestructorInvokeLogged) {
   EXPECT_THAT(log, HasSubstr("JitCall::InvokeDestructor"));
   EXPECT_THAT(log, HasSubstr("Baz"));
 }
+
+TEST_F(TracingTest, JitCallReturnedPointerRegistered) {
+  // Factory returning T*: the wrapper writes the new pointer at
+  // *result; the return-hook registers it as a vN handle so later
+  // trace lines that consume it render the name instead of
+  // `nullptr /*unknown*/`.
+  Cpp::CreateInterpreter({});
+  ASSERT_NE(TheTraceInfo, nullptr);
+
+  Cpp::Declare("#include <new>");
+  Cpp::Declare("namespace InvRetNS { struct Foo {}; "
+               "Foo* makeFoo() { return new Foo(); } }");
+  auto* MakeFD = Cpp::GetNamed("makeFoo", Cpp::GetScope("InvRetNS"));
+  ASSERT_NE(MakeFD, nullptr);
+  auto MakeJC = Cpp::MakeFunctionCallable(MakeFD);
+  ASSERT_TRUE(MakeJC.isValid());
+
+  // Sanity: an unrelated pointer remains unregistered.
+  EXPECT_TRUE(TheTraceInfo->lookupHandle(reinterpret_cast<void*>(0x1)).empty());
+
+  void* foo = nullptr;
+  MakeJC.Invoke(&foo);
+  ASSERT_NE(foo, nullptr);
+
+  // After Invoke the return-hook has registered foo; lookupHandle
+  // yields its assigned name instead of "".
+  EXPECT_FALSE(TheTraceInfo->lookupHandle(foo).empty());
+
+  // makeFoo heap-allocated a trivially-destructible Foo; free it so
+  // LeakSanitizer doesn't flag the allocation.
+  ::operator delete(foo);
+}
 #endif
 
 // Verify that log entries include timing annotations.

@@ -34,6 +34,8 @@ void CppInterOpTraceJitCallInvokeImpl(const JitCall* JC, void* result,
 void CppInterOpTraceJitCallInvokeDestructorImpl(const JitCall* JC, void* object,
                                                 unsigned long nary,
                                                 int withFree) noexcept;
+void CppInterOpTraceJitCallInvokeReturnImpl(const JitCall* JC,
+                                            void* result) noexcept;
 } // namespace CppImpl
 
 // Linked-mode slot definitions; Dispatch.h consumers use per-DSO inline.
@@ -43,6 +45,8 @@ void (*TraceJitCallInvoke)(const CppImpl::JitCall*, void*, void**, std::size_t,
                            void*) noexcept = nullptr;
 void (*TraceJitCallInvokeDestructor)(const CppImpl::JitCall*, void*,
                                      unsigned long, int) noexcept = nullptr;
+void (*TraceJitCallInvokeReturn)(const CppImpl::JitCall*,
+                                 void*) noexcept = nullptr;
 } // namespace DispatchRaw
 } // namespace CppInternal
 
@@ -61,6 +65,8 @@ void InitTracing() {
       &CppImpl::CppInterOpTraceJitCallInvokeImpl;
   ::CppInternal::DispatchRaw::TraceJitCallInvokeDestructor =
       &CppImpl::CppInterOpTraceJitCallInvokeDestructorImpl;
+  ::CppInternal::DispatchRaw::TraceJitCallInvokeReturn =
+      &CppImpl::CppInterOpTraceJitCallInvokeReturnImpl;
 }
 
 std::optional<uint64_t> TraceRegion::lookupOutMask(llvm::StringRef Name) {

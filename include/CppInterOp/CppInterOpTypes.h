@@ -61,6 +61,8 @@ inline void (*TraceJitCallInvoke)(const CppImpl::JitCall* JC, void* result,
 inline void (*TraceJitCallInvokeDestructor)(const CppImpl::JitCall* JC,
                                             void* object, unsigned long nary,
                                             int withFree) noexcept = nullptr;
+inline void (*TraceJitCallInvokeReturn)(const CppImpl::JitCall* JC,
+                                        void* result) noexcept = nullptr;
 #else
 extern CPPINTEROP_API void (*TraceJitCallInvoke)(const CppImpl::JitCall* JC,
                                                  void* result, void** args,
@@ -69,6 +71,8 @@ extern CPPINTEROP_API void (*TraceJitCallInvoke)(const CppImpl::JitCall* JC,
 extern CPPINTEROP_API void (*TraceJitCallInvokeDestructor)(
     const CppImpl::JitCall* JC, void* object, unsigned long nary,
     int withFree) noexcept;
+extern CPPINTEROP_API void (*TraceJitCallInvokeReturn)(
+    const CppImpl::JitCall* JC, void* result) noexcept;
 #endif
 } // namespace DispatchRaw
 } // namespace CppInternal
@@ -273,12 +277,12 @@ private:
                                                          void* object,
                                                          unsigned long nary,
                                                          int withFree) noexcept;
+  friend void CppInterOpTraceJitCallInvokeReturnImpl(const JitCall*,
+                                                     void* result) noexcept;
 
   /// Checks if the passed arguments are valid for the given function.
   CPPINTEROP_API bool AreArgumentsValid(void* result, ArgList args, void* self,
                                         size_t nary) const;
-
-  void ReportInvokeEnd() const;
 
 public:
   [[nodiscard]] Kind getKind() const { return m_Kind; }
@@ -315,6 +319,8 @@ public:
       if (auto fn = ::CppInternal::DispatchRaw::TraceJitCallInvoke)
         fn(this, result, args.m_Args, args.m_ArgSize, self);
       m_GenericCall(self, args.m_ArgSize, args.m_Args, result);
+      if (auto fn = ::CppInternal::DispatchRaw::TraceJitCallInvokeReturn)
+        fn(this, result);
       break;
 
     case kConstructorCall:
@@ -359,9 +365,11 @@ public:
     assert(m_Kind == kConstructorCall && "Wrong overload!");
     assert(AreArgumentsValid(result, args, /*self=*/nullptr, nary) &&
            "Invalid args!");
-    if (auto fn = CppInternal::DispatchRaw::TraceJitCallInvoke)
+    if (auto fn = ::CppInternal::DispatchRaw::TraceJitCallInvoke)
       fn(this, result, args.m_Args, args.m_ArgSize, nullptr);
     m_ConstructorCall(result, nary, args.m_ArgSize, args.m_Args, is_arena);
+    if (auto fn = ::CppInternal::DispatchRaw::TraceJitCallInvokeReturn)
+      fn(this, result);
   }
 };
 
