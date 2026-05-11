@@ -1059,6 +1059,27 @@ static const clang::Decl* GetUnderlyingScopeImpl(const clang::Decl* D) {
   return D->getCanonicalDecl();
 }
 
+// If D is a UsingShadowDecl whose target is a function-like decl,
+// return that target; otherwise return D unchanged. The using-shadow
+// is the only carrier of the "effective access" introduced into the
+// derived class, so callers that need access info should consult D
+// before unwrapping.
+static clang::Decl* UnwrapUsingShadowToFunction(clang::Decl* D) {
+  if (auto* USD = dyn_cast_or_null<UsingShadowDecl>(D))
+    if (auto* Target = USD->getTargetDecl())
+      if (isa<FunctionDecl>(Target) || isa<FunctionTemplateDecl>(Target))
+        return Target;
+  return D;
+}
+
+static const clang::Decl* UnwrapUsingShadowToFunction(const clang::Decl* D) {
+  if (const auto* USD = dyn_cast_or_null<UsingShadowDecl>(D))
+    if (const auto* Target = USD->getTargetDecl())
+      if (isa<FunctionDecl>(Target) || isa<FunctionTemplateDecl>(Target))
+        return Target;
+  return D;
+}
+
 DeclRef GetUnderlyingScope(ConstDeclRef DRef) {
   INTEROP_TRACE(DRef);
   if (!DRef)
@@ -1446,7 +1467,10 @@ static void GetClassDecls(ConstDeclRef DRef, std::vector<HandleType>& methods) {
 
       auto* CUSD = dyn_cast<ConstructorUsingShadowDecl>(DI);
       if (!CUSD) {
-        methods.push_back(MD);
+        // Push the using-shadow rather than the target so that the
+        // effective access (USD->getAccess()) reachable from the
+        // introducing class is preserved for downstream consumers.
+        methods.push_back(USD);
         continue;
       }
 
@@ -1587,7 +1611,7 @@ std::vector<FuncRef> GetFunctionsUsingName(ConstDeclRef DRef,
 
 TypeRef GetFunctionReturnType(ConstFuncRef func) {
   INTEROP_TRACE(func);
-  const auto* D = unwrap<clang::Decl>(func);
+  const auto* D = UnwrapUsingShadowToFunction(unwrap<clang::Decl>(func));
   if (const auto* FD = llvm::dyn_cast_or_null<clang::FunctionDecl>(D)) {
     QualType Type = FD->getReturnType();
     if (Type->isUndeducedAutoType()) {
@@ -2064,7 +2088,7 @@ void GetFnTypeSignature(ConstTypeRef fn_type, std::vector<TypeRef>& sig) {
 // exclude it, which is what callers introspecting the argument list want.
 size_t GetFunctionNumArgs(ConstFuncRef func) {
   INTEROP_TRACE(func);
-  const auto* D = unwrap<clang::Decl>(func);
+  const auto* D = UnwrapUsingShadowToFunction(unwrap<clang::Decl>(func));
   if (const auto* FD = llvm::dyn_cast_or_null<FunctionDecl>(D))
     return INTEROP_RETURN(FD->getNumNonObjectParams());
 
@@ -2076,7 +2100,7 @@ size_t GetFunctionNumArgs(ConstFuncRef func) {
 
 size_t GetFunctionRequiredArgs(ConstFuncRef func) {
   INTEROP_TRACE(func);
-  const auto* D = unwrap<clang::Decl>(func);
+  const auto* D = UnwrapUsingShadowToFunction(unwrap<clang::Decl>(func));
   if (const auto* FD = llvm::dyn_cast_or_null<FunctionDecl>(D))
     return INTEROP_RETURN(FD->getMinRequiredExplicitArguments());
 
@@ -2089,7 +2113,7 @@ size_t GetFunctionRequiredArgs(ConstFuncRef func) {
 
 TypeRef GetFunctionArgType(ConstFuncRef func, size_t iarg) {
   INTEROP_TRACE(func, iarg);
-  const auto* D = unwrap<clang::Decl>(func);
+  const auto* D = UnwrapUsingShadowToFunction(unwrap<clang::Decl>(func));
 
   if (const auto* FTD = llvm::dyn_cast_or_null<clang::FunctionTemplateDecl>(D))
     D = FTD->getTemplatedDecl();
@@ -2115,7 +2139,7 @@ std::string GetFunctionSignature(ConstFuncRef func) {
   if (!func)
     return INTEROP_RETURN("<unknown>");
 
-  const auto* D = unwrap<clang::Decl>(func);
+  const auto* D = UnwrapUsingShadowToFunction(unwrap<clang::Decl>(func));
   const clang::FunctionDecl* FD;
 
   if (llvm::dyn_cast<FunctionDecl>(D))
@@ -2160,13 +2184,14 @@ bool IsTemplateInstantiationOrSpecialization(const Decl* D) {
 
 bool IsFunctionDeleted(ConstFuncRef function) {
   INTEROP_TRACE(function);
-  const auto* FD = cast<FunctionDecl>(unwrap<clang::Decl>(function));
+  const auto* FD = cast<FunctionDecl>(
+      UnwrapUsingShadowToFunction(unwrap<clang::Decl>(function)));
   return INTEROP_RETURN(FD->isDeleted());
 }
 
 bool IsTemplatedFunction(ConstFuncRef func) {
   INTEROP_TRACE(func);
-  const auto* D = unwrap<Decl>(func);
+  const auto* D = UnwrapUsingShadowToFunction(unwrap<Decl>(func));
   return INTEROP_RETURN(IsTemplatedFunction(D) ||
                         IsTemplateInstantiationOrSpecialization(D));
 }
@@ -2372,6 +2397,13 @@ BestOverloadFunctionMatch(const std::vector<FuncRef>& candidates,
 // the provided AccessSpecifier.
 bool CheckMethodAccess(ConstFuncRef method, AccessSpecifier AS) {
   const auto* D = unwrap<Decl>(method);
+  // Must NOT unwrap here: the using-shadow is the only carrier of the effective
+  // access (e.g. `public` in the derived class), while the target only knows
+  // its base access (e.g. `protected`).
+  if (const auto* USD = llvm::dyn_cast_or_null<UsingShadowDecl>(D)) {
+    if (llvm::isa_and_nonnull<CXXMethodDecl>(USD->getTargetDecl()))
+      return USD->getAccess() == AS;
+  }
   if (const auto* CXXMD = llvm::dyn_cast_or_null<CXXMethodDecl>(D)) {
     return CXXMD->getAccess() == AS;
   }
@@ -2381,7 +2413,7 @@ bool CheckMethodAccess(ConstFuncRef method, AccessSpecifier AS) {
 
 bool IsMethod(ConstFuncRef method) {
   INTEROP_TRACE(method);
-  const auto* D = unwrap<clang::Decl>(method);
+  const auto* D = UnwrapUsingShadowToFunction(unwrap<clang::Decl>(method));
   if (const auto* FTD = dyn_cast_or_null<FunctionTemplateDecl>(D))
     D = FTD->getTemplatedDecl();
   return INTEROP_RETURN(dyn_cast_or_null<CXXMethodDecl>(D));
@@ -2405,7 +2437,7 @@ bool IsPrivateMethod(ConstFuncRef method) {
 
 bool IsConstructor(ConstFuncRef method) {
   INTEROP_TRACE(method);
-  const auto* D = unwrap<Decl>(method);
+  const auto* D = UnwrapUsingShadowToFunction(unwrap<Decl>(method));
   if (const auto* FTD = dyn_cast<FunctionTemplateDecl>(D))
     return INTEROP_RETURN(IsConstructor(FTD->getTemplatedDecl()));
   return INTEROP_RETURN(llvm::isa_and_nonnull<CXXConstructorDecl>(D));
@@ -2413,13 +2445,13 @@ bool IsConstructor(ConstFuncRef method) {
 
 bool IsDestructor(ConstFuncRef method) {
   INTEROP_TRACE(method);
-  const auto* D = unwrap<Decl>(method);
+  const auto* D = UnwrapUsingShadowToFunction(unwrap<Decl>(method));
   return INTEROP_RETURN(llvm::isa_and_nonnull<CXXDestructorDecl>(D));
 }
 
 bool IsStaticMethod(ConstFuncRef method) {
   INTEROP_TRACE(method);
-  const auto* D = unwrap<Decl>(method);
+  const auto* D = UnwrapUsingShadowToFunction(unwrap<Decl>(method));
   if (const auto* FTD = llvm::dyn_cast_or_null<FunctionTemplateDecl>(D))
     D = FTD->getTemplatedDecl();
 
@@ -2435,7 +2467,7 @@ bool IsExplicit(ConstFuncRef method) {
   if (!method)
     return INTEROP_RETURN(false);
 
-  const auto* D = unwrap<Decl>(method);
+  const auto* D = UnwrapUsingShadowToFunction(unwrap<Decl>(method));
 
   if (const auto* FTD = llvm::dyn_cast_or_null<FunctionTemplateDecl>(D))
     D = FTD->getTemplatedDecl();
@@ -2492,7 +2524,7 @@ static void* GetFunctionAddress(const FunctionDecl* FD) {
 
 void* GetFunctionAddress(FuncRef method) {
   INTEROP_TRACE(method);
-  auto* D = unwrap<Decl>(method);
+  auto* D = UnwrapUsingShadowToFunction(unwrap<Decl>(method));
   if (auto* FD = llvm::dyn_cast_or_null<FunctionDecl>(D)) {
     if ((IsTemplateInstantiationOrSpecialization(FD) ||
          FD->getTemplatedKind() == FunctionDecl::TK_MemberSpecialization) &&
@@ -2508,7 +2540,7 @@ void* GetFunctionAddress(FuncRef method) {
 
 bool IsVirtualMethod(ConstFuncRef method) {
   INTEROP_TRACE(method);
-  const auto* D = unwrap<Decl>(method);
+  const auto* D = UnwrapUsingShadowToFunction(unwrap<Decl>(method));
   if (const auto* CXXMD = llvm::dyn_cast_or_null<CXXMethodDecl>(D)) {
     return INTEROP_RETURN(CXXMD->isVirtual());
   }
@@ -4553,7 +4585,8 @@ int get_wrapper_code(compat::Interpreter& I, const FunctionDecl* FD,
 }
 
 JitCall::GenericCall make_wrapper(compat::Interpreter& I,
-                                  const FunctionDecl* FD) {
+                                  const FunctionDecl* FD,
+                                  bool relaxAccessControl = false) {
   auto& WrapperStore = getInterpInfo(&I).WrapperStore;
 
   auto R = WrapperStore.find(FD);
@@ -4591,6 +4624,12 @@ JitCall::GenericCall make_wrapper(compat::Interpreter& I,
   // We should be able to call private default constructors.
   if (auto Ctor = dyn_cast<CXXConstructorDecl>(FD))
     withAccessControl = !Ctor->isDefaultConstructor();
+  // Members introduced into a derived class with a public using-declaration
+  // are reachable through the derived class, but the generated wrapper still
+  // calls the target through its original (e.g. protected) qualified name.
+  // Disable access control for this specific case so the wrapper compiles.
+  if (relaxAccessControl)
+    withAccessControl = false;
   void* wrapper =
       compile_wrapper(I, wrapper_name, wrapper_code, withAccessControl);
   if (wrapper) {
@@ -4802,9 +4841,15 @@ static JitCall::DestructorCall make_dtor_wrapper(compat::Interpreter& interp,
 
 CPPINTEROP_API JitCall MakeFunctionCallable(InterpRef I, ConstFuncRef func) {
   INTEROP_TRACE(I, func);
-  const auto* D = unwrap<clang::Decl>(func);
-  if (!D)
+  const auto* InputD = unwrap<clang::Decl>(func);
+  if (!InputD)
     return INTEROP_RETURN(JitCall{});
+
+  // If the caller passed a using-shadow, unwrap to the target function but
+  // remember the fact: the generated wrapper still references the target's
+  // original (e.g. protected) name, so it needs access control relaxed.
+  const bool isUsingShadow = isa<UsingShadowDecl>(InputD);
+  const auto* D = UnwrapUsingShadowToFunction(InputD);
 
   auto* interp = unwrap<compat::Interpreter>(I);
 
@@ -4818,14 +4863,16 @@ CPPINTEROP_API JitCall MakeFunctionCallable(InterpRef I, ConstFuncRef func) {
   }
 
   if (const auto* Ctor = dyn_cast<CXXConstructorDecl>(D)) {
-    if (auto Wrapper = make_wrapper(*interp, cast<FunctionDecl>(D)))
+    if (auto Wrapper =
+            make_wrapper(*interp, cast<FunctionDecl>(D), isUsingShadow))
       return INTEROP_RETURN(JitCall(JitCall::kConstructorCall, Wrapper,
                                     wrap<ConstFuncRef>(Ctor)));
     // FIXME: else error we failed to compile the wrapper.
     return INTEROP_RETURN(JitCall{});
   }
 
-  if (auto Wrapper = make_wrapper(*interp, cast<FunctionDecl>(D))) {
+  if (auto Wrapper =
+          make_wrapper(*interp, cast<FunctionDecl>(D), isUsingShadow)) {
     return INTEROP_RETURN(JitCall(JitCall::kGenericCall, Wrapper,
                                   wrap<ConstFuncRef>(cast<FunctionDecl>(D))));
   }
@@ -5747,7 +5794,7 @@ bool IsTypeDerivedFrom(ConstTypeRef derived, ConstTypeRef base) {
 
 std::string GetFunctionArgDefault(ConstFuncRef func, size_t param_index) {
   INTEROP_TRACE(func, param_index);
-  const auto* D = unwrap<clang::Decl>(func);
+  const auto* D = UnwrapUsingShadowToFunction(unwrap<clang::Decl>(func));
   const clang::ParmVarDecl* PI = nullptr;
 
   if (const auto* FD = llvm::dyn_cast_or_null<clang::FunctionDecl>(D))
@@ -5790,7 +5837,7 @@ bool IsConstMethod(ConstFuncRef method) {
   if (!method)
     return INTEROP_RETURN(false);
 
-  const auto* D = unwrap<clang::Decl>(method);
+  const auto* D = UnwrapUsingShadowToFunction(unwrap<clang::Decl>(method));
   if (const auto* func = dyn_cast<CXXMethodDecl>(D))
     return INTEROP_RETURN(func->getMethodQualifiers().hasConst());
 
@@ -5799,7 +5846,7 @@ bool IsConstMethod(ConstFuncRef method) {
 
 std::string GetFunctionArgName(ConstFuncRef func, size_t param_index) {
   INTEROP_TRACE(func, param_index);
-  const auto* D = unwrap<clang::Decl>(func);
+  const auto* D = UnwrapUsingShadowToFunction(unwrap<clang::Decl>(func));
   const clang::ParmVarDecl* PI = nullptr;
 
   if (const auto* FD = llvm::dyn_cast_or_null<clang::FunctionDecl>(D))
@@ -5829,7 +5876,7 @@ Operator GetOperatorFromSpelling(const std::string& op) {
 
 OperatorArity GetOperatorArity(ConstFuncRef op) {
   INTEROP_TRACE(op);
-  const auto* D = unwrap<Decl>(op);
+  const auto* D = UnwrapUsingShadowToFunction(unwrap<Decl>(op));
   if (const auto* FD = llvm::dyn_cast<FunctionDecl>(D)) {
     if (FD->isOverloadedOperator()) {
       switch (FD->getOverloadedOperator()) {

@@ -163,6 +163,157 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetClassMethods) {
   EXPECT_EQ(get_method_name(templ_methods2[6]), "inline TT::~TT()");
 }
 
+// A method introduced into a derived class with `using Base::name;` in a
+// public section must report public access (taken from the using-declaration),
+// not the access of the underlying target in the base class.
+TYPED_TEST(CPPINTEROP_TEST_MODE,
+           FunctionReflection_GetClassMethods_UsingShadowAccess) {
+  std::vector<Decl*> Decls;
+  std::string code = R"(
+    class MyBase {
+    protected:
+       void foo(int, int) {}
+    };
+    class MyDerived : public MyBase {
+    public:
+       using MyBase::foo;   // promoted to public
+       void foo(int) {}
+    };
+    class HiddenDerived : public MyBase {
+    protected:
+       using MyBase::foo;   // stays protected
+    };
+    )";
+
+  GetAllTopLevelDecls(code, Decls);
+
+  std::vector<Cpp::FuncRef> derived_methods;
+  Cpp::GetClassMethods(Decls[1], derived_methods);
+
+  // Find the using-promoted foo (the two-argument overload).
+  bool found_using_promoted = false;
+  Cpp::FuncRef using_promoted;
+  for (auto m : derived_methods) {
+    if (Cpp::GetName(Cpp::DeclRef{m.data}) != "foo")
+      continue;
+    if (Cpp::GetFunctionNumArgs(m) == 2) {
+      found_using_promoted = true;
+      using_promoted = m;
+      EXPECT_TRUE(Cpp::IsPublicMethod(m));
+      EXPECT_FALSE(Cpp::IsProtectedMethod(m));
+      EXPECT_FALSE(Cpp::IsConstructor(m));
+    }
+  }
+  EXPECT_TRUE(found_using_promoted)
+      << "using-promoted base method missing from GetClassMethods";
+
+  // Resolving the address of the using-promoted overload must transparently
+  // unwrap the using-shadow to its target before emitting code. This is the
+  // only caller exercising the non-const UnwrapUsingShadowToFunction overload
+  // (the reflection-only APIs above all go through the const overload), and the
+  // resolved address must match the one obtained directly from the base method.
+#ifndef _WIN32 // GetFunctionAddress is disabled on Windows; see its own test.
+  if (!TypeParam::isOutOfProcess && found_using_promoted) {
+    std::vector<Cpp::FuncRef> base_methods;
+    Cpp::GetClassMethods(Decls[0], base_methods);
+    Cpp::FuncRef base_foo;
+    for (auto m : base_methods) {
+      if (Cpp::GetName(Cpp::DeclRef{m.data}) == "foo" &&
+          Cpp::GetFunctionNumArgs(m) == 2)
+        base_foo = m;
+    }
+    ASSERT_TRUE(base_foo);
+
+    void* shadow_addr = Cpp::GetFunctionAddress(using_promoted);
+    EXPECT_TRUE(shadow_addr);
+    EXPECT_EQ(shadow_addr, Cpp::GetFunctionAddress(base_foo));
+  }
+#endif
+
+  std::vector<Cpp::FuncRef> hidden_methods;
+  Cpp::GetClassMethods(Decls[2], hidden_methods);
+
+  bool found_hidden = false;
+  for (auto m : hidden_methods) {
+    if (Cpp::GetName(Cpp::DeclRef{m.data}) == "foo" &&
+        Cpp::GetFunctionNumArgs(m) == 2) {
+      found_hidden = true;
+      EXPECT_FALSE(Cpp::IsPublicMethod(m));
+      EXPECT_TRUE(Cpp::IsProtectedMethod(m));
+    }
+  }
+  EXPECT_TRUE(found_hidden);
+}
+
+// Companion to the access test above, covering the *call* path: a method
+// promoted into a derived class with a public `using Base::name;` must be
+// invocable through the derived class even though the target still carries the
+// base class's protected access. The generated wrapper references the target by
+// its original (protected) qualified name, so MakeFunctionCallable threads a
+// relaxAccessControl flag into wrapper compilation for this case. Exercise it
+// end to end: compile the wrapper and actually invoke it.
+TYPED_TEST(CPPINTEROP_TEST_MODE,
+           FunctionReflection_MakeFunctionCallable_UsingShadow) {
+#ifdef EMSCRIPTEN
+  GTEST_SKIP() << "Test fails for Emscripten builds";
+#endif
+#if defined(CPPINTEROP_USE_CLING) && defined(_WIN32)
+  GTEST_SKIP() << "Disabled on Cling/Windows.";
+#endif
+  if (TypeParam::isOutOfProcess)
+    GTEST_SKIP() << "Test fails for OOP JIT builds";
+
+  std::vector<Decl*> Decls;
+  std::string code = R"(
+    class MyBase {
+    protected:
+       int foo(int a, int b) { return a * 100 + b; }
+    };
+    class MyDerived : public MyBase {
+    public:
+       using MyBase::foo;   // promoted to public
+       int foo(int a) { return a; }
+    };
+    )";
+
+  // `-include new` is needed for the constructor wrapper's placement new.
+  GetAllTopLevelDecls(code, Decls, /*filter_implicitGenerated=*/false,
+                      /*interpreter_args=*/{"-include", "new"});
+
+  std::vector<Cpp::FuncRef> derived_methods;
+  Cpp::GetClassMethods(Decls[1], derived_methods);
+
+  // Locate the using-promoted foo (the two-argument overload from the base).
+  Cpp::FuncRef using_promoted;
+  for (auto m : derived_methods) {
+    if (Cpp::GetName(Cpp::DeclRef{m.data}) == "foo" &&
+        Cpp::GetFunctionNumArgs(m) == 2)
+      using_promoted = m;
+  }
+  ASSERT_TRUE(using_promoted);
+
+  // Compiling this wrapper exercises the relaxAccessControl path: the generated
+  // body calls MyBase::foo through its qualified (protected) name, so access
+  // control has to be disabled for the wrapper to compile.
+  Cpp::JitCall Call = Cpp::MakeFunctionCallable(using_promoted);
+  ASSERT_EQ(Call.getKind(), Cpp::JitCall::kGenericCall);
+
+  // Construct a MyDerived and call the promoted overload through it.
+  auto Ctor = Cpp::MakeFunctionCallable(Cpp::GetDefaultConstructor(Decls[1]));
+  void* object = nullptr;
+  Ctor.Invoke((void*)&object, {}, /*self=*/nullptr);
+  ASSERT_TRUE(object);
+
+  int a = 3;
+  int b = 7;
+  int result = 0;
+  std::array<void*, 2> args = {(void*)&a, (void*)&b};
+  Call.Invoke(&result, {args.data(), /*args_size=*/2}, object);
+  EXPECT_EQ(result, (a * 100) + b);
+
+  Cpp::Destruct(object, Decls[1]);
+}
+
 TYPED_TEST(CPPINTEROP_TEST_MODE,
            FunctionReflection_ConstructorInGetClassMethods) {
   std::vector<Decl*> Decls;
