@@ -187,18 +187,33 @@ struct InterpreterInfo {
 };
 
 static void DefaultProcessCrashHandler(void*);
+
+/// Set by UseExternalInterpreter to suppress llvm_shutdown at process exit
+/// -- the client owns LLVM in that case.
+static bool SkipShutDown = false;
+
+/// RAII guard whose dtor calls llvm_shutdown for the owned-interpreter case.
+/// Constructed as a function-local static AFTER sInterpreters, so its dtor
+/// fires FIRST (reverse-of-construction); llvm_shutdown then drains the
+/// ManagedStatic registry, including sInterpreters, deterministically.
+/// The llvm_shutdown call itself is gated on LLVM 23+, where
+/// Platform::lookupResolvedInitSymbols (llvm/llvm-project#196874) makes
+/// ~Interpreter's JIT deinit skip lazy materialization. On older LLVM
+/// the same chain SEGFAULTs in cleanUp against destroyed function-local
+/// statics, so the dtor is a no-op and sInterpreters leaks instead.
+struct InterpreterShutdown {
+  ~InterpreterShutdown() {
+    if (!SkipShutDown) {
+#if LLVM_VERSION_MAJOR > 22
+      llvm::llvm_shutdown();
+#endif
+    }
+  }
+};
+
 // Function-static storage for interpreters
 static std::deque<InterpreterInfo>&
 GetInterpreters(bool SetCrashHandler = true) {
-  // static int FakeArgc = 1;
-  // static const std::string VersionStr = GetVersion();
-  // static const char* ArgvBuffer[] = {VersionStr.c_str(), nullptr};
-  // static const char** FakeArgv = ArgvBuffer;
-  // static llvm::InitLLVM X(FakeArgc, FakeArgv);
-  // Cannot be a llvm::ManagedStatic because X will call shutdown which will
-  // trigger destruction on llvm::ManagedStatics and the destruction of the
-  // InterpreterInfos require to have llvm around.
-  // FIXME: Currently we never call llvm::llvm_shutdown and sInterpreters leaks.
   static llvm::ManagedStatic<std::deque<InterpreterInfo>> sInterpreters;
   static std::once_flag ProcessInitialized;
   std::call_once(ProcessInitialized, [SetCrashHandler]() {
@@ -215,12 +230,20 @@ GetInterpreters(bool SetCrashHandler = true) {
     llvm::InitializeAllAsmParsers();
     llvm::InitializeAllAsmPrinters();
 
-    if (SetCrashHandler)
+    // Pipe / OOM / crash handlers replicate what InitLLVM did before it was
+    // dropped. Skipped when the host owns LLVM -- they're its decision.
+    if (SetCrashHandler) {
+      llvm::sys::SetOneShotPipeSignalFunction(
+          llvm::sys::DefaultOneShotPipeSignalHandler);
       llvm::sys::AddSignalHandler(DefaultProcessCrashHandler,
                                   /*Cookie=*/nullptr);
-
-    // std::atexit(llvm::llvm_shutdown);
+      llvm::install_out_of_memory_new_handler();
+    }
   });
+
+  // Constructed after sInterpreters above, so its dtor fires first at
+  // process exit; see InterpreterShutdown.
+  static InterpreterShutdown Shutdown;
 
   return *sInterpreters;
 }
@@ -299,6 +322,7 @@ TInterp_t GetInterpreter() {
 void UseExternalInterpreter(TInterp_t I) {
   INTEROP_TRACE(I);
   assert(GetInterpreters(false).empty() && "sInterpreter already in use!");
+  SkipShutDown = true;
   RegisterInterpreter(static_cast<compat::Interpreter*>(I), /*Owned=*/false);
   return INTEROP_VOID_RETURN();
 }
