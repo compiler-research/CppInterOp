@@ -86,7 +86,9 @@ jobs:
         #     CPLUS_INCLUDE_PATH; an over-aggressive trim that nukes
         #     `clang/include` would surface here instead of as a
         #     `RStl.cxx.o` compile failure mid-ROOT-build).
-        LLVM="$GITHUB_WORKSPACE/llvm-project"
+        # setup-llvm exports $LLVM_DIR pointing at the cmake-config dir;
+        # the install root is three levels up.
+        LLVM="$(dirname "$(dirname "$(dirname "$LLVM_DIR")")")"
         fail=0
         for f in \
             "$LLVM/lib/cmake/llvm/LLVMConfig.cmake" \
@@ -197,6 +199,7 @@ jobs:
         # fails. Inject the top-level build/include globally via
         # `CMAKE_CXX_FLAGS`.
         CPPINTEROP_GEN_INC="$PWD/include"
+        LLVM_PREFIX="$(dirname "$(dirname "$(dirname "$LLVM_DIR")")")"
         cmake -G Ninja \
               -DCMAKE_BUILD_TYPE=Release \
               -DCMAKE_C_COMPILER_LAUNCHER=ccache \
@@ -209,9 +212,9 @@ jobs:
               -Dfail-on-missing=ON \
               -Dbuiltin_llvm=OFF \
               -Dbuiltin_clang=OFF \
-              -DCMAKE_PREFIX_PATH="$GITHUB_WORKSPACE/llvm-project" \
-              -DClang_DIR="$GITHUB_WORKSPACE/llvm-project/lib/cmake/clang" \
-              -DCLANG_INSTALL_PREFIX="$GITHUB_WORKSPACE/llvm-project" \
+              -DCMAKE_PREFIX_PATH="$LLVM_PREFIX" \
+              -DClang_DIR="$Clang_DIR" \
+              -DCLANG_INSTALL_PREFIX="$LLVM_PREFIX" \
               -DCMAKE_CXX_FLAGS="-I${CPPINTEROP_GEN_INC}" \
               ../root
 
@@ -222,12 +225,10 @@ jobs:
         # public include dirs but doesn't propagate `CLANG_INCLUDE_DIRS`
         # to its compile rules, so `TClingUtils.h`'s
         # `#include "clang/Basic/Module.h"` resolves only via
-        # `CPLUS_INCLUDE_PATH` -- the same way main.yml's cling rows
-        # resolve clang headers in `Build_and_Test_CppInterOp/action.yml`.
-        # Mirror that env here so `RStl.cxx` and friends find their
-        # clang/cling headers from the recipe's install tree.
-        LLVM="$GITHUB_WORKSPACE/llvm-project"
-        export CPLUS_INCLUDE_PATH="$LLVM/include"
+        # `CPLUS_INCLUDE_PATH`. Mirror that env here so `RStl.cxx` and
+        # friends find their clang/cling headers from the recipe install.
+        LLVM_PREFIX="$(dirname "$(dirname "$(dirname "$LLVM_DIR")")")"
+        export CPLUS_INCLUDE_PATH="$LLVM_PREFIX/include"
         cmake --build root-build --parallel ${{ env.ncpus }}
 
     # ROOT's top-level enable_testing() is gated on -Dtesting=ON, so a

@@ -33,51 +33,38 @@ runs:
       shell: bash
       run: |
         if [[ "${{ runner.environment }}" == "self-hosted" ]]; then
-          LLVM_DIR="/usr/lib/llvm-${{ inputs.clang_runtime }}"
-          LLVM_BUILD_DIR="/usr/lib/llvm-${{ inputs.clang_runtime }}"
-          CPLUS_INCLUDE_PATH="/usr/lib/llvm-${{ inputs.clang_runtime }}/include:$PWD/include"
+          LLVM_PREFIX="/usr/lib/llvm-${{ inputs.clang_runtime }}"
+          LLVM_BUILD_DIR="$LLVM_PREFIX"
         else
-          LLVM_DIR="$(pwd)/llvm-project"
-          # Two layouts coexist on github-hosted runners:
-          #   - rows that build LLVM from source (everything except the
-          #     asan row today) leave a build tree at llvm-project/build/.
-          #   - rows that pull a prebuilt asset via setup-recipe extract
-          #     a cmake --install tree directly under llvm-project/, with
-          #     LLVMConfig.cmake at lib/cmake/llvm/ (no build/ prefix).
-          # Probe for lib/cmake/llvm to pick LLVM_BUILD_DIR; LLVMConfig.cmake
-          # lives there in either layout.
-          if [[ -d "$LLVM_DIR/lib/cmake/llvm" ]]; then
-            LLVM_BUILD_DIR="$LLVM_DIR"
+          # setup-llvm exports $LLVM_DIR pointing at the cmake-config
+          # dir; the install root is three levels up. Fall back to the
+          # legacy clone path for source-build rows that bypass setup-llvm.
+          if [[ -n "${LLVM_DIR:-}" && -f "${LLVM_DIR}/LLVMConfig.cmake" ]]; then
+            LLVM_PREFIX="$(dirname "$(dirname "$(dirname "$LLVM_DIR")")")"
           else
-            LLVM_BUILD_DIR="$LLVM_DIR/build"
+            LLVM_PREFIX="$(pwd)/llvm-project"
+          fi
+          # Source-build rows leave a build tree at llvm-project/build/;
+          # setup-recipe rows extract a cmake --install tree with
+          # LLVMConfig.cmake directly under $LLVM_PREFIX/lib/cmake/llvm.
+          if [[ -d "$LLVM_PREFIX/lib/cmake/llvm" ]]; then
+            LLVM_BUILD_DIR="$LLVM_PREFIX"
+          else
+            LLVM_BUILD_DIR="$LLVM_PREFIX/build"
           fi
           cling_on=$(echo "${{ inputs.cling }}" | tr '[:lower:]' '[:upper:]')
-          # FIXME: CPLUS_INCLUDE_PATH itself is a workaround for missing
-          # target-based include propagation in CppInterOp's cmake;
-          # find_package(LLVM)/Clang already export INTERFACE_INCLUDE_DIRECTORIES.
-          # Drop this whole CPLUS_INCLUDE_PATH plumbing once the cmake side
-          # depends on imported targets correctly.
-          #
-          # CPLUS_INCLUDE_PATH unions both layouts' include roots:
-          # ${LLVM_DIR}/include is the install-tree flat header directory;
-          # ${LLVM_DIR}/{llvm,clang}/include and ${LLVM_BUILD_DIR}/{include,tools/clang/include}
-          # are the build-tree split. Non-existent paths in the union are harmless.
           if [[ "${cling_on}" == "ON" ]]; then
-            if [[ -f "$LLVM_DIR/lib/cmake/cling/ClingConfig.cmake" ]]; then
-              # Recipe install tree: cling integrated under llvm-project,
+            if [[ -f "$LLVM_PREFIX/lib/cmake/cling/ClingConfig.cmake" ]]; then
+              # Recipe install tree: cling integrated under install/,
               # cmake config at lib/cmake/cling/, headers under include/cling/.
-              CLING_DIR="$LLVM_DIR"
-              CLING_CMAKE_DIR="$LLVM_DIR/lib/cmake/cling"
-              CPLUS_INCLUDE_PATH="${LLVM_DIR}/include:$PWD/include"
+              CLING_DIR="$LLVM_PREFIX"
+              CLING_CMAKE_DIR="$LLVM_PREFIX/lib/cmake/cling"
             else
               # Build tree: cling lives in a sibling checkout.
               CLING_DIR="$(pwd)/cling"
               CLING_BUILD_DIR="$(pwd)/cling/build"
               CLING_CMAKE_DIR="$LLVM_BUILD_DIR/tools/cling"
-              CPLUS_INCLUDE_PATH="${CLING_DIR}/tools/cling/include:${CLING_BUILD_DIR}/include:${LLVM_DIR}/include:${LLVM_DIR}/llvm/include:${LLVM_DIR}/clang/include:${LLVM_BUILD_DIR}/include:${LLVM_BUILD_DIR}/tools/clang/include:$PWD/include"
             fi
-          else
-            CPLUS_INCLUDE_PATH="${LLVM_DIR}/include:${LLVM_DIR}/llvm/include:${LLVM_DIR}/clang/include:${LLVM_BUILD_DIR}/include:${LLVM_BUILD_DIR}/tools/clang/include:$PWD/include"
           fi
         fi
 
@@ -251,7 +238,6 @@ runs:
         echo "CPPINTEROP_BUILD_DIR=$CPPINTEROP_BUILD_DIR" >> $GITHUB_ENV
         echo "CPPINTEROP_DIR=$CPPINTEROP_DIR" >> $GITHUB_ENV
         echo "LLVM_BUILD_DIR=$LLVM_BUILD_DIR" >> $GITHUB_ENV
-        echo "CPLUS_INCLUDE_PATH=$CPLUS_INCLUDE_PATH" >> $GITHUB_ENV
 
     - name: Build and Test/Install CppInterOp on Windows systems (native static library build)
       if: ${{ runner.os == 'Windows' && matrix.wasm != true }}
@@ -259,44 +245,37 @@ runs:
       run: |
         $env:PWD_DIR= $PWD.Path
 
-        $env:LLVM_DIR="$env:PWD_DIR\llvm-project"
-        echo "LLVM_DIR=$env:LLVM_DIR"
-        echo "LLVM_DIR=$env:LLVM_DIR" >> $env:GITHUB_ENV
-
-        # Probe install vs build tree (mirrors the bash branch above):
-        # recipe install trees ship LLVMConfig.cmake at lib/cmake/llvm
-        # directly; source builds leave a build/ subdir.
-        if ( Test-Path "$env:LLVM_DIR\lib\cmake\llvm" ) {
-          $env:LLVM_BUILD_DIR="$env:LLVM_DIR"
+        # Mirrors the bash branch: derive $LLVM_PREFIX from setup-llvm's
+        # $LLVM_DIR (cmake-config dir, three levels deep), fall back to
+        # the legacy clone for source-build rows.
+        if ($env:LLVM_DIR -and (Test-Path "$env:LLVM_DIR\LLVMConfig.cmake")) {
+          $env:LLVM_PREFIX = (Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $env:LLVM_DIR)))
         } else {
-          $env:LLVM_BUILD_DIR="$env:PWD_DIR\llvm-project\build"
+          $env:LLVM_PREFIX = "$env:PWD_DIR\llvm-project"
+        }
+
+        if ( Test-Path "$env:LLVM_PREFIX\lib\cmake\llvm" ) {
+          $env:LLVM_BUILD_DIR="$env:LLVM_PREFIX"
+        } else {
+          $env:LLVM_BUILD_DIR="$env:LLVM_PREFIX\build"
         }
         echo "LLVM_BUILD_DIR=$env:LLVM_BUILD_DIR"
         echo "LLVM_BUILD_DIR=$env:LLVM_BUILD_DIR" >> $env:GITHUB_ENV
 
         if ( "${{ matrix.cling }}" -imatch "On" )
         {
-          if ( Test-Path "$env:LLVM_DIR\lib\cmake\cling\ClingConfig.cmake" ) {
-            # Recipe install tree: cling integrated under llvm-project.
-            $env:CLING_DIR="$env:LLVM_DIR"
-            $env:CLING_CMAKE_DIR="$env:LLVM_DIR\lib\cmake\cling"
-            $env:CPLUS_INCLUDE_PATH="$env:LLVM_DIR\include;$env:PWD_DIR\include;"
+          if ( Test-Path "$env:LLVM_PREFIX\lib\cmake\cling\ClingConfig.cmake" ) {
+            # Recipe install tree: cling integrated under install/.
+            $env:CLING_DIR="$env:LLVM_PREFIX"
+            $env:CLING_CMAKE_DIR="$env:LLVM_PREFIX\lib\cmake\cling"
           } else {
             $env:CLING_DIR="$env:PWD_DIR\cling"
             $env:CLING_BUILD_DIR="$env:PWD_DIR\cling\build"
             $env:CLING_CMAKE_DIR="$env:LLVM_BUILD_DIR\tools\cling"
-            $env:CPLUS_INCLUDE_PATH="$env:CLING_DIR\tools\cling\include;$env:CLING_BUILD_DIR\include;$env:LLVM_DIR\llvm\include;$env:LLVM_DIR\clang\include;$env:LLVM_BUILD_DIR\include;$env:LLVM_BUILD_DIR\tools\clang\include;$env:PWD_DIR\include;"
             echo "CLING_BUILD_DIR=$env:CLING_BUILD_DIR" >> $env:GITHUB_ENV
           }
           echo "CLING_DIR=$env:CLING_DIR" >> $env:GITHUB_ENV
           echo "CLING_CMAKE_DIR=$env:CLING_CMAKE_DIR" >> $env:GITHUB_ENV
-          echo "CPLUS_INCLUDE_PATH=$env:CPLUS_INCLUDE_PATH" >> $env:GITHUB_ENV
-        }
-        else
-        {
-          $env:CPLUS_INCLUDE_PATH="$env:LLVM_DIR\llvm\include;$env:LLVM_DIR\clang\include;$env:LLVM_BUILD_DIR\include;$env:LLVM_BUILD_DIR\tools\clang\include;$env:PWD_DIR\include;"
-          echo "CPLUS_INCLUDE_PATH=$env:CPLUS_INCLUDE_PATH"
-          echo "CPLUS_INCLUDE_PATH=$env:CPLUS_INCLUDE_PATH" >> $env:GITHUB_ENV
         }
 
         $env:CB_PYTHON_DIR="$env:PWD_DIR\cppyy-backend\python"
