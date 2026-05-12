@@ -7,6 +7,7 @@
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Sema/Sema.h"
 
+#include <CppInterOp/CppInterOpTypes.h>
 #include <llvm/ADT/ArrayRef.h>
 
 #include "clang-c/CXCppInterOp.h"
@@ -586,6 +587,48 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetFunctionArgType) {
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetFunctionArgType(Decls[1], 2)), "long *");
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetFunctionArgType(Decls[1], 3)), "char[4]");
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetFunctionArgType(Decls[2], 0)), "NULL TYPE");
+}
+
+TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_FunctionTypes) {
+  std::vector<Decl*> Decls;
+  std::string code = R"(
+      typedef int myint;
+      int (*f1)(int, double) = nullptr;
+      void f2(int (&f)(myint, double)) {}
+    )";
+
+  GetAllTopLevelDecls(code, Decls);
+  EXPECT_EQ(Decls.size(), 3);
+
+  Cpp::TCppType_t typ1 = Cpp::GetVariableType(Decls[1]);
+  EXPECT_TRUE(typ1);
+  EXPECT_FALSE(Cpp::IsFunctionProtoType(typ1));
+  EXPECT_TRUE(Cpp::IsFunctionProtoType(Cpp::GetPointeeType(typ1)));
+
+  typ1 = Cpp::GetPointeeType(typ1);
+  EXPECT_TRUE(typ1);
+
+  std::vector<Cpp::TCppType_t> sig;
+  Cpp::GetFnTypeSignature(typ1, sig);
+  EXPECT_EQ(sig.size(), 3);
+  EXPECT_EQ(Cpp::GetTypeAsString(sig[0]), "int");
+  EXPECT_EQ(Cpp::GetTypeAsString(sig[1]), "int");
+  EXPECT_EQ(Cpp::GetTypeAsString(sig[2]), "double");
+
+  Cpp::TCppType_t typ2 = Cpp::GetFunctionArgType(Decls[2], 0);
+  EXPECT_TRUE(typ1);
+
+  typ2 = Cpp::GetNonReferenceType(typ2);
+  EXPECT_TRUE(typ2);
+
+  sig.clear();
+  Cpp::GetFnTypeSignature(typ2, sig);
+  EXPECT_EQ(sig.size(), 3);
+  EXPECT_EQ(Cpp::GetTypeAsString(sig[0]), "int");
+  EXPECT_EQ(Cpp::GetTypeAsString(sig[1]), "myint");
+  EXPECT_EQ(Cpp::GetTypeAsString(sig[2]), "double");
+
+  EXPECT_TRUE(Cpp::IsSameType(typ1, typ2));
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetFunctionSignature) {
