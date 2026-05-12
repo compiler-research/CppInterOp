@@ -14,10 +14,8 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  # Uniform across every wasm row; referenced below via env.* instead of
-  # being repeated on each matrix entry.
-  LLVM_ENABLE_PROJECTS: "clang;lld"
-  LLVM_TARGETS_TO_BUILD: "WebAssembly"
+  # emsdk for the consumer-side xeus-cpp build; the llvm-wasm cell
+  # bakes its own emsdk version into the recipe.
   EMSDK_VER: "4.0.9"
   BUILD_STATIC_LIBRARY: ${{ github.event_name == 'schedule' && 'On' || 'Off' }}
 
@@ -28,59 +26,52 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # clang-runtime is pinned once via a YAML anchor on the first row
-        # (cache key reads matrix.clang-runtime, so the field must live on
-        # each row). micromamba_shell_init is derived below from runner.os.
+        # clang-runtime + arch are per-row: the cell key is the
+        # (recipe, version, os, arch) tuple cells.yaml indexes by.
+        # Deriving arch from `runner.arch` matches github-hosted runners
+        # but picks up the host arch under nektos/act, missing the cell.
+        # YAML-quote `wasm` / `skip-in-prs` so workflow `if:` checks
+        # comparing them work uniformly under act and github-hosted.
         include:
-          - { name: ubu24-arm-emscr-llvm22,   os: ubuntu-24.04-arm, clang-runtime: &clang_rt '22', wasm: true }
-          - { name: osx26-arm-emscr-llvm22,   os: macos-26,         clang-runtime: *clang_rt, wasm: true }
-          - { name: ubu24-x86-emscr-llvm22,   os: ubuntu-24.04,     clang-runtime: *clang_rt, wasm: true }
-          - { name: win2025-x86-emscr-llvm22, os: windows-2025,     clang-runtime: *clang_rt, wasm: true, skip-in-prs: true }
+          - { name: ubu24-arm-emscr-llvm22,   os: ubuntu-24.04-arm, arch: arm64,  clang-runtime: &clang_rt '22', wasm: 'true' }
+          - { name: osx26-arm-emscr-llvm22,   os: macos-26,         arch: arm64,  clang-runtime: *clang_rt, wasm: 'true' }
+          - { name: ubu24-x86-emscr-llvm22,   os: ubuntu-24.04,     arch: x86_64, clang-runtime: *clang_rt, wasm: 'true' }
+          - { name: win2025-x86-emscr-llvm22, os: windows-2025,     arch: x86_64, clang-runtime: *clang_rt, wasm: 'true', skip-in-prs: 'true' }
 
     steps:
     - uses: actions/checkout@v6
-      if: ${{ !(github.event_name == 'pull_request' && matrix.skip-in-prs == true) }}
+      if: ${{ !(github.event_name == 'pull_request' && matrix.skip-in-prs == 'true') }}
 
     - name: Set up Python
-      if: ${{ !(github.event_name == 'pull_request' && matrix.skip-in-prs == true) }}
+      if: ${{ !(github.event_name == 'pull_request' && matrix.skip-in-prs == 'true') }}
       uses: actions/setup-python@v6
       with:
         python-version: '3.11'
 
     - name: Save PR Info
-      if: ${{ !(github.event_name == 'pull_request' && matrix.skip-in-prs == true) }}
+      if: ${{ !(github.event_name == 'pull_request' && matrix.skip-in-prs == 'true') }}
       uses: ./.github/actions/Miscellaneous/Save_PR_Info
 
-    - name: Restore cached LLVM-${{ matrix.clang-runtime }} and ${{ matrix.cling == 'On' && 'Cling' || 'Clang-REPL' }} build (Unix like systems emscripten)
-      if: ${{ !(github.event_name == 'pull_request' && matrix.skip-in-prs == true) }}
-      uses: actions/cache/restore@v4
-      id: cache
-      with:
-        path: |
-          llvm-project
-          ${{ matrix.cling=='On' && 'cling' || '' }}
-        key: ${{ env.CLING_HASH }}-${{ runner.os }}-${{ matrix.os }}-clang-${{ matrix.clang-runtime }}.x-emscripten
-
     - name: Setup emsdk
-      if: ${{ !(github.event_name == 'pull_request' && matrix.skip-in-prs == true) }}
+      if: ${{ !(github.event_name == 'pull_request' && matrix.skip-in-prs == 'true') }}
       run: |
           git clone --depth=1 https://github.com/emscripten-core/emsdk.git
           cd emsdk
           ./emsdk install  ${{ env.EMSDK_VER }}
 
     - name: Setup default Build Type
-      if: ${{ !(github.event_name == 'pull_request' && matrix.skip-in-prs == true) }}
+      if: ${{ !(github.event_name == 'pull_request' && matrix.skip-in-prs == 'true') }}
       uses: ./.github/actions/Miscellaneous/Select_Default_Build_Type
 
     - name: Install deps on Windows
-      if: ${{ runner.os == 'windows' && steps.cache.outputs.cache-hit != 'true' && !(github.event_name == 'pull_request' && matrix.skip-in-prs == true) }}
+      if: ${{ runner.os == 'windows' && !(github.event_name == 'pull_request' && matrix.skip-in-prs == 'true') }}
       run: |
         choco install findutils ninja
         $env:PATH="C:\Program Files (x86)\GnuWin32\bin;$env:PATH"
         $env:PATH="C:\Program Files (x86)\Ninja\bin;$env:PATH"
 
     - name: Install deps on MacOS
-      if: ${{ runner.os == 'macOS' && steps.cache.outputs.cache-hit != 'true' && !(github.event_name == 'pull_request' && matrix.skip-in-prs == true) }}
+      if: ${{ runner.os == 'macOS' && !(github.event_name == 'pull_request' && matrix.skip-in-prs == 'true') }}
       run: |
         brew update
         export ARCHITECHURE=$(uname -m)
@@ -95,48 +86,50 @@ jobs:
         brew install ninja
 
     - name: Install deps on Linux
-      if: ${{ runner.os == 'Linux' && steps.cache.outputs.cache-hit != 'true' && !(github.event_name == 'pull_request' && matrix.skip-in-prs == true) }}
+      if: ${{ runner.os == 'Linux' && !(github.event_name == 'pull_request' && matrix.skip-in-prs == 'true') }}
       run: |
-        # Install deps
+        # cmake is preinstalled on github-hosted ubuntu-24.04 but absent
+        # from catthehacker/ubuntu:act-24.04; install it so bin/repro works.
         sudo apt-get update
-        sudo apt-get install ninja-build
+        sudo apt-get install -y --no-install-recommends cmake ninja-build
         sudo apt-get autoremove
         sudo apt-get clean
 
-    - name: Build LLVM/Cling if the cache is invalid (emscripten)
-      if: ${{ !(github.event_name == 'pull_request' && matrix.skip-in-prs == true) }}
-      uses: ./.github/actions/Build_LLVM_WASM
+    # No build-on-miss: a cache miss hard-fails the row instead of
+    # silently inline-building (~30 min). Forces recipe-side drift to
+    # surface immediately. The win2025 row has no cell yet and is
+    # `skip-in-prs: 'true'` to keep PRs unaffected.
+    - name: Setup llvm-wasm cell
+      if: ${{ !(github.event_name == 'pull_request' && matrix.skip-in-prs == 'true') }}
+      uses: compiler-research/ci-workflows/actions/setup-recipe@main
       with:
-        cache-hit: ${{ steps.cache.outputs.cache-hit }}
-
-    - name: Cache LLVM-${{ matrix.clang-runtime }} and ${{ matrix.cling == 'On' && 'Cling' || 'Clang-REPL' }} build
-      if: ${{ steps.cache.outputs.cache-hit != 'true' && !(github.event_name == 'pull_request' && matrix.skip-in-prs == true) }}
-      uses: actions/cache/save@v4
-      with:
-        path: |
-          llvm-project
-          ${{ matrix.cling=='On' && 'cling' || '' }}
-        key: ${{ steps.cache.outputs.cache-primary-key }}
+        recipe: llvm-wasm
+        version: ${{ matrix.clang-runtime }}
+        os: ${{ matrix.os }}
+        arch: ${{ matrix.arch }}
 
     - name: install mamba
-      if: ${{ !(github.event_name == 'pull_request' && matrix.skip-in-prs == true) }}
+      if: ${{ !(github.event_name == 'pull_request' && matrix.skip-in-prs == 'true') }}
       uses: mamba-org/setup-micromamba@main
       with:
         init-shell: >-
           ${{ runner.os == 'Windows' && 'powershell' || 'bash' }}
 
     - name: micromamba shell hook
-      if: ${{ runner.os == 'Windows' && !(github.event_name == 'pull_request' && matrix.skip-in-prs == true) }}
+      if: ${{ runner.os == 'Windows' && !(github.event_name == 'pull_request' && matrix.skip-in-prs == 'true') }}
       shell: powershell
       run: |
         micromamba shell hook -s cmd.exe --root-prefix C:\Users\runneradmin\micromamba-root
 
     - name: Build and test CppInterOp
-      if: ${{ !(github.event_name == 'pull_request' && matrix.skip-in-prs == true) }}
+      if: ${{ !(github.event_name == 'pull_request' && matrix.skip-in-prs == 'true') }}
       uses: ./.github/actions/Build_and_Test_CppInterOp
+      with:
+        clang_runtime: ${{ matrix.clang-runtime }}
+        wasm: ${{ matrix.wasm }}
 
     - name: Build xeus-cpp on Unix Systems
-      if: ${{ runner.os != 'windows' && !(github.event_name == 'pull_request' && matrix.skip-in-prs == true) }}
+      if: ${{ runner.os != 'windows' && !(github.event_name == 'pull_request' && matrix.skip-in-prs == 'true') }}
       shell: bash -l {0}
       run: |
         ./emsdk/emsdk activate ${{ env.EMSDK_VER }}
@@ -160,7 +153,7 @@ jobs:
         emmake make -j ${{ env.ncpus }} install
 
     - name: Build xeus-cpp on Windows systems
-      if: ${{ runner.os == 'windows' && !(github.event_name == 'pull_request' && matrix.skip-in-prs == true) }}
+      if: ${{ runner.os == 'windows' && !(github.event_name == 'pull_request' && matrix.skip-in-prs == 'true') }}
       shell: powershell
       run: |
         .\emsdk\emsdk activate ${{ env.EMSDK_VER }}
@@ -184,7 +177,7 @@ jobs:
         emmake make -j ${{ env.ncpus }} install
 
     - name: Test xeus-cpp C++ Emscripten on Unix Systems
-      if: ${{ runner.os != 'windows' && !(github.event_name == 'pull_request' && matrix.skip-in-prs == true) }}
+      if: ${{ runner.os != 'windows' && !(github.event_name == 'pull_request' && matrix.skip-in-prs == 'true') }}
       shell: bash -l {0}
       run: |
         set -e
@@ -193,7 +186,7 @@ jobs:
         node test_xeus_cpp.js
 
     - name: Test xeus-cpp C++ Emscripten on Windows Systems
-      if: ${{ runner.os == 'windows' && !(github.event_name == 'pull_request' && matrix.skip-in-prs == true) }}
+      if: ${{ runner.os == 'windows' && !(github.event_name == 'pull_request' && matrix.skip-in-prs == 'true') }}
       shell: powershell
       run: |
         function Error-OnFailure {
@@ -217,7 +210,7 @@ jobs:
         Error-OnFailure { emrun.bat --browser="chrome.exe" --kill_exit --timeout 60 --browser-args="--headless --no-sandbox"  test_xeus_cpp.html }
 
     - name: Jupyter Lite integration
-      if: ${{ runner.os != 'windows' && !(github.event_name == 'pull_request' && matrix.skip-in-prs == true) }}
+      if: ${{ runner.os != 'windows' && !(github.event_name == 'pull_request' && matrix.skip-in-prs == 'true') }}
       shell: bash -l {0}
       run: |
           cd ./xeus-cpp/
@@ -226,7 +219,7 @@ jobs:
           jupyter lite build --XeusAddon.prefix=${{ env.PREFIX }} --contents notebooks/xeus-cpp-lite-demo.ipynb --contents notebooks/tinyraytracer.ipynb --contents notebooks/images/marie.png --contents notebooks/audio/audio.wav --output-dir dist
 
     - name: Jupyter Lite integration
-      if: ${{ runner.os == 'windows' && !(github.event_name == 'pull_request' && matrix.skip-in-prs == true)}}
+      if: ${{ runner.os == 'windows' && !(github.event_name == 'pull_request' && matrix.skip-in-prs == 'true')}}
       shell: powershell
       run: |
           cd .\xeus-cpp\
