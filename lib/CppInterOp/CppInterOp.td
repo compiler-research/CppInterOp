@@ -1145,6 +1145,17 @@ templated function of that type within the parent scope.}];
   ];
 }
 
+def GetClassTemplateArgs : CppInterOpAPI {
+  let Doc = [{Sets the class template arguments of \c templ_instance.
+\param[in] templ_instance Pointer to the template instance.
+\param[out] args Vector of instantiation arguments.}];
+  let ReturnType = "void";
+  let Args = [
+    Arg<"TCppScope_t", "templ_instance">,
+    OutArg<"std::vector<TemplateArgInfo>&", "args">
+  ];
+}
+
 def GetClassTemplateInstantiationArgs : CppInterOpAPI {
   let Doc = [{Sets the class template instantiation arguments of \c templ_instance.
 \param[in] templ_instance Pointer to the template instance.

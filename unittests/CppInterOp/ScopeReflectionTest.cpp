@@ -15,6 +15,7 @@
 
 #include "gtest/gtest.h"
 
+#include <CppInterOp/CppInterOpTypes.h>
 #include <memory>
 #include <string>
 
@@ -1251,6 +1252,38 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_InstantiateTemplate) {
   TemplateArgument TA4_1 = CTSD4->getTemplateArgs().get(1);
   EXPECT_TRUE(TA4_0.getAsType()->isIntegerType());
   EXPECT_TRUE(TA4_1.getAsIntegral() == 3);
+}
+
+TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_GetClassTemplateArgs) {
+  std::vector<Decl*> Decls;
+  std::string code = R"(
+        template<typename _Signature>
+        class function;
+
+        template<typename _Res, typename... _ArgTypes>
+        class function<_Res(_ArgTypes...)> {};
+
+        function<int(int)> f;
+    )";
+
+  GetAllTopLevelDecls(code, Decls);
+
+  Cpp::TCppScope_t f =
+      Cpp::GetScopeFromType(Cpp::GetVariableType(Decls.back()));
+  EXPECT_TRUE(f);
+
+  std::vector<Cpp::TemplateArgInfo> tmpl_args;
+  Cpp::GetClassTemplateArgs(f, tmpl_args);
+  EXPECT_EQ(tmpl_args.size(), 1);
+
+  EXPECT_EQ(Cpp::GetTypeAsString(tmpl_args[0].m_Type), "int (int)");
+
+  tmpl_args.clear();
+  Cpp::GetClassTemplateInstantiationArgs(f, tmpl_args);
+  EXPECT_EQ(tmpl_args.size(), 2);
+
+  EXPECT_EQ(Cpp::GetTypeAsString(tmpl_args[0].m_Type), "int");
+  EXPECT_EQ(Cpp::GetTypeAsString(tmpl_args[1].m_Type), "int");
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE,
