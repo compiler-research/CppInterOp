@@ -86,7 +86,9 @@ jobs:
         #     CPLUS_INCLUDE_PATH; an over-aggressive trim that nukes
         #     `clang/include` would surface here instead of as a
         #     `RStl.cxx.o` compile failure mid-ROOT-build).
-        LLVM="$GITHUB_WORKSPACE/llvm-project"
+        # setup-llvm exports $LLVM_DIR pointing at the cmake-config dir;
+        # derive the install root from it.
+        LLVM="$(dirname "$(dirname "$(dirname "$LLVM_DIR")")")"
         fail=0
         for f in \
             "$LLVM/lib/cmake/llvm/LLVMConfig.cmake" \
@@ -209,9 +211,9 @@ jobs:
               -Dfail-on-missing=ON \
               -Dbuiltin_llvm=OFF \
               -Dbuiltin_clang=OFF \
-              -DCMAKE_PREFIX_PATH="$GITHUB_WORKSPACE/llvm-project" \
-              -DClang_DIR="$GITHUB_WORKSPACE/llvm-project/lib/cmake/clang" \
-              -DCLANG_INSTALL_PREFIX="$GITHUB_WORKSPACE/llvm-project" \
+              -DCMAKE_PREFIX_PATH="$(dirname "$(dirname "$(dirname "$LLVM_DIR")")")" \
+              -DClang_DIR="$Clang_DIR" \
+              -DCLANG_INSTALL_PREFIX="$(dirname "$(dirname "$(dirname "$LLVM_DIR")")")" \
               -DCMAKE_CXX_FLAGS="-I${CPPINTEROP_GEN_INC}" \
               ../root
 
@@ -226,8 +228,8 @@ jobs:
         # resolve clang headers in `Build_and_Test_CppInterOp/action.yml`.
         # Mirror that env here so `RStl.cxx` and friends find their
         # clang/cling headers from the recipe's install tree.
-        LLVM="$GITHUB_WORKSPACE/llvm-project"
-        export CPLUS_INCLUDE_PATH="$LLVM/include"
+        # ROOT-specific: see CPLUS_INCLUDE_PATH comment above.
+        export CPLUS_INCLUDE_PATH="$(dirname "$(dirname "$(dirname "$LLVM_DIR")")")/include"
         cmake --build root-build --parallel ${{ env.ncpus }}
 
     # ROOT's top-level enable_testing() is gated on -Dtesting=ON, so a
