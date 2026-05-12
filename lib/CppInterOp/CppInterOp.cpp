@@ -467,7 +467,7 @@ bool JitCall::AreArgumentsValid(void* result, ArgList args, void* self,
 // Off-trace the slot is nullptr and these never run.
 void CppInterOpTraceJitCallInvokeImpl(const JitCall* JC, void* result,
                                       void** args, std::size_t nargs,
-                                      void* self) noexcept {
+                                      void* self) {
   auto* TI = CppInterOp::Tracing::TheTraceInfo;
   if (!TI)
     return;
@@ -488,7 +488,7 @@ void CppInterOpTraceJitCallInvokeImpl(const JitCall* JC, void* result,
 
 void CppInterOpTraceJitCallInvokeDestructorImpl(const JitCall* JC, void* object,
                                                 unsigned long nary,
-                                                int withFree) noexcept {
+                                                int withFree) {
   auto* TI = CppInterOp::Tracing::TheTraceInfo;
   if (!TI)
     return;
@@ -510,8 +510,7 @@ void CppInterOpTraceJitCallInvokeDestructorImpl(const JitCall* JC, void* object,
 // pointer/reference returns deposit a fresh T* at *result; registering
 // it as vN lets later trace lines render the name instead of
 // `nullptr /*unknown*/`. No-op for value or void returns.
-void CppInterOpTraceJitCallInvokeReturnImpl(const JitCall* JC,
-                                            void* result) noexcept {
+void CppInterOpTraceJitCallInvokeReturnImpl(const JitCall* JC, void* result) {
   auto* TI = CppInterOp::Tracing::TheTraceInfo;
   if (!TI || !result)
     return;
