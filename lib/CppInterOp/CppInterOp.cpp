@@ -271,9 +271,8 @@ static void DefaultProcessCrashHandler(void*) {
 
   llvm::errs() << "\n**************************************************\n";
   llvm::errs() << "  CppInterOp CRASH DETECTED\n";
-  if (CppInterOp::Tracing::TraceInfo::TheTraceInfo) {
-    std::string Path =
-        CppInterOp::Tracing::TraceInfo::TheTraceInfo->writeToFile();
+  if (CppInterOp::Tracing::TheTraceInfo) {
+    std::string Path = CppInterOp::Tracing::TheTraceInfo->writeToFile();
     if (!Path.empty())
       llvm::errs() << "  Reproducer saved to: " << Path << "\n";
     else
@@ -464,44 +463,47 @@ bool JitCall::AreArgumentsValid(void* result, ArgList args, void* self,
   return Valid;
 }
 
-void JitCall::ReportInvokeStart(void* result, ArgList args, void* self) const {
+// Trace-hook impls reached via DispatchRaw from JitCall's inline body.
+// Off-trace the slot is nullptr and these never run.
+void CppInterOpTraceJitCallInvokeImpl(const JitCall* JC, void* result,
+                                      void** args, std::size_t nargs,
+                                      void* self) noexcept {
+  auto* TI = CppInterOp::Tracing::TheTraceInfo;
+  if (!TI)
+    return;
   std::string Name;
   llvm::raw_string_ostream OS(Name);
-  auto* FD = (const FunctionDecl*)m_FD;
+  const auto* FD = static_cast<const FunctionDecl*>(JC->m_FD);
   FD->getNameForDiagnostic(OS, FD->getASTContext().getPrintingPolicy(),
                            /*Qualified=*/true);
   LLVM_DEBUG(dbgs() << "Run '" << Name << "', compiled at: "
-                    << (void*)m_GenericCall << " with result at: " << result
-                    << " , args at: " << args.m_Args << " , arg count: "
-                    << args.m_ArgSize << " , self at: " << self << "\n";);
-
-  if (auto* TI = CppInterOp::Tracing::TraceInfo::TheTraceInfo) {
-    std::string SelfPart = self ? TI->lookupHandle(self) : "";
-    std::string Entry =
-        llvm::formatv("  // JitCall::Invoke {0}(nargs={1}, self={2})", Name,
-                      args.m_ArgSize, SelfPart.empty() ? "nullptr" : SelfPart);
-    TI->appendToLog(Entry);
-  }
+                    << (void*)JC->m_GenericCall << " with result at: " << result
+                    << " , args at: " << args << " , arg count: " << nargs
+                    << " , self at: " << self << "\n";);
+  std::string SelfPart = self ? TI->lookupHandle(self) : "";
+  TI->appendToLog(llvm::formatv("  // JitCall::Invoke {0}(nargs={1}, self={2})",
+                                Name, nargs,
+                                SelfPart.empty() ? "nullptr" : SelfPart));
 }
 
-void JitCall::ReportInvokeStart(void* object, unsigned long nary,
-                                int withFree) const {
+void CppInterOpTraceJitCallInvokeDestructorImpl(const JitCall* JC, void* object,
+                                                unsigned long nary,
+                                                int withFree) noexcept {
+  auto* TI = CppInterOp::Tracing::TheTraceInfo;
+  if (!TI)
+    return;
   std::string Name;
   llvm::raw_string_ostream OS(Name);
-  auto* FD = (const FunctionDecl*)m_FD;
+  const auto* FD = static_cast<const FunctionDecl*>(JC->m_FD);
   FD->getNameForDiagnostic(OS, FD->getASTContext().getPrintingPolicy(),
                            /*Qualified=*/true);
   LLVM_DEBUG(dbgs() << "Finish '" << Name
-                    << "', compiled at: " << (void*)m_DestructorCall);
-
-  if (auto* TI = CppInterOp::Tracing::TraceInfo::TheTraceInfo) {
-    std::string ObjPart = object ? TI->lookupHandle(object) : "nullptr";
-    std::string Entry = llvm::formatv(
-        "  // JitCall::InvokeDestructor {0}(object={1}, nary={2}, "
-        "withFree={3})",
-        Name, ObjPart, nary, withFree);
-    TI->appendToLog(Entry);
-  }
+                    << "', compiled at: " << (void*)JC->m_DestructorCall);
+  std::string ObjPart = object ? TI->lookupHandle(object) : "nullptr";
+  TI->appendToLog(
+      llvm::formatv("  // JitCall::InvokeDestructor {0}(object={1}, nary={2}, "
+                    "withFree={3})",
+                    Name, ObjPart, nary, withFree));
 }
 
 #undef DEBUG_TYPE
@@ -3639,7 +3641,7 @@ JitCall::GenericCall make_wrapper(compat::Interpreter& I,
     return 0;
 
   // Log the wrapper source for the crash reproducer.
-  if (auto* TI = CppInterOp::Tracing::TraceInfo::TheTraceInfo) {
+  if (auto* TI = CppInterOp::Tracing::TheTraceInfo) {
     std::string FuncName;
     llvm::raw_string_ostream FNS(FuncName);
     FD->getNameForDiagnostic(FNS, FD->getASTContext().getPrintingPolicy(),

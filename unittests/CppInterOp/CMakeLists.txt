@@ -102,6 +102,33 @@ endif()
 add_subdirectory(TestSharedLib)
 add_dependencies(DynamicLibraryManagerTests TestSharedLib)
 
+# Downstream-DSO dlopen check that mirrors libcppyy-backend's contract:
+# a SHARED lib using <CppInterOp/Dispatch.h> without linking against
+# clangCppInterOp, dlopen'd by a standalone exec that also doesn't link.
+# Any inline-header UND ref that the host lib can't satisfy at runtime
+# trips here before the cppyy integration job.
+if(NOT EMSCRIPTEN AND BUILD_SHARED_LIBS)
+  add_subdirectory(TestDownstreamLib)
+
+  set(_downstream_lib_path
+    "${CMAKE_CURRENT_BINARY_DIR}/bin/$<CONFIG>/${CMAKE_SHARED_LIBRARY_PREFIX}TestDownstreamLib${CMAKE_SHARED_LIBRARY_SUFFIX}")
+
+  add_executable(TestDownstreamLoader EXCLUDE_FROM_ALL TestDownstreamLoader.cpp)
+  add_dependencies(CppInterOpUnitTests TestDownstreamLoader TestDownstreamLib)
+  target_compile_definitions(TestDownstreamLoader PRIVATE
+    TEST_DOWNSTREAM_LIB_PATH="${_downstream_lib_path}")
+  if(UNIX AND NOT APPLE)
+    target_link_libraries(TestDownstreamLoader PRIVATE dl)
+  endif()
+  set_output_directory(TestDownstreamLoader
+    BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/bin/$<CONFIG>/
+    LIBRARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/bin/$<CONFIG>/
+  )
+  add_test(NAME cppinterop-DownstreamLoaderTest COMMAND TestDownstreamLoader)
+  set_tests_properties(cppinterop-DownstreamLoaderTest PROPERTIES
+    TIMEOUT "${TIMEOUT_VALUE}")
+endif()
+
 # Dispatch Tests.
 # Load libclangCppInterOp via dlopen(RTLD_LOCAL) and must NOT link against it
 # directly, to verify true symbol isolation.
