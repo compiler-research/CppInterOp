@@ -1567,6 +1567,12 @@ TEST(TracingCoverageTest, AllPublicAPIsAreTraced) {
   ApiNames.erase("AreArgumentsValid");
   ApiNames.erase("ReportInvokeStart");
   ApiNames.erase("ReportInvokeEnd");
+  // Exclude the JitCall trace-hook impls: they are reached only from
+  // INTEROP_TRACE-instrumented inline code; tracing them recursively
+  // would just nest entries for no benefit.
+  ApiNames.erase("CppInterOpTraceJitCallInvokeImpl");
+  ApiNames.erase("CppInterOpTraceJitCallInvokeDestructorImpl");
+  ApiNames.erase("CppInterOpTraceJitCallInvokeReturnImpl");
 
   ASSERT_GT(ApiNames.size(), 100u)
       << "Suspiciously few API functions found — regex may be broken";
