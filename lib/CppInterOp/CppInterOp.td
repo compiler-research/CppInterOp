@@ -744,6 +744,26 @@ supplied as a parameter.
   ];
 }
 
+def IsFunctionProtoType : CppInterOpAPI {
+  let Doc = "Check if given type is FunctionProtoType.";
+
+  let ReturnType = "bool";
+  let Args = [
+    Arg<"TCppType_t", "typ">
+  ];
+}
+
+def GetFnTypeSignature : CppInterOpAPI {
+  let Doc = [{Pushed the signature type of the given function type,
+  where the first item is the return type.}];
+
+  let ReturnType = "void";
+  let Args = [
+    Arg<"TCppType_t", "fn_type">,
+    OutArg<"std::vector<TCppType_t>&", "sig">
+  ];
+}
+
 def GetFunctionNumArgs : CppInterOpAPI {
   let Doc = "Gets the number of Arguments for the provided function.";
 

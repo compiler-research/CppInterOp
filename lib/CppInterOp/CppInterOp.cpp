@@ -125,6 +125,7 @@
 #include <dlfcn.h>
 #include <unistd.h>
 #endif // WIN32
+#include <vector>
 
 //  Runtime symbols required if the library using JIT (Cpp::Evaluate) does
 //  not link to llvm
@@ -1553,6 +1554,25 @@ TCppType_t GetFunctionReturnType(TCppFunction_t func) {
         (FD->getTemplatedDecl())->getReturnType().getAsOpaquePtr());
 
   return INTEROP_RETURN(nullptr);
+}
+
+bool IsFunctionProtoType(TCppType_t typ) {
+  INTEROP_TRACE(typ);
+  QualType QT = QualType::getFromOpaquePtr(typ);
+  const auto* T = QT.getTypePtr();
+  return llvm::isa_and_nonnull<clang::FunctionProtoType>(T);
+}
+
+void GetFnTypeSignature(TCppType_t fn_type, std::vector<TCppType_t>& sig) {
+  INTEROP_TRACE(fn_type, INTEROP_OUT(sig));
+  QualType QT = QualType::getFromOpaquePtr(fn_type);
+  const auto* FPT = QT->getAs<clang::FunctionProtoType>();
+  if (!FPT)
+    return INTEROP_VOID_RETURN();
+  sig.push_back(FPT->getReturnType().getAsOpaquePtr());
+  for (size_t i = 0; i < FPT->getNumParams(); i++)
+    sig.push_back(FPT->getParamType(i).getAsOpaquePtr());
+  return INTEROP_VOID_RETURN();
 }
 
 TCppIndex_t GetFunctionNumArgs(TCppFunction_t func) {
