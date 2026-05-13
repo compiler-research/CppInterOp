@@ -4601,6 +4601,17 @@ InstantiateTemplate(TCppScope_t tmpl,
                           template_args.size(), instantiate_body));
 }
 
+void GetClassTemplateArgs(TCppScope_t templ_instance,
+                          std::vector<TemplateArgInfo>& args) {
+  INTEROP_TRACE(templ_instance, INTEROP_OUT(args));
+  auto* CTSD = static_cast<ClassTemplateSpecializationDecl*>(templ_instance);
+  for (const auto& TA : CTSD->getTemplateArgs().asArray()) {
+    // FIXME: Support cases with m_IntegralValue.
+    args.push_back({TA.getAsType().getAsOpaquePtr()});
+  }
+  return INTEROP_VOID_RETURN();
+}
+
 void GetClassTemplateInstantiationArgs(TCppScope_t templ_instance,
                                        std::vector<TemplateArgInfo>& args) {
   INTEROP_TRACE(templ_instance, INTEROP_OUT(args));
