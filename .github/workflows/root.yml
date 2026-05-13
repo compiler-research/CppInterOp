@@ -68,26 +68,10 @@ jobs:
     - name: Verify cached LLVM/Clang layout
       shell: bash
       run: |
-        # Sanity-check the artifact ROOT will consume. Catches drift
-        # in the recipe trim or ninja targets early, with a clear
-        # error, instead of cascading into an opaque ROOT cmake or
-        # link failure several steps later. We assert:
-        #   - LLVMConfig.cmake / ClangConfig.cmake exist (else ROOT's
-        #     find_package falls back to system paths -- that's how we
-        #     previously got `Found LLVM 17`).
-        #   - lib/clang/<version> has exactly one entry (ROOT's
-        #     core/clingutils/CMakeLists.txt:95 globs and requires a
-        #     unique version).
-        #   - libclangInterpreter.a is present (ROOT's bundled cling
-        #     links it; recipe built before that target was added to
-        #     the recipe's ninja line would be missing it).
-        #   - clang/include/clang/Basic/Module.h survived the trim
-        #     (ROOT's core/clingutils/res/TClingUtils.h includes it via
-        #     CPLUS_INCLUDE_PATH; an over-aggressive trim that nukes
-        #     `clang/include` would surface here instead of as a
-        #     `RStl.cxx.o` compile failure mid-ROOT-build).
-        # setup-llvm exports $LLVM_DIR pointing at the cmake-config dir;
-        # derive the install root from it.
+        # Fail loud on recipe-trim drift (missing cmake configs,
+        # multiple lib/clang/<version> dirs, stripped clang headers)
+        # so the error surfaces here rather than as an opaque ROOT
+        # cmake/link failure several steps later.
         LLVM="$(dirname "$(dirname "$(dirname "$LLVM_DIR")")")"
         fail=0
         for f in \

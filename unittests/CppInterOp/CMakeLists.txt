@@ -124,7 +124,8 @@ if(NOT EMSCRIPTEN AND BUILD_SHARED_LIBS)
     BINARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/bin/$<CONFIG>/
     LIBRARY_DIR ${CMAKE_CURRENT_BINARY_DIR}/bin/$<CONFIG>/
   )
-  add_test(NAME cppinterop-DownstreamLoaderTest COMMAND TestDownstreamLoader)
+  add_test(NAME cppinterop-DownstreamLoaderTest
+    COMMAND TestDownstreamLoader $<TARGET_FILE:clangCppInterOp>)
   set_tests_properties(cppinterop-DownstreamLoaderTest PROPERTIES
     TIMEOUT "${TIMEOUT_VALUE}")
 endif()

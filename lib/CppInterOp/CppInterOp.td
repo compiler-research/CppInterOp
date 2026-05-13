@@ -1546,3 +1546,39 @@ def IsVoidPointerType : CppInterOpAPI {
   let ReturnType = "bool";
   let Args = [Arg<"TCppType_t", "type">];
 }
+
+// Trace-hook impls invoked by JitCall's inline fast path through
+// ::CppInternal::DispatchRaw slots. Routing through the X-macro means
+// Dispatch.h consumers pick up the slots via LoadDispatchAPI without
+// any source change of their own.
+def CppInterOpTraceJitCallInvokeImpl : CppInterOpAPI {
+  let Doc = "Trace hook for the JitCall::Invoke generic call path.";
+  let ReturnType = "void";
+  let Args = [
+    Arg<"const CppImpl::JitCall*", "JC">,
+    Arg<"void*", "result">,
+    Arg<"void**", "args">,
+    Arg<"std::size_t", "nargs">,
+    Arg<"void*", "self">
+  ];
+}
+
+def CppInterOpTraceJitCallInvokeDestructorImpl : CppInterOpAPI {
+  let Doc = "Trace hook for the JitCall::InvokeDestructor path.";
+  let ReturnType = "void";
+  let Args = [
+    Arg<"const CppImpl::JitCall*", "JC">,
+    Arg<"void*", "object">,
+    Arg<"unsigned long", "nary">,
+    Arg<"int", "withFree">
+  ];
+}
+
+def CppInterOpTraceJitCallInvokeReturnImpl : CppInterOpAPI {
+  let Doc = "Trace hook for post-Invoke pointer-return handle registration.";
+  let ReturnType = "void";
+  let Args = [
+    Arg<"const CppImpl::JitCall*", "JC">,
+    Arg<"void*", "result">
+  ];
+}

@@ -49,27 +49,16 @@ class JitCall;
 }
 namespace CppInternal {
 namespace DispatchRaw {
-/// JitCall::Invoke trace-hook slots. Dispatch.h consumers get a per-DSO
-/// inline (vague-linkage) variable -- no UND symbol crosses the link --
-/// populated by LoadDispatchAPI. Linked consumers share a single extern
-/// definition in libclangCppInterOp, populated by InitTracing. Nullptr
-/// means tracing is off.
-#ifdef CPPINTEROP_DISPATCH_H
-inline void (*TraceJitCallInvoke)(const CppImpl::JitCall* JC, void* result,
-                                  void** args, std::size_t nargs,
-                                  void* self) noexcept = nullptr;
-inline void (*TraceJitCallInvokeDestructor)(const CppImpl::JitCall* JC,
-                                            void* object, unsigned long nary,
-                                            int withFree) noexcept = nullptr;
-#else
-extern CPPINTEROP_API void (*TraceJitCallInvoke)(const CppImpl::JitCall* JC,
-                                                 void* result, void** args,
-                                                 std::size_t nargs,
-                                                 void* self) noexcept;
-extern CPPINTEROP_API void (*TraceJitCallInvokeDestructor)(
-    const CppImpl::JitCall* JC, void* object, unsigned long nary,
-    int withFree) noexcept;
-#endif
+// Trace-hook slot forward decls; the X-macro expansion of
+// CppInterOpAPI.inc re-declares these with identical types. They're
+// here so JitCall::Invoke's inline body below can reference them.
+extern void (*CppInterOpTraceJitCallInvokeImpl)(const CppImpl::JitCall* JC,
+                                                void* result, void** args,
+                                                std::size_t nargs, void* self);
+extern void (*CppInterOpTraceJitCallInvokeDestructorImpl)(
+    const CppImpl::JitCall* JC, void* object, unsigned long nary, int withFree);
+extern void (*CppInterOpTraceJitCallInvokeReturnImpl)(
+    const CppImpl::JitCall* JC, void* result);
 } // namespace DispatchRaw
 } // namespace CppInternal
 
@@ -266,19 +255,21 @@ private:
       : m_DestructorCall(C), m_Kind(K), m_FD(Dtor) {}
 
   // Trace-hook impls need private m_FD for the function-name lookup.
-  friend void CppInterOpTraceJitCallInvokeImpl(const JitCall*, void* result,
-                                               void** args, std::size_t nargs,
-                                               void* self) noexcept;
-  friend void CppInterOpTraceJitCallInvokeDestructorImpl(const JitCall*,
-                                                         void* object,
-                                                         unsigned long nary,
-                                                         int withFree) noexcept;
+  // CPPINTEROP_API matches the X-macro-generated decl in CppInterOpDecl.inc;
+  // MSVC treats a friend decl without the dllimport/dllexport attribute as
+  // a different-linkage redeclaration.
+  friend CPPINTEROP_API void
+  CppInterOpTraceJitCallInvokeImpl(const JitCall*, void* result, void** args,
+                                   std::size_t nargs, void* self);
+  friend CPPINTEROP_API void
+  CppInterOpTraceJitCallInvokeDestructorImpl(const JitCall*, void* object,
+                                             unsigned long nary, int withFree);
+  friend CPPINTEROP_API void
+  CppInterOpTraceJitCallInvokeReturnImpl(const JitCall*, void* result);
 
   /// Checks if the passed arguments are valid for the given function.
   CPPINTEROP_API bool AreArgumentsValid(void* result, ArgList args, void* self,
                                         size_t nary) const;
-
-  void ReportInvokeEnd() const;
 
 public:
   [[nodiscard]] Kind getKind() const { return m_Kind; }
@@ -312,9 +303,13 @@ public:
     case kGenericCall:
       // We pass 1UL to nary which is only relevant for structors
       assert(AreArgumentsValid(result, args, self, 1UL) && "Invalid args!");
-      if (auto fn = ::CppInternal::DispatchRaw::TraceJitCallInvoke)
+      if (auto fn =
+              ::CppInternal::DispatchRaw::CppInterOpTraceJitCallInvokeImpl)
         fn(this, result, args.m_Args, args.m_ArgSize, self);
       m_GenericCall(self, args.m_ArgSize, args.m_Args, result);
+      if (auto fn = ::CppInternal::DispatchRaw::
+              CppInterOpTraceJitCallInvokeReturnImpl)
+        fn(this, result);
       break;
 
     case kConstructorCall:
@@ -340,7 +335,8 @@ public:
   void InvokeDestructor(void* object, unsigned long nary = 0,
                         int withFree = true) const {
     assert(m_Kind == kDestructorCall && "Wrong overload!");
-    if (auto fn = ::CppInternal::DispatchRaw::TraceJitCallInvokeDestructor)
+    if (auto fn = ::CppInternal::DispatchRaw::
+            CppInterOpTraceJitCallInvokeDestructorImpl)
       fn(this, object, nary, withFree);
     m_DestructorCall(object, nary, withFree);
   }
@@ -359,9 +355,12 @@ public:
     assert(m_Kind == kConstructorCall && "Wrong overload!");
     assert(AreArgumentsValid(result, args, /*self=*/nullptr, nary) &&
            "Invalid args!");
-    if (auto fn = CppInternal::DispatchRaw::TraceJitCallInvoke)
+    if (auto fn = ::CppInternal::DispatchRaw::CppInterOpTraceJitCallInvokeImpl)
       fn(this, result, args.m_Args, args.m_ArgSize, nullptr);
     m_ConstructorCall(result, nary, args.m_ArgSize, args.m_Args, is_arena);
+    if (auto fn =
+            ::CppInternal::DispatchRaw::CppInterOpTraceJitCallInvokeReturnImpl)
+      fn(this, result);
   }
 };
 

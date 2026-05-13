@@ -24,62 +24,39 @@ inputs:
     required: false
     default: ''
     description: 'matrix.Valgrind. Gates the in-process valgrind run.'
+  wasm:
+    required: false
+    default: 'false'
+    description: 'matrix.wasm. Gates emscripten cross-build vs native steps.'
 
 runs:
   using: composite
   steps:
     - name: Build and Test/Install CppInterOp (native shared library build)
-      if: ${{ runner.os != 'Windows' && matrix.wasm != true }}
+      if: ${{ runner.os != 'Windows' && inputs.wasm != 'true' }}
       shell: bash
       run: |
         if [[ "${{ runner.environment }}" == "self-hosted" ]]; then
           LLVM_PREFIX="/usr/lib/llvm-${{ inputs.clang_runtime }}"
-          LLVM_BUILD_DIR="$LLVM_PREFIX"
         else
-          # github-hosted: setup-llvm exports $LLVM_DIR pointing at the
-          # cmake-config dir ($WS/install/lib/cmake/llvm); derive the
-          # install root for local path-munging here. Rows that build LLVM
-          # from source and bypass setup-llvm fall back to the legacy
-          # workspace clone path.
-          if [[ -n "${LLVM_DIR:-}" && -f "${LLVM_DIR}/LLVMConfig.cmake" ]]; then
-            LLVM_PREFIX="$(dirname "$(dirname "$(dirname "$LLVM_DIR")")")"
-          else
-            LLVM_PREFIX="$(pwd)/llvm-project"
-          fi
-          # Two layouts coexist on github-hosted runners:
-          #   - rows that build LLVM from source leave a build tree at
-          #     llvm-project/build/.
-          #   - rows that pull a prebuilt asset via setup-recipe extract
-          #     a cmake --install tree at $WS/install/, with
-          #     LLVMConfig.cmake at lib/cmake/llvm/ (no build/ prefix).
-          # Probe for lib/cmake/llvm to pick LLVM_BUILD_DIR; LLVMConfig.cmake
-          # lives there in either layout.
-          if [[ -d "$LLVM_PREFIX/lib/cmake/llvm" ]]; then
-            LLVM_BUILD_DIR="$LLVM_PREFIX"
-          else
-            LLVM_BUILD_DIR="$LLVM_PREFIX/build"
-          fi
-          cling_on=$(echo "${{ inputs.cling }}" | tr '[:lower:]' '[:upper:]')
-          if [[ "${cling_on}" == "ON" ]]; then
-            if [[ -f "$LLVM_PREFIX/lib/cmake/cling/ClingConfig.cmake" ]]; then
-              # Recipe install tree: cling integrated under install/,
-              # cmake config at lib/cmake/cling/, headers under include/cling/.
-              CLING_DIR="$LLVM_PREFIX"
-              CLING_CMAKE_DIR="$LLVM_PREFIX/lib/cmake/cling"
-            else
-              # Build tree: cling lives in a sibling checkout.
-              CLING_DIR="$(pwd)/cling"
-              CLING_BUILD_DIR="$(pwd)/cling/build"
-              CLING_CMAKE_DIR="$LLVM_BUILD_DIR/tools/cling"
-            fi
-          fi
+          # setup-llvm exports $LLVM_DIR (cmake-config dir, three levels
+          # deep); every matrix row goes through setup-llvm so a missing
+          # $LLVM_DIR is a CI setup bug, not a fall-back case.
+          LLVM_PREFIX="$(dirname "$(dirname "$(dirname "$LLVM_DIR")")")"
+        fi
+        LLVM_BUILD_DIR="$LLVM_PREFIX"
+        cling_on=$(echo "${{ inputs.cling }}" | tr '[:lower:]' '[:upper:]')
+        if [[ "${cling_on}" == "ON" ]]; then
+          # Cling rides setup-llvm's `flavor: cling`: llvm-root recipe +
+          # cling built on top, both shipped under $LLVM_PREFIX/.
+          CLING_DIR="$LLVM_PREFIX"
+          CLING_CMAKE_DIR="$LLVM_PREFIX/lib/cmake/cling"
         fi
 
         export CB_PYTHON_DIR="$PWD/cppyy-backend/python"
         export CPPINTEROP_DIR="$CB_PYTHON_DIR/cppyy_backend"
 
-        # Build CppInterOp next to cling and llvm-project.
-        # `rm -rf` guards against a stale build/ from a prior run --
+        # `rm -rf build` guards against a stale build/ from a prior run --
         # github-hosted runners start with an empty workspace, but
         # local reproductions via nektos/act reuse the host workspace
         # (or a persisted container's overlay) where build/ may
@@ -247,43 +224,21 @@ runs:
         echo "LLVM_BUILD_DIR=$LLVM_BUILD_DIR" >> $GITHUB_ENV
 
     - name: Build and Test/Install CppInterOp on Windows systems (native static library build)
-      if: ${{ runner.os == 'Windows' && matrix.wasm != true }}
+      if: ${{ runner.os == 'Windows' && inputs.wasm != 'true' }}
       shell: powershell
       run: |
         $env:PWD_DIR= $PWD.Path
 
-        # setup-llvm exports $LLVM_DIR pointing at the cmake-config dir;
-        # derive the install root for local path-munging. Source-build
-        # rows that bypass setup-llvm fall back to the legacy clone path.
-        if ($env:LLVM_DIR -and (Test-Path "$env:LLVM_DIR\LLVMConfig.cmake")) {
-          $env:LLVM_PREFIX = (Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $env:LLVM_DIR)))
-        } else {
-          $env:LLVM_PREFIX = "$env:PWD_DIR\llvm-project"
-        }
-
-        # Probe install vs build tree (mirrors the bash branch above):
-        # recipe install trees ship LLVMConfig.cmake at lib/cmake/llvm
-        # directly; source builds leave a build/ subdir.
-        if ( Test-Path "$env:LLVM_PREFIX\lib\cmake\llvm" ) {
-          $env:LLVM_BUILD_DIR="$env:LLVM_PREFIX"
-        } else {
-          $env:LLVM_BUILD_DIR="$env:LLVM_PREFIX\build"
-        }
-        echo "LLVM_BUILD_DIR=$env:LLVM_BUILD_DIR"
+        # Mirrors the bash branch: setup-llvm's $LLVM_DIR is the cmake-
+        # config dir, three levels deep from the install root.
+        $env:LLVM_PREFIX = (Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $env:LLVM_DIR)))
+        $env:LLVM_BUILD_DIR="$env:LLVM_PREFIX"
         echo "LLVM_BUILD_DIR=$env:LLVM_BUILD_DIR" >> $env:GITHUB_ENV
 
-        if ( "${{ matrix.cling }}" -imatch "On" )
+        if ( "${{ inputs.cling }}" -imatch "On" )
         {
-          if ( Test-Path "$env:LLVM_PREFIX\lib\cmake\cling\ClingConfig.cmake" ) {
-            # Recipe install tree: cling integrated under install/.
-            $env:CLING_DIR="$env:LLVM_PREFIX"
-            $env:CLING_CMAKE_DIR="$env:LLVM_PREFIX\lib\cmake\cling"
-          } else {
-            $env:CLING_DIR="$env:PWD_DIR\cling"
-            $env:CLING_BUILD_DIR="$env:PWD_DIR\cling\build"
-            $env:CLING_CMAKE_DIR="$env:LLVM_BUILD_DIR\tools\cling"
-            echo "CLING_BUILD_DIR=$env:CLING_BUILD_DIR" >> $env:GITHUB_ENV
-          }
+          $env:CLING_DIR="$env:LLVM_PREFIX"
+          $env:CLING_CMAKE_DIR="$env:LLVM_PREFIX\lib\cmake\cling"
           echo "CLING_DIR=$env:CLING_DIR" >> $env:GITHUB_ENV
           echo "CLING_CMAKE_DIR=$env:CLING_CMAKE_DIR" >> $env:GITHUB_ENV
         }
@@ -296,15 +251,14 @@ runs:
         echo "CPPINTEROP_DIR=$env:CPPINTEROP_DIR"
         echo "CPPINTEROP_DIR=$env:CPPINTEROP_DIR" >> $env:GITHUB_ENV
 
-        # Build CppInterOp next to cling and llvm-project.
-        # See bash sites above re: stale build/ on local repro paths.
+        # See bash site above re: stale build/ on local repro paths.
         if (Test-Path build) { Remove-Item -Recurse -Force build }
         mkdir build
         cd build
         $env:CPPINTEROP_BUILD_DIR="$env:PWD_DIR"
         echo "CPPINTEROP_BUILD_DIR=$env:CPPINTEROP_BUILD_DIR"
         echo "CPPINTEROP_BUILD_DIR=$env:CPPINTEROP_BUILD_DIR" >> $env:GITHUB_ENV
-        if ( "${{ matrix.cling }}" -imatch "On" )
+        if ( "${{ inputs.cling }}" -imatch "On" )
         {
           cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    `
                 -DCPPINTEROP_USE_CLING=ON                                  `
@@ -324,7 +278,7 @@ runs:
         cmake --build . --config ${{ env.BUILD_TYPE }} --target check-cppinterop --parallel ${{ env.ncpus }}
 
     - name: Emscripten build of CppInterOp on Unix systems (shared library)
-      if: ${{ runner.os != 'Windows' && matrix.wasm == true }}
+      if: ${{ runner.os != 'Windows' && inputs.wasm == 'true' }}
       shell: bash -l {0}
       run: |
         set -e
@@ -336,21 +290,14 @@ runs:
         export CMAKE_PREFIX_PATH=$PREFIX
         export CMAKE_SYSTEM_PREFIX_PATH=$PREFIX
 
-        LLVM_DIR="$(pwd)/llvm-project"
-        LLVM_BUILD_DIR="$(pwd)/llvm-project/build"
-        cling_on=$(echo "${{ inputs.cling }}" | tr '[:lower:]' '[:upper:]')
-        if [[ "${cling_on}" == "ON" ]]; then
-          CLING_DIR="$(pwd)/cling"
-          CLING_BUILD_DIR="$(pwd)/cling/build"
-          CPLUS_INCLUDE_PATH="${CLING_DIR}/tools/cling/include:${CLING_BUILD_DIR}/include:${LLVM_DIR}/llvm/include:${LLVM_DIR}/clang/include:${LLVM_BUILD_DIR}/include:${LLVM_BUILD_DIR}/tools/clang/include:$PWD/include"
-        else
-          CPLUS_INCLUDE_PATH="${LLVM_DIR}/llvm/include:${LLVM_DIR}/clang/include:${LLVM_BUILD_DIR}/include:${LLVM_BUILD_DIR}/tools/clang/include:$PWD/include"
-        fi
+        # setup-recipe extracts the cell to $(pwd)/install/.
+        LLVM_DIR="$(pwd)/install"
+        LLVM_BUILD_DIR="$LLVM_DIR/build"
 
-        # Build native cppinterop-tblgen for .inc file generation.
-        # Use the native LLVM build (not the Emscripten cross-build) since
-        # cppinterop-tblgen only needs libLLVMTableGen and libLLVMSupport.
-        NATIVE_LLVM_BUILD_DIR="$(pwd)/llvm-project/native_build"
+        # The cell ships host tblgens at install/native_build/; we still
+        # need a CppInterOp-side host build to generate the cppinterop-
+        # specific .inc files via cppinterop-tblgen.
+        NATIVE_LLVM_BUILD_DIR="$LLVM_DIR/native_build"
         mkdir -p native_cppinterop_build && pushd native_cppinterop_build
         cmake -DCMAKE_BUILD_TYPE=Release \
               -DLLVM_DIR=$NATIVE_LLVM_BUILD_DIR/lib/cmake/llvm \
@@ -515,11 +462,10 @@ runs:
         echo "CB_PYTHON_DIR=$CB_PYTHON_DIR" >> $GITHUB_ENV
         echo "CPPINTEROP_DIR=$CPPINTEROP_DIR" >> $GITHUB_ENV
         echo "LLVM_BUILD_DIR=$LLVM_BUILD_DIR" >> $GITHUB_ENV
-        echo "CPLUS_INCLUDE_PATH=$CPLUS_INCLUDE_PATH" >> $GITHUB_ENV
         echo "PREFIX=$PREFIX" >> $GITHUB_ENV
   
     - name: Emscripten build of CppInterOp on Unix systems (static library)
-      if: runner.os != 'Windows' && !(startsWith(matrix.os, 'ubuntu') && matrix.clang-runtime == '19' && endsWith(matrix.os, 'arm')) && matrix.wasm == true && env.BUILD_STATIC_LIBRARY == 'On' 
+      if: runner.os != 'Windows' && !(startsWith(matrix.os, 'ubuntu') && matrix.clang-runtime == '19' && endsWith(matrix.os, 'arm')) && inputs.wasm == 'true' && env.BUILD_STATIC_LIBRARY == 'On'
       shell: bash -l {0}
       run: |
         # FIXME: Static library builds, but tests fail to build on Github runner for Ubuntu arm llvm 19 case
@@ -610,7 +556,7 @@ runs:
         cd ../../..
 
     - name: Emscripten build of CppInterOp on Windows systems (shared library)
-      if: ${{ runner.os == 'Windows' && matrix.wasm == true }}
+      if: ${{ runner.os == 'Windows' && inputs.wasm == 'true' }}
       shell: powershell
       run: |
         micromamba create -f environment-wasm.yml --platform=emscripten-wasm32 -c https://prefix.dev/emscripten-forge-4x -c https://prefix.dev/conda-forge
@@ -628,39 +574,19 @@ runs:
         $env:CMAKE_PREFIX_PATH=$env:PREFIX
         $env:CMAKE_SYSTEM_PREFIX_PATH=$env:PREFIX
         
-        $env:LLVM_DIR="$env:PWD_DIR\llvm-project"
+        # setup-recipe extracts the cell to $PWD_DIR\install\.
+        $env:LLVM_DIR="$env:PWD_DIR\install"
         echo "LLVM_DIR=$env:LLVM_DIR"
         echo "LLVM_DIR=$env:LLVM_DIR" >> $env:GITHUB_ENV
 
-        $env:LLVM_BUILD_DIR="$env:PWD_DIR\llvm-project\build"
+        $env:LLVM_BUILD_DIR="$env:LLVM_DIR\build"
         echo "LLVM_BUILD_DIR=$env:LLVM_BUILD_DIR"
         echo "LLVM_BUILD_DIR=$env:LLVM_BUILD_DIR" >> $env:GITHUB_ENV
-
-        if ( "${{ matrix.cling }}" -imatch "On" )
-        {
-          $env:CLING_DIR="$env:PWD_DIR\cling"
-          echo "CLING_DIR=$env:CLING_DIR"
-          echo "CLING_DIR=$env:CLING_DIR" >> $env:GITHUB_ENV
-
-          $env:CLING_BUILD_DIR="$env:PWD_DIR\cling\build"
-          echo "CLING_BUILD_DIR=$env:CLING_BUILD_DIR"
-          echo "CLING_BUILD_DIR=$env:CLING_BUILD_DIR" >> $env:GITHUB_ENV
-
-          $env:CPLUS_INCLUDE_PATH="$env:CLING_DIR\tools\cling\include;$env:CLING_BUILD_DIR\include;$env:LLVM_DIR\llvm\include;$env:LLVM_DIR\clang\include;$env:LLVM_BUILD_DIR\include;$env:LLVM_BUILD_DIR\tools\clang\include;$env:PWD_DIR\include;"
-          echo "CPLUS_INCLUDE_PATH=$env:CPLUS_INCLUDE_PATH"
-          echo "CPLUS_INCLUDE_PATH=$env:CPLUS_INCLUDE_PATH" >> $env:GITHUB_ENV
-        }
-        else
-        {
-          $env:CPLUS_INCLUDE_PATH="$env:LLVM_DIR\llvm\include;$env:LLVM_DIR\clang\include;$env:LLVM_BUILD_DIR\include;$env:LLVM_BUILD_DIR\tools\clang\include;$env:PWD_DIR\include;"
-          echo "CPLUS_INCLUDE_PATH=$env:CPLUS_INCLUDE_PATH"
-          echo "CPLUS_INCLUDE_PATH=$env:CPLUS_INCLUDE_PATH" >> $env:GITHUB_ENV
-        }
 
         # Build native cppinterop-tblgen for .inc file generation.
         mkdir native_cppinterop_build
         pushd native_cppinterop_build
-        $env:NATIVE_LLVM_BUILD_DIR="$env:PWD_DIR\llvm-project\native_build"
+        $env:NATIVE_LLVM_BUILD_DIR="$env:LLVM_DIR\native_build"
         # Use -G Ninja explicitly: cmake's default on Windows is the
         # Visual Studio multi-config generator, which ignores
         # CMAKE_BUILD_TYPE and builds Debug, then fails to link against
@@ -682,7 +608,7 @@ runs:
         if (Test-Path build) { Remove-Item -Recurse -Force build }
         mkdir build
         cd build
-        if ( "${{ matrix.cling }}" -imatch "On" )
+        if ( "${{ inputs.cling }}" -imatch "On" )
         {
           emcmake cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}        `
                 -DCPPINTEROP_USE_CLING=ON                                  `
@@ -754,7 +680,7 @@ runs:
         echo "PREFIX=$env:PREFIX" >> $GITHUB_ENV
 
     - name: Emscripten build of CppInterOp on Windows systems (static library)
-      if: ${{ runner.os == 'Windows' && matrix.wasm == true && env.BUILD_STATIC_LIBRARY == 'On' }}
+      if: ${{ runner.os == 'Windows' && inputs.wasm == 'true' && env.BUILD_STATIC_LIBRARY == 'On' }}
       shell: powershell
       run: |
        .\emsdk\emsdk activate ${{ env.EMSDK_VER }}
@@ -777,7 +703,7 @@ runs:
         if (Test-Path build_static) { Remove-Item -Recurse -Force build_static }
         mkdir build_static
         cd build_static
-        if ( "${{ matrix.cling }}" -imatch "On" )
+        if ( "${{ inputs.cling }}" -imatch "On" )
         {
           emcmake cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}        `
                 -DCPPINTEROP_USE_CLING=ON                                  `
