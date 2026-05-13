@@ -693,4 +693,44 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_WrapperCacheIsPerInterpreter) {
   EXPECT_EQ(r2, 12) << "Wrapper should use I2's implementation (multiply), "
                        "not a stale cache from deleted I1";
 }
+
+TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_DLMIsPerInterpreter) {
+  if (TypeParam::isOutOfProcess)
+    GTEST_SKIP() << "Test fails for OOP JIT builds";
+#ifdef _WIN32
+  GTEST_SKIP() << "Disabled on Windows: DLM symbol-table walk crashes "
+                  "(RVA 0x0 in export table).";
+#endif
+
+#ifdef __APPLE__
+  static constexpr const char* kSym = "_ret_zero";
+#else
+  static constexpr const char* kSym = "ret_zero";
+#endif
+
+  std::string BinaryPath =
+      llvm::sys::fs::getMainExecutable(/*Argv0=*/nullptr, /*MainAddr=*/nullptr);
+  ASSERT_FALSE(BinaryPath.empty());
+  llvm::StringRef BinDir = llvm::sys::path::parent_path(BinaryPath);
+
+  auto* I1 = TestFixture::CreateInterpreter();
+  ASSERT_NE(I1, nullptr);
+  Cpp::ActivateInterpreter(I1);
+  Cpp::AddSearchPath(BinDir.str().c_str());
+
+  std::string R1 = Cpp::SearchLibrariesForSymbol(kSym, /*system_search=*/false);
+  if (R1.empty())
+    GTEST_SKIP() << "TestSharedLib not found — cannot test DLM isolation";
+
+  // With a single function-local-static DLM, the path added on I1
+  // would reach I2 and the lookup below would succeed; the per-
+  // interpreter DLM means I2 starts with a fresh path set.
+  auto* I2 = TestFixture::CreateInterpreter();
+  ASSERT_NE(I2, nullptr);
+  Cpp::ActivateInterpreter(I2);
+
+  std::string R2 = Cpp::SearchLibrariesForSymbol(kSym, /*system_search=*/false);
+  EXPECT_TRUE(R2.empty()) << "I2 must not see search paths added on I1; found: "
+                          << R2;
+}
 #endif // !EMSCRIPTEN
