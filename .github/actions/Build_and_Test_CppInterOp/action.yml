@@ -235,7 +235,7 @@ runs:
         $env:LLVM_BUILD_DIR="$env:LLVM_PREFIX"
         echo "LLVM_BUILD_DIR=$env:LLVM_BUILD_DIR" >> $env:GITHUB_ENV
 
-        if ( "${{ matrix.cling }}" -imatch "On" )
+        if ( "${{ inputs.cling }}" -imatch "On" )
         {
           $env:CLING_DIR="$env:LLVM_PREFIX"
           $env:CLING_CMAKE_DIR="$env:LLVM_PREFIX\lib\cmake\cling"
@@ -258,7 +258,7 @@ runs:
         $env:CPPINTEROP_BUILD_DIR="$env:PWD_DIR"
         echo "CPPINTEROP_BUILD_DIR=$env:CPPINTEROP_BUILD_DIR"
         echo "CPPINTEROP_BUILD_DIR=$env:CPPINTEROP_BUILD_DIR" >> $env:GITHUB_ENV
-        if ( "${{ matrix.cling }}" -imatch "On" )
+        if ( "${{ inputs.cling }}" -imatch "On" )
         {
           cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    `
                 -DCPPINTEROP_USE_CLING=ON                                  `
@@ -583,27 +583,6 @@ runs:
         echo "LLVM_BUILD_DIR=$env:LLVM_BUILD_DIR"
         echo "LLVM_BUILD_DIR=$env:LLVM_BUILD_DIR" >> $env:GITHUB_ENV
 
-        if ( "${{ matrix.cling }}" -imatch "On" )
-        {
-          $env:CLING_DIR="$env:PWD_DIR\cling"
-          echo "CLING_DIR=$env:CLING_DIR"
-          echo "CLING_DIR=$env:CLING_DIR" >> $env:GITHUB_ENV
-
-          $env:CLING_BUILD_DIR="$env:PWD_DIR\cling\build"
-          echo "CLING_BUILD_DIR=$env:CLING_BUILD_DIR"
-          echo "CLING_BUILD_DIR=$env:CLING_BUILD_DIR" >> $env:GITHUB_ENV
-
-          $env:CPLUS_INCLUDE_PATH="$env:CLING_DIR\tools\cling\include;$env:CLING_BUILD_DIR\include;$env:LLVM_DIR\llvm\include;$env:LLVM_DIR\clang\include;$env:LLVM_BUILD_DIR\include;$env:LLVM_BUILD_DIR\tools\clang\include;$env:PWD_DIR\include;"
-          echo "CPLUS_INCLUDE_PATH=$env:CPLUS_INCLUDE_PATH"
-          echo "CPLUS_INCLUDE_PATH=$env:CPLUS_INCLUDE_PATH" >> $env:GITHUB_ENV
-        }
-        else
-        {
-          $env:CPLUS_INCLUDE_PATH="$env:LLVM_DIR\llvm\include;$env:LLVM_DIR\clang\include;$env:LLVM_BUILD_DIR\include;$env:LLVM_BUILD_DIR\tools\clang\include;$env:PWD_DIR\include;"
-          echo "CPLUS_INCLUDE_PATH=$env:CPLUS_INCLUDE_PATH"
-          echo "CPLUS_INCLUDE_PATH=$env:CPLUS_INCLUDE_PATH" >> $env:GITHUB_ENV
-        }
-
         # Build native cppinterop-tblgen for .inc file generation.
         mkdir native_cppinterop_build
         pushd native_cppinterop_build
@@ -629,7 +608,7 @@ runs:
         if (Test-Path build) { Remove-Item -Recurse -Force build }
         mkdir build
         cd build
-        if ( "${{ matrix.cling }}" -imatch "On" )
+        if ( "${{ inputs.cling }}" -imatch "On" )
         {
           emcmake cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}        `
                 -DCPPINTEROP_USE_CLING=ON                                  `
@@ -724,7 +703,7 @@ runs:
         if (Test-Path build_static) { Remove-Item -Recurse -Force build_static }
         mkdir build_static
         cd build_static
-        if ( "${{ matrix.cling }}" -imatch "On" )
+        if ( "${{ inputs.cling }}" -imatch "On" )
         {
           emcmake cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}        `
                 -DCPPINTEROP_USE_CLING=ON                                  `
