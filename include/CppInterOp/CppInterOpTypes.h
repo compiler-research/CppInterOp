@@ -52,12 +52,12 @@ namespace DispatchRaw {
 // Trace-hook slot forward decls; the X-macro expansion of
 // CppInterOpAPI.inc re-declares these with identical types. They're
 // here so JitCall::Invoke's inline body below can reference them.
-extern void (*CppInterOpTraceJitCallInvokeImpl)(const CppImpl::JitCall* JC,
-                                                void* result, void** args,
-                                                std::size_t nargs, void* self);
-extern void (*CppInterOpTraceJitCallInvokeDestructorImpl)(
+extern CPPINTEROP_API void (*CppInterOpTraceJitCallInvokeImpl)(
+    const CppImpl::JitCall* JC, void* result, void** args, std::size_t nargs,
+    void* self);
+extern CPPINTEROP_API void (*CppInterOpTraceJitCallInvokeDestructorImpl)(
     const CppImpl::JitCall* JC, void* object, unsigned long nary, int withFree);
-extern void (*CppInterOpTraceJitCallInvokeReturnImpl)(
+extern CPPINTEROP_API void (*CppInterOpTraceJitCallInvokeReturnImpl)(
     const CppImpl::JitCall* JC, void* result);
 } // namespace DispatchRaw
 } // namespace CppInternal
