@@ -29,13 +29,12 @@
 // consumers carry their per-DSO copies, populated by LoadDispatchAPI.
 namespace CppInternal {
 namespace DispatchRaw {
-void (*CppInterOpTraceJitCallInvokeImpl)(const CppImpl::JitCall*, void*, void**,
-                                         std::size_t, void*) = nullptr;
-void (*CppInterOpTraceJitCallInvokeDestructorImpl)(const CppImpl::JitCall*,
-                                                   void*, unsigned long,
-                                                   int) = nullptr;
-void (*CppInterOpTraceJitCallInvokeReturnImpl)(const CppImpl::JitCall*,
-                                               void*) = nullptr;
+CPPINTEROP_API void (*CppInterOpTraceJitCallInvokeImpl)(
+    const CppImpl::JitCall*, void*, void**, std::size_t, void*) = nullptr;
+CPPINTEROP_API void (*CppInterOpTraceJitCallInvokeDestructorImpl)(
+    const CppImpl::JitCall*, void*, unsigned long, int) = nullptr;
+CPPINTEROP_API void (*CppInterOpTraceJitCallInvokeReturnImpl)(
+    const CppImpl::JitCall*, void*) = nullptr;
 } // namespace DispatchRaw
 } // namespace CppInternal
 
