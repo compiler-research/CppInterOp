@@ -38,52 +38,25 @@ runs:
       run: |
         if [[ "${{ runner.environment }}" == "self-hosted" ]]; then
           LLVM_PREFIX="/usr/lib/llvm-${{ inputs.clang_runtime }}"
-          LLVM_BUILD_DIR="$LLVM_PREFIX"
         else
-          # github-hosted: setup-llvm exports $LLVM_DIR pointing at the
-          # cmake-config dir ($WS/install/lib/cmake/llvm); derive the
-          # install root for local path-munging here. Rows that build LLVM
-          # from source and bypass setup-llvm fall back to the legacy
-          # workspace clone path.
-          if [[ -n "${LLVM_DIR:-}" && -f "${LLVM_DIR}/LLVMConfig.cmake" ]]; then
-            LLVM_PREFIX="$(dirname "$(dirname "$(dirname "$LLVM_DIR")")")"
-          else
-            LLVM_PREFIX="$(pwd)/llvm-project"
-          fi
-          # Two layouts coexist on github-hosted runners:
-          #   - rows that build LLVM from source leave a build tree at
-          #     llvm-project/build/.
-          #   - rows that pull a prebuilt asset via setup-recipe extract
-          #     a cmake --install tree at $WS/install/, with
-          #     LLVMConfig.cmake at lib/cmake/llvm/ (no build/ prefix).
-          # Probe for lib/cmake/llvm to pick LLVM_BUILD_DIR; LLVMConfig.cmake
-          # lives there in either layout.
-          if [[ -d "$LLVM_PREFIX/lib/cmake/llvm" ]]; then
-            LLVM_BUILD_DIR="$LLVM_PREFIX"
-          else
-            LLVM_BUILD_DIR="$LLVM_PREFIX/build"
-          fi
-          cling_on=$(echo "${{ inputs.cling }}" | tr '[:lower:]' '[:upper:]')
-          if [[ "${cling_on}" == "ON" ]]; then
-            if [[ -f "$LLVM_PREFIX/lib/cmake/cling/ClingConfig.cmake" ]]; then
-              # Recipe install tree: cling integrated under install/,
-              # cmake config at lib/cmake/cling/, headers under include/cling/.
-              CLING_DIR="$LLVM_PREFIX"
-              CLING_CMAKE_DIR="$LLVM_PREFIX/lib/cmake/cling"
-            else
-              # Build tree: cling lives in a sibling checkout.
-              CLING_DIR="$(pwd)/cling"
-              CLING_BUILD_DIR="$(pwd)/cling/build"
-              CLING_CMAKE_DIR="$LLVM_BUILD_DIR/tools/cling"
-            fi
-          fi
+          # setup-llvm exports $LLVM_DIR (cmake-config dir, three levels
+          # deep); every matrix row goes through setup-llvm so a missing
+          # $LLVM_DIR is a CI setup bug, not a fall-back case.
+          LLVM_PREFIX="$(dirname "$(dirname "$(dirname "$LLVM_DIR")")")"
+        fi
+        LLVM_BUILD_DIR="$LLVM_PREFIX"
+        cling_on=$(echo "${{ inputs.cling }}" | tr '[:lower:]' '[:upper:]')
+        if [[ "${cling_on}" == "ON" ]]; then
+          # Cling rides setup-llvm's `flavor: cling`: llvm-root recipe +
+          # cling built on top, both shipped under $LLVM_PREFIX/.
+          CLING_DIR="$LLVM_PREFIX"
+          CLING_CMAKE_DIR="$LLVM_PREFIX/lib/cmake/cling"
         fi
 
         export CB_PYTHON_DIR="$PWD/cppyy-backend/python"
         export CPPINTEROP_DIR="$CB_PYTHON_DIR/cppyy_backend"
 
-        # Build CppInterOp next to cling and llvm-project.
-        # `rm -rf` guards against a stale build/ from a prior run --
+        # `rm -rf build` guards against a stale build/ from a prior run --
         # github-hosted runners start with an empty workspace, but
         # local reproductions via nektos/act reuse the host workspace
         # (or a persisted container's overlay) where build/ may
@@ -256,38 +229,16 @@ runs:
       run: |
         $env:PWD_DIR= $PWD.Path
 
-        # setup-llvm exports $LLVM_DIR pointing at the cmake-config dir;
-        # derive the install root for local path-munging. Source-build
-        # rows that bypass setup-llvm fall back to the legacy clone path.
-        if ($env:LLVM_DIR -and (Test-Path "$env:LLVM_DIR\LLVMConfig.cmake")) {
-          $env:LLVM_PREFIX = (Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $env:LLVM_DIR)))
-        } else {
-          $env:LLVM_PREFIX = "$env:PWD_DIR\llvm-project"
-        }
-
-        # Probe install vs build tree (mirrors the bash branch above):
-        # recipe install trees ship LLVMConfig.cmake at lib/cmake/llvm
-        # directly; source builds leave a build/ subdir.
-        if ( Test-Path "$env:LLVM_PREFIX\lib\cmake\llvm" ) {
-          $env:LLVM_BUILD_DIR="$env:LLVM_PREFIX"
-        } else {
-          $env:LLVM_BUILD_DIR="$env:LLVM_PREFIX\build"
-        }
-        echo "LLVM_BUILD_DIR=$env:LLVM_BUILD_DIR"
+        # Mirrors the bash branch: setup-llvm's $LLVM_DIR is the cmake-
+        # config dir, three levels deep from the install root.
+        $env:LLVM_PREFIX = (Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $env:LLVM_DIR)))
+        $env:LLVM_BUILD_DIR="$env:LLVM_PREFIX"
         echo "LLVM_BUILD_DIR=$env:LLVM_BUILD_DIR" >> $env:GITHUB_ENV
 
         if ( "${{ matrix.cling }}" -imatch "On" )
         {
-          if ( Test-Path "$env:LLVM_PREFIX\lib\cmake\cling\ClingConfig.cmake" ) {
-            # Recipe install tree: cling integrated under install/.
-            $env:CLING_DIR="$env:LLVM_PREFIX"
-            $env:CLING_CMAKE_DIR="$env:LLVM_PREFIX\lib\cmake\cling"
-          } else {
-            $env:CLING_DIR="$env:PWD_DIR\cling"
-            $env:CLING_BUILD_DIR="$env:PWD_DIR\cling\build"
-            $env:CLING_CMAKE_DIR="$env:LLVM_BUILD_DIR\tools\cling"
-            echo "CLING_BUILD_DIR=$env:CLING_BUILD_DIR" >> $env:GITHUB_ENV
-          }
+          $env:CLING_DIR="$env:LLVM_PREFIX"
+          $env:CLING_CMAKE_DIR="$env:LLVM_PREFIX\lib\cmake\cling"
           echo "CLING_DIR=$env:CLING_DIR" >> $env:GITHUB_ENV
           echo "CLING_CMAKE_DIR=$env:CLING_CMAKE_DIR" >> $env:GITHUB_ENV
         }
@@ -300,8 +251,7 @@ runs:
         echo "CPPINTEROP_DIR=$env:CPPINTEROP_DIR"
         echo "CPPINTEROP_DIR=$env:CPPINTEROP_DIR" >> $env:GITHUB_ENV
 
-        # Build CppInterOp next to cling and llvm-project.
-        # See bash sites above re: stale build/ on local repro paths.
+        # See bash site above re: stale build/ on local repro paths.
         if (Test-Path build) { Remove-Item -Recurse -Force build }
         mkdir build
         cd build
