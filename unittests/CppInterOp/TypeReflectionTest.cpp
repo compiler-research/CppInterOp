@@ -391,6 +391,120 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, TypeReflection_IsUnderlyingTypeRecordType) {
   EXPECT_TRUE(is_var_of_underly_record_ty(Decls[24]));
 }
 
+TYPED_TEST(CPPINTEROP_TEST_MODE, TypeReflection_GetVoidType) {
+  // GetVoidType should return a type that prints as "void"
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetVoidType()), "void");
+  // It should not be null
+  EXPECT_NE(Cpp::GetVoidType(), nullptr);
+}
+
+TYPED_TEST(CPPINTEROP_TEST_MODE, TypeReflection_GetTypeWithoutCv) {
+  std::vector<Decl *> Decls;
+  std::string code = R"(
+    const int var0 = 0;
+    volatile int var1 = 0;
+    const volatile int var2 = 0;
+    int var3 = 0;
+  )";
+  GetAllTopLevelDecls(code, Decls);
+  auto get_type_str = [](Decl *D) {
+    return Cpp::GetTypeAsString(
+        Cpp::GetTypeWithoutCv(Cpp::GetVariableType(D)));
+  };
+  EXPECT_EQ(get_type_str(Decls[0]), "int");
+  EXPECT_EQ(get_type_str(Decls[1]), "int");
+  EXPECT_EQ(get_type_str(Decls[2]), "int");
+  EXPECT_EQ(get_type_str(Decls[3]), "int");
+}
+
+TYPED_TEST(CPPINTEROP_TEST_MODE, TypeReflection_GetTypeWithConst) {
+  std::vector<Decl *> Decls;
+  std::string code = R"(
+    int var0 = 0;
+    const int var1 = 0;
+  )";
+  GetAllTopLevelDecls(code, Decls);
+  auto get_type_str = [](Decl *D) {
+    return Cpp::GetTypeAsString(Cpp::GetVariableType(D));
+  };
+  EXPECT_EQ(Cpp::GetTypeAsString(
+      Cpp::GetTypeWithConst(Cpp::GetVariableType(Decls[0]))), "const int");
+  EXPECT_EQ(Cpp::GetTypeAsString(
+      Cpp::GetTypeWithConst(Cpp::GetVariableType(Decls[1]))), "const int");
+  EXPECT_EQ(get_type_str(Decls[0]), "int");
+  EXPECT_EQ(get_type_str(Decls[1]), "const int");
+}
+
+TYPED_TEST(CPPINTEROP_TEST_MODE, TypeReflection_GetTypeWithVolatile) {
+  std::vector<Decl *> Decls;
+  std::string code = R"(
+    int var0 = 0;
+    volatile int var1 = 0;
+  )";
+  GetAllTopLevelDecls(code, Decls);
+  EXPECT_EQ(Cpp::GetTypeAsString(
+      Cpp::GetTypeWithVolatile(Cpp::GetVariableType(Decls[0]))), "volatile int");
+  EXPECT_EQ(Cpp::GetTypeAsString(
+      Cpp::GetTypeWithVolatile(Cpp::GetVariableType(Decls[1]))), "volatile int");
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetVariableType(Decls[0])), "int");
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetVariableType(Decls[1])), "volatile int");
+}
+
+TYPED_TEST(CPPINTEROP_TEST_MODE, TypeReflection_GetSignedType) {
+  std::vector<Decl *> Decls;
+  std::string code = R"(
+    unsigned int var0 = 0;
+    unsigned long var1 = 0;
+    int var2 = 0;
+  )";
+  GetAllTopLevelDecls(code, Decls);
+  EXPECT_EQ(Cpp::GetTypeAsString(
+      Cpp::GetSignedType(Cpp::GetVariableType(Decls[0]))), "int");
+  EXPECT_EQ(Cpp::GetTypeAsString(
+      Cpp::GetSignedType(Cpp::GetVariableType(Decls[1]))), "long");
+  EXPECT_EQ(Cpp::GetTypeAsString(
+      Cpp::GetSignedType(Cpp::GetVariableType(Decls[2]))), "int");
+}
+
+TYPED_TEST(CPPINTEROP_TEST_MODE, TypeReflection_GetUnsignedType) {
+  std::vector<Decl *> Decls;
+  std::string code = R"(
+    int var0 = 0;
+    long var1 = 0;
+    unsigned int var2 = 0;
+  )";
+  GetAllTopLevelDecls(code, Decls);
+  EXPECT_EQ(Cpp::GetTypeAsString(
+      Cpp::GetUnsignedType(Cpp::GetVariableType(Decls[0]))), "unsigned int");
+  EXPECT_EQ(Cpp::GetTypeAsString(
+      Cpp::GetUnsignedType(Cpp::GetVariableType(Decls[1]))), "unsigned long");
+  EXPECT_EQ(Cpp::GetTypeAsString(
+      Cpp::GetUnsignedType(Cpp::GetVariableType(Decls[2]))), "unsigned int");
+}
+
+TYPED_TEST(CPPINTEROP_TEST_MODE, TypeReflection_GetLValueReferenceType) {
+  std::vector<Decl *> Decls;
+  std::string code = R"(
+    int var0 = 0;
+    int &var1 = var0;
+  )";
+  GetAllTopLevelDecls(code, Decls);
+  EXPECT_EQ(Cpp::GetTypeAsString(
+      Cpp::GetLValueReferenceType(Cpp::GetVariableType(Decls[0]))), "int &");
+  EXPECT_EQ(Cpp::GetTypeAsString(
+      Cpp::GetLValueReferenceType(Cpp::GetVariableType(Decls[1]))), "int &");
+}
+
+TYPED_TEST(CPPINTEROP_TEST_MODE, TypeReflection_GetRValueReferenceType) {
+  std::vector<Decl *> Decls;
+  std::string code = R"(
+    int var0 = 0;
+  )";
+  GetAllTopLevelDecls(code, Decls);
+  EXPECT_EQ(Cpp::GetTypeAsString(
+      Cpp::GetRValueReferenceType(Cpp::GetVariableType(Decls[0]))), "int &&");
+}
+
 TYPED_TEST(CPPINTEROP_TEST_MODE, TypeReflection_GetComplexType) {
   TestFixture::CreateInterpreter();
 

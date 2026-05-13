@@ -327,6 +327,22 @@ def GetPointeeType : CppInterOpAPI {
   ];
 }
 
+def GetLValueReferenceType : CppInterOpAPI {
+  let Doc = "Get a reference type to the specified type.";
+  let ReturnType = "TCppType_t";
+  let Args = [
+    Arg<"TCppType_t", "type">
+  ];
+}
+
+def GetRValueReferenceType : CppInterOpAPI {
+  let Doc = "Get an rvalue reference type to the specified type.";
+  let ReturnType = "TCppType_t";
+  let Args = [
+    Arg<"TCppType_t", "type">
+  ];
+}
+
 def GetPointerType : CppInterOpAPI {
   let Doc = "Get the pointer to type";
 
@@ -390,6 +406,52 @@ qual can be ORed value of enum QualKind}];
 def GetUnderlyingType : CppInterOpAPI {
   let Doc = "Gets the pure, Underlying Type (as opposed to the Using Type).";
 
+  let ReturnType = "TCppType_t";
+  let Args = [
+    Arg<"TCppType_t", "type">
+  ];
+}
+
+def GetVoidType : CppInterOpAPI {
+  let Doc = "Returns the void type.";
+  let ReturnType = "TCppType_t";
+  let Args = [];
+}
+
+def GetTypeWithoutCv : CppInterOpAPI {
+  let Doc = "Gets the type without const and volatile qualifiers.";
+  let ReturnType = "TCppType_t";
+  let Args = [
+    Arg<"TCppType_t", "type">
+  ];
+}
+
+def GetTypeWithConst : CppInterOpAPI {
+  let Doc = "Gets the type with const qualifier added.";
+  let ReturnType = "TCppType_t";
+  let Args = [
+    Arg<"TCppType_t", "type">
+  ];
+}
+
+def GetTypeWithVolatile : CppInterOpAPI {
+  let Doc = "Gets the type with volatile qualifier added.";
+  let ReturnType = "TCppType_t";
+  let Args = [
+    Arg<"TCppType_t", "type">
+  ];
+}
+
+def GetSignedType : CppInterOpAPI {
+  let Doc = "Gets the signed counterpart of an integral type. Returns the type unchanged if it has no signed counterpart.";
+  let ReturnType = "TCppType_t";
+  let Args = [
+    Arg<"TCppType_t", "type">
+  ];
+}
+
+def GetUnsignedType : CppInterOpAPI {
+  let Doc = "Gets the unsigned counterpart of an integral type. Returns the type unchanged if it has no unsigned counterpart.";
   let ReturnType = "TCppType_t";
   let Args = [
     Arg<"TCppType_t", "type">
