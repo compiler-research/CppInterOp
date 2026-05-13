@@ -24,9 +24,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # micromamba_shell_init is derived below from runner.os.
+        # arch + wasm shape mirror emscripten.yml's matrix (see comment there).
         include:
-          - { name: osx26-arm-emscr-llvm22, os: macos-26, clang-runtime: '22', wasm: true }
+          - { name: osx26-arm-emscr-llvm22, os: macos-26, arch: arm64, clang-runtime: '22', wasm: 'true' }
 
     steps:
     - uses: actions/checkout@v6
@@ -55,17 +55,20 @@ jobs:
           cd emsdk
           ./emsdk install  ${{ env.EMSDK_VER }}
 
-    - name: Restore cached LLVM-${{ matrix.clang-runtime }} and ${{ matrix.cling == 'On' && 'Cling' || 'Clang-REPL' }} build
-      uses: actions/cache/restore@v4
-      id: cache
+    # Same wasm-cell consumer step as emscripten.yml.
+    - name: Setup llvm-wasm cell
+      uses: compiler-research/ci-workflows/actions/setup-recipe@main
       with:
-        path: |
-          llvm-project
-          ${{ matrix.cling=='On' && 'cling' || '' }}
-        key: ${{ env.CLING_HASH }}-${{ runner.os }}-${{ matrix.os }}-clang-${{ matrix.clang-runtime }}.x-emscripten
+        recipe: llvm-wasm
+        version: ${{ matrix.clang-runtime }}
+        os: ${{ matrix.os }}
+        arch: ${{ matrix.arch }}
 
     - name: Build and test CppInterOp
       uses: ./.github/actions/Build_and_Test_CppInterOp
+      with:
+        clang_runtime: ${{ matrix.clang-runtime }}
+        wasm: ${{ matrix.wasm }}
 
     - name: Build xeus-cpp
       shell: bash -l {0}
