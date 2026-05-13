@@ -3,9 +3,6 @@
 
 #include "../../lib/CppInterOp/Compatibility.h"
 
-#include "clang-c/CXCppInterOp.h"
-#include "clang-c/CXString.h"
-
 #include "CppInterOp/CppInterOp.h"
 #define CPPINTEROP_TEST_MODE CppInterOpTest
 
@@ -48,12 +45,6 @@ void GetAllTopLevelDecls(const std::string& code,
 void GetAllSubDecls(clang::Decl* D, std::vector<clang::Decl*>& SubDecls,
                     bool filter_implicitGenerated = false);
 } // end namespace TestUtils
-
-const char* get_c_string(CXString string);
-
-void dispose_string(CXString string);
-
-CXScope make_scope(const clang::Decl* D, const CXInterpreter I);
 
 bool IsTargetX86();
 
@@ -106,8 +97,9 @@ protected:
   }
 
 public:
-  static TInterp_t CreateInterpreter(const std::vector<const char*>& Args = {},
-                              const std::vector<const char*>& GpuArgs = {}) {
+  static Cpp::TInterp_t
+  CreateInterpreter(const std::vector<const char*>& Args = {},
+                    const std::vector<const char*>& GpuArgs = {}) {
     auto mergedArgs = TestUtils::GetInterpreterArgs(Args);
     return Cpp::CreateInterpreter(mergedArgs, GpuArgs);
   }
