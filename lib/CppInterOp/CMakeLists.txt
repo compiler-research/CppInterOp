@@ -200,7 +200,15 @@ configure_file(BuildInfo.inc.in
                ${CPPINTEROP_GEN_DIR}/BuildInfo.inc
                @ONLY)
 
+# If an embedding project opts out of CppInterOp's installs rules, route the
+# library through LLVM's BUILDTREE_ONLY path so add_llvm_library() does not
+# register it in LLVMExports or call install(TARGETS) for it.
+set(_cppinterop_lib_install_args)
+if(NOT CPPINTEROP_INSTALL)
+  list(APPEND _cppinterop_lib_install_args BUILDTREE_ONLY)
+endif()
 add_llvm_library(clangCppInterOp
+  ${_cppinterop_lib_install_args}
   DISABLE_LLVM_LINK_LLVM_DYLIB
   CppInterOp.cpp
   CppInterOpDispatch.cpp

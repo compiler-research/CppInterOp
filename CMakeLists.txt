@@ -13,6 +13,10 @@ option(CPPINTEROP_USE_CLING "Use Cling as backend" OFF)
 option(CPPINTEROP_USE_REPL "Use clang-repl as backend" ON)
 option(CPPINTEROP_ENABLE_TESTING "Enable the CppInterOp testing infrastructure." ON)
 option(CPPINTEROP_BUILD_TABLEGEN_ONLY "Only build cppinterop-tblgen (for cross-compilation)" OFF)
+
+#=Set OFF to suppress install() rules and route clangCppInterOp through
+# add_llvm_library(... BUILDTREE_ONLY)
+option(CPPINTEROP_INSTALL "Generate install rules for CppInterOp" ON)
 if(EMSCRIPTEN)
   set(CPPINTEROP_EXTRA_WASM_FLAGS "-fwasm-exceptions" CACHE STRING "Extra flags for wasm")
 endif()
@@ -364,13 +368,14 @@ if(LLVMOrcRuntime_FOUND)
   configure_file("${LLVMOrcRuntime_EXECUTOR}"
                  "${CPPINTEROP_RUNTIME_BUILDTREE_DIR}/llvm-jitlink-executor"
                  COPYONLY)
-
-  install(FILES "${LLVMOrcRuntime_LIBRARY}"
-          DESTINATION "${CMAKE_INSTALL_LIBDIR}/${CPPINTEROP_RUNTIME_SUBDIR}"
-          RENAME liborc_rt.a)
-  install(PROGRAMS "${LLVMOrcRuntime_EXECUTOR}"
-          DESTINATION "${CMAKE_INSTALL_LIBDIR}/${CPPINTEROP_RUNTIME_SUBDIR}"
-          RENAME llvm-jitlink-executor)
+  if(CPPINTEROP_INSTALL)
+    install(FILES "${LLVMOrcRuntime_LIBRARY}"
+            DESTINATION "${CMAKE_INSTALL_LIBDIR}/${CPPINTEROP_RUNTIME_SUBDIR}"
+            RENAME liborc_rt.a)
+    install(PROGRAMS "${LLVMOrcRuntime_EXECUTOR}"
+            DESTINATION "${CMAKE_INSTALL_LIBDIR}/${CPPINTEROP_RUNTIME_SUBDIR}"
+            RENAME llvm-jitlink-executor)
+  endif()
 
   # Bake build-tree and install-tree runtime locations into the library
   # so it can locate the bundled parts at runtime without dladdr or any
@@ -485,35 +490,36 @@ configure_file(
   ${CMAKE_CURRENT_SOURCE_DIR}/cmake/CppInterOp/CppInterOpConfigVersion.cmake.in
   ${CMAKE_CURRENT_BINARY_DIR}/lib/cmake/CppInterOp/CppInterOpConfigVersion.cmake
   @ONLY)
-install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/lib/cmake/CppInterOp/
-  DESTINATION lib/cmake/CppInterOp
-  FILES_MATCHING
-  PATTERN "*.cmake"
+
+if(CPPINTEROP_INSTALL)
+  install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/lib/cmake/CppInterOp/
+    DESTINATION lib/cmake/CppInterOp
+    FILES_MATCHING
+    PATTERN "*.cmake"
+    )
+
+  install(DIRECTORY include/
+    DESTINATION include
+    FILES_MATCHING
+    PATTERN "*.def"
+    PATTERN "*.h"
+    PATTERN "*.inc"
+    PATTERN ".svn" EXCLUDE
+    )
+
+  install(DIRECTORY tools/
+    DESTINATION include/CppInterOp/tools
+    FILES_MATCHING
+    PATTERN "*.h"
   )
 
-
-install(DIRECTORY include/
-  DESTINATION include
-  FILES_MATCHING
-  PATTERN "*.def"
-  PATTERN "*.h"
-  PATTERN "*.inc"
-  PATTERN ".svn" EXCLUDE
-  )
-
-install(DIRECTORY tools/
-  DESTINATION include/CppInterOp/tools
-  FILES_MATCHING
-  PATTERN "*.h"
-)
-
-install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/include/
-  DESTINATION include
-  FILES_MATCHING
-  PATTERN "CMakeFiles" EXCLUDE
-  PATTERN "*.inc"
-  )
-
+  install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/include/
+    DESTINATION include
+    FILES_MATCHING
+    PATTERN "CMakeFiles" EXCLUDE
+    PATTERN "*.inc"
+    )
+endif()
 add_definitions( -D_GNU_SOURCE )
 
 # Add deps if we build together with clang.
