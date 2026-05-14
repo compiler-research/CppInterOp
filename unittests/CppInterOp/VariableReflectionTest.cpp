@@ -382,8 +382,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, VariableReflection_VariableOffsetsWithInheritan
   GTEST_SKIP() << "Test fails with Cling on Windows";
 #endif
 
-  std::vector<const char*> interpreter_args = {"-include", "new"};
-  TestFixture::CreateInterpreter(interpreter_args);
+  TestFixture::CreateInterpreter();
 
   Cpp::Declare("#include<string>");
 

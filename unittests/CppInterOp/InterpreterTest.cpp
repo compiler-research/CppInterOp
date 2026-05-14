@@ -252,7 +252,12 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_Process) {
 #endif
   if (TypeParam::isOutOfProcess)
     GTEST_SKIP() << "Test fails for OOP JIT builds";
-  std::vector<const char*> interpreter_args = { "-include", "new", "-Xclang", "-iwithsysroot/include/compat" };
+#if CLANG_VERSION_MAJOR < 22
+  if (llvm::sys::RunningOnValgrind())
+    GTEST_SKIP() << "XFAIL due to Valgrind report";
+#endif
+  std::vector<const char*> interpreter_args = {"-Xclang",
+                                               "-iwithsysroot/include/compat"};
   TestFixture::CreateInterpreter(interpreter_args);
   EXPECT_TRUE(Cpp::Process("") == 0);
   EXPECT_TRUE(Cpp::Process("int a = 12;") == 0);
@@ -611,7 +616,6 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_WrapperCacheIsPerInterpreter) {
   auto* AddDecl1 = Cpp::GetNamed("add");
   ASSERT_NE(AddDecl1, nullptr);
 
-  Cpp::Declare("#include <new>"); // Needed by JitCall
   auto JC1 = Cpp::MakeFunctionCallable(AddDecl1);
   ASSERT_TRUE(JC1.isValid());
 
@@ -628,7 +632,6 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_WrapperCacheIsPerInterpreter) {
   auto* AddDecl2 = Cpp::GetNamed("add");
   ASSERT_NE(AddDecl2, nullptr);
 
-  Cpp::Declare("#include <new>"); // Needed by JitCall
   auto JC2 = Cpp::MakeFunctionCallable(AddDecl2);
   ASSERT_TRUE(JC2.isValid());
 
