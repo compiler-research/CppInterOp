@@ -2320,6 +2320,8 @@ bool IsSameType(TCppType_t type_a, TCppType_t type_b) {
 
 bool IsPointerType(TCppType_t type) {
   INTEROP_TRACE(type);
+  if (!type)
+    return INTEROP_RETURN(false);
   QualType QT = QualType::getFromOpaquePtr(type);
   return INTEROP_RETURN(QT->isPointerType());
 }
@@ -2342,12 +2344,16 @@ TCppType_t GetPointeeType(TCppType_t type) {
 
 bool IsReferenceType(TCppType_t type) {
   INTEROP_TRACE(type);
+  if (!type)
+    return INTEROP_RETURN(nullptr);
   QualType QT = QualType::getFromOpaquePtr(type);
   return INTEROP_RETURN(QT->isReferenceType());
 }
 
 ValueKind GetValueKind(TCppType_t type) {
   INTEROP_TRACE(type);
+  if (!type)
+    return INTEROP_RETURN(nullptr);
   QualType QT = QualType::getFromOpaquePtr(type);
   if (QT->isRValueReferenceType())
     return INTEROP_RETURN(ValueKind::RValue);
@@ -2358,12 +2364,16 @@ ValueKind GetValueKind(TCppType_t type) {
 
 TCppType_t GetPointerType(TCppType_t type) {
   INTEROP_TRACE(type);
+  if (!type)
+    return INTEROP_RETURN(nullptr);
   QualType QT = QualType::getFromOpaquePtr(type);
   return INTEROP_RETURN(getASTContext().getPointerType(QT).getAsOpaquePtr());
 }
 
 TCppType_t GetReferencedType(TCppType_t type, bool rvalue) {
   INTEROP_TRACE(type, rvalue);
+  if (!type)
+    return INTEROP_RETURN(nullptr);
   QualType QT = QualType::getFromOpaquePtr(type);
   if (rvalue)
     return INTEROP_RETURN(
@@ -2403,6 +2413,8 @@ TCppType_t GetUnderlyingType(TCppType_t type) {
 
 std::string GetTypeAsString(TCppType_t var) {
   INTEROP_TRACE(var);
+  if (!var)
+    return INTEROP_RETURN("");
   QualType QT = QualType::getFromOpaquePtr(var);
   PrintingPolicy Policy(getASTContext().getPrintingPolicy());
   Policy.Bool = true;               // Print bool instead of _Bool.
@@ -2613,6 +2625,8 @@ TCppType_t GetType(const std::string& name, TCppScope_t parent /*= nullptr*/) {
 
 TCppType_t GetComplexType(TCppType_t type) {
   INTEROP_TRACE(type);
+  if (!type)
+    return INTEROP_RETURN(nullptr);
   QualType QT = QualType::getFromOpaquePtr(type);
 
   return INTEROP_RETURN(getASTContext().getComplexType(QT).getAsOpaquePtr());
@@ -4761,6 +4775,8 @@ std::vector<long int> GetDimensions(TCppType_t type) {
 
 bool IsTypeDerivedFrom(TCppType_t derived, TCppType_t base) {
   INTEROP_TRACE(derived, base);
+  if (!derived || !base)
+    return INTEROP_RETURN(false);
   auto& S = getSema();
   auto fakeLoc = GetValidSLoc(S);
   auto derivedType = clang::QualType::getFromOpaquePtr(derived);
