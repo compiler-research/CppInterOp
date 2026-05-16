@@ -113,7 +113,6 @@ endif(LLVM_LINK_LLVM_DYLIB)
 # build directory first.
 set(CPPINTEROP_TD_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 set(CPPINTEROP_TD_FILE ${CPPINTEROP_TD_DIR}/CppInterOp.td)
-set(CPPINTEROP_GEN_DIR ${CMAKE_BINARY_DIR}/include/CppInterOp)
 set(CPPINTEROP_TD_DEPS ${CPPINTEROP_TD_FILE}
                         ${CPPINTEROP_TD_DIR}/CppInterOpAPI.td)
 

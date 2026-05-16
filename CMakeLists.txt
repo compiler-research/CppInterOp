@@ -323,8 +323,12 @@ endif()
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
-# Generated .inc files from cppinterop-tblgen live under the build tree.
-include_directories(${CMAKE_BINARY_DIR}/include)
+# Generated .inc files from cppinterop-tblgen live under our own build
+# subtree. Use CMAKE_CURRENT_BINARY_DIR so consumers embedding CppInterOP
+# via add_subdirectory() (e.g. ROOT) don't write CppInterOp artifacts into
+# top-level build/include
+set(CPPINTEROP_GEN_DIR ${CMAKE_CURRENT_BINARY_DIR}/include/CppInterOp)
+include_directories(${CMAKE_CURRENT_BINARY_DIR}/include)
 
 # In rare cases we might want to have clang installed in a different place
 # than llvm and the header files should be found first (even though the
