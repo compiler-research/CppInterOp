@@ -172,17 +172,14 @@ jobs:
         # so ROOT's `core/clingutils/CMakeLists.txt` resolves
         # `${CLANG_INSTALL_PREFIX}/lib/clang` to the recipe-installed
         # clang (rather than globbing `/usr/lib/clang/*`).
-        # CppInterOp's `.td`-driven dispatch (introduced in #906) emits
-        # `CppInterOpDecl.inc` and `CppInterOpAPI.inc` via cppinterop-tblgen.
-        # CppInterOp's CMakeLists writes them to `${CMAKE_BINARY_DIR}/include/
-        # CppInterOp/` -- which under ROOT's `add_subdirectory` resolves to
-        # `<root-build>/include/CppInterOp/`, NOT to the bundled subtree's
-        # build dir. ROOT's `core/metacling/CMakeLists.txt` only adds the
-        # CppInterOp source `include/` to MetaCling's compile rules, so
+        # CppInterOp's `.td`-driven dispatch emits `CppInterOpDecl.inc` etc.
+        # via cppinterop-tblgen into `${CMAKE_CURRENT_BINARY_DIR}/include/
+        # CppInterOp/` (CppInterOp's own subtree). ROOT master doesn't yet
+        # know to put that on MetaCling's compile rules, so
         # `TClingCallFunc.h`'s `#include "CppInterOp/CppInterOpDecl.inc"`
-        # fails. Inject the top-level build/include globally via
-        # `CMAKE_CXX_FLAGS`.
-        CPPINTEROP_GEN_INC="$PWD/include"
+        # fails without help. Inject the path globally via `CMAKE_CXX_FLAGS`
+        # until ROOT lands the companion etc/cppinterop staging change.
+        CPPINTEROP_GEN_INC="$PWD/interpreter/CppInterOp/include"
         cmake -G Ninja \
               -DCMAKE_BUILD_TYPE=Release \
               -DCMAKE_C_COMPILER_LAUNCHER=ccache \
