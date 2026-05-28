@@ -150,6 +150,14 @@ jobs:
         # Strip the nested `.git` so ROOT's CMake doesn't get confused by
         # a sub-repository inside its own source tree.
         rm -rf root/interpreter/CppInterOp/.git
+        # ROOT's interpreter/CMakeLists.txt FORCE-overrides
+        # CPPINTEROP_ENABLE_TESTING from its own `-Dtesting` flag, defeating
+        # the -DCPPINTEROP_ENABLE_TESTING=ON we pass in Configure ROOT below
+        # and silently skipping the unittests subdir (no `check-cppinterop`
+        # target). Drop FORCE so a user-set cache value wins, while the
+        # ROOT-default initialization is preserved for non-CI builds.
+        sed -i '/CPPINTEROP_ENABLE_TESTING.*Enable gtest in CppInterOp/s/ FORCE)/)/' \
+          root/interpreter/CMakeLists.txt
 
     - name: Configure ROOT
       shell: bash
