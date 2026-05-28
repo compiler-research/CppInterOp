@@ -1406,6 +1406,17 @@ static void GetClassDecls(TCppScope_t klass,
 
   auto* CXXRD = dyn_cast<CXXRecordDecl>(D);
   compat::SynthesizingCodeRAII RAII(&getInterp());
+  if (auto* CTSD = dyn_cast<ClassTemplateSpecializationDecl>(CXXRD)) {
+    QualType QT;
+#if CLANG_VERSION_MAJOR < 22
+    QT = QualType(CTSD->getTypeForDecl(), 0);
+#else
+    QT = getSema().getASTContext().getCanonicalTagType(CTSD);
+#endif
+    if (!getSema().isCompleteType(CTSD->getLocation(), QT))
+      return; // Unsuccesfull instantiaton
+  }
+
   if (CXXRD->hasDefinition())
     CXXRD = CXXRD->getDefinition();
   getSema().ForceDeclarationOfImplicitMembers(CXXRD);

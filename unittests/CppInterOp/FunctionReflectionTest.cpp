@@ -326,6 +326,34 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetClassDecls) {
   EXPECT_EQ(Cpp::GetName(methods[1]), Cpp::GetName(SubDecls[5]));
   EXPECT_EQ(Cpp::GetName(methods[2]), Cpp::GetName(SubDecls[7]));
   EXPECT_EQ(Cpp::GetName(methods[3]), Cpp::GetName(SubDecls[8]));
+
+  code = "class ForwardOnly;";
+  methods.clear();
+  Decls.clear();
+  GetAllTopLevelDecls(code, Decls);
+  Cpp::GetClassMethods(Decls[0], methods);
+  EXPECT_EQ(methods.size(), 0);
+
+  code = R"(template<class T>
+    class Klass;
+    template<>
+    class Klass<int>;)";
+  methods.clear();
+  Decls.clear();
+  GetAllTopLevelDecls(code, Decls);
+  Cpp::GetClassMethods(Decls[1], methods);
+  EXPECT_EQ(methods.size(), 0);
+
+  code = R"(template<typename T>
+    class Klass {
+      T value;
+    };
+    using KlassInt = Klass<int>;)";
+  methods.clear();
+  Decls.clear();
+  GetAllTopLevelDecls(code, Decls);
+  Cpp::GetClassMethods(Decls[1], methods);
+  EXPECT_EQ(methods.size(), 6); // 6 implicit created
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetFunctionTemplatedDecls) {
