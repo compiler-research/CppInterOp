@@ -402,6 +402,13 @@ public:
   }
 };
 
+/// Opaque handle returned by MakeVTableOverlay. Owns a writable copy
+/// of an instance's vtable with selected slots replaced, and the
+/// original vptr so the overlay can be undone. Itanium ABI, single
+/// inheritance: the offset-to-top + type_info prefix and all
+/// non-overlaid slots are copied verbatim from the original vtable.
+struct VTableOverlay;
+
 // FIXME: Rework GetDimensions to make this enum redundant.
 namespace DimensionValue {
 enum : long int {

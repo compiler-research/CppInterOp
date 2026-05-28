@@ -1493,6 +1493,52 @@ uniform interface to call it from compiled code.}];
   let Args = [Arg<"TCppConstFunction_t", "func">];
 }
 
+// --- Runtime vtable overlay: replace virtual slots on a live object ---
+
+def MakeVTableOverlay : CppInterOpAPI {
+  let Doc = [{Copy the vtable of \c inst, replace the slots of the listed
+virtual \c methods with the given function pointers, and install the copy on
+\c inst. The returned handle owns the copy and remembers the original vptr;
+DestroyVTableOverlay undoes the install. All non-overlaid slots and the
+ABI prefix (offset-to-top + type_info on Itanium) are preserved, so the
+destructor, RTTI and unrelated virtuals keep dispatching normally. Slot
+indices and the vtable size are derived from \c base via Clang's
+VTableContext, so the caller works in reflected methods, not ABI-specific
+indices, and the result is correct for both Itanium and Microsoft ABIs.
+
+The install is per-instance: \c inst's vptr is the only pointer rewritten,
+so other live or future instances of the same type continue to use the
+class's original vtable. The rewrite covers only the primary vptr (offset
+0 of \c inst); a class with multiple polymorphic direct bases or any
+virtual base would have additional vptrs / vbase-offset entries the
+overlay does not touch and is rejected outright -- see \returns.
+\param[in] inst Object whose vptr is read and replaced.
+\param[in] base Polymorphic class supplying \c inst's vtable layout.
+\param[in] methods Virtual methods of \c base whose slots are replaced.
+\param[in] overlay_fns Function pointers to install at those slots.
+\param[in] n_overlays Length of \c methods and \c overlay_fns.
+\returns nullptr if \c inst is null, any method is null or not virtual,
+         \c base is not a polymorphic class, or \c base has multiple
+         polymorphic direct bases or any virtual base.}];
+  let NoCWrapper = true;
+  let ReturnType = "VTableOverlay*";
+  let Args = [
+    Arg<"void*", "inst">,
+    Arg<"TCppScope_t", "base">,
+    Arg<"const TCppConstFunction_t*", "methods">,
+    Arg<"void* const*", "overlay_fns">,
+    Arg<"std::size_t", "n_overlays">
+  ];
+}
+
+def DestroyVTableOverlay : CppInterOpAPI {
+  let Doc = [{Restore the original vptr on the overlaid instance and free the
+overlay. Null-safe.}];
+  let NoCWrapper = true;
+  let ReturnType = "void";
+  let Args = [Arg<"VTableOverlay*", "overlay">];
+}
+
 def IsIntegerType : CppInterOpAPI {
   let Doc = [{Checks if type has an integer representation.
 If \p s is non-null, it is set to the signedness of the type.}];
