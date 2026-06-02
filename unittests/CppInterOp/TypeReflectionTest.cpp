@@ -578,6 +578,20 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, TypeReflection_IsPODType) {
   EXPECT_FALSE(Cpp::IsPODType(0));
 }
 
+TYPED_TEST(CPPINTEROP_TEST_MODE, TypeReflection_IsTemplateParmType) {
+  std::vector<Decl*> Decls;
+
+  std::string code = R"(
+    template <typename T> void f(T t, const T& r, int i) {}
+    )";
+
+  GetAllTopLevelDecls(code, Decls);
+
+  EXPECT_TRUE(Cpp::IsTemplateParmType(Cpp::GetFunctionArgType(Decls[0], 0)));
+  EXPECT_FALSE(Cpp::IsTemplateParmType(Cpp::GetFunctionArgType(Decls[0], 1)));
+  EXPECT_FALSE(Cpp::IsTemplateParmType(Cpp::GetFunctionArgType(Decls[0], 2)));
+}
+
 TYPED_TEST(CPPINTEROP_TEST_MODE, TypeReflection_IsSmartPtrType) {
 #if CLANG_VERSION_MAJOR == 20 && defined(CPPINTEROP_USE_CLING) && defined(_WIN32)
   GTEST_SKIP() << "Test fails with Cling on Windows";

@@ -570,6 +570,8 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetFunctionArgType) {
     void f1(int i, double d, long l, char ch) {}
     void f2(const int i, double d[], long *l, char ch[4]) {}
     int a;
+
+    template <typename T> void f3(T t, const T& r, int i) {}
     )";
 
   GetAllTopLevelDecls(code, Decls);
@@ -577,11 +579,47 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetFunctionArgType) {
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetFunctionArgType(Decls[0], 1)), "double");
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetFunctionArgType(Decls[0], 2)), "long");
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetFunctionArgType(Decls[0], 3)), "char");
+  EXPECT_EQ(Cpp::GetFunctionArgType(Decls[0], 4), nullptr);
+
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetFunctionArgType(Decls[1], 0)), "const int");
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetFunctionArgType(Decls[1], 1)), "double[]");
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetFunctionArgType(Decls[1], 2)), "long *");
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetFunctionArgType(Decls[1], 3)), "char[4]");
+
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetFunctionArgType(Decls[2], 0)), "NULL TYPE");
+
+  EXPECT_TRUE(Cpp::IsTemplatedFunction(Decls[3]));
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetFunctionArgType(Decls[3], 0)), "T");
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetFunctionArgType(Decls[3], 1)),
+            "const T &");
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetFunctionArgType(Decls[3], 2)), "int");
+}
+
+TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_IsMethod) {
+  std::vector<Decl*> Decls, SubDecls;
+  std::string code = R"(
+    void f1() {}
+
+    template <typename T> void f2(T t) {}
+
+    class MyClass {
+      void m1() {}
+
+      template <typename T>
+      void m2(T t) {}
+    };
+    )";
+
+  GetAllTopLevelDecls(code, Decls);
+  GetAllSubDecls(Decls[2], SubDecls);
+
+  EXPECT_FALSE(Cpp::IsMethod(Decls[0]));
+  EXPECT_FALSE(Cpp::IsMethod(Decls[1]));
+  EXPECT_FALSE(Cpp::IsMethod(SubDecls[0]));
+  EXPECT_TRUE(Cpp::IsMethod(SubDecls[1]));
+  EXPECT_TRUE(Cpp::IsTemplatedFunction(SubDecls[2]));
+  EXPECT_TRUE(Cpp::IsMethod(SubDecls[2]));
+  EXPECT_FALSE(Cpp::IsMethod(nullptr));
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_FunctionTypes) {
