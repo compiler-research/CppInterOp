@@ -396,6 +396,22 @@ def GetUnderlyingType : CppInterOpAPI {
   ];
 }
 
+def GetSignedType : CppInterOpAPI {
+  let Doc = "Gets the signed counterpart of an integral type. Returns the type unchanged if it has no signed counterpart.";
+  let ReturnType = "TCppType_t";
+  let Args = [
+    Arg<"TCppType_t", "type">
+  ];
+}
+
+def GetUnsignedType : CppInterOpAPI {
+  let Doc = "Gets the unsigned counterpart of an integral type. Returns the type unchanged if it has no unsigned counterpart.";
+  let ReturnType = "TCppType_t";
+  let Args = [
+    Arg<"TCppType_t", "type">
+  ];
+}
+
 def IsRecordType : CppInterOpAPI {
   let Doc = "Checks if the provided parameter is a Record (struct).";
 

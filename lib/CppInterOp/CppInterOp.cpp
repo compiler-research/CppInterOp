@@ -2576,6 +2576,85 @@ TCppType_t GetUnderlyingType(TCppType_t type) {
   return INTEROP_RETURN(QT.getAsOpaquePtr());
 }
 
+TCppType_t GetSignedType(TCppType_t type) {
+  INTEROP_TRACE(type);
+  if (!type)
+    return INTEROP_RETURN(nullptr);
+  QualType QT = QualType::getFromOpaquePtr(type);
+  const BuiltinType *BT = QT->getAs<BuiltinType>();
+  if (!BT)
+    return INTEROP_RETURN(QT.getAsOpaquePtr());
+  ASTContext &C = getSema().getASTContext();
+  QualType SignedQT;
+  switch (BT->getKind()) {
+    case BuiltinType::SChar:
+    case BuiltinType::Short:
+    case BuiltinType::Int:
+    case BuiltinType::Long:
+    case BuiltinType::LongLong:
+    case BuiltinType::Int128:
+      return INTEROP_RETURN(QT.getAsOpaquePtr());
+    case BuiltinType::UChar:
+    case BuiltinType::Char_U:
+      SignedQT = C.SignedCharTy; break;
+    case BuiltinType::UShort:
+      SignedQT = C.ShortTy; break;
+    case BuiltinType::UInt:
+      SignedQT = C.IntTy; break;
+    case BuiltinType::ULong:
+      SignedQT = C.LongTy; break;
+    case BuiltinType::ULongLong:
+      SignedQT = C.LongLongTy; break;
+    case BuiltinType::UInt128:
+      SignedQT = C.Int128Ty; break;
+    case BuiltinType::Char_S:
+      return INTEROP_RETURN(QT.getAsOpaquePtr());
+    default:
+      return INTEROP_RETURN(QT.getAsOpaquePtr());
+  }
+  SignedQT = C.getQualifiedType(SignedQT, QT.getQualifiers());
+  return INTEROP_RETURN(SignedQT.getAsOpaquePtr());
+}
+
+TCppType_t GetUnsignedType(TCppType_t type) {
+  INTEROP_TRACE(type);
+  if (!type)
+    return INTEROP_RETURN(nullptr);
+  QualType QT = QualType::getFromOpaquePtr(type);
+  const BuiltinType *BT = QT->getAs<BuiltinType>();
+  if (!BT)
+    return INTEROP_RETURN(QT.getAsOpaquePtr());
+  ASTContext &C = getSema().getASTContext();
+  QualType UnsignedQT;
+  switch (BT->getKind()) {
+    case BuiltinType::UChar:
+    case BuiltinType::Char_U:
+    case BuiltinType::UShort:
+    case BuiltinType::UInt:
+    case BuiltinType::ULong:
+    case BuiltinType::ULongLong:
+    case BuiltinType::UInt128:
+      return INTEROP_RETURN(QT.getAsOpaquePtr());
+    case BuiltinType::SChar:
+    case BuiltinType::Char_S:
+      UnsignedQT = C.UnsignedCharTy; break;
+    case BuiltinType::Short:
+      UnsignedQT = C.UnsignedShortTy; break;
+    case BuiltinType::Int:
+      UnsignedQT = C.UnsignedIntTy; break;
+    case BuiltinType::Long:
+      UnsignedQT = C.UnsignedLongTy; break;
+    case BuiltinType::LongLong:
+      UnsignedQT = C.UnsignedLongLongTy; break;
+    case BuiltinType::Int128:
+      UnsignedQT = C.UnsignedInt128Ty; break;
+    default:
+      return INTEROP_RETURN(QT.getAsOpaquePtr());
+  }
+  UnsignedQT = C.getQualifiedType(UnsignedQT, QT.getQualifiers());
+  return INTEROP_RETURN(UnsignedQT.getAsOpaquePtr());
+}
+
 std::string GetTypeAsString(TCppType_t var) {
   INTEROP_TRACE(var);
   QualType QT = QualType::getFromOpaquePtr(var);

@@ -389,6 +389,109 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, TypeReflection_IsUnderlyingTypeRecordType) {
   EXPECT_TRUE(is_var_of_underly_record_ty(Decls[24]));
 }
 
+TYPED_TEST(CPPINTEROP_TEST_MODE, TypeReflection_GetSignedType) {
+  std::vector<Decl *> Decls;
+  std::string code = R"(
+    unsigned char var0 = 0;
+    unsigned short var1 = 0;
+    unsigned int var2 = 0;
+    unsigned long var3 = 0;
+    unsigned long long var4 = 0;
+    unsigned __int128 var5 = 0;
+    int var6 = 0;
+    short var7 = 0;
+    long var8 = 0;
+    long long var9 = 0;
+    __int128 var10 = 0;
+    float var11 = 0.0f;
+    signed char var12 = 0;
+    char var13 = 0;
+    struct MyStruct {} var14;
+  )";
+  GetAllTopLevelDecls(code, Decls);
+  EXPECT_EQ(Cpp::GetTypeAsString(
+      Cpp::GetSignedType(Cpp::GetVariableType(Decls[0]))), "signed char");
+  EXPECT_EQ(Cpp::GetTypeAsString(
+      Cpp::GetSignedType(Cpp::GetVariableType(Decls[1]))), "short");
+  EXPECT_EQ(Cpp::GetTypeAsString(
+      Cpp::GetSignedType(Cpp::GetVariableType(Decls[2]))), "int");
+  EXPECT_EQ(Cpp::GetTypeAsString(
+      Cpp::GetSignedType(Cpp::GetVariableType(Decls[3]))), "long");
+  EXPECT_EQ(Cpp::GetTypeAsString(
+      Cpp::GetSignedType(Cpp::GetVariableType(Decls[4]))), "long long");
+  EXPECT_EQ(Cpp::GetTypeAsString(
+      Cpp::GetSignedType(Cpp::GetVariableType(Decls[5]))), "__int128");
+  EXPECT_EQ(Cpp::GetTypeAsString(
+      Cpp::GetSignedType(Cpp::GetVariableType(Decls[6]))), "int");
+  EXPECT_EQ(Cpp::GetTypeAsString(
+      Cpp::GetSignedType(Cpp::GetVariableType(Decls[7]))), "short");
+  EXPECT_EQ(Cpp::GetTypeAsString(
+      Cpp::GetSignedType(Cpp::GetVariableType(Decls[8]))), "long");
+  EXPECT_EQ(Cpp::GetTypeAsString(
+      Cpp::GetSignedType(Cpp::GetVariableType(Decls[9]))), "long long");
+  EXPECT_EQ(Cpp::GetTypeAsString(
+      Cpp::GetSignedType(Cpp::GetVariableType(Decls[10]))), "__int128");
+  EXPECT_EQ(Cpp::GetTypeAsString(
+      Cpp::GetSignedType(Cpp::GetVariableType(Decls[11]))), "float");
+  EXPECT_EQ(Cpp::GetTypeAsString(
+    Cpp::GetSignedType(Cpp::GetVariableType(Decls[12]))), "signed char");
+  EXPECT_EQ(Cpp::GetTypeAsString(
+    Cpp::GetSignedType(Cpp::GetVariableType(Decls[13]))), "char");
+  EXPECT_EQ(Cpp::GetTypeAsString(
+    Cpp::GetSignedType(Cpp::GetVariableType(Decls[15]))), "MyStruct");
+  EXPECT_EQ(Cpp::GetSignedType(nullptr), nullptr);
+}
+
+TYPED_TEST(CPPINTEROP_TEST_MODE, TypeReflection_GetUnsignedType) {
+  std::vector<Decl *> Decls;
+  std::string code = R"(
+    signed char var0 = 0;
+    short var1 = 0;
+    int var2 = 0;
+    long var3 = 0;
+    long long var4 = 0;
+    __int128 var5 = 0;
+    unsigned char var6 = 0;
+    unsigned short var7 = 0;
+    unsigned int var8 = 0;
+    unsigned long var9 = 0;
+    unsigned long long var10 = 0;
+    unsigned __int128 var11 = 0;
+    float var12 = 0.0f;
+    struct MyStruct {} var13;
+  )";
+  GetAllTopLevelDecls(code, Decls);
+  EXPECT_EQ(Cpp::GetTypeAsString(
+      Cpp::GetUnsignedType(Cpp::GetVariableType(Decls[0]))), "unsigned char");
+  EXPECT_EQ(Cpp::GetTypeAsString(
+      Cpp::GetUnsignedType(Cpp::GetVariableType(Decls[1]))), "unsigned short");
+  EXPECT_EQ(Cpp::GetTypeAsString(
+      Cpp::GetUnsignedType(Cpp::GetVariableType(Decls[2]))), "unsigned int");
+  EXPECT_EQ(Cpp::GetTypeAsString(
+      Cpp::GetUnsignedType(Cpp::GetVariableType(Decls[3]))), "unsigned long");
+  EXPECT_EQ(Cpp::GetTypeAsString(
+      Cpp::GetUnsignedType(Cpp::GetVariableType(Decls[4]))), "unsigned long long");
+  EXPECT_EQ(Cpp::GetTypeAsString(
+      Cpp::GetUnsignedType(Cpp::GetVariableType(Decls[5]))), "unsigned __int128");
+  EXPECT_EQ(Cpp::GetTypeAsString(
+      Cpp::GetUnsignedType(Cpp::GetVariableType(Decls[6]))), "unsigned char");
+  EXPECT_EQ(Cpp::GetTypeAsString(
+      Cpp::GetUnsignedType(Cpp::GetVariableType(Decls[7]))), "unsigned short");
+  EXPECT_EQ(Cpp::GetTypeAsString(
+      Cpp::GetUnsignedType(Cpp::GetVariableType(Decls[8]))), "unsigned int");
+  EXPECT_EQ(Cpp::GetTypeAsString(
+      Cpp::GetUnsignedType(Cpp::GetVariableType(Decls[9]))), "unsigned long");
+  EXPECT_EQ(Cpp::GetTypeAsString(
+      Cpp::GetUnsignedType(Cpp::GetVariableType(Decls[10]))), "unsigned long long");
+  EXPECT_EQ(Cpp::GetTypeAsString(
+      Cpp::GetUnsignedType(Cpp::GetVariableType(Decls[11]))), "unsigned __int128");
+  EXPECT_EQ(Cpp::GetTypeAsString(
+      Cpp::GetUnsignedType(Cpp::GetVariableType(Decls[12]))), "float");
+  EXPECT_EQ(Cpp::GetTypeAsString(
+    Cpp::GetUnsignedType(Cpp::GetVariableType(Decls[14]))), "MyStruct");
+  EXPECT_EQ(Cpp::GetUnsignedType(nullptr), nullptr);
+}
+
 TYPED_TEST(CPPINTEROP_TEST_MODE, TypeReflection_GetComplexType) {
   TestFixture::CreateInterpreter();
 
