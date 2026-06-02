@@ -1375,6 +1375,14 @@ This function parses and instantiates a template function.}];
   let Args = [Arg<"const char*", "function_template">];
 }
 
+def IsTemplateParmType : CppInterOpAPI {
+  let Doc = "Checks if the given type is a template parameter type.";
+  let ReturnType = "bool";
+  let Args = [
+    Arg<"TCppType_t", "typ">
+  ];
+}
+
 def IsFunction : CppInterOpAPI {
   let Doc = "Checks if the scope is a function.";
   let ReturnType = "bool";

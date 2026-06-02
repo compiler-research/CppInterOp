@@ -36,6 +36,7 @@
 #include "clang/AST/DeclAccessPair.h"
 #include "clang/AST/DeclBase.h"
 #include "clang/AST/DeclCXX.h"
+#include "clang/AST/DeclTemplate.h"
 #include "clang/AST/DeclarationName.h"
 #include "clang/AST/Expr.h"
 #include "clang/AST/ExprCXX.h"
@@ -1616,6 +1617,9 @@ TCppType_t GetFunctionArgType(TCppFunction_t func, TCppIndex_t iarg) {
   INTEROP_TRACE(func, iarg);
   auto* D = (clang::Decl*)func;
 
+  if (auto* FTD = llvm::dyn_cast_or_null<clang::FunctionTemplateDecl>(D))
+    D = FTD->getTemplatedDecl();
+
   if (auto* FD = llvm::dyn_cast_or_null<clang::FunctionDecl>(D)) {
     if (iarg < FD->getNumParams()) {
       auto* PVD = FD->getParamDecl(iarg);
@@ -1624,6 +1628,12 @@ TCppType_t GetFunctionArgType(TCppFunction_t func, TCppIndex_t iarg) {
   }
 
   return INTEROP_RETURN(nullptr);
+}
+
+bool IsTemplateParmType(TCppType_t typ) {
+  INTEROP_TRACE(typ);
+  clang::QualType QT = clang::QualType::getFromOpaquePtr(typ);
+  return INTEROP_RETURN(QT->isTemplateTypeParmType());
 }
 
 std::string GetFunctionSignature(TCppFunction_t func) {
@@ -1873,8 +1883,10 @@ bool CheckMethodAccess(TCppFunction_t method, AccessSpecifier AS) {
 
 bool IsMethod(TCppConstFunction_t method) {
   INTEROP_TRACE(method);
-  return INTEROP_RETURN(
-      dyn_cast_or_null<CXXMethodDecl>(static_cast<const clang::Decl*>(method)));
+  const auto* D = static_cast<const clang::Decl*>(method);
+  if (const auto* FTD = dyn_cast_or_null<FunctionTemplateDecl>(D))
+    D = FTD->getTemplatedDecl();
+  return INTEROP_RETURN(dyn_cast_or_null<CXXMethodDecl>(D));
 }
 
 bool IsPublicMethod(TCppFunction_t method) {
