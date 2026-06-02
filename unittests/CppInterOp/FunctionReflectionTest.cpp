@@ -2333,6 +2333,26 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetFunctionCallWrapper) {
 
   EXPECT_TRUE(Cpp::IsLambdaClass(Cpp::GetFunctionReturnType(get_fn)));
   EXPECT_FALSE(Cpp::IsLambdaClass(Cpp::GetFunctionReturnType(bar)));
+
+  Cpp::Declare(R"(
+    template <typename F>
+    void callback(F&&) {}
+
+    int (*fn_ptr)(int, int) = nullptr;
+  )");
+
+  unresolved_candidate_methods.clear();
+  Cpp::GetClassTemplatedMethods("callback", Cpp::GetGlobalScope(),
+                                unresolved_candidate_methods);
+  EXPECT_EQ(unresolved_candidate_methods.size(), 1);
+
+  Cpp::TCppScope_t callback_func = Cpp::BestOverloadFunctionMatch(
+      unresolved_candidate_methods, {},
+      {Cpp::GetVariableType(Cpp::GetNamed("fn_ptr"))});
+  EXPECT_TRUE(callback_func);
+
+  auto callback_callable = Cpp::MakeFunctionCallable(callback_func);
+  EXPECT_EQ(callback_callable.getKind(), Cpp::JitCall::kGenericCall);
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_IsConstMethod) {

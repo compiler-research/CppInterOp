@@ -2916,20 +2916,26 @@ void collect_type_info(const FunctionDecl* FD, QualType& QT,
       }
     }
   }
-  if (QT->isFunctionPointerType()) {
+  if (QT.getNonReferenceType()->isFunctionPointerType()) {
+    clang::QualType NRQT = QT.getNonReferenceType();
     std::string fp_typedef_name;
     {
       std::ostringstream nm;
       nm << "FP" << gWrapperSerial++;
       type_name = nm.str();
       raw_string_ostream OS(fp_typedef_name);
-      QT.print(OS, Policy, type_name);
+      NRQT.print(OS, Policy, type_name);
       OS.flush();
     }
 
     indent(typedefbuf, indent_level);
 
     typedefbuf << "typedef " << fp_typedef_name << ";\n";
+
+    if (QT->isRValueReferenceType())
+      refType = kRValueReference;
+    else
+      refType = kLValueReference;
     return;
   } else if (QT->isMemberPointerType()) {
     std::string mp_typedef_name;
