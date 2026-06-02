@@ -47,6 +47,7 @@
 #include "clang/AST/RecordLayout.h"
 #include "clang/AST/Stmt.h"
 #include "clang/AST/Type.h"
+#include "clang/AST/VTableBuilder.h"
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/DiagnosticSema.h"
 #include "clang/Basic/LangStandard.h"
@@ -95,6 +96,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <cstdlib>
+#include <cstring>
 #include <deque>
 #include <iostream>
 #include <iterator>
@@ -2002,6 +2004,168 @@ bool IsVirtualMethod(TCppFunction_t method) {
   }
 
   return INTEROP_RETURN(false);
+}
+
+// Vtable slot index of a virtual method in the target ABI's layout, or -1
+// if the method is not virtual. Clang's VTableContext yields the right index
+// for both Itanium (first user virtual after the destructor pair) and
+// Microsoft (single deleting-dtor slot).
+static int virtualMethodSlot(TCppFunction_t method) {
+  auto* MD = llvm::dyn_cast_or_null<CXXMethodDecl>((Decl*)method);
+  if (!MD || !MD->isVirtual())
+    return -1;
+
+  ASTContext& C = getASTContext();
+  if (C.getTargetInfo().getCXXABI().isMicrosoft()) {
+    auto* VTC = llvm::cast<MicrosoftVTableContext>(C.getVTableContext());
+    return (int)VTC->getMethodVFTableLocation(GlobalDecl(MD)).Index;
+  }
+  auto* VTC = llvm::cast<ItaniumVTableContext>(C.getVTableContext());
+  return (int)VTC->getMethodVTableIndex(GlobalDecl(MD));
+}
+
+// Number of vtable slots from the address point onward for a polymorphic
+// class (the count applyVTableOverlay copies): destructor slots plus every
+// virtual. -1 if scope is not a polymorphic class.
+static int vtableMethodSlotCount(TCppScope_t scope) {
+  auto* RD = llvm::dyn_cast_or_null<CXXRecordDecl>((Decl*)scope);
+  if (RD)
+    RD = RD->getDefinition();
+  if (!RD || !RD->isPolymorphic())
+    return -1;
+
+  ASTContext& C = getASTContext();
+  if (C.getTargetInfo().getCXXABI().isMicrosoft()) {
+    auto* VTC = llvm::cast<MicrosoftVTableContext>(C.getVTableContext());
+    const VTableLayout& L = VTC->getVFTableLayout(RD, CharUnits::Zero());
+    return (int)L.vtable_components().size();
+  }
+  auto* VTC = llvm::cast<ItaniumVTableContext>(C.getVTableContext());
+  const VTableLayout& L = VTC->getVTableLayout(RD);
+  unsigned AddrPoint = L.getAddressPointIndices()[0];
+  return (int)(L.vtable_components().size() - AddrPoint);
+}
+
+// True if \c RD's vtable layout is beyond the single-vptr overlay model:
+//  * multiple polymorphic direct bases -> secondary-base subobjects have
+//    their own vptrs that the overlay does not touch, so dispatch through
+//    a pointer to such a subobject would silently hit the original method;
+//  * any virtual base -> the primary vtable has vbase-offset entries
+//    before the address point, and the virtual-base subobject carries a
+//    vtable-in-derived with virtual thunks that the overlay does not
+//    retarget. Returns true so MakeVTableOverlay can refuse instead of
+//    quietly mis-overlaying.
+static bool hasComplexVTableLayout(const CXXRecordDecl* RD) {
+  if (RD->getNumVBases() > 0)
+    return true;
+  unsigned polymorphic_direct_bases = 0;
+  for (const auto& B : RD->bases()) {
+    const auto* BD = B.getType()->getAsCXXRecordDecl();
+    if (!BD)
+      continue;
+    BD = BD->getDefinition();
+    if (BD && BD->isPolymorphic() && ++polymorphic_direct_bases > 1)
+      return true;
+  }
+  return false;
+}
+
+struct VTableOverlay {
+  void** block;        // owned copy; the published vtable is block + kPrefix
+  void* original_vptr; // restored by DestroyVTableOverlay
+  void* inst;          // object whose vptr was replaced
+};
+
+// Minimum slot count a polymorphic class can have from its address point:
+// Itanium emits the destructor pair (D1 + D0) so the count is at least 2;
+// Microsoft emits a single deleting-dtor slot so the count is at least 1.
+// vtableMethodSlotCount returns -1 for non-polymorphic scopes.
+#if defined(_WIN32)
+constexpr int kMinVTableMethodSlots = 1;
+#else
+constexpr int kMinVTableMethodSlots = 2;
+#endif
+
+// Reflection-free pointer surgery: copy inst's vtable, overwrite slots with
+// fns, install the copy and return a handle owning it. The slot indices and
+// count are resolved from reflection by the caller (MakeVTableOverlay).
+static VTableOverlay* applyVTableOverlay(void* inst, int total_method_slots,
+                                         const int* slots, void* const* fns,
+                                         std::size_t n) {
+  if (!inst || total_method_slots < kMinVTableMethodSlots)
+    return nullptr;
+  for (std::size_t i = 0; i < n; ++i) {
+    if (slots[i] < 0 || slots[i] >= total_method_slots)
+      return nullptr;
+  }
+
+  // Slots before the address point that must be copied with the vtable.
+  // Itanium: vptr[-2] offset-to-top, vptr[-1] type_info. Microsoft: a
+  // single vfptr[-1] complete-object-locator. The overlay runs on a live
+  // in-process object, so the host compiler's ABI is the relevant one.
+#if defined(_WIN32)
+  constexpr int kPrefix = 1;
+#else
+  constexpr int kPrefix = 2;
+#endif
+  const int total = kPrefix + total_method_slots;
+
+  void** orig_vptr = *reinterpret_cast<void***>(inst);
+  void** block = new void*[total];
+  std::memcpy(block, orig_vptr - kPrefix, total * sizeof(void*));
+
+  for (std::size_t i = 0; i < n; ++i)
+    block[kPrefix + slots[i]] = fns[i];
+
+  // Per-instance install: the new vptr is written into *this* object only.
+  // Other live and future instances of the same type continue to use the
+  // class's original vtable. DestroyVTableOverlay restores `inst`'s vptr.
+  *reinterpret_cast<void***>(inst) = block + kPrefix;
+  return new VTableOverlay{block, reinterpret_cast<void*>(orig_vptr), inst};
+}
+
+VTableOverlay* MakeVTableOverlay(void* inst, TCppScope_t base,
+                                 const TCppConstFunction_t* methods,
+                                 void* const* overlay_fns,
+                                 std::size_t n_overlays) {
+  INTEROP_TRACE(inst, base, methods, overlay_fns, n_overlays);
+  // Refuse layouts the single-primary-vptr overlay cannot fully express,
+  // so the caller cannot silently produce mis-dispatching objects. Must run
+  // before vtableMethodSlotCount: on MSVC, getVFTableLayout(RD, offset 0)
+  // asserts when a virtual-inheritance class has no VFTable at that offset.
+  if (!inst)
+    return INTEROP_RETURN(nullptr);
+  auto* RD = llvm::dyn_cast_or_null<CXXRecordDecl>((Decl*)base);
+  if (RD)
+    RD = RD->getDefinition();
+  if (!RD || !RD->isPolymorphic() || hasComplexVTableLayout(RD))
+    return INTEROP_RETURN(nullptr);
+
+  int total_method_slots = vtableMethodSlotCount(base);
+  if (total_method_slots < kMinVTableMethodSlots)
+    return INTEROP_RETURN(nullptr);
+
+  llvm::SmallVector<int, 8> slots;
+  slots.reserve(n_overlays);
+  for (std::size_t i = 0; i < n_overlays; ++i) {
+    int slot = virtualMethodSlot(const_cast<TCppFunction_t>(methods[i]));
+    if (slot < 0)
+      return INTEROP_RETURN(nullptr);
+    slots.push_back(slot);
+  }
+  return INTEROP_RETURN(applyVTableOverlay(
+      inst, total_method_slots, slots.data(), overlay_fns, n_overlays));
+}
+
+void DestroyVTableOverlay(VTableOverlay* overlay) {
+  INTEROP_TRACE(overlay);
+  if (!overlay)
+    return INTEROP_VOID_RETURN();
+  *reinterpret_cast<void***>(overlay->inst) =
+      reinterpret_cast<void**>(overlay->original_vptr);
+  delete[] overlay->block;
+  delete overlay;
+  return INTEROP_VOID_RETURN();
 }
 
 void GetDatamembers(TCppScope_t scope, std::vector<TCppScope_t>& datamembers) {
