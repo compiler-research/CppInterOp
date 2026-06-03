@@ -32,6 +32,7 @@
 #include <dlfcn.h>
 #endif
 
+#include "CppInterOp/Box.h"
 #include "CppInterOp/CppInterOpTypes.h"
 
 #include <cstdlib>

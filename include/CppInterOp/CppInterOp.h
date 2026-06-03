@@ -19,6 +19,9 @@
 #endif
 
 #include "CppInterOp/CppInterOpTypes.h"
+// Cpp::Box must be visible before the tablegen-generated declarations
+// below, since Evaluate (and future Value-returning APIs) reference it.
+#include "CppInterOp/Box.h"
 
 #include <initializer_list>
 #include <memory>
@@ -39,10 +42,13 @@ namespace detail {
 // self-pointer. Exposed only so the inline VTableOverlayExtraSlot helper
 // below can compile the offset; users should not read or write any slots
 // directly.
+// static (not inline) so the reproducer-as-TU compiles under C++14;
+// inline-variable is a C++17 extension and the JIT-compiled reproducer
+// is fed back through the interpreter at its default language standard.
 #ifdef _WIN32
-inline constexpr int kVTableOverlayPrefixSize = 1 + 1;
+static constexpr int kVTableOverlayPrefixSize = 1 + 1;
 #else
-inline constexpr int kVTableOverlayPrefixSize = 2 + 1;
+static constexpr int kVTableOverlayPrefixSize = 2 + 1;
 #endif
 } // namespace detail
 

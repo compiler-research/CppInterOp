@@ -168,13 +168,32 @@ TYPED_TEST(CppInterOpTest, CAPI_EnumFunctions) {
   // GetLanguage returns an InterpreterLanguage enum as unsigned char.
   // CXX == 5 (Unknown=0, Asm=1, CIR=2, LLVM_IR=3, C=4, CXX=5)
   EXPECT_EQ(cppinterop_GetLanguage(nullptr), 5);
+}
 
-  // Evaluate with bool* HadError.
-  bool HadError = false;
-  EXPECT_EQ(cppinterop_Evaluate("42", &HadError), 42);
-  EXPECT_FALSE(HadError);
-  // Evaluate error path tested in Interpreter_DeclareSilent; not
-  // duplicated here to avoid LLVM 22 crash and Windows MSBuild issues.
+// Exercises the hand-written cppinterop_Evaluate C bridge. The C++ overload
+// returning Cpp::Box has no C wrapper (NoCWrapper); C clients use this form.
+TYPED_TEST(CppInterOpTest, CAPI_Evaluate) {
+  if (TypeParam::isOutOfProcess)
+    GTEST_SKIP() << "Evaluate not supported in OOP JIT";
+  TestFixture::CreateInterpreter();
+
+  bool had_error = true; // ensure success path clears it
+  EXPECT_EQ(cppinterop_Evaluate("42", &had_error), 42);
+  EXPECT_FALSE(had_error);
+
+  // Null HadError pointer is documented as supported.
+  EXPECT_EQ(cppinterop_Evaluate("7 * 6", nullptr), 42);
+
+  // Error path: function writes true to HadError and returns ~0UL.
+  // Use a no-Value-after-success snippet (pure declaration) instead of
+  // `#error`; both hit the `!V.hasValue()` arm in CXCppInterOp.cpp's
+  // legacy Evaluate, but `#error` emits clang diagnostics that MSBuild's
+  // error-regex flags as a compile failure on the Windows CI runner.
+  had_error = false;
+  EXPECT_EQ(static_cast<unsigned long>(
+                cppinterop_Evaluate("class CAPIEvalNoValue {};", &had_error)),
+            ~0UL);
+  EXPECT_TRUE(had_error);
 }
 
 TYPED_TEST(CppInterOpTest, CAPI_CollectionReturn) {

@@ -4676,24 +4676,85 @@ int Process(const char* code) {
   return INTEROP_RETURN(getInterp().process(code));
 }
 
-intptr_t Evaluate(const char* code, bool* IsValueInvalid /*=nullptr*/) {
-  INTEROP_TRACE(code, INTEROP_OUT(IsValueInvalid));
+// Classify the QualType of a successfully-evaluated value into a
+// Box::Kind. clang::Value's own ctor asserts on builtins the X-macro
+// doesn't list (`__int128`, `_BitInt`, `_Float16`, ...), so by the time
+// we get here QT is non-null and BT->getKind() is one of the enumerated
+// arms. Records, pointers and references fall through to K_PtrOrObj.
+// See memory/clang_value_wide_types_gap.md for the upstream follow-up
+// that would broaden Value's coverage.
+static Cpp::Box::Kind classifyByQualType(clang::QualType QT) {
+  if (const auto* BT = QT->getAs<clang::BuiltinType>()) {
+    switch (BT->getKind()) {
+    case clang::BuiltinType::Bool:
+      return Cpp::Box::K_Bool;
+    case clang::BuiltinType::Char_S:
+      return Cpp::Box::K_Char_S;
+    case clang::BuiltinType::Char_U:
+      // Platform-`unsigned`-char alias; share UChar storage so the
+      // X-macro doesn't need a duplicate Box::Create<T> specialization.
+      return Cpp::Box::K_UChar;
+    case clang::BuiltinType::SChar:
+      return Cpp::Box::K_SChar;
+    case clang::BuiltinType::UChar:
+      return Cpp::Box::K_UChar;
+    case clang::BuiltinType::Short:
+      return Cpp::Box::K_Short;
+    case clang::BuiltinType::UShort:
+      return Cpp::Box::K_UShort;
+    case clang::BuiltinType::Int:
+      return Cpp::Box::K_Int;
+    case clang::BuiltinType::UInt:
+      return Cpp::Box::K_UInt;
+    case clang::BuiltinType::Long:
+      return Cpp::Box::K_Long;
+    case clang::BuiltinType::ULong:
+      return Cpp::Box::K_ULong;
+    case clang::BuiltinType::LongLong:
+      return Cpp::Box::K_LongLong;
+    case clang::BuiltinType::ULongLong:
+      return Cpp::Box::K_ULongLong;
+    case clang::BuiltinType::Float:
+      return Cpp::Box::K_Float;
+    case clang::BuiltinType::Double:
+      return Cpp::Box::K_Double;
+    case clang::BuiltinType::LongDouble:
+      return Cpp::Box::K_LongDouble;
+    default:
+      llvm_unreachable(
+          "clang::Value asserts on builtins outside the X-macro set");
+    }
+  }
+  return Cpp::Box::K_PtrOrObj;
+}
+
+Box Evaluate(const char* code) {
+  INTEROP_TRACE(code);
   compat::Value V;
-
-  if (IsValueInvalid)
-    *IsValueInvalid = false;
-
   auto res = getInterp().evaluate(code, V);
   CPPINTEROP_MSAN_UNPOISON_VALUE(V);
-  // 0 is success; an unset V on success means convertTo would assert.
-  if (res != 0 || !V.hasValue()) {
-    if (IsValueInvalid)
-      *IsValueInvalid = true;
-    // FIXME: Make this return llvm::Expected
-    return INTEROP_RETURN(~0UL);
-  }
+  if (res != 0 || !V.hasValue())
+    return INTEROP_RETURN(Box{});
 
-  return INTEROP_RETURN(compat::convertTo<intptr_t>(V));
+  clang::QualType QT = V.getType();
+  void* qt = QT.getAsOpaquePtr();
+  switch (classifyByQualType(QT)) {
+#define X(type, name)                                                          \
+  case Cpp::Box::K_##name:                                                     \
+    return INTEROP_RETURN(                                                     \
+        Cpp::Box::Create<type>(compat::convertTo<type>(V), qt));
+    CPP_BOX_BUILTIN_TYPES
+#undef X
+  case Cpp::Box::K_PtrOrObj:
+    return INTEROP_RETURN(compat::MakeValueBox(V, qt));
+  case Cpp::Box::K_Char_U:
+  case Cpp::Box::K_Void:
+  case Cpp::Box::K_Unspecified:
+    // classifyByQualType never produces these (Char_U folds to UChar;
+    // Void/Unspecified can't reach a hasValue=true path).
+    llvm_unreachable("Box::Kind not produced by classifyByQualType");
+  }
+  llvm_unreachable("classifyByQualType returned an unhandled Kind");
 }
 
 std::string LookupLibrary(const char* lib_name) {

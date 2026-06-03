@@ -33,6 +33,12 @@ extern "C" {
 
 // --- Hand-written wrappers (see lib/CppInterOp/CXCppInterOp.cpp) ---
 
+/// C-ABI overload of Cpp::Evaluate. Returns the execution result as
+/// a raw \c intptr_t bit pattern; on parse error or no-value-after-
+/// success writes \c true to \c *HadError (if non-null) and returns
+/// \c ~0UL. The Box-returning C++ overload is marked NoCWrapper.
+CPPINTEROP_API intptr_t cppinterop_Evaluate(const char* code, bool* HadError);
+
 /// Returns the templated method scopes inside \c parent matching
 /// \c name. The bool-return-with-vector-outparam shape is not
 /// expressible by the tablegen wrapper emitter; callers check
