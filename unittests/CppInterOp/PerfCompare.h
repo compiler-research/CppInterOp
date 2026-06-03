@@ -17,7 +17,7 @@
 #include <string>
 #include <vector>
 
-namespace CppInterOpTest {
+namespace PerfCompare {
 
 inline const std::map<std::string, double>& BenchmarkResults() {
   static std::map<std::string, double> cache;
@@ -49,13 +49,13 @@ inline double NsPerOp(const std::string& name) {
   return it->second;
 }
 
-} // namespace CppInterOpTest
+} // namespace PerfCompare
 
 // A should be at least `factor` times faster than B.
 #define EXPECT_AT_LEAST_N_TIMES_FASTER(A, B, factor)                           \
   do {                                                                         \
-    double ta_ = ::CppInterOpTest::NsPerOp(#A);                                \
-    double tb_ = ::CppInterOpTest::NsPerOp(#B);                                \
+    double ta_ = ::PerfCompare::NsPerOp(#A);                                \
+    double tb_ = ::PerfCompare::NsPerOp(#B);                                \
     EXPECT_GT(tb_ / ta_, (factor))                                             \
         << #A << " (" << ta_ << " ns) not " << (factor) << "x faster than "    \
         << #B << " (" << tb_ << " ns)";                                        \

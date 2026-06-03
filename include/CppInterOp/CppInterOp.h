@@ -31,6 +31,32 @@ namespace CppImpl {
 // from CppInterOp.td. Do not edit this section by hand.
 #include "CppInterOp/CppInterOpDecl.inc"
 
+namespace detail {
+// Total slots before the published vtable's address point in an overlay
+// block: the ABI prefix of the underlying class (1 on MSVC --
+// complete-object-locator; 2 on Itanium -- offset-to-top + type_info)
+// plus 1 hidden slot CppInterOp interposes for the dtor-hook
+// self-pointer. Exposed only so the inline VTableOverlayExtraSlot helper
+// below can compile the offset; users should not read or write any slots
+// directly.
+#ifdef _WIN32
+inline constexpr int kVTableOverlayPrefixSize = 1 + 1;
+#else
+inline constexpr int kVTableOverlayPrefixSize = 2 + 1;
+#endif
+} // namespace detail
+
+/// Address of the i-th extra-prefix slot of an instance with an overlay
+/// installed via MakeVTableOverlay(..., n_extra_prefix_slots = N, ...).
+/// Returns a void*& so callers read and write through the same expression;
+/// this is the canonical access path -- bindings should not synthesize the
+/// vptr arithmetic themselves. Behavior is undefined if \c inst has no
+/// overlay or i >= N.
+inline void*& VTableOverlayExtraSlot(void* inst, std::size_t i) {
+  void** vptr = *reinterpret_cast<void***>(inst);
+  return vptr[-(detail::kVTableOverlayPrefixSize + 1 + static_cast<int>(i))];
+}
+
 struct VTableOverlayDeleter {
   void operator()(VTableOverlay* o) const noexcept { DestroyVTableOverlay(o); }
 };
@@ -42,9 +68,21 @@ using UniqueVTableOverlay =
 /// overlay is installed on construction and the original vptr restored when
 /// the handle is destroyed. The caller works in reflected methods, not
 /// ABI-specific slot indices -- the common path for language bindings.
+/// \c n_extra_prefix_slots reserves nullptr-initialized slots immediately
+/// before the ABI prefix for the caller to write per-instance data into.
+/// \c on_destroy, when non-null, is invoked once after the C++ destructor
+/// of \c inst runs (operator-delete path). It receives the original \c
+/// inst pointer (which may be dangling at that point -- do not deref) and
+/// \c cleanup_data verbatim; bindings use it to release any per-instance
+/// state (Python handles, closures) tied to the object's lifetime. The
+/// callback must not throw: it runs inside a C++ destructor, so an
+/// escaping exception is undefined behavior.
 inline UniqueVTableOverlay MakeUniqueVTableOverlay(
     void* inst, TCppScope_t base,
-    std::initializer_list<std::pair<TCppConstFunction_t, void*>> overrides) {
+    std::initializer_list<std::pair<TCppConstFunction_t, void*>> overrides,
+    std::size_t n_extra_prefix_slots = 0,
+    VTableOverlayDtorHook on_destroy = nullptr,
+    void* cleanup_data = nullptr) {
   std::vector<TCppConstFunction_t> methods;
   std::vector<void*> fns;
   methods.reserve(overrides.size());
@@ -53,8 +91,9 @@ inline UniqueVTableOverlay MakeUniqueVTableOverlay(
     methods.push_back(p.first);
     fns.push_back(p.second);
   }
-  return UniqueVTableOverlay{MakeVTableOverlay(inst, base, methods.data(),
-                                               fns.data(), methods.size())};
+  return UniqueVTableOverlay{MakeVTableOverlay(
+      inst, base, methods.data(), fns.data(), methods.size(),
+      n_extra_prefix_slots, on_destroy, cleanup_data)};
 }
 
 } // namespace CppImpl

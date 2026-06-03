@@ -409,6 +409,11 @@ public:
 /// non-overlaid slots are copied verbatim from the original vtable.
 struct VTableOverlay;
 
+// Cleanup callback fired by VTableOverlay's destructor hook (see
+// MakeVTableOverlay). Receives the original instance pointer (possibly
+// dangling -- do not dereference) and the cleanup_data passed at install.
+using VTableOverlayDtorHook = void (*)(void* inst, void* cleanup_data);
+
 // FIXME: Rework GetDimensions to make this enum redundant.
 namespace DimensionValue {
 enum : long int {

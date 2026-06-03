@@ -1,6 +1,7 @@
 #include "CppInterOp/CppInterOp.h"
 #include "CppInterOp/CppInterOpTypes.h"
 
+#include "Utils.h"
 #include "gtest/gtest.h"
 
 #include <cstdint>
@@ -51,7 +52,7 @@ extern "C" int bar(void* self) {
 
 int call_slot_no_arg(void* inst, int slot) {
   void** vptr = *reinterpret_cast<void***>(inst);
-  return reinterpret_cast<int (*)(void*)>(vptr[slot])(inst);
+  return TestUtils::BitCastFn<int (*)(void*)>(vptr[slot])(inst);
 }
 
 // OverlayB declared through the interpreter so the overlay runs against
@@ -84,7 +85,7 @@ Cpp::TCppFunction_t Method(Cpp::TCppScope_t scope, const char* name) {
 // reading the slot tests what the overlay actually installs.
 int call_slot(void* inst, int slot, int arg) {
   void** vptr = *reinterpret_cast<void***>(inst);
-  return reinterpret_cast<int (*)(void*, int)>(vptr[slot])(inst, arg);
+  return TestUtils::BitCastFn<int (*)(void*, int)>(vptr[slot])(inst, arg);
 }
 
 #ifdef _WIN32
@@ -102,7 +103,7 @@ TEST(VTableOverlay, ReplacesSlotPreservingOthers) {
   void* inst = Cpp::Construct(B);
   ASSERT_NE(inst, nullptr);
   auto ov = Cpp::MakeUniqueVTableOverlay(
-      inst, B, {{Method(B, "beta"), reinterpret_cast<void*>(&repl_negate)}});
+      inst, B, {{Method(B, "beta"), TestUtils::BitCastFn<void*>(&repl_negate)}});
   ASSERT_TRUE(ov);
   EXPECT_EQ(call_slot(inst, kBeta, 5), -5);  // overlaid
   EXPECT_EQ(call_slot(inst, kAlpha, 5), 15); // preserved: alpha -> x+10
@@ -124,7 +125,7 @@ TEST(VTableOverlay, PreservesPrefixAndUnrelatedSlots) {
 #endif
   void* alpha_slot = aot[kAlpha];
   auto ov = Cpp::MakeUniqueVTableOverlay(
-      inst, B, {{Method(B, "beta"), reinterpret_cast<void*>(&repl_negate)}});
+      inst, B, {{Method(B, "beta"), TestUtils::BitCastFn<void*>(&repl_negate)}});
   ASSERT_TRUE(ov);
   void** now = *reinterpret_cast<void***>(inst);
   EXPECT_EQ(now[-1], prefix_m1);
@@ -143,7 +144,7 @@ TEST(VTableOverlay, RestoresOnDestroy) {
   void* aot = *reinterpret_cast<void**>(inst);
   {
     auto ov = Cpp::MakeUniqueVTableOverlay(
-        inst, B, {{Method(B, "beta"), reinterpret_cast<void*>(&repl_negate)}});
+        inst, B, {{Method(B, "beta"), TestUtils::BitCastFn<void*>(&repl_negate)}});
     ASSERT_TRUE(ov);
     EXPECT_NE(*reinterpret_cast<void**>(inst), aot);
   }
@@ -158,8 +159,8 @@ TEST(VTableOverlay, ReplacesMultipleSlots) {
   ASSERT_NE(inst, nullptr);
   auto ov = Cpp::MakeUniqueVTableOverlay(
       inst, B,
-      {{Method(B, "alpha"), reinterpret_cast<void*>(&repl_negate)},
-       {Method(B, "beta"), reinterpret_cast<void*>(&repl_double)}});
+      {{Method(B, "alpha"), TestUtils::BitCastFn<void*>(&repl_negate)},
+       {Method(B, "beta"), TestUtils::BitCastFn<void*>(&repl_double)}});
   ASSERT_TRUE(ov);
   EXPECT_EQ(call_slot(inst, kAlpha, 5), -5);
   EXPECT_EQ(call_slot(inst, kBeta, 5), 10);
@@ -173,7 +174,7 @@ TEST(VTableOverlay, RejectsInvalidInput) {
   ASSERT_NE(inst, nullptr);
   Cpp::TCppConstFunction_t beta = Method(B, "beta");
   Cpp::TCppConstFunction_t none = nullptr;
-  void* fn = reinterpret_cast<void*>(&repl_negate);
+  void* fn = TestUtils::BitCastFn<void*>(&repl_negate);
 
   EXPECT_EQ(Cpp::MakeVTableOverlay(nullptr, B, &beta, &fn, 1), nullptr); // inst
   EXPECT_EQ(Cpp::MakeVTableOverlay(inst, nullptr, &beta, &fn, 1),
@@ -193,7 +194,7 @@ TEST(VTableOverlay, OverlayIsPerInstance) {
   void* b_vptr_before = *reinterpret_cast<void**>(b);
 
   auto ov = Cpp::MakeUniqueVTableOverlay(
-      a, B, {{Method(B, "beta"), reinterpret_cast<void*>(&repl_negate)}});
+      a, B, {{Method(B, "beta"), TestUtils::BitCastFn<void*>(&repl_negate)}});
   ASSERT_TRUE(ov);
 
   EXPECT_NE(*reinterpret_cast<void**>(a), b_vptr_before); // a swapped
@@ -223,7 +224,7 @@ TEST(VTableOverlay, ThunkReadsThisAndDataMember) {
   ASSERT_NE(inst, nullptr);
 
   auto ov = Cpp::MakeUniqueVTableOverlay(
-      inst, T, {{Method(T, "frob"), reinterpret_cast<void*>(&repl_read_value)}});
+      inst, T, {{Method(T, "frob"), TestUtils::BitCastFn<void*>(&repl_read_value)}});
   ASSERT_TRUE(ov);
 
   // First user virtual lives at kAlpha (Itanium D1/D0 prefix; MSVC single
@@ -253,7 +254,7 @@ TEST(VTableOverlay, DerivedClassWithOverride) {
   EXPECT_EQ(call_slot(inst, kAlpha, 5), 7);
 
   auto ov = Cpp::MakeUniqueVTableOverlay(
-      inst, D, {{Method(D, "frob"), reinterpret_cast<void*>(&repl_negate)}});
+      inst, D, {{Method(D, "frob"), TestUtils::BitCastFn<void*>(&repl_negate)}});
   ASSERT_TRUE(ov);
   EXPECT_EQ(call_slot(inst, kAlpha, 5), -5);
   ov.reset();
@@ -275,7 +276,7 @@ TEST(VTableOverlay, MultiLevelInheritance) {
   EXPECT_EQ(call_slot(inst, kAlpha, 5), 8); // MlC::frob: x+3
 
   auto ov = Cpp::MakeUniqueVTableOverlay(
-      inst, C, {{Method(C, "frob"), reinterpret_cast<void*>(&repl_double)}});
+      inst, C, {{Method(C, "frob"), TestUtils::BitCastFn<void*>(&repl_double)}});
   ASSERT_TRUE(ov);
   EXPECT_EQ(call_slot(inst, kAlpha, 5), 10); // overlay: x*2
   ov.reset();
@@ -301,17 +302,12 @@ TEST(VTableOverlay, RejectsMultipleInheritance) {
   ASSERT_NE(inst, nullptr);
 
   auto ov = Cpp::MakeUniqueVTableOverlay(
-      inst, C, {{Method(C, "af"), reinterpret_cast<void*>(&repl_negate)}});
+      inst, C, {{Method(C, "af"), TestUtils::BitCastFn<void*>(&repl_negate)}});
   EXPECT_FALSE(ov); // refuses the layout
 
   Cpp::Destruct(inst, C);
 }
 
-// Virtual inheritance has a longer pre-address-point prefix (vbase-offset
-// entries) and a vtable-in-vbase that carries `_ZTv0_n*` virtual thunks for
-// dispatch through the virtual-base pointer -- neither is covered by the
-// primary-vptr overlay. MakeVTableOverlay refuses, mirroring the multi-
-// inheritance case. Reviewer ref: stackoverflow.com/a/39182009.
 // Non-polymorphic class has no vtable to overlay; rejected at the
 // RD->isPolymorphic() gate inside MakeVTableOverlay.
 TEST(VTableOverlay, RejectsNonPolymorphicBase) {
@@ -327,7 +323,7 @@ TEST(VTableOverlay, RejectsNonPolymorphicBase) {
   void* inst = Cpp::Construct(NP);
   ASSERT_NE(inst, nullptr);
   Cpp::TCppConstFunction_t dummy = Method(PH, "dummy");
-  void* fn = reinterpret_cast<void*>(&repl_negate);
+  void* fn = TestUtils::BitCastFn<void*>(&repl_negate);
   EXPECT_EQ(Cpp::MakeVTableOverlay(inst, NP, &dummy, &fn, 1), nullptr);
   Cpp::Destruct(inst, NP);
 }
@@ -361,7 +357,7 @@ TEST(VTableOverlay, RejectsOutOfRangeMethodSlot) {
   void* inst = Cpp::Construct(Small);
   ASSERT_NE(inst, nullptr);
   Cpp::TCppConstFunction_t v10 = Method(Large, "v10");
-  void* fn = reinterpret_cast<void*>(&repl_negate);
+  void* fn = TestUtils::BitCastFn<void*>(&repl_negate);
   EXPECT_EQ(Cpp::MakeVTableOverlay(inst, Small, &v10, &fn, 1), nullptr);
   Cpp::Destruct(inst, Small);
 }
@@ -399,11 +395,11 @@ TEST(VTableOverlay, OverlayThroughHierarchyAccessesDataMembers) {
 
   auto ov_a = Cpp::MakeUniqueVTableOverlay(
       &a, A_scope,
-      {{Method(A_scope, "method"), reinterpret_cast<void*>(&foo)}});
+      {{Method(A_scope, "method"), TestUtils::BitCastFn<void*>(&foo)}});
   ASSERT_TRUE(ov_a);
   auto ov_b = Cpp::MakeUniqueVTableOverlay(
       &b, B_scope,
-      {{Method(B_scope, "method"), reinterpret_cast<void*>(&bar)}});
+      {{Method(B_scope, "method"), TestUtils::BitCastFn<void*>(&bar)}});
   ASSERT_TRUE(ov_b);
 
   EXPECT_EQ(call_slot_no_arg(&a, kAlpha), 15); // foo: A::m_x(5) + 10
@@ -415,6 +411,11 @@ TEST(VTableOverlay, OverlayThroughHierarchyAccessesDataMembers) {
   // (vptrs restored above so virtual dispatch lands on the real dtor).
 }
 
+// Virtual inheritance has a longer pre-address-point prefix (vbase-offset
+// entries) and a vtable-in-vbase that carries `_ZTv0_n*` virtual thunks for
+// dispatch through the virtual-base pointer -- neither is covered by the
+// primary-vptr overlay. MakeVTableOverlay refuses, mirroring the multi-
+// inheritance case. Reviewer ref: stackoverflow.com/a/39182009.
 TEST(VTableOverlay, RejectsVirtualInheritance) {
   Cpp::CreateInterpreter({"-include", "new"});
   Cpp::Declare("struct ViBase {"
@@ -430,8 +431,164 @@ TEST(VTableOverlay, RejectsVirtualInheritance) {
   ASSERT_NE(inst, nullptr);
 
   auto ov = Cpp::MakeUniqueVTableOverlay(
-      inst, D, {{Method(D, "frob"), reinterpret_cast<void*>(&repl_negate)}});
+      inst, D, {{Method(D, "frob"), TestUtils::BitCastFn<void*>(&repl_negate)}});
   EXPECT_FALSE(ov); // refuses the layout
 
   Cpp::Destruct(inst, D);
+}
+
+// on_destroy fires once on the deleting-dtor path (before the original
+// destructor); receives `inst` and `cleanup_data` verbatim.
+TEST(VTableOverlay, DestructorHookFires) {
+  auto* B = DeclareBase();
+  void* inst = Cpp::Construct(B);
+  ASSERT_NE(inst, nullptr);
+
+  struct State { int fires = 0; void* last_inst = nullptr; };
+  State state;
+  auto* ov = Cpp::MakeVTableOverlay(
+      inst, B, /*methods=*/nullptr, /*overlay_fns=*/nullptr,
+      /*n_overlays=*/0, /*n_extra_prefix_slots=*/0,
+      /*on_destroy=*/
+      [](void* i, void* data) {
+        auto* s = static_cast<State*>(data);
+        s->fires += 1;
+        s->last_inst = i;
+      },
+      /*cleanup_data=*/&state);
+  ASSERT_NE(ov, nullptr);
+  EXPECT_EQ(state.fires, 0); // not fired yet
+
+  Cpp::Destruct(inst, B); // runs the wrapped deleting dtor
+
+  EXPECT_EQ(state.fires, 1);
+  EXPECT_EQ(state.last_inst, inst);
+
+  // Overlay handle outlives the instance: DestroyVTableOverlay must
+  // skip the vptr restore (instance freed) but still free the block.
+  Cpp::DestroyVTableOverlay(ov);
+}
+
+// Two overlays installed via different interpreters: each carries its
+// own hook state on its own block, so destruction of one does not fire
+// the other's callback. Routing is per-instance (via the hidden
+// self-pointer slot in each block), not per-interpreter.
+TEST(VTableOverlay, DestructorHookIsPerInstance) {
+  Cpp::TInterp_t I1 = Cpp::CreateInterpreter({"-include", "new"});
+  ASSERT_NE(I1, nullptr);
+  Cpp::Declare("struct DhBase1 { virtual ~DhBase1() {} "
+               "virtual int frob(int x) { return x + 1; } };");
+  auto* B1 = Cpp::GetNamed("DhBase1");
+  ASSERT_NE(B1, nullptr);
+  void* inst1 = Cpp::Construct(B1);
+  ASSERT_NE(inst1, nullptr);
+  int counter1 = 0;
+  auto* ov1 = Cpp::MakeVTableOverlay(
+      inst1, B1, nullptr, nullptr, 0, 0,
+      [](void* /*i*/, void* data) { *static_cast<int*>(data) += 1; },
+      &counter1);
+  ASSERT_NE(ov1, nullptr);
+
+  Cpp::TInterp_t I2 = Cpp::CreateInterpreter({"-include", "new"});
+  ASSERT_NE(I2, nullptr);
+  Cpp::Declare("struct DhBase2 { virtual ~DhBase2() {} "
+               "virtual int frob(int x) { return x + 2; } };");
+  auto* B2 = Cpp::GetNamed("DhBase2");
+  ASSERT_NE(B2, nullptr);
+  void* inst2 = Cpp::Construct(B2);
+  ASSERT_NE(inst2, nullptr);
+  int counter2 = 0;
+  auto* ov2 = Cpp::MakeVTableOverlay(
+      inst2, B2, nullptr, nullptr, 0, 0,
+      [](void* /*i*/, void* data) { *static_cast<int*>(data) += 1; },
+      &counter2);
+  ASSERT_NE(ov2, nullptr);
+
+  // Re-activate I1 so Cpp::Destruct's reflection lookup runs against
+  // the scope's owning interpreter; only counter1 must fire.
+  Cpp::ActivateInterpreter(I1);
+  Cpp::Destruct(inst1, B1);
+  EXPECT_EQ(counter1, 1);
+  EXPECT_EQ(counter2, 0);
+
+  Cpp::ActivateInterpreter(I2);
+  Cpp::Destruct(inst2, B2);
+  EXPECT_EQ(counter1, 1);
+  EXPECT_EQ(counter2, 1);
+
+  Cpp::DestroyVTableOverlay(ov1);
+  Cpp::DestroyVTableOverlay(ov2);
+}
+
+// on_destroy = nullptr is the "opt-in, zero overhead" contract: no
+// wrapper is installed, so the deleting-dtor slot in the overlay block
+// is a verbatim copy of the original. Pin that directly rather than
+// inferring it from other tests passing.
+TEST(VTableOverlay, DestructorHookOptInZero) {
+  auto* B = DeclareBase();
+  void* inst = Cpp::Construct(B);
+  ASSERT_NE(inst, nullptr);
+  void** orig_vptr = *reinterpret_cast<void***>(inst);
+#ifdef _WIN32
+  constexpr int kDDtor = 0;
+#else
+  constexpr int kDDtor = 1;
+#endif
+  void* orig_d = orig_vptr[kDDtor];
+
+  auto* ov = Cpp::MakeVTableOverlay(
+      inst, B, nullptr, nullptr, 0, 0,
+      /*on_destroy=*/nullptr, /*cleanup_data=*/nullptr);
+  ASSERT_NE(ov, nullptr);
+
+  void** new_vptr = *reinterpret_cast<void***>(inst);
+  EXPECT_EQ(new_vptr[kDDtor], orig_d);
+
+  Cpp::DestroyVTableOverlay(ov);
+  Cpp::Destruct(inst, B);
+}
+
+// Caller-driven teardown before the C++ destruction restores the
+// original vptr in ~VTableOverlay, so the wrapper is no longer
+// installed and Cpp::Destruct calls the unhooked deleting dtor; the
+// callback does not fire.
+TEST(VTableOverlay, DestructorHookSkippedOnCallerTeardown) {
+  auto* B = DeclareBase();
+  void* inst = Cpp::Construct(B);
+  ASSERT_NE(inst, nullptr);
+
+  int fires = 0;
+  auto* ov = Cpp::MakeVTableOverlay(
+      inst, B, nullptr, nullptr, 0, 0,
+      [](void* /*i*/, void* data) { *static_cast<int*>(data) += 1; }, &fires);
+  ASSERT_NE(ov, nullptr);
+
+  Cpp::DestroyVTableOverlay(ov);
+  Cpp::Destruct(inst, B);
+  EXPECT_EQ(fires, 0);
+}
+
+// Phase 1 extra-prefix slots: a binding stashes per-instance data in slots
+// immediately before the ABI prefix; thunks read it via the inline
+// VTableOverlayExtraSlot helper -- a single fixed-offset load.
+TEST(VTableOverlay, SetsExtraPrefixSlots) {
+  auto* B = DeclareBase();
+  void* inst = Cpp::Construct(B);
+  ASSERT_NE(inst, nullptr);
+  auto ov = Cpp::MakeUniqueVTableOverlay(
+      inst, B, {{Method(B, "beta"), TestUtils::BitCastFn<void*>(&repl_negate)}},
+      /*n_extra_prefix_slots=*/2);
+  ASSERT_TRUE(ov);
+  void*& slot0 = Cpp::VTableOverlayExtraSlot(inst, 0);
+  void*& slot1 = Cpp::VTableOverlayExtraSlot(inst, 1);
+  EXPECT_EQ(slot0, nullptr); // nullptr-initialized
+  EXPECT_EQ(slot1, nullptr);
+  slot0 = reinterpret_cast<void*>(uintptr_t{0xC0FFEE});
+  slot1 = reinterpret_cast<void*>(uintptr_t{0xDEADBEEF});
+  EXPECT_EQ(slot0, reinterpret_cast<void*>(uintptr_t{0xC0FFEE}));
+  EXPECT_EQ(slot1, reinterpret_cast<void*>(uintptr_t{0xDEADBEEF}));
+  // The overlaid slot still dispatches normally; extra-slot data is opaque.
+  EXPECT_EQ(call_slot(inst, kBeta, 5), -5);
+  ov.reset();
+  Cpp::Destruct(inst, B);
 }
