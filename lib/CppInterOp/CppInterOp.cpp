@@ -3038,7 +3038,8 @@ void collect_type_info(const FunctionDecl* FD, QualType& QT,
       }
     }
   }
-  if (QT.getNonReferenceType()->isFunctionPointerType()) {
+  if (QT.getNonReferenceType()->isFunctionPointerType() ||
+      QT.getNonReferenceType()->isFunctionProtoType()) {
     clang::QualType NRQT = QT.getNonReferenceType();
     std::string fp_typedef_name;
     {
