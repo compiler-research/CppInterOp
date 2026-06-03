@@ -1589,9 +1589,11 @@ TEST(TracingCoverageTest, AllPublicAPIsAreTraced) {
     size_t Pos = 0;
     bool Found = false;
     while ((Pos = Impl.find(Pattern, Pos)) != std::string::npos) {
-      // Find the opening brace of the function body.
+      // Find the opening brace of the function body. Wide-signature window
+      // (500) accommodates 8-parameter APIs like MakeVTableOverlay laid out
+      // one-arg-per-line LLVM-style.
       size_t BracePos = Impl.find('{', Pos);
-      if (BracePos == std::string::npos || BracePos - Pos > 300) {
+      if (BracePos == std::string::npos || BracePos - Pos > 500) {
         Pos += Pattern.size();
         continue;
       }

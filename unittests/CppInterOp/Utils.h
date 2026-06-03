@@ -6,6 +6,7 @@
 #include "CppInterOp/CppInterOp.h"
 #define CPPINTEROP_TEST_MODE CppInterOpTest
 
+#include <cstring>
 #include <memory>
 #include <string>
 #include <utility>
@@ -20,6 +21,18 @@ class Decl;
 }
 #define Interp (static_cast<compat::Interpreter*>(Cpp::GetInterpreter()))
 namespace TestUtils {
+
+// Function-pointer / void* round-trip for vtable test/bench code, mirroring
+// the lib-side VTableOverlay::BitCastFn. Sidesteps the conditionally-
+// supported reinterpret_cast between fn and data pointers per
+// [expr.reinterpret.cast]/6; memcpy is well-defined on every platform
+// CppInterOp targets.
+template <class To, class From> inline To BitCastFn(From f) noexcept {
+  static_assert(sizeof(To) == sizeof(From));
+  To to;
+  std::memcpy(&to, &f, sizeof(to));
+  return to;
+}
 
 struct TestConfig {
     std::string name;

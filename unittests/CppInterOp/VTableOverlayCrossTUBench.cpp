@@ -17,11 +17,14 @@
 #include "CppInterOp/CppInterOpTypes.h"
 #include "TestSharedLib/TestSharedLib.h"
 
+#include "Utils.h"
 #include "PerfCompare.h"
 #include "gtest/gtest.h"
 
 #include <benchmark/benchmark.h>
 
+#include <mutex>
+#include <unordered_map>
 #include <vector>
 
 namespace {
@@ -54,7 +57,7 @@ Cpp::TCppFunction_t Frob(Cpp::TCppScope_t scope) {
 
 Cpp::UniqueVTableOverlay OverlayFrob(void* inst, Cpp::TCppScope_t base) {
   return Cpp::MakeUniqueVTableOverlay(
-      inst, base, {{Frob(base), reinterpret_cast<void*>(&xtu_replacement)}});
+      inst, base, {{Frob(base), TestUtils::BitCastFn<void*>(&xtu_replacement)}});
 }
 
 } // namespace
@@ -92,8 +95,129 @@ TEST(VTableOverlayCrossTU, OverlayAddsNoPerCallCost) {
   EXPECT_NOT_SLOWER_THAN(BM_XTU_OverlayDirectFn, BM_XTU_BareVirtual);
 }
 
+// Pin the perf claim that motivates n_extra_prefix_slots: a thunk
+// reading per-instance state via the extra slot is measurably faster
+// than the alternative bindings would otherwise reach for (a
+// process-global pointer registry keyed by `self`). The dispatched
+// work is identical in both thunks -- only the state-lookup path
+// differs -- so the gap measured here is the lookup itself.
+namespace {
+struct Handler {
+  int v;
+  [[gnu::noinline]] int add(int x) { return v + x; }
+};
+
+extern "C" int xtu_thunk_extra_slot(void* self, int x) {
+  auto* h = static_cast<Handler*>(Cpp::VTableOverlayExtraSlot(self, 0));
+  return h->add(x);
+}
+
+// Bench-only stand-in for the naive alternative. Production code does
+// not pay a global mutex per dispatch -- that is the contrast the
+// EXPECT_AT_LEAST_N_TIMES_FASTER assertion below pins down.
+std::unordered_map<void*, Handler*> NaiveHandlerMap;
+std::mutex NaiveHandlerMapMutex;
+
+extern "C" int xtu_thunk_global_map(void* self, int x) {
+  Handler* h;
+  {
+    std::lock_guard<std::mutex> lk(NaiveHandlerMapMutex);
+    h = NaiveHandlerMap[self];
+  }
+  return h->add(x);
+}
+
+Handler g_handler{100};
+} // namespace
+
+TEST(VTableOverlayCrossTU, ExtraPrefixSlotDispatch) {
+  Impl impl;
+  auto* base = ReflectOverlayBase();
+  ASSERT_NE(base, nullptr);
+  auto ov = Cpp::MakeUniqueVTableOverlay(
+      &impl, base,
+      {{Frob(base), TestUtils::BitCastFn<void*>(&xtu_thunk_extra_slot)}},
+      /*n_extra_prefix_slots=*/1);
+  ASSERT_TRUE(ov);
+  Cpp::VTableOverlayExtraSlot(&impl, 0) = &g_handler;
+  EXPECT_EQ(OverlayDispatchOnce(&impl, 7), g_handler.v + 7);
+}
+
+static void BM_XTU_OverlayExtraSlot(benchmark::State& state) {
+  Impl impl;
+  auto* base = ReflectOverlayBase();
+  auto ov = Cpp::MakeUniqueVTableOverlay(
+      &impl, base,
+      {{Frob(base), TestUtils::BitCastFn<void*>(&xtu_thunk_extra_slot)}},
+      /*n_extra_prefix_slots=*/1);
+  Cpp::VTableOverlayExtraSlot(&impl, 0) = &g_handler;
+  for (auto _ : state)
+    benchmark::DoNotOptimize(OverlayDispatchOnce(&impl, 7));
+}
+BENCHMARK(BM_XTU_OverlayExtraSlot);
+
+static void BM_XTU_OverlayGlobalMap(benchmark::State& state) {
+  Impl impl;
+  auto* base = ReflectOverlayBase();
+  auto ov = Cpp::MakeUniqueVTableOverlay(
+      &impl, base,
+      {{Frob(base), TestUtils::BitCastFn<void*>(&xtu_thunk_global_map)}});
+  {
+    std::lock_guard<std::mutex> lk(NaiveHandlerMapMutex);
+    NaiveHandlerMap[&impl] = &g_handler;
+  }
+  for (auto _ : state)
+    benchmark::DoNotOptimize(OverlayDispatchOnce(&impl, 7));
+  {
+    std::lock_guard<std::mutex> lk(NaiveHandlerMapMutex);
+    NaiveHandlerMap.erase(&impl);
+  }
+}
+BENCHMARK(BM_XTU_OverlayGlobalMap);
+
+TEST(VTableOverlayCrossTU, ExtraSlotBeatsGlobalMap) {
+#if !defined(NDEBUG) || defined(__SANITIZE_ADDRESS__)
+  GTEST_SKIP() << "Perf assertions need a Release, non-sanitizer build.";
+#endif
+  // The map path is hash + mutex per dispatch; the slot path is one mov.
+  // Even with a fast hash the gap is real; require >= 2x to ride out jitter.
+  EXPECT_AT_LEAST_N_TIMES_FASTER(BM_XTU_OverlayExtraSlot,
+                                 BM_XTU_OverlayGlobalMap, 2.0);
+}
+
+// Confirms on_destroy is destruction-only: dispatch through any other
+// slot pays nothing. Reported for trend visibility, with no
+// EXPECT_*_FASTER assertion: the dtor wrapper patches the deleting-dtor
+// slot, not the dispatched method's slot, so the per-call cost is
+// structurally unchanged (see MakeVTableOverlay). The ~30% run-to-run
+// jitter on sub-10 ns measurements on CI exceeds any tolerance that
+// would still catch a real regression, so a relative assertion here is
+// noise, not signal.
+extern "C" void xtu_noop_cleanup(void* /*inst*/, void* /*data*/) {}
+
+static void BM_XTU_OverlayWithDtorHook(benchmark::State& state) {
+  Impl impl;
+  auto* base = ReflectOverlayBase();
+  void* fn = TestUtils::BitCastFn<void*>(&xtu_replacement);
+  Cpp::TCppConstFunction_t method = Frob(base);
+  auto* ov = Cpp::MakeVTableOverlay(
+      &impl, base, &method, &fn, /*n=*/1,
+      /*n_extra_prefix_slots=*/0,
+      /*on_destroy=*/&xtu_noop_cleanup,
+      /*cleanup_data=*/nullptr);
+  for (auto _ : state)
+    benchmark::DoNotOptimize(OverlayDispatchOnce(&impl, 7));
+  Cpp::DestroyVTableOverlay(ov);
+}
+BENCHMARK(BM_XTU_OverlayWithDtorHook);
+
 int main(int argc, char** argv) {
   ::testing::InitGoogleTest(&argc, argv);
   benchmark::Initialize(&argc, argv);
+  // Print formatted benchmark output whenever the perf-assertion tests
+  // themselves would run -- Debug / sanitizer numbers are noise.
+#if defined(NDEBUG) && !defined(__SANITIZE_ADDRESS__)
+  benchmark::RunSpecifiedBenchmarks();
+#endif
   return RUN_ALL_TESTS();
 }

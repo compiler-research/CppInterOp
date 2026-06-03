@@ -45,6 +45,7 @@ endif()
 add_cppinterop_unittest(CppInterOpTests
   CAPITest.cpp
   CommentReflectionTest.cpp
+  CppInterOpThunksTest.cpp
   EnumReflectionTest.cpp
   FunctionReflectionTest.cpp
   InterpreterTest.cpp

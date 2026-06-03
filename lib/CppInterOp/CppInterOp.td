@@ -1525,6 +1525,26 @@ overlay does not touch and is rejected outright -- see \returns.
 \param[in] methods Virtual methods of \c base whose slots are replaced.
 \param[in] overlay_fns Function pointers to install at those slots.
 \param[in] n_overlays Length of \c methods and \c overlay_fns.
+\param[in] n_extra_prefix_slots Optional \c void* slots prepended *before* the
+           ABI prefix in the owned block, initialized to nullptr. Bindings use
+           them to stash per-instance data adjacent to the vtable -- a thunk
+           reads its slot via \c VTableOverlayExtraSlot(self, i) with a single
+           fixed-offset load, avoiding a runtime registry lookup.
+\param[in] on_destroy Optional callback invoked on the operator-delete path
+           (D0 on Itanium, the single deleting dtor on MSVC). Bindings use
+           it to release per-instance state tied to the object's lifetime
+           (Python handles, closures). Ordering is callback first, then the
+           original deleting destructor; the callback runs while \c inst is
+           still alive and may inspect its state. After the original dtor
+           returns, the object's memory has been freed -- the callback
+           cannot defer the read. The callback receives \c inst and
+           \c cleanup_data verbatim, runs inside a C++ destructor, and must
+           not throw -- an escaping exception is undefined behavior. The
+           callback also must not destroy this overlay (the original dtor
+           still has to run after it returns). Stack-only destruction (D1)
+           does not trigger the callback. Pass nullptr to skip the dtor
+           hook entirely (zero per-call overhead, slot not patched).
+\param[in] cleanup_data Opaque pointer passed back to \c on_destroy.
 \returns nullptr if \c inst is null, any method is null or not virtual,
          \c base is not a polymorphic class, or \c base has multiple
          polymorphic direct bases or any virtual base.}];
@@ -1535,7 +1555,10 @@ overlay does not touch and is rejected outright -- see \returns.
     Arg<"TCppScope_t", "base">,
     Arg<"const TCppConstFunction_t*", "methods">,
     Arg<"void* const*", "overlay_fns">,
-    Arg<"std::size_t", "n_overlays">
+    Arg<"std::size_t", "n_overlays">,
+    Arg<"std::size_t", "n_extra_prefix_slots", "0">,
+    Arg<"VTableOverlayDtorHook", "on_destroy", "nullptr">,
+    Arg<"void*", "cleanup_data", "nullptr">
   ];
 }
 
