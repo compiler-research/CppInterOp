@@ -69,18 +69,28 @@ def Declare : CppInterOpAPI {
 }
 
 def Evaluate : CppInterOpAPI {
-  let Doc = [{Declares, executes and returns the execution result as a intptr_t.
+  let Doc = [{Declares, executes and returns the execution result as a typed
+\c Cpp::Box carrying the Kind tag and the source QualType (when available).
+\c getKind() returns \c K_Unspecified on parse error or
+no-value-after-success.
 \param[in] code - the snippet to declare and execute.
-\param[out] IsValueInvalid - if non-null, set true when the result is
-            unusable (parse error or no-Value-after-success).
-\returns the expression results as a intptr_t.}];
-
-  let ReturnType = "intptr_t";
+\returns a \c Cpp::Box. Use \c unbox<T>() to extract a fundamental
+         (assert-checked: \c T must match the runtime Kind) or
+         \c getObjectPtr() for object payloads. For unknown-Kind extraction
+         dispatch on \c getKind() / \c KindOf<T>() first, or use \c visit().}];
+  // Box has non-trivial copy/dtor and cannot cross the C ABI; suppress
+  // the auto-generated C wrapper.
+  let NoCWrapper = true;
+  let ReturnType = "Box";
   let Args = [
-    Arg<"const char*", "code">,
-    OutArg<"bool*", "IsValueInvalid", "nullptr">
+    Arg<"const char*", "code">
   ];
 }
+
+// NOTE: The legacy C-ABI overload `intptr_t Evaluate(const char*, bool*)`
+// and its matching C wrapper `cppinterop_Evaluate` live hand-written in
+// CXCppInterOp.cpp / CppInterOp.h (look for "C-ABI"). They are not
+// declared here because tablegen does not need to know about them.
 
 // --- Scope / type queries ---
 

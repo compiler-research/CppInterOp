@@ -159,6 +159,19 @@ jobs:
         sed -i '/CPPINTEROP_ENABLE_TESTING.*Enable gtest in CppInterOp/s/ FORCE)/)/' \
           root/interpreter/CMakeLists.txt
 
+        # ROOT's interpreter/CMakeLists.txt hardcodes the list of headers
+        # it stages into ${CMAKE_BINARY_DIR}/etc/cppinterop/CppInterOp/.
+        # That list (search "set(cppinterop_src_files") names only the
+        # original three public headers and three generated .inc files.
+        # CppInterOp.h now also #includes <CppInterOp/Box.h>; without
+        # Box.h next to the staged CppInterOp.h, metacling fails to
+        # compile TCling.cxx with "CppInterOp/Box.h: No such file or
+        # directory". Inject the missing header so the staged set is
+        # complete -- the upstream fix lives in ROOT and is tracked
+        # there; this is a CI-only shim until that lands.
+        sed -i '\|CppInterOp/CppInterOp\.h$|a\  ${CMAKE_CURRENT_SOURCE_DIR}/CppInterOp/include/CppInterOp/Box.h' \
+          root/interpreter/CMakeLists.txt
+
     - name: Configure ROOT
       shell: bash
       run: |

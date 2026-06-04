@@ -32,6 +32,9 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/FileSystem.h"
 
+#include "CppInterOp/Box.h"
+
+#include <atomic>
 #include <cstdint>
 #include <cstring>
 #include <memory>
@@ -714,6 +717,42 @@ template <typename T> inline T convertTo(clang::Value V) {
   return V.convertTo<T>();
 }
 #endif // CPPINTEROP_USE_CLING
+
+// Refcount-shared payload wrapping a `compat::Value` for Cpp::Box's
+// K_PtrOrObj slot. Boxing-via-copy (not move): clang::Value's move ctor
+// releases its own storage on construction -- fixed upstream by
+// llvm/llvm-project#200888. The copy ctor correctly retains.
+// FIXME(llvm 23): static_assert below fails the build once the minimum
+// LLVM crosses 23, prompting the move-semantics cleanup.
+static_assert(LLVM_VERSION_MAJOR < 23,
+              "clang::Value::Value(Value&&) was fixed upstream in "
+              "llvm/llvm-project#200888; switch ValueRefCount to move "
+              "semantics and drop this workaround.");
+
+namespace detail {
+struct ValueRefCount {
+  std::atomic<unsigned> rc;
+  Value v;
+  explicit ValueRefCount(const Value& V) noexcept : rc(1), v(V) {}
+
+  static void retain(void* p) noexcept {
+    static_cast<ValueRefCount*>(p)->rc.fetch_add(1, std::memory_order_relaxed);
+  }
+  static void release(void* p) noexcept {
+    auto* rc = static_cast<ValueRefCount*>(p);
+    if (rc->rc.fetch_sub(1, std::memory_order_acq_rel) == 1)
+      delete rc;
+  }
+  static constexpr Cpp::Box::ObjectOps Ops{&retain, &release};
+};
+} // namespace detail
+
+/// Wrap a compat::Value into a refcount-shared K_PtrOrObj Cpp::Box.
+/// `qt` is the opaque QualType (clang::QualType::getAsOpaquePtr()).
+inline Cpp::Box MakeValueBox(const Value& V, void* qt) noexcept {
+  return Cpp::Box::AdoptObject(new detail::ValueRefCount(V),
+                               &detail::ValueRefCount::Ops, qt);
+}
 
 inline void InstantiateClassTemplateSpecialization(
     Interpreter& interp, clang::ClassTemplateSpecializationDecl* CTSD) {
