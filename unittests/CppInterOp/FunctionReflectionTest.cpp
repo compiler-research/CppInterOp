@@ -267,6 +267,18 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetFunctionsUsingName) {
     }
 
     typedef A shadow_A;
+
+    class Base {
+    public:
+      int g(int a) { return a; }
+      int g() { return 0; }
+    };
+
+    class Derived : public Base {
+    public:
+      using Base::g;
+      int h() { return 0; }
+    };
     )";
 
   GetAllTopLevelDecls(code, Decls);
@@ -289,6 +301,11 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetFunctionsUsingName) {
   EXPECT_EQ(get_number_of_funcs_using_name(Decls[2], "f2"), 1);
   EXPECT_EQ(get_number_of_funcs_using_name(Decls[2], "f3"), 1);
   EXPECT_EQ(get_number_of_funcs_using_name(Decls[2], ""), 0);
+
+  Cpp::TCppScope_t derived = Cpp::GetScope("Derived");
+  EXPECT_TRUE(derived);
+  EXPECT_EQ(get_number_of_funcs_using_name(derived, "g"), 2);
+  EXPECT_EQ(get_number_of_funcs_using_name(derived, "h"), 1);
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetClassDecls) {
@@ -885,6 +902,18 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetClassTemplatedMethods) {
     void MyClass::staticFunc() {}
     template<typename T>
     void MyClass::templatedStaticMethod(T param) {}
+
+    class TBase {
+    public:
+      template<typename T>
+      void usedTemplated(T param);
+      template<typename T, typename U>
+      void usedTemplated(T t, U u);
+    };
+    class TDerived : public TBase {
+    public:
+      using TBase::usedTemplated;
+    };
   )";
 
   GetAllTopLevelDecls(code, Decls);
@@ -908,6 +937,16 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetClassTemplatedMethods) {
             "U MyClass::templatedMethod(U a, V b)");
   EXPECT_EQ(Cpp::GetFunctionSignature(templatedMethods[5]),
             "void MyClass::templatedStaticMethod(T param)");
+
+  std::vector<Cpp::TCppFunction_t> usingMethods;
+  Cpp::TCppScope_t derived = Cpp::GetScope("TDerived");
+  EXPECT_TRUE(derived);
+  Cpp::GetClassTemplatedMethods("usedTemplated", derived, usingMethods);
+  EXPECT_EQ(usingMethods.size(), 2);
+  EXPECT_EQ(Cpp::GetFunctionSignature(usingMethods[0]),
+            "void TBase::usedTemplated(T param)");
+  EXPECT_EQ(Cpp::GetFunctionSignature(usingMethods[1]),
+            "void TBase::usedTemplated(T t, U u)");
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE,

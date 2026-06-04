@@ -1534,9 +1534,14 @@ std::vector<TCppFunction_t> GetFunctionsUsingName(TCppScope_t scope,
 
   R.resolveKind();
 
-  for (auto* Found : R)
+  for (auto* Found : R) {
     if (llvm::isa<FunctionDecl>(Found))
       funcs.push_back(Found);
+    else if (auto* USD = llvm::dyn_cast<UsingShadowDecl>(Found)) {
+      if (auto* FTD = llvm::dyn_cast<FunctionDecl>(USD->getTargetDecl()))
+        funcs.push_back(FTD);
+    }
+  }
 
   return INTEROP_RETURN(funcs);
 }
@@ -1769,9 +1774,15 @@ bool GetClassTemplatedMethods(const std::string& name, TCppScope_t parent,
   }
   // Loop over overload set
   else if (R.getResultKind() == clang_LookupResult_Found_Overloaded) {
-    for (auto* Found : R)
+    for (auto* Found : R) {
       if (IsTemplatedFunction(Found))
         funcs.push_back(Found);
+      else if (auto* USD = llvm::dyn_cast<UsingShadowDecl>(Found)) {
+        if (auto* FTD =
+                llvm::dyn_cast<FunctionTemplateDecl>(USD->getTargetDecl()))
+          funcs.push_back(FTD);
+      }
+    }
   }
 
   // TODO: Handle ambiguously found LookupResult
