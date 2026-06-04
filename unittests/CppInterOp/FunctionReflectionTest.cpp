@@ -2353,6 +2353,23 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetFunctionCallWrapper) {
 
   auto callback_callable = Cpp::MakeFunctionCallable(callback_func);
   EXPECT_EQ(callback_callable.getKind(), Cpp::JitCall::kGenericCall);
+
+  Decls.clear();
+  GetAllTopLevelDecls(R"(
+    bool callme(bool (f)()) { return f(); }
+    bool callme_ptr(bool (*f)()) { return f(); }
+    bool callme_ref(bool (&f)()) { return f(); }
+  )",
+                      Decls, false, interpreter_args);
+
+  auto f1 = Cpp::MakeFunctionCallable(Decls[0]);
+  EXPECT_EQ(f1.getKind(), Cpp::JitCall::Kind::kGenericCall);
+
+  auto f2 = Cpp::MakeFunctionCallable(Decls[1]);
+  EXPECT_EQ(f2.getKind(), Cpp::JitCall::Kind::kGenericCall);
+
+  auto f3 = Cpp::MakeFunctionCallable(Decls[2]);
+  EXPECT_EQ(f3.getKind(), Cpp::JitCall::Kind::kGenericCall);
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_IsConstMethod) {
