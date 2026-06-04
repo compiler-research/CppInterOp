@@ -3,19 +3,12 @@
 
 #include "Utils.h"
 
+#include "CppInterOp/CXCppInterOp.h"
+
 #include "gtest/gtest.h"
 
 #include <cstdlib>
 #include <cstring>
-
-// Pull in the generated C declarations.
-extern "C" {
-#include "CppInterOp/CXCppInterOpDecl.inc"
-
-// Hand-written wrappers not in the .inc file.
-CPPINTEROP_API Cpp::CppInterOpArray
-cppinterop_GetClassTemplatedMethods(const char* name, void* parent);
-}
 
 using namespace TestUtils;
 

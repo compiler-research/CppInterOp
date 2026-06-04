@@ -1,7 +1,9 @@
 // Hand-written C API wrappers for functions the TableGen emitter
-// cannot generate mechanically. Generated wrappers live in
-// CXCppInterOpGenerated.cpp.
+// cannot generate mechanically. Public declarations of these
+// symbols live in include/CppInterOp/CXCppInterOp.h; generated
+// wrappers live in CXCppInterOpGenerated.cpp.
 
+#include "CppInterOp/CXCppInterOp.h"
 #include "CppInterOp/CppInterOp.h"
 
 #include <cstdlib>
