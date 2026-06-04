@@ -195,8 +195,10 @@ public:
   /// The assert is a no-op under \c NDEBUG so the AOT-fold path stays
   /// zero-overhead.
   template <class T> T unbox() const noexcept {
+#ifndef NDEBUG
     assert(m_kind == KindOf<T>() &&
            "Cpp::Box::unbox<T>(): T does not match the runtime Kind");
+#endif
     return slot<T>(m_storage);
   }
 
