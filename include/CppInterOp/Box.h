@@ -95,7 +95,8 @@ namespace CppImpl {
 
 class Box {
 public:
-  enum Kind : unsigned char {
+  // `int` (not `unsigned char`) to work around compiler-research/cppyy#223.
+  enum Kind : int {
 #define X(type, name) K_##name,
     CPP_BOX_BUILTIN_TYPES
 #undef X
