@@ -32,7 +32,7 @@ ExternalProject_Add(
   googlebenchmark
   GIT_REPOSITORY https://github.com/google/benchmark.git
   GIT_SHALLOW FALSE
-  GIT_TAG v1.9.1
+  GIT_TAG v1.9.2
   UPDATE_COMMAND ""
   CONFIGURE_COMMAND ${CMAKE_COMMAND} -G ${CMAKE_GENERATOR}
                 -S ${CMAKE_CURRENT_BINARY_DIR}/googlebenchmark-prefix/src/googlebenchmark/
