@@ -132,12 +132,6 @@ if(CPPINTEROP_BUILT_STANDALONE AND NOT EMSCRIPTEN AND BUILD_SHARED_LIBS)
     VTableOverlayCrossTUBench.cpp)
   target_link_libraries(VTableOverlayCrossTUBench PRIVATE benchmark TestSharedLib)
   add_dependencies(VTableOverlayCrossTUBench TestSharedLib)
-  # Google Benchmark's BENCHMARK() macro expands __COUNTER__, which clang's
-  # -Wc2y-extensions flags; CppInterOp builds -Werror, so the third-party
-  # macro would otherwise fail this TU. (Unknown -Wno- is a no-op elsewhere.)
-  if(NOT MSVC)
-    target_compile_options(VTableOverlayCrossTUBench PRIVATE -Wno-c2y-extensions)
-  endif()
 endif()
 
 # Downstream-DSO dlopen check that mirrors libcppyy-backend's contract:
