@@ -22,7 +22,7 @@ protected:
 #if defined(CPPINTEROP_USE_CLING) || defined(_WIN32)
     return; // FIXME: Enable for cling and Windows.
 #endif
-    auto *I = Cpp::CreateInterpreter({}, {"--cuda"});
+    auto I = Cpp::CreateInterpreter({}, {"--cuda"});
     if (!I)
       return;
     if (Cpp::Declare("__global__ void test_func() {}"

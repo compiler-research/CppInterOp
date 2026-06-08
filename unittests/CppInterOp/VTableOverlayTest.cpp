@@ -59,7 +59,7 @@ int call_slot_no_arg(void* inst, int slot) {
 // a reflected, JIT-constructed object -- the language-binding setting.
 // Itanium has a destructor pair (D1/D0) before the user virtuals; MSVC
 // has a single deleting-dtor slot, so the user-virtual indices differ.
-Cpp::TCppScope_t DeclareBase() {
+Cpp::DeclRef DeclareBase() {
   // -include new: Construct's wrapper uses placement new, so every
   // interpreter compilation must see <new>.
   Cpp::CreateInterpreter({"-include", "new"});
@@ -71,11 +71,11 @@ Cpp::TCppScope_t DeclareBase() {
   return Cpp::GetNamed("OverlayB");
 }
 
-Cpp::TCppFunction_t Method(Cpp::TCppScope_t scope, const char* name) {
-  std::vector<Cpp::TCppFunction_t> methods;
+Cpp::FuncRef Method(Cpp::DeclRef scope, const char* name) {
+  std::vector<Cpp::FuncRef> methods;
   Cpp::GetClassMethods(scope, methods);
-  for (auto* m : methods)
-    if (Cpp::GetName(m) == name)
+  for (auto m : methods)
+    if (Cpp::GetName(Cpp::DeclRef{m.data}) == name)
       return m;
   return nullptr;
 }
@@ -99,8 +99,8 @@ constexpr int kBeta = 3;
 } // namespace
 
 TEST(VTableOverlay, ReplacesSlotPreservingOthers) {
-  auto* B = DeclareBase();
-  void* inst = Cpp::Construct(B);
+  auto B = DeclareBase();
+  void* inst = Cpp::Construct(B).data;
   ASSERT_NE(inst, nullptr);
   auto ov = Cpp::MakeUniqueVTableOverlay(
       inst, B, {{Method(B, "beta"), TestUtils::BitCastFn<void*>(&repl_negate)}});
@@ -112,8 +112,8 @@ TEST(VTableOverlay, ReplacesSlotPreservingOthers) {
 }
 
 TEST(VTableOverlay, PreservesPrefixAndUnrelatedSlots) {
-  auto* B = DeclareBase();
-  void* inst = Cpp::Construct(B);
+  auto B = DeclareBase();
+  void* inst = Cpp::Construct(B).data;
   ASSERT_NE(inst, nullptr);
   void** aot = *reinterpret_cast<void***>(inst);
   // Prefix slot(s) immediately before the address point: Itanium has
@@ -138,8 +138,8 @@ TEST(VTableOverlay, PreservesPrefixAndUnrelatedSlots) {
 }
 
 TEST(VTableOverlay, RestoresOnDestroy) {
-  auto* B = DeclareBase();
-  void* inst = Cpp::Construct(B);
+  auto B = DeclareBase();
+  void* inst = Cpp::Construct(B).data;
   ASSERT_NE(inst, nullptr);
   void* aot = *reinterpret_cast<void**>(inst);
   {
@@ -154,8 +154,8 @@ TEST(VTableOverlay, RestoresOnDestroy) {
 }
 
 TEST(VTableOverlay, ReplacesMultipleSlots) {
-  auto* B = DeclareBase();
-  void* inst = Cpp::Construct(B);
+  auto B = DeclareBase();
+  void* inst = Cpp::Construct(B).data;
   ASSERT_NE(inst, nullptr);
   auto ov = Cpp::MakeUniqueVTableOverlay(
       inst, B,
@@ -169,11 +169,11 @@ TEST(VTableOverlay, ReplacesMultipleSlots) {
 }
 
 TEST(VTableOverlay, RejectsInvalidInput) {
-  auto* B = DeclareBase();
-  void* inst = Cpp::Construct(B);
+  auto B = DeclareBase();
+  void* inst = Cpp::Construct(B).data;
   ASSERT_NE(inst, nullptr);
-  Cpp::TCppConstFunction_t beta = Method(B, "beta");
-  Cpp::TCppConstFunction_t none = nullptr;
+  Cpp::ConstFuncRef beta = Method(B, "beta");
+  Cpp::ConstFuncRef none = nullptr;
   void* fn = TestUtils::BitCastFn<void*>(&repl_negate);
 
   EXPECT_EQ(Cpp::MakeVTableOverlay(nullptr, B, &beta, &fn, 1), nullptr); // inst
@@ -186,9 +186,9 @@ TEST(VTableOverlay, RejectsInvalidInput) {
 // Sibling instance of the same type is unaffected when another instance is
 // overlaid -- proves per-instance scope of the vptr swap (not per-class).
 TEST(VTableOverlay, OverlayIsPerInstance) {
-  auto* B = DeclareBase();
-  void* a = Cpp::Construct(B);
-  void* b = Cpp::Construct(B);
+  auto B = DeclareBase();
+  void* a = Cpp::Construct(B).data;
+  void* b = Cpp::Construct(B).data;
   ASSERT_NE(a, nullptr);
   ASSERT_NE(b, nullptr);
   void* b_vptr_before = *reinterpret_cast<void**>(b);
@@ -218,9 +218,9 @@ TEST(VTableOverlay, ThunkReadsThisAndDataMember) {
                "  virtual ~OverlayWithData() {}"
                "  virtual int frob(int x) { return x; }"
                "};");
-  auto* T = Cpp::GetNamed("OverlayWithData");
+  auto T = Cpp::GetNamed("OverlayWithData");
   ASSERT_NE(T, nullptr);
-  void* inst = Cpp::Construct(T);
+  void* inst = Cpp::Construct(T).data;
   ASSERT_NE(inst, nullptr);
 
   auto ov = Cpp::MakeUniqueVTableOverlay(
@@ -245,9 +245,9 @@ TEST(VTableOverlay, DerivedClassWithOverride) {
                "struct DvDerived : DvBase {"
                "  int frob(int x) override { return x + 2; }"
                "};");
-  auto* D = Cpp::GetNamed("DvDerived");
+  auto D = Cpp::GetNamed("DvDerived");
   ASSERT_NE(D, nullptr);
-  void* inst = Cpp::Construct(D);
+  void* inst = Cpp::Construct(D).data;
   ASSERT_NE(inst, nullptr);
 
   // Sanity-check the derived's original slot dispatches to DvDerived::frob.
@@ -268,9 +268,9 @@ TEST(VTableOverlay, MultiLevelInheritance) {
   Cpp::Declare("struct MlA { virtual ~MlA() {} virtual int frob(int x) { return x + 1; } };"
                "struct MlB : MlA { int frob(int x) override { return x + 2; } };"
                "struct MlC : MlB { int frob(int x) override { return x + 3; } };");
-  auto* C = Cpp::GetNamed("MlC");
+  auto C = Cpp::GetNamed("MlC");
   ASSERT_NE(C, nullptr);
-  void* inst = Cpp::Construct(C);
+  void* inst = Cpp::Construct(C).data;
   ASSERT_NE(inst, nullptr);
 
   EXPECT_EQ(call_slot(inst, kAlpha, 5), 8); // MlC::frob: x+3
@@ -296,9 +296,9 @@ TEST(VTableOverlay, RejectsMultipleInheritance) {
                "  int af(int x) override { return x + 11; }"
                "  int bf(int x) override { return x + 22; }"
                "};");
-  auto* C = Cpp::GetNamed("MiC");
+  auto C = Cpp::GetNamed("MiC");
   ASSERT_NE(C, nullptr);
-  void* inst = Cpp::Construct(C);
+  void* inst = Cpp::Construct(C).data;
   ASSERT_NE(inst, nullptr);
 
   auto ov = Cpp::MakeUniqueVTableOverlay(
@@ -316,13 +316,13 @@ TEST(VTableOverlay, RejectsNonPolymorphicBase) {
                "struct PolyMethodHolder {"
                "  virtual int dummy(int x) { return x; }"
                "};");
-  auto* NP = Cpp::GetNamed("NonPoly");
-  auto* PH = Cpp::GetNamed("PolyMethodHolder");
+  auto NP = Cpp::GetNamed("NonPoly");
+  auto PH = Cpp::GetNamed("PolyMethodHolder");
   ASSERT_NE(NP, nullptr);
   ASSERT_NE(PH, nullptr);
-  void* inst = Cpp::Construct(NP);
+  void* inst = Cpp::Construct(NP).data;
   ASSERT_NE(inst, nullptr);
-  Cpp::TCppConstFunction_t dummy = Method(PH, "dummy");
+  Cpp::ConstFuncRef dummy = Method(PH, "dummy");
   void* fn = TestUtils::BitCastFn<void*>(&repl_negate);
   EXPECT_EQ(Cpp::MakeVTableOverlay(inst, NP, &dummy, &fn, 1), nullptr);
   Cpp::Destruct(inst, NP);
@@ -350,13 +350,13 @@ TEST(VTableOverlay, RejectsOutOfRangeMethodSlot) {
                "  virtual int v9(int) { return 0; }"
                "  virtual int v10(int) { return 0; }"
                "};");
-  auto* Small = Cpp::GetNamed("SmallBase");
-  auto* Large = Cpp::GetNamed("LargeUnrelated");
+  auto Small = Cpp::GetNamed("SmallBase");
+  auto Large = Cpp::GetNamed("LargeUnrelated");
   ASSERT_NE(Small, nullptr);
   ASSERT_NE(Large, nullptr);
-  void* inst = Cpp::Construct(Small);
+  void* inst = Cpp::Construct(Small).data;
   ASSERT_NE(inst, nullptr);
-  Cpp::TCppConstFunction_t v10 = Method(Large, "v10");
+  Cpp::ConstFuncRef v10 = Method(Large, "v10");
   void* fn = TestUtils::BitCastFn<void*>(&repl_negate);
   EXPECT_EQ(Cpp::MakeVTableOverlay(inst, Small, &v10, &fn, 1), nullptr);
   Cpp::Destruct(inst, Small);
@@ -381,8 +381,8 @@ TEST(VTableOverlay, OverlayThroughHierarchyAccessesDataMembers) {
                "  B(int x, double d) : A(x), m_d(d) {}"
                "  int method() override { return (int)m_d; }"
                "};");
-  auto* A_scope = Cpp::GetNamed("A");
-  auto* B_scope = Cpp::GetNamed("B");
+  auto A_scope = Cpp::GetNamed("A");
+  auto B_scope = Cpp::GetNamed("B");
   ASSERT_NE(A_scope, nullptr);
   ASSERT_NE(B_scope, nullptr);
 
@@ -425,9 +425,9 @@ TEST(VTableOverlay, RejectsVirtualInheritance) {
                "struct ViDerived : virtual ViBase {"
                "  int frob(int x) override { return x + 2; }"
                "};");
-  auto* D = Cpp::GetNamed("ViDerived");
+  auto D = Cpp::GetNamed("ViDerived");
   ASSERT_NE(D, nullptr);
-  void* inst = Cpp::Construct(D);
+  void* inst = Cpp::Construct(D).data;
   ASSERT_NE(inst, nullptr);
 
   auto ov = Cpp::MakeUniqueVTableOverlay(
@@ -440,8 +440,8 @@ TEST(VTableOverlay, RejectsVirtualInheritance) {
 // on_destroy fires once on the deleting-dtor path (before the original
 // destructor); receives `inst` and `cleanup_data` verbatim.
 TEST(VTableOverlay, DestructorHookFires) {
-  auto* B = DeclareBase();
-  void* inst = Cpp::Construct(B);
+  auto B = DeclareBase();
+  void* inst = Cpp::Construct(B).data;
   ASSERT_NE(inst, nullptr);
 
   struct State { int fires = 0; void* last_inst = nullptr; };
@@ -474,13 +474,13 @@ TEST(VTableOverlay, DestructorHookFires) {
 // the other's callback. Routing is per-instance (via the hidden
 // self-pointer slot in each block), not per-interpreter.
 TEST(VTableOverlay, DestructorHookIsPerInstance) {
-  Cpp::TInterp_t I1 = Cpp::CreateInterpreter({"-include", "new"});
+  Cpp::InterpRef I1 = Cpp::CreateInterpreter({"-include", "new"});
   ASSERT_NE(I1, nullptr);
   Cpp::Declare("struct DhBase1 { virtual ~DhBase1() {} "
                "virtual int frob(int x) { return x + 1; } };");
-  auto* B1 = Cpp::GetNamed("DhBase1");
+  auto B1 = Cpp::GetNamed("DhBase1");
   ASSERT_NE(B1, nullptr);
-  void* inst1 = Cpp::Construct(B1);
+  void* inst1 = Cpp::Construct(B1).data;
   ASSERT_NE(inst1, nullptr);
   int counter1 = 0;
   auto* ov1 = Cpp::MakeVTableOverlay(
@@ -489,13 +489,13 @@ TEST(VTableOverlay, DestructorHookIsPerInstance) {
       &counter1);
   ASSERT_NE(ov1, nullptr);
 
-  Cpp::TInterp_t I2 = Cpp::CreateInterpreter({"-include", "new"});
+  Cpp::InterpRef I2 = Cpp::CreateInterpreter({"-include", "new"});
   ASSERT_NE(I2, nullptr);
   Cpp::Declare("struct DhBase2 { virtual ~DhBase2() {} "
                "virtual int frob(int x) { return x + 2; } };");
-  auto* B2 = Cpp::GetNamed("DhBase2");
+  auto B2 = Cpp::GetNamed("DhBase2");
   ASSERT_NE(B2, nullptr);
-  void* inst2 = Cpp::Construct(B2);
+  void* inst2 = Cpp::Construct(B2).data;
   ASSERT_NE(inst2, nullptr);
   int counter2 = 0;
   auto* ov2 = Cpp::MakeVTableOverlay(
@@ -525,8 +525,8 @@ TEST(VTableOverlay, DestructorHookIsPerInstance) {
 // is a verbatim copy of the original. Pin that directly rather than
 // inferring it from other tests passing.
 TEST(VTableOverlay, DestructorHookOptInZero) {
-  auto* B = DeclareBase();
-  void* inst = Cpp::Construct(B);
+  auto B = DeclareBase();
+  void* inst = Cpp::Construct(B).data;
   ASSERT_NE(inst, nullptr);
   void** orig_vptr = *reinterpret_cast<void***>(inst);
 #ifdef _WIN32
@@ -553,8 +553,8 @@ TEST(VTableOverlay, DestructorHookOptInZero) {
 // installed and Cpp::Destruct calls the unhooked deleting dtor; the
 // callback does not fire.
 TEST(VTableOverlay, DestructorHookSkippedOnCallerTeardown) {
-  auto* B = DeclareBase();
-  void* inst = Cpp::Construct(B);
+  auto B = DeclareBase();
+  void* inst = Cpp::Construct(B).data;
   ASSERT_NE(inst, nullptr);
 
   int fires = 0;
@@ -572,8 +572,8 @@ TEST(VTableOverlay, DestructorHookSkippedOnCallerTeardown) {
 // immediately before the ABI prefix; thunks read it via the inline
 // VTableOverlayExtraSlot helper -- a single fixed-offset load.
 TEST(VTableOverlay, SetsExtraPrefixSlots) {
-  auto* B = DeclareBase();
-  void* inst = Cpp::Construct(B);
+  auto B = DeclareBase();
+  void* inst = Cpp::Construct(B).data;
   ASSERT_NE(inst, nullptr);
   auto ov = Cpp::MakeUniqueVTableOverlay(
       inst, B, {{Method(B, "beta"), TestUtils::BitCastFn<void*>(&repl_negate)}},

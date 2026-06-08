@@ -2,6 +2,7 @@
 #define CPPINTEROP_UNITTESTS_LIBCPPINTEROP_UTILS_H
 
 #include "../../lib/CppInterOp/Compatibility.h"
+#include "../../lib/CppInterOp/Unwrap.h"
 
 #include "CppInterOp/CppInterOp.h"
 #define CPPINTEROP_TEST_MODE CppInterOpTest
@@ -19,7 +20,7 @@ using namespace llvm;
 namespace clang {
 class Decl;
 }
-#define Interp (static_cast<compat::Interpreter*>(Cpp::GetInterpreter()))
+#define Interp (Cpp::unwrap<compat::Interpreter>(Cpp::GetInterpreter()))
 namespace TestUtils {
 
 // Function-pointer / void* round-trip for vtable test/bench code, mirroring
@@ -110,7 +111,7 @@ protected:
   }
 
 public:
-  static Cpp::TInterp_t
+  static Cpp::InterpRef
   CreateInterpreter(const std::vector<const char*>& Args = {},
                     const std::vector<const char*>& GpuArgs = {}) {
     auto mergedArgs = TestUtils::GetInterpreterArgs(Args);

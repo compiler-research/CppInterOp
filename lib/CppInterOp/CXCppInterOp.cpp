@@ -6,6 +6,7 @@
 // CXCppInterOpGenerated.cpp.
 
 #include "CppInterOp/CXCppInterOp.h"
+#include "Unwrap.h"
 #include "CppInterOp/CppInterOp.h"
 
 #include "Compatibility.h"
@@ -25,14 +26,14 @@
 #define CPPINTEROP_MSAN_UNPOISON_VALUE(v) ((void)0)
 #endif
 
-namespace CppImpl {
+namespace Cpp {
 
 // Legacy C-ABI overload of Cpp::Evaluate. The Box-returning overload in
 // CppInterOp.cpp cannot cross the C boundary; bindings that go through
 // the generated cppinterop_Evaluate_intptr wrapper (e.g. cppyy) land
 // here instead.
 intptr_t Evaluate(const char* code, bool* HadError) {
-  auto* I = static_cast<compat::Interpreter*>(GetInterpreter());
+  auto* I = unwrap<compat::Interpreter>(GetInterpreter());
   compat::Value V;
 
   if (HadError)
@@ -50,7 +51,7 @@ intptr_t Evaluate(const char* code, bool* HadError) {
   return compat::convertTo<intptr_t>(V);
 }
 
-} // namespace CppImpl
+} // namespace Cpp
 
 extern "C" {
 
@@ -63,8 +64,8 @@ CPPINTEROP_API intptr_t cppinterop_Evaluate(const char* code, bool* HadError) {
 // GetClassTemplatedMethods returns bool AND fills a vector out-param.
 // The C wrapper drops the bool (caller checks arr.size > 0 instead).
 CPPINTEROP_API Cpp::CppInterOpArray
-cppinterop_GetClassTemplatedMethods(const char* name, void* parent) {
-  std::vector<Cpp::TCppFunction_t> out;
+cppinterop_GetClassTemplatedMethods(const char* name, CppConstDeclRef parent) {
+  std::vector<Cpp::FuncRef> out;
   Cpp::GetClassTemplatedMethods(std::string(name), parent, out);
   Cpp::CppInterOpArray arr = {nullptr, out.size()};
   if (arr.size) {

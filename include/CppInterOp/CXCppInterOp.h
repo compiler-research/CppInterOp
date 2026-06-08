@@ -19,13 +19,30 @@
 #include "CppInterOp/CppInterOpTypes.h"
 
 #ifdef __cplusplus
-// The generated .inc references the public namespace alias `Cpp` to
-// pull C-struct types into scope; mirror that alias here so this
-// header is self-sufficient (CppInterOp.h is C++-only, so we can't
-// rely on the consumer having included it).
-// NOLINTNEXTLINE(misc-unused-alias-decls)
-namespace Cpp = CppImpl;
+// The generated .inc spells C-API parameter and return types with the
+// prefixed C-side names (CppDeclRef etc.). For C++ TUs that opt into the
+// C API by including this header, alias each prefixed name to its
+// namespaced Cpp::* counterpart — they're layout-identical, so this
+// makes them the same C++ type and no conversion happens at call sites.
+// C++ TUs that include only CppInterOp.h (the C++ API header) never see
+// these aliases — the prefixed spelling stays out of their namespace.
+using CppDeclRef = Cpp::DeclRef;
+using CppTypeRef = Cpp::TypeRef;
+using CppFuncRef = Cpp::FuncRef;
+using CppObjectRef = Cpp::ObjectRef;
+using CppInterpRef = Cpp::InterpRef;
+using CppConstDeclRef = Cpp::ConstDeclRef;
+using CppConstTypeRef = Cpp::ConstTypeRef;
+using CppConstFuncRef = Cpp::ConstFuncRef;
 
+// The C-linkage functions return Cpp::*Ref types (one-word PODs with
+// inline constructors). Clang warns about returning a "user-defined
+// type" with C linkage even though the ABI is fine — the C-side
+// spelling is a layout-identical struct without constructors, and
+// HandleTypesTest::AbiCompatibleWithVoidPtr proves the call convention
+// matches. Silence the warning for downstream C++ consumers using -I.
+#pragma clang diagnostic push
+#pragma clang diagnostic ignored "-Wreturn-type-c-linkage"
 extern "C" {
 #endif
 
@@ -44,10 +61,11 @@ CPPINTEROP_API intptr_t cppinterop_Evaluate(const char* code, bool* HadError);
 /// expressible by the tablegen wrapper emitter; callers check
 /// \c arr.size > 0 to detect "no matches".
 CPPINTEROP_API CppInterOpArray
-cppinterop_GetClassTemplatedMethods(const char* name, void* parent);
+cppinterop_GetClassTemplatedMethods(const char* name, CppConstDeclRef parent);
 
 #ifdef __cplusplus
 } // extern "C"
+#pragma clang diagnostic pop
 #endif
 
 #endif // CPPINTEROP_CXCPPINTEROP_H

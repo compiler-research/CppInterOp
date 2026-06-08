@@ -48,6 +48,7 @@ add_cppinterop_unittest(CppInterOpTests
   CppInterOpThunksTest.cpp
   EnumReflectionTest.cpp
   FunctionReflectionTest.cpp
+  HandleTypesTest.cpp
   InterpreterTest.cpp
   JitTest.cpp
   ScopeReflectionTest.cpp
