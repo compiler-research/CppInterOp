@@ -6,7 +6,9 @@
 #include "CppInterOp/CppInterOp.h"
 #include "gtest/gtest.h"
 
+#include <functional>
 #include <type_traits>
+#include <unordered_set>
 
 using namespace Cpp;
 
@@ -92,6 +94,23 @@ TEST(HandleTypes, Equality) {
   DeclRef a(&x), b(&x), c(&y);
   EXPECT_EQ(a, b);
   EXPECT_NE(a, c);
+}
+
+// std::hash specializations let handles key unordered containers. The
+// hash must agree with std::hash<void*> on the underlying pointer and
+// distinguish distinct pointers.
+TEST(HandleTypes, Hash) {
+  int x = 0, y = 0;
+  DeclRef a(&x), b(&x), c(&y);
+  std::hash<DeclRef> h;
+  EXPECT_EQ(h(a), h(b));
+  EXPECT_EQ(h(a), std::hash<void*>{}(&x));
+  EXPECT_NE(h(a), h(c));
+
+  std::unordered_set<DeclRef> s{a, b, c};
+  EXPECT_EQ(s.size(), 2u);
+  EXPECT_TRUE(s.count(DeclRef(&x)));
+  EXPECT_FALSE(s.count(DeclRef{}));
 }
 
 // The dispatch ABI cppyy uses reinterpret-casts a dlsym'd void*-taking

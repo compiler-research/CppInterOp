@@ -196,6 +196,27 @@ struct ConstFuncRef {
 #include <string>
 #include <vector>
 
+template <> struct std::hash<Cpp::DeclRef> {
+  std::size_t operator()(const Cpp::DeclRef& obj) const {
+    return std::hash<void*>{}(obj.data);
+  }
+};
+template <> struct std::hash<Cpp::TypeRef> {
+  std::size_t operator()(const Cpp::TypeRef& obj) const {
+    return std::hash<void*>{}(obj.data);
+  }
+};
+template <> struct std::hash<Cpp::FuncRef> {
+  std::size_t operator()(const Cpp::FuncRef& obj) const {
+    return std::hash<void*>{}(obj.data);
+  }
+};
+template <> struct std::hash<Cpp::ObjectRef> {
+  std::size_t operator()(const Cpp::ObjectRef& obj) const {
+    return std::hash<void*>{}(obj.data);
+  }
+};
+
 namespace Cpp {
 class JitCall;
 }
