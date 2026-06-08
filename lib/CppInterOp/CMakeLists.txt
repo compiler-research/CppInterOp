@@ -213,6 +213,7 @@ add_llvm_library(clangCppInterOp
   CppInterOpDispatch.cpp
   CXCppInterOp.cpp
   CXCppInterOpGenerated.cpp
+  ErrorInternal.cpp
   Tracing.cpp
   ${DLM}
   LINK_LIBS
