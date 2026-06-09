@@ -1,12 +1,10 @@
 name: clang-tidy-review
 
 on:
-  # XXX(ci-root-integration): disabled on this branch; restore before landing.
-  # pull_request:
-  #   paths:
-  #     - '**.h'
-  #     - '**.cpp'
-  workflow_dispatch:
+  pull_request:
+    paths:
+      - '**.h'
+      - '**.cpp'
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number }}
