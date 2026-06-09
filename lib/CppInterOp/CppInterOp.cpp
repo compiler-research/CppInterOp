@@ -4519,8 +4519,8 @@ InterpRef CreateInterpreter(const std::vector<const char*>& Args /*={}*/,
       reinterpret_cast<uint64_t>(&__clang_Interpreter_SetValueWithAlloc));
 #else
   // obtain mangled name
-  auto* D = static_cast<clang::Decl*>(
-      Cpp::GetNamed("__clang_Interpreter_SetValueWithAlloc"));
+  auto* D =
+      unwrap<Decl>(Cpp::GetNamed("__clang_Interpreter_SetValueWithAlloc"));
   if (auto* FD = llvm::dyn_cast_or_null<FunctionDecl>(D)) {
     auto GD = GlobalDecl(FD);
     std::string mangledName;
