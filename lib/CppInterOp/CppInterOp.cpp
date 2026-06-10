@@ -1870,8 +1870,12 @@ BestOverloadFunctionMatch(const std::vector<FuncRef>& candidates,
     ExplicitTemplateArgs.addArgument(
         S.getTrivialTemplateArgumentLoc(TA, QualType(), SourceLocation()));
 
+  // ensure valid point of instantiation, SFINAE trap keeps any failure soft
+  SourceLocation Loc = SourceLocation::getFromRawEncoding(1);
+  Sema::SFINAETrap Trap(S, /*ForValidityCheck=*/true);
+
   OverloadCandidateSet Overloads(
-      SourceLocation(), OverloadCandidateSet::CandidateSetKind::CSK_Normal);
+      Loc, OverloadCandidateSet::CandidateSetKind::CSK_Normal);
 
   for (auto i : candidates) {
     auto* D = const_cast<Decl*>(unwrap<Decl>(i));
@@ -1905,7 +1909,7 @@ BestOverloadFunctionMatch(const std::vector<FuncRef>& candidates,
   }
 
   OverloadCandidateSet::iterator Best;
-  Overloads.BestViableFunction(S, SourceLocation(), Best);
+  Overloads.BestViableFunction(S, Loc, Best);
 
   FunctionDecl* Result = Best != Overloads.end() ? Best->Function : nullptr;
   delete[] Exprs;
