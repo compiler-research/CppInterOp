@@ -935,7 +935,7 @@ static std::string GetCompleteNameImpl(ConstDeclRef DRef, bool qualified) {
 
     if (const auto* TD = llvm::dyn_cast<TagDecl>(ND)) {
       std::string type_name;
-      QualType QT = C.Get_Tag_Type(TD);
+      QualType QT = compat::GetTypeFromDecl(TD);
       QT.getAsStringInternal(type_name, Policy);
       return type_name;
     }
@@ -1425,12 +1425,7 @@ static void GetClassDecls(ConstDeclRef DRef, std::vector<HandleType>& methods) {
   auto* CXXRD = dyn_cast<CXXRecordDecl>(D);
   compat::SynthesizingCodeRAII RAII(&getInterp());
   if (auto* CTSD = dyn_cast<ClassTemplateSpecializationDecl>(CXXRD)) {
-    QualType QT;
-#if CLANG_VERSION_MAJOR < 22
-    QT = QualType(CTSD->getTypeForDecl(), 0);
-#else
-    QT = getSema().getASTContext().getCanonicalTagType(CTSD);
-#endif
+    QualType QT = compat::GetTypeFromDecl(CTSD);
     if (!getSema().isCompleteType(CTSD->getLocation(), QT))
       return; // Unsuccesfull instantiaton
   }
@@ -1610,14 +1605,19 @@ void GetFnTypeSignature(ConstTypeRef fn_type, std::vector<TypeRef>& sig) {
   return INTEROP_VOID_RETURN();
 }
 
+// A C++23 explicit object parameter (the `this Self self` of a "deducing this"
+// member function) is a real ParmVarDecl, but it binds to the object the method
+// is invoked on rather than being callee-supplied. Clang's getNumParams() /
+// getMinRequiredArguments() count it; the *NonObject* / *Explicit* variants
+// exclude it, which is what callers introspecting the argument list want.
 size_t GetFunctionNumArgs(ConstFuncRef func) {
   INTEROP_TRACE(func);
   const auto* D = unwrap<clang::Decl>(func);
   if (const auto* FD = llvm::dyn_cast_or_null<FunctionDecl>(D))
-    return INTEROP_RETURN(FD->getNumParams());
+    return INTEROP_RETURN(FD->getNumNonObjectParams());
 
   if (const auto* FD = llvm::dyn_cast_or_null<clang::FunctionTemplateDecl>(D))
-    return INTEROP_RETURN((FD->getTemplatedDecl())->getNumParams());
+    return INTEROP_RETURN(FD->getTemplatedDecl()->getNumNonObjectParams());
 
   return INTEROP_RETURN(0);
 }
@@ -1626,10 +1626,11 @@ size_t GetFunctionRequiredArgs(ConstFuncRef func) {
   INTEROP_TRACE(func);
   const auto* D = unwrap<clang::Decl>(func);
   if (const auto* FD = llvm::dyn_cast_or_null<FunctionDecl>(D))
-    return INTEROP_RETURN(FD->getMinRequiredArguments());
+    return INTEROP_RETURN(FD->getMinRequiredExplicitArguments());
 
   if (const auto* FD = llvm::dyn_cast_or_null<clang::FunctionTemplateDecl>(D))
-    return INTEROP_RETURN((FD->getTemplatedDecl())->getMinRequiredArguments());
+    return INTEROP_RETURN(
+        FD->getTemplatedDecl()->getMinRequiredExplicitArguments());
 
   return INTEROP_RETURN(0);
 }
@@ -1642,8 +1643,8 @@ TypeRef GetFunctionArgType(ConstFuncRef func, size_t iarg) {
     D = FTD->getTemplatedDecl();
 
   if (const auto* FD = llvm::dyn_cast_or_null<clang::FunctionDecl>(D)) {
-    if (iarg < FD->getNumParams()) {
-      const auto* PVD = FD->getParamDecl(iarg);
+    if (iarg < FD->getNumNonObjectParams()) {
+      const auto* PVD = FD->getNonObjectParameter(iarg);
       return INTEROP_RETURN(PVD->getOriginalType().getAsOpaquePtr());
     }
   }
@@ -1878,14 +1879,28 @@ BestOverloadFunctionMatch(const std::vector<FuncRef>& candidates,
       S.AddOverloadCandidate(FD, DeclAccessPair::make(FD, FD->getAccess()),
                              Args, Overloads);
     } else if (auto* FTD = dyn_cast<FunctionTemplateDecl>(D)) {
-      // AddTemplateOverloadCandidate is causing a memory leak
-      // It is a known bug at clang
-      // call stack: AddTemplateOverloadCandidate -> MakeDeductionFailureInfo
-      // source:
-      // https://github.com/llvm/llvm-project/blob/release/19.x/clang/lib/Sema/SemaOverload.cpp#L731-L756
-      S.AddTemplateOverloadCandidate(
-          FTD, DeclAccessPair::make(FTD, FTD->getAccess()),
-          &ExplicitTemplateArgs, Args, Overloads);
+      auto* MD = dyn_cast<CXXMethodDecl>(FTD->getTemplatedDecl());
+      if (MD && MD->isExplicitObjectMemberFunction()) {
+        // The explicit object parameter isn't in Args, so deduce it via the
+        // method-template path with a synthesized receiver of the record type.
+        CXXRecordDecl* RD = MD->getParent();
+        QualType ObjectType = compat::GetTypeFromDecl(RD);
+        OpaqueValueExpr ObjectExpr(SourceLocation::getFromRawEncoding(1),
+                                   ObjectType, ExprValueKind::VK_LValue);
+        S.AddMethodTemplateCandidate(
+            FTD, DeclAccessPair::make(FTD, FTD->getAccess()), RD,
+            &ExplicitTemplateArgs, ObjectType, ObjectExpr.Classify(C), Args,
+            Overloads);
+      } else {
+        // AddTemplateOverloadCandidate is causing a memory leak
+        // It is a known bug at clang
+        // call stack: AddTemplateOverloadCandidate -> MakeDeductionFailureInfo
+        // source:
+        // https://github.com/llvm/llvm-project/blob/release/19.x/clang/lib/Sema/SemaOverload.cpp#L731-L756
+        S.AddTemplateOverloadCandidate(
+            FTD, DeclAccessPair::make(FTD, FTD->getAccess()),
+            &ExplicitTemplateArgs, Args, Overloads);
+      }
     }
   }
 
@@ -2929,11 +2944,7 @@ static std::optional<QualType> GetTypeInternal(const Decl* D) {
     return VD->getType();
 
   if (const auto* TD = llvm::dyn_cast_or_null<TypeDecl>(D))
-#if CLANG_VERSION_MAJOR < 22
-    return QualType(TD->getTypeForDecl(), 0);
-#else
-    return getASTContext().getTypeDeclType(TD);
-#endif
+    return compat::GetTypeFromDecl(TD);
 
   return {};
 }
@@ -3019,11 +3030,7 @@ static void GetDeclName(const clang::Decl* D, ASTContext& Context,
       // Handle the typedefs to anonymous types.
       QT = Typedef->getTypeSourceInfo()->getType();
     } else
-#if CLANG_VERSION_MAJOR < 22
-      QT = {TD->getTypeForDecl(), 0};
-#else
-      QT = TD->getASTContext().getTypeDeclType(TD);
-#endif
+      QT = compat::GetTypeFromDecl(TD);
     get_type_as_string(QT, name, Context, Policy);
   } else if (const auto* ND = dyn_cast<NamedDecl>(D)) {
     // This is a namespace member.
@@ -3241,7 +3248,7 @@ void make_narg_call(const FunctionDecl* FD, const std::string& return_type,
             indent(callbuf, indent_level + 1);
           }
         }
-        const ParmVarDecl* PVD = FD->getParamDecl(i);
+        const ParmVarDecl* PVD = FD->getNonObjectParameter(i);
         QualType Ty = PVD->getType();
         QualType QT = Ty.getCanonicalType();
         std::string arg_type;
@@ -3259,7 +3266,16 @@ void make_narg_call(const FunctionDecl* FD, const std::string& return_type,
 
   if (const auto* MD = dyn_cast<CXXMethodDecl>(FD)) {
     // This is a class, struct, or union member.
-    if (MD->isConst())
+    // An rvalue-ref-qualified method must be called on an rvalue: bind the
+    // receiver with static_cast<T&&>. Covers `f() &&` and `this T&&` (the
+    // latter leaves getRefQualifier() == RQ_None).
+    bool rvalue_ref = MD->getRefQualifier() == clang::RQ_RValue ||
+                      (MD->hasCXXExplicitFunctionObjectParameter() &&
+                       MD->getParamDecl(0)->getType()->isRValueReferenceType());
+    if (rvalue_ref)
+      callbuf << "static_cast<" << class_name << "&&>(*(" << class_name
+              << "*)obj).";
+    else if (MD->isConst())
       callbuf << "((const " << class_name << "*)obj)->";
     else
       callbuf << "((" << class_name << "*)obj)->";
@@ -3320,7 +3336,7 @@ void make_narg_call(const FunctionDecl* FD, const std::string& return_type,
 
   callbuf << "(";
   for (unsigned i = 0U; i < N; ++i) {
-    const ParmVarDecl* PVD = FD->getParamDecl(i);
+    const ParmVarDecl* PVD = FD->getNonObjectParameter(i);
     QualType Ty = PVD->getType();
     QualType QT = Ty.getCanonicalType();
     std::string type_name;
@@ -3943,8 +3959,11 @@ int get_wrapper_code(compat::Interpreter& I, const FunctionDecl* FD,
     } break;
     }
   }
-  unsigned min_args = FD->getMinRequiredArguments();
-  unsigned num_params = FD->getNumParams();
+  // A C++23 explicit object parameter is bound via the `obj->` receiver of the
+  // emitted member call, not from the args[] array, so it is excluded from the
+  // wrapper's argument arity (see make_narg_call).
+  unsigned min_args = FD->getMinRequiredExplicitArguments();
+  unsigned num_params = FD->getNumNonObjectParams();
   //
   //  Make the wrapper name.
   //
@@ -5176,11 +5195,11 @@ std::string GetFunctionArgDefault(ConstFuncRef func, size_t param_index) {
   const clang::ParmVarDecl* PI = nullptr;
 
   if (const auto* FD = llvm::dyn_cast_or_null<clang::FunctionDecl>(D))
-    PI = FD->getParamDecl(param_index);
+    PI = FD->getNonObjectParameter(param_index);
 
   else if (const auto* FD =
                llvm::dyn_cast_or_null<clang::FunctionTemplateDecl>(D))
-    PI = (FD->getTemplatedDecl())->getParamDecl(param_index);
+    PI = (FD->getTemplatedDecl())->getNonObjectParameter(param_index);
 
   if (PI->hasDefaultArg()) {
     std::string Result;
@@ -5228,10 +5247,10 @@ std::string GetFunctionArgName(ConstFuncRef func, size_t param_index) {
   const clang::ParmVarDecl* PI = nullptr;
 
   if (const auto* FD = llvm::dyn_cast_or_null<clang::FunctionDecl>(D))
-    PI = FD->getParamDecl(param_index);
+    PI = FD->getNonObjectParameter(param_index);
   else if (const auto* FD =
                llvm::dyn_cast_or_null<clang::FunctionTemplateDecl>(D))
-    PI = (FD->getTemplatedDecl())->getParamDecl(param_index);
+    PI = (FD->getTemplatedDecl())->getNonObjectParameter(param_index);
 
   return INTEROP_RETURN(PI->getNameAsString());
 }
