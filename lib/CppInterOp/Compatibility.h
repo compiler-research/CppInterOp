@@ -5,6 +5,7 @@
 #ifndef CPPINTEROP_COMPATIBILITY_H
 #define CPPINTEROP_COMPATIBILITY_H
 
+#include "clang/AST/Decl.h"
 #include "clang/AST/DeclTemplate.h"
 #include "clang/AST/GlobalDecl.h"
 #include "clang/Basic/DiagnosticIDs.h"
@@ -50,12 +51,6 @@
 #define Suppress_Elab SuppressElaboration
 #else
 #define Suppress_Elab FullyQualifiedName
-#endif
-
-#if CLANG_VERSION_MAJOR < 22
-#define Get_Tag_Type getTagDeclType
-#else
-#define Get_Tag_Type getCanonicalTagType
 #endif
 
 #ifdef _MSC_VER
@@ -700,6 +695,13 @@ public:
 #endif // CPPINTEROP_USE_REPL
 
 namespace compat {
+
+// QualType for a TypeDecl. Pass a TypeDecl base pointer: Clang 22 deleted the
+// TagDecl/TypedefDecl overloads, but the surviving TypeDecl one dispatches to
+// getCanonicalTagType for tags, covering all decl kinds on Clang 21 and 22.
+inline clang::QualType GetTypeFromDecl(const clang::TypeDecl* TD) {
+  return TD->getASTContext().getTypeDeclType(TD);
+}
 
 #ifdef CPPINTEROP_USE_CLING
 using Value = cling::Value;

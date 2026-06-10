@@ -12,6 +12,7 @@
 
 #include "gtest/gtest.h"
 
+#include <array>
 #include <string>
 #include <vector>
 
@@ -3123,4 +3124,515 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_IsExplicitDeductionGuide) {
             "explicit Wrapper(T *) -> Wrapper<T *>");
   EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetFunctionReturnType(guide)),
             "Wrapper<T *>");
+}
+
+// C++23 "deducing this" (explicit object parameters, P0847R7): the object
+// parameter binds to the receiver, not the argument list.
+TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_DeducingThisIntrospection) {
+  std::vector<Decl*> Decls;
+  std::vector<Decl*> SubDecls;
+  std::string code = R"(
+    struct Widget {
+      int value = 42;
+      int get(this Widget& self) { return self.value; }
+      int add(this Widget& self, int x, int y = 5) { return self.value + x + y; }
+      int plain(int x) { return value + x; }
+    };
+  )";
+
+  GetAllTopLevelDecls(code, Decls, /*filter_implicitGenerated=*/true,
+                      /*interpreter_args=*/{"-std=c++23"});
+  GetAllSubDecls(Decls[0], SubDecls, /*filter_implicitGenerated=*/true);
+
+  // SubDecls: [0]=field value, [1]=get, [2]=add, [3]=plain
+  Decl* get = SubDecls[1];
+  Decl* add = SubDecls[2];
+  Decl* plain = SubDecls[3];
+
+  // The explicit object parameter is not counted as a callee argument.
+  EXPECT_EQ(Cpp::GetFunctionNumArgs(get), (size_t)0);
+  EXPECT_EQ(Cpp::GetFunctionRequiredArgs(get), (size_t)0);
+
+  EXPECT_EQ(Cpp::GetFunctionNumArgs(add), (size_t)2);
+  EXPECT_EQ(Cpp::GetFunctionRequiredArgs(add), (size_t)1); // y defaulted
+
+  // The non-object parameters are exposed at 0-based indices that skip `self`.
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetFunctionArgType(add, 0)), "int");
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetFunctionArgType(add, 1)), "int");
+  EXPECT_EQ(Cpp::GetFunctionArgName(add, 0), "x");
+  EXPECT_EQ(Cpp::GetFunctionArgName(add, 1), "y");
+  EXPECT_EQ(Cpp::GetFunctionArgDefault(add, 1), "5");
+
+  // A traditional (implicit-object) method is unaffected.
+  EXPECT_EQ(Cpp::GetFunctionNumArgs(plain), (size_t)1);
+  EXPECT_EQ(Cpp::GetFunctionArgName(plain, 0), "x");
+}
+
+TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_DeducingThisJitCall) {
+#ifdef EMSCRIPTEN
+#if CLANG_VERSION_MAJOR > 21
+  GTEST_SKIP() << "Test fails for Emscripten builds using LLVM 22";
+#endif
+#endif
+  if (TypeParam::isOutOfProcess)
+    GTEST_SKIP() << "Test fails for OOP JIT builds";
+
+  std::string code = R"(
+    struct Widget {
+      int value = 42;
+      int get(this Widget& self) { return self.value; }
+      int add(this Widget& self, int x, int y) { return self.value + x + y; }
+    };
+  )";
+
+  std::vector<Decl*> Decls;
+  // `-include new` is needed for the constructor wrapper's placement new.
+  GetAllTopLevelDecls(code, Decls, /*filter_implicitGenerated=*/false,
+                      /*interpreter_args=*/{"-std=c++23", "-include", "new"});
+
+  Cpp::DeclRef Widget = Cpp::GetNamed("Widget");
+  ASSERT_TRUE(Widget);
+
+  // Construct a Widget so the in-class initializer (value = 42) runs.
+  auto Ctor = Cpp::MakeFunctionCallable(Cpp::GetDefaultConstructor(Widget));
+  void* object = nullptr;
+  Ctor.Invoke((void*)&object, {}, /*self=*/nullptr);
+  ASSERT_TRUE(object);
+
+  // get(): explicit object parameter bound to the receiver, no call args.
+  Cpp::JitCall GetCall = Cpp::MakeFunctionCallable(
+      Cpp::FuncRef{Cpp::GetNamed("get", Widget).data});
+  EXPECT_EQ(GetCall.getKind(), Cpp::JitCall::kGenericCall);
+  int result = 0;
+  GetCall.Invoke(&result, {}, object);
+  EXPECT_EQ(result, 42);
+
+  // add(): explicit object parameter plus regular arguments.
+  Cpp::JitCall AddCall = Cpp::MakeFunctionCallable(
+      Cpp::FuncRef{Cpp::GetNamed("add", Widget).data});
+  int x = 20;
+  int y = 3;
+  std::array<void*, 2> args = {(void*)&x, (void*)&y};
+  result = 0;
+  AddCall.Invoke(&result, {args.data(), /*args_size=*/2}, object);
+  EXPECT_EQ(result, 42 + 20 + 3);
+
+  Cpp::Destruct(object, Widget);
+}
+
+TYPED_TEST(CPPINTEROP_TEST_MODE,
+           FunctionReflection_DeducingThisRValueRefJitCall) {
+#ifdef EMSCRIPTEN
+#if CLANG_VERSION_MAJOR > 21
+  GTEST_SKIP() << "Test fails for Emscripten builds using LLVM 22";
+#endif
+#endif
+  if (TypeParam::isOutOfProcess)
+    GTEST_SKIP() << "Test fails for OOP JIT builds";
+
+  // The wrapper must bind the receiver as an rvalue for both the C++23
+  // explicit-object form (`this W&&`) and the traditional `&&` qualifier.
+  std::string code = R"(
+    struct RWidget {
+      int value = 13;
+      int consume(this RWidget&& self) { return self.value; }
+    };
+    struct QWidget {
+      int value = 17;
+      int consume() && { return value; }
+    };
+  )";
+
+  std::vector<Decl*> Decls;
+  GetAllTopLevelDecls(code, Decls, /*filter_implicitGenerated=*/false,
+                      /*interpreter_args=*/{"-std=c++23", "-include", "new"});
+
+  for (const char* name : {"RWidget", "QWidget"}) {
+    Cpp::DeclRef W = Cpp::GetNamed(name);
+    ASSERT_TRUE(W) << name;
+    auto Ctor = Cpp::MakeFunctionCallable(Cpp::GetDefaultConstructor(W));
+    void* object = nullptr;
+    Ctor.Invoke((void*)&object);
+    ASSERT_TRUE(object) << name;
+
+    Cpp::JitCall Call = Cpp::MakeFunctionCallable(
+        Cpp::FuncRef{Cpp::GetNamed("consume", W).data});
+    EXPECT_EQ(Call.getKind(), Cpp::JitCall::kGenericCall) << name;
+    int result = 0;
+    Call.Invoke(&result, {}, object);
+    EXPECT_EQ(result, std::string(name) == "RWidget" ? 13 : 17) << name;
+
+    Cpp::Destruct(object, W);
+  }
+}
+
+TYPED_TEST(CPPINTEROP_TEST_MODE,
+           FunctionReflection_DeducingThisTemplateOverloadMatch) {
+  std::vector<Decl*> Decls;
+  std::vector<Decl*> SubDecls;
+  std::string code = R"(
+    struct TWidget {
+      int value = 9;
+      template <class Self> int via(this Self&& self) { return self.value; }
+    };
+  )";
+
+  GetAllTopLevelDecls(code, Decls, /*filter_implicitGenerated=*/true,
+                      /*interpreter_args=*/{"-std=c++23"});
+  GetAllSubDecls(Decls[0], SubDecls, /*filter_implicitGenerated=*/true);
+
+  std::vector<Cpp::FuncRef> candidates;
+  for (auto* decl : SubDecls)
+    if (Cpp::IsTemplatedFunction(decl))
+      candidates.push_back((Cpp::FuncRef)decl);
+  ASSERT_EQ(candidates.size(), (size_t)1);
+
+  // No explicit template/call args: `Self` deduces from the synthesized
+  // receiver (only the AddMethodTemplateCandidate path can do this).
+  std::vector<Cpp::TemplateArgInfo> no_explicit_args;
+  std::vector<Cpp::TemplateArgInfo> no_args;
+  Cpp::FuncRef matched =
+      Cpp::BestOverloadFunctionMatch(candidates, no_explicit_args, no_args);
+  ASSERT_TRUE(matched);
+  EXPECT_NE(Cpp::GetFunctionSignature(matched).find("via"), std::string::npos);
+}
+
+TYPED_TEST(CPPINTEROP_TEST_MODE,
+           FunctionReflection_DeducingThisAbbreviatedAuto) {
+  // `this auto&&` is sugar for an invented template parameter: a method
+  // template with a distinct AST shape from an explicit `template<class S>`.
+  // It must still deduce the object parameter from the synthesized receiver.
+  std::vector<Decl*> Decls;
+  std::vector<Decl*> SubDecls;
+  std::string code = R"(
+    struct AAWidget {
+      int value = 23;
+      int get(this auto&& self) { return self.value; }
+    };
+  )";
+
+  GetAllTopLevelDecls(code, Decls, /*filter_implicitGenerated=*/true,
+                      /*interpreter_args=*/{"-std=c++23"});
+  GetAllSubDecls(Decls[0], SubDecls, /*filter_implicitGenerated=*/true);
+
+  std::vector<Cpp::FuncRef> candidates;
+  for (auto* decl : SubDecls)
+    if (Cpp::IsTemplatedFunction(decl))
+      candidates.push_back((Cpp::FuncRef)decl);
+  ASSERT_EQ(candidates.size(), (size_t)1);
+
+  std::vector<Cpp::TemplateArgInfo> no_explicit_args;
+  std::vector<Cpp::TemplateArgInfo> no_args;
+  Cpp::FuncRef matched =
+      Cpp::BestOverloadFunctionMatch(candidates, no_explicit_args, no_args);
+  ASSERT_TRUE(matched);
+  EXPECT_NE(Cpp::GetFunctionSignature(matched).find("get"), std::string::npos);
+}
+
+TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_DeducingThisByValueCopy) {
+#ifdef EMSCRIPTEN
+#if CLANG_VERSION_MAJOR > 21
+  GTEST_SKIP() << "Test fails for Emscripten builds using LLVM 22";
+#endif
+#endif
+  if (TypeParam::isOutOfProcess)
+    GTEST_SKIP() << "Test fails for OOP JIT builds";
+
+  // A by-value explicit object parameter (`this W self`) operates on an
+  // independent copy: mutating it must not affect the original receiver.
+  std::string code = R"(
+    struct CopyWidget {
+      int value = 1;
+      int bump(this CopyWidget self) { self.value += 100; return self.value; }
+      int read(this CopyWidget& self) { return self.value; }
+    };
+  )";
+
+  std::vector<Decl*> Decls;
+  GetAllTopLevelDecls(code, Decls, /*filter_implicitGenerated=*/false,
+                      /*interpreter_args=*/{"-std=c++23", "-include", "new"});
+
+  Cpp::DeclRef W = Cpp::GetNamed("CopyWidget");
+  ASSERT_TRUE(W);
+  auto Ctor = Cpp::MakeFunctionCallable(Cpp::GetDefaultConstructor(W));
+  void* object = nullptr;
+  Ctor.Invoke((void*)&object, {}, /*self=*/nullptr);
+  ASSERT_TRUE(object);
+
+  Cpp::JitCall Bump =
+      Cpp::MakeFunctionCallable(Cpp::FuncRef{Cpp::GetNamed("bump", W).data});
+  int result = 0;
+  Bump.Invoke(&result, {}, object);
+  EXPECT_EQ(result, 101); // the copy was mutated
+
+  Cpp::JitCall Read =
+      Cpp::MakeFunctionCallable(Cpp::FuncRef{Cpp::GetNamed("read", W).data});
+  result = 0;
+  Read.Invoke(&result, {}, object);
+  EXPECT_EQ(result, 1); // ... the original is untouched
+
+  Cpp::Destruct(object, W);
+}
+
+TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_DeducingThisInheritance) {
+#ifdef EMSCRIPTEN
+#if CLANG_VERSION_MAJOR > 21
+  GTEST_SKIP() << "Test fails for Emscripten builds using LLVM 22";
+#endif
+#endif
+  if (TypeParam::isOutOfProcess)
+    GTEST_SKIP() << "Test fails for OOP JIT builds";
+
+  // A base-class explicit object method invoked on a derived object: the
+  // wrapper binds a Derived* receiver to a Base& object parameter.
+  std::string code = R"(
+    struct Base {
+      int value = 8;
+      int get(this Base& self) { return self.value; }
+    };
+    struct Derived : Base { };
+  )";
+
+  std::vector<Decl*> Decls;
+  GetAllTopLevelDecls(code, Decls, /*filter_implicitGenerated=*/false,
+                      /*interpreter_args=*/{"-std=c++23", "-include", "new"});
+
+  Cpp::DeclRef Derived = Cpp::GetNamed("Derived");
+  Cpp::DeclRef Base = Cpp::GetNamed("Base");
+  ASSERT_TRUE(Derived);
+  ASSERT_TRUE(Base);
+  auto Ctor = Cpp::MakeFunctionCallable(Cpp::GetDefaultConstructor(Derived));
+  void* object = nullptr;
+  Ctor.Invoke((void*)&object, {}, /*self=*/nullptr);
+  ASSERT_TRUE(object);
+
+  // get() is declared on Base, invoked with the Derived object.
+  Cpp::JitCall Get =
+      Cpp::MakeFunctionCallable(Cpp::FuncRef{Cpp::GetNamed("get", Base).data});
+  EXPECT_EQ(Get.getKind(), Cpp::JitCall::kGenericCall);
+  int result = 0;
+  Get.Invoke(&result, {}, object);
+  EXPECT_EQ(result, 8);
+
+  Cpp::Destruct(object, Derived);
+}
+
+// Use-cases from https://devblogs.microsoft.com/cppblog/cpp23-deducing-this/
+// Cases that live inside a function body are driven via a JIT-called helper.
+
+// JIT-call a nullary `int ns::fn()`. (GetNamed takes a name + scope, so the
+// namespace is resolved first.)
+static int JitCallIntNullary(const char* ns, const char* fn) {
+  Cpp::DeclRef Scope = Cpp::GetNamed(ns);
+  EXPECT_TRUE(Scope) << ns;
+  Cpp::DeclRef Fn = Cpp::GetNamed(fn, Scope);
+  EXPECT_TRUE(Fn) << fn;
+  Cpp::JitCall JC = Cpp::MakeFunctionCallable(Cpp::FuncRef{Fn.data});
+  EXPECT_EQ(JC.getKind(), Cpp::JitCall::kGenericCall) << fn;
+  int result = 0;
+  JC.Invoke(&result, {});
+  return result;
+}
+
+TYPED_TEST(CPPINTEROP_TEST_MODE,
+           FunctionReflection_DeducingThisBlogDeduplication) {
+#ifdef EMSCRIPTEN
+#if CLANG_VERSION_MAJOR > 21
+  GTEST_SKIP() << "Test fails for Emscripten builds using LLVM 22";
+#endif
+#endif
+  if (TypeParam::isOutOfProcess)
+    GTEST_SKIP() << "Test fails for OOP JIT builds";
+
+  // Blog use-case 1: code de-duplication. One forwarding accessor
+  // `value(this Self&&)` replaces the cv/ref overloads; the driver writes
+  // through it on an lvalue and reads the mutation back.
+  std::string code = R"(
+    #include <utility>
+    namespace BlogDedup {
+      struct Optional {
+        int m_value = 5;
+        template <class Self> auto&& value(this Self&& self) {
+          return std::forward<Self>(self).m_value;
+        }
+      };
+      int drive() { Optional o; o.value() = 17; return o.value(); }
+    }
+  )";
+
+  std::vector<Decl*> Decls;
+  GetAllTopLevelDecls(code, Decls, /*filter_implicitGenerated=*/false,
+                      /*interpreter_args=*/{"-std=c++23", "-include", "new"});
+  EXPECT_EQ(JitCallIntNullary("BlogDedup", "drive"), 17);
+}
+
+TYPED_TEST(CPPINTEROP_TEST_MODE,
+           FunctionReflection_DeducingThisBlogCRTPPostfix) {
+#ifdef EMSCRIPTEN
+#if CLANG_VERSION_MAJOR > 21
+  GTEST_SKIP() << "Test fails for Emscripten builds using LLVM 22";
+#endif
+#endif
+  if (TypeParam::isOutOfProcess)
+    GTEST_SKIP() << "Test fails for OOP JIT builds";
+
+  // Blog use-case 2: CRTP without templating the base. `add_postfix_increment`
+  // supplies `operator++(this Self&&, int)` once; the derived prefix operator
+  // hides it, so a using-declaration re-exposes it (standard name hiding).
+  std::string code = R"(
+    namespace BlogCRTP {
+      struct add_postfix_increment {
+        template <typename Self>
+        auto operator++(this Self&& self, int) { auto tmp = self; ++self; return tmp; }
+      };
+      struct some_type : add_postfix_increment {
+        using add_postfix_increment::operator++;
+        int v = 0;
+        some_type& operator++() { ++v; return *this; }
+      };
+      int drive() { some_type c; auto old = c++; return old.v * 100 + c.v; }
+    }
+  )";
+
+  std::vector<Decl*> Decls;
+  GetAllTopLevelDecls(code, Decls, /*filter_implicitGenerated=*/false,
+                      /*interpreter_args=*/{"-std=c++23", "-include", "new"});
+  EXPECT_EQ(JitCallIntNullary("BlogCRTP", "drive"), 1); // old.v=0, c.v=1
+}
+
+TYPED_TEST(CPPINTEROP_TEST_MODE,
+           FunctionReflection_DeducingThisBlogRecursiveLambda) {
+#ifdef EMSCRIPTEN
+#if CLANG_VERSION_MAJOR > 21
+  GTEST_SKIP() << "Test fails for Emscripten builds using LLVM 22";
+#endif
+#endif
+  if (TypeParam::isOutOfProcess)
+    GTEST_SKIP() << "Test fails for OOP JIT builds";
+
+  // Blog use-case 4: recursive lambdas via the explicit object parameter.
+  std::string code = R"(
+    namespace BlogRecLambda {
+      int fib(int n) {
+        auto f = [](this auto const& self, int n) -> int {
+          return n < 2 ? n : self(n - 1) + self(n - 2);
+        };
+        return f(n);
+      }
+      int drive() { return fib(10); }
+    }
+  )";
+
+  std::vector<Decl*> Decls;
+  GetAllTopLevelDecls(code, Decls, /*filter_implicitGenerated=*/false,
+                      /*interpreter_args=*/{"-std=c++23", "-include", "new"});
+  EXPECT_EQ(JitCallIntNullary("BlogRecLambda", "drive"), 55);
+}
+
+TYPED_TEST(CPPINTEROP_TEST_MODE,
+           FunctionReflection_DeducingThisBlogLambdaForwarding) {
+#ifdef EMSCRIPTEN
+#if CLANG_VERSION_MAJOR > 21
+  GTEST_SKIP() << "Test fails for Emscripten builds using LLVM 22";
+#endif
+#endif
+  if (TypeParam::isOutOfProcess)
+    GTEST_SKIP() << "Test fails for OOP JIT builds";
+
+  // Blog use-case 3: a closure with an explicit object parameter forwards based
+  // on its own value category. (std::forward_like is not in the host libstdc++;
+  // the deducing-this closure mechanism is what is exercised.)
+  std::string code = R"(
+    #include <utility>
+    namespace BlogLambdaFwd {
+      struct Scheduler { int submit(int m) { return m; } };
+      int drive() {
+        Scheduler scheduler;
+        int message = 42;
+        auto callback = [message, &scheduler](this auto&& self) -> int {
+          return scheduler.submit(message);
+        };
+        return callback();
+      }
+    }
+  )";
+
+  std::vector<Decl*> Decls;
+  GetAllTopLevelDecls(code, Decls, /*filter_implicitGenerated=*/false,
+                      /*interpreter_args=*/{"-std=c++23", "-include", "new"});
+  EXPECT_EQ(JitCallIntNullary("BlogLambdaFwd", "drive"), 42);
+}
+
+TYPED_TEST(CPPINTEROP_TEST_MODE,
+           FunctionReflection_DeducingThisBlogPassByValue) {
+#ifdef EMSCRIPTEN
+#if CLANG_VERSION_MAJOR > 21
+  GTEST_SKIP() << "Test fails for Emscripten builds using LLVM 22";
+#endif
+#endif
+  if (TypeParam::isOutOfProcess)
+    GTEST_SKIP() << "Test fails for OOP JIT builds";
+
+  // Blog use-case 5: pass the object by value (good codegen for small types).
+  // Invoke the explicit-object method directly on a constructed object.
+  std::string code = R"(
+    namespace BlogByValue {
+      struct just_a_little_guy {
+        int how_smol = 21;
+        int uwu(this just_a_little_guy self) { return self.how_smol * 2; }
+      };
+    }
+  )";
+
+  std::vector<Decl*> Decls;
+  GetAllTopLevelDecls(code, Decls, /*filter_implicitGenerated=*/false,
+                      /*interpreter_args=*/{"-std=c++23", "-include", "new"});
+
+  Cpp::DeclRef W =
+      Cpp::GetNamed("just_a_little_guy", Cpp::GetNamed("BlogByValue"));
+  ASSERT_TRUE(W);
+  auto Ctor = Cpp::MakeFunctionCallable(Cpp::GetDefaultConstructor(W));
+  void* object = nullptr;
+  Ctor.Invoke((void*)&object, {}, /*self=*/nullptr);
+  ASSERT_TRUE(object);
+
+  Cpp::JitCall Uwu =
+      Cpp::MakeFunctionCallable(Cpp::FuncRef{Cpp::GetNamed("uwu", W).data});
+  int result = 0;
+  Uwu.Invoke(&result, {}, object);
+  EXPECT_EQ(result, 42);
+
+  Cpp::Destruct(object, W);
+}
+
+TYPED_TEST(CPPINTEROP_TEST_MODE,
+           FunctionReflection_DeducingThisBlogSfinaeTransform) {
+#ifdef EMSCRIPTEN
+#if CLANG_VERSION_MAJOR > 21
+  GTEST_SKIP() << "Test fails for Emscripten builds using LLVM 22";
+#endif
+#endif
+  if (TypeParam::isOutOfProcess)
+    GTEST_SKIP() << "Test fails for OOP JIT builds";
+
+  // Blog use-case 6: SFINAE-friendly callables (optional::transform). The
+  // cv/ref category flows through Self; a callable is applied to the contained
+  // value.
+  std::string code = R"(
+    namespace BlogTransform {
+      template <class T>
+      struct Optional6 {
+        T m_value;
+        template <class Self, class F>
+        auto transform(this Self&& self, F&& f) { return f(self.m_value); }
+      };
+      int triple(int x) { return x * 3; }
+      int drive() { Optional6<int> o{14}; return o.transform(triple); }
+    }
+  )";
+
+  std::vector<Decl*> Decls;
+  GetAllTopLevelDecls(code, Decls, /*filter_implicitGenerated=*/false,
+                      /*interpreter_args=*/{"-std=c++23", "-include", "new"});
+  EXPECT_EQ(JitCallIntNullary("BlogTransform", "drive"), 42);
 }
