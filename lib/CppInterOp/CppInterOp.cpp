@@ -53,6 +53,7 @@
 #include "clang/AST/Stmt.h"
 #include "clang/AST/Type.h"
 #include "clang/AST/VTableBuilder.h"
+#include "clang/Basic/Builtins.h"
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/DiagnosticSema.h"
 #include "clang/Basic/LangStandard.h"
@@ -1548,6 +1549,51 @@ TypeRef GetFunctionReturnType(ConstFuncRef func) {
         (FD->getTemplatedDecl())->getReturnType().getAsOpaquePtr());
 
   return INTEROP_RETURN(nullptr);
+}
+
+bool IsAllocator(ConstFuncRef Fn) {
+  INTEROP_TRACE(Fn);
+  if (Fn) {
+    const auto* D = unwrap<clang::Decl>(Fn);
+    if (const auto* FD = dyn_cast<FunctionDecl>(D)) {
+      if (FD->getBuiltinID() == Builtin::ID::BImalloc)
+        return INTEROP_RETURN(true);
+      if (const auto* FDA = FD->getAttr<RestrictAttr>()) {
+        if (FDA->getSemanticSpelling() != RestrictAttr::Declspec_restrict)
+          return INTEROP_RETURN(true);
+      }
+
+      if (const auto* FDA = FD->getAttr<OwnershipAttr>()) {
+        if (FDA->getOwnKind() == OwnershipAttr::Returns)
+          return INTEROP_RETURN(true);
+      }
+      // FIXME: These attributes are not currently compatible with our memory
+      // representation, they are added for APINotes' test
+      if (FD->hasAttr<CFReturnsRetainedAttr>() ||
+          FD->hasAttr<NSReturnsRetainedAttr>() ||
+          FD->hasAttr<OSReturnsRetainedAttr>())
+        return INTEROP_RETURN(true);
+    }
+  }
+
+  return INTEROP_RETURN(false);
+}
+
+bool IsDeallocator(ConstFuncRef Fn) {
+  INTEROP_TRACE(Fn);
+  if (Fn) {
+    const auto* D = unwrap<clang::Decl>(Fn);
+    if (const auto* FD = dyn_cast<FunctionDecl>(D)) {
+      if (FD->getBuiltinID() == Builtin::ID::BIfree)
+        return INTEROP_RETURN(true);
+      if (const auto* FDA = FD->getAttr<OwnershipAttr>()) {
+        if (FDA->getOwnKind() == OwnershipAttr::Takes)
+          return INTEROP_RETURN(true);
+      }
+    }
+  }
+
+  return INTEROP_RETURN(false);
 }
 
 bool IsFunctionProtoType(ConstTypeRef TyRef) {
