@@ -749,6 +749,105 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_FunctionTypes) {
   EXPECT_TRUE(Cpp::IsSameType(typ1, typ2));
 }
 
+TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_AllocCheckAPI) {
+  std::string code = R"(
+    #include <new>
+    #include <stdlib.h>
+
+    int* func0(int n){ return new int(n); }
+
+    void* func1(int n){ return (void*) new int(n); }
+
+    void* func2(int n){ return static_cast<void*>(new int(n)); }
+
+    int* func3(int n){ int* x = new int(n); int* y; y=x; return y; }
+
+    int* func4(int n){int* x = new int(n); int* y = x; return y; }
+
+    void* func5(int n){ return malloc(sizeof(int)); }
+
+    void* func6(int n){ void* x = malloc(sizeof(int)); return x; }
+
+    void** func7(int n){ void** arr = new void*[n]; return arr;}
+
+    void** func8(int n){ return new void*[n]; }
+
+    int* func9(int n){ int* x = new int(n); int* y = x; int* z = y; return z; }
+
+    int* func10(int n){ return static_cast<int*>(malloc(sizeof(int(n)))); }
+
+    int* func11(int n){
+      int* x = new int(n);
+      int* y = nullptr;
+      y = x;
+      x = nullptr;
+      return y;
+    }
+
+    int* func12(int n){ int* x = static_cast<int*>(malloc(sizeof(int))); return x;}
+
+    int* func13(int n){ int* x = new int(n); return (((x))); }
+
+    int func14(int n){ return n; }
+
+    int* func15(int n);
+
+    int* func16(int n) try { return new int(n); } catch(...) { return nullptr; }
+
+    int* func17(int* p){ return p; }
+
+    int* func18_t(int n){ return nullptr; }
+    typedef int* (*FnPtr18)(int);
+    FnPtr18 func18(int n){ return func18_t; }
+
+    int* func19_helper(int n){ return nullptr; }
+    int* func19(int n){ return func19_helper(n); }
+
+    int* func20(int* (*fp)(int), int n){ return fp(n); }
+
+    int* func21(int n){ static char buf[16]; return new (&buf) int(n); }
+
+    int* func22(int n){ []{ return; }(); return new int(n); }
+
+    int* func23;
+    )";
+  TestFixture::CreateInterpreter();
+  Interp->declare(code);
+
+#define TESTAC(N, EXP)                                                         \
+  EXPECT_EQ(                                                                   \
+      Cpp::AllocCheckAPI(Cpp::ConstFuncRef { Cpp::GetNamed("func" #N).data }), \
+      Cpp::AllocType::EXP)
+
+  TESTAC(0, New);
+  TESTAC(1, New);
+  TESTAC(2, New);
+  TESTAC(3, New);
+  TESTAC(4, New);
+  TESTAC(5, Malloc);
+  TESTAC(6, Malloc);
+  TESTAC(7, NewArr);
+  TESTAC(8, NewArr);
+  TESTAC(9, New);
+  TESTAC(10, Malloc);
+  TESTAC(11, New);
+  TESTAC(12, Malloc);
+  TESTAC(13, New);
+  TESTAC(14, None);
+  TESTAC(15, Unknown);
+  TESTAC(16, Unknown);
+  TESTAC(17, None);
+  TESTAC(18, None);
+  TESTAC(19, None);
+  TESTAC(20, None);
+  TESTAC(21, None);
+  TESTAC(22, New);
+  TESTAC(23, None);
+
+#undef TESTAC
+
+  Cpp::DeleteInterpreter();
+}
 TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetFunctionSignature) {
   std::vector<Decl*> Decls;
   std::string code = R"(
