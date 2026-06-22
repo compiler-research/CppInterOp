@@ -763,6 +763,15 @@ def IsFunctionProtoType : CppInterOpAPI {
   ];
 }
 
+def AllocCheckAPI: CppInterOpAPI {
+  let Doc = "Analyzes function's body to detect allocation behaviour";
+
+  let ReturnType = "AllocType";
+  let Args = [
+    Arg<"ConstFuncRef", "Fn">
+  ];
+}
+
 def GetFnTypeSignature : CppInterOpAPI {
   let Doc = [{Pushed the signature type of the given function type,
   where the first item is the return type.}];
