@@ -824,6 +824,18 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_DLMIsPerInterpreter) {
   ASSERT_FALSE(BinaryPath.empty());
   llvm::StringRef BinDir = llvm::sys::path::parent_path(BinaryPath);
 
+  // Baseline: what a pristine interpreter (no user-added search path) sees.
+  // Every DLM defaults to searching "." (the cwd); when the binary's cwd
+  // contains TestSharedLib.so (e.g. under a runfiles-style layout) a fresh
+  // interpreter already resolves kSym, and when it doesn't (e.g. cwd is a
+  // separate build dir) it resolves nothing. Capturing this makes the test
+  // assert about path *leakage*, not about the cwd-dependent default scan.
+  auto I0 = TestFixture::CreateInterpreter();
+  ASSERT_TRUE(I0);
+  Cpp::ActivateInterpreter(I0);
+  std::string R0 = Cpp::SearchLibrariesForSymbol(kSym, /*system_search=*/false);
+  EXPECT_TRUE(Cpp::DeleteInterpreter(I0));
+
   auto I1 = TestFixture::CreateInterpreter();
   ASSERT_TRUE(I1);
   Cpp::ActivateInterpreter(I1);
@@ -833,15 +845,16 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_DLMIsPerInterpreter) {
   if (R1.empty())
     GTEST_SKIP() << "TestSharedLib not found — cannot test DLM isolation";
 
-  // With a single function-local-static DLM, the path added on I1
-  // would reach I2 and the lookup below would succeed; the per-
-  // interpreter DLM means I2 starts with a fresh path set.
+  // A fresh I2 has its own DLM and must NOT inherit the path added on I1.
+  // With a single shared DLM, I2 would also see BinDir and so differ from the
+  // pristine baseline I0; per-interpreter DLM means I2 behaves like I0.
   auto I2 = TestFixture::CreateInterpreter();
   ASSERT_TRUE(I2);
   Cpp::ActivateInterpreter(I2);
 
   std::string R2 = Cpp::SearchLibrariesForSymbol(kSym, /*system_search=*/false);
-  EXPECT_TRUE(R2.empty()) << "I2 must not see search paths added on I1; found: "
-                          << R2;
+  EXPECT_EQ(R2, R0) << "I2 must behave like a pristine interpreter; the search "
+                       "path added on I1 must not leak. I2 found: '"
+                    << R2 << "', pristine baseline: '" << R0 << "'";
 }
 #endif // !EMSCRIPTEN
