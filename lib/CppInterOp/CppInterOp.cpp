@@ -111,6 +111,7 @@
 #include <map>
 #include <memory>
 #include <mutex>
+#include <optional>
 #include <set>
 #include <sstream>
 #include <stack>
@@ -1568,16 +1569,20 @@ static AllocType handleNew(const clang::CXXNewExpr* CNE) {
   return AllocType::New;
 }
 
+static AllocType AnalyzeAllocType(const clang::FunctionDecl* Fn);
+
 static AllocType handleCall(const clang::CallExpr* CE) {
   if (const auto* FD = CE->getDirectCallee()) {
     if (FD->getBuiltinID() == Builtin::ID::BImalloc)
       return AllocType::Malloc;
+    return AnalyzeAllocType(FD);
   }
-  return AllocType::None;
+  // Function pointer calle
+  return AllocType::Unknown;
 }
 
 static AllocType handleExpr(const clang::Expr* expr,
-                            std::map<const VarDecl*, AllocType>& map) {
+                            std::map<const VarDecl*, AllocType>& varMap) {
   const clang::Expr* finExpr = expr->IgnoreParenCasts();
   // Case: return new __type__
   if (const auto* CNE = dyn_cast<CXXNewExpr>(finExpr))
@@ -1586,10 +1591,9 @@ static AllocType handleExpr(const clang::Expr* expr,
   // Case: returns a variable
   else if (const auto* DRE = dyn_cast<DeclRefExpr>(finExpr)) {
     if (const auto* VD = dyn_cast<VarDecl>(DRE->getDecl())) {
-      auto it = map.find(VD);
-      if (it != map.end())
+      auto it = varMap.find(VD);
+      if (it != varMap.end())
         return it->second;
-      return AllocType::None;
     }
     // FIXME: BindingDecl, NonTypeTemplateParmDecl are not handled
     return AllocType::None;
@@ -1602,8 +1606,8 @@ static AllocType handleExpr(const clang::Expr* expr,
   return AllocType::None;
 }
 
-static void getAllRetStmt(const clang::CompoundStmt* CS,
-                          std::vector<const ReturnStmt*>& allRetStmt) {
+static std::vector<const ReturnStmt*>
+getAllRetStmt(const clang::CompoundStmt* CS) {
   struct RetStmtVisitor : RecursiveASTVisitor<RetStmtVisitor> {
     std::vector<const ReturnStmt*> vec;
     bool VisitReturnStmt(ReturnStmt* RS) {
@@ -1613,19 +1617,19 @@ static void getAllRetStmt(const clang::CompoundStmt* CS,
   };
   RetStmtVisitor Visitor;
   Visitor.TraverseStmt(const_cast<CompoundStmt*>(CS));
-  allRetStmt = std::move(Visitor.vec);
+  return Visitor.vec;
 }
 
-static void getAllVarDecl(const clang::CompoundStmt* CS,
-                          std::map<const VarDecl*, AllocType>& varMap) {
+static std::map<const VarDecl*, AllocType>
+getAllVarDecl(const clang::CompoundStmt* CS) {
   struct VarVisitor : RecursiveASTVisitor<VarVisitor> {
-    std::map<const VarDecl*, AllocType> map;
+    std::map<const VarDecl*, AllocType> varMap;
     bool VisitVarDecl(VarDecl* VD) {
       Expr* expr = VD->getInit();
       if (expr)
-        map[VD] = handleExpr(expr, map);
+        varMap[VD] = handleExpr(expr, varMap);
       else
-        map[VD] = AllocType::None;
+        varMap[VD] = AllocType::None;
       return true;
     }
 
@@ -1636,7 +1640,7 @@ static void getAllVarDecl(const clang::CompoundStmt* CS,
         if (auto* DRE = dyn_cast<DeclRefExpr>(LHS)) {
           if (auto* VD = dyn_cast<VarDecl>(DRE->getDecl())) {
             Expr* RHS = BO->getRHS();
-            map[VD] = handleExpr(RHS, map);
+            varMap[VD] = handleExpr(RHS, varMap);
           }
         }
       }
@@ -1645,10 +1649,10 @@ static void getAllVarDecl(const clang::CompoundStmt* CS,
   };
   VarVisitor Visitor;
   Visitor.TraverseStmt(const_cast<CompoundStmt*>(CS));
-  varMap = std::move(Visitor.map);
+  return Visitor.varMap;
 }
 
-static AllocType AllocCheck(const clang::FunctionDecl* Fn) {
+static AllocType AnalyzeAllocType(const clang::FunctionDecl* Fn) {
   const clang::QualType QT = Fn->getReturnType();
   if (!QT->isPointerType())
     return AllocType::None;
@@ -1659,29 +1663,30 @@ static AllocType AllocCheck(const clang::FunctionDecl* Fn) {
   // FIXME:: try catch blocks are not CompoundStmt, only edge case
   if (!CmpStmt)
     return AllocType::Unknown;
-  std::map<const VarDecl*, AllocType> varMap;
-  std::vector<const ReturnStmt*> allRetStmt;
-  getAllRetStmt(CmpStmt, allRetStmt);
-  getAllVarDecl(CmpStmt, varMap);
+  std::map<const VarDecl*, AllocType> varMap = getAllVarDecl(CmpStmt);
+  std::vector<const ReturnStmt*> allRetStmt = getAllRetStmt(CmpStmt);
+  std::optional<AllocType> res;
   for (const ReturnStmt* retStmt : allRetStmt) {
     const clang::Expr* retExpr = retStmt->getRetValue();
     if (retExpr == nullptr)
       continue;
     AllocType tmp = handleExpr(retExpr, varMap);
-    if (tmp != AllocType::None && tmp != AllocType::Unknown)
-      return tmp;
+    if (!res.has_value())
+      res = tmp;
+    // If function's allocation behaviour differs between different cases,
+    // analyzer returns unknown.
+    else if (*res != tmp)
+      return AllocType::Unknown;
   }
-  return AllocType::None;
+  return res.value_or(AllocType::None);
 }
 
-// For testing purposes, can be deleted after first PR, Add IsAllocator and
-// IsDeallocator API functions, is merged
-AllocType AllocCheckAPI(ConstFuncRef Fn) {
+AllocType GetAllocType(ConstFuncRef Fn) {
   INTEROP_TRACE(Fn);
   if (Fn) {
     const auto* D = unwrap<Decl>(Fn);
     if (const auto* FD = dyn_cast<FunctionDecl>(D)) {
-      return INTEROP_RETURN(AllocCheck(FD));
+      return INTEROP_RETURN(AnalyzeAllocType(FD));
     }
   }
   return INTEROP_RETURN(AllocType::None);

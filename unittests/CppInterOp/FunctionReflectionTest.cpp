@@ -692,7 +692,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_FunctionTypes) {
   EXPECT_TRUE(Cpp::IsSameType(typ1, typ2));
 }
 
-TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_AllocCheckAPI) {
+TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetAllocType) {
   std::string code = R"(
     #include <new>
     #include <stdlib.h>
@@ -753,13 +753,23 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_AllocCheckAPI) {
     int* func22(int n){ []{ return; }(); return new int(n); }
 
     int* func23;
+
+    int* func24(int n){ return func0(n); }
+
+    void** func25(int n){ void** arr = func7(n); return arr; }
+
+    int* func26(bool b){
+      if(b)
+        return (int*)malloc(sizeof(int));
+      return new int;
+    }
     )";
   TestFixture::CreateInterpreter();
   Interp->declare(code);
 
 #define TESTAC(N, EXP)                                                         \
   EXPECT_EQ(                                                                   \
-      Cpp::AllocCheckAPI(Cpp::ConstFuncRef { Cpp::GetNamed("func" #N).data }), \
+      Cpp::GetAllocType(Cpp::ConstFuncRef { Cpp::GetNamed("func" #N).data }),  \
       Cpp::AllocType::EXP)
 
   TESTAC(0, New);
@@ -782,10 +792,13 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_AllocCheckAPI) {
   TESTAC(17, None);
   TESTAC(18, None);
   TESTAC(19, None);
-  TESTAC(20, None);
+  TESTAC(20, Unknown);
   TESTAC(21, None);
   TESTAC(22, New);
   TESTAC(23, None);
+  TESTAC(24, New);
+  TESTAC(25, NewArr);
+  TESTAC(26, Unknown);
 
 #undef TESTAC
 
