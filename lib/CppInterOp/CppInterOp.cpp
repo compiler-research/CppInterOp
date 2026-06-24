@@ -9,8 +9,11 @@
 
 #include "CppInterOp/CppInterOp.h"
 #include "Unwrap.h"
+#include "CppInterOp/Error.h"
 
 #include "Compatibility.h"
+#include "ErrorInternal.h"
+#include "InterpreterInfo.h"
 #include "Sins.h" // for access to private members
 #include "Tracing.h"
 
@@ -163,50 +166,6 @@ namespace Cpp {
 using namespace clang;
 using namespace llvm;
 
-struct InterpreterInfo {
-  compat::Interpreter* Interpreter = nullptr;
-  bool isOwned = true;
-  // Store the list of builtin types.
-  llvm::StringMap<QualType> BuiltinMap;
-  // Per-interpreter wrapper caches. Keyed on AST nodes that belong to this
-  // interpreter, so the caches must be destroyed together with it.
-  std::map<const FunctionDecl*, void*> WrapperStore;
-  std::map<const Decl*, void*> DtorWrapperStore;
-
-  InterpreterInfo(compat::Interpreter* I, bool Owned)
-      : Interpreter(I), isOwned(Owned) {}
-
-  // Enable move constructors.
-  InterpreterInfo(InterpreterInfo&& other) noexcept
-      : Interpreter(other.Interpreter), isOwned(other.isOwned) {
-    other.Interpreter = nullptr;
-    other.isOwned = false;
-  }
-  InterpreterInfo& operator=(InterpreterInfo&& other) noexcept {
-    if (this != &other) {
-      // Delete current resource if owned
-      if (isOwned)
-        delete Interpreter;
-
-      Interpreter = other.Interpreter;
-      isOwned = other.isOwned;
-
-      other.Interpreter = nullptr;
-      other.isOwned = false;
-    }
-    return *this;
-  }
-
-  ~InterpreterInfo() {
-    if (isOwned)
-      delete Interpreter;
-  }
-
-  // Disable copy semantics (to avoid accidental double deletes)
-  InterpreterInfo(const InterpreterInfo&) = delete;
-  InterpreterInfo& operator=(const InterpreterInfo&) = delete;
-};
-
 static void DefaultProcessCrashHandler(void*);
 
 /// Set by UseExternalInterpreter to suppress llvm_shutdown at process exit
@@ -311,6 +270,7 @@ static void DefaultProcessCrashHandler(void*) {
 static void RegisterInterpreter(compat::Interpreter* I, bool Owned) {
   std::deque<InterpreterInfo>& Interps = GetInterpreters(Owned);
   Interps.emplace_back(I, Owned);
+  InstallDiagConsumer(&Interps.back());
 }
 
 static InterpreterInfo& getInterpInfo(compat::Interpreter* I = nullptr) {
@@ -329,6 +289,10 @@ static compat::Interpreter& getInterp(InterpRef I = nullptr) {
   if (I)
     return *unwrap<compat::Interpreter>(I);
   return *getInterpInfo().Interpreter;
+}
+
+CPPINTEROP_API InterpreterInfo* GetInterpInfo(InterpRef I) {
+  return &getInterpInfo(I ? unwrap<compat::Interpreter>(I) : nullptr);
 }
 
 InterpRef GetInterpreter() {

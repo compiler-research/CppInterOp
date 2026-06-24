@@ -17,6 +17,12 @@
 #include "CppInterOp/CppInterOpTypes.h"
 #include "CppInterOp/Error.h"
 
+#include "../../lib/CppInterOp/ErrorInternal.h"
+#include "../../lib/CppInterOp/InterpreterInfo.h"
+#include "../../lib/CppInterOp/Tracing.h" // INTEROP_FUNC_SIG
+
+#include "Utils.h"
+
 #include "llvm/Support/Error.h"
 
 #include "gtest/gtest.h"
@@ -43,16 +49,12 @@ static_assert(sizeof(Cpp::Result<int>) <= sizeof(llvm::Expected<int>),
               "Result<int> must not exceed llvm::Expected<int>");
 
 namespace {
-// Address of a file-local sentinel byte serves as a non-null but
-// never-dereferenced ErrorRef state for the tests. Using a real
-// address keeps clang-tidy's int-to-ptr / reinterpret-cast checks
-// happy without weakening the test.
-const char kErrorSentinelByte = 0;
-const void* const kFakeState = &kErrorSentinelByte;
-Cpp::ErrorRef MakeErr() { return Cpp::ErrorRef{kFakeState}; }
+// Inline-encoded Status::NotFound: round-trips through the tag bit,
+// allocates nothing, costs no refcount work.
+Cpp::ErrorRef MakeErr() {
+  return Cpp::ErrorRef::makeInline(Cpp::Status::NotFound);
+}
 } // namespace
-
-// === Construction + basic accessors =====================================
 
 TEST(ResultTest, Result_OkFromValue) {
   Cpp::Result<int> R{42};
@@ -75,13 +77,12 @@ TEST(ResultTest, Result_ErrorFromErrorRef) {
   Cpp::Result<int> R{MakeErr()};
   EXPECT_FALSE(R.ok());
   EXPECT_FALSE(static_cast<bool>(R));
-  EXPECT_EQ(R.status(), Cpp::Status::Failed);
+  EXPECT_EQ(R.status(), Cpp::Status::NotFound);
   EXPECT_FALSE(R.error().isOk());
-  EXPECT_EQ(R.error().state, kFakeState);
+  EXPECT_TRUE(R.error().isInline());
+  EXPECT_FALSE(R.error().isSlice());
   EXPECT_EQ(R.value_or(-1), -1);
 }
-
-// === Result<void> ========================================================
 
 TEST(ResultTest, ResultVoid_DefaultIsOk) {
   Cpp::Result<void> R;
@@ -93,11 +94,9 @@ TEST(ResultTest, ResultVoid_DefaultIsOk) {
 TEST(ResultTest, ResultVoid_FromErrorRef) {
   Cpp::Result<void> R{MakeErr()};
   EXPECT_FALSE(R.ok());
-  EXPECT_EQ(R.status(), Cpp::Status::Failed);
-  EXPECT_EQ(R.error().state, kFakeState);
+  EXPECT_EQ(R.status(), Cpp::Status::NotFound);
+  EXPECT_TRUE(R.error().isInline());
 }
-
-// === Copy semantics ======================================================
 
 TEST(ResultTest, Copy_Ok) {
   Cpp::Result<int> A{7};
@@ -117,8 +116,6 @@ TEST(ResultTest, Copy_Error) {
   EXPECT_FALSE(B.ok());
   EXPECT_FALSE(A.ok()); // mark A checked so its dtor doesn't abort
 }
-
-// === Move semantics ======================================================
 
 TEST(ResultTest, Move_Ok) {
   Cpp::Result<int> A{11};
@@ -196,3 +193,131 @@ TEST(ResultDeathTest, ValueOnError_Aborts) {
 }
 
 #endif // !EMSCRIPTEN
+
+//
+// Every Status value round-trips through makeInline -> ErrorRef bits ->
+// status(). Status::Ok canonicalises to the null encoding; the rest
+// pack into a single uintptr_t with no allocation.
+
+TEST(ResultTest, InlineEncoding_StatusRoundTrip) {
+  const Cpp::Status All[] = {
+      Cpp::Status::NotFound,     Cpp::Status::InvalidArgument,
+      Cpp::Status::Ambiguous,    Cpp::Status::ParseError,
+      Cpp::Status::CompileError,
+  };
+  for (Cpp::Status S : All) {
+    Cpp::ErrorRef E = Cpp::ErrorRef::makeInline(S);
+    EXPECT_FALSE(E.isOk());
+    EXPECT_TRUE(E.isInline());
+    EXPECT_FALSE(E.isSlice());
+    EXPECT_EQ(E.status(), S);
+    // Inline errors carry no body.
+    EXPECT_EQ(E.diagnostics().size(), 0U);
+    EXPECT_EQ(E.producer(), nullptr);
+  }
+}
+
+TEST(ResultTest, InlineEncoding_OkCanonicalisesToNull) {
+  Cpp::ErrorRef E = Cpp::ErrorRef::makeInline(Cpp::Status::Ok);
+  EXPECT_TRUE(E.isOk());
+  EXPECT_FALSE(E.isInline());
+  EXPECT_FALSE(E.isSlice());
+  EXPECT_EQ(E.bits, 0U);
+}
+
+namespace {
+// makeError / drainError need a live interpreter to allocate slices
+// against.
+struct ResultBoundaryTest : public ::testing::Test {
+  void SetUp() override {
+    if (!Cpp::GetInterpreter())
+      Cpp::CreateInterpreter();
+  }
+};
+} // namespace
+
+TEST_F(ResultBoundaryTest, MakeError_SliceCarriesMessageAndProducer) {
+  Cpp::InterpreterInfo* II = Cpp::GetInterpInfo();
+  Cpp::ClearPending(II);
+  Cpp::Result<void> R{Cpp::makeError(
+      II, Cpp::Status::ParseError, "syntax error", __func__, INTEROP_FUNC_SIG)};
+  ASSERT_FALSE(R.ok());
+  EXPECT_EQ(R.status(), Cpp::Status::ParseError);
+  EXPECT_TRUE(R.error().isSlice());
+  EXPECT_FALSE(R.error().isInline());
+  ASSERT_GE(R.error().diagnostics().size(), 1U);
+  EXPECT_STREQ(R.error().diagnostics()[0].message(), "syntax error");
+  EXPECT_EQ(R.error().diagnostics()[0].severity(),
+            Cpp::DiagnosticSeverity::Error);
+  EXPECT_STREQ(R.error().producer(), __func__);
+}
+
+// drainError lifts an llvm::Error chain into a slice, preserving Status
+// and any structured payload the chain carries.
+TEST_F(ResultBoundaryTest, DrainError_StatusErrorFixesCode) {
+  Cpp::InterpreterInfo* II = Cpp::GetInterpInfo();
+  Cpp::ClearPending(II);
+  llvm::Error E = llvm::make_error<Cpp::StatusError>(Cpp::Status::NotFound,
+                                                     "no such symbol");
+  Cpp::Result<void> R{Cpp::drainError(II, std::move(E), __func__, nullptr)};
+  ASSERT_FALSE(R.ok());
+  EXPECT_EQ(R.status(), Cpp::Status::NotFound);
+}
+
+// share() bumps the slice refcount so the captured error survives the
+// originating Result's destruction.
+TEST_F(ResultBoundaryTest, CapturedError_OutlivesResult) {
+  Cpp::InterpreterInfo* II = Cpp::GetInterpInfo();
+  Cpp::ClearPending(II);
+  Cpp::CapturedError C;
+  size_t DiagCount = 0;
+  {
+    Cpp::Result<void> R{Cpp::makeError(
+        II, Cpp::Status::ParseError, "captured-error test", __func__, nullptr)};
+    ASSERT_FALSE(R.ok());
+    DiagCount = R.error().diagnostics().size();
+    C = R.share();
+  } // R out of scope; slice survives because C holds a ref.
+  EXPECT_FALSE(C.ok());
+  EXPECT_EQ(C.status(), Cpp::Status::ParseError);
+  EXPECT_EQ(C.diagnostics().size(), DiagCount);
+}
+
+// Inline errors have no slice; capture is a pure value copy with no
+// refcount bookkeeping.
+TEST(ResultTest, CapturedError_InlineHasNoSlice) {
+  Cpp::Result<int> R{Cpp::ErrorRef::makeInline(Cpp::Status::InvalidArgument)};
+  Cpp::CapturedError C = R.share();
+  EXPECT_FALSE(C.ok());
+  EXPECT_EQ(C.status(), Cpp::Status::InvalidArgument);
+  EXPECT_TRUE(C.ref().isInline());
+  EXPECT_FALSE(C.ref().isSlice());
+}
+
+// record() copies into an owning value-type so the caller can drop the
+// Result and the slice can be freed.
+TEST_F(ResultBoundaryTest, ErrorRecord_OwnsDiagnostics) {
+  Cpp::ErrorRecord Rec;
+  {
+    Cpp::InterpreterInfo* II = Cpp::GetInterpInfo();
+    Cpp::ClearPending(II);
+    Cpp::Result<void> R{Cpp::makeError(
+        II, Cpp::Status::ParseError, "recordable message", __func__, nullptr)};
+    ASSERT_FALSE(R.ok());
+    Rec = R.error().record();
+  } // R dies; slice freed. Rec stays usable.
+  EXPECT_EQ(Rec.Code, Cpp::Status::ParseError);
+  ASSERT_GE(Rec.Diagnostics.size(), 1U);
+  EXPECT_EQ(Rec.Diagnostics[0].Message, "recordable message");
+}
+
+TEST(ResultTest, ErrorRecord_InlineProducesEmpty) {
+  Cpp::ErrorRef E = Cpp::ErrorRef::makeInline(Cpp::Status::InvalidArgument);
+  Cpp::ErrorRecord Rec = E.record();
+  EXPECT_EQ(Rec.Code, Cpp::Status::InvalidArgument);
+  EXPECT_TRUE(Rec.Diagnostics.empty());
+}
+
+static_assert(sizeof(Cpp::ErrorRef) == sizeof(void*),
+              "ErrorRef stays one pointer-word");
+static_assert(sizeof(Cpp::Status) == 1, "Status enum stays one byte");

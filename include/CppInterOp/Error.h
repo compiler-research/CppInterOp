@@ -1,4 +1,4 @@
-//===--- Error.h - Cpp::Result<T> -------------------------------*- C++ -*-===//
+//===--- Error.h - Result<T>, ErrorRef, DiagnosticRef -----------*- C++ -*-===//
 //
 // Part of the compiler-research project, under the Apache License v2.0 with
 // LLVM Exceptions.
@@ -6,17 +6,10 @@
 //
 //===----------------------------------------------------------------------===//
 //
-// Cpp::Result<T> -- the [[nodiscard]] return type fallible APIs use.
-// A Result holds either a value of T or an ErrorRef. The discipline
-// matches llvm::Expected: call .ok() (or coerce to bool), then .value()
-// on success or .error() on failure. value() on an error aborts;
-// value_or(fallback) is the lenient form.
-//
-// In debug builds, dropping an error-bearing Result without inspecting
-// it aborts. .ignore() opts out of that check.
-//
-// This PR is just the type. Later PRs add the boundary translator,
-// per-call diagnostics, and structured failure payloads.
+// Cpp::Result<T> carries either a T or an ErrorRef. ErrorRef encodes
+// either an inline Status code (no allocation) or a pointer to an
+// ErrorSlice owning drained Clang diagnostics, an optional structured
+// payload, and producer attribution.
 //
 //===----------------------------------------------------------------------===//
 
@@ -30,57 +23,214 @@
 #include <cstddef>
 #include <cstdint>
 #include <new>
+#include <string>
 #include <type_traits>
 #include <utility>
+#include <vector>
 
 namespace Cpp {
 
-/// Coarse outcome code. Status::Failed is a placeholder -- later PRs
-/// refine the taxonomy (NotFound, ParseError, ...) as APIs migrate.
+/// Outcome of a fallible API call.
 enum class Status : uint8_t {
   Ok = 0,
-  Failed,
+  NotFound,        // name lookup found nothing
+  InvalidArgument, // precondition violated by caller
+  Ambiguous,       // name lookup returned multiple matches
+  ParseError,      // Clang parser rejected the input
+  CompileError,    // Sema/codegen rejected the input
 };
 
-/// 8-byte opaque error handle. nullptr state means "no error". A
-/// non-null state is an opaque pointer interpreted by later PRs.
+/// Severity of a captured diagnostic.
+enum class DiagnosticSeverity : uint8_t { Note, Warning, Error, Fatal };
+
+/// Non-owning view over a contiguous range. Returned from accessors so
+/// callers can iterate without committing to a container type.
+template <typename T> struct ArrayView {
+  const T* Data = nullptr;
+  size_t Size = 0;
+
+  [[nodiscard]] const T* begin() const { return Data; }
+  [[nodiscard]] const T* end() const { return Data + Size; }
+  [[nodiscard]] size_t size() const { return Size; }
+  [[nodiscard]] bool empty() const { return Size == 0; }
+  const T& operator[](size_t I) const { return Data[I]; }
+};
+
+/// 8-byte opaque handle to one captured diagnostic. Valid while the
+/// owning error (or interpreter) keeps its storage alive.
+struct DiagnosticRef {
+  const void* data = nullptr;
+
+  [[nodiscard]] bool isNull() const { return data == nullptr; }
+
+  // Member-function surface (forwarders defined in ErrorInternal.cpp).
+  CPPINTEROP_API DiagnosticSeverity severity() const;
+  CPPINTEROP_API const char* message() const;
+  CPPINTEROP_API const char* file() const;
+  CPPINTEROP_API unsigned line() const;
+  CPPINTEROP_API unsigned column() const;
+};
+
+/// Field accessors. The TableGen binding surface; member functions
+/// above forward here. Safe to call on a null DiagnosticRef: empty
+/// strings, zero positions, Severity::Note.
+CPPINTEROP_API DiagnosticSeverity GetDiagnosticSeverity(DiagnosticRef D);
+CPPINTEROP_API const char* GetDiagnosticMessage(DiagnosticRef D);
+CPPINTEROP_API const char* GetDiagnosticFile(DiagnosticRef D);
+CPPINTEROP_API unsigned GetDiagnosticLine(DiagnosticRef D);
+CPPINTEROP_API unsigned GetDiagnosticColumn(DiagnosticRef D);
+
+//
+// Encoding (8 bytes, single uintptr_t):
+//   bits == 0      : Ok.
+//   bits & 1 == 1  : inline Status in bits[1..7]. No allocation.
+//   bits & 1 == 0,
+//   bits != 0      : pointer to ErrorSlice (diagnostics, payload,
+//                    refcount). Result<T> manages the refcount.
+
+struct ErrorSlice; // defined in lib/CppInterOp/ErrorInternal.h
+
 struct ErrorRef {
-  const void* state = nullptr;
+  uintptr_t bits = 0;
 
-  [[nodiscard]] bool isOk() const { return state == nullptr; }
+  [[nodiscard]] bool isOk() const { return bits == 0; }
+  [[nodiscard]] bool isInline() const { return (bits & 1U) == 1U; }
+  [[nodiscard]] bool isSlice() const { return bits != 0 && (bits & 1U) == 0u; }
+
+  /// Pack a Status code into the ErrorRef bits. Status::Ok produces
+  /// the canonical null encoding so isOk() stays a single comparison.
+  static ErrorRef makeInline(Status S) {
+    if (S == Status::Ok)
+      return ErrorRef{};
+    return ErrorRef{(static_cast<uintptr_t>(S) << 1) | 1U};
+  }
+
+  /// The inline-encoded Status. Only meaningful when isInline() is
+  /// true; callers should prefer status() which handles both shapes.
+  [[nodiscard]] Status inlineStatus() const {
+    return static_cast<Status>(bits >> 1);
+  }
+
+  /// Wrap a slice pointer. The slice's alignment must keep bit 0 clear
+  /// (ErrorSlice is alignas(16) for this reason).
+  static ErrorRef makeSlice(const ErrorSlice* S) {
+    return ErrorRef{reinterpret_cast<uintptr_t>(S)};
+  }
+  [[nodiscard]] const ErrorSlice* slice() const {
+    return isSlice() ? reinterpret_cast<const ErrorSlice*>(bits) : nullptr;
+  }
+
+  // Member-function surface (defined in Error.cpp).
+  CPPINTEROP_API Status status() const;
+  CPPINTEROP_API ArrayView<DiagnosticRef> diagnostics() const;
+  CPPINTEROP_API const char* producer() const;
+  CPPINTEROP_API const char* producerSignature() const;
+  CPPINTEROP_API class ErrorRecord record() const;
 };
 
-/// Out-of-line abort for value()-on-error. Keeps Result<T>'s inline
-/// body small.
+/// Free-function aliases over the ErrorRef accessors. The TableGen
+/// binding surface; the member functions above forward here.
+CPPINTEROP_API Status GetStatus(ErrorRef E);
+CPPINTEROP_API ArrayView<DiagnosticRef> GetDiagnostics(ErrorRef E);
+
+/// Refcount hooks. Result<T> calls these around copy/move/dtor; they
+/// are no-ops on Ok and inline encodings.
+CPPINTEROP_API void RetainErrorRef(ErrorRef E);
+CPPINTEROP_API void ReleaseErrorRef(ErrorRef E);
+
+//
+// Deep-copy snapshot for callers that want a plain value-type and do
+// not need the originating slice kept alive. Strings are copied;
+// nothing points back into slice storage.
+
+struct DiagnosticInfo {
+  DiagnosticSeverity Severity = DiagnosticSeverity::Error;
+  std::string Message;
+  std::string File;
+  unsigned Line = 0;
+  unsigned Column = 0;
+};
+
+class ErrorRecord {
+public:
+  Status Code = Status::Ok;
+  std::vector<DiagnosticInfo> Diagnostics;
+  // Pointers into static __func__ / __PRETTY_FUNCTION__ storage. No
+  // copying needed; the storage outlives every record.
+  const char* Producer = nullptr;
+  const char* ProducerSignature = nullptr;
+};
+
+//
+// Extends a slice's lifetime past the originating Result<T> via one
+// refcount bump on construction and one decrement on destruction.
+// Inline errors are pure value -- no refcount work.
+
+class [[nodiscard]] CapturedError {
+  ErrorRef Ref;
+
+public:
+  CapturedError() = default;
+  explicit CapturedError(ErrorRef E) : Ref(E) { RetainErrorRef(Ref); }
+
+  CapturedError(const CapturedError& O) : Ref(O.Ref) { RetainErrorRef(Ref); }
+  CapturedError(CapturedError&& O) noexcept : Ref(O.Ref) { O.Ref = ErrorRef{}; }
+
+  CapturedError& operator=(const CapturedError& O) {
+    if (this != &O) {
+      ReleaseErrorRef(Ref);
+      Ref = O.Ref;
+      RetainErrorRef(Ref);
+    }
+    return *this;
+  }
+  CapturedError& operator=(CapturedError&& O) noexcept {
+    if (this != &O) {
+      ReleaseErrorRef(Ref);
+      Ref = O.Ref;
+      O.Ref = ErrorRef{};
+    }
+    return *this;
+  }
+
+  ~CapturedError() { ReleaseErrorRef(Ref); }
+
+  [[nodiscard]] bool ok() const { return Ref.isOk(); }
+  explicit operator bool() const { return ok(); }
+  [[nodiscard]] Status status() const { return Ref.status(); }
+  [[nodiscard]] ErrorRef ref() const { return Ref; }
+
+  [[nodiscard]] ArrayView<DiagnosticRef> diagnostics() const {
+    return Ref.diagnostics();
+  }
+  [[nodiscard]] const char* producer() const { return Ref.producer(); }
+  [[nodiscard]] const char* producerSignature() const {
+    return Ref.producerSignature();
+  }
+  [[nodiscard]] ErrorRecord record() const { return Ref.record(); }
+};
+
 [[noreturn]] CPPINTEROP_API void ResultAbort_ValueOnError(const ErrorRef& Err);
 
 #ifndef NDEBUG
-/// Out-of-line abort for the debug must-handle check. Shared between
-/// Result<T> and Result<void> so the message and abort path live in
-/// one place.
 [[noreturn]] CPPINTEROP_API void
 ResultAbort_UncheckedOnDtor(const ErrorRef& Err);
 #endif
-
-// Result<T>: union of T storage and the ErrorRef pointer, plus a
-// HasError discriminator. Sized comparably to llvm::Expected<T>
-// (pinned by static_assert in ResultBench). Debug adds an Unchecked
-// bit; release shrinks to bare union + discriminator.
 
 template <typename T> class [[nodiscard]] Result {
   static_assert(!std::is_same<T, void>::value,
                 "Result<void> is provided via specialization below");
 
-  static constexpr size_t kStorageSize = sizeof(T) > sizeof(void*)
+  static constexpr size_t kStorageSize = sizeof(T) > sizeof(ErrorRef)
                                              ? sizeof(T)
-                                             : sizeof(void*);
-  static constexpr size_t kStorageAlign = alignof(T) > alignof(void*)
+                                             : sizeof(ErrorRef);
+  static constexpr size_t kStorageAlign = alignof(T) > alignof(ErrorRef)
                                               ? alignof(T)
-                                              : alignof(void*);
+                                              : alignof(ErrorRef);
 
   union {
     alignas(kStorageAlign) unsigned char m_ValueBytes[kStorageSize];
-    const void* m_ErrState; // when m_HasError == true
+    ErrorRef m_ErrState;
   };
   bool m_HasError = false;
 
@@ -91,8 +241,6 @@ template <typename T> class [[nodiscard]] Result {
   void markChecked() const {}
 #endif
 
-  // reinterpret_cast across the union member -- std::launder is C++17
-  // and the header has to parse in C++14 consumer contexts.
   T* valuePtr() { return reinterpret_cast<T*>(m_ValueBytes); }
   const T* valuePtr() const { return reinterpret_cast<const T*>(m_ValueBytes); }
 
@@ -101,13 +249,18 @@ public:
 
   Result(T V) { new (m_ValueBytes) T(std::move(V)); }
 
-  Result(ErrorRef E) : m_ErrState(E.state), m_HasError(true) {}
+  Result(ErrorRef E) : m_ErrState(E), m_HasError(!E.isOk()) {
+    if (m_HasError)
+      RetainErrorRef(m_ErrState);
+  }
 
   Result(const Result& Other) : m_HasError(Other.m_HasError) {
-    if (m_HasError)
+    if (m_HasError) {
       m_ErrState = Other.m_ErrState;
-    else
+      RetainErrorRef(m_ErrState);
+    } else {
       new (m_ValueBytes) T(*Other.valuePtr());
+    }
 #ifndef NDEBUG
     m_Unchecked = Other.m_Unchecked;
     Other.m_Unchecked = false;
@@ -115,10 +268,13 @@ public:
   }
 
   Result(Result&& Other) noexcept : m_HasError(Other.m_HasError) {
-    if (m_HasError)
+    if (m_HasError) {
       m_ErrState = Other.m_ErrState;
-    else
+      Other.m_ErrState = ErrorRef{};
+      Other.m_HasError = false;
+    } else {
       new (m_ValueBytes) T(std::move(*Other.valuePtr()));
+    }
 #ifndef NDEBUG
     m_Unchecked = Other.m_Unchecked;
     Other.m_Unchecked = false;
@@ -127,20 +283,18 @@ public:
 
   ~Result() {
 #ifndef NDEBUG
-    // Must-handle enforcement: an error-bearing Result that wasn't
-    // inspected aborts. Use .ignore() to drop on purpose.
     if (m_Unchecked && m_HasError)
-      ResultAbort_UncheckedOnDtor(ErrorRef{m_ErrState});
+      ResultAbort_UncheckedOnDtor(m_ErrState);
 #endif
-    if (!m_HasError)
+    if (m_HasError)
+      ReleaseErrorRef(m_ErrState);
+    else
       valuePtr()->~T();
   }
 
   Result& operator=(const Result&) = delete;
   Result& operator=(Result&&) = delete;
 
-  /// Mark this Result checked without reading it -- for when you
-  /// genuinely want to drop the outcome.
   void ignore() const { markChecked(); }
 
   [[nodiscard]] bool ok() const {
@@ -151,19 +305,26 @@ public:
 
   [[nodiscard]] Status status() const {
     markChecked();
-    return m_HasError ? Status::Failed : Status::Ok;
+    return m_HasError ? m_ErrState.status() : Status::Ok;
   }
 
   [[nodiscard]] ErrorRef error() const {
     markChecked();
-    return m_HasError ? ErrorRef{m_ErrState} : ErrorRef{};
+    return m_HasError ? m_ErrState : ErrorRef{};
   }
 
-  /// Value on Ok; aborts on Error. Use value_or for lenient semantics.
+  /// Share ownership of the carried ErrorRef with a CapturedError so
+  /// the error outlives this Result. One refcount bump on slice
+  /// errors; no-op for inline ones.
+  [[nodiscard]] CapturedError share() const {
+    markChecked();
+    return m_HasError ? CapturedError(m_ErrState) : CapturedError();
+  }
+
   T value() const {
     markChecked();
     if (m_HasError)
-      ResultAbort_ValueOnError(error());
+      ResultAbort_ValueOnError(m_ErrState);
     return *valuePtr();
   }
 
@@ -173,10 +334,10 @@ public:
   }
 };
 
-// Void specialization: no T storage, ErrorRef stored directly.
+// Void specialization.
 
 template <> class [[nodiscard]] Result<void> {
-  const void* m_ErrState = nullptr;
+  ErrorRef m_ErrState;
 #ifndef NDEBUG
   mutable bool m_Unchecked = true;
   void markChecked() const { m_Unchecked = false; }
@@ -186,12 +347,14 @@ template <> class [[nodiscard]] Result<void> {
 
 public:
   Result() = default;
-  Result(ErrorRef E) : m_ErrState(E.state) {}
-
-  Result& operator=(const Result&) = delete;
-  Result& operator=(Result&&) = delete;
+  Result(ErrorRef E) : m_ErrState(E) {
+    if (!E.isOk())
+      RetainErrorRef(m_ErrState);
+  }
 
   Result(const Result& O) : m_ErrState(O.m_ErrState) {
+    if (!m_ErrState.isOk())
+      RetainErrorRef(m_ErrState);
 #ifndef NDEBUG
     m_Unchecked = O.m_Unchecked;
     O.m_Unchecked = false;
@@ -200,40 +363,45 @@ public:
 
   Result(Result&& O) noexcept : m_ErrState(O.m_ErrState) {
 #ifndef NDEBUG
-    // Transfer the must-handle obligation to the destination -- the
-    // default move leaves m_Unchecked=true on the source and the
-    // source's dtor would abort even though the value went to the
-    // caller (the bug seen when threading Results through tracing
-    // record() wrappers).
     m_Unchecked = O.m_Unchecked;
     O.m_Unchecked = false;
 #endif
-    O.m_ErrState = nullptr;
+    O.m_ErrState = ErrorRef{};
   }
 
   ~Result() {
 #ifndef NDEBUG
-    if (m_Unchecked && m_ErrState)
-      ResultAbort_UncheckedOnDtor(ErrorRef{m_ErrState});
+    if (m_Unchecked && !m_ErrState.isOk())
+      ResultAbort_UncheckedOnDtor(m_ErrState);
 #endif
+    if (!m_ErrState.isOk())
+      ReleaseErrorRef(m_ErrState);
   }
+
+  Result& operator=(const Result&) = delete;
+  Result& operator=(Result&&) = delete;
 
   void ignore() const { markChecked(); }
 
   [[nodiscard]] bool ok() const {
     markChecked();
-    return m_ErrState == nullptr;
+    return m_ErrState.isOk();
   }
   explicit operator bool() const { return ok(); }
 
   [[nodiscard]] Status status() const {
     markChecked();
-    return m_ErrState ? Status::Failed : Status::Ok;
+    return m_ErrState.status();
   }
 
   [[nodiscard]] ErrorRef error() const {
     markChecked();
-    return ErrorRef{m_ErrState};
+    return m_ErrState;
+  }
+
+  [[nodiscard]] CapturedError share() const {
+    markChecked();
+    return CapturedError(m_ErrState);
   }
 };
 
