@@ -120,6 +120,7 @@
 #ifndef _WIN32
 #include <unistd.h>
 #endif
+#include <unordered_map>
 #include <utility>
 // Stream redirect.
 #ifdef _WIN32
@@ -1581,15 +1582,16 @@ static AllocType handleCall(const clang::CallExpr* CE) {
   return AllocType::Unknown;
 }
 
-static AllocType handleExpr(const clang::Expr* expr,
-                            std::map<const VarDecl*, AllocType>& varMap) {
+static AllocType
+handleExpr(const clang::Expr* expr,
+           std::unordered_map<const VarDecl*, AllocType>& varMap) {
   const clang::Expr* finExpr = expr->IgnoreParenCasts();
   // Case: return new __type__
   if (const auto* CNE = dyn_cast<CXXNewExpr>(finExpr))
     return handleNew(CNE);
 
   // Case: returns a variable
-  else if (const auto* DRE = dyn_cast<DeclRefExpr>(finExpr)) {
+  if (const auto* DRE = dyn_cast<DeclRefExpr>(finExpr)) {
     if (const auto* VD = dyn_cast<VarDecl>(DRE->getDecl())) {
       auto it = varMap.find(VD);
       if (it != varMap.end())
@@ -1599,8 +1601,8 @@ static AllocType handleExpr(const clang::Expr* expr,
     return AllocType::None;
   }
 
-  // Case: malloc
-  else if (const auto* CE = dyn_cast<CallExpr>(finExpr)) {
+  // Case: malloc or another func call
+  if (const auto* CE = dyn_cast<CallExpr>(finExpr)) {
     return handleCall(CE);
   }
   return AllocType::None;
@@ -1620,10 +1622,10 @@ getAllRetStmt(const clang::CompoundStmt* CS) {
   return Visitor.vec;
 }
 
-static std::map<const VarDecl*, AllocType>
+static std::unordered_map<const VarDecl*, AllocType>
 getAllVarDecl(const clang::CompoundStmt* CS) {
   struct VarVisitor : RecursiveASTVisitor<VarVisitor> {
-    std::map<const VarDecl*, AllocType> varMap;
+    std::unordered_map<const VarDecl*, AllocType> varMap;
     bool VisitVarDecl(VarDecl* VD) {
       Expr* expr = VD->getInit();
       if (expr)
@@ -1634,14 +1636,14 @@ getAllVarDecl(const clang::CompoundStmt* CS) {
     }
 
     bool VisitBinaryOperator(clang::BinaryOperator* BO) {
-      if (BO->getOpcode() == BO_Assign) {
-        Expr* LHS = BO->getLHS();
-        LHS = LHS->IgnoreParenCasts();
-        if (auto* DRE = dyn_cast<DeclRefExpr>(LHS)) {
-          if (auto* VD = dyn_cast<VarDecl>(DRE->getDecl())) {
-            Expr* RHS = BO->getRHS();
-            varMap[VD] = handleExpr(RHS, varMap);
-          }
+      if (BO->getOpcode() != BO_Assign)
+        return true;
+      Expr* LHS = BO->getLHS();
+      LHS = LHS->IgnoreParenCasts();
+      if (auto* DRE = dyn_cast<DeclRefExpr>(LHS)) {
+        if (auto* VD = dyn_cast<VarDecl>(DRE->getDecl())) {
+          Expr* RHS = BO->getRHS();
+          varMap[VD] = handleExpr(RHS, varMap);
         }
       }
       return true;
@@ -1663,7 +1665,7 @@ static AllocType AnalyzeAllocType(const clang::FunctionDecl* Fn) {
   // FIXME:: try catch blocks are not CompoundStmt, only edge case
   if (!CmpStmt)
     return AllocType::Unknown;
-  std::map<const VarDecl*, AllocType> varMap = getAllVarDecl(CmpStmt);
+  std::unordered_map<const VarDecl*, AllocType> varMap = getAllVarDecl(CmpStmt);
   std::vector<const ReturnStmt*> allRetStmt = getAllRetStmt(CmpStmt);
   std::optional<AllocType> res;
   for (const ReturnStmt* retStmt : allRetStmt) {
