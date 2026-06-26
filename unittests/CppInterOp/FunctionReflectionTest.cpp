@@ -2431,6 +2431,56 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetFunctionCallWrapper) {
   EXPECT_EQ(f3.getKind(), Cpp::JitCall::Kind::kGenericCall);
 }
 
+TYPED_TEST(CPPINTEROP_TEST_MODE,
+           FunctionReflection_WrapAliasTemplateReturnType) {
+  // Regression test for cppyy issue
+  // https://github.com/compiler-research/cppyy/issues/218 (original reproducer:
+  // `std::make_any<...>`, return type `std::enable_if_t<is_constructible_v<...>,
+  // std::any>`). Building a wrapper for a function template whose return type is
+  // a type-alias-template specialisation used to fail to compile; the snippet
+  // below is a stdlib-free distillation. It needs three ingredients: an alias
+  // (`enable_if_t`) whose sugar carries a non-type argument that prints as an
+  // *expression* (`trait_v<int>`, which FullyQualifiedName does not qualify); a
+  // predicate in a namespace, so unqualified `trait_v` does not resolve in the
+  // global-scope wrapper; and a class (non-builtin) canonical type, so
+  // get_type_as_string keeps the sugar instead of taking its isBuiltinType()
+  // branch. See get_type_as_string for how the fix desugars this.
+  //
+  // Only checks JitCall::getKind(), i.e. that the wrapper *compiles*; it never
+  // Invoke()s it, so no out-of-process skip is needed.
+#ifdef EMSCRIPTEN
+#if CLANG_VERSION_MAJOR > 21
+  // The Emscripten JIT (LLVM 22) cannot compile this by-value wrapper -- a
+  // separate limitation from the type printing under test, shared with the
+  // other placement-new wrapper tests (e.g. FunctionReflection_Construct).
+  GTEST_SKIP() << "Test fails for Emscripten builds using LLVM 22";
+#endif
+#endif
+  std::vector<const char*> interpreter_args = {"-std=c++17", "-include", "new"};
+  TestFixture::CreateInterpreter(interpreter_args);
+  // Single namespace block: a preceding top-level class plus a namespace in one
+  // process() call makes the LLVM 20 REPL wrap the namespace into non-global
+  // scope.
+  Interp->process(R"(
+    namespace N {
+      struct Ret { int x; };
+      template <class T> inline constexpr bool trait_v = sizeof(T) > 0;
+      template <bool, class T> struct ei {};
+      template <class T> struct ei<true, T> { using type = T; };
+      template <bool B, class T> using enable_if_t = typename ei<B, T>::type;
+      template <class T> enable_if_t<trait_v<T>, Ret> f() { return {}; }
+    }
+  )");
+
+  auto spec = Cpp::InstantiateTemplateFunctionFromString("N::f<int>");
+  ASSERT_TRUE(spec) << "Sema failed to substitute N::f<int>";
+
+  // Without the fix the wrapper fails to compile (`use of undeclared identifier
+  // 'trait_v'`) and MakeFunctionCallable returns a kUnknown JitCall.
+  Cpp::JitCall JC = Cpp::MakeFunctionCallable(spec);
+  EXPECT_EQ(JC.getKind(), Cpp::JitCall::kGenericCall);
+}
+
 TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_IsConstMethod) {
   std::vector<Decl*> Decls, SubDecls;
   std::string code = R"(

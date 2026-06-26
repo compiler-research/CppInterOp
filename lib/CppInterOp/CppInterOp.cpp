@@ -2975,6 +2975,18 @@ void get_type_as_string(QualType QT, std::string& type_name, ASTContext& C,
                         PrintingPolicy Policy) {
   // TODO: Implement cling desugaring from utils::AST
   //       cling::utils::Transform::GetPartiallyDesugaredType()
+  // Desugar template type alias specializations (e.g. std::enable_if_t,
+  // std::remove_cvref_t). Their printed form can carry expression-level
+  // template arguments (variable-template references, SFINAE predicates)
+  // that PrintingPolicy::FullyQualifiedName does not propagate into, so the
+  // emitted text may reference identifiers like `is_constructible_v` without
+  // the `std::` qualifier and fail to compile in the wrapper. Regular
+  // typedefs (e.g. std::string) keep their sugared name.
+  while (const auto* TST = QT->getAs<TemplateSpecializationType>()) {
+    if (!TST->isTypeAlias())
+      break;
+    QT = TST->desugar();
+  }
   if (!QT->isTypedefNameType() || QT->isBuiltinType())
     QT = QT.getDesugaredType(C);
   Policy.Suppress_Elab = true;
