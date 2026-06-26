@@ -309,6 +309,63 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetFunctionsUsingName) {
   EXPECT_EQ(get_number_of_funcs_using_name(derived, "h"), 1);
 }
 
+TYPED_TEST(CPPINTEROP_TEST_MODE,
+           FunctionReflection_GetFunctionsUsingNameOperators) {
+  std::vector<Decl*> Decls;
+  std::string code = R"(
+    namespace ComparableSpace {
+      class NSComparable {};
+      bool operator==(const NSComparable&, const NSComparable&) { return true; }
+      bool operator==(const NSComparable&, int) { return false; }
+      bool operator!=(const NSComparable&, const NSComparable&) { return false; }
+      int operators_count() { return 1; }
+    }
+
+    struct WithOps {
+      bool operator==(const WithOps&) const { return true; }
+      WithOps& operator+=(int) { return *this; }
+      int operator[](int) const { return 0; }
+      int operator()(int, int) const { return 0; }
+    };
+    )";
+
+  GetAllTopLevelDecls(code, Decls);
+
+  auto count = [](Cpp::DeclRef scope, const std::string& name) {
+    return Cpp::GetFunctionsUsingName(scope, name).size();
+  };
+
+  // Namespace-scope operator overloads are now findable by name.
+  EXPECT_EQ(count(Decls[0], "operator=="), 2);
+  EXPECT_EQ(count(Decls[0], "operator!="), 1);
+
+  // Non-existent operator at this scope.
+  EXPECT_EQ(count(Decls[0], "operator+"), 0);
+
+  // "operator" followed by a non-identifier char that is not a valid operator
+  // spelling: this passes the early identifier-path check but matches no
+  // overloaded operator, so it must fall through to the empty DeclarationName
+  // and resolve (to nothing) via the identifier path.
+  EXPECT_EQ(count(Decls[0], "operator@"), 0);
+
+  // Identifiers that merely start with "operator" must still resolve via the
+  // identifier lookup path, not be misread as an operator.
+  EXPECT_EQ(count(Decls[0], "operators_count"), 1);
+
+  // Class-scope operators, including multi-token "()" and "[]".
+  EXPECT_EQ(count(Decls[1], "operator=="), 1);
+  EXPECT_EQ(count(Decls[1], "operator+="), 1);
+  EXPECT_EQ(count(Decls[1], "operator[]"), 1);
+  EXPECT_EQ(count(Decls[1], "operator()"), 1);
+  EXPECT_EQ(count(Decls[1], "operator!="), 0);
+
+  // Sanity-check that the returned decls are the operator overloads.
+  auto eqs = Cpp::GetFunctionsUsingName(Decls[0], "operator==");
+  ASSERT_EQ(eqs.size(), 2U);
+  for (auto f : eqs)
+    EXPECT_EQ(Cpp::GetName(Cpp::DeclRef{f.data}), "operator==");
+}
+
 TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetClassDecls) {
   std::vector<Decl*> Decls, SubDecls;
   std::string code = R"(

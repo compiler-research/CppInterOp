@@ -53,6 +53,7 @@
 #include "clang/AST/Stmt.h"
 #include "clang/AST/Type.h"
 #include "clang/AST/VTableBuilder.h"
+#include "clang/Basic/CharInfo.h"
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/DiagnosticSema.h"
 #include "clang/Basic/LangStandard.h"
@@ -1484,6 +1485,29 @@ void DumpScope(ConstDeclRef DRef) {
   return INTEROP_VOID_RETURN();
 }
 
+// Map an operator spelling (e.g. "operator==") to the CXXOperatorName its
+// overloads are stored under, since identifier lookup never matches them.
+// Returns an empty DeclarationName for non-operators (e.g. "operators_count"),
+// leaving the caller on the identifier path. We can't use LookupOperatorName
+// for this: it ignores class members, which this entry point must also find.
+static DeclarationName getCXXOperatorDeclName(ASTContext& Ctx,
+                                              llvm::StringRef name) {
+  static constexpr llvm::StringRef OperatorPrefix("operator");
+  if (!name.consume_front(OperatorPrefix) || name.empty() ||
+      clang::isAsciiIdentifierContinue(
+          static_cast<unsigned char>(name.front())))
+    return DeclarationName();
+
+  llvm::StringRef Spelling = name.trim();
+#define OVERLOADED_OPERATOR(OpName, OpSpelling, Token, Unary, Binary,          \
+                            MemberOnly)                                        \
+  if (Spelling == (OpSpelling))                                                \
+    return Ctx.DeclarationNames.getCXXOperatorName(clang::OO_##OpName);
+#include "clang/Basic/OperatorKinds.def"
+#undef OVERLOADED_OPERATOR
+  return DeclarationName();
+}
+
 std::vector<FuncRef> GetFunctionsUsingName(ConstDeclRef DRef,
                                            const std::string& name) {
   INTEROP_TRACE(DRef, name);
@@ -1494,9 +1518,13 @@ std::vector<FuncRef> GetFunctionsUsingName(ConstDeclRef DRef,
   const auto* D = unwrap<Decl>(GetUnderlyingScope(DRef));
 
   std::vector<FuncRef> funcs;
-  llvm::StringRef Name(name);
   auto& S = getSema();
-  DeclarationName DName = &getASTContext().Idents.get(name);
+  auto& Ctx = getASTContext();
+
+  DeclarationName DName = getCXXOperatorDeclName(Ctx, name);
+  if (!DName)
+    DName = &Ctx.Idents.get(name);
+
   clang::LookupResult R(S, DName, SourceLocation(), Sema::LookupOrdinaryName,
                         RedeclarationKind::ForVisibleRedeclaration);
 
