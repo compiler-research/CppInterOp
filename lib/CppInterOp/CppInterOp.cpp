@@ -1281,7 +1281,7 @@ DeclRef GetNamed(const std::string& name, ConstDeclRef parent /*= nullptr*/) {
         }
       }
       if (FoundND)
-        return INTEROP_RETURN((TCppScope_t)(FoundND->getCanonicalDecl()));
+        return INTEROP_RETURN((FoundND->getCanonicalDecl()));
 
       // Qualified lookup may still miss inherited class members in some
       // record contexts. Use unqualified lookup from a synthesized point
@@ -1289,8 +1289,8 @@ DeclRef GetNamed(const std::string& name, ConstDeclRef parent /*= nullptr*/) {
       auto* ND2 = LookupUnqualified(getSema(), DName, Within);
       if (ND2 && ND2 != (clang::NamedDecl*)-1) {
         if (auto* Shadow = CreateInheritedUsingShadow(RD, ND2))
-          return INTEROP_RETURN((TCppScope_t)(Shadow->getCanonicalDecl()));
-        return INTEROP_RETURN((TCppScope_t)(ND2->getCanonicalDecl()));
+          return INTEROP_RETURN((Shadow->getCanonicalDecl()));
+        return INTEROP_RETURN((ND2->getCanonicalDecl()));
       }
       if (ND2 == (clang::NamedDecl*)-1)
         return INTEROP_RETURN(nullptr);
