@@ -1215,6 +1215,7 @@ static clang::UsingShadowDecl *CreateInheritedUsingShadow(
                                          clang::NestedNameSpecifierLoc(),
                                          NameInfo, false);
   Using->setImplicit(true);
+  Using->setAccess(Target->getAccess());
 
   auto *Shadow = clang::UsingShadowDecl::Create(
       C, Record, clang::SourceLocation(), Target->getDeclName(), Using,
@@ -1222,6 +1223,7 @@ static clang::UsingShadowDecl *CreateInheritedUsingShadow(
   Using->addShadowDecl(Shadow);
   Shadow->setAccess(Target->getAccess());
   Record->addDecl(Shadow);
+  Record->addDecl(Using);
 
   return Shadow;
 }
