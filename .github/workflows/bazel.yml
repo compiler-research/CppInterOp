@@ -2,11 +2,11 @@
 # CppInterOp; this job must NEVER gate a PR (continue-on-error). The build/test
 # steps run for real and surface a regression as a warning, not a false green.
 #
-# TEMPORARY fork coupling: the Bazel infra (cppyy/bazel/ = the cppyy_bazel
-# module, plus the MODULE.bazel files) currently lives ONLY on the conrade-ctc
-# forks @ bazel-build-upstream, not on the compiler-research default branches.
-# Until it merges upstream, the cppyy sibling is cloned from the fork (FORK_OWNER
-# / FORK_BRANCH below). After the merge, repoint those two variables.
+# The cppyy sibling is cloned from the compiler-research default branch — it
+# provides the cppyy_bazel module (cppyy/bazel/). That module is still landing
+# across the four repos' Bazel PRs; until it merges this best-effort job may fail
+# (non-gating). Cloning the default branch means no follow-up PR is needed once
+# it does — the job goes green on its own.
 name: bazel (best-effort)
 
 on:
@@ -36,11 +36,9 @@ jobs:
       - name: Clone cppyy sibling (provides the cppyy_bazel module)
         run: |
           set -eux
-          FORK_OWNER="conrade-ctc"            # TODO: compiler-research after infra merges
-          FORK_BRANCH="bazel-build-upstream"  # TODO: default branch after infra merges
           cd "$GITHUB_WORKSPACE/.."
-          git clone --depth=1 -b "$FORK_BRANCH" \
-            "https://github.com/${FORK_OWNER}/cppyy.git"
+          git clone --depth=1 \
+            "https://github.com/compiler-research/cppyy.git"
 
       - name: Setup LLVM ${{ matrix.llvm }}
         uses: compiler-research/ci-workflows/actions/setup-llvm@main
