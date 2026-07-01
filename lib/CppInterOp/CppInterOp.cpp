@@ -4406,6 +4406,35 @@ std::string ExtractArgument(const std::vector<const char*>& Args,
 }
 } // namespace
 
+///\returns 0 on success.
+static bool exec(const char* cmd, std::vector<std::string>& outputs) {
+#define DEBUG_TYPE "exec"
+
+  std::array<char, 256> buffer;
+  struct file_deleter {
+    void operator()(FILE* fp) { pclose(fp); }
+  };
+  std::unique_ptr<FILE, file_deleter> pipe{popen(cmd, "r")};
+  LLVM_DEBUG(dbgs() << "Executing command '" << cmd << "'\n");
+
+  if (!pipe) {
+    LLVM_DEBUG(dbgs() << "Execute failed!\n");
+    perror("exec: ");
+    return false;
+  }
+
+  LLVM_DEBUG(dbgs() << "Execute returned:\n");
+  while (fgets(buffer.data(), static_cast<int>(buffer.size()), pipe.get())) {
+    LLVM_DEBUG(dbgs() << buffer.data());
+    llvm::StringRef trimmed = buffer.data();
+    outputs.push_back(trimmed.trim().str());
+  }
+
+#undef DEBUG_TYPE
+
+  return true;
+}
+
 InterpRef CreateInterpreter(const std::vector<const char*>& Args /*={}*/,
                             const std::vector<const char*>& GpuArgs /*={}*/) {
   INTEROP_TRACE(Args, GpuArgs);
@@ -4488,6 +4517,33 @@ InterpRef CreateInterpreter(const std::vector<const char*>& Args /*={}*/,
   std::transform(ExtraArgs.begin(), ExtraArgs.end(),
                  std::back_inserter(ClingArgv),
                  [&](const std::string& str) { return str.c_str(); });
+
+  // Figure out the right SDK path for MacOS. Mirrors the clang driver's
+  // resolution (Darwin::AddDeploymentTarget): try an explicit -isysroot,
+  // else a valid SDKROOT. Only when neither is usable fall back to
+  // `xcrun --show-sdk-path` (same query xcrun performs to set SDKROOT)
+  // This way a packaged (pip/conda) interpreter finds the active
+  // with no env config, relocatably across Xcode updates.
+  std::string MacOSSDK;
+  if (T.isOSDarwin()) {
+    const bool HasSysroot = llvm::any_of(ClingArgv, [](const char* A) {
+      return llvm::StringRef(A) == "-isysroot";
+    });
+    auto SDKRootEnv = llvm::sys::Process::GetEnv("SDKROOT");
+    const bool ValidSDKRoot = SDKRootEnv &&
+                              llvm::sys::path::is_absolute(*SDKRootEnv) &&
+                              llvm::sys::fs::exists(*SDKRootEnv) &&
+                              llvm::StringRef(*SDKRootEnv) != "/";
+    if (!HasSysroot && !ValidSDKRoot) {
+      std::vector<std::string> Out;
+      if (exec("xcrun --sdk macosx --show-sdk-path", Out) && !Out.empty())
+        MacOSSDK = Out.back();
+      if (!MacOSSDK.empty() && llvm::sys::fs::is_directory(MacOSSDK)) {
+        ClingArgv.push_back("-isysroot");
+        ClingArgv.push_back(MacOSSDK.c_str());
+      }
+    }
+  }
 
   // Force global process initialization.
   (void)GetInterpreters();
@@ -4610,35 +4666,6 @@ const char* GetResourceDir() {
   INTEROP_TRACE();
   return INTEROP_RETURN(
       getInterp().getCI()->getHeaderSearchOpts().ResourceDir.c_str());
-}
-
-///\returns 0 on success.
-static bool exec(const char* cmd, std::vector<std::string>& outputs) {
-#define DEBUG_TYPE "exec"
-
-  std::array<char, 256> buffer;
-  struct file_deleter {
-    void operator()(FILE* fp) { pclose(fp); }
-  };
-  std::unique_ptr<FILE, file_deleter> pipe{popen(cmd, "r")};
-  LLVM_DEBUG(dbgs() << "Executing command '" << cmd << "'\n");
-
-  if (!pipe) {
-    LLVM_DEBUG(dbgs() << "Execute failed!\n");
-    perror("exec: ");
-    return false;
-  }
-
-  LLVM_DEBUG(dbgs() << "Execute returned:\n");
-  while (fgets(buffer.data(), static_cast<int>(buffer.size()), pipe.get())) {
-    LLVM_DEBUG(dbgs() << buffer.data());
-    llvm::StringRef trimmed = buffer.data();
-    outputs.push_back(trimmed.trim().str());
-  }
-
-#undef DEBUG_TYPE
-
-  return true;
 }
 
 std::string DetectResourceDir(const char* ClangBinaryName /* = clang */) {
