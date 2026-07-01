@@ -122,7 +122,14 @@ TEST(HandleTypes, AbiCompatibleWithVoidPtr) {
     bool (*void_ptr_fn)(void*);
     bool (*handle_fn)(DeclRef);
   } pun{&void_ptr_takes_nonnull};
+
+  // The handle-taking pointer comes from dlsym at runtime, so the compiler
+  // cannot see through it. If it is a compile-time constant, GCC 11 exploits
+  // the type mismatch (UB) to constant-fold the call giving a wrong
+  // reslt. Route the call through a volatile local so the compiler treats
+  // the pointer as runtime-opaque
+  volatile auto handle_fn = pun.handle_fn;
   int x = 0;
-  EXPECT_TRUE(pun.handle_fn(DeclRef(&x)));
-  EXPECT_FALSE(pun.handle_fn(DeclRef{}));
+  EXPECT_TRUE(handle_fn(DeclRef(&x)));
+  EXPECT_FALSE(handle_fn(DeclRef{}));
 }
