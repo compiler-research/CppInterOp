@@ -1215,15 +1215,13 @@ static clang::UsingShadowDecl *CreateInheritedUsingShadow(
                                          clang::NestedNameSpecifierLoc(),
                                          NameInfo, false);
   Using->setImplicit(true);
-  Using->setAccess(Target->getAccess());
 
   auto *Shadow = clang::UsingShadowDecl::Create(
       C, Record, clang::SourceLocation(), Target->getDeclName(), Using,
       Target);
+
   Using->addShadowDecl(Shadow);
-  Shadow->setAccess(Target->getAccess());
   Record->addDecl(Shadow);
-  Record->addDecl(Using);
 
   return Shadow;
 }
@@ -1263,7 +1261,7 @@ DeclRef GetNamed(const std::string& name, ConstDeclRef parent /*= nullptr*/) {
   // null, so TU-level using-directives are already handled there.
   auto* ND = CppInternal::utils::Lookup::Named(&getSema(), name, Within);
   if (ND && ND != (clang::NamedDecl*)-1)
-    return INTEROP_RETURN(ND->getCanonicalDecl());
+    return INTEROP_RETURN(ND);
 
   // Qualified lookup can miss inherited members in class scope. Try the
   // record's own lookup, which includes direct members, and then fall back
@@ -1283,16 +1281,18 @@ DeclRef GetNamed(const std::string& name, ConstDeclRef parent /*= nullptr*/) {
         }
       }
       if (FoundND)
-        return INTEROP_RETURN((FoundND->getCanonicalDecl()));
+        return INTEROP_RETURN((FoundND));
 
       // Qualified lookup may still miss inherited class members in some
       // record contexts. Use unqualified lookup from a synthesized point
       // inside the class to traverse base classes and find the member.
       auto* ND2 = LookupUnqualified(getSema(), DName, Within);
-      if (ND2 && ND2 != (clang::NamedDecl*)-1) {
+      if (ND2 == reinterpret_cast<clang::NamedDecl*>(-1))
+        return INTEROP_RETURN(nullptr);
+      if (ND2) {
         if (auto* Shadow = CreateInheritedUsingShadow(RD, ND2))
-          return INTEROP_RETURN((Shadow->getCanonicalDecl()));
-        return INTEROP_RETURN((ND2->getCanonicalDecl()));
+          return INTEROP_RETURN(Shadow);
+        return INTEROP_RETURN(ND2);
       }
       if (ND2 == (clang::NamedDecl*)-1)
         return INTEROP_RETURN(nullptr);
@@ -1309,7 +1309,7 @@ DeclRef GetNamed(const std::string& name, ConstDeclRef parent /*= nullptr*/) {
   clang::DeclarationName DName = &getSema().Context.Idents.get(name);
   ND = LookupUnqualified(getSema(), DName, Within);
   if (ND && ND != (clang::NamedDecl*)-1)
-    return INTEROP_RETURN(ND->getCanonicalDecl());
+    return INTEROP_RETURN(ND);
 
   return INTEROP_RETURN(nullptr);
 }
