@@ -702,6 +702,25 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_GetNamed) {
   EXPECT_EQ(Cpp::GetQualifiedName(std_ns), "std");
   EXPECT_EQ(Cpp::GetQualifiedName(std_string_class), "std::string");
   EXPECT_EQ(Cpp::GetQualifiedName(std_string_npos_var), "std::basic_string<char>::npos");
+  Interp->declare(R"(
+    struct S {
+      typedef int Val;
+    };
+
+    struct S1 : public S {
+      /* empty */
+    };
+  )");
+
+  Cpp::DeclRef strt_S = Cpp::GetNamed("S", nullptr);
+  Cpp::DeclRef strt_S_Val = Cpp::GetNamed("Val", strt_S);
+  Cpp::DeclRef strt_S1 = Cpp::GetNamed("S1", nullptr);
+  Cpp::DeclRef strt_S1_Val = Cpp::GetNamed("Val", strt_S1);
+
+  EXPECT_EQ(Cpp::GetQualifiedName(strt_S), "S");
+  EXPECT_EQ(Cpp::GetQualifiedName(strt_S_Val), "S::Val");
+  EXPECT_EQ(Cpp::GetQualifiedName(strt_S1), "S1");
+  EXPECT_EQ(Cpp::GetQualifiedName(strt_S1_Val), "S1::Val");
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_GetNamedWithUsing) {

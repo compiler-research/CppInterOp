@@ -1158,6 +1158,39 @@ clang::NamedDecl* LookupUnqualified(clang::Sema& S,
   return (clang::NamedDecl*)-1;
 }
 
+
+static clang::UsingShadowDecl *CreateInheritedUsingShadow(
+    clang::CXXRecordDecl *Record, clang::NamedDecl *Target) {
+  if (!Record || !Target)
+    return nullptr;
+
+  if (auto *Shadow = llvm::dyn_cast<clang::UsingShadowDecl>(Target))
+    Target = Shadow->getTargetDecl();
+
+  if (!Target)
+    return nullptr;
+
+  if (Target->getDeclContext() == Record)
+    return llvm::dyn_cast<clang::UsingShadowDecl>(Target);
+
+  clang::ASTContext &C = Record->getASTContext();
+  clang::DeclarationNameInfo NameInfo(Target->getDeclName(),
+                                      clang::SourceLocation());
+  auto *Using = clang::UsingDecl::Create(C, Record, clang::SourceLocation(),
+                                         clang::NestedNameSpecifierLoc(),
+                                         NameInfo, false);
+  Using->setImplicit(true);
+
+  auto *Shadow = clang::UsingShadowDecl::Create(
+      C, Record, clang::SourceLocation(), Target->getDeclName(), Using,
+      Target);
+
+  Using->addShadowDecl(Shadow);
+  Record->addDecl(Shadow);
+
+  return Shadow;
+}
+
 // Cheap probe: does any namespace from `DC` up to TU carry at least
 // one using-directive? Gates the synthetic-DRef-chain build below so
 // the common case (no using-directives anywhere on the path) doesn't
@@ -1193,7 +1226,43 @@ DeclRef GetNamed(const std::string& name, ConstDeclRef parent /*= nullptr*/) {
   // null, so TU-level using-directives are already handled there.
   auto* ND = CppInternal::utils::Lookup::Named(&getSema(), name, Within);
   if (ND && ND != (clang::NamedDecl*)-1)
-    return INTEROP_RETURN(ND->getCanonicalDecl());
+    return INTEROP_RETURN(ND);
+
+  // Qualified lookup can miss inherited members in class scope. Try the
+  // record's own lookup, which includes direct members, and then fall back
+  // to unqualified lookup inside the record to honor base-class member
+  // visibility semantics.
+  if (Within) {
+    if (auto* RD = llvm::dyn_cast<clang::CXXRecordDecl>(Within)) {
+      clang::DeclarationName DName = &getSema().Context.Idents.get(name);
+      auto Decls = RD->lookup(DName);
+      clang::NamedDecl* FoundND = nullptr;
+      for (auto* D : Decls) {
+        if (auto* Named = llvm::dyn_cast<clang::NamedDecl>(D)) {
+          if (!FoundND)
+            FoundND = Named;
+          else
+            return INTEROP_RETURN(nullptr);
+        }
+      }
+      if (FoundND)
+        return INTEROP_RETURN((FoundND));
+
+      // Qualified lookup may still miss inherited class members in some
+      // record contexts. Use unqualified lookup from a synthesized point
+      // inside the class to traverse base classes and find the member.
+      auto* ND2 = LookupUnqualified(getSema(), DName, Within);
+      if (ND2 == reinterpret_cast<clang::NamedDecl*>(-1))
+        return INTEROP_RETURN(nullptr);
+      if (ND2) {
+        if (auto* Shadow = CreateInheritedUsingShadow(RD, ND2))
+          return INTEROP_RETURN(Shadow);
+        return INTEROP_RETURN(ND2);
+      }
+      if (ND2 == (clang::NamedDecl*)-1)
+        return INTEROP_RETURN(nullptr);
+    }
+  }
 
   // Slow path: only when qualified lookup missed AND `Within` is a
   // namespace whose enclosing chain carries at least one using-directive
@@ -1205,7 +1274,7 @@ DeclRef GetNamed(const std::string& name, ConstDeclRef parent /*= nullptr*/) {
   clang::DeclarationName DName = &getSema().Context.Idents.get(name);
   ND = LookupUnqualified(getSema(), DName, Within);
   if (ND && ND != (clang::NamedDecl*)-1)
-    return INTEROP_RETURN(ND->getCanonicalDecl());
+    return INTEROP_RETURN(ND);
 
   return INTEROP_RETURN(nullptr);
 }
