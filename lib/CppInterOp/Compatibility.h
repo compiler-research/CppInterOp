@@ -31,6 +31,9 @@
 
 #include "llvm/ADT/IntrusiveRefCntPtr.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/StringSet.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/Module.h"
 #include "llvm/Support/FileSystem.h"
 
 #include "CppInterOp/Box.h"
@@ -592,6 +595,57 @@ inline void maybeMangleDeclName(const clang::GlobalDecl& GD,
     mangleCtx->mangleName(GD, RawStr);
   RawStr.flush();
 }
+
+// ===========================================================================
+// Workaround for an LLVM ORC emulated-TLS discard crash (in-process JIT).
+//
+// Fixed upstream by llvm/llvm-project#207161: IRMaterializationUnit's ctor
+// registered `__emutls_t.<var>` in SymbolFlags but not SymbolToDefinition, so
+// discarding a *duplicated* weak thread_local dereferenced end() -- an
+// assertion in +Asserts builds, heap corruption otherwise. The trigger is two
+// incremental modules that each define the same weak/linkonce_odr thread_local
+// with a non-zero initializer (e.g. an inline function or template static
+// odr-used from two PTUs, as MakeFunctionCallable and repeated process() do).
+//
+// Mitigation: before a module reaches the JIT, demote every *duplicate*
+// definition of such a thread_local to available_externally. The
+// IRMaterializationUnit ctor skips available_externally globals, so the
+// duplicate contributes no symbol and the buggy discard is never reached; the
+// first module stays the sole definition and later modules resolve to it
+// within the JITDylib. Only non-zero-init weak thread_locals are touched --
+// every other weak/COMDAT symbol keeps the normal path, where discard is fine.
+//
+// DEPRECATION: this compiles out on LLVM >= 23, which is where #207161 lands.
+// Remove it once the minimum supported LLVM baseline carries the fix (and
+// tighten/relax the guard if the fix is backported to 21.x/22.x).
+// ===========================================================================
+#if LLVM_VERSION_MAJOR < 23
+inline void dedupeWeakEmulatedTLS(llvm::Module& M, llvm::StringSet<>& Defined) {
+  for (llvm::GlobalVariable& GV : M.globals()) {
+    if (!GV.isThreadLocal() || GV.isDeclaration() || !GV.isWeakForLinker())
+      continue;
+
+    // Mirror Layer.cpp: only a non-zero initializer emits the
+    // `__emutls_t.<var>` symbol that the buggy discard fails to find.
+    const llvm::Constant* Init = GV.getInitializer();
+    if (llvm::isa<llvm::ConstantAggregateZero>(Init))
+      continue;
+    if (const auto* CI = llvm::dyn_cast<llvm::ConstantInt>(Init))
+      if (CI->isZero())
+        continue;
+
+    // First definer wins; later duplicates become references, mirroring what
+    // discard() would have done (available_externally + no comdat) but without
+    // hitting the crashing code path.
+    if (!Defined.insert(GV.getName()).second) {
+      GV.setLinkage(llvm::GlobalValue::AvailableExternallyLinkage);
+      GV.setComdat(nullptr);
+    }
+  }
+}
+#else
+inline void dedupeWeakEmulatedTLS(llvm::Module&, llvm::StringSet<>&) {}
+#endif
 
 // Clang 18 - Add new Interpreter methods: CodeComplete
 
