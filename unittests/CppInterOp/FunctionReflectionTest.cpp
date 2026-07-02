@@ -3743,3 +3743,62 @@ TYPED_TEST(CPPINTEROP_TEST_MODE,
                       /*interpreter_args=*/{"-std=c++23", "-include", "new"});
   EXPECT_EQ(JitCallIntNullary("BlogTransform", "drive"), 42);
 }
+
+// A weak (linkonce_odr) thread_local with a non-zero initializer, materialized
+// in two MaterializationUnits, drives llvm::orc::IRMaterializationUnit::discard
+// over the duplicate. On the buggy LLVM path that dereferences end(): the
+// emulated-TLS branch of the IRMaterializationUnit constructor registers
+// __emutls_t.<var> in SymbolFlags but not SymbolToDefinition, so discarding the
+// duplicate crashes (assertion in +Asserts builds, heap corruption otherwise).
+//
+// Shape: an `inline` worker() odr-uses HeavyThing<1>::tls (a non-zero-init
+// thread_local template static). Two functions are process()'d into separate
+// TUs/modules and each call worker(), so each module re-emits worker() and the
+// tls as linkonce_odr; defining the second module runs discard over the
+// duplicate emulated-TLS symbol.
+//
+// This always passes: on LLVM < 23 the CppInterOp-side workaround
+// (compat::dedupeWeakEmulatedTLS) defuses the crash, and on LLVM >= 23 the
+// upstream fix (llvm/llvm-project#207161) does. It guards against regressions
+// in either. Kept deliberately minimal and heap-free so it is portable and
+// clean under ASan/LSan.
+TYPED_TEST(CPPINTEROP_TEST_MODE,
+           FunctionReflection_DiscardDuplicateWeakEmulatedTLS) {
+#ifdef EMSCRIPTEN
+  GTEST_SKIP() << "Test fails for Emscripten builds";
+#endif
+  if (TypeParam::isOutOfProcess)
+    GTEST_SKIP() << "Test targets the in-process JIT discard path";
+
+  std::vector<Decl*> Decls;
+  std::string header = R"(
+    template <int Tag> struct HeavyThing { static thread_local int tls; };
+    template <int Tag> thread_local int HeavyThing<Tag>::tls = Tag + 1;
+    inline int worker() { return HeavyThing<1>::tls; }
+  )";
+  // -include new: MakeFunctionCallable's wrapper uses placement new.
+  GetAllTopLevelDecls(header, Decls, /*filter_implicitGenerated=*/false,
+                      /*interpreter_args=*/{"-std=c++23", "-include", "new"});
+
+  // Two distinct modules, each odr-using worker() -> each re-emits worker() and
+  // the non-zero-init thread_local as linkonce_odr.
+  Interp->process("int callA() { return worker(); }");
+  Interp->process("int callB() { return worker(); }");
+
+  Cpp::DeclRef A = Cpp::GetNamed("callA");
+  Cpp::DeclRef B = Cpp::GetNamed("callB");
+  ASSERT_TRUE(A);
+  ASSERT_TRUE(B);
+
+  Cpp::JitCall JA = Cpp::MakeFunctionCallable(Cpp::FuncRef{A.data});
+  Cpp::JitCall JB = Cpp::MakeFunctionCallable(Cpp::FuncRef{B.data});
+  ASSERT_EQ(JA.getKind(), Cpp::JitCall::kGenericCall);
+  ASSERT_EQ(JB.getKind(), Cpp::JitCall::kGenericCall);
+
+  int ra = 0, rb = 0;
+  JA.Invoke(&ra, {}); // materialize module A's copy of the weak set
+  JB.Invoke(&rb, {}); // ... and module B's; discard ran over the duplicate
+
+  EXPECT_EQ(ra, 2); // HeavyThing<1>::tls == Tag + 1
+  EXPECT_EQ(rb, 2);
+}
