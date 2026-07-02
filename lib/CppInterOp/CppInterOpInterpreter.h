@@ -19,6 +19,7 @@
 #include "clang/AST/GlobalDecl.h"
 #include "clang/Basic/LangOptions.h"
 #include "clang/Basic/TargetOptions.h"
+#include "clang/Basic/Version.h"
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Frontend/FrontendOptions.h"
 #include "clang/Lex/Preprocessor.h"
@@ -32,6 +33,7 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/ADT/StringSet.h"
 #include "llvm/ExecutionEngine/JITSymbol.h"
 #include "llvm/ExecutionEngine/Orc/AbsoluteSymbols.h"
 #include "llvm/ExecutionEngine/Orc/Core.h"
@@ -324,6 +326,12 @@ private:
   mutable std::once_flag sDLMInit;
   bool outOfProcess;
 
+#if CLANG_VERSION_MAJOR < 24
+  // Weak thread_local definitions already handed to the JIT, so later modules
+  // demote their duplicates. See compat::dedupeWeakEmulatedTLS.
+  llvm::StringSet<> DedupedWeakTLS;
+#endif
+
 public:
   Interpreter(std::unique_ptr<clang::Interpreter> CI,
               std::unique_ptr<IOContext> ctx = nullptr, bool oop = false)
@@ -455,6 +463,9 @@ public:
     if (!PTU)
       return PTU.takeError();
     if (PTU->TheModule) {
+#if CLANG_VERSION_MAJOR < 24
+      compat::dedupeWeakEmulatedTLS(*PTU->TheModule, DedupedWeakTLS);
+#endif
       // WORKAROUND: see bindProcessWeakGlobals in Compatibility.h -- remove
       // with the pass once the clang JIT fix lands.
 #if !defined(_WIN32) && CPPINTEROP_WORKAROUND_BIND_PROCESS_WEAK_GLOBALS
@@ -559,6 +570,10 @@ public:
     if (PTU)
       *PTU = &*PTUOrErr;
 
+#if CLANG_VERSION_MAJOR < 24
+    if (PTUOrErr->TheModule)
+      compat::dedupeWeakEmulatedTLS(*PTUOrErr->TheModule, DedupedWeakTLS);
+#endif
       // WORKAROUND: see bindProcessWeakGlobals in Compatibility.h -- remove
       // with the pass once the clang JIT fix lands.
 #if !defined(_WIN32) && CPPINTEROP_WORKAROUND_BIND_PROCESS_WEAK_GLOBALS
