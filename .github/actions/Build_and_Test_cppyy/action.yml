@@ -150,6 +150,12 @@ runs:
           else
             SUPPRESSION_FILE="../etc/${CLANG_INTERPRETER}${CLANG_VERSION}-valgrind.supp"
           fi
+
+          # Only pass a per-runtime suppression file when one exists.
+          SUPPRESSION_ARG=()
+          if [[ -f "${SUPPRESSION_FILE}" ]]; then
+            SUPPRESSION_ARG+=(--suppressions="${SUPPRESSION_FILE}")
+          fi
           # CppInterOp's per-major valgrind supp file (the one
           # Build_and_Test_CppInterOp loads) covers the post-recipe
           # #194147 expansion -- the cppyy-side supp file in
@@ -164,7 +170,7 @@ runs:
             EXTRA_SUPP=()
           fi
           export IS_VALGRIND=true
-          valgrind --show-error-list=yes --error-exitcode=1 --track-origins=yes --gen-suppressions=all --suppressions="${SUPPRESSION_FILE}" --suppressions=../etc/valgrind-cppyy-cling.supp "${EXTRA_SUPP[@]}" python -m pytest -m "not xfail" -sv -ra --ignore=test_leakcheck.py
+          valgrind --show-error-list=yes --error-exitcode=1 --track-origins=yes --gen-suppressions=all "${SUPPRESSION_ARG[@]}" --suppressions=../etc/valgrind-cppyy-cling.supp "${EXTRA_SUPP[@]}" python -m pytest -m "not xfail" -sv -ra --ignore=test_leakcheck.py
           unset IS_VALGRIND
         fi
         export RETCODE=+$?
