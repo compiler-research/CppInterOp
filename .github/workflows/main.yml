@@ -53,7 +53,7 @@ jobs:
             clang-runtime: '22'
             Valgrind: On
           # MacOS Arm
-          - { name: osx26-arm-clang-llvm22, os: macos-26, compiler: clang, clang-runtime: '22' }
+          - { name: osx26-arm-clang-llvm22-cov, os: macos-26, compiler: clang, clang-runtime: '22', coverage: true }
           - { name: osx26-arm-clang-llvm21-cppyy, os: macos-26, compiler: clang, clang-runtime: '21', cppyy: On, flavor: system }
           - { name: osx26-arm-clang-cling-llvm20-cppyy, os: macos-26, compiler: clang, clang-runtime: '20', cling: 'On', cppyy: On, flavor: cling, flavor-version: 'ROOT-llvm20' }
           # MacOS X86
@@ -112,7 +112,11 @@ jobs:
     - name: Setup code coverage
       if: ${{ success() && (matrix.coverage == true) }}
       run: |
-        sudo apt-get install -y lcov
+        if [[ "$RUNNER_OS" == "macOS" ]]; then
+          brew install lcov
+        else
+          sudo apt-get install -y lcov
+        fi
         echo "CODE_COVERAGE=1" >> $GITHUB_ENV
         echo "BUILD_TYPE=Debug" >> $GITHUB_ENV
 
@@ -130,13 +134,18 @@ jobs:
       run: |
         # Create lcov report
         # capture coverage info
-        vers="${CC#*-}"
-        lcov --directory build/ --capture --output-file coverage.info --gcov-tool /usr/bin/gcov-${vers}
-        lcov --remove coverage.info '/usr/*' ${{ github.workspace }}'/install/*' --ignore-errors unused --output-file coverage.info
-        lcov --remove coverage.info '${{ github.workspace }}/unittests/*' --ignore-errors unused --output-file coverage.info
-        lcov --remove coverage.info  '${{ github.workspace }}/build/*' --ignore-errors unused --output-file coverage.info
+        if [[ "$RUNNER_OS" == "macOS" ]]; then
+          LCOV_ARGS=(--gcov-tool "${CC%/*}/llvm-cov" --gcov-tool gcov
+                     --ignore-errors inconsistent,format,unsupported)
+        else
+          LCOV_ARGS=(--gcov-tool "/usr/bin/gcov-${CC#*-}")
+        fi
+        lcov --directory build/ --capture --output-file coverage.info "${LCOV_ARGS[@]}"
+        lcov --remove coverage.info '/usr/*' '/opt/homebrew/*' ${{ github.workspace }}'/install/*' --ignore-errors unused "${LCOV_ARGS[@]}" --output-file coverage.info
+        lcov --remove coverage.info '${{ github.workspace }}/unittests/*' --ignore-errors unused "${LCOV_ARGS[@]}" --output-file coverage.info
+        lcov --remove coverage.info  '${{ github.workspace }}/build/*' --ignore-errors unused "${LCOV_ARGS[@]}" --output-file coverage.info
         # output coverage data for debugging (optional)
-        lcov --list coverage.info
+        lcov --list coverage.info "${LCOV_ARGS[@]}"
         rm -rf ./build/
 
     - name: Upload to codecov.io
