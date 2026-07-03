@@ -117,6 +117,10 @@ runs:
           cmake --build . --target doxygen-cppinterop --parallel ${{ env.ncpus }}
           cmake --build . --target sphinx-cppinterop --parallel ${{ env.ncpus }}
         else
+          if [[ "${{ runner.os }}" == "macOS" && -n "${CODE_COVERAGE:-}" ]]; then
+            # Run without SDKROOT so CreateInterpreter's fallback detection executes
+            unset SDKROOT
+          fi
           cmake --build . --target check-cppinterop --parallel ${{ env.ncpus }}
           # Verify the source-side `LLVM_VERSION_MAJOR > 21 &&
           # !defined(_WIN32)` gate in unittests/CppInterOp/Utils.h:
