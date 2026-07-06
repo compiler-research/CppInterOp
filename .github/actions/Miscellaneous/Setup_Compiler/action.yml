@@ -26,14 +26,9 @@ runs:
           echo "CC=gcc-${vers}" >> $GITHUB_ENV
           echo "CXX=g++-${vers}" >> $GITHUB_ENV
         else
-          if [[ "$(uname -m)" == "x86_64" ]]; then
-            brew install llvm@15
-            echo "CC=/usr/local/opt/llvm@20/bin/clang" >> $GITHUB_ENV
-            echo "CXX=/usr/local/opt/llvm@20/bin/clang++" >> $GITHUB_ENV
-          else
-            echo "CC=/opt/homebrew/opt/llvm@20/bin/clang" >> $GITHUB_ENV
-            echo "CXX=/opt/homebrew/opt/llvm@20/bin/clang++" >> $GITHUB_ENV
-          fi
+          brew list llvm@21 &>/dev/null || brew install llvm@21
+          echo "CC=$(brew --prefix llvm@21)/bin/clang" >> $GITHUB_ENV
+          echo "CXX=$(brew --prefix llvm@21)/bin/clang++" >> $GITHUB_ENV
         fi
         echo "SDKROOT=$(xcrun --sdk macosx --show-sdk-path)" >> $GITHUB_ENV
       env:
