@@ -820,6 +820,12 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetAllocType) {
         return (int*)malloc(sizeof(int));
       return new int;
     }
+
+    int* func27(int n){
+      int* p = new int[n];
+      p += 1;
+      return p;
+    }
     )";
   TestFixture::CreateInterpreter();
   Interp->declare(code);
@@ -856,6 +862,8 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetAllocType) {
   TESTAC(24, New);
   TESTAC(25, NewArr);
   TESTAC(26, Unknown);
+  // FIXME: Pointer overwriten by a non-assignment operator
+  TESTAC(27, NewArr);
 
 #undef TESTAC
 
