@@ -415,6 +415,16 @@ enum class AllocType : unsigned char {
   CustomAlloc
 };
 
+
+enum class DeallocType : unsigned char {
+  None,
+  Del,
+  DelArr,
+  Free,
+  Unknown,
+  CustomDealloc
+};
+
 inline QualKind operator|(QualKind a, QualKind b) {
   return static_cast<QualKind>(static_cast<unsigned char>(a) |
                                static_cast<unsigned char>(b));

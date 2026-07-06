@@ -788,6 +788,16 @@ def GetAllocType: CppInterOpAPI {
   ];
 }
 
+def GetDeallocType : CppInterOpAPI {
+  let Doc = "Analyzes function's body to detect memory deallocation behaviour";
+
+  let ReturnType = "bool";
+  let Args = [
+    Arg<"ConstFuncRef", "Fn">,
+    OutArg<"std::vector<DeallocType>&", "valPerParam">
+  ];
+}
+
 def GetFnTypeSignature : CppInterOpAPI {
   let Doc = [{Pushed the signature type of the given function type,
   where the first item is the return type.}];
