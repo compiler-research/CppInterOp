@@ -405,6 +405,16 @@ enum class InterpreterLanguageStandard : unsigned char {
   hlsl202y,
   lang_unspecified
 };
+
+enum class DeallocType : unsigned char {
+  None,
+  Del,
+  DelArr,
+  Free,
+  Unknown,
+  CustomDealloc
+};
+
 inline QualKind operator|(QualKind a, QualKind b) {
   return static_cast<QualKind>(static_cast<unsigned char>(a) |
                                static_cast<unsigned char>(b));
