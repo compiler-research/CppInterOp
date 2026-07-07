@@ -1,8 +1,9 @@
 # Build Google Benchmark as an ExternalProject, mirroring GoogleTest.cmake,
 # so the perf-as-validity tests get the library without a system dependency.
-# BUILD_BYPRODUCTS, the explicit -B in CONFIGURE_COMMAND, and IMPORTED_LOCATION
-# (resolved via ExternalProject_Get_Property binary_dir) must agree on where
-# benchmark builds; tracking CMAKE_CURRENT_BINARY_DIR keeps them in sync.
+# BUILD_BYPRODUCTS, the sub-build's binary dir (ExternalProject's default),
+# and IMPORTED_LOCATION (resolved via ExternalProject_Get_Property binary_dir)
+# must agree on where benchmark builds; tracking CMAKE_CURRENT_BINARY_DIR
+# keeps them in sync.
 set(_benchmark_byproduct_binary_dir
   ${CMAKE_CURRENT_BINARY_DIR}/googlebenchmark-prefix/src/googlebenchmark-build)
 set(_benchmark_byproducts
@@ -34,10 +35,7 @@ ExternalProject_Add(
   GIT_SHALLOW FALSE
   GIT_TAG v1.9.5
   UPDATE_COMMAND ""
-  CONFIGURE_COMMAND ${CMAKE_COMMAND} -G ${CMAKE_GENERATOR}
-                -S ${CMAKE_CURRENT_BINARY_DIR}/googlebenchmark-prefix/src/googlebenchmark/
-                -B ${_benchmark_byproduct_binary_dir}/
-                -DCMAKE_BUILD_TYPE=$<CONFIG>
+  CMAKE_ARGS    -DCMAKE_BUILD_TYPE=$<CONFIG>
                 -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}
                 -DCMAKE_C_FLAGS=${CMAKE_C_FLAGS}
                 -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}
