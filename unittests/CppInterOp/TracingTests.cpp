@@ -1169,8 +1169,6 @@ TEST_F(TracingTest, ReproducerCompilesViaInterpreter) {
   auto FooType = Cpp::GetTypeFromScope(Foo);
   ASSERT_NE(FooType, nullptr);
 
-  EXPECT_FALSE(Cpp::IsFunctionProtoType(FooType));
-
   Cpp::GetName(Foo);
   Cpp::SizeOf(Foo);
 

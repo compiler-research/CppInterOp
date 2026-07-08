@@ -28,10 +28,6 @@ inputs:
     required: false
     default: 'false'
     description: 'matrix.wasm. Gates emscripten cross-build vs native steps.'
-  arch:
-    required: false
-    default: ''
-    description: 'matrix.arch. "x86" targets 32-bit on Windows.'
 
 runs:
   using: composite
@@ -266,17 +262,9 @@ runs:
         $env:CPPINTEROP_BUILD_DIR="$env:PWD_DIR"
         echo "CPPINTEROP_BUILD_DIR=$env:CPPINTEROP_BUILD_DIR"
         echo "CPPINTEROP_BUILD_DIR=$env:CPPINTEROP_BUILD_DIR" >> $env:GITHUB_ENV
-        # arch=x86: 32-bit target on the VS generator with the 64-bit-
-        # hosted toolset. The LLVM cell consumed above must carry
-        # matching Win32 .libs or the link fails with LNK4272.
-        $PLATFORM_FLAGS = @()
-        if ( "${{ inputs.arch }}" -eq "x86" )
-        {
-          $PLATFORM_FLAGS = @("-A", "Win32", "-Thost=x64")
-        }
         if ( "${{ inputs.cling }}" -imatch "On" )
         {
-          cmake @PLATFORM_FLAGS -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    `
+          cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    `
                 -DCPPINTEROP_USE_CLING=ON                                  `
                 -DCPPINTEROP_USE_REPL=OFF                                  `
                 -DCling_DIR="$env:CLING_CMAKE_DIR"   `
@@ -286,7 +274,7 @@ runs:
         }
         else
         {
-          cmake @PLATFORM_FLAGS -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    `
+          cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    `
                 -DLLVM_DIR="$env:LLVM_BUILD_DIR\lib\cmake\llvm"  `
                 -DLLVM_ENABLE_WERROR=On                          `
                 -DClang_DIR="$env:LLVM_BUILD_DIR\lib\cmake\clang"  -DCODE_COVERAGE=${{ env.CODE_COVERAGE }}  -DCMAKE_INSTALL_PREFIX="$env:CPPINTEROP_DIR"  ..\
