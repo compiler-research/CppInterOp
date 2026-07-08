@@ -575,6 +575,86 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetFunctionReturnType) {
       "double");
 }
 
+TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_IsAllocator) {
+  std::vector<Decl*> Decls;
+  std::string code = R"(
+    class Klass{
+      int val;
+    };
+    __attribute__((ownership_returns(malloc)))
+    Klass* Allocator(){
+      Klass* obj = new Klass;
+      return obj;
+    }
+    Klass* __attribute__((malloc)) Allocator2(){
+      Klass* obj = new Klass;
+      return obj;
+    }
+    void foo();
+    )";
+  GetAllTopLevelDecls(code, Decls, true);
+  EXPECT_TRUE(Cpp::IsAllocator(Decls[1]));
+  EXPECT_TRUE(Cpp::IsAllocator(Decls[2]));
+  EXPECT_FALSE(Cpp::IsAllocator(Decls[3]));
+  // Builtin check
+  code = R"(
+  //There is nothing lstdlib.h is included at args
+  )";
+  TestFixture::CreateInterpreter({"-include", "stdlib.h"});
+  Interp->process(code);
+  auto mallocDecl = Cpp::GetNamed("malloc");
+  EXPECT_TRUE(Cpp::IsAllocator(Cpp::ConstFuncRef{mallocDecl.data}));
+  Cpp::DeleteInterpreter();
+
+  // APINotes check
+#if !defined(CPPINTEROP_USE_CLING) && !defined(__EMSCRIPTEN__)
+  std::string include_flag =
+      "-I" + std::string(CPPINTEROP_DIR) + "unittests/CppInterOp/APINotes";
+  std::vector<const char*> interpreter_args = {
+      "-fmodules", "-fimplicit-module-maps", "-fapinotes-modules",
+      include_flag.c_str()};
+  TestFixture::CreateInterpreter(interpreter_args);
+  code = R"(
+  #include "TestHeader.h"
+  )";
+  Interp->process(code);
+  auto testAllocDecl = Cpp::GetNamed("testAlloc");
+  EXPECT_TRUE(Cpp::IsAllocator(Cpp::ConstFuncRef{testAllocDecl.data}));
+
+  auto testNotAllocDecl = Cpp::GetNamed("testNotAlloc");
+  EXPECT_FALSE(Cpp::IsAllocator(Cpp::ConstFuncRef{testNotAllocDecl.data}));
+  Cpp::DeleteInterpreter();
+#endif
+}
+
+TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_IsDeallocator) {
+  std::vector<Decl*> Decls;
+  std::string code = R"(
+    class Klass{
+      int val;
+    };
+    __attribute__((ownership_takes(malloc, 1)))
+    void Deallocator(Klass* arg){
+      delete arg;
+    }
+    void foo();
+    )";
+  GetAllTopLevelDecls(code, Decls, true);
+  EXPECT_TRUE(Cpp::IsDeallocator(Decls[1]));
+  EXPECT_FALSE(Cpp::IsDeallocator(Decls[2]));
+
+  code = R"(
+  #include <stdlib.h>
+    void test(){
+      //Do Nothing
+    }
+  )";
+  TestFixture::CreateInterpreter();
+  Interp->process(code);
+  auto freeDecl = Cpp::GetNamed("free");
+  EXPECT_TRUE(Cpp::IsDeallocator(Cpp::ConstFuncRef{freeDecl.data}));
+}
+
 TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetFunctionNumArgs) {
   std::vector<Decl*> Decls, TemplateSubDecls;
   std::string code = R"(

@@ -1262,6 +1262,22 @@ def GetFunctionReturnType : CppInterOpAPI {
   let Args = [Arg<"ConstFuncRef", "func">];
 }
 
+def IsAllocator : CppInterOpAPI {
+  let Doc = "Checks if the provided function is an allocator function";
+  let ReturnType = "bool";
+  let Args = [
+    Arg<"ConstFuncRef", "func">
+  ];
+}
+
+def IsDeallocator : CppInterOpAPI {
+  let Doc = "Checks if the provided function is a deallocator function";
+  let ReturnType = "bool";
+  let Args = [
+    Arg<"ConstFuncRef", "func">
+  ];
+}
+
 def GetFunctionSignature : CppInterOpAPI {
   let Doc = [{\\returns a stringified version of a given function signature in the
 form: void N::f(int i, double d, long l = 0, char ch = 'a').}];
