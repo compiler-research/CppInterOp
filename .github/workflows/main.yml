@@ -26,8 +26,9 @@ jobs:
         #   flavor:               '' (default — pull llvm-release from
         #                            ci-workflows' Releases cache)
         # arch is derived from the os slug inside setup-llvm; pass an
-        # explicit `flavor-arch` only on hosts whose os name doesn't
-        # carry the architecture (none of GHA's runner images today).
+        # explicit `arch` only when the os name doesn't carry the
+        # architecture, or when the build targets something other than
+        # the runner's own arch (e.g win32: 'x86' = 32-bit MSVC).
         # `flavor` selects the LLVM source per row:
         #   ''       latest LLVM (cells.yaml carries the cell)
         #   system   apt-llvm.org / brew llvm@N — for older majors
@@ -60,13 +61,16 @@ jobs:
           - { name: osx26-x86-clang-llvm21-cppyy, os: macos-26-intel, compiler: clang, clang-runtime: '21', cppyy: On, flavor: system }
           - { name: osx26-x86-clang-cling-llvm20-cppyy, os: macos-26-intel, compiler: clang, clang-runtime: '20', cling: 'On', cppyy: On, flavor: cling, flavor-version: 'ROOT-llvm20' }
           # Windows
-          # No windows-11-arm row: x86 (win2025-msvc-llvm22) covers the
+          # No windows-11-arm row: x64 (win2025-msvc-llvm22) covers the
           # same MSVC+LLVM22 surface, and the arm runner ships an x64
           # MSVC environment by default. ci-workflows can publish arm64
           # .libs once `arch: arm64` lands in install-build-deps and the
           # poisoned arm64 cache entry is purged; restore the row then.
           - { name: win2025-msvc-llvm22, os: windows-2025, compiler: msvc, clang-runtime: '22' }
           - { name: win2025-msvc-cling-llvm20, os: windows-2025, compiler: msvc, clang-runtime: '20', cling: 'On', flavor: cling, flavor-version: 'ROOT-llvm20' }
+          # 32-bit MSVC target: consumes the Win32 llvm-release cell and
+          # builds CppInterOp with -A Win32 -Thost=x64
+          - { name: win2025-msvc32-llvm22, os: windows-2025, compiler: msvc, clang-runtime: '22', arch: x86 }
 
     steps: &build_steps
     - uses: actions/checkout@v6
@@ -106,6 +110,7 @@ jobs:
       with:
         version:        ${{ matrix.clang-runtime }}
         os:             ${{ matrix.self-hosted-os || matrix.os }}
+        arch:           ${{ matrix.arch }}
         flavor:         ${{ matrix.flavor }}
         flavor-version: ${{ matrix.flavor-version }}
 
@@ -128,6 +133,7 @@ jobs:
         documentation: ${{ matrix.documentation }}
         sanitizer: ${{ matrix.sanitizer }}
         valgrind: ${{ matrix.Valgrind }}
+        arch: ${{ matrix.arch }}
 
     - name: Prepare code coverage report
       if: ${{ success() && (matrix.coverage == true) }}

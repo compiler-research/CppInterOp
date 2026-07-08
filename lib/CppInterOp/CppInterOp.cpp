@@ -1584,7 +1584,7 @@ bool IsFunctionProtoType(ConstTypeRef TyRef) {
   INTEROP_TRACE(TyRef);
   QualType QT = QualType::getFromOpaquePtr(TyRef.data);
   const auto* T = QT.getTypePtr();
-  return llvm::isa_and_nonnull<clang::FunctionProtoType>(T);
+  return INTEROP_RETURN(llvm::isa_and_nonnull<clang::FunctionProtoType>(T));
 }
 
 void GetFnTypeSignature(ConstTypeRef fn_type, std::vector<TypeRef>& sig) {
@@ -2133,6 +2133,38 @@ constexpr int kABIPrefixSize = 2;
 static_assert(detail::kVTableOverlayPrefixSize == kABIPrefixSize + 1,
               "public prefix size must equal ABI prefix + 1 hidden slot");
 
+// Vtable slots hold member functions: on 32-bit MSVC that means __thiscall,
+// which a free function cannot be declared as (C3865). Use a member of a
+// base-less class instead; `this` is the object being destroyed. MSVC's
+// deleting dtor takes (this, int flags), Itanium's D0 only `this`.
+struct VTableOverlayDtorHost {
+#ifdef _WIN32
+  void Wrapper(int flags);
+#else
+  void Wrapper();
+#endif
+};
+#ifdef _WIN32
+using VTableOverlayDtorSlotFn = void (VTableOverlayDtorHost::*)(int);
+#else
+using VTableOverlayDtorSlotFn = void (VTableOverlayDtorHost::*)();
+#endif
+
+// A non-virtual mfp of a base-less class keeps the entry point in its first
+// pointer-sized word on every ABI we target (MSVC: just the address;
+// Itanium: {fnptr, adj} with adj = 0).
+static VTableOverlayDtorSlotFn SlotToDtorFn(void* slot) {
+  static_assert(sizeof(VTableOverlayDtorSlotFn) >= sizeof(void*));
+  VTableOverlayDtorSlotFn fn{};
+  std::memcpy(&fn, static_cast<void*>(&slot), sizeof(slot));
+  return fn;
+}
+static void* DtorFnToSlot(VTableOverlayDtorSlotFn fn) {
+  void* slot;
+  std::memcpy(static_cast<void*>(&slot), &fn, sizeof(slot));
+  return slot;
+}
+
 // Single locus for vptr reads/writes and slot arithmetic in this file;
 // the public header's VTableOverlayExtraSlot covers the symmetric pun
 // thunks need on the read side. The owned block layout is:
@@ -2143,7 +2175,7 @@ static_assert(detail::kVTableOverlayPrefixSize == kABIPrefixSize + 1,
 //                                                          address_point
 //
 // The wrapper at the deleting-dtor slot recovers its VTableOverlay from
-// the hidden self-ptr slot via a fixed-offset load from `self`'s vptr.
+// the hidden self-ptr slot via a fixed-offset load from `this`'s vptr.
 struct VTableOverlay {
   void** block;         // owned, freed in ~VTableOverlay
   void** original_vptr; // restored on caller-driven teardown
@@ -2152,7 +2184,7 @@ struct VTableOverlay {
   bool dtor_fired = false; // wrapper started -- skip vptr restore
   // Dtor-hook fields. orig_dtor stays null when the caller passed
   // on_destroy = nullptr; the wrapper is then not installed at all.
-  void (*orig_dtor)(void*) = nullptr;
+  VTableOverlayDtorSlotFn orig_dtor = nullptr;
   VTableOverlayDtorHook cleanup = nullptr;
   void* cleanup_data = nullptr;
 
@@ -2200,12 +2232,16 @@ struct VTableOverlay {
 
 // Wrapper installed in the deleting-dtor slot when MakeVTableOverlay was
 // called with a non-null on_destroy. Recovers the owning VTableOverlay
-// from `self`'s vptr (hidden-slot fixed-offset load) and runs the
-// callback BEFORE the original destructor: `self` is alive at that
+// from `this`'s vptr (hidden-slot fixed-offset load) and runs the
+// callback BEFORE the original destructor: the object is alive at that
 // point so the callback can inspect it, and after the original
 // deleting-destructor returns memory has been freed.
-extern "C" void cppinteropVTableOverlayDtorWrapper(void* self) {
-  void** vptr = VTableOverlay::ReadVPtr(self);
+#ifdef _WIN32
+void VTableOverlayDtorHost::Wrapper(int flags) {
+#else
+void VTableOverlayDtorHost::Wrapper() {
+#endif
+  void** vptr = VTableOverlay::ReadVPtr(this);
   VTableOverlay* ov = *reinterpret_cast<VTableOverlay**>(
       vptr - detail::kVTableOverlayPrefixSize);
   // Snapshot orig_dtor before user code runs: a misbehaving callback
@@ -2213,8 +2249,12 @@ extern "C" void cppinteropVTableOverlayDtorWrapper(void* self) {
   auto orig_dtor = ov->orig_dtor;
   ov->dtor_fired = true;
   if (ov->cleanup)
-    ov->cleanup(self, ov->cleanup_data);
-  orig_dtor(self);
+    ov->cleanup(this, ov->cleanup_data);
+#ifdef _WIN32
+  (this->*orig_dtor)(flags);
+#else
+  (this->*orig_dtor)();
+#endif
 }
 
 // Minimum slot count a polymorphic class can have from its address point:
@@ -2323,12 +2363,10 @@ MakeVTableOverlay(void* inst, ConstDeclRef base, const ConstFuncRef* methods,
   // destruction could fire the wrapper with stale state.
   if (on_destroy) {
     void** vptr = ov->address_point();
-    ov->orig_dtor =
-        VTableOverlay::BitCastFn<void (*)(void*)>(vptr[kDeletingDtorSlot]);
+    ov->orig_dtor = SlotToDtorFn(vptr[kDeletingDtorSlot]);
     ov->cleanup = on_destroy;
     ov->cleanup_data = cleanup_data;
-    vptr[kDeletingDtorSlot] =
-        VTableOverlay::BitCastFn<void*>(&cppinteropVTableOverlayDtorWrapper);
+    vptr[kDeletingDtorSlot] = DtorFnToSlot(&VTableOverlayDtorHost::Wrapper);
   }
 
   return INTEROP_RETURN(ov);
