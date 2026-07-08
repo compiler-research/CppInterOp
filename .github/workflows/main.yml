@@ -45,6 +45,7 @@ jobs:
           - { name: ubu24-x86-gcc12-llvm21-cppyy-vg, os: ubuntu-24.04, compiler: gcc-12, clang-runtime: '21', cppyy: On, Valgrind: On, flavor: system }
           - { name: ubu24-x86-gcc12-llvm22-cppyy, os: ubuntu-24.04, compiler: gcc-12, clang-runtime: '22', cppyy: On }
           - { name: ubu24-x86-gcc14-cling-llvm20-cppyy, os: ubuntu-24.04, compiler: gcc-14, clang-runtime: '20', cling: 'On', cppyy: On, flavor: cling, flavor-version: 'cling-llvm20' }
+          - { name: ubu24-x86-gcc14-cling-llvm20-asan, os: ubuntu-24.04, compiler: gcc-14, clang-runtime: '20', cling: 'On', sanitizer: "Address", flavor: cling, flavor-version: 'cling-llvm20' }
           # selfh-ubu22-x86-gcc12-llvm22-cuda lives in `build-selfhost`
           # below; it's the only row that needs the dell awake.
           - name: ubu24-x86-gcc12-llvm22-vg
@@ -104,10 +105,11 @@ jobs:
     - name: Setup LLVM ${{ matrix.clang-runtime }}${{ matrix.flavor && format(' [{0}]', matrix.flavor) || '' }}
       uses: compiler-research/ci-workflows/actions/setup-llvm@main
       with:
-        version:        ${{ matrix.clang-runtime }}
-        os:             ${{ matrix.self-hosted-os || matrix.os }}
-        flavor:         ${{ matrix.flavor }}
-        flavor-version: ${{ matrix.flavor-version }}
+        version:         ${{ matrix.clang-runtime }}
+        os:              ${{ matrix.self-hosted-os || matrix.os }}
+        flavor:          ${{ matrix.flavor }}
+        flavor-version:  ${{ matrix.flavor-version }}
+        cling-sanitizer: ${{ matrix.sanitizer }}
 
     - name: Setup code coverage
       if: ${{ success() && (matrix.coverage == true) }}
