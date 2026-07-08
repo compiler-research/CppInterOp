@@ -47,12 +47,15 @@
 #include "clang/AST/GlobalDecl.h"
 #include "clang/AST/Mangle.h"
 #include "clang/AST/NestedNameSpecifier.h"
+#include "clang/AST/OperationKinds.h"
 #include "clang/AST/QualTypeNames.h"
 #include "clang/AST/RawCommentList.h"
 #include "clang/AST/RecordLayout.h"
+#include "clang/AST/RecursiveASTVisitor.h"
 #include "clang/AST/Stmt.h"
 #include "clang/AST/Type.h"
 #include "clang/AST/VTableBuilder.h"
+#include "clang/Basic/Builtins.h"
 #include "clang/Basic/CharInfo.h"
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/DiagnosticSema.h"
@@ -119,6 +122,7 @@
 #ifndef _WIN32
 #include <unistd.h>
 #endif
+#include <unordered_map>
 #include <utility>
 // Stream redirect.
 #ifdef _WIN32
@@ -1585,6 +1589,185 @@ bool IsFunctionProtoType(ConstTypeRef TyRef) {
   QualType QT = QualType::getFromOpaquePtr(TyRef.data);
   const auto* T = QT.getTypePtr();
   return INTEROP_RETURN(llvm::isa_and_nonnull<clang::FunctionProtoType>(T));
+}
+
+namespace {
+struct DeallocationTraverser : RecursiveASTVisitor<DeallocationTraverser> {
+  std::unordered_map<const clang::VarDecl*, const clang::ParmVarDecl*> aliasMap;
+  std::set<const clang::ParmVarDecl*> overwritenParms;
+  std::vector<DeallocType>& VPP;
+  DeallocationTraverser(std::vector<DeallocType>& v) : VPP(v) {}
+
+  bool TraverseDecl(clang::Decl* D) {
+    if (D && llvm::isa<clang::TagDecl>(D))
+      return true;
+    return RecursiveASTVisitor::TraverseDecl(D);
+  }
+
+  bool VisitVarDecl(clang::VarDecl* VD) {
+    if (llvm::isa<clang::ParmVarDecl>(VD) || !VD->getType()->isPointerType())
+      return true;
+    const clang::Expr* E = VD->getInit();
+    updateMap(VD, E);
+    return true;
+  }
+
+  bool VisitBinaryOperator(clang::BinaryOperator* BO) {
+    if (BO->getOpcode() != BO_Assign)
+      return true;
+    const auto* VD = resolveExpr(BO->getLHS());
+    updateMap(VD, BO->getRHS());
+    return true;
+  }
+
+  bool VisitCXXDeleteExpr(clang::CXXDeleteExpr* CDE) {
+    const clang::Expr* E = CDE->getArgument();
+    const auto* PVR = resolveParam(E);
+    if (!PVR)
+      return true;
+    if (CDE->isArrayForm()) {
+      updateVPP(PVR->getFunctionScopeIndex(), DeallocType::DelArr);
+      return true;
+    }
+    updateVPP(PVR->getFunctionScopeIndex(), DeallocType::Del);
+    return true;
+  }
+
+  bool VisitCallExpr(clang::CallExpr* CE) {
+    const clang::FunctionDecl* FD = CE->getDirectCallee();
+    if (!FD)
+      return true;
+    if (FD->getBuiltinID() == Builtin::ID::BIfree) {
+      handleFree(CE);
+      return true;
+    }
+    if (!FD->getReturnType()->isVoidType())
+      return true;
+    // FIXME: Recursive Case
+    return true;
+  }
+
+  const clang::ParmVarDecl* resolveParam(const clang::Expr* E) {
+    const auto* VD = resolveExpr(E);
+    if (!VD)
+      return nullptr;
+    if (const auto* PVD = dyn_cast<clang::ParmVarDecl>(VD)) {
+      if (overwritenParms.count(PVD))
+        return nullptr;
+      return PVD;
+    }
+    auto it = aliasMap.find(VD);
+    if (it != aliasMap.end() && it->second != nullptr) {
+      return it->second;
+    }
+    return nullptr;
+  }
+
+  void updateMap(const clang::VarDecl* VD, const clang::Expr* E) {
+    if (!VD)
+      return;
+
+    if (!VD->getType()->isPointerType())
+      return;
+    if (const auto* PVD = dyn_cast<clang::ParmVarDecl>(VD)) {
+      overwritenParms.insert(PVD);
+      return;
+    }
+    const auto* rhsVD = resolveExpr(E);
+
+    if (!rhsVD) {
+      aliasMap[VD] = nullptr;
+      return;
+    }
+
+    if (const auto* rhsPVD = dyn_cast<clang::ParmVarDecl>(rhsVD)) {
+      if (overwritenParms.count(rhsPVD)) {
+        aliasMap[VD] = nullptr;
+        return;
+      }
+      aliasMap[VD] = rhsPVD;
+      // FIXME: does not handle situation where one param is assigned to
+      // another param
+      return;
+    }
+
+    auto it = aliasMap.find(rhsVD);
+    if (it != aliasMap.end()) {
+      aliasMap[VD] = it->second;
+      return;
+    }
+    aliasMap[VD] = nullptr;
+  }
+
+  void updateVPP(unsigned index, DeallocType DT) {
+    if (index >= VPP.size())
+      return;
+    if (VPP[index] == DeallocType::Unknown)
+      return;
+    if (VPP[index] != DeallocType::None && VPP[index] != DT) {
+      VPP[index] = DeallocType::Unknown;
+      return;
+    }
+    VPP[index] = DT;
+  }
+
+  void handleFree(clang::CallExpr* CE) {
+    if (CE->getNumArgs() < 1)
+      return;
+    const clang::Expr* paramExpr = CE->getArg(0);
+    const auto* PVR = resolveParam(paramExpr);
+    if (!PVR)
+      return;
+    updateVPP(PVR->getFunctionScopeIndex(), DeallocType::Free);
+  }
+
+  const clang::VarDecl* resolveExpr(const clang::Expr* E) {
+    if (!E)
+      return nullptr;
+    E = E->IgnoreParenCasts();
+    const auto* DRE = dyn_cast<clang::DeclRefExpr>(E);
+    if (!DRE)
+      return nullptr;
+    const auto* VD = dyn_cast<clang::VarDecl>(DRE->getDecl());
+    return VD;
+  }
+
+  bool shouldVisitLambdaBody() const { return false; }
+};
+} // namespace
+
+static void AnalyzeDeallocType(const clang::FunctionDecl* FD,
+                               std::vector<DeallocType>& valPerParam) {
+  const unsigned int numParam = FD->getNumParams();
+  valPerParam.assign(numParam, DeallocType::None);
+  const auto* S = FD->getBody();
+  if (!S) {
+    for (unsigned i = 0; i < numParam; i++)
+      valPerParam[i] = DeallocType::Unknown;
+    return;
+  }
+  const auto* CmpStmt = dyn_cast<CompoundStmt>(S);
+  if (!CmpStmt) {
+    // FIXME: try catch block are not handled
+    for (unsigned i = 0; i < numParam; i++)
+      valPerParam[i] = DeallocType::Unknown;
+    return;
+  }
+  DeallocationTraverser Traverser(valPerParam);
+  Traverser.TraverseStmt(const_cast<CompoundStmt*>(CmpStmt));
+}
+
+bool GetDeallocType(ConstFuncRef Fn, std::vector<DeallocType>& valPerParam) {
+  INTEROP_TRACE(Fn, INTEROP_OUT(valPerParam));
+  if (!Fn)
+    return INTEROP_RETURN(false);
+
+  const auto* D = unwrap<clang::Decl>(Fn);
+  const auto* FD = dyn_cast<clang::FunctionDecl>(D);
+  if (!FD)
+    return INTEROP_RETURN(false);
+  AnalyzeDeallocType(FD, valPerParam);
+  return INTEROP_RETURN(true);
 }
 
 void GetFnTypeSignature(ConstTypeRef fn_type, std::vector<TypeRef>& sig) {

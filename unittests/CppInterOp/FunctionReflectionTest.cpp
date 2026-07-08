@@ -749,6 +749,133 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_FunctionTypes) {
   EXPECT_TRUE(Cpp::IsSameType(typ1, typ2));
 }
 
+TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetDeallocType) {
+  std::string code = R"(
+    #include <new>
+    #include <stdlib.h>
+
+    void func0(int* p){ delete p; }
+
+    void func1(int* p){ delete[] p; }
+
+    void func2(int* p){ free(p); }
+
+    void func3(int* p, int* q){ delete q; }
+
+    void func4(int* p){ int* x = p; delete x; }
+
+    void func5(int* p){ int* x = p; int* y = x; delete y; }
+
+    void func6(int* p){ p = nullptr; delete p; }
+
+    void func7(int* p){ int* x = p; p = nullptr; delete x; }
+
+    void func8(int* p, bool b){
+      if(b)
+        delete p;
+      else
+        delete[] p;
+    }
+
+    void func9(int* p, bool b){
+      if(b)
+        delete p;
+      else
+        delete p;
+    }
+
+    void func10(int* p, int x){
+      if(x<0)
+        delete[] p;
+      if(x==0)
+        delete p;
+      else
+        delete p;
+    }
+
+    void func11(int* p);
+
+    void func12(int* p) try { delete p; } catch(...) {}
+
+    void func13(int n){}
+
+    int func14;
+
+    void func15(int* p){ int x = 5; (void)x; delete p; }
+
+    void func16(int* p){ int* x = new int; delete x; }
+
+    void func17(int* p){ delete new int; }
+
+    void func18(int* p, void(*fp)(int*)){ fp(p); }
+
+    int  helper19(int*);
+
+    void func19(int* p){ helper19(p); }
+
+    void helper20(int*);
+
+    void func20(int* p){ helper20(p); }
+
+    void func21(int* p){ int* x; x = p; delete x; }
+
+    void func22(int* p){ *p = 5; delete p; }
+
+    void func23(int* p){ if(p == nullptr) return; delete p; }
+
+    void func24(int* p, int* q){ q = p; delete q; }
+  )";
+  TestFixture::CreateInterpreter();
+  Interp->declare(code);
+
+  using DT = Cpp::DeallocType;
+#define TESTGDT(N, BOOL, ...)                                                  \
+  {                                                                            \
+    std::vector<Cpp::DeallocType> result;                                      \
+    bool valid = Cpp::GetDeallocType(                                          \
+        Cpp::ConstFuncRef { Cpp::GetNamed("func" #N).data }, result);          \
+    EXPECT_EQ(valid, BOOL);                                                    \
+    EXPECT_EQ(result, (std::vector<Cpp::DeallocType>{__VA_ARGS__}));           \
+  }
+
+  TESTGDT(0, true, DT::Del);
+  TESTGDT(1, true, DT::DelArr);
+  TESTGDT(2, true, DT::Free);
+  TESTGDT(3, true, DT::None, DT::Del);
+  TESTGDT(4, true, DT::Del);
+  TESTGDT(5, true, DT::Del);
+  TESTGDT(6, true, DT::None);
+  TESTGDT(7, true, DT::Del);
+  TESTGDT(8, true, DT::Unknown, DT::None);
+  TESTGDT(9, true, DT::Del, DT::None);
+  TESTGDT(10, true, DT::Unknown, DT::None);
+  TESTGDT(11, true, DT::Unknown);
+  TESTGDT(12, true, DT::Unknown);
+  TESTGDT(13, true, DT::None);
+  TESTGDT(15, true, DT::Del);
+  TESTGDT(16, true, DT::None);
+  TESTGDT(17, true, DT::None);
+  TESTGDT(18, true, DT::None, DT::None);
+  TESTGDT(19, true, DT::None);
+  TESTGDT(20, true, DT::None);
+  TESTGDT(21, true, DT::Del);
+  TESTGDT(22, true, DT::Del);
+  TESTGDT(23, true, DT::Del);
+  TESTGDT(24, true, DT::None, DT::None);
+#undef TESTGDT
+
+  {
+    std::vector<Cpp::DeallocType> result;
+    bool valid = Cpp::GetDeallocType(
+        Cpp::ConstFuncRef{Cpp::GetNamed("func14").data}, result);
+    EXPECT_FALSE(valid);
+    EXPECT_TRUE(result.empty());
+  }
+
+  std::vector<Cpp::DeallocType> nullResult;
+  EXPECT_FALSE(Cpp::GetDeallocType(Cpp::ConstFuncRef{nullptr}, nullResult));
+}
+
 TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetFunctionSignature) {
   std::vector<Decl*> Decls;
   std::string code = R"(
