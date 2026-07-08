@@ -32,7 +32,15 @@ include(ExternalProject)
 # Forward parent CMAKE_CXX_FLAGS to the gtest sub-build so sanitizer
 # and -stdlib=libc++ additions don't get dropped (else gtest builds
 # against system defaults and ABI-clashes with the parent at link).
+# gtest is third-party and not warning-clean under LLVM's -Werror
+# regime (gcc's ASan instrumentation trips -Wmaybe-uninitialized in
+# gtest-death-test.cc at -O3), so a trailing -w silences warnings.
 set(GOOGLETEST_CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+if(MSVC)
+  set(GOOGLETEST_CMAKE_CXX_FLAGS "${GOOGLETEST_CMAKE_CXX_FLAGS} /w")
+else()
+  set(GOOGLETEST_CMAKE_CXX_FLAGS "${GOOGLETEST_CMAKE_CXX_FLAGS} -w")
+endif()
 if (EMSCRIPTEN)
   # FIXME: -sSUPPORT_LONGJMP=wasm in the default option causes a warning in the Emscripten build of Googletest
   # and as we treat warnings as errors in the ci, it causes the ci to fail.
