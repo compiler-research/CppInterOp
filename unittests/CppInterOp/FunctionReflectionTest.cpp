@@ -906,6 +906,45 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetAllocType) {
       p += 1;
       return p;
     }
+
+    int* func28(int n){
+      if(n>0)
+        return func28(n-1);
+      return new int;
+    }
+
+    int* func29(int n){
+      if(n>0){
+        int* ptr = func29(n-1);
+        return ptr;
+      }
+      return new int;
+    }
+    int* func31(int n);
+    int* func32(int n);
+
+    int* func30(int n){
+      return func31(n);
+    }
+
+    int* func31(int n){
+      return func32(n-1);
+    }
+
+    int* func32(int n){
+      if(n>0)
+        return func30(n-1);
+      return new int;
+    }
+
+    int* func33(int n){
+      class Klass {
+      public:
+        int* getArr(int m) { return new int[m]; }
+      };                                                   //Inside of struct/class/lambda's are not analyzed
+      auto lam = []() { return (int*)malloc(sizeof(int)); };
+      return new int(n);
+    }
     )";
   TestFixture::CreateInterpreter();
   Interp->declare(code);
@@ -944,6 +983,12 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetAllocType) {
   TESTAC(26, Unknown);
   // FIXME: Pointer overwriten by a non-assignment operator
   TESTAC(27, NewArr);
+  TESTAC(28, New);
+  TESTAC(29, New);
+  TESTAC(30, New);
+  TESTAC(31, New);
+  TESTAC(32, New);
+  TESTAC(33, New);
 
 #undef TESTAC
 

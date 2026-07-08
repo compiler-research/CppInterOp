@@ -1637,98 +1637,127 @@ bool IsFunctionProtoType(ConstTypeRef TyRef) {
   return INTEROP_RETURN(llvm::isa_and_nonnull<clang::FunctionProtoType>(T));
 }
 
-static AllocType handleNew(const clang::CXXNewExpr* CNE) {
-  if (CNE->getNumPlacementArgs() > 0)
-    return AllocType::None;
-  if (CNE->isArray())
-    return AllocType::NewArr;
-  return AllocType::New;
-}
+static std::optional<AllocType>
+AnalyzeAllocType(const clang::FunctionDecl* Fn,
+                 std::unordered_map<const clang::FunctionDecl*,
+                                    std::optional<AllocType>>& visitedFuncs);
 
-static AllocType AnalyzeAllocType(const clang::FunctionDecl* Fn);
+namespace {
+struct AllocationTraverser : RecursiveASTVisitor<AllocationTraverser> {
+  std::unordered_map<const clang::VarDecl*, std::optional<AllocType>> varMap;
+  std::unordered_map<const clang::FunctionDecl*, std::optional<AllocType>>&
+      visitedFuncs;
+  // Result var keeps the combination all possible values of previous return
+  // statements
+  std::optional<AllocType> result;
 
-static AllocType handleCall(const clang::CallExpr* CE) {
-  if (const auto* FD = CE->getDirectCallee()) {
-    if (FD->getBuiltinID() == Builtin::ID::BImalloc)
-      return AllocType::Malloc;
-    return AnalyzeAllocType(FD);
-  }
-  // Function pointer calle
-  return AllocType::Unknown;
-}
+  AllocationTraverser(std::unordered_map<const clang::FunctionDecl*,
+                                         std::optional<AllocType>>& cache)
+      : visitedFuncs(cache) {}
 
-static AllocType
-handleExpr(const clang::Expr* expr,
-           std::unordered_map<const VarDecl*, AllocType>& varMap) {
-  const clang::Expr* finExpr = expr->IgnoreParenCasts();
-  // Case: return new __type__
-  if (const auto* CNE = dyn_cast<CXXNewExpr>(finExpr))
-    return handleNew(CNE);
+  // Do not analyze lambda functions' bodies.
+  bool TraverseLambdaExpr(clang::LambdaExpr*) { return true; }
 
-  // Case: returns a variable
-  if (const auto* DRE = dyn_cast<DeclRefExpr>(finExpr)) {
-    if (const auto* VD = dyn_cast<VarDecl>(DRE->getDecl())) {
-      auto it = varMap.find(VD);
-      if (it != varMap.end())
-        return it->second;
-    }
-    // FIXME: BindingDecl, NonTypeTemplateParmDecl are not handled
-    return AllocType::None;
+  // Do not analyze inside of TagDecls(structs/unions/class)
+  bool TraverseDecl(clang::Decl* D) {
+    if (llvm::isa_and_nonnull<clang::TagDecl>(D))
+      return true;
+    return RecursiveASTVisitor::TraverseDecl(D);
   }
 
-  // Case: malloc or another func call
-  if (const auto* CE = dyn_cast<CallExpr>(finExpr))
-    return handleCall(CE);
-  return AllocType::None;
-}
+  bool VisitVarDecl(VarDecl* VD) {
+    Expr* expr = VD->getInit();
+    if (expr)
+      varMap[VD] = handleExpr(expr);
+    else
+      varMap[VD] = AllocType::None;
+    return true;
+  }
 
-static std::vector<const ReturnStmt*>
-getAllRetStmt(const clang::CompoundStmt* CS) {
-  struct RetStmtVisitor : RecursiveASTVisitor<RetStmtVisitor> {
-    std::vector<const ReturnStmt*> vec;
-    bool VisitReturnStmt(ReturnStmt* RS) {
-      vec.push_back(RS);
+  bool VisitBinaryOperator(clang::BinaryOperator* BO) {
+    if (BO->getOpcode() != BO_Assign)
       return true;
-    }
-  };
-  RetStmtVisitor Visitor;
-  Visitor.TraverseStmt(const_cast<CompoundStmt*>(CS));
-  return Visitor.vec;
-}
-
-static std::unordered_map<const VarDecl*, AllocType>
-getAllVarDecl(const clang::CompoundStmt* CS) {
-  struct VarVisitor : RecursiveASTVisitor<VarVisitor> {
-    std::unordered_map<const VarDecl*, AllocType> varMap;
-    bool VisitVarDecl(VarDecl* VD) {
-      Expr* expr = VD->getInit();
-      if (expr)
-        varMap[VD] = handleExpr(expr, varMap);
-      else
-        varMap[VD] = AllocType::None;
-      return true;
-    }
-
-    bool VisitBinaryOperator(clang::BinaryOperator* BO) {
-      if (BO->getOpcode() != BO_Assign)
-        return true;
-      Expr* LHS = BO->getLHS();
-      LHS = LHS->IgnoreParenCasts();
-      if (auto* DRE = dyn_cast<DeclRefExpr>(LHS)) {
-        if (auto* VD = dyn_cast<VarDecl>(DRE->getDecl())) {
-          Expr* RHS = BO->getRHS();
-          varMap[VD] = handleExpr(RHS, varMap);
-        }
+    Expr* LHS = BO->getLHS();
+    LHS = LHS->IgnoreParenCasts();
+    if (auto* DRE = dyn_cast<DeclRefExpr>(LHS)) {
+      if (auto* VD = dyn_cast<VarDecl>(DRE->getDecl())) {
+        Expr* RHS = BO->getRHS();
+        varMap[VD] = handleExpr(RHS);
       }
-      return true;
     }
-  };
-  VarVisitor Visitor;
-  Visitor.TraverseStmt(const_cast<CompoundStmt*>(CS));
-  return Visitor.varMap;
-}
+    return true;
+  }
 
-static AllocType AnalyzeAllocType(const clang::FunctionDecl* Fn) {
+  bool VisitReturnStmt(ReturnStmt* RS) {
+    const clang::Expr* retExpr = RS->getRetValue();
+    // Tmp is current return statement's AllocType value, result is combination
+    // of previous return statements
+    std::optional<AllocType> tmp = handleExpr(retExpr);
+    if (!tmp.has_value())
+      return true;
+    if (!result.has_value())
+      result = tmp;
+    // If function's allocation behaviour differs between different cases,
+    // analyzer returns unknown.
+    else if (*result != tmp) {
+      result = AllocType::Unknown;
+      return false;
+    }
+    return true;
+  }
+
+  std::optional<AllocType> handleCall(const clang::CallExpr* CE) {
+    if (const auto* FD = CE->getDirectCallee()) {
+      if (FD->getBuiltinID() == Builtin::ID::BImalloc)
+        return AllocType::Malloc;
+      auto it = visitedFuncs.find(FD);
+      if (it == visitedFuncs.end()) {
+        visitedFuncs[FD] = std::nullopt;
+        return AnalyzeAllocType(FD, visitedFuncs);
+      }
+      return it->second;
+    }
+    // Function pointer calle
+    return AllocType::Unknown;
+  }
+
+  static AllocType handleNew(const clang::CXXNewExpr* CNE) {
+    if (CNE->getNumPlacementArgs() > 0)
+      return AllocType::None;
+    if (CNE->isArray())
+      return AllocType::NewArr;
+    return AllocType::New;
+  }
+
+  std::optional<AllocType> handleExpr(const clang::Expr* expr) {
+    const clang::Expr* finExpr = expr->IgnoreParenCasts();
+    // Case: return new __type__
+    if (const auto* CNE = dyn_cast<CXXNewExpr>(finExpr))
+      return handleNew(CNE);
+
+    // Case: returns a variable
+    if (const auto* DRE = dyn_cast<DeclRefExpr>(finExpr)) {
+      if (const auto* VD = dyn_cast<VarDecl>(DRE->getDecl())) {
+        auto it = varMap.find(VD);
+        if (it != varMap.end())
+          return it->second;
+      }
+      // FIXME: BindingDecl, NonTypeTemplateParmDecl are not handled
+      return AllocType::None;
+    }
+
+    // Case: malloc or another func call
+    if (const auto* CE = dyn_cast<CallExpr>(finExpr))
+      return handleCall(CE);
+    return AllocType::None;
+  }
+};
+} // namespace
+
+static std::optional<AllocType>
+AnalyzeAllocType(const clang::FunctionDecl* Fn,
+                 std::unordered_map<const clang::FunctionDecl*,
+                                    std::optional<AllocType>>& visitedFuncs) {
   const clang::QualType QT = Fn->getReturnType();
   if (!QT->isPointerType())
     return AllocType::None;
@@ -1739,22 +1768,11 @@ static AllocType AnalyzeAllocType(const clang::FunctionDecl* Fn) {
   // FIXME:: try catch blocks are not CompoundStmt, only edge case
   if (!CmpStmt)
     return AllocType::Unknown;
-  std::unordered_map<const VarDecl*, AllocType> varMap = getAllVarDecl(CmpStmt);
-  std::vector<const ReturnStmt*> allRetStmt = getAllRetStmt(CmpStmt);
-  std::optional<AllocType> res;
-  for (const ReturnStmt* retStmt : allRetStmt) {
-    const clang::Expr* retExpr = retStmt->getRetValue();
-    if (retExpr == nullptr)
-      continue;
-    AllocType tmp = handleExpr(retExpr, varMap);
-    if (!res.has_value())
-      res = tmp;
-    // If function's allocation behaviour differs between different cases,
-    // analyzer returns unknown.
-    else if (*res != tmp)
-      return AllocType::Unknown;
-  }
-  return res.value_or(AllocType::None);
+  AllocationTraverser Traverser(visitedFuncs);
+  Traverser.TraverseStmt(const_cast<clang::CompoundStmt*>(CmpStmt));
+  auto res = Traverser.result;
+  visitedFuncs[Fn] = res;
+  return res;
 }
 
 AllocType GetAllocType(ConstFuncRef Fn) {
@@ -1762,7 +1780,11 @@ AllocType GetAllocType(ConstFuncRef Fn) {
   if (Fn) {
     const auto* D = unwrap<Decl>(Fn);
     if (const auto* FD = dyn_cast<FunctionDecl>(D)) {
-      return INTEROP_RETURN(AnalyzeAllocType(FD));
+      std::unordered_map<const clang::FunctionDecl*, std::optional<AllocType>>
+          visitedFuncs;
+      visitedFuncs[FD] = std::nullopt;
+      return INTEROP_RETURN(
+          AnalyzeAllocType(FD, visitedFuncs).value_or(AllocType::None));
     }
   }
   return INTEROP_RETURN(AllocType::None);
