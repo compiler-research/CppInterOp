@@ -1584,7 +1584,7 @@ bool IsFunctionProtoType(ConstTypeRef TyRef) {
   INTEROP_TRACE(TyRef);
   QualType QT = QualType::getFromOpaquePtr(TyRef.data);
   const auto* T = QT.getTypePtr();
-  return llvm::isa_and_nonnull<clang::FunctionProtoType>(T);
+  return INTEROP_RETURN(llvm::isa_and_nonnull<clang::FunctionProtoType>(T));
 }
 
 void GetFnTypeSignature(ConstTypeRef fn_type, std::vector<TypeRef>& sig) {
