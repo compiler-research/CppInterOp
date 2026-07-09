@@ -3120,6 +3120,10 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_UndoTest) {
     defined(__APPLE__)
   GTEST_SKIP() << "Disabled on osx for cling based on llvm 20. Needs fixing.";
 #endif
+#if defined(CPPINTEROP_USE_CLING) && defined(CPPINTEROP_ASAN_BUILD)
+  GTEST_SKIP() << "cling unload walks a module already freed by ORC "
+                  "clone-on-emit; skip until the cling-side fix lands.";
+#endif
 #ifdef EMSCRIPTEN
   GTEST_SKIP() << "Test fails for Emscipten builds";
 #else
