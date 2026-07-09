@@ -121,6 +121,13 @@ runs:
             # Run without SDKROOT so CreateInterpreter's fallback detection executes
             unset SDKROOT
           fi
+          if [[ "${cling_on}" == "ON" && "${{ inputs.sanitizer }}" == "Address" ]]; then
+            # The cached LLVM is uninstrumented while cling/CppInterOp are:
+            # inlined allocator poisoning (llvm/Support/Allocator.h) goes
+            # unbalanced across the boundary and trips false use-after-poison.
+            # Real use-after-free detection is unaffected.
+            export ASAN_OPTIONS=allow_user_poisoning=0
+          fi
           cmake --build . --target check-cppinterop --parallel ${{ env.ncpus }}
           # Verify the source-side `LLVM_VERSION_MAJOR > 21 &&
           # !defined(_WIN32)` gate in unittests/CppInterOp/Utils.h:

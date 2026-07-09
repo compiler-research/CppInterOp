@@ -88,6 +88,17 @@ bool IsTargetX86();
 #  define CPPINTEROP_OOP_DISABLED 1
 #endif
 
+// Address-sanitized build (gcc spells it __SANITIZE_ADDRESS__, clang
+// __has_feature).
+#if defined(__has_feature)
+#  if __has_feature(address_sanitizer)
+#    define CPPINTEROP_ASAN_BUILD 1
+#  endif
+#endif
+#if defined(__SANITIZE_ADDRESS__)
+#  define CPPINTEROP_ASAN_BUILD 1
+#endif
+
 // Define type tags for each configuration
 struct InProcessJITConfig {
   static constexpr bool isOutOfProcess = false;
