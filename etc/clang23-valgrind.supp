@@ -465,3 +465,30 @@
    ...
    fun:*removeDeadConstantUsers*
 }
+
+# llvm/llvm-project#194147 (continued): aarch64, C++20 Sema paths that only
+# the C++23 <mutex> test brings in (requires-expressions, auto parameters).
+{
+   llvm/llvm-project#194147: Sema::BuildExprRequirement
+   Memcheck:Cond
+   fun:*Sema*BuildExprRequirement*
+   ...
+}
+{
+   llvm/llvm-project#194147 aarch64: ASTContext::getAutoType Cond
+   Memcheck:Cond
+   ...
+   fun:*ASTContext*getAutoType*
+}
+{
+   llvm/llvm-project#194147 aarch64: GetDeclSpecTypeForDeclarator Cond
+   Memcheck:Cond
+   fun:*GetDeclSpecTypeForDeclarator*
+   ...
+}
+{
+   llvm/llvm-project#194147 aarch64: AutoTypeLoc::getLocalSourceRange Value8
+   Memcheck:Value8
+   fun:*AutoTypeLoc*getLocalSourceRange*
+   ...
+}
