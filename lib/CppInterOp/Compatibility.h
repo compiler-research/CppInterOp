@@ -632,12 +632,12 @@ inline void maybeMangleDeclName(const clang::GlobalDecl& GD,
 // _ZTH/_ZTW thread_local init emission -- and on both, the JIT fails to
 // resolve __emutls_get_address before the discard bug is even reachable.
 //
-// DEPRECATION: exists only for clang < 23 -- the upstream fix
-// (llvm/llvm-project#208413) ships in clang 23, and every use site carries the
-// same guard. Delete the workaround and its guarded call sites once clang-22
+// DEPRECATION: exists only for clang < 24 -- the upstream fix
+// (llvm/llvm-project#208413) ships in clang 24, and every use site carries the
+// same guard. Delete the workaround and its guarded call sites once clang-23
 // support is dropped from CppInterOp.
 // ===========================================================================
-#if CLANG_VERSION_MAJOR < 23
+#if CLANG_VERSION_MAJOR < 24
 inline void dedupeWeakEmulatedTLS(llvm::Module& M, llvm::StringSet<>& Defined) {
   if (!llvm::Triple(M.getTargetTriple()).isOSBinFormatELF())
     return;

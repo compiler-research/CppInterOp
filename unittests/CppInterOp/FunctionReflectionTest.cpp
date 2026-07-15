@@ -5014,8 +5014,8 @@ TYPED_TEST(CPPINTEROP_TEST_MODE,
 // tls as linkonce_odr; defining the second module runs discard over the
 // duplicate emulated-TLS symbol.
 //
-// This always passes: on LLVM < 23 the CppInterOp-side workaround
-// (compat::dedupeWeakEmulatedTLS) defuses the crash, and on LLVM >= 23 the
+// This always passes: on LLVM < 24 the CppInterOp-side workaround
+// (compat::dedupeWeakEmulatedTLS) defuses the crash, and on LLVM >= 24 the
 // upstream fix (llvm/llvm-project#208413) does. It guards against regressions
 // in either. Kept deliberately minimal and heap-free so it is portable and
 // clean under ASan/LSan.

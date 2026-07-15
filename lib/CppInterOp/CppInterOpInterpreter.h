@@ -263,7 +263,7 @@ private:
   mutable std::once_flag sDLMInit;
   bool outOfProcess;
 
-#if CLANG_VERSION_MAJOR < 23
+#if CLANG_VERSION_MAJOR < 24
   // Weak thread_local definitions already handed to the JIT, so later modules
   // demote their duplicates. See compat::dedupeWeakEmulatedTLS.
   llvm::StringSet<> DedupedWeakTLS;
@@ -376,7 +376,7 @@ public:
   }
 
   llvm::Error ParseAndExecute(llvm::StringRef Code, clang::Value* V = nullptr) {
-#if CLANG_VERSION_MAJOR < 23
+#if CLANG_VERSION_MAJOR < 24
     // Value-returning execution keeps clang's LastValue handling (private to
     // clang::Interpreter), so delegate. The no-value path -- used by wrapper
     // compilation -- is split so the module can be sanitized before Execute.
@@ -488,7 +488,7 @@ public:
     if (PTU)
       *PTU = &*PTUOrErr;
 
-#if CLANG_VERSION_MAJOR < 23
+#if CLANG_VERSION_MAJOR < 24
     if (PTUOrErr->TheModule)
       compat::dedupeWeakEmulatedTLS(*PTUOrErr->TheModule, DedupedWeakTLS);
 #endif
