@@ -30,8 +30,19 @@
 #include "clang/Sema/Sema.h"
 
 #include "llvm/ADT/IntrusiveRefCntPtr.h"
+#include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/StringMap.h"
+#include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/GlobalVariable.h"
+#include "llvm/IR/IRBuilder.h"
+#include "llvm/IR/Instructions.h"
+#include "llvm/IR/IntrinsicInst.h"
+#include "llvm/IR/Intrinsics.h"
+#include "llvm/IR/Module.h"
+#include "llvm/IR/User.h"
 #include "llvm/Support/FileSystem.h"
+#include "llvm/TargetParser/Triple.h"
 
 #include "CppInterOp/Box.h"
 
@@ -243,8 +254,11 @@ inline void codeComplete(std::vector<std::string>& Results,
 #endif
 
 #if LLVM_VERSION_MAJOR > 21 && !defined(_WIN32)
-#include <dlfcn.h>
 #include <unistd.h>
+#endif
+
+#ifndef _WIN32
+#include <dlfcn.h>
 #endif
 
 #include <algorithm>
@@ -592,6 +606,93 @@ inline void maybeMangleDeclName(const clang::GlobalDecl& GD,
     mangleCtx->mangleName(GD, RawStr);
   RawStr.flush();
 }
+
+// ===========================================================================
+// Share native TLS with prebuilt libraries on the in-process JIT.
+//
+// The ORC JIT compiles with emulated TLS (JITTargetMachineBuilder hard-codes
+// it), so jitted code referencing a thread_local *defined in a prebuilt
+// library* is lowered to a `__emutls_v.<sym>` companion lookup that nothing
+// defines -- libstdc++'s __once_callable/__once_call behind std::call_once
+// being the canonical case. Synthesizing the companions would still be wrong:
+// emulated-TLS storage is distinct from the native copies the library's own
+// code reads (libstdc++'s __once_proxy reads the native __once_call), so the
+// two sides would silently diverge.
+//
+// Instead, before a module reaches the JIT, rewrite every
+// llvm.threadlocal.address use of an *external* thread_local declaration into
+// a call to a runtime helper returning the calling thread's native copy
+// (glibc dlsym on a TLS symbol documents exactly that). Jitted and native
+// code then share per-thread storage, so cross-boundary protocols like the
+// std::call_once machinery work unchanged. thread_locals the JIT itself
+// defines keep the emulated-TLS path.
+//
+// Only symbols the dynamic linker already resolves are redirected; anything
+// else keeps the emulated-TLS reference and its clear link-time error. ELF
+// and in-process only (the helper resolves through the process's own dlsym;
+// the redirect's call site is additionally gated on !outOfProcess).
+// ===========================================================================
+#if !defined(_WIN32) && !defined(__EMSCRIPTEN__)
+inline void* nativeThreadLocalAddress(const char* Name) {
+  // Per-thread cache: dlsym takes the loader lock and must re-run on every
+  // thread (the address is per-thread), so memoize per (thread, symbol).
+  static thread_local llvm::StringMap<void*> Cache;
+  auto It = Cache.try_emplace(Name, nullptr);
+  if (It.second)
+    It.first->second = ::dlsym(RTLD_DEFAULT, Name);
+  return It.first->second;
+}
+
+inline bool redirectNativeTLSDeclarations(llvm::Module& M) {
+  if (!llvm::Triple(M.getTargetTriple()).isOSBinFormatELF())
+    return false;
+
+  bool Changed = false;
+  llvm::FunctionCallee Helper;
+  for (llvm::GlobalVariable& GV : llvm::make_early_inc_range(M.globals())) {
+    if (!GV.isThreadLocal() || !GV.isDeclaration())
+      continue;
+
+    if (!::dlsym(RTLD_DEFAULT, GV.getName().str().c_str()))
+      continue;
+
+    // Collect the intrinsic accesses up front (rewriting invalidates the use
+    // list). Any other use form is left alone: those accesses keep the
+    // emulated-TLS path and fail at link time exactly as before.
+    llvm::SmallVector<llvm::IntrinsicInst*, 8> Accesses;
+    bool OnlyIntrinsicUses = true;
+    for (llvm::User* U : GV.users()) {
+      auto* II = llvm::dyn_cast<llvm::IntrinsicInst>(U);
+      if (II && II->getIntrinsicID() == llvm::Intrinsic::threadlocal_address)
+        Accesses.push_back(II);
+      else
+        OnlyIntrinsicUses = false;
+    }
+    if (Accesses.empty())
+      continue;
+
+    if (!Helper) {
+      auto* PtrTy = llvm::PointerType::getUnqual(M.getContext());
+      auto* FnTy = llvm::FunctionType::get(PtrTy, {PtrTy}, /*isVarArg=*/false);
+      Helper = M.getOrInsertFunction("__cppinterop_native_tls_addr", FnTy);
+    }
+
+    llvm::IRBuilder<> NameBuilder(Accesses.front());
+    llvm::Constant* NameStr = NameBuilder.CreateGlobalString(GV.getName());
+    for (llvm::IntrinsicInst* II : Accesses) {
+      llvm::IRBuilder<> B(II);
+      llvm::CallInst* Addr = B.CreateCall(Helper, {NameStr});
+      II->replaceAllUsesWith(Addr);
+      II->eraseFromParent();
+    }
+    Changed = true;
+
+    if (OnlyIntrinsicUses && GV.use_empty())
+      GV.eraseFromParent();
+  }
+  return Changed;
+}
+#endif // !_WIN32 && !__EMSCRIPTEN__
 
 // Clang 18 - Add new Interpreter methods: CodeComplete
 
