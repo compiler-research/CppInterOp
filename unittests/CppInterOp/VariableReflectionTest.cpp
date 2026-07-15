@@ -340,6 +340,42 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, VariableReflection_GetVariableOffset) {
   EXPECT_TRUE(Cpp::GetVariableOffset(var));
 }
 
+TYPED_TEST(CPPINTEROP_TEST_MODE,
+           VariableReflection_GetVariableOffset_NonTemplateStaticNoInit) {
+  // A non-template class's static data member declared in-class and defined
+  // out-of-line reaches the no-initializer branch with no template
+  // instantiation pattern. Sema::InstantiateVariableDefinition requires a
+  // pattern and dereferences null without one (std::partial_ordering::less
+  // is the in-the-wild shape). Must not crash; must resolve the definition.
+  TestFixture::CreateInterpreter();
+  Cpp::Declare(R"(
+    struct NonTemplateStatic {
+      static const NonTemplateStatic less;
+      int value;
+    };
+    inline constexpr NonTemplateStatic NonTemplateStatic::less{-1};
+  )");
+  Cpp::DeclRef klass = Cpp::GetNamed("NonTemplateStatic");
+  EXPECT_TRUE(klass);
+  Cpp::DeclRef var = Cpp::GetNamed("less", klass);
+  EXPECT_TRUE(var);
+  EXPECT_TRUE(Cpp::GetVariableOffset(var));
+
+  // Declared and never defined: still no pattern and now no definition
+  // either — the query must fail cleanly, not crash.
+  Cpp::Declare(R"(
+    struct NeverDefined {
+      static const NeverDefined missing;
+      int value;
+    };
+  )");
+  Cpp::DeclRef klass2 = Cpp::GetNamed("NeverDefined");
+  EXPECT_TRUE(klass2);
+  Cpp::DeclRef var2 = Cpp::GetNamed("missing", klass2);
+  EXPECT_TRUE(var2);
+  EXPECT_FALSE(Cpp::GetVariableOffset(var2));
+}
+
 #define CODE                                                                   \
   class BaseA {                                                                \
   public:                                                                      \
