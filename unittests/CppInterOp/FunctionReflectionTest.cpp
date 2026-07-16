@@ -3721,10 +3721,10 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetFunctionArgDefault) {
   GetAllTopLevelDecls(code, Decls);
 
   EXPECT_EQ(Cpp::GetFunctionArgDefault(Decls[0], 0), "");
-  EXPECT_EQ(Cpp::GetFunctionArgDefault(Decls[0], 1), "4.");
+  EXPECT_EQ(Cpp::GetFunctionArgDefault(Decls[0], 1), "4.0");
   EXPECT_EQ(Cpp::GetFunctionArgDefault(Decls[0], 2), "\"default\"");
   EXPECT_EQ(Cpp::GetFunctionArgDefault(Decls[0], 3), "\'c\'");
-  EXPECT_EQ(Cpp::GetFunctionArgDefault(Decls[1], 0), "0.");
+  EXPECT_EQ(Cpp::GetFunctionArgDefault(Decls[1], 0), "0.0");
   EXPECT_EQ(Cpp::GetFunctionArgDefault(Decls[1], 1), "3.123");
   EXPECT_EQ(Cpp::GetFunctionArgDefault(Decls[1], 2), "34126");
 
@@ -3739,7 +3739,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetFunctionArgDefault) {
   EXPECT_EQ(Cpp::GetFunctionArgDefault(Decls[4], 0), "");
   EXPECT_EQ(Cpp::GetFunctionArgDefault(Decls[4], 1), "");
   EXPECT_EQ(Cpp::GetFunctionArgDefault(Decls[4], 2), "\'a\'");
-  EXPECT_EQ(Cpp::GetFunctionArgDefault(Decls[4], 3), "0.");
+  EXPECT_EQ(Cpp::GetFunctionArgDefault(Decls[4], 3), "0.0");
 
   ASTContext& C = Interp->getCI()->getASTContext();
   std::vector<Cpp::TemplateArgInfo> template_args = {C.IntTy.getAsOpaquePtr()};
@@ -3752,6 +3752,41 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetFunctionArgDefault) {
   Cpp::FuncRef fn = fns[0];
   EXPECT_EQ(Cpp::GetFunctionArgDefault(fn, 0), "");
   EXPECT_EQ(Cpp::GetFunctionArgDefault(fn, 1), "S()");
+}
+
+TYPED_TEST(CPPINTEROP_TEST_MODE,
+           FunctionReflection_GetFunctionArgDefaultSymbolic) {
+  std::vector<Decl*> Decls;
+  std::string code = R"(
+    constexpr double kDefaultRatio = 0.5;
+    double default_ratio();
+    double scaled(double ratio = kDefaultRatio);
+    double rescaled(double ratio = default_ratio());
+    double inverted(double ratio = 2.0 / kDefaultRatio);
+    double pi_ish(double p = 3.14);
+    float take_float(float a = 5.f);
+    long take_long(long a = -5l);
+    unsigned long take_ulong(unsigned long a = 5ul);
+    int take_hex(int a = 0x1f);
+    )";
+
+  GetAllTopLevelDecls(code, Decls);
+
+  // A floating-typed default need not be a numeric literal. Formatting a
+  // symbolic default must not crash (the removed std::stod normalization
+  // terminated the exception-free build) and must render it as written.
+  EXPECT_EQ(Cpp::GetFunctionArgDefault(Decls[2], 0), "kDefaultRatio");
+  EXPECT_EQ(Cpp::GetFunctionArgDefault(Decls[3], 0), "default_ratio()");
+  EXPECT_EQ(Cpp::GetFunctionArgDefault(Decls[4], 0), "2.0 / kDefaultRatio");
+  // Literals render exactly as written, not at representation precision.
+  EXPECT_EQ(Cpp::GetFunctionArgDefault(Decls[5], 0), "3.14");
+  // Numeric-literal suffixes render uppercase: cppyy strips only that form
+  // before it evaluates the default in Python ("5.f" is a Python syntax
+  // error, "5.F" strips to "5."). Hex digits are not suffixes.
+  EXPECT_EQ(Cpp::GetFunctionArgDefault(Decls[6], 0), "5.F");
+  EXPECT_EQ(Cpp::GetFunctionArgDefault(Decls[7], 0), "-5L");
+  EXPECT_EQ(Cpp::GetFunctionArgDefault(Decls[8], 0), "5UL");
+  EXPECT_EQ(Cpp::GetFunctionArgDefault(Decls[9], 0), "0x1f");
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_Construct) {
