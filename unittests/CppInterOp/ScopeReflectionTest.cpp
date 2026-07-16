@@ -1367,6 +1367,38 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_InstantiateTemplate) {
   EXPECT_TRUE(TA4_1.getAsIntegral() == 3);
 }
 
+TYPED_TEST(CPPINTEROP_TEST_MODE,
+           ScopeReflection_RejectedInstantiationDoesNotPoisonNextParse) {
+#ifdef _WIN32
+  // The rejected instantiation emits an `error: template argument for
+  // non-type template parameter must be an expression` diagnostic to
+  // stderr, which MSBuild's check-cppinterop custom-build rule scans and
+  // treats as a build failure regardless of the gtest result.
+  GTEST_SKIP()
+      << "rejection diagnostic trips MSBuild error scanning on Windows";
+#endif
+  std::vector<Decl*> Decls;
+  std::string code = R"(
+    struct PoisonTag {};
+    template <unsigned N> struct PoisonBuf { int t; };
+  )";
+
+  GetAllTopLevelDecls(code, Decls);
+
+  // A type argument for the non-type parameter N: Sema rejects the
+  // instantiation and emits an error diagnostic outside any incremental
+  // parse.
+  Cpp::TypeRef TagTy = Cpp::GetTypeFromScope(Decls[0]);
+  std::vector<Cpp::TemplateArgInfo> args = {TagTy.data};
+  EXPECT_FALSE(Cpp::InstantiateTemplate(Decls[1], args));
+
+  // The sticky DiagnosticsEngine error state must not fail the parses that
+  // follow (the poison was one-shot: only the first parse after the
+  // rejection reported failure).
+  EXPECT_EQ(Cpp::Declare("int rejected_instantiation_probe_1 = 1;"), 0);
+  EXPECT_EQ(Cpp::Declare("int rejected_instantiation_probe_2 = 2;"), 0);
+}
+
 TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_GetClassTemplateArgs) {
   std::vector<Decl*> Decls;
   std::string code = R"(
