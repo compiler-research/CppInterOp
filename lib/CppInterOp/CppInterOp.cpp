@@ -5218,6 +5218,35 @@ std::string ObjToString(const char* TyRef, void* obj) {
   return INTEROP_RETURN(getInterp().toString(TyRef, obj));
 }
 
+namespace {
+/// Traps diagnostics emitted by Sema entry points invoked outside any
+/// incremental parse and, when errors were introduced, restores a clean
+/// diagnostic state on scope exit — the same cleanup IncrementalParser
+/// performs on a real parse failure. Without it, DiagnosticsEngine's sticky
+/// ErrorOccurred flag makes the next IncrementalParser::Parse report the
+/// stale flag as its own failure (and then soft-reset it), spuriously
+/// failing exactly one parse.
+class StickyDiagnosticResetRAII {
+  clang::DiagnosticsEngine* m_Diags;
+  clang::DiagnosticErrorTrap m_Trap;
+
+public:
+  StickyDiagnosticResetRAII(clang::DiagnosticsEngine& Diags)
+      : m_Diags(&Diags), m_Trap(Diags) {}
+  StickyDiagnosticResetRAII(const StickyDiagnosticResetRAII&) = delete;
+  StickyDiagnosticResetRAII&
+  operator=(const StickyDiagnosticResetRAII&) = delete;
+  StickyDiagnosticResetRAII(StickyDiagnosticResetRAII&&) = delete;
+  StickyDiagnosticResetRAII& operator=(StickyDiagnosticResetRAII&&) = delete;
+  ~StickyDiagnosticResetRAII() {
+    if (m_Trap.hasErrorOccurred()) {
+      m_Diags->Reset(/*soft=*/true);
+      m_Diags->getClient()->clear();
+    }
+  }
+};
+} // namespace
+
 static Decl* InstantiateTemplate(TemplateDecl* TemplateD,
                                  TemplateArgumentListInfo& TLI, Sema& S,
                                  bool instantiate_body) {
@@ -5315,6 +5344,10 @@ DeclRef InstantiateTemplate(compat::Interpreter& I, DeclRef tmpl,
   auto* TmplD = unwrap<TemplateDecl>(tmpl);
   // We will create a new decl, push a transaction.
   compat::SynthesizingCodeRAII RAII(&getInterp());
+  // A rejected instantiation emits its error diagnostic outside any
+  // incremental parse; contain it so the sticky error state cannot fail the
+  // parse that follows.
+  StickyDiagnosticResetRAII DiagGuard(S.getDiagnostics());
   return InstantiateTemplate(TmplD, TemplateArgs, S, instantiate_body);
 }
 
