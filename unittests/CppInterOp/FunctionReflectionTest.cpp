@@ -1357,6 +1357,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetAllocType) {
   std::string code = R"(
     #include <new>
     #include <stdlib.h>
+    #include <optional>
 
     int* func0(int n){ return new int(n); }
 
@@ -1802,32 +1803,22 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetAllocType) {
       return b;
     }
 
-    // This test is for testing some lines, does not neccesarily mean something;
-    // But, it also shows how BindingDecls are not handled
-    struct Tuple {
-      int* ptr1;
-      int* ptr2;
-    };
-    int* func70(){
-      int arr[5];
-      arr[0] = 5;
-      arr[1] = 6;
-      int* ptr = (int*)::operator new(sizeof(int));
-      ::operator delete(ptr);
-      Tuple T;
-      T.ptr1 = &arr[0];
-      T.ptr2 = &arr[1];
-      auto [a, b] = T;
-      a = new int;
-      return a;
+    // FIXME: ptr = new int; -> calls optional::operator= which is -CXXOperatorCallExpr, not handled yet
+    std::optional<int*> func70(int n){
+      std::optional<int*> ptr;
+      if(n>0)
+        return ptr;
+      ptr = new int;
+      return ptr;
     }
+
     // This test is for testing some lines, does not neccesarily mean something;
     // But, it also shows how BindingDecls are not handled
     struct Tuple {
       int* ptr1;
       int* ptr2;
     };
-    int* func70(){
+    int* func71(){
       int arr[5];
       arr[0] = 5;
       arr[1] = 6;
@@ -1920,7 +1911,8 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetAllocType) {
   TESTAC(68, Unknown);
   TESTAC(69, None);
   TESTAC(70, None);
-  TESTAC(70, Unknown);
+  TESTAC(71, Unknown);
+
 #undef TESTAC
 
   Cpp::DeleteInterpreter();
