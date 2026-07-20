@@ -412,7 +412,10 @@ enum class AllocType : unsigned char {
   NewArr,
   Malloc,
   Unknown,
-  CustomAlloc
+  CustomAlloc,
+  Null,
+  OperatorNew,
+  OperatorNewArr
 };
 
 inline QualKind operator|(QualKind a, QualKind b) {
