@@ -1798,7 +1798,7 @@ struct AllocationTraverser : RecursiveASTVisitor<AllocationTraverser> {
       varMap[VD] = handleExpr(RHS);
       return true;
     }
-    if (BO->isCompoundAssignmentOp()) {
+    if (VD->getType()->isPointerType() && BO->isCompoundAssignmentOp()) {
       if (undoLog)
         undoLog->try_emplace(VD, varMap[VD]);
       varMap[VD] = AllocType::Unknown;
@@ -1870,6 +1870,20 @@ struct AllocationTraverser : RecursiveASTVisitor<AllocationTraverser> {
     return AllocType::New;
   }
 
+  static bool isNullOpt(const clang::CXXConstructExpr* CCE) {
+    // Expected: std/cpp::optional constructor
+    const clang::CXXConstructorDecl* CCD = CCE->getConstructor();
+    // optional(nullopt_t) noexcept; -> one arg
+    if (CCD->getNumParams() != 1)
+      return false;
+    clang::QualType ParamTy =
+        CCD->getParamDecl(0)->getType().getNonReferenceType();
+    // FIXME: Copy constructor of optional is not handled
+    if (const auto* CRD = ParamTy->getAsCXXRecordDecl())
+      return CRD->getName() == "nullopt_t";
+    return false;
+  }
+
   std::optional<AllocType> handleExpr(const clang::Expr* expr) {
     const clang::Expr* finExpr = expr->IgnoreParenCasts();
     // Case: return new __type__
@@ -1888,10 +1902,20 @@ struct AllocationTraverser : RecursiveASTVisitor<AllocationTraverser> {
     }
 
     // Case: malloc or another func call
-    if (const auto* CE = dyn_cast<CallExpr>(finExpr))
+    if (const auto* CE = dyn_cast<CallExpr>(finExpr)) {
+      // Case: std::optional<int*> ptr = new int; return *ptr;
+      if (const auto* COCE = dyn_cast<clang::CXXOperatorCallExpr>(CE)) {
+        if (COCE->getOperator() == OverloadedOperatorKind::OO_Star &&
+            !COCE->isInfixBinaryOp())
+          return handleExpr(COCE->getArg(0));
+      }
       return handleCall(CE);
+    }
 
     // Case: NULL, nullptr or (int*)(__integerLiteral__)
+    if (llvm::isa<clang::CXXNullPtrLiteralExpr>(finExpr) ||
+        llvm::isa<clang::GNUNullExpr>(finExpr))
+      return AllocType::Null;
     const clang::Expr* parExpr = expr->IgnoreParens();
     while (const auto* CE = dyn_cast<CastExpr>(parExpr)) {
       if (CE->getCastKind() == CK_NullToPointer)
@@ -1899,6 +1923,23 @@ struct AllocationTraverser : RecursiveASTVisitor<AllocationTraverser> {
       parExpr = CE->getSubExpr();
     }
 
+    // Case: constructor cast
+    if (auto* CCE = dyn_cast<clang::CXXConstructExpr>(finExpr)) {
+      // std::nullopt or cpp::nullopt
+      if (isNullOpt(CCE))
+        return AllocType::Null;
+      const clang::Expr* stripped = expr->IgnoreParens();
+      // ExprWithCleanups -> ImplicitCastExpr -> CXXConstructExpr pattern
+      if (const auto* EWC = dyn_cast<clang::ExprWithCleanups>(stripped))
+        stripped = EWC->getSubExpr();
+      // We do not want to analyze explicit conversions
+      auto* ICE = dyn_cast<clang::ImplicitCastExpr>(stripped);
+      bool isImplicitConv =
+          ICE && ICE->getCastKind() == CK_ConstructorConversion;
+      // ImplicitCastExpr -> CXXConstructExpr pattern
+      if (isImplicitConv)
+        return handleExpr(CCE->getArg(0));
+    }
     return AllocType::None;
   }
 };
@@ -1908,8 +1949,8 @@ static std::optional<AllocType>
 AnalyzeAllocType(const clang::FunctionDecl* Fn,
                  std::unordered_map<const clang::FunctionDecl*,
                                     std::optional<AllocType>>& visitedFuncs) {
-  const clang::QualType QT = Fn->getReturnType();
-  if (!QT->isPointerType())
+  QualType QT = Fn->getReturnType();
+  if (!QT->isPointerType() && !QT->isRecordType())
     return AllocType::None;
   const Stmt* fnBody = Fn->getBody();
   if (!fnBody)
