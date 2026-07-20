@@ -833,6 +833,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetAllocType) {
   std::string code = R"(
     #include <new>
     #include <stdlib.h>
+    #include <optional>
 
     int* func0(int n){ return new int(n); }
 
@@ -1206,8 +1207,79 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetAllocType) {
     void* func58(){ return __builtin_operator_new(64); }
     void* func59(){int* m = (int*)0; return malloc(sizeof(int));}
 
+    template <typename T>
+    std::optional<T*> func60_helper(){
+      T* ptr = new T;
+      return ptr;
+    }
+
+    std::optional<int*> func60(){
+      return func60_helper<int>();
+    }
+
+    std::optional<int*> func61(int n){
+      if(n>0)
+        return std::nullopt;
+      return new int;
+    }
+
+    struct Empty { Empty() {} };
+    Empty func62() {
+      Empty e;
+      return e;
+    }
+
+    struct Wrapper { int a, b; Wrapper(int x, int y) : a(x), b(y) {} };
+    Wrapper func63() {
+      int a = 1, b = 2;
+      return Wrapper(a, b);
+    }
+
+    Wrapper func64() {
+      int a = 1, b = 2;
+      return {a, b};
+    }
+
+    int* func65(){
+      auto ptr = func61(10);
+      if(ptr)
+        return *ptr;
+      return nullptr;
+    }
+
+    struct Box {
+    int* p;
+    Box(int* p) : p(p) {}
+    Box operator*(const Box& o) const { return Box(nullptr); }
+    };
+    Box func66() {
+      Box a(new int);
+      Box b(nullptr);
+      return a * b;
+    }
+
+    std::optional<int*> func67(){
+      return nullptr;
+    }
+
+    int* func68(){
+      int tmp = 10;
+      int* m = (int*)tmp;
+      for(int i = 0; i < 10; m+=1){
+        return m;
+      }
+      return m;
+    }
+
+    std::optional<int*> func69() {
+      std::optional<int*> a = new int;
+      //FIXME: Copy constructor is called, which takes one arg but is not nullopt constructor
+      //so it returns none, look at isNullOpt(const clang::CXXConstructExpr* CCE) function
+      std::optional<int*> b = a;
+      return b;
+    }
     )";
-  TestFixture::CreateInterpreter();
+  TestFixture::CreateInterpreter({"-std=c++17"});
   Interp->declare(code);
 
 #define TESTAC(N, EXP)                                                         \
@@ -1275,6 +1347,16 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetAllocType) {
   TESTAC(57, None);
   TESTAC(58, OperatorNew);
   TESTAC(59, Malloc);
+  TESTAC(60, New);
+  TESTAC(61, New);
+  TESTAC(62, None);
+  TESTAC(63, None);
+  TESTAC(64, None);
+  TESTAC(65, New);
+  TESTAC(66, None);
+  TESTAC(67, Null);
+  TESTAC(68, Unknown);
+  TESTAC(69, None);
 #undef TESTAC
 
   Cpp::DeleteInterpreter();
