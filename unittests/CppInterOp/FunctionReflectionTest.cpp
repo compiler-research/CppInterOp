@@ -856,24 +856,59 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_IsAllocator) {
       return obj;
     }
     void foo();
-    )";
-  GetAllTopLevelDecls(code, Decls, true);
-  EXPECT_TRUE(Cpp::IsAllocator(Decls[1]));
-  EXPECT_TRUE(Cpp::IsAllocator(Decls[2]));
-  EXPECT_FALSE(Cpp::IsAllocator(Decls[3]));
-  // Builtin check
-  code = R"(
-  //There is nothing lstdlib.h is included at args
-  )";
-  TestFixture::CreateInterpreter({"-include", "stdlib.h"});
-  Interp->process(code);
-  auto mallocDecl = Cpp::GetNamed("malloc");
-  EXPECT_TRUE(Cpp::IsAllocator(Cpp::ConstFuncRef{mallocDecl.data}));
-  Cpp::DeleteInterpreter();
 
+    void __attribute__((ownership_takes(malloc, 1))) Deallocator(void* p);
+    void* __attribute__((cf_returns_retained)) CFAllocFunc();
+
+    void __attribute__((annotate("cppAllocNone"))) NoneFunc();
+    void __attribute__((annotate("cppAllocNew"))) NewFunc();
+    void __attribute__((annotate("cppAllocNewArr"))) NewArrFunc();
+    void __attribute__((annotate("cppAllocMalloc"))) MallocFunc();
+    void __attribute__((annotate("cppAllocUnknown"))) UnknownFunc();
+    void __attribute__((annotate("cppAllocNull"))) NullFunc();
+    void __attribute__((annotate("cppAllocOperatorNew"))) OpNewFunc();
+    void __attribute__((annotate("cppAllocOperatorNewArr"))) OpNewArrFunc();
+    void __attribute__((annotate("unrelatedAttr"))) UnrelatedFunc();
+    __declspec(restrict) void* DeclspecRestrictFunc();
+  )";
+  TestFixture::CreateInterpreter(
+      {"-std=c++17", "-include", "stdlib.h", "-fdeclspec"});
+  Interp->declare(code);
+#define TESTIA(N, EXP)                                                         \
+  EXPECT_EQ(Cpp::IsAllocator(Cpp::ConstFuncRef { Cpp::GetNamed(#N).data }), EXP)
+
+  TESTIA(malloc, Cpp::AllocType::Malloc);
+  TESTIA(Allocator, Cpp::AllocType::Malloc);
+  TESTIA(Allocator2, Cpp::AllocType::Malloc);
+  TESTIA(foo, std::nullopt);
+  TESTIA(Deallocator, std::nullopt);
+  TESTIA(CFAllocFunc, Cpp::AllocType::Malloc);
+  TESTIA(NoneFunc, Cpp::AllocType::None);
+  TESTIA(NewFunc, Cpp::AllocType::New);
+  TESTIA(NewArrFunc, Cpp::AllocType::NewArr);
+  TESTIA(MallocFunc, Cpp::AllocType::Malloc);
+  TESTIA(UnknownFunc, Cpp::AllocType::Unknown);
+  TESTIA(NullFunc, Cpp::AllocType::Null);
+  TESTIA(OpNewFunc, Cpp::AllocType::OperatorNew);
+  TESTIA(OpNewArrFunc, Cpp::AllocType::OperatorNewArr);
+  TESTIA(UnrelatedFunc, std::nullopt);
+  TESTIA(DeclspecRestrictFunc, std::nullopt);
+
+  //! Fn coverage
+  EXPECT_EQ(Cpp::IsAllocator(Cpp::ConstFuncRef{nullptr}),
+            Cpp::AllocType::Unknown);
+  // casting coverage
+  EXPECT_EQ(Cpp::IsAllocator(Cpp::ConstFuncRef{Cpp::GetNamed("Klass").data}),
+            std::nullopt);
+
+  Cpp::DeleteInterpreter();
+#ifdef EMSCRIPTEN
+  GTEST_SKIP() << "Test fails for Emscipten builds";
+#endif
+  std::string include_flag;
   // APINotes check
-#if !defined(CPPINTEROP_USE_CLING) && !defined(__EMSCRIPTEN__)
-  std::string include_flag =
+#ifndef CPPINTEROP_USE_CLING
+  include_flag =
       "-I" + std::string(CPPINTEROP_DIR) + "unittests/CppInterOp/APINotes";
   std::vector<const char*> interpreter_args = {
       "-fmodules", "-fimplicit-module-maps", "-fapinotes-modules",
@@ -883,13 +918,41 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_IsAllocator) {
   #include "TestHeader.h"
   )";
   Interp->process(code);
-  auto testAllocDecl = Cpp::GetNamed("testAlloc");
-  EXPECT_TRUE(Cpp::IsAllocator(Cpp::ConstFuncRef{testAllocDecl.data}));
 
-  auto testNotAllocDecl = Cpp::GetNamed("testNotAlloc");
-  EXPECT_FALSE(Cpp::IsAllocator(Cpp::ConstFuncRef{testNotAllocDecl.data}));
+  TESTIA(testAlloc, Cpp::AllocType::Malloc);
+  TESTIA(testNotAlloc, std::nullopt);
+
   Cpp::DeleteInterpreter();
 #endif
+#undef TESTIA
+  include_flag =
+      "-I" + std::string(CPPINTEROP_DIR) + "unittests/CppInterOp/APINotes";
+  Decls.clear();
+  code = R"(
+    void* mergeFunc() {
+      return malloc(sizeof(int));
+    }
+  )";
+  GetAllTopLevelDecls(code, Decls, true,
+                      {"-std=c++17", include_flag.c_str(), "-include",
+                       "stdlib.h", "-include", "TestAttributeMerge.h"});
+  EXPECT_EQ(Cpp::IsAllocator(Decls[0]), Cpp::AllocType::Malloc);
+
+  Decls.clear();
+  code = R"(
+    int* overloadFunc(){
+      return new int;
+    }
+
+    int* overloadFunc(int n){
+      return new int(n);
+    }
+  )";
+  GetAllTopLevelDecls(
+      code, Decls, true,
+      {"-std=c++17", include_flag.c_str(), "-include", "TestAttributeMerge.h"});
+  EXPECT_EQ(Cpp::IsAllocator(Decls[0]), Cpp::AllocType::New);
+  EXPECT_EQ(Cpp::IsAllocator(Decls[1]), Cpp::AllocType::New);
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_IsDeallocator) {
@@ -1749,14 +1812,27 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetAllocType) {
       a = new int;
       return a;
     }
-    )";
-  TestFixture::CreateInterpreter({"-std=c++17"});
-  Interp->declare(code);
 
+    //Not analyzed, attribute is merged in header
+    void* func71_helper();
+
+    void* func71(){
+      return func71_helper();
+    }
+    )";
+  std::string include_flag =
+      "-I" + std::string(CPPINTEROP_DIR) + "unittests/CppInterOp/APINotes";
+#ifndef EMSCRIPTEN
+  TestFixture::CreateInterpreter(
+      {"-std=c++17", include_flag.c_str(), "-include", "TestAttributeMerge.h"});
+#else
+  TestFixture::CreateInterpreter({"-std=c++17"});
+#endif
+
+  Interp->declare(code);
 #define TESTAC(N, EXP)                                                         \
-  EXPECT_EQ(                                                                   \
-      Cpp::GetAllocType(Cpp::ConstFuncRef { Cpp::GetNamed("func" #N).data }),  \
-      Cpp::AllocType::EXP)
+  EXPECT_EQ(Cpp::GetAllocType(Cpp::FuncRef { Cpp::GetNamed("func" #N).data }), \
+            Cpp::AllocType::EXP)
 
   TESTAC(0, New);
   TESTAC(1, New);
@@ -1819,10 +1895,14 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetAllocType) {
   TESTAC(58, OperatorNew);
   TESTAC(59, Malloc);
   TESTAC(70, Unknown);
+#ifndef EMSCRIPTEN
+  TESTAC(71, Malloc);
+#endif
 #undef TESTAC
 
   Cpp::DeleteInterpreter();
 }
+
 TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetFunctionSignature) {
   std::vector<Decl*> Decls;
   std::string code = R"(
