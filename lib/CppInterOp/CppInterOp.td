@@ -768,7 +768,7 @@ def GetAllocType: CppInterOpAPI {
 
   let ReturnType = "AllocType";
   let Args = [
-    Arg<"ConstFuncRef", "Fn">
+    Arg<"FuncRef", "Fn">
   ];
 }
 
@@ -1273,7 +1273,7 @@ def GetFunctionReturnType : CppInterOpAPI {
 
 def IsAllocator : CppInterOpAPI {
   let Doc = "Checks if the provided function is an allocator function";
-  let ReturnType = "bool";
+  let ReturnType = "std::optional<AllocType>";
   let Args = [
     Arg<"ConstFuncRef", "func">
   ];

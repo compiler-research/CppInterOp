@@ -1142,7 +1142,7 @@ TEST_F(TracingTest, WriteToFileSuppressesSelfTrace) {
 #ifndef EMSCRIPTEN
 TEST_F(TracingTest, ReproducerCompilesViaInterpreter) {
   // Create an interpreter so we can exercise real API calls.
-  Cpp::CreateInterpreter({});
+  Cpp::CreateInterpreter({"-std=c++17"});
 
   // Verify tracing is active after interpreter creation.
   ASSERT_NE(TheTraceInfo, nullptr)
@@ -1192,7 +1192,7 @@ TEST_F(TracingTest, ReproducerCompilesViaInterpreter) {
   EXPECT_THAT(content, HasSubstr("Cpp::"));
 
   // Create a fresh interpreter and #include the reproducer file as-is.
-  Cpp::CreateInterpreter({});
+  Cpp::CreateInterpreter({"-std=c++17"});
   Cpp::AddIncludePath(CPPINTEROP_DIR "/include");
   // Generated .inc files live under the build tree.
   Cpp::AddIncludePath(CPPINTEROP_BINARY_DIR "/include");

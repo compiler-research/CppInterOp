@@ -591,24 +591,59 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_IsAllocator) {
       return obj;
     }
     void foo();
-    )";
-  GetAllTopLevelDecls(code, Decls, true);
-  EXPECT_TRUE(Cpp::IsAllocator(Decls[1]));
-  EXPECT_TRUE(Cpp::IsAllocator(Decls[2]));
-  EXPECT_FALSE(Cpp::IsAllocator(Decls[3]));
-  // Builtin check
-  code = R"(
-  //There is nothing lstdlib.h is included at args
-  )";
-  TestFixture::CreateInterpreter({"-include", "stdlib.h"});
-  Interp->process(code);
-  auto mallocDecl = Cpp::GetNamed("malloc");
-  EXPECT_TRUE(Cpp::IsAllocator(Cpp::ConstFuncRef{mallocDecl.data}));
-  Cpp::DeleteInterpreter();
 
+    void __attribute__((ownership_takes(malloc, 1))) Deallocator(void* p);
+    void* __attribute__((cf_returns_retained)) CFAllocFunc();
+
+    void __attribute__((annotate("cppNone"))) NoneFunc();
+    void __attribute__((annotate("cppNew"))) NewFunc();
+    void __attribute__((annotate("cppNewArr"))) NewArrFunc();
+    void __attribute__((annotate("cppMalloc"))) MallocFunc();
+    void __attribute__((annotate("cppUnknown"))) UnknownFunc();
+    void __attribute__((annotate("cppNull"))) NullFunc();
+    void __attribute__((annotate("cppOperatorNew"))) OpNewFunc();
+    void __attribute__((annotate("cppOperatorNewArr"))) OpNewArrFunc();
+    void __attribute__((annotate("unrelatedAttr"))) UnrelatedFunc();
+    __declspec(restrict) void* DeclspecRestrictFunc();
+  )";
+  TestFixture::CreateInterpreter(
+      {"-std=c++17", "-include", "stdlib.h", "-fdeclspec"});
+  Interp->declare(code);
+#define TESTIA(N, EXP)                                                         \
+  EXPECT_EQ(Cpp::IsAllocator(Cpp::ConstFuncRef { Cpp::GetNamed(#N).data }), EXP)
+
+  TESTIA(malloc, Cpp::AllocType::Malloc);
+  TESTIA(Allocator, Cpp::AllocType::Malloc);
+  TESTIA(Allocator2, Cpp::AllocType::Malloc);
+  TESTIA(foo, std::nullopt);
+  TESTIA(Deallocator, std::nullopt);
+  TESTIA(CFAllocFunc, Cpp::AllocType::Malloc);
+  TESTIA(NoneFunc, Cpp::AllocType::None);
+  TESTIA(NewFunc, Cpp::AllocType::New);
+  TESTIA(NewArrFunc, Cpp::AllocType::NewArr);
+  TESTIA(MallocFunc, Cpp::AllocType::Malloc);
+  TESTIA(UnknownFunc, Cpp::AllocType::Unknown);
+  TESTIA(NullFunc, Cpp::AllocType::Null);
+  TESTIA(OpNewFunc, Cpp::AllocType::OperatorNew);
+  TESTIA(OpNewArrFunc, Cpp::AllocType::OperatorNewArr);
+  TESTIA(UnrelatedFunc, std::nullopt);
+  TESTIA(DeclspecRestrictFunc, std::nullopt);
+
+  //! Fn coverage
+  EXPECT_EQ(Cpp::IsAllocator(Cpp::ConstFuncRef{nullptr}),
+            Cpp::AllocType::Unknown);
+  // casting coverage
+  EXPECT_EQ(Cpp::IsAllocator(Cpp::ConstFuncRef{Cpp::GetNamed("Klass").data}),
+            std::nullopt);
+
+  Cpp::DeleteInterpreter();
+#ifdef EMSCRIPTEN
+  GTEST_SKIP() << "Test fails for Emscipten builds";
+#endif
+  std::string include_flag;
   // APINotes check
-#if !defined(CPPINTEROP_USE_CLING) && !defined(__EMSCRIPTEN__)
-  std::string include_flag =
+#ifndef CPPINTEROP_USE_CLING
+  include_flag =
       "-I" + std::string(CPPINTEROP_DIR) + "unittests/CppInterOp/APINotes";
   std::vector<const char*> interpreter_args = {
       "-fmodules", "-fimplicit-module-maps", "-fapinotes-modules",
@@ -618,13 +653,41 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_IsAllocator) {
   #include "TestHeader.h"
   )";
   Interp->process(code);
-  auto testAllocDecl = Cpp::GetNamed("testAlloc");
-  EXPECT_TRUE(Cpp::IsAllocator(Cpp::ConstFuncRef{testAllocDecl.data}));
 
-  auto testNotAllocDecl = Cpp::GetNamed("testNotAlloc");
-  EXPECT_FALSE(Cpp::IsAllocator(Cpp::ConstFuncRef{testNotAllocDecl.data}));
+  TESTIA(testAlloc, Cpp::AllocType::Malloc);
+  TESTIA(testNotAlloc, std::nullopt);
+
   Cpp::DeleteInterpreter();
 #endif
+#undef TESTIA
+  include_flag =
+      "-I" + std::string(CPPINTEROP_DIR) + "unittests/CppInterOp/APINotes";
+  Decls.clear();
+  code = R"(
+    void* mergeFunc() {
+      return malloc(sizeof(int));
+    }
+  )";
+  GetAllTopLevelDecls(code, Decls, true,
+                      {"-std=c++17", include_flag.c_str(), "-include",
+                       "stdlib.h", "-include", "TestAttributeMerge.h"});
+  EXPECT_EQ(Cpp::IsAllocator(Decls[0]), Cpp::AllocType::Malloc);
+
+  Decls.clear();
+  code = R"(
+    int* overloadFunc(){
+      return new int;
+    }
+
+    int* overloadFunc(int n){
+      return new int(n);
+    }
+  )";
+  GetAllTopLevelDecls(
+      code, Decls, true,
+      {"-std=c++17", include_flag.c_str(), "-include", "TestAttributeMerge.h"});
+  EXPECT_EQ(Cpp::IsAllocator(Decls[0]), Cpp::AllocType::New);
+  EXPECT_EQ(Cpp::IsAllocator(Decls[1]), Cpp::AllocType::New);
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_IsDeallocator) {
@@ -833,6 +896,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetAllocType) {
   std::string code = R"(
     #include <new>
     #include <stdlib.h>
+    #include <optional>
 
     int* func0(int n){ return new int(n); }
 
@@ -945,14 +1009,359 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetAllocType) {
       auto lam = []() { return (int*)malloc(sizeof(int)); };
       return new int(n);
     }
-    )";
-  TestFixture::CreateInterpreter();
-  Interp->declare(code);
 
+    int* func34(int n){
+      int* ptr = nullptr;
+      if(n>0)
+        ptr = new int(n);
+      return ptr;
+    }
+
+    int* func35(int n){
+      int* ptr = nullptr;
+      if(n>0)
+        ptr = new int(n);
+      else
+        ptr = new int(n);
+      return ptr;
+    }
+
+    int* func36(int n){
+      int* ptr = nullptr;
+      if(n>0)
+        ptr = new int(n);
+      else
+        ptr = (int*)malloc(sizeof(int));
+      return ptr;
+    }
+
+    int* func37(int n){
+      int* ptr = nullptr;
+      int* ptr2 = nullptr;
+      if(n>0){
+        ptr = new int(n);
+      } else {
+        ptr2 = new int(n);
+      }
+      return ptr;
+    }
+
+    int* func38(int n){
+      int* ptr = nullptr;
+      if(n>9)
+        ptr = new int(n);
+      else if(n>5)
+        ptr = new int(n);
+      else if(n>2)
+        ptr = new int(n);
+      else
+        ptr = new int(n);
+      return ptr;
+    }
+
+    int* func39(int n){
+      int* ptr = nullptr;
+      if(n>9)
+        ptr = new int(n);
+      else if(n>5)
+        ptr = (int*)malloc(sizeof(int));
+      else if(n>2)
+        ptr = new int(n);
+      else
+        ptr = new int(n);
+      return ptr;
+    }
+
+    int* func40(int n){
+      int* ptr = nullptr;
+      if(n>0){
+        int* tmp = nullptr;
+        if(n>10)
+          tmp = new int(n);
+        else
+          tmp = new int(n);
+        ptr = tmp;
+      }
+      return ptr;
+    }
+
+    int* func41(int n){
+      int* ptr = nullptr;
+      if(n>0){
+        ptr = new int(n);
+        ptr = new int(n);
+      }
+      return ptr;
+    }
+
+    int* func42(int n){
+      int* ptr = nullptr;
+      if(int* tmp = new int(n)){
+        ptr = tmp;
+      }
+      return ptr;
+    }
+
+    int* func43(int n){
+      int* ptr = new int(n);
+      if(n>0){
+        int* tmp = (int*)malloc(sizeof(int));
+        ptr = tmp;
+      }
+      return ptr;
+    }
+
+    int* func44(int n){
+      int* q = NULL;
+      if(n>9){
+
+      }
+      else if(n>5){
+        q = new int(n);
+      }
+      else{
+        q = new int(n);
+      }
+      return q;
+    }
+
+    int* func45(int n){
+      int* x = (int*)0;
+      if(n>5){
+        if(n>8)
+          x = new int(n);
+        else
+          x = new int(n);
+      }
+      return x;
+    }
+
+    int* func46(int n){
+      int* p = nullptr;
+      if(n>20){
+        if(n>15){
+          if(n>10)
+            p = new int(n);
+          else
+            p = new int(n);
+        }
+        else {
+          p = new int(n);
+        }
+      }
+      else {
+        p = new int(n);
+      }
+      return p;
+    }
+
+    int* func47(int n){
+      int* p = nullptr;
+      if(n>20){
+        if(n>15){
+          if(n>10)
+            p = new int(n);
+          else
+            p = new int(n);
+        }
+      }
+      return p;
+    }
+
+    int* func48(int n){
+      int* p = nullptr;
+      int* q = nullptr;
+      if(n>30){
+        q = new int(n);
+        if(n>25){
+          if(n>22)
+            p = new int(n);
+          else
+            p = new int(n);
+        }
+        else {
+          p = new int(n);
+        }
+      }
+      else if(n>20){
+        p = new int(n);
+        if(n>15)
+          q = new int(n);
+        else
+          q = (int*)malloc(sizeof(int));
+      }
+      else {
+        p = new int(n);
+        q = new int(n);
+      }
+      return p;
+    }
+
+    int* func49(int n){
+      int* p = (int*)malloc(sizeof(int));
+      int* q = new int(n);
+      if(n>30){
+        if(n>25){
+          p = (int*)malloc(sizeof(int));
+          if(n>20)
+            q += 1;
+        }
+        else {
+          p = (int*)malloc(sizeof(int));
+        }
+      }
+      return p;
+    }
+
+    int* func50(int n){
+      int* p = nullptr;
+      if(n>40){
+        p = new int(n);
+      }
+      else if(n>30){
+        if(n>25){
+          if(n>20)
+            p = new int(n);
+          else
+            p = (int*)malloc(sizeof(int));
+        }
+      }
+      else if(n>10){
+        p = new int(n);
+      }
+      else {
+        p = new int(n);
+      }
+      return p;
+    }
+
+    int* func51(int n){
+      int* ptr = nullptr;
+      if(ptr = new int(n)){
+
+      }
+      return ptr;
+    }
+
+    int* func52(int n){
+      if(n>0)
+        return new int(n);
+      return NULL;
+    }
+
+    int* func53(int n){
+      int* p = static_cast<int*>(0);
+      if(n>0)
+        p = new int(n);
+      return p;
+    }
+
+    int* func54(int n){
+      int* p;
+      if(n>0)
+        p = new int(n);
+      else
+        p = (int*)malloc(sizeof(int));
+      return p;
+    }
+    void* func55(){ return ::operator new(64); }
+    void* func56(){ return ::operator new[](64); }
+    void* func57(void* buf){ return ::operator new(sizeof(int), buf); }
+    void* func58(){ return __builtin_operator_new(64); }
+    void* func59(){int* m = (int*)0; return malloc(sizeof(int));}
+
+    template <typename T>
+    std::optional<T*> func60_helper(){
+      T* ptr = new T;
+      return ptr;
+    }
+
+    std::optional<int*> func60(){
+      return func60_helper<int>();
+    }
+
+    std::optional<int*> func61(int n){
+      if(n>0)
+        return std::nullopt;
+      return new int;
+    }
+
+    struct Empty { Empty() {} };
+    Empty func62() {
+      Empty e;
+      return e;
+    }
+
+    struct Wrapper { int a, b; Wrapper(int x, int y) : a(x), b(y) {} };
+    Wrapper func63() {
+      int a = 1, b = 2;
+      return Wrapper(a, b);
+    }
+
+    Wrapper func64() {
+      int a = 1, b = 2;
+      return {a, b};
+    }
+
+    int* func65(){
+      auto ptr = func61(10);
+      if(ptr)
+        return *ptr;
+      return nullptr;
+    }
+
+    struct Box {
+    int* p;
+    Box(int* p) : p(p) {}
+    Box operator*(const Box& o) const { return Box(nullptr); }
+    };
+    Box func66() {
+      Box a(new int);
+      Box b(nullptr);
+      return a * b;
+    }
+
+    std::optional<int*> func67(){
+      return nullptr;
+    }
+
+    int* func68(){
+      int tmp = 10;
+      int* m = (int*)tmp;
+      for(int i = 0; i < 10; m+=1){
+        return m;
+      }
+      return m;
+    }
+
+    std::optional<int*> func69() {
+      std::optional<int*> a = new int;
+      //FIXME: Copy constructor is called, which takes one arg but is not nullopt constructor
+      //so it returns none, look at isNullOpt(const clang::CXXConstructExpr* CCE) function
+      std::optional<int*> b = a;
+      return b;
+    }
+
+    //Not analyzed, attribute is merged in header
+    void* func70_helper();
+
+    void* func70(){
+      return func70_helper();
+    }
+    )";
+  std::string include_flag =
+      "-I" + std::string(CPPINTEROP_DIR) + "unittests/CppInterOp/APINotes";
+#ifndef EMSCRIPTEN
+  TestFixture::CreateInterpreter(
+      {"-std=c++17", include_flag.c_str(), "-include", "TestAttributeMerge.h"});
+#else
+  TestFixture::CreateInterpreter({"-std=c++17"});
+#endif
+
+  Interp->declare(code);
 #define TESTAC(N, EXP)                                                         \
-  EXPECT_EQ(                                                                   \
-      Cpp::GetAllocType(Cpp::ConstFuncRef { Cpp::GetNamed("func" #N).data }),  \
-      Cpp::AllocType::EXP)
+  EXPECT_EQ(Cpp::GetAllocType(Cpp::FuncRef { Cpp::GetNamed("func" #N).data }), \
+            Cpp::AllocType::EXP)
 
   TESTAC(0, New);
   TESTAC(1, New);
@@ -973,7 +1382,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetAllocType) {
   TESTAC(16, Unknown);
   TESTAC(17, None);
   TESTAC(18, None);
-  TESTAC(19, None);
+  TESTAC(19, Null);
   TESTAC(20, Unknown);
   TESTAC(21, None);
   TESTAC(22, New);
@@ -981,19 +1390,57 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetAllocType) {
   TESTAC(24, New);
   TESTAC(25, NewArr);
   TESTAC(26, Unknown);
-  // FIXME: Pointer overwriten by a non-assignment operator
-  TESTAC(27, NewArr);
+  TESTAC(27, Unknown);
   TESTAC(28, New);
   TESTAC(29, New);
   TESTAC(30, New);
   TESTAC(31, New);
   TESTAC(32, New);
   TESTAC(33, New);
-
+  TESTAC(34, New);
+  TESTAC(35, New);
+  TESTAC(36, Unknown);
+  TESTAC(37, New);
+  TESTAC(38, New);
+  TESTAC(39, Unknown);
+  TESTAC(40, New);
+  TESTAC(41, New);
+  TESTAC(42, New);
+  TESTAC(43, Unknown);
+  TESTAC(44, New);
+  TESTAC(45, New);
+  TESTAC(46, New);
+  TESTAC(47, New);
+  TESTAC(48, New);
+  TESTAC(49, Malloc);
+  TESTAC(50, Unknown);
+  TESTAC(51, New);
+  TESTAC(52, New);
+  TESTAC(53, New);
+  TESTAC(54, Unknown);
+  TESTAC(55, OperatorNew);
+  TESTAC(56, OperatorNewArr);
+  TESTAC(57, None);
+  TESTAC(58, OperatorNew);
+  TESTAC(59, Malloc);
+  TESTAC(60, New);
+  TESTAC(61, New);
+  TESTAC(62, None);
+  TESTAC(63, None);
+  TESTAC(64, None);
+  TESTAC(65, New);
+  TESTAC(66, None);
+  TESTAC(67, Null);
+  TESTAC(68, Unknown);
+  TESTAC(69, None);
+#ifndef EMSCRIPTEN
+  TESTAC(70, Malloc);
+#endif
 #undef TESTAC
 
   Cpp::DeleteInterpreter();
 }
+
 TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetFunctionSignature) {
   std::vector<Decl*> Decls;
   std::string code = R"(
