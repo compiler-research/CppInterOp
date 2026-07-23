@@ -1586,31 +1586,52 @@ TypeRef GetFunctionReturnType(ConstFuncRef func) {
   return INTEROP_RETURN(nullptr);
 }
 
-bool IsAllocator(ConstFuncRef Fn) {
+std::optional<AllocType> IsAllocator(ConstFuncRef Fn) {
   INTEROP_TRACE(Fn);
   if (!Fn)
-    return INTEROP_RETURN(false);
+    return INTEROP_RETURN(AllocType::Unknown);
   const auto* D = unwrap<clang::Decl>(Fn);
   if (const auto* FD = dyn_cast<FunctionDecl>(D)) {
     if (FD->getBuiltinID() == Builtin::ID::BImalloc)
-      return INTEROP_RETURN(true);
+      return INTEROP_RETURN(AllocType::Malloc);
     if (const auto* FDA = FD->getAttr<RestrictAttr>()) {
       if (FDA->getSemanticSpelling() != RestrictAttr::Declspec_restrict)
-        return INTEROP_RETURN(true);
+        return INTEROP_RETURN(AllocType::Malloc);
     }
 
     if (const auto* FDA = FD->getAttr<OwnershipAttr>()) {
       if (FDA->getOwnKind() == OwnershipAttr::Returns)
-        return INTEROP_RETURN(true);
+        return INTEROP_RETURN(AllocType::Malloc);
     }
 
     if (FD->hasAttr<CFReturnsRetainedAttr>() ||
         FD->hasAttr<NSReturnsRetainedAttr>() ||
         FD->hasAttr<OSReturnsRetainedAttr>())
-      return INTEROP_RETURN(true);
+      return INTEROP_RETURN(AllocType::Malloc);
+    for (const auto* attr : FD->specific_attrs<clang::AnnotateAttr>()) {
+      llvm::StringRef attrName = attr->getAnnotation();
+      if (attrName == "cppNone")
+        return INTEROP_RETURN(AllocType::None);
+      if (attrName == "cppNew")
+        return INTEROP_RETURN(AllocType::New);
+      if (attrName == "cppNewArr")
+        return INTEROP_RETURN(AllocType::NewArr);
+      if (attrName == "cppMalloc")
+        return INTEROP_RETURN(AllocType::Malloc);
+      if (attrName == "cppUnknown")
+        return INTEROP_RETURN(AllocType::Unknown);
+      if (attrName == "cppNull")
+        return INTEROP_RETURN(AllocType::Null);
+      if (attrName == "cppOperatorNew")
+        return INTEROP_RETURN(AllocType::OperatorNew);
+      if (attrName == "cppOperatorNewArr")
+        return INTEROP_RETURN(AllocType::OperatorNewArr);
+    }
   }
 
-  return INTEROP_RETURN(false);
+  // Nullopt is returned because when analyzer calls this API it should know
+  // whether an attribute injected before or FD has a meaningful attribute
+  return INTEROP_RETURN(std::nullopt);
 }
 
 bool IsDeallocator(ConstFuncRef Fn) {
@@ -1638,7 +1659,7 @@ bool IsFunctionProtoType(ConstTypeRef TyRef) {
 }
 
 static std::optional<AllocType>
-AnalyzeAllocType(const clang::FunctionDecl* Fn,
+AnalyzeAllocType(clang::FunctionDecl* Fn,
                  std::unordered_map<const clang::FunctionDecl*,
                                     std::optional<AllocType>>& visitedFuncs);
 
@@ -1826,8 +1847,8 @@ struct AllocationTraverser : RecursiveASTVisitor<AllocationTraverser> {
     return true;
   }
 
-  std::optional<AllocType> handleCall(const clang::CallExpr* CE) {
-    if (const auto* FD = CE->getDirectCallee()) {
+  std::optional<AllocType> handleCall(clang::CallExpr* CE) {
+    if (auto* FD = CE->getDirectCallee()) {
       if (FD->getBuiltinID() == Builtin::ID::BImalloc)
         return AllocType::Malloc;
       if (FD->getBuiltinID() == Builtin::ID::BI__builtin_operator_new)
@@ -1845,7 +1866,10 @@ struct AllocationTraverser : RecursiveASTVisitor<AllocationTraverser> {
       }
       auto it = visitedFuncs.find(FD);
       if (it == visitedFuncs.end()) {
-        visitedFuncs[FD] = std::nullopt;
+        auto storedResult = IsAllocator(wrap<ConstFuncRef>(FD));
+        visitedFuncs[FD] = storedResult;
+        if (storedResult != std::nullopt)
+          return storedResult;
         return AnalyzeAllocType(FD, visitedFuncs);
       }
       return it->second;
@@ -1909,7 +1933,7 @@ struct AllocationTraverser : RecursiveASTVisitor<AllocationTraverser> {
             !COCE->isInfixBinaryOp())
           return handleExpr(COCE->getArg(0));
       }
-      return handleCall(CE);
+      return handleCall(const_cast<CallExpr*>(CE));
     }
 
     // Case: NULL, nullptr or (int*)(__integerLiteral__)
@@ -1946,33 +1970,74 @@ struct AllocationTraverser : RecursiveASTVisitor<AllocationTraverser> {
 } // namespace
 
 static std::optional<AllocType>
-AnalyzeAllocType(const clang::FunctionDecl* Fn,
+AnalyzeAllocType(clang::FunctionDecl* Fn,
                  std::unordered_map<const clang::FunctionDecl*,
                                     std::optional<AllocType>>& visitedFuncs) {
   QualType QT = Fn->getReturnType();
   if (!QT->isPointerType() && !QT->isRecordType())
     return AllocType::None;
-  const Stmt* fnBody = Fn->getBody();
+  Stmt* fnBody = Fn->getBody();
   if (!fnBody)
     return AllocType::Unknown;
-  const auto* CmpStmt = dyn_cast<clang::CompoundStmt>(fnBody);
+  auto* CmpStmt = dyn_cast<clang::CompoundStmt>(fnBody);
   // FIXME:: try catch blocks are not CompoundStmt, only edge case
   if (!CmpStmt)
     return AllocType::Unknown;
   AllocationTraverser Traverser(visitedFuncs);
   for (auto* parm : Fn->parameters())
     Traverser.VisitVarDecl(parm);
-  Traverser.TraverseStmt(const_cast<clang::CompoundStmt*>(CmpStmt));
+  Traverser.TraverseStmt(CmpStmt);
   auto res = Traverser.result;
   visitedFuncs[Fn] = res;
+  clang::AnnotateAttr* AA = nullptr;
+  if (res.has_value()) {
+    switch (*res) {
+    case AllocType::None:
+      AA = clang::AnnotateAttr::CreateImplicit(Fn->getASTContext(), "cppNone",
+                                               nullptr, 0);
+      break;
+    case AllocType::New:
+      AA = clang::AnnotateAttr::CreateImplicit(Fn->getASTContext(), "cppNew",
+                                               nullptr, 0);
+      break;
+    case AllocType::NewArr:
+      AA = clang::AnnotateAttr::CreateImplicit(Fn->getASTContext(), "cppNewArr",
+                                               nullptr, 0);
+      break;
+    case AllocType::Malloc:
+      AA = clang::AnnotateAttr::CreateImplicit(Fn->getASTContext(), "cppMalloc",
+                                               nullptr, 0);
+      break;
+    case AllocType::Unknown:
+      AA = clang::AnnotateAttr::CreateImplicit(Fn->getASTContext(),
+                                               "cppUnknown", nullptr, 0);
+      break;
+    case AllocType::Null:
+      AA = clang::AnnotateAttr::CreateImplicit(Fn->getASTContext(), "cppNull",
+                                               nullptr, 0);
+      break;
+    case AllocType::OperatorNew:
+      AA = clang::AnnotateAttr::CreateImplicit(Fn->getASTContext(),
+                                               "cppOperatorNew", nullptr, 0);
+      break;
+    case AllocType::OperatorNewArr:
+      AA = clang::AnnotateAttr::CreateImplicit(Fn->getASTContext(),
+                                               "cppOperatorNewArr", nullptr, 0);
+      break;
+    default:
+      assert(false && "Some AllocType enum members are not handled");
+    }
+  }
+  if (AA)
+    Fn->addAttr(AA);
   return res;
 }
 
-AllocType GetAllocType(ConstFuncRef Fn) {
+AllocType GetAllocType(FuncRef Fn) {
   INTEROP_TRACE(Fn);
   if (Fn) {
-    const auto* D = unwrap<Decl>(Fn);
-    if (const auto* FD = dyn_cast<FunctionDecl>(D)) {
+    auto* D = unwrap<Decl>(Fn);
+    if (auto* FD = dyn_cast<FunctionDecl>(D)) {
       std::unordered_map<const clang::FunctionDecl*, std::optional<AllocType>>
           visitedFuncs;
       visitedFuncs[FD] = std::nullopt;
