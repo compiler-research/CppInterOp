@@ -68,6 +68,7 @@
 #include "clang/Basic/Version.h"
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Interpreter/Interpreter.h"
+#include "clang/Lex/Lexer.h"
 #include "clang/Sema/Lookup.h"
 #include "clang/Sema/Overload.h"
 #include "clang/Sema/Ownership.h"
@@ -5497,6 +5498,32 @@ std::string GetFunctionArgDefault(ConstFuncRef func, size_t param_index) {
     PI = (FD->getTemplatedDecl())->getNonObjectParameter(param_index);
 
   if (PI->hasDefaultArg()) {
+    // Render the default as written: read its source range, the way clang's
+    // own code completion formats default arguments (GetDefaultValueString
+    // in SemaCodeComplete). Pretty-printing the AST instead reproduces
+    // floating literals at representation precision ("3.1400000000000001"
+    // for a written 3.14), and normalizing that through std::stod terminated
+    // the exception-free build on symbolic defaults such as
+    // `double ratio = kDefaultRatio`.
+    Sema& S = getSema();
+    CharSourceRange SrcRange =
+        CharSourceRange::getTokenRange(PI->getDefaultArgRange());
+    bool Invalid = SrcRange.isInvalid();
+    if (!Invalid) {
+      llvm::StringRef SrcText = Lexer::getSourceText(
+          SrcRange, S.getSourceManager(), S.getLangOpts(), &Invalid);
+      if (!Invalid) {
+        // The lexed range sometimes includes the leading '=' (see the FIXME
+        // in SemaCodeComplete's GetDefaultValueString); keep only the value.
+        SrcText = SrcText.ltrim();
+        SrcText.consume_front("=");
+        SrcText = SrcText.ltrim();
+        if (!SrcText.empty())
+          return INTEROP_RETURN(SrcText.str());
+      }
+    }
+
+    // Fallback for defaults with no usable source range: print the AST.
     std::string Result;
     llvm::raw_string_ostream OS(Result);
     const Expr* DefaultArgExpr = nullptr;
@@ -5506,19 +5533,6 @@ std::string GetFunctionArgDefault(ConstFuncRef func, size_t param_index) {
     else
       DefaultArgExpr = PI->getDefaultArg();
     DefaultArgExpr->printPretty(OS, nullptr, PrintingPolicy(LangOptions()));
-
-    // FIXME: Floats are printed in clang with the precision of their underlying
-    // representation and not as written. This is a deficiency in the printing
-    // mechanism of clang which we require extra work to mitigate. For example
-    // float PI = 3.14 is printed as 3.1400000000000001
-    if (PI->getType()->isFloatingType()) {
-      if (!Result.empty() && Result.back() == '.')
-        return INTEROP_RETURN(Result);
-      auto DefaultArgValue = std::stod(Result);
-      std::ostringstream oss;
-      oss << DefaultArgValue;
-      Result = oss.str();
-    }
     return INTEROP_RETURN(Result);
   }
   return INTEROP_RETURN("");
