@@ -3,6 +3,7 @@
 
 #include "clang/Basic/Version.h"
 
+#include "llvm/ADT/SmallString.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Path.h"
 
@@ -91,4 +92,103 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, DynamicLibraryManager_BasicSymbolLookup) {
   using RetZeroFn = int (*)();
   auto Fn = reinterpret_cast<RetZeroFn>(Addr);
   EXPECT_EQ(Fn(), 0);
+}
+
+// Weak globals a loaded library already defines -- header-defined singletons:
+// a function-local static in an inline function and a C++17 inline static
+// data member -- must be bound by jitted code rather than materialized as
+// duplicates (compat::bindProcessWeakGlobals). Otherwise the library and the
+// JIT each hold their own instance of what the program means to be one
+// singleton, and teardown destroys it twice.
+TYPED_TEST(CPPINTEROP_TEST_MODE, DynamicLibraryManager_SharedWeakGlobals) {
+#ifdef EMSCRIPTEN
+  GTEST_SKIP() << "Test not intended for Emscripten builds";
+#endif
+#ifdef CPPINTEROP_USE_CLING
+  GTEST_SKIP() << "bindProcessWeakGlobals is wired into the clang-repl "
+                  "CppInternal::Interpreter path, not cling's interpreter";
+#endif
+#if defined(_WIN32) || defined(__APPLE__)
+  GTEST_SKIP() << "the dlsym-based weak-global binding targets ELF";
+#endif
+  if (TypeParam::isOutOfProcess)
+    GTEST_SKIP() << "the dlsym-based weak-global binding is in-process only";
+
+  ASSERT_TRUE(TestFixture::CreateInterpreter());
+
+  // Resolve the library by path (SearchLibrariesForSymbol cannot run twice in
+  // one process, and DynamicLibraryManager_Sanity already used it): beside
+  // the test binary (cmake), or in the working directory (bazel).
+  std::string BinaryPath = GetExecutablePath(/*Argv0=*/nullptr);
+  llvm::StringRef Dir = llvm::sys::path::parent_path(BinaryPath);
+  std::string PathToTestSharedLib;
+  for (const char* Candidate : {"libTestSharedLib.so", "TestSharedLib.so"}) {
+    llvm::SmallString<256> P(Dir);
+    llvm::sys::path::append(P, Candidate);
+    if (llvm::sys::fs::exists(P)) {
+      PathToTestSharedLib = P.str().str();
+      break;
+    }
+    if (llvm::sys::fs::exists(Candidate)) {
+      PathToTestSharedLib = Candidate;
+      break;
+    }
+  }
+  ASSERT_STRNE("", PathToTestSharedLib.c_str());
+  ASSERT_TRUE(Cpp::LoadLibrary(PathToTestSharedLib.c_str()));
+  Cpp::Process(""); // force the execution engine into existence
+
+  // Repeat TestSharedLib.h's singleton definitions in the JIT (the mangled
+  // names must match the library's) and take each side's addresses.
+  ASSERT_FALSE(Cpp::Process(R"(
+    struct SingletonFixture {
+      static SingletonFixture& get() {
+        static SingletonFixture instance;
+        return instance;
+      }
+      static inline int s_inline_member = 0;
+      int value = 0;
+    };
+    extern "C" void* singleton_probe_jit_meyers_addr() {
+      return &SingletonFixture::get();
+    }
+    extern "C" void* singleton_probe_jit_member_addr() {
+      return &SingletonFixture::s_inline_member;
+    }
+    extern "C" void singleton_probe_jit_set(int v) {
+      SingletonFixture::get().value = v;
+      SingletonFixture::s_inline_member = v + 1;
+    }
+  )"));
+
+  auto GetFn = [](const char* Name) {
+    void* A = Cpp::GetFunctionAddress(Name);
+    EXPECT_NE(A, nullptr) << Name;
+    return A;
+  };
+  // NOLINTBEGIN(cppcoreguidelines-pro-type-reinterpret-cast)
+  auto* JitMeyersAddr =
+      reinterpret_cast<void* (*)()>(GetFn("singleton_probe_jit_meyers_addr"));
+  auto* JitMemberAddr =
+      reinterpret_cast<void* (*)()>(GetFn("singleton_probe_jit_member_addr"));
+  auto* JitSet =
+      reinterpret_cast<void (*)(int)>(GetFn("singleton_probe_jit_set"));
+  auto* AotMeyersAddr =
+      reinterpret_cast<void* (*)()>(GetFn("singleton_fixture_meyers_addr"));
+  auto* AotMeyersValue =
+      reinterpret_cast<int (*)()>(GetFn("singleton_fixture_meyers_value"));
+  auto* AotMemberAddr =
+      reinterpret_cast<void* (*)()>(GetFn("singleton_fixture_member_addr"));
+  auto* AotMemberValue =
+      reinterpret_cast<int (*)()>(GetFn("singleton_fixture_member_value"));
+  // NOLINTEND(cppcoreguidelines-pro-type-reinterpret-cast)
+
+  // One instance, not two: both flavors' addresses agree across the boundary.
+  EXPECT_EQ(JitMeyersAddr(), AotMeyersAddr());
+  EXPECT_EQ(JitMemberAddr(), AotMemberAddr());
+
+  // And mutations through the jitted side are visible to the library.
+  JitSet(41);
+  EXPECT_EQ(AotMeyersValue(), 41);
+  EXPECT_EQ(AotMemberValue(), 42);
 }
