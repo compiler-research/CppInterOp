@@ -44,4 +44,30 @@ extern "C" TESTSHAREDLIB_API int singleton_fixture_meyers_value();
 extern "C" TESTSHAREDLIB_API void* singleton_fixture_member_addr();
 extern "C" TESTSHAREDLIB_API int singleton_fixture_member_value();
 
+// A *dynamically* initialized header singleton: the local static's initializer
+// calls an out-of-line constructor the compiler cannot fold, so clang emits a
+// _ZGV<...> guard variable beside the data. bindProcessWeakGlobals must demote
+// the guard together with the data -- and only when the process exports both --
+// so jitted code neither re-runs initialization nor reads an uninitialized
+// instance. The library's accessors init this copy AOT (value 7).
+struct TESTSHAREDLIB_API DynamicInitSingleton {
+  int value;
+  DynamicInitSingleton(); // out-of-line: forces a guarded dynamic init
+  static DynamicInitSingleton& get() {
+    static DynamicInitSingleton instance;
+    return instance;
+  }
+};
+
+extern "C" TESTSHAREDLIB_API void* dynamic_singleton_addr();
+extern "C" TESTSHAREDLIB_API int dynamic_singleton_value();
+
+// A weak global the jitted module forces into @llvm.compiler.used (via its
+// __attribute__((used)) definition). Demoting it means it must also be stripped
+// from that list -- a declaration there fails the IR verifier -- exercising the
+// used-list rewrite. The library exports a strong copy for the JIT to bind.
+extern "C" TESTSHAREDLIB_API int g_used_singleton;
+extern "C" TESTSHAREDLIB_API void* g_used_singleton_addr();
+extern "C" TESTSHAREDLIB_API int g_used_singleton_value();
+
 #endif // UNITTESTS_CPPINTEROP_TESTSHAREDLIB_TESTSHAREDLIB_H
