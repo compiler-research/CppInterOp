@@ -377,7 +377,9 @@ public:
     if (!PTU)
       return PTU.takeError();
     if (PTU->TheModule) {
-#ifndef _WIN32
+      // WORKAROUND: see bindProcessWeakGlobals in Compatibility.h -- remove
+      // with the pass once the clang JIT fix lands.
+#if !defined(_WIN32) && CPPINTEROP_WORKAROUND_BIND_PROCESS_WEAK_GLOBALS
       if (!outOfProcess)
         compat::bindProcessWeakGlobals(*PTU->TheModule);
 #endif
@@ -479,7 +481,9 @@ public:
     if (PTU)
       *PTU = &*PTUOrErr;
 
-#ifndef _WIN32
+      // WORKAROUND: see bindProcessWeakGlobals in Compatibility.h -- remove
+      // with the pass once the clang JIT fix lands.
+#if !defined(_WIN32) && CPPINTEROP_WORKAROUND_BIND_PROCESS_WEAK_GLOBALS
     if (PTUOrErr->TheModule && !outOfProcess)
       compat::bindProcessWeakGlobals(*PTUOrErr->TheModule);
 #endif
