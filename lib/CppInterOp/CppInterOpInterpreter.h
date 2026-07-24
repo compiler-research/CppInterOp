@@ -368,7 +368,23 @@ public:
   }
 
   llvm::Error ParseAndExecute(llvm::StringRef Code, clang::Value* V = nullptr) {
-    return inner->ParseAndExecute(Code, V);
+    // Value-returning execution keeps clang's LastValue handling (private to
+    // clang::Interpreter), so delegate. The no-value path -- used by wrapper
+    // compilation -- is split so the module can be sanitized before Execute.
+    if (V)
+      return inner->ParseAndExecute(Code, V);
+    auto PTU = inner->Parse(Code);
+    if (!PTU)
+      return PTU.takeError();
+    if (PTU->TheModule) {
+#ifndef _WIN32
+      if (!outOfProcess)
+        compat::bindProcessWeakGlobals(*PTU->TheModule);
+#endif
+      if (llvm::Error Err = inner->Execute(*PTU))
+        return Err;
+    }
+    return llvm::Error::success();
   }
 
   llvm::Error Undo(unsigned N = 1) { return compat::Undo(*inner, N); }
@@ -462,6 +478,11 @@ public:
 
     if (PTU)
       *PTU = &*PTUOrErr;
+
+#ifndef _WIN32
+    if (PTUOrErr->TheModule && !outOfProcess)
+      compat::bindProcessWeakGlobals(*PTUOrErr->TheModule);
+#endif
 
     if (auto Err = Execute(*PTUOrErr)) {
       llvm::logAllUnhandledErrors(std::move(Err), llvm::errs(),

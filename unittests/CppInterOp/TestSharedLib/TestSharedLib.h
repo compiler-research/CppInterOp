@@ -23,4 +23,25 @@ struct TESTSHAREDLIB_API OverlayBase {
 
 extern "C" TESTSHAREDLIB_API int OverlayDispatchOnce(OverlayBase* b, int x);
 
+// Header-*defined* singleton state, in the two shapes that compile to weak
+// globals: a function-local static in an inline function and a C++17 inline
+// static data member. TestSharedLib.cpp compiles an AOT copy of both (the
+// accessors below); jitted code that repeats these definitions must bind the
+// library's copies rather than materialize duplicates.
+struct TESTSHAREDLIB_API SingletonFixture {
+  static SingletonFixture& get() {
+    static SingletonFixture instance;
+    return instance;
+  }
+
+  static inline int s_inline_member = 0;
+
+  int value = 0;
+};
+
+extern "C" TESTSHAREDLIB_API void* singleton_fixture_meyers_addr();
+extern "C" TESTSHAREDLIB_API int singleton_fixture_meyers_value();
+extern "C" TESTSHAREDLIB_API void* singleton_fixture_member_addr();
+extern "C" TESTSHAREDLIB_API int singleton_fixture_member_value();
+
 #endif // UNITTESTS_CPPINTEROP_TESTSHAREDLIB_TESTSHAREDLIB_H
