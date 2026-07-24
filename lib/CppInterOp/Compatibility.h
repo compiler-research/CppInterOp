@@ -608,6 +608,17 @@ inline void maybeMangleDeclName(const clang::GlobalDecl& GD,
 // ===========================================================================
 // Bind weak globals the process already defines (in-process JIT).
 //
+// WORKAROUND: this compensates for a deficiency in clang's in-process JIT
+// (clang-repl / ORC in clang::Interpreter), which does not demote weak
+// definitions the surrounding process already exports and so ends up with a
+// second copy. The demotion policy belongs in clang's Interpreter, where it
+// covers every embedder rather than only CppInterOp; that is tracked upstream
+// by llvm/llvm-project#211786. This pass and its guarded call sites are a
+// stopgap and should be deleted once the upstream fix lands and the minimum
+// supported clang carries it -- at which point the toggle below becomes a
+// `CLANG_VERSION_MAJOR` guard that compiles the workaround out, and then it
+// is removed entirely.
+//
 // A singleton *defined* in a header -- a function-local static in an inline
 // function (Meyers) or a C++17 inline static data member -- compiles to a
 // weak/linkonce_odr global variable. When jitted code includes such a header,
@@ -631,6 +642,13 @@ inline void maybeMangleDeclName(const clang::GlobalDecl& GD,
 // -- jitted code may legitimately carry its own copies of inline functions.
 // ELF and in-process only (the probe is the process's own dlsym).
 // ===========================================================================
+//
+// Single toggle for the whole workaround (definition + call sites). Once the
+// landing clang version V is known, replace the `1` with
+// `(CLANG_VERSION_MAJOR < V)` so it compiles out automatically, then delete it
+// once V is the minimum supported clang.
+#define CPPINTEROP_WORKAROUND_BIND_PROCESS_WEAK_GLOBALS 1
+#if CPPINTEROP_WORKAROUND_BIND_PROCESS_WEAK_GLOBALS
 inline bool bindProcessWeakGlobals(llvm::Module& M) {
   if (!llvm::Triple(M.getTargetTriple()).isOSBinFormatELF())
     return false;
@@ -703,7 +721,8 @@ inline bool bindProcessWeakGlobals(llvm::Module& M) {
   }
   return true;
 }
-#endif
+#endif // CPPINTEROP_WORKAROUND_BIND_PROCESS_WEAK_GLOBALS
+#endif // !_WIN32
 
 // Clang 18 - Add new Interpreter methods: CodeComplete
 
