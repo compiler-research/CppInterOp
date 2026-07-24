@@ -59,6 +59,7 @@
 #include "clang/Basic/CharInfo.h"
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/DiagnosticSema.h"
+#include "clang/Basic/LLVM.h"
 #include "clang/Basic/LangStandard.h"
 #include "clang/Basic/Linkage.h"
 #include "clang/Basic/OperatorKinds.h"
@@ -400,6 +401,91 @@ static void ForceCodeGen(Decl* D, compat::Interpreter& I) {
     llvm::logAllUnhandledErrors(std::move(Err), llvm::errs(),
                                 "[ForceCodeGen] Failed to execute PTU:");
 #endif
+}
+
+// Force emission of a variable's definition by synthesizing an odr-use of
+// it, instead of ForceCodeGen's UsedAttr route. The UsedAttr route records
+// the emitted global in codegen's llvm.used list as a weak handle; the
+// handle can go null (global deleted) before a later incremental PTU's
+// emitUsed runs, and release-built clang dereferences it without checking —
+// a process crash that accumulates with interpreter state rather than
+// tracing to any one declaration. The odr-use anchor is a dummy global
+// initialized with the variable's address, built directly through Sema (the
+// AST that parsing "&var" would produce — no source-text round-trip), so
+// the definition flows through the regular deferred-decl path and leaves no
+// used-list residue. Returns false when the odr-use cannot be built — the
+// caller falls back to ForceCodeGen.
+// FIXME: Remove the synthesized-anchor mechanism once clang grows a direct
+// interpreter emission API for a GlobalDecl (the emitUsed hardening it
+// depends on landed via llvm/llvm-project#210959):
+#if CLANG_VERSION_MAJOR >= 24
+#warning "Revisit EmitVariableViaOdrUse: a direct-emission API may exist now"
+#endif
+static bool EmitVariableViaOdrUse(compat::Interpreter& I, VarDecl* VD) {
+  // A reference cannot conjure a definition that does not exist: the dummy
+  // would carry an unresolvable symbol into the JIT (Emscripten's dynamic
+  // loader rejects the whole module over it, and the stale entry then
+  // breaks every later load in the process). The UsedAttr fallback defers
+  // harmlessly for definition-less declarations.
+  VarDecl* Def = VD->getDefinition();
+  if (!Def)
+    return false;
+
+  Sema& S = I.getCI()->getSema();
+  ASTContext& C = S.getASTContext();
+
+  // Open the synthesizing region before ANY Sema work: odr-use marking in
+  // BuildDeclRefExpr can trigger an immediate static-member instantiation,
+  // and cling's DeclCollector aborts on instantiation callbacks that arrive
+  // outside an active transaction. (Inert under clang-repl — TODO destructor
+  // in Compatibility.h.)
+  compat::SynthesizingCodeRAII RAII(&I);
+
+  // Build '&VD' the way the parser would; the address-of marks Def
+  // odr-used, which is what schedules the deferred definition.
+  ExprResult Ref = S.BuildDeclRefExpr(Def, Def->getType().getNonReferenceType(),
+                                      VK_LValue, SourceLocation());
+  if (Ref.isInvalid())
+    return false;
+  ExprResult AddrOf =
+      S.CreateBuiltinUnaryOp(SourceLocation(), UO_AddrOf, Ref.get());
+  if (AddrOf.isInvalid())
+    return false;
+
+  // Anchor the odr-use in an external-linkage dummy the JIT must emit; the
+  // initializer's implicit conversion to 'const void*' is Sema-checked, so
+  // exotic types fail over to the fallback instead of asserting.
+  // FIXME: The synthesized nodes are parked in the TU for the rest of the
+  // session; move them under a scratch area whose AST nodes get deallocated
+  // after emission.
+  std::string DummyName = "__cppinterop_odr_use_v" +
+                          std::to_string(getInterpInfo(&I).OdrUseCounter++);
+  QualType Ty = C.getPointerType(C.VoidTy.withConst());
+  TranslationUnitDecl* TU = C.getTranslationUnitDecl();
+  VarDecl* Dummy = VarDecl::Create(C, TU, SourceLocation(), SourceLocation(),
+                                   &C.Idents.get(DummyName), Ty,
+                                   C.getTrivialTypeSourceInfo(Ty), SC_None);
+  S.AddInitializerToDecl(Dummy, AddrOf.get(), /*DirectInit=*/false);
+  if (Dummy->isInvalidDecl())
+    return false;
+  TU->addDecl(Dummy);
+
+  // Under cling the RAII's transaction commit (at scope exit) triggers
+  // emission of everything collected above plus this dummy.
+  I.getCI()->getASTConsumer().HandleTopLevelDecl(DeclGroupRef(Dummy));
+#ifndef CPPINTEROP_USE_CLING
+  // FIXME: Parsing an empty string is the only way to flush incremental
+  // CodeGen for a decl handed straight to the consumer — the state-reset
+  // bug SynthesizingCodeRAII's clang-repl destructor should eventually
+  // own. Drop this when it does.
+  auto GeneratedPTU = I.Parse("");
+  if (llvm::Error Err =
+          !GeneratedPTU ? GeneratedPTU.takeError() : I.Execute(*GeneratedPTU)) {
+    llvm::consumeError(std::move(Err));
+    return false;
+  }
+#endif
+  return true;
 }
 
 #define DEBUG_TYPE "jitcall"
@@ -2806,7 +2892,14 @@ intptr_t GetVariableOffset(compat::Interpreter& I, Decl* D,
     }
     if (!address) {
       auto Linkage = C.GetGVALinkageForVariable(VD);
-      if (isDiscardableGVALinkage(Linkage))
+      // Odr-use emission only for discardable-ODR entities (inline/constexpr
+      // statics) — the class the used-list crash traced to. Internal-linkage
+      // variables cannot be odr-used from a later PTU (module-local symbol:
+      // the reference duplicates or misses the entity), and an
+      // available-externally definition would not be emitted by a mere
+      // reference; both stay on the stock UsedAttr path.
+      if (isDiscardableGVALinkage(Linkage) &&
+          (Linkage != GVA_DiscardableODR || !EmitVariableViaOdrUse(I, VD)))
         ForceCodeGen(VD, I);
     }
     auto VDAorErr = compat::getSymbolAddress(I, StringRef(mangledName));
@@ -4989,7 +5082,7 @@ protected:
 };
 } // namespace
 
-int Declare(compat::Interpreter& I, const char* code, bool silent) {
+static int Declare(compat::Interpreter& I, const char* code, bool silent) {
   // Trap diagnostics on both paths: I.declare's rc is 0 even when
   // Parse recovered from emitted errors, so callers need the trap to
   // distinguish "parsed cleanly" from "parsed with errors".
