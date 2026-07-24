@@ -16,3 +16,13 @@ void* singleton_fixture_member_addr() {
 int singleton_fixture_member_value() {
   return SingletonFixture::s_inline_member;
 }
+
+DynamicInitSingleton::DynamicInitSingleton() : value(7) {}
+void* dynamic_singleton_addr() { return &DynamicInitSingleton::get(); }
+int dynamic_singleton_value() { return DynamicInitSingleton::get().value; }
+
+// Mutable on purpose: the JIT-side copy is the demotion target under test.
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
+int g_used_singleton = 0;
+void* g_used_singleton_addr() { return &g_used_singleton; }
+int g_used_singleton_value() { return g_used_singleton; }
