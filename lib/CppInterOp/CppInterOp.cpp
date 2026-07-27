@@ -1820,17 +1820,45 @@ AllocType GetAllocType(ConstFuncRef Fn) {
   return INTEROP_RETURN(AllocType::None);
 }
 
+static bool AnalyzeDeallocType(
+    const clang::FunctionDecl* FD, std::vector<DeallocType>& valPerParam,
+    std::unordered_map<const FunctionDecl*,
+                       std::optional<std::vector<DeallocType>>>& visitedFuncs);
 namespace {
 struct DeallocationTraverser : RecursiveASTVisitor<DeallocationTraverser> {
   std::unordered_map<const clang::VarDecl*, const clang::ParmVarDecl*> aliasMap;
   std::set<const clang::ParmVarDecl*> overwritenParms;
-  std::vector<DeallocType>& VPP;
-  DeallocationTraverser(std::vector<DeallocType>& v) : VPP(v) {}
+  std::vector<DeallocType>& valPerParam;
+  std::unordered_map<const FunctionDecl*,
+                     std::optional<std::vector<DeallocType>>>& visitedFuncs;
+  DeallocationTraverser(
+      std::vector<DeallocType>& v,
+      std::unordered_map<const FunctionDecl*,
+                         std::optional<std::vector<DeallocType>>>& cache)
+      : valPerParam(v), visitedFuncs(cache) {}
 
+  // Do not analyze lambda functions' bodies.
+  bool TraverseLambdaExpr(clang::LambdaExpr*) { return true; }
+
+  // Do not analyze inside of TagDecls(structs/unions/class)
   bool TraverseDecl(clang::Decl* D) {
-    if (D && llvm::isa<clang::TagDecl>(D))
+    if (llvm::isa_and_nonnull<clang::TagDecl>(D))
       return true;
     return RecursiveASTVisitor::TraverseDecl(D);
+  }
+
+  // recursiveVec is VPP of callee
+  void joinVectors(std::vector<DeallocType>& recursiveVec,
+                   clang::CallExpr* CE) {
+    for (unsigned i = 0; i < recursiveVec.size() && i < CE->getNumArgs(); i++) {
+      if (recursiveVec[i] == DeallocType::None ||
+          recursiveVec[i] == DeallocType::Opaque)
+        continue;
+      const clang::ParmVarDecl* PVD = resolveParam(CE->getArg(i));
+      if (!PVD)
+        continue;
+      updateVPP(PVD->getFunctionScopeIndex(), recursiveVec[i]);
+    }
   }
 
   bool VisitVarDecl(clang::VarDecl* VD) {
@@ -1855,14 +1883,18 @@ struct DeallocationTraverser : RecursiveASTVisitor<DeallocationTraverser> {
     if (!PVR)
       return true;
     if (CDE->isArrayForm()) {
-      updateVPP(PVR->getFunctionScopeIndex(), DeallocType::DelArr);
+      updateVPP(PVR->getFunctionScopeIndex(), DeallocType::DeleteArr);
       return true;
     }
-    updateVPP(PVR->getFunctionScopeIndex(), DeallocType::Del);
+    updateVPP(PVR->getFunctionScopeIndex(), DeallocType::Delete);
     return true;
   }
 
   bool VisitCallExpr(clang::CallExpr* CE) {
+    // FIXME: for some operators, arg and parameter match may not match because
+    // of hidden __this__ parameter
+    if (llvm::isa<clang::CXXOperatorCallExpr>(CE))
+      return true;
     const clang::FunctionDecl* FD = CE->getDirectCallee();
     if (!FD)
       return true;
@@ -1870,9 +1902,20 @@ struct DeallocationTraverser : RecursiveASTVisitor<DeallocationTraverser> {
       handleFree(CE);
       return true;
     }
-    if (!FD->getReturnType()->isVoidType())
-      return true;
+
     // FIXME: Recursive Case
+    auto it = visitedFuncs.find(FD);
+    if (it != visitedFuncs.end()) {
+      // Function calls itself, or a cycle recursion
+      if (it->second == std::nullopt)
+        return true;
+      joinVectors(*(it->second), CE);
+      return true;
+    }
+    std::vector<DeallocType> calleeVec;
+    visitedFuncs[FD] = std::nullopt;
+    AnalyzeDeallocType(FD, calleeVec, visitedFuncs);
+    joinVectors(calleeVec, CE);
     return true;
   }
 
@@ -1895,8 +1938,7 @@ struct DeallocationTraverser : RecursiveASTVisitor<DeallocationTraverser> {
   void updateMap(const clang::VarDecl* VD, const clang::Expr* E) {
     if (!VD)
       return;
-
-    if (!VD->getType()->isPointerType())
+    if (!VD->getType()->isPointerType() && !VD->getType()->isRecordType())
       return;
     if (const auto* PVD = dyn_cast<clang::ParmVarDecl>(VD)) {
       overwritenParms.insert(PVD);
@@ -1929,15 +1971,17 @@ struct DeallocationTraverser : RecursiveASTVisitor<DeallocationTraverser> {
   }
 
   void updateVPP(unsigned index, DeallocType DT) {
-    if (index >= VPP.size())
+    if (index >= valPerParam.size())
       return;
-    if (VPP[index] == DeallocType::Unknown)
+    if (valPerParam[index] == DeallocType::Unknown)
       return;
-    if (VPP[index] != DeallocType::None && VPP[index] != DT) {
-      VPP[index] = DeallocType::Unknown;
+    if (DT == DeallocType::Opaque)
+      return;
+    if (valPerParam[index] != DeallocType::None && valPerParam[index] != DT) {
+      valPerParam[index] = DeallocType::Unknown;
       return;
     }
-    VPP[index] = DT;
+    valPerParam[index] = DT;
   }
 
   void handleFree(clang::CallExpr* CE) {
@@ -1960,30 +2004,32 @@ struct DeallocationTraverser : RecursiveASTVisitor<DeallocationTraverser> {
     const auto* VD = dyn_cast<clang::VarDecl>(DRE->getDecl());
     return VD;
   }
-
-  bool shouldVisitLambdaBody() const { return false; }
 };
 } // namespace
 
-static void AnalyzeDeallocType(const clang::FunctionDecl* FD,
-                               std::vector<DeallocType>& valPerParam) {
+static bool AnalyzeDeallocType(
+    const clang::FunctionDecl* FD, std::vector<DeallocType>& valPerParam,
+    std::unordered_map<const FunctionDecl*,
+                       std::optional<std::vector<DeallocType>>>& visitedFuncs) {
   const unsigned int numParam = FD->getNumParams();
-  valPerParam.assign(numParam, DeallocType::None);
   const auto* S = FD->getBody();
   if (!S) {
-    for (unsigned i = 0; i < numParam; i++)
-      valPerParam[i] = DeallocType::Unknown;
-    return;
+    valPerParam.assign(numParam, DeallocType::Opaque);
+    visitedFuncs[FD] = valPerParam;
+    return false;
   }
   const auto* CmpStmt = dyn_cast<CompoundStmt>(S);
   if (!CmpStmt) {
     // FIXME: try catch block are not handled
-    for (unsigned i = 0; i < numParam; i++)
-      valPerParam[i] = DeallocType::Unknown;
-    return;
+    valPerParam.assign(numParam, DeallocType::Opaque);
+    visitedFuncs[FD] = valPerParam;
+    return false;
   }
-  DeallocationTraverser Traverser(valPerParam);
+  valPerParam.assign(numParam, DeallocType::None);
+  DeallocationTraverser Traverser(valPerParam, visitedFuncs);
   Traverser.TraverseStmt(const_cast<CompoundStmt*>(CmpStmt));
+  visitedFuncs[FD] = valPerParam;
+  return true;
 }
 
 bool GetDeallocType(ConstFuncRef Fn, std::vector<DeallocType>& valPerParam) {
@@ -1995,8 +2041,11 @@ bool GetDeallocType(ConstFuncRef Fn, std::vector<DeallocType>& valPerParam) {
   const auto* FD = dyn_cast<clang::FunctionDecl>(D);
   if (!FD)
     return INTEROP_RETURN(false);
-  AnalyzeDeallocType(FD, valPerParam);
-  return INTEROP_RETURN(true);
+  std::unordered_map<const FunctionDecl*,
+                     std::optional<std::vector<DeallocType>>>
+      visitedFuncs;
+  visitedFuncs[FD] = std::nullopt;
+  return INTEROP_RETURN(AnalyzeDeallocType(FD, valPerParam, visitedFuncs));
 }
 
 void GetFnTypeSignature(ConstTypeRef fn_type, std::vector<TypeRef>& sig) {

@@ -868,7 +868,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetDeallocType) {
       if(x<0)
         delete[] p;
       if(x==0)
-        delete p;
+        free(p);
       else
         delete p;
     }
@@ -904,6 +904,108 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetDeallocType) {
     void func23(int* p){ if(p == nullptr) return; delete p; }
 
     void func24(int* p, int* q){ q = p; delete q; }
+
+    void func25(int* ptr){ func0(ptr); }
+
+    void func26(int* ptr1, int* ptr2){ func2(ptr1); func1(ptr2); }
+
+    void func27(int* ptr1, int* ptr2){ func0(ptr1); func6(ptr2); }
+
+    void func28(int* ptr1, int* ptr2){
+      int* tmp1 = ptr1;
+      func0(tmp1);
+      int* tmp2 = ptr2;
+      func23(tmp2);
+    }
+
+    void func29(int* ptr, int n){
+      if(n > 0)
+        func29(ptr, n-1);
+      delete ptr;
+    }
+
+    void func31(int* ptr, int n);
+    void func32(int* ptr, int n);
+    void func30(int* ptr, int n){
+      func31(ptr, n);
+    }
+
+    void func31(int* ptr, int n){
+      func32(ptr, n-1);
+    }
+
+    void func32(int* ptr, int n){
+      if(n > 0)
+        func30(ptr, n-1);
+      delete ptr;
+    }
+
+    // FIXME: Can not resolve parameter location in recursive call
+    // Probably impossible to solve statically
+    void func33(int* ptr1, int* ptr2, int n){
+      if(n > 0)
+        func33(ptr2, ptr1, n-1);
+      delete ptr1;
+    }
+
+    void func34(int* ptr1, int* ptr2){
+      delete ptr1;
+    }
+
+    void func35(int* ptr1, int* ptr2){
+      func34(ptr2, ptr1);
+    }
+
+    void func36(int* ptr1, int* ptr2){
+      func25(ptr1);
+      func0(ptr2);
+    }
+
+    void func37(int* ptr){
+      helper20(ptr);
+      delete ptr;
+    }
+
+    void func38(int* ptr){
+      delete ptr;
+      helper20(ptr);
+    }
+
+    void func39(int* ptr){
+      ptr = nullptr;
+      func0(ptr);
+    }
+
+    void func40(int* ptr, int n){
+      if(n > 0)
+        func0(ptr);
+      else
+        func2(ptr);
+    }
+
+    struct Klass {
+      void operator=(int* q){
+        delete q;
+      }
+    };
+    void func41(int* p, Klass& K){
+      K = p;
+    }
+
+    void func42(int* ptr){ auto l = [&]{ delete ptr; }; }
+
+    void func43(int* ptr){
+      ptr = nullptr;
+      int* x = ptr;
+      delete x;
+    }
+
+    void func44(int* ptr){ func8(ptr, true); }
+
+    void func45(int* ptr){
+      struct S { void g(int* q){ delete q; } };
+      delete ptr;
+    }
   )";
   TestFixture::CreateInterpreter();
   Interp->declare(code);
@@ -918,30 +1020,53 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetDeallocType) {
     EXPECT_EQ(result, (std::vector<Cpp::DeallocType>{__VA_ARGS__}));           \
   }
 
-  TESTGDT(0, true, DT::Del);
-  TESTGDT(1, true, DT::DelArr);
+  TESTGDT(0, true, DT::Delete);
+  TESTGDT(1, true, DT::DeleteArr);
   TESTGDT(2, true, DT::Free);
-  TESTGDT(3, true, DT::None, DT::Del);
-  TESTGDT(4, true, DT::Del);
-  TESTGDT(5, true, DT::Del);
+  TESTGDT(3, true, DT::None, DT::Delete);
+  TESTGDT(4, true, DT::Delete);
+  TESTGDT(5, true, DT::Delete);
   TESTGDT(6, true, DT::None);
-  TESTGDT(7, true, DT::Del);
+  TESTGDT(7, true, DT::Delete);
   TESTGDT(8, true, DT::Unknown, DT::None);
-  TESTGDT(9, true, DT::Del, DT::None);
+  TESTGDT(9, true, DT::Delete, DT::None);
   TESTGDT(10, true, DT::Unknown, DT::None);
-  TESTGDT(11, true, DT::Unknown);
-  TESTGDT(12, true, DT::Unknown);
+  TESTGDT(11, false, DT::Opaque);
+  TESTGDT(12, false, DT::Opaque);
   TESTGDT(13, true, DT::None);
-  TESTGDT(15, true, DT::Del);
+  TESTGDT(15, true, DT::Delete);
   TESTGDT(16, true, DT::None);
   TESTGDT(17, true, DT::None);
   TESTGDT(18, true, DT::None, DT::None);
   TESTGDT(19, true, DT::None);
   TESTGDT(20, true, DT::None);
-  TESTGDT(21, true, DT::Del);
-  TESTGDT(22, true, DT::Del);
-  TESTGDT(23, true, DT::Del);
+  TESTGDT(21, true, DT::Delete);
+  TESTGDT(22, true, DT::Delete);
+  TESTGDT(23, true, DT::Delete);
   TESTGDT(24, true, DT::None, DT::None);
+  TESTGDT(25, true, DT::Delete);
+  TESTGDT(26, true, DT::Free, DT::DeleteArr);
+  TESTGDT(27, true, DT::Delete, DT::None);
+  TESTGDT(28, true, DT::Delete, DT::Delete);
+  TESTGDT(29, true, DT::Delete, DT::None);
+  TESTGDT(30, true, DT::Delete, DT::None);
+  TESTGDT(31, true, DT::Delete, DT::None);
+  TESTGDT(32, true, DT::Delete, DT::None);
+  TESTGDT(33, true, DT::Delete, DT::None, DT::None);
+  TESTGDT(34, true, DT::Delete, DT::None);
+  TESTGDT(35, true, DT::None, DT::Delete);
+  TESTGDT(36, true, DT::Delete, DT::Delete);
+  TESTGDT(37, true, DT::Delete);
+  TESTGDT(38, true, DT::Delete);
+  TESTGDT(39, true, DT::None);
+  TESTGDT(40, true, DT::Unknown, DT::None);
+  // FIXME: check top of VisitCallExpr function
+  TESTGDT(41, true, DT::None, DT::None);
+  TESTGDT(42, true, DT::None);
+  TESTGDT(43, true, DT::None);
+  TESTGDT(44, true, DT::Unknown);
+  TESTGDT(45, true, DT::Delete);
+
 #undef TESTGDT
 
   {
