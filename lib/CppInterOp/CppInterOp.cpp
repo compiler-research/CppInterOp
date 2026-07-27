@@ -1992,6 +1992,10 @@ static bool AnalyzeDeallocType(
     const clang::FunctionDecl* FD, std::vector<DeallocType>& valPerParam,
     std::unordered_map<const FunctionDecl*,
                        std::optional<std::vector<DeallocType>>>& visitedFuncs);
+static bool AnalyzeDeallocType(
+    const clang::FunctionDecl* FD, std::vector<DeallocType>& valPerParam,
+    std::unordered_map<const FunctionDecl*,
+                       std::optional<std::vector<DeallocType>>>& visitedFuncs);
 namespace {
 struct DeallocationTraverser : RecursiveASTVisitor<DeallocationTraverser> {
   std::unordered_map<const clang::VarDecl*, const clang::ParmVarDecl*> aliasMap;
