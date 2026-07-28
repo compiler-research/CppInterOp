@@ -1222,6 +1222,60 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_InstantiateNNTPClassTemplate) {
   EXPECT_TRUE(Cpp::InstantiateTemplate(Decls[0], args1));
 }
 
+TYPED_TEST(CPPINTEROP_TEST_MODE,
+           ScopeReflection_InstantiateTemplateNamedNTTPArg) {
+  std::vector<Decl*> Decls;
+  std::string code = R"(
+    template <int N> struct WithIntArg {};
+    template <const char* S> struct WithCharPtrArg {};
+    constexpr int IntVal = 42;
+    namespace Nested { constexpr int QualVal = 7; }
+    enum Colors { kRed = 1, kGreen = 2 };
+    constexpr char Greeting[] = "arg";
+  )";
+
+  GetAllTopLevelDecls(code, Decls);
+  ASTContext& C = Interp->getCI()->getASTContext();
+  Cpp::TypeRef IntTy = C.IntTy.getAsOpaquePtr();
+
+  // Non-numeric values name constant entities.
+  std::vector<Cpp::TemplateArgInfo> args1 = {{IntTy.data, "IntVal"}};
+  Cpp::DeclRef Inst1 = Cpp::InstantiateTemplate(Decls[0], args1);
+  EXPECT_TRUE(Inst1);
+  auto* CTSD1 = cast<ClassTemplateSpecializationDecl>(Cpp::unwrap<Decl>(Inst1));
+  EXPECT_EQ(CTSD1->getTemplateArgs()[0].getAsIntegral(), 42);
+
+  std::vector<Cpp::TemplateArgInfo> args2 = {{IntTy.data, "Nested::QualVal"}};
+  Cpp::DeclRef Inst2 = Cpp::InstantiateTemplate(Decls[0], args2);
+  EXPECT_TRUE(Inst2);
+  auto* CTSD2 = cast<ClassTemplateSpecializationDecl>(Cpp::unwrap<Decl>(Inst2));
+  EXPECT_EQ(CTSD2->getTemplateArgs()[0].getAsIntegral(), 7);
+
+  std::vector<Cpp::TemplateArgInfo> args3 = {{IntTy.data, "kGreen"}};
+  Cpp::DeclRef Inst3 = Cpp::InstantiateTemplate(Decls[0], args3);
+  EXPECT_TRUE(Inst3);
+  auto* CTSD3 = cast<ClassTemplateSpecializationDecl>(Cpp::unwrap<Decl>(Inst3));
+  EXPECT_EQ(CTSD3->getTemplateArgs()[0].getAsIntegral(), 2);
+
+  // Array-to-pointer decay; m_Type is unused for named arguments.
+  std::vector<Cpp::TemplateArgInfo> args4 = {{IntTy.data, "Greeting"}};
+  Cpp::DeclRef Inst4 = Cpp::InstantiateTemplate(Decls[1], args4);
+  EXPECT_TRUE(Inst4);
+
+  // Unknown names fail cleanly.
+  std::vector<Cpp::TemplateArgInfo> args5 = {{IntTy.data, "NoSuchName"}};
+  EXPECT_FALSE(Cpp::InstantiateTemplate(Decls[0], args5));
+
+  // A missing intermediate scope stops the "::" walk.
+  std::vector<Cpp::TemplateArgInfo> missing_scope = {
+      {IntTy.data, "NoSuchScope::QualVal"}};
+  EXPECT_FALSE(Cpp::InstantiateTemplate(Decls[0], missing_scope));
+
+  // A name that resolves to something other than a value is rejected.
+  std::vector<Cpp::TemplateArgInfo> not_a_value = {{IntTy.data, "Nested"}};
+  EXPECT_FALSE(Cpp::InstantiateTemplate(Decls[0], not_a_value));
+}
+
 TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_InstantiateVarTemplate) {
   std::vector<Decl*> Decls;
   std::string code = R"(
