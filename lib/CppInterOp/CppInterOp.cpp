@@ -2449,6 +2449,51 @@ bool GetClassTemplatedMethods(const std::string& name, ConstDeclRef parent,
   return INTEROP_RETURN(!funcs.empty());
 }
 
+// "::" walk via GetNamed; unlike GetScopeFromCompleteName finds non-scope
+// decls.
+static Decl* GetNamedFromCompleteName(const std::string& name) {
+  DeclRef curr = nullptr;
+  size_t start = 0;
+  for (size_t end = name.find("::"); end != std::string::npos;
+       start = end + 2, end = name.find("::", start)) {
+    curr = GetNamed(name.substr(start, end - start), curr);
+    if (!curr)
+      return nullptr;
+  }
+  return unwrap<Decl>(GetNamed(name.substr(start), curr));
+}
+
+// TemplateArgInfo -> TemplateArgument; a non-numeric value names a constant
+// entity, referenced so Sema converts it like a written argument.
+static std::optional<TemplateArgument>
+InfoToTemplateArgument(Sema& S, const TemplateArgInfo& Info) {
+  QualType ArgTy = QualType::getFromOpaquePtr(Info.m_Type);
+  if (!Info.m_IntegralValue)
+    return TemplateArgument(ArgTy);
+
+  llvm::StringRef Value(Info.m_IntegralValue);
+  llvm::StringRef Digits = Value;
+  (void)(Digits.consume_front("-") || Digits.consume_front("+"));
+  if (!Digits.empty() &&
+      Digits.find_first_not_of("0123456789") == llvm::StringRef::npos) {
+    auto Res = llvm::APSInt(Value);
+    Res = Res.extOrTrunc(S.getASTContext().getIntWidth(ArgTy));
+    return TemplateArgument(S.getASTContext(), Res, ArgTy);
+  }
+
+  auto* VD =
+      llvm::dyn_cast_or_null<ValueDecl>(GetNamedFromCompleteName(Value.str()));
+  if (!VD)
+    return std::nullopt;
+  // Enum constants are prvalues; lvalue kind breaks constant evaluation.
+  ExprValueKind VK = llvm::isa<EnumConstantDecl>(VD) ? VK_PRValue : VK_LValue;
+  Expr* Ref = S.BuildDeclRefExpr(VD, VD->getType().getNonReferenceType(), VK,
+                                 GetValidSLoc(S));
+  if (!Ref)
+    return std::nullopt;
+  return TemplateArgument(Ref, /*IsCanonical=*/false);
+}
+
 // Adapted from inner workings of Sema::BuildCallExpr
 FuncRef
 BestOverloadFunctionMatch(const std::vector<FuncRef>& candidates,
@@ -2489,17 +2534,12 @@ BestOverloadFunctionMatch(const std::vector<FuncRef>& candidates,
   // Create a list of template arguments.
   llvm::SmallVector<TemplateArgument> TemplateArgs;
   TemplateArgs.reserve(explicit_types.size());
-  for (auto explicit_type : explicit_types) {
-    QualType ArgTy = QualType::getFromOpaquePtr(explicit_type.m_Type);
-    if (explicit_type.m_IntegralValue) {
-      // We have a non-TyRef template parameter. Create an integral value from
-      // the string representation.
-      auto Res = llvm::APSInt(explicit_type.m_IntegralValue);
-      Res = Res.extOrTrunc(C.getIntWidth(ArgTy));
-      TemplateArgs.push_back(TemplateArgument(C, Res, ArgTy));
-    } else {
-      TemplateArgs.push_back(ArgTy);
-    }
+  for (const auto& explicit_type : explicit_types) {
+    std::optional<TemplateArgument> TA =
+        InfoToTemplateArgument(S, explicit_type);
+    if (!TA)
+      return nullptr;
+    TemplateArgs.push_back(*TA);
   }
 
   TemplateArgumentListInfo ExplicitTemplateArgs{};
@@ -5773,21 +5813,15 @@ DeclRef InstantiateTemplate(compat::Interpreter& I, DeclRef tmpl,
                             const TemplateArgInfo* template_args,
                             size_t template_args_size, bool instantiate_body) {
   auto& S = I.getSema();
-  auto& C = S.getASTContext();
 
   llvm::SmallVector<TemplateArgument> TemplateArgs;
   TemplateArgs.reserve(template_args_size);
   for (size_t i = 0; i < template_args_size; ++i) {
-    QualType ArgTy = QualType::getFromOpaquePtr(template_args[i].m_Type);
-    if (template_args[i].m_IntegralValue) {
-      // We have a non-TyRef template parameter. Create an integral value from
-      // the string representation.
-      auto Res = llvm::APSInt(template_args[i].m_IntegralValue);
-      Res = Res.extOrTrunc(C.getIntWidth(ArgTy));
-      TemplateArgs.push_back(TemplateArgument(C, Res, ArgTy));
-    } else {
-      TemplateArgs.push_back(ArgTy);
-    }
+    std::optional<TemplateArgument> TA =
+        InfoToTemplateArgument(S, template_args[i]);
+    if (!TA)
+      return nullptr;
+    TemplateArgs.push_back(*TA);
   }
 
   auto* TmplD = unwrap<TemplateDecl>(tmpl);
