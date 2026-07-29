@@ -853,7 +853,7 @@ bool IsEnumConstant(ConstDeclRef DRef) {
 bool IsEnumType(ConstTypeRef TyRef) {
   INTEROP_TRACE(TyRef);
   QualType QT = QualType::getFromOpaquePtr(TyRef.data);
-  return INTEROP_RETURN(QT->isEnumeralType());
+  return INTEROP_RETURN(!QT.isNull() && QT->isEnumeralType());
 }
 
 static bool isSmartPointer(const RecordType* RT) {
@@ -2593,21 +2593,27 @@ static Decl* GetNamedFromCompleteName(const std::string& name) {
 static std::optional<TemplateArgument>
 InfoToTemplateArgument(Sema& S, const TemplateArgInfo& Info) {
   QualType ArgTy = QualType::getFromOpaquePtr(Info.m_Type);
-  if (!Info.m_IntegralValue)
+  if (!Info.m_IntegralValue) {
+    if (ArgTy.isNull())
+      return std::nullopt;
     return TemplateArgument(ArgTy);
+  }
 
   llvm::StringRef Value(Info.m_IntegralValue);
   llvm::StringRef Digits = Value;
   (void)(Digits.consume_front("-") || Digits.consume_front("+"));
-  if (!Digits.empty() &&
+  if (!ArgTy.isNull() && !Digits.empty() &&
       Digits.find_first_not_of("0123456789") == llvm::StringRef::npos) {
     auto Res = llvm::APSInt(Value);
     Res = Res.extOrTrunc(S.getASTContext().getIntWidth(ArgTy));
     return TemplateArgument(S.getASTContext(), Res, ArgTy);
   }
 
-  auto* VD =
-      llvm::dyn_cast_or_null<ValueDecl>(GetNamedFromCompleteName(Value.str()));
+  Decl* Named = GetNamedFromCompleteName(Value.str());
+  // Class/alias template: a template-template argument.
+  if (auto* TD = llvm::dyn_cast_or_null<TemplateDecl>(Named))
+    return TemplateArgument(TemplateName(TD));
+  auto* VD = llvm::dyn_cast_or_null<ValueDecl>(Named);
   if (!VD)
     return std::nullopt;
   // Enum constants are prvalues; lvalue kind breaks constant evaluation.
