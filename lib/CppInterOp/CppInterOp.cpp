@@ -2645,8 +2645,7 @@ BestOverloadFunctionMatch(const std::vector<FuncRef>& candidates,
   struct WrapperExpr : public OpaqueValueExpr {
     WrapperExpr() : OpaqueValueExpr(clang::Stmt::EmptyShell()) {}
   };
-  // unique_ptr: the failed-template-arg path below returns early.
-  std::unique_ptr<WrapperExpr[]> Exprs(new WrapperExpr[arg_types.size()]);
+  std::vector<WrapperExpr> Exprs(arg_types.size());
   llvm::SmallVector<Expr*> Args;
   Args.reserve(arg_types.size());
   size_t idx = 0;
