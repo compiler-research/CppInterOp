@@ -1209,6 +1209,45 @@ TYPED_TEST(CPPINTEROP_TEST_MODE,
   // Unknown names fail cleanly.
   std::vector<Cpp::TemplateArgInfo> args5 = {{IntTy.data, "NoSuchName"}};
   EXPECT_FALSE(Cpp::InstantiateTemplate(Decls[0], args5));
+
+  // Negative literals stay on the numeric path.
+  std::vector<Cpp::TemplateArgInfo> args6 = {{IntTy.data, "-3"}};
+  Cpp::DeclRef Inst6 = Cpp::InstantiateTemplate(Decls[0], args6);
+  EXPECT_TRUE(Inst6);
+  auto* CTSD6 = cast<ClassTemplateSpecializationDecl>(Cpp::unwrap<Decl>(Inst6));
+  EXPECT_EQ(CTSD6->getTemplateArgs()[0].getAsIntegral(), -3);
+}
+
+TYPED_TEST(CPPINTEROP_TEST_MODE,
+           ScopeReflection_InstantiateTemplateTemplateArg) {
+  std::vector<Decl*> Decls;
+  std::string code = R"(
+    template <template <typename> typename TT> struct WithTemplateArg {};
+    template <typename T> struct PlainTmpl {};
+    namespace Nested { template <typename T> struct QualTmpl {}; }
+    template <typename T> using AliasTmpl = PlainTmpl<T>;
+  )";
+
+  GetAllTopLevelDecls(code, Decls);
+
+  // m_Type is null for template-template args; the name carries everything.
+  std::vector<Cpp::TemplateArgInfo> args1 = {{nullptr, "PlainTmpl"}};
+  Cpp::DeclRef Inst1 = Cpp::InstantiateTemplate(Decls[0], args1);
+  EXPECT_TRUE(Inst1);
+  auto* CTSD1 = cast<ClassTemplateSpecializationDecl>(Cpp::unwrap<Decl>(Inst1));
+  EXPECT_EQ(CTSD1->getTemplateArgs()[0].getKind(), TemplateArgument::Template);
+
+  std::vector<Cpp::TemplateArgInfo> args2 = {{nullptr, "Nested::QualTmpl"}};
+  EXPECT_TRUE(Cpp::InstantiateTemplate(Decls[0], args2));
+
+  std::vector<Cpp::TemplateArgInfo> args3 = {{nullptr, "AliasTmpl"}};
+  EXPECT_TRUE(Cpp::InstantiateTemplate(Decls[0], args3));
+
+  // Unknown template names fail cleanly, as does a null type with no value.
+  std::vector<Cpp::TemplateArgInfo> args4 = {{nullptr, "NoSuchTmpl"}};
+  EXPECT_FALSE(Cpp::InstantiateTemplate(Decls[0], args4));
+  std::vector<Cpp::TemplateArgInfo> args5 = {{nullptr, nullptr}};
+  EXPECT_FALSE(Cpp::InstantiateTemplate(Decls[0], args5));
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_InstantiateVarTemplate) {
