@@ -656,6 +656,25 @@ def GetAllCppNames : CppInterOpAPI {
   ];
 }
 
+def EnumerateTranslationUnitDecls : CppInterOpAPI {
+  let Doc = [{Collects every named declaration the interpreter has parsed, in
+declaration order.
+
+An incremental interpreter creates one TranslationUnitDecl per partial
+translation unit, so this walks the whole redeclaration chain; enumerating a
+single node would only report whichever partial unit that node belongs to.
+Declarations the compiler predefines (builtin types) are included like any
+other -- filter on GetDeclFile if only user declarations are wanted.
+Unnamed declarations (static_assert, file-scope asm) are skipped: they carry
+nothing to enumerate, and the name accessors are not defined on them.
+\param[out] Decls - the declarations found.}];
+
+  let ReturnType = "void";
+  let Args = [
+    OutArg<"std::vector<DeclRef>&", "Decls">
+  ];
+}
+
 def IsScopedEnum : CppInterOpAPI {
   let Doc = [{Checks whether an enum was declared with enum class or enum struct.
 Unscoped enums do not expose their constants the same way, so a caller has to
@@ -746,6 +765,30 @@ def GetTemplateParameterDefault : CppInterOpAPI {
 empty string when it has none.}];
 
   let ReturnType = "std::string";
+  let Args = [Arg<"ConstDeclRef", "DRef">];
+}
+
+def GetDeclFile : CppInterOpAPI {
+  let Doc = [{Gets the file a declaration was written in, or an empty string
+when it has no valid source location (compiler predefines).}];
+
+  let ReturnType = "std::string";
+  let Args = [Arg<"ConstDeclRef", "DRef">];
+}
+
+def GetDeclLine : CppInterOpAPI {
+  let Doc = [{Gets the 1-based line a declaration was written on, or 0 when it
+has no valid source location.}];
+
+  let ReturnType = "unsigned";
+  let Args = [Arg<"ConstDeclRef", "DRef">];
+}
+
+def IsInSystemHeader : CppInterOpAPI {
+  let Doc = [{Checks whether a declaration comes from a system header, that is
+one found through an -isystem path or marked with a system line directive.}];
+
+  let ReturnType = "bool";
   let Args = [Arg<"ConstDeclRef", "DRef">];
 }
 

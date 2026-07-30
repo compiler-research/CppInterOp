@@ -60,6 +60,7 @@
 #include "clang/Basic/CharInfo.h"
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/DiagnosticSema.h"
+#include "clang/Basic/FileEntry.h"
 #include "clang/Basic/LLVM.h"
 #include "clang/Basic/LangStandard.h"
 #include "clang/Basic/Linkage.h"
@@ -1101,6 +1102,43 @@ std::string GetDoxygenComment(ConstDeclRef DRef, bool strip_comment_markers) {
   return INTEROP_RETURN(RC->getFormattedText(SM, C.getDiagnostics()));
 }
 
+// Declarations users can name live inside namespaces, classes and language
+// linkage blocks, so descend through those. A linkage block is itself unnamed,
+// which is why it cannot simply be filtered out at the top level.
+static void collectNamedDecls(const clang::DeclContext* DC,
+                              std::vector<const clang::Decl*>& Out) {
+  for (const auto* D : DC->decls()) {
+    if (llvm::isa<clang::NamedDecl>(D))
+      Out.push_back(D);
+    if (llvm::isa<clang::NamespaceDecl>(D) ||
+        llvm::isa<clang::LinkageSpecDecl>(D) || llvm::isa<clang::RecordDecl>(D))
+      collectNamedDecls(llvm::cast<clang::DeclContext>(D), Out);
+  }
+}
+
+// Every partial translation unit the interpreter has parsed. An incremental
+// interpreter creates one TranslationUnitDecl per unit, so walk the whole
+// redeclaration chain rather than a single node.
+static void collectTranslationUnitDecls(std::vector<const clang::Decl*>& Out) {
+  const auto* TU = getSema().getASTContext().getTranslationUnitDecl();
+  for (const auto* R : TU->redecls())
+    collectNamedDecls(llvm::cast<clang::DeclContext>(R), Out);
+}
+
+void EnumerateTranslationUnitDecls(std::vector<DeclRef>& Decls) {
+  INTEROP_TRACE(INTEROP_OUT(Decls));
+
+  compat::SynthesizingCodeRAII RAII(&getInterp());
+
+  std::vector<const clang::Decl*> Found;
+  collectTranslationUnitDecls(Found);
+  Decls.reserve(Found.size());
+  for (const auto* D : Found)
+    Decls.push_back(const_cast<clang::Decl*>(D));
+
+  return INTEROP_VOID_RETURN();
+}
+
 bool IsScopedEnum(ConstDeclRef DRef) {
   INTEROP_TRACE(DRef);
   const auto* ED =
@@ -1235,6 +1273,50 @@ std::string GetTemplateParameterDefault(ConstDeclRef DRef) {
   Default->getArgument().print(D->getASTContext().getPrintingPolicy(), OS,
                                /*IncludeType=*/false);
   return INTEROP_RETURN(Spelling);
+}
+
+std::string GetDeclFile(ConstDeclRef DRef) {
+  INTEROP_TRACE(DRef);
+  const auto* D = unwrap<clang::Decl>(DRef);
+  if (!D)
+    return INTEROP_RETURN("");
+
+  clang::SourceLocation Loc = D->getLocation();
+  if (Loc.isInvalid())
+    return INTEROP_RETURN("");
+
+  const clang::SourceManager& SM = D->getASTContext().getSourceManager();
+  Loc = SM.getExpansionLoc(Loc);
+  clang::OptionalFileEntryRef FE = SM.getFileEntryRefForID(SM.getFileID(Loc));
+  if (!FE)
+    return INTEROP_RETURN("");
+
+  llvm::StringRef Real = FE->getFileEntry().tryGetRealPathName();
+  return INTEROP_RETURN((Real.empty() ? FE->getName() : Real).str());
+}
+
+unsigned GetDeclLine(ConstDeclRef DRef) {
+  INTEROP_TRACE(DRef);
+  const auto* D = unwrap<clang::Decl>(DRef);
+  if (!D)
+    return INTEROP_RETURN(0);
+
+  clang::SourceLocation Loc = D->getLocation();
+  if (Loc.isInvalid())
+    return INTEROP_RETURN(0);
+
+  const clang::SourceManager& SM = D->getASTContext().getSourceManager();
+  return INTEROP_RETURN(SM.getSpellingLineNumber(SM.getExpansionLoc(Loc)));
+}
+
+bool IsInSystemHeader(ConstDeclRef DRef) {
+  INTEROP_TRACE(DRef);
+  const auto* D = unwrap<clang::Decl>(DRef);
+  if (!D)
+    return INTEROP_RETURN(false);
+
+  const clang::SourceManager& SM = D->getASTContext().getSourceManager();
+  return INTEROP_RETURN(SM.isInSystemHeader(D->getLocation()));
 }
 
 std::vector<DeclRef> GetUsingNamespaces(ConstDeclRef DRef) {
