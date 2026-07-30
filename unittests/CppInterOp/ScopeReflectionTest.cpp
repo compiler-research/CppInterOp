@@ -1201,6 +1201,65 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_GetAllCppNames) {
   test_get_all_cpp_names(Decls[5], {});
 }
 
+TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_TemplateParameters) {
+  std::vector<Decl*> Decls;
+  std::string code = R"(
+    template <typename> struct Holder {};
+    template <typename T, int N = 4, template <typename> class C = Holder,
+              typename U = double>
+    struct Box {};
+    template <typename T> T identity(T v) { return v; }
+    struct Plain {};
+  )";
+
+  GetAllTopLevelDecls(code, Decls);
+
+  EXPECT_EQ(Cpp::GetNumTemplateParameters(Decls[1]), 4U);
+  EXPECT_EQ(Cpp::GetNumTemplateParameters(Decls[2]), 1U);
+  EXPECT_EQ(Cpp::GetNumTemplateParameters(Decls[3]), 0U);
+
+  Cpp::DeclRef T = Cpp::GetTemplateParameter(Decls[1], 0);
+  Cpp::DeclRef N = Cpp::GetTemplateParameter(Decls[1], 1);
+  Cpp::DeclRef C = Cpp::GetTemplateParameter(Decls[1], 2);
+  Cpp::DeclRef U = Cpp::GetTemplateParameter(Decls[1], 3);
+  ASSERT_TRUE(T && N && C && U);
+
+  EXPECT_EQ(Cpp::GetName(T), "T");
+  EXPECT_EQ(Cpp::GetName(N), "N");
+  EXPECT_EQ(Cpp::GetName(C), "C");
+
+  EXPECT_EQ(Cpp::GetTemplateParameterKind(T), Cpp::TemplateParamKind::Type);
+  EXPECT_EQ(Cpp::GetTemplateParameterKind(N), Cpp::TemplateParamKind::NonType);
+  EXPECT_EQ(Cpp::GetTemplateParameterKind(C), Cpp::TemplateParamKind::Template);
+  EXPECT_EQ(Cpp::GetTemplateParameterKind(Decls[3]),
+            Cpp::TemplateParamKind::Unknown);
+
+  EXPECT_EQ(Cpp::GetTemplateParameterDefault(T), "");
+  EXPECT_EQ(Cpp::GetTemplateParameterDefault(N), "4");
+  EXPECT_EQ(Cpp::GetTemplateParameterDefault(C), "Holder");
+  EXPECT_EQ(Cpp::GetTemplateParameterDefault(U), "double");
+
+  // The parameter list is also reachable from the entity a template describes,
+  // which is what a caller holding a record or a function has.
+  Cpp::DeclRef BoxRecord = Cpp::GetParentScope(T);
+  Cpp::DeclRef IdentityFn =
+      Cpp::GetParentScope(Cpp::GetTemplateParameter(Decls[2], 0));
+  ASSERT_TRUE(BoxRecord && IdentityFn);
+  EXPECT_EQ(Cpp::GetName(BoxRecord), "Box");
+  EXPECT_EQ(Cpp::GetName(IdentityFn), "identity");
+  EXPECT_EQ(Cpp::GetNumTemplateParameters(BoxRecord), 4U);
+  EXPECT_EQ(Cpp::GetNumTemplateParameters(IdentityFn), 1U);
+
+  // Out of range yields nothing rather than faulting.
+  EXPECT_FALSE(Cpp::GetTemplateParameter(Decls[1], 4));
+
+  EXPECT_EQ(Cpp::GetNumTemplateParameters(nullptr), 0U);
+  EXPECT_FALSE(Cpp::GetTemplateParameter(nullptr, 0));
+  EXPECT_EQ(Cpp::GetTemplateParameterKind(nullptr),
+            Cpp::TemplateParamKind::Unknown);
+  EXPECT_EQ(Cpp::GetTemplateParameterDefault(nullptr), "");
+}
+
 TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_InstantiateNNTPClassTemplate) {
   std::vector<Decl *> Decls;
   std::string code = R"(

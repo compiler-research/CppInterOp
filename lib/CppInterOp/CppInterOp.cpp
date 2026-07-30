@@ -9,6 +9,7 @@
 
 #include "CppInterOp/CppInterOp.h"
 #include "Unwrap.h"
+#include "CppInterOp/CppInterOpTypes.h"
 #include "CppInterOp/Error.h"
 
 #include "Compatibility.h"
@@ -1098,6 +1099,80 @@ std::string GetDoxygenComment(ConstDeclRef DRef, bool strip_comment_markers) {
     return INTEROP_RETURN(RC->getRawText(SM).str());
 
   return INTEROP_RETURN(RC->getFormattedText(SM, C.getDiagnostics()));
+}
+
+// A template's parameter list, reached from either the template itself or the
+// entity it describes, so a caller holding a CXXRecordDecl does not have to
+// find the ClassTemplateDecl first.
+static const clang::TemplateParameterList*
+getTemplateParameterList(const clang::Decl* D) {
+  if (!D)
+    return nullptr;
+  if (const auto* TD = llvm::dyn_cast<clang::TemplateDecl>(D))
+    return TD->getTemplateParameters();
+  if (const auto* RD = llvm::dyn_cast<clang::CXXRecordDecl>(D))
+    if (const auto* CTD = RD->getDescribedClassTemplate())
+      return CTD->getTemplateParameters();
+  if (const auto* FD = llvm::dyn_cast<clang::FunctionDecl>(D))
+    if (const auto* FTD = FD->getDescribedFunctionTemplate())
+      return FTD->getTemplateParameters();
+  return nullptr;
+}
+
+unsigned GetNumTemplateParameters(ConstDeclRef DRef) {
+  INTEROP_TRACE(DRef);
+  const auto* Params = getTemplateParameterList(unwrap<clang::Decl>(DRef));
+  return INTEROP_RETURN(Params ? Params->size() : 0);
+}
+
+DeclRef GetTemplateParameter(ConstDeclRef DRef, unsigned Index) {
+  INTEROP_TRACE(DRef, Index);
+  const auto* Params = getTemplateParameterList(unwrap<clang::Decl>(DRef));
+  if (!Params || Index >= Params->size())
+    return INTEROP_RETURN(nullptr);
+  // NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast)
+  return INTEROP_RETURN(const_cast<clang::NamedDecl*>(Params->getParam(Index)));
+}
+
+TemplateParamKind GetTemplateParameterKind(ConstDeclRef DRef) {
+  INTEROP_TRACE(DRef);
+  const auto* D = unwrap<clang::Decl>(DRef);
+  if (llvm::isa_and_nonnull<clang::TemplateTypeParmDecl>(D))
+    return INTEROP_RETURN(TemplateParamKind::Type);
+  if (llvm::isa_and_nonnull<clang::NonTypeTemplateParmDecl>(D))
+    return INTEROP_RETURN(TemplateParamKind::NonType);
+  if (llvm::isa_and_nonnull<clang::TemplateTemplateParmDecl>(D))
+    return INTEROP_RETURN(TemplateParamKind::Template);
+  return INTEROP_RETURN(TemplateParamKind::Unknown);
+}
+
+std::string GetTemplateParameterDefault(ConstDeclRef DRef) {
+  INTEROP_TRACE(DRef);
+  const auto* D = unwrap<clang::Decl>(DRef);
+  if (!D)
+    return INTEROP_RETURN("");
+
+  const clang::TemplateArgumentLoc* Default = nullptr;
+  if (const auto* TTP = llvm::dyn_cast<clang::TemplateTypeParmDecl>(D)) {
+    if (TTP->hasDefaultArgument())
+      Default = &TTP->getDefaultArgument();
+  } else if (const auto* NTTP =
+                 llvm::dyn_cast<clang::NonTypeTemplateParmDecl>(D)) {
+    if (NTTP->hasDefaultArgument())
+      Default = &NTTP->getDefaultArgument();
+  } else if (const auto* TTPD =
+                 llvm::dyn_cast<clang::TemplateTemplateParmDecl>(D)) {
+    if (TTPD->hasDefaultArgument())
+      Default = &TTPD->getDefaultArgument();
+  }
+  if (!Default)
+    return INTEROP_RETURN("");
+
+  std::string Spelling;
+  llvm::raw_string_ostream OS(Spelling);
+  Default->getArgument().print(D->getASTContext().getPrintingPolicy(), OS,
+                               /*IncludeType=*/false);
+  return INTEROP_RETURN(Spelling);
 }
 
 std::vector<DeclRef> GetUsingNamespaces(ConstDeclRef DRef) {
