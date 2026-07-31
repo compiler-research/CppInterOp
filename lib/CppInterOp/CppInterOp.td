@@ -656,6 +656,58 @@ def GetAllCppNames : CppInterOpAPI {
   ];
 }
 
+def IsScopedEnum : CppInterOpAPI {
+  let Doc = [{Checks whether an enum was declared with enum class or enum struct.
+Unscoped enums do not expose their constants the same way, so a caller has to
+tell them apart.}];
+
+  let ReturnType = "bool";
+  let Args = [Arg<"ConstDeclRef", "DRef">];
+}
+
+def IsUnion : CppInterOpAPI {
+  let Doc = "Checks whether a record was declared union rather than class or struct.";
+
+  let ReturnType = "bool";
+  let Args = [Arg<"ConstDeclRef", "DRef">];
+}
+
+def IsAliasTemplate : CppInterOpAPI {
+  let Doc = [{Checks whether a template is an alias template, which names a type
+only once its arguments arrive and so cannot be treated as a class template.}];
+
+  let ReturnType = "bool";
+  let Args = [Arg<"ConstDeclRef", "DRef">];
+}
+
+def IsParameterPack : CppInterOpAPI {
+  let Doc = "Checks whether a template parameter is a pack.";
+
+  let ReturnType = "bool";
+  let Args = [Arg<"ConstDeclRef", "DRef">];
+}
+
+def IsDefinition : CppInterOpAPI {
+  let Doc = [{Checks whether this declaration is the definition rather than a
+forward declaration. Without it a forward declaration and its definition are
+indistinguishable, and they carry different source locations.}];
+
+  let ReturnType = "bool";
+  let Args = [Arg<"ConstDeclRef", "DRef">];
+}
+
+def GetOverloadCount : CppInterOpAPI {
+  let Doc = [{Number of overloads a name has in a scope, function templates
+included. GetFunctionsUsingName reports only FunctionDecls, so it undercounts a
+name whose overloads are templates.}];
+
+  let ReturnType = "unsigned";
+  let Args = [
+    Arg<"ConstDeclRef", "DRef">,
+    Arg<"const std::string&", "Name">
+  ];
+}
+
 def GetNumTemplateParameters : CppInterOpAPI {
   let Doc = [{Number of parameters a template declares, or 0 when the
 declaration is not a template.

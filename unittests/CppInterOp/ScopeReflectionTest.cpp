@@ -1201,6 +1201,89 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_GetAllCppNames) {
   test_get_all_cpp_names(Decls[5], {});
 }
 
+TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_DeclShapePredicates) {
+  std::vector<Decl*> Decls;
+  std::string code = R"(
+    enum class Scoped { a };
+    enum Unscoped { b };
+    union Uni { int i; float f; };
+    struct Plain { int x; };
+    struct Fwd;
+    template <typename T> struct Klass { T t; };
+    template <typename T> using Alias = Klass<T>;
+    template <typename... Ts> struct Pack {};
+    void fn_decl();
+    void fn_def() {}
+    int var_def;
+    extern int var_decl;
+  )";
+
+  GetAllTopLevelDecls(code, Decls);
+
+  EXPECT_TRUE(Cpp::IsScopedEnum(Decls[0]));
+  EXPECT_FALSE(Cpp::IsScopedEnum(Decls[1]));
+  EXPECT_FALSE(Cpp::IsScopedEnum(Decls[3]));
+
+  EXPECT_TRUE(Cpp::IsUnion(Decls[2]));
+  EXPECT_FALSE(Cpp::IsUnion(Decls[3]));
+
+  EXPECT_TRUE(Cpp::IsAliasTemplate(Decls[6]));
+  EXPECT_FALSE(Cpp::IsAliasTemplate(Decls[5]));
+
+  // A forward declaration and its definition are otherwise indistinguishable.
+  EXPECT_TRUE(Cpp::IsDefinition(Decls[3]));
+  EXPECT_FALSE(Cpp::IsDefinition(Decls[4]));
+  EXPECT_FALSE(Cpp::IsDefinition(Decls[8]));
+  EXPECT_TRUE(Cpp::IsDefinition(Decls[9]));
+
+  // A template is asked about through the entity it describes.
+  EXPECT_TRUE(Cpp::IsDefinition(Decls[5]));
+
+  // An alias template describes no tag, function or variable, so it can only
+  // reach the fallback.
+  EXPECT_TRUE(Cpp::IsDefinition(Decls[6]));
+
+  // extern without an initializer declares the variable but does not define it.
+  EXPECT_TRUE(Cpp::IsDefinition(Decls[10]));
+  EXPECT_FALSE(Cpp::IsDefinition(Decls[11]));
+
+  EXPECT_FALSE(Cpp::IsDefinition(nullptr));
+
+  Cpp::DeclRef Ts = Cpp::GetTemplateParameter(Decls[7], 0);
+  Cpp::DeclRef T = Cpp::GetTemplateParameter(Decls[5], 0);
+  ASSERT_TRUE(Ts && T);
+  EXPECT_TRUE(Cpp::IsParameterPack(Ts));
+  EXPECT_FALSE(Cpp::IsParameterPack(T));
+}
+
+TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_OverloadCount) {
+  std::vector<Decl*> Decls;
+  std::string code = R"(
+    namespace over {
+      void f(int);
+      void f(double);
+      template <typename T> void g(T);
+      template <typename T> void g(T, T);
+      void h(int);
+    }
+    int over_var;
+  )";
+
+  GetAllTopLevelDecls(code, Decls);
+
+  Cpp::DeclRef ns = Cpp::GetScope("over");
+  ASSERT_TRUE(ns);
+  EXPECT_EQ(Cpp::GetOverloadCount(ns, "f"), 2U);
+  // GetFunctionsUsingName keeps FunctionDecls only, so it misses these.
+  EXPECT_EQ(Cpp::GetOverloadCount(ns, "g"), 2U);
+  EXPECT_EQ(Cpp::GetOverloadCount(ns, "h"), 1U);
+  EXPECT_EQ(Cpp::GetOverloadCount(ns, "nosuch"), 0U);
+
+  // A variable holds no lookup table, so it reports no overloads.
+  EXPECT_EQ(Cpp::GetOverloadCount(Decls[1], "f"), 0U);
+  EXPECT_EQ(Cpp::GetOverloadCount(nullptr, "f"), 0U);
+}
+
 TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_TemplateParameters) {
   std::vector<Decl*> Decls;
   std::string code = R"(
