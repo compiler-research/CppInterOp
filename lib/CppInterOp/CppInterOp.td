@@ -706,6 +706,33 @@ def IsParameterPack : CppInterOpAPI {
   let Args = [Arg<"ConstDeclRef", "DRef">];
 }
 
+def IsClassTemplate : CppInterOpAPI {
+  let Doc = [{Checks whether a template declares a class, telling it apart
+from the function, variable and alias templates IsTemplate also accepts.}];
+
+  let ReturnType = "bool";
+  let Args = [Arg<"ConstDeclRef", "DRef">];
+}
+
+def IsImplicitDecl : CppInterOpAPI {
+  let Doc = [{Checks whether a declaration was synthesized by the compiler
+rather than written in source: injected class names, implicit members,
+builtin declarations materialized at first use.}];
+
+  let ReturnType = "bool";
+  let Args = [Arg<"ConstDeclRef", "DRef">];
+}
+
+def IsFriendDeclared : CppInterOpAPI {
+  let Doc = [{Checks whether a declaration was written as a friend. A hidden
+friend's semantic scope is the enclosing namespace, yet it is not findable
+by qualified lookup there — callers enumerating a namespace usually want
+them excluded.}];
+
+  let ReturnType = "bool";
+  let Args = [Arg<"ConstDeclRef", "DRef">];
+}
+
 def IsDefinition : CppInterOpAPI {
   let Doc = [{Checks whether this declaration is the definition rather than a
 forward declaration. Without it a forward declaration and its definition are

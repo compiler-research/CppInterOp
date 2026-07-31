@@ -1428,6 +1428,54 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_DeclSourceAttribution) {
   EXPECT_FALSE(Cpp::IsInSystemHeader(nullptr));
 }
 
+TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_EnumerationIntrospection) {
+  std::vector<Decl*> Decls;
+  std::string code = R"(
+    template <typename T> struct Holder {
+      struct Inner { T value; };
+    };
+    template <typename T> struct Holder<T*> { };
+    struct Plain { Plain* next; };
+    struct WithFriend { friend void hiddenFriend(WithFriend) {} };
+    template <typename T> T varTemplate = T{};
+  )";
+
+  GetAllTopLevelDecls(code, Decls);
+
+  // The class template is not a DeclContext: its members must still
+  // enumerate, in declaration order.
+  std::vector<Cpp::DeclRef> All;
+  Cpp::EnumerateTranslationUnitDecls(All);
+  int HolderAt = -1;
+  int InnerAt = -1;
+  for (size_t i = 0; i < All.size(); ++i) {
+    std::string Name = Cpp::GetName(All[i]);
+    if (Name == "Holder" && HolderAt < 0)
+      HolderAt = static_cast<int>(i);
+    if (Name == "Inner" && InnerAt < 0)
+      InnerAt = static_cast<int>(i);
+  }
+  ASSERT_GE(HolderAt, 0);
+  ASSERT_GT(InnerAt, HolderAt);
+
+  EXPECT_TRUE(Cpp::IsClassTemplate(Decls[0]));
+  EXPECT_FALSE(Cpp::IsClassTemplate(Decls[2]));
+  EXPECT_FALSE(Cpp::IsClassTemplate(Decls[4])); // variable template
+
+  // A partial specialization declares parameters of its own.
+  EXPECT_EQ(Cpp::GetNumTemplateParameters(Decls[1]), 1U);
+
+  EXPECT_FALSE(Cpp::IsFriendDeclared(Decls[2]));
+
+  // The injected class name is compiler-synthesized; the class is not.
+  bool SawImplicitPlain = false;
+  for (Cpp::DeclRef D : All)
+    if (Cpp::GetName(D) == "Plain" && Cpp::IsImplicitDecl(D))
+      SawImplicitPlain = true;
+  EXPECT_TRUE(SawImplicitPlain);
+  EXPECT_FALSE(Cpp::IsImplicitDecl(Decls[2]));
+}
+
 TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_InstantiateNNTPClassTemplate) {
   std::vector<Decl *> Decls;
   std::string code = R"(

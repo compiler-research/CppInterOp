@@ -1105,24 +1105,33 @@ std::string GetDoxygenComment(ConstDeclRef DRef, bool strip_comment_markers) {
 // Declarations users can name live inside namespaces, classes and language
 // linkage blocks, so descend through those. A linkage block is itself unnamed,
 // which is why it cannot simply be filtered out at the top level.
-static void collectNamedDecls(const clang::DeclContext* DC,
-                              std::vector<const clang::Decl*>& Out) {
-  for (const auto* D : DC->decls()) {
+static void collectNamedDecls(clang::DeclContext* DC,
+                              std::vector<clang::Decl*>& Out) {
+  for (auto* D : DC->decls()) {
     if (llvm::isa<clang::NamedDecl>(D))
       Out.push_back(D);
     if (llvm::isa<clang::NamespaceDecl>(D) ||
         llvm::isa<clang::LinkageSpecDecl>(D) || llvm::isa<clang::RecordDecl>(D))
       collectNamedDecls(llvm::cast<clang::DeclContext>(D), Out);
+    // A class template is not a DeclContext; its members live on the
+    // record it describes.
+    else if (auto* CTD = llvm::dyn_cast<clang::ClassTemplateDecl>(D))
+      if (auto* RD = CTD->getTemplatedDecl())
+        collectNamedDecls(RD, Out);
   }
 }
 
 // Every partial translation unit the interpreter has parsed. An incremental
 // interpreter creates one TranslationUnitDecl per unit, so walk the whole
 // redeclaration chain rather than a single node.
-static void collectTranslationUnitDecls(std::vector<const clang::Decl*>& Out) {
-  const auto* TU = getSema().getASTContext().getTranslationUnitDecl();
-  for (const auto* R : TU->redecls())
-    collectNamedDecls(llvm::cast<clang::DeclContext>(R), Out);
+// redecls() yields newest-first; report declaration order instead.
+static void collectTranslationUnitDecls(std::vector<clang::Decl*>& Out) {
+  auto* TU = getSema().getASTContext().getTranslationUnitDecl();
+  llvm::SmallVector<clang::TranslationUnitDecl*, 32> Chain;
+  for (auto* R : TU->redecls())
+    Chain.push_back(llvm::cast<clang::TranslationUnitDecl>(R));
+  for (auto* R : llvm::reverse(Chain))
+    collectNamedDecls(R, Out);
 }
 
 void EnumerateTranslationUnitDecls(std::vector<DeclRef>& Decls) {
@@ -1130,11 +1139,11 @@ void EnumerateTranslationUnitDecls(std::vector<DeclRef>& Decls) {
 
   compat::SynthesizingCodeRAII RAII(&getInterp());
 
-  std::vector<const clang::Decl*> Found;
+  std::vector<clang::Decl*> Found;
   collectTranslationUnitDecls(Found);
   Decls.reserve(Found.size());
-  for (const auto* D : Found)
-    Decls.push_back(const_cast<clang::Decl*>(D));
+  for (auto* D : Found)
+    Decls.emplace_back(D);
 
   return INTEROP_VOID_RETURN();
 }
@@ -1164,6 +1173,24 @@ bool IsParameterPack(ConstDeclRef DRef) {
   const auto* ND =
       llvm::dyn_cast_or_null<clang::NamedDecl>(unwrap<clang::Decl>(DRef));
   return INTEROP_RETURN(ND && ND->isParameterPack());
+}
+
+bool IsClassTemplate(ConstDeclRef DRef) {
+  INTEROP_TRACE(DRef);
+  const auto* D = unwrap<clang::Decl>(DRef);
+  return INTEROP_RETURN(llvm::isa_and_nonnull<clang::ClassTemplateDecl>(D));
+}
+
+bool IsImplicitDecl(ConstDeclRef DRef) {
+  INTEROP_TRACE(DRef);
+  const auto* D = unwrap<clang::Decl>(DRef);
+  return INTEROP_RETURN(D && D->isImplicit());
+}
+
+bool IsFriendDeclared(ConstDeclRef DRef) {
+  INTEROP_TRACE(DRef);
+  const auto* D = unwrap<clang::Decl>(DRef);
+  return INTEROP_RETURN(D && D->getFriendObjectKind() != clang::Decl::FOK_None);
 }
 
 bool IsDefinition(ConstDeclRef DRef) {
@@ -1210,6 +1237,10 @@ getTemplateParameterList(const clang::Decl* D) {
     return nullptr;
   if (const auto* TD = llvm::dyn_cast<clang::TemplateDecl>(D))
     return TD->getTemplateParameters();
+  // A partial specialization declares parameters of its own.
+  if (const auto* PSD =
+          llvm::dyn_cast<clang::ClassTemplatePartialSpecializationDecl>(D))
+    return PSD->getTemplateParameters();
   if (const auto* RD = llvm::dyn_cast<clang::CXXRecordDecl>(D))
     if (const auto* CTD = RD->getDescribedClassTemplate())
       return CTD->getTemplateParameters();
