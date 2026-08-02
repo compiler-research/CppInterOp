@@ -121,6 +121,11 @@ jobs:
         flavor:          ${{ matrix.flavor }}
         flavor-version:  ${{ matrix.cling-patches && format('{0}-llvm{1}', matrix.cling-patches, matrix.clang-runtime) || matrix.flavor-version }}
         cling-sanitizer: ${{ matrix.sanitizer }}
+        # TEST ONLY (revert before merge): build cling from the fork branch
+        # carrying the LLVM-22 fixes, to validate them in CI before they land
+        # in root-project/cling. Only consulted when flavor=cling.
+        cling-repo: 'https://github.com/aaronj0/cling.git'
+        cling-ref:  'llvm22-fixes'
 
     - name: Setup code coverage
       if: ${{ success() && (matrix.coverage == true) }}

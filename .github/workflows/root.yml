@@ -70,6 +70,11 @@ jobs:
         arch: x86_64
         flavor: cling
         flavor-version: ROOT-llvm${{ matrix.clang-runtime }}
+        # TEST ONLY (revert before merge): build cling from the fork branch
+        # carrying the LLVM-22 fixes, to validate them in CI before they land
+        # in root-project/cling. Only consulted when flavor=cling.
+        cling-repo: 'https://github.com/aaronj0/cling.git'
+        cling-ref:  'llvm22-fixes'
 
     - name: Verify cached LLVM/Clang layout
       shell: bash
