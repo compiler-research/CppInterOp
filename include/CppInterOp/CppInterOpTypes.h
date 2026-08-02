@@ -406,6 +406,7 @@ enum class InterpreterLanguageStandard : unsigned char {
   lang_unspecified
 };
 
+// Enum modelling memory allocation behaivour of functions
 enum class AllocType : unsigned char {
   None,
   New,
@@ -418,12 +419,20 @@ enum class AllocType : unsigned char {
   OperatorNewArr
 };
 
+// Enum modelling memory deallocation behaivour of functions
 enum class DeallocType : unsigned char {
   None,
   Delete,
   DeleteArr,
   Free,
-  Unknown, // Contradiction, delete x or delete[] x in same func
+  MaybeDelete,
+  MaybeDeleteArr,
+  MaybeFree,
+  OperatorDelete,
+  OperatorDeleteArr,
+  MaybeOperatorDelete,
+  MaybeOperatorDeleteArr,
+  Unknown, // Contradiction, delete x AND delete[] x in same func
   Opaque   // Could not analyze
 };
 
