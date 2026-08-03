@@ -6,7 +6,7 @@ name: ROOT
 # ROOT relies on shows up here as a configure or compile error.
 #
 # The job pins to the same axes as `main.yml`'s
-# ubu24-x86-gcc14-cling-llvm20-cppyy row so the LLVM/Cling cache key
+# ubu24-x86-gcc14-cling-cppyy row so the LLVM/Cling cache key
 # resolves to the same string and the artifact is shared.
 
 on:
@@ -18,6 +18,12 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
   cancel-in-progress: true
 
+env:
+  # The LLVM major ROOT builds against, matching main.yml's cling rows.
+  # The row below aliases it and the setup step derives ROOT-llvm<N>
+  # from it, so moving to the next major is this line alone.
+  CLING_LLVM_MAJOR: &cling_llvm_major '22'
+
 jobs:
   build-root:
     name: ${{ matrix.name }}
@@ -26,7 +32,7 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { name: ubu24-x86-gcc14-cling-llvm20-root, os: ubuntu-24.04, compiler: gcc-14, clang-runtime: '20' }
+          - { name: ubu24-x86-gcc14-cling-root, os: ubuntu-24.04, compiler: gcc-14, clang-runtime: *cling_llvm_major }
 
     steps:
     - name: Checkout CppInterOp PR
@@ -52,18 +58,23 @@ jobs:
 
     # ROOT consumes the same llvm-root tree the cling-on-top rows in
     # main.yml use. The setup-llvm action pulls llvm-root with the
-    # ROOT-llvm20 flavor (cling's patches plus ROOT's extra clang
+    # ROOT-llvm<N> flavor (cling's patches plus ROOT's extra clang
     # patches) and builds cling on top. ROOT's bundled cling sources
     # in the substituted CppInterOp tree below pick this install up
     # via CMAKE_PREFIX_PATH.
-    - name: Setup LLVM 20 [cling, ROOT-llvm20]
+    - name: Setup LLVM ${{ matrix.clang-runtime }} [cling, ROOT-llvm${{ matrix.clang-runtime }}]
       uses: compiler-research/ci-workflows/actions/setup-llvm@main
       with:
-        version: '20'
+        version: ${{ matrix.clang-runtime }}
         os: ${{ matrix.os }}
         arch: x86_64
         flavor: cling
-        flavor-version: 'ROOT-llvm20'
+        flavor-version: ROOT-llvm${{ matrix.clang-runtime }}
+        # TEST ONLY (revert before merge): build cling from the fork branch
+        # carrying the LLVM-22 fixes, to validate them in CI before they land
+        # in root-project/cling. Only consulted when flavor=cling.
+        cling-repo: 'https://github.com/aaronj0/cling.git'
+        cling-ref:  'llvm22-fixes'
 
     - name: Verify cached LLVM/Clang layout
       shell: bash
@@ -120,7 +131,7 @@ jobs:
         # whose `/usr/lib/llvm-17/lib/cmake/llvm` is found by ROOT's
         # `find_package(LLVM)` before our `-DLLVM_DIR` hint takes
         # effect (ROOT's interpreter subtree re-invokes find_package
-        # in nested scopes). Purge them so only our cached LLVM 20
+        # in nested scopes). Purge them so only our cached LLVM
         # remains visible.
         sudo apt-get purge -y 'llvm-17*' 'clang-17*' 'libclang-17*' 'libllvm17*' || true
         sudo apt-get autoremove -y

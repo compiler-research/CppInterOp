@@ -14,6 +14,13 @@ concurrency:
   group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
   cancel-in-progress: true
 
+env:
+  # The LLVM major the cling rows build against, tracking what ROOT and
+  # root-project/llvm-project are on. The rows below alias it and the
+  # setup-llvm step derives cling-llvm<N> / ROOT-llvm<N> from it, so
+  # moving to the next major is this line alone.
+  CLING_LLVM_MAJOR: &cling_llvm_major '22'
+
 jobs:
   build:
     name: ${{ matrix.name }}
@@ -35,6 +42,10 @@ jobs:
         #   asan     llvm-asan recipe
         #   msan     llvm-msan recipe (Linux x86_64 only)
         #   cling    llvm-root recipe + cling built on top
+        # `cling-patches` picks the patch set on
+        # root-project/llvm-project for a cling row: `cling` is
+        # cling's patches alone, `ROOT` adds ROOT's extra clang
+        # patches. The setup step pairs it with clang-runtime.
         include:
           # Ubuntu Arm
           - { name: ubu24-arm-gcc12-llvm22-vg, os: ubuntu-24.04-arm, compiler: gcc-12, clang-runtime: '22', Valgrind: On }
@@ -44,8 +55,8 @@ jobs:
           - { name: ubu24-x86-clang22-llvm22-msan, os: ubuntu-24.04, compiler: clang-22, clang-runtime: '22', sanitizer: "Memory", flavor: msan }
           - { name: ubu24-x86-gcc12-llvm21-cppyy-vg, os: ubuntu-24.04, compiler: gcc-12, clang-runtime: '21', cppyy: On, Valgrind: On, flavor: system }
           - { name: ubu24-x86-gcc12-llvm22-cppyy, os: ubuntu-24.04, compiler: gcc-12, clang-runtime: '22', cppyy: On }
-          - { name: ubu24-x86-gcc14-cling-llvm20-cppyy, os: ubuntu-24.04, compiler: gcc-14, clang-runtime: '20', cling: 'On', cppyy: On, flavor: cling, flavor-version: 'cling-llvm20' }
-          - { name: ubu24-x86-gcc14-cling-llvm20-asan, os: ubuntu-24.04, compiler: gcc-14, clang-runtime: '20', cling: 'On', sanitizer: "Address", flavor: cling, flavor-version: 'cling-llvm20' }
+          - { name: ubu24-x86-gcc14-cling-cppyy, os: ubuntu-24.04, compiler: gcc-14, clang-runtime: *cling_llvm_major, cling: 'On', cppyy: On, flavor: cling, cling-patches: cling }
+          - { name: ubu24-x86-gcc14-cling-asan, os: ubuntu-24.04, compiler: gcc-14, clang-runtime: *cling_llvm_major, cling: 'On', sanitizer: "Address", flavor: cling, cling-patches: cling }
           # selfh-ubu22-x86-gcc12-llvm22-cuda lives in `build-selfhost`
           # below; it's the only row that needs the dell awake.
           - name: ubu24-x86-gcc12-llvm22-vg
@@ -56,10 +67,10 @@ jobs:
           # MacOS Arm
           - { name: osx26-arm-clang-llvm22-cov, os: macos-26, compiler: clang, clang-runtime: '22', coverage: true }
           - { name: osx26-arm-clang-llvm21-cppyy, os: macos-26, compiler: clang, clang-runtime: '21', cppyy: On, flavor: system }
-          - { name: osx26-arm-clang-cling-llvm20-cppyy, os: macos-26, compiler: clang, clang-runtime: '20', cling: 'On', cppyy: On, flavor: cling, flavor-version: 'ROOT-llvm20' }
+          - { name: osx26-arm-clang-cling-cppyy, os: macos-26, compiler: clang, clang-runtime: *cling_llvm_major, cling: 'On', cppyy: On, flavor: cling, cling-patches: ROOT }
           # MacOS X86
           - { name: osx26-x86-clang-llvm21-cppyy, os: macos-26-intel, compiler: clang, clang-runtime: '21', cppyy: On, flavor: system }
-          - { name: osx26-x86-clang-cling-llvm20-cppyy, os: macos-26-intel, compiler: clang, clang-runtime: '20', cling: 'On', cppyy: On, flavor: cling, flavor-version: 'ROOT-llvm20' }
+          - { name: osx26-x86-clang-cling-cppyy, os: macos-26-intel, compiler: clang, clang-runtime: *cling_llvm_major, cling: 'On', cppyy: On, flavor: cling, cling-patches: ROOT }
           # Windows
           # No windows-11-arm row: x86 (win2025-msvc-llvm22) covers the
           # same MSVC+LLVM22 surface, and the arm runner ships an x64
@@ -67,7 +78,7 @@ jobs:
           # .libs once `arch: arm64` lands in install-build-deps and the
           # poisoned arm64 cache entry is purged; restore the row then.
           - { name: win2025-msvc-llvm22, os: windows-2025, compiler: msvc, clang-runtime: '22' }
-          - { name: win2025-msvc-cling-llvm20, os: windows-2025, compiler: msvc, clang-runtime: '20', cling: 'On', flavor: cling, flavor-version: 'ROOT-llvm20' }
+          - { name: win2025-msvc-cling, os: windows-2025, compiler: msvc, clang-runtime: *cling_llvm_major, cling: 'On', flavor: cling, cling-patches: ROOT }
 
     steps: &build_steps
     - uses: actions/checkout@v6
@@ -108,8 +119,13 @@ jobs:
         version:         ${{ matrix.clang-runtime }}
         os:              ${{ matrix.self-hosted-os || matrix.os }}
         flavor:          ${{ matrix.flavor }}
-        flavor-version:  ${{ matrix.flavor-version }}
+        flavor-version:  ${{ matrix.cling-patches && format('{0}-llvm{1}', matrix.cling-patches, matrix.clang-runtime) || matrix.flavor-version }}
         cling-sanitizer: ${{ matrix.sanitizer }}
+        # TEST ONLY (revert before merge): build cling from the fork branch
+        # carrying the LLVM-22 fixes, to validate them in CI before they land
+        # in root-project/cling. Only consulted when flavor=cling.
+        cling-repo: 'https://github.com/aaronj0/cling.git'
+        cling-ref:  'llvm22-fixes'
 
     - name: Setup code coverage
       if: ${{ success() && (matrix.coverage == true) }}
