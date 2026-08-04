@@ -1436,8 +1436,9 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetDeallocType) {
       if(n>5){
         if(n>8)
           delete p;
-        else
-          delete p;
+      }
+      else {
+        delete p;
       }
     }
 
@@ -1549,15 +1550,15 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetDeallocType) {
 
     void func63(int* p, int n){
       if(n>0)
-        delete p;
-      delete p;
+        ::operator delete[](p);
+      ::operator delete[](p);
     }
 
     void func64(int* p, int n){
       if(n>0)
-        delete p;
+        ::operator delete(p);
       if(n>5)
-        delete p;
+        ::operator delete(p);
     }
 
     void func65(int* p, int n){
@@ -1663,12 +1664,15 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetDeallocType) {
 
     void func80(int* p){ if(p != nullptr) delete p; }
 
-    void func81(int* p){
-      if(!p){
-
+    void func81(int* p, int* q, int n){
+      int* x = p;
+      if(n>0){
+        // Nothing changed
       }
-      else
-        delete p;
+      else {
+        x = q;
+      }
+      delete x;
     }
 
     void func82(int* p){ ::operator delete(p); }
@@ -1690,9 +1694,15 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetDeallocType) {
 
     void func89(std::optional<int*> p){ free(*p); }
 
-    void func90(std::optional<int*> p, int n){
-      if(n>0)
-        delete *p;
+    void func90(int* p, int* q, int n){
+      int* x = nullptr;
+      if(n>0){
+        if(n>5)
+          x = p;
+        else
+          x = q;
+      }
+      delete x;
     }
 
     void func91(std::optional<int*> p){ int* x = *p; delete x; }
@@ -1731,6 +1741,19 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetDeallocType) {
     struct Releaser { void release(int* p){ delete p; } };
     //No offset
     void func100(int* p){ Releaser r; r.release(p); }
+
+    // This test is for covering some lines, not something meaningful
+    int* globPtr;
+    struct coverageStruct { int* operator*(int* q) { return q; } };
+
+    void func101(int* p){
+      void forCoverage(int*);
+      int* tmp = (int*)::operator new(sizeof(int));
+      ::operator delete(tmp);
+      delete globPtr;
+      coverageStruct s;
+      delete (s * p);
+    }
   )";
   TestFixture::CreateInterpreter({"-std=c++17"});
   Interp->declare(code);
@@ -1808,8 +1831,8 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetDeallocType) {
   TESTGDT(60, true, DT::MaybeDeleteArr, DT::None);
   TESTGDT(61, true, DT::MaybeFree, DT::None);
   TESTGDT(62, true, DT::Delete, DT::None);
-  TESTGDT(63, true, DT::Delete, DT::None);
-  TESTGDT(64, true, DT::MaybeDelete, DT::None);
+  TESTGDT(63, true, DT::OperatorDeleteArr, DT::None);
+  TESTGDT(64, true, DT::MaybeOperatorDelete, DT::None);
   TESTGDT(65, true, DT::Unknown, DT::None);
   TESTGDT(66, true, DT::MaybeDelete, DT::None);
   TESTGDT(67, true, DT::MaybeDelete, DT::MaybeDelete, DT::None);
@@ -1825,9 +1848,9 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetDeallocType) {
   TESTGDT(77, true, DT::MaybeDelete, DT::None);
   TESTGDT(78, true, DT::None, DT::MaybeDelete);
   TESTGDT(79, true, DT::Unknown);
-  // FIXME: Unrecognized null checks
+  // FIXME: Unrecognized null check
   TESTGDT(80, true, DT::MaybeDelete);
-  TESTGDT(81, true, DT::MaybeDelete);
+  TESTGDT(81, true, DT::MaybeDelete, DT::MaybeDelete, DT::None);
   TESTGDT(82, true, DT::OperatorDelete);
   TESTGDT(83, true, DT::OperatorDeleteArr);
   // Placement delete is not a replaceable global deallocation function, it
@@ -1838,7 +1861,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetDeallocType) {
   TESTGDT(87, true, DT::Delete);
   TESTGDT(88, true, DT::DeleteArr);
   TESTGDT(89, true, DT::Free);
-  TESTGDT(90, true, DT::MaybeDelete, DT::None);
+  TESTGDT(90, true, DT::MaybeDelete, DT::MaybeDelete, DT::None);
   TESTGDT(91, true, DT::Delete);
   // FIXME: cond is CK_UserDefinedConversion not
   // CK_PointerToBoolean, so getNullCheckCond does not recognize it
@@ -1854,6 +1877,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetDeallocType) {
   TESTGDT(97, true, DT::Delete);
   TESTGDT(99, true, DT::Delete);
   TESTGDT(100, true, DT::Delete);
+  TESTGDT(101, true, DT::None);
 
   TESTGDT(19, true, DT::Unknown);
   TESTGDT(20, true, DT::Delete);

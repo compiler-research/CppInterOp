@@ -2215,8 +2215,6 @@ struct DeallocationTraverser : RecursiveASTVisitor<DeallocationTraverser> {
   // if(ptr) delete ptr;  this pattern should return Delete not MaybeDelete, so
   // this function recognizes this pattern
   const clang::VarDecl* getNullCheckCond(const clang::Expr* E) {
-    if (!E)
-      return nullptr;
     E = E->IgnoreParens();
     const auto* ICE = dyn_cast<clang::ImplicitCastExpr>(E);
     if (!ICE)
@@ -2310,12 +2308,10 @@ struct DeallocationTraverser : RecursiveASTVisitor<DeallocationTraverser> {
   }
 
   void updateParam(unsigned index, DeallocType DT) {
+    // Probably dead code, but better to keep
     if (index >= valPerParam.size())
       return;
     auto curVal = valPerParam[index];
-    // Early return
-    if (curVal == DeallocType::Unknown)
-      return;
     // If DT did not effect index, or callee could not analyzed
     if (DT == DeallocType::None || DT == DeallocType::Opaque)
       return;
