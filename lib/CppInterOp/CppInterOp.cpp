@@ -1740,12 +1740,8 @@ struct AllocationTraverser : RecursiveASTVisitor<AllocationTraverser> {
     return AllocType::Unknown;
   }
   void undoOnVarMap() {
-    for (auto& [VD, oldVal] : *undoLog) {
-      auto it = varMap.find(VD);
-      if (it == varMap.end())
-        continue;
+    for (auto& [VD, oldVal] : *undoLog)
       varMap[VD] = oldVal;
-    }
   }
 
   bool TraverseIfStmt(clang::IfStmt* IS) {
@@ -1760,11 +1756,8 @@ struct AllocationTraverser : RecursiveASTVisitor<AllocationTraverser> {
     // There is no else
     if (!elseBranch) {
       for (auto& [VD, val] : undoLogThen) {
-        auto it = varMap.find(VD);
-        if (it == varMap.end())
-          continue;
         // Overwrite varMap with join of overwriten and previous value
-        it->second = join(val, it->second);
+        varMap[VD] = join(val, varMap[VD]);
         // If branch is nested, inform upper branch about your changes
         if (undoLogCopy)
           undoLogCopy->try_emplace(VD, val);
@@ -1776,12 +1769,8 @@ struct AllocationTraverser : RecursiveASTVisitor<AllocationTraverser> {
     // Save overwriten values in if branch to join
     std::unordered_map<const clang::VarDecl*, std::optional<AllocType>>
         valuesInIfBranch;
-    for (auto& [VD, val] : undoLogThen) {
-      auto it = varMap.find(VD);
-      if (it == varMap.end())
-        continue;
-      valuesInIfBranch[VD] = it->second;
-    }
+    for (auto& [VD, val] : undoLogThen)
+      valuesInIfBranch[VD] = varMap[VD];
 
     // Take changes on varMap back before going to else branch
     undoOnVarMap();
@@ -1792,31 +1781,21 @@ struct AllocationTraverser : RecursiveASTVisitor<AllocationTraverser> {
     TraverseStmt(elseBranch);
 
     for (auto& [VD, val] : undoLogElse) {
-      auto it = varMap.find(VD);
-      if (it == varMap.end())
-        continue;
       auto it2 = valuesInIfBranch.find(VD);
       // If var is just changed in else branch
       if (it2 == valuesInIfBranch.end()) {
-        it->second = join(val, it->second);
+        varMap[VD] = join(val, varMap[VD]);
         continue;
       }
       // If var is changed in both
-      it->second = join(it->second, it2->second);
+      varMap[VD] = join(varMap[VD], it2->second);
     }
 
-    for (auto& [VD, val] : valuesInIfBranch) {
-      auto it = varMap.find(VD);
-      if (it == varMap.end())
-        continue;
-      // If var is just changed in if branch
-      if (undoLogElse.find(VD) == undoLogElse.end()) {
-        it->second = join(val, it->second);
-        continue;
-      }
-      // If var is changed in both, here for extra safety
-      it->second = join(val, it->second);
-    }
+    for (auto& [VD, val] : valuesInIfBranch)
+      // If var is changed in both, varMap carries new value from ELSE, if it is
+      // just changed in THEN, varMap carries old value, so both situation
+      // yields to same
+      varMap[VD] = join(val, varMap[VD]);
 
     // Inform upper branch about changes done for both inner if and else branch
     if (undoLogCopy) {
@@ -1847,6 +1826,7 @@ struct AllocationTraverser : RecursiveASTVisitor<AllocationTraverser> {
       return true;
 
     auto* VD = dyn_cast<VarDecl>(DRE->getDecl());
+    // FIXME: BindingDecls are not handled
     if (!VD)
       return true;
 
@@ -1898,6 +1878,7 @@ struct AllocationTraverser : RecursiveASTVisitor<AllocationTraverser> {
           return AllocType::OperatorNew;
         case OO_Array_New:
           return AllocType::OperatorNewArr;
+        // Unreachable code
         default:
           break; // OO_Delete/OO_Array_Delete
         }

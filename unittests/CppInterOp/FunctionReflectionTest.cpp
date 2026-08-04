@@ -1730,8 +1730,27 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetAllocType) {
     void* func58(){ return __builtin_operator_new(64); }
     void* func59(){int* m = (int*)0; return malloc(sizeof(int));}
 
+    // This test is for testing some lines, does not neccesarily mean something;
+    // But, it also shows how BindingDecls are not handled
+    struct Tuple {
+      int* ptr1;
+      int* ptr2;
+    };
+    int* func70(){
+      int arr[5];
+      arr[0] = 5;
+      arr[1] = 6;
+      int* ptr = (int*)::operator new(sizeof(int));
+      ::operator delete(ptr);
+      Tuple T;
+      T.ptr1 = &arr[0];
+      T.ptr2 = &arr[1];
+      auto [a, b] = T;
+      a = new int;
+      return a;
+    }
     )";
-  TestFixture::CreateInterpreter();
+  TestFixture::CreateInterpreter({"-std=c++17"});
   Interp->declare(code);
 
 #define TESTAC(N, EXP)                                                         \
@@ -1799,6 +1818,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetAllocType) {
   TESTAC(57, None);
   TESTAC(58, OperatorNew);
   TESTAC(59, Malloc);
+  TESTAC(70, None);
 #undef TESTAC
 
   Cpp::DeleteInterpreter();
