@@ -1006,6 +1006,17 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetDeallocType) {
       struct S { void g(int* q){ delete q; } };
       delete ptr;
     }
+
+    // This test's purpose is testing some lines, no specific purpose
+    int* globPtr = nullptr;
+    void func46(int* ptr){
+      int a = 5;
+      a = 6;
+      int* tmp = globPtr;
+      tmp = (int*)malloc(sizeof(int));
+      free(tmp);
+      delete ptr;
+    }
   )";
   TestFixture::CreateInterpreter();
   Interp->declare(code);
@@ -1066,6 +1077,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetDeallocType) {
   TESTGDT(43, true, DT::None);
   TESTGDT(44, true, DT::Unknown);
   TESTGDT(45, true, DT::Delete);
+  TESTGDT(46, true, DT::Delete);
 
 #undef TESTGDT
 

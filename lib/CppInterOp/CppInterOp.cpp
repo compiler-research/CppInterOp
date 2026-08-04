@@ -1862,7 +1862,8 @@ struct DeallocationTraverser : RecursiveASTVisitor<DeallocationTraverser> {
   }
 
   bool VisitVarDecl(clang::VarDecl* VD) {
-    if (llvm::isa<clang::ParmVarDecl>(VD) || !VD->getType()->isPointerType())
+    if (llvm::isa<clang::ParmVarDecl>(VD) ||
+        (!VD->getType()->isPointerType() && !VD->getType()->isRecordType()))
       return true;
     const clang::Expr* E = VD->getInit();
     updateMap(VD, E);
@@ -1971,11 +1972,10 @@ struct DeallocationTraverser : RecursiveASTVisitor<DeallocationTraverser> {
   }
 
   void updateVPP(unsigned index, DeallocType DT) {
+    // Probably dead code, but better to keep
     if (index >= valPerParam.size())
       return;
     if (valPerParam[index] == DeallocType::Unknown)
-      return;
-    if (DT == DeallocType::Opaque)
       return;
     if (valPerParam[index] != DeallocType::None && valPerParam[index] != DT) {
       valPerParam[index] = DeallocType::Unknown;
@@ -1985,8 +1985,6 @@ struct DeallocationTraverser : RecursiveASTVisitor<DeallocationTraverser> {
   }
 
   void handleFree(clang::CallExpr* CE) {
-    if (CE->getNumArgs() < 1)
-      return;
     const clang::Expr* paramExpr = CE->getArg(0);
     const auto* PVR = resolveParam(paramExpr);
     if (!PVR)
