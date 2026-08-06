@@ -1851,8 +1851,7 @@ struct DeallocationTraverser : RecursiveASTVisitor<DeallocationTraverser> {
   void joinVectors(std::vector<DeallocType>& recursiveVec,
                    clang::CallExpr* CE) {
     for (unsigned i = 0; i < recursiveVec.size() && i < CE->getNumArgs(); i++) {
-      if (recursiveVec[i] == DeallocType::None ||
-          recursiveVec[i] == DeallocType::Opaque)
+      if (recursiveVec[i] == DeallocType::None)
         continue;
       const clang::ParmVarDecl* PVD = resolveParam(CE->getArg(i));
       if (!PVD)
@@ -1972,12 +1971,12 @@ struct DeallocationTraverser : RecursiveASTVisitor<DeallocationTraverser> {
   }
 
   void updateVPP(unsigned index, DeallocType DT) {
-    // Probably dead code, but better to keep
-    if (index >= valPerParam.size())
-      return;
     if (valPerParam[index] == DeallocType::Unknown)
       return;
-    if (valPerParam[index] != DeallocType::None && valPerParam[index] != DT) {
+    // If new value from callee is Opaque, it is best to make parameter Unknown
+    // since we can not know what is going inside no-body functions
+    if ((valPerParam[index] != DeallocType::None && valPerParam[index] != DT) ||
+        DT == DeallocType::Opaque) {
       valPerParam[index] = DeallocType::Unknown;
       return;
     }
