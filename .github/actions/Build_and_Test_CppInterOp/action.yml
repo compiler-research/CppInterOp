@@ -127,6 +127,8 @@ runs:
             # unbalanced across the boundary and trips false use-after-poison.
             # Real use-after-free detection is unaffected.
             export ASAN_OPTIONS=allow_user_poisoning=0
+            # cling teardown leaks, see etc/lsan-cling.supp.
+            export LSAN_OPTIONS=suppressions=${GITHUB_WORKSPACE}/etc/lsan-cling.supp
           fi
           cmake --build . --target check-cppinterop --parallel ${{ env.ncpus }}
           # Verify the source-side `LLVM_VERSION_MAJOR > 21 &&
