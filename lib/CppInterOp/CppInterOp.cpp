@@ -4878,6 +4878,13 @@ InterpRef CreateInterpreter(const std::vector<const char*>& Args /*={}*/,
       *I, "__clang_Interpreter_SetValueNoAlloc",
       reinterpret_cast<uint64_t>(&__clang_Interpreter_SetValueNoAlloc));
 #endif
+
+#ifdef CPPINTEROP_ENABLE_CLAD
+  // clad is linked in statically and attaches to the frontend via its
+  // AddAfterMainAction plugin registration; its runtime headers are staged
+  // in the build tree (plugins/clad/include), not on any default path.
+  I->AddIncludePath(CLAD_INCLUDE_DIRS);
+#endif
   return INTEROP_RETURN(I);
 }
 
