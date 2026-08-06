@@ -289,6 +289,53 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_IsComplete) {
   EXPECT_FALSE(Cpp::IsComplete(nullptr));
 }
 
+TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_GetOrForceDefinition) {
+  std::vector<Decl*> Decls;
+  std::string code = R"(
+    class Complete { int x; };
+    struct Fwd;
+    enum EnumC : int { A, B };
+    int gVar = 5;
+    void func() {}
+    namespace NS {}
+    template <typename T> struct TS { T y; };
+    TS<int> makeTS() { return {}; }
+    extern int extVar;
+    void fwdFunc();
+    template <typename T> T fnTmpl(T x) { return x; }
+  )";
+  GetAllTopLevelDecls(code, Decls);
+
+  EXPECT_TRUE(Cpp::GetOrForceDefinition(nullptr) == nullptr);
+  EXPECT_TRUE(Cpp::GetOrForceDefinition(Decls[0]) != nullptr);
+  EXPECT_TRUE(Cpp::IsComplete(Cpp::GetOrForceDefinition(Decls[0])));
+  EXPECT_TRUE(Cpp::GetOrForceDefinition(Decls[1]) == nullptr);
+  EXPECT_FALSE(Cpp::IsComplete(Decls[1]));
+  EXPECT_TRUE(Cpp::GetOrForceDefinition(Decls[2]) != nullptr);
+  EXPECT_TRUE(Cpp::GetOrForceDefinition(Decls[3]) != nullptr);
+  EXPECT_TRUE(Cpp::GetOrForceDefinition(Decls[4]) != nullptr);
+  EXPECT_TRUE(Cpp::GetOrForceDefinition(Decls[5]) == nullptr);
+  EXPECT_TRUE(Cpp::GetOrForceDefinition(Decls[8]) == nullptr);
+  EXPECT_TRUE(Cpp::GetOrForceDefinition(Decls[9]) == nullptr);
+
+  // TS<int> reached via makeTS's return type, completed on demand.
+  Cpp::TypeRef retTy = Cpp::GetFunctionReturnType(Decls[7]);
+  auto tsDef = Cpp::GetOrForceDefinition(Cpp::GetScopeFromType(retTy));
+  EXPECT_TRUE(tsDef != nullptr);
+  EXPECT_TRUE(Cpp::IsComplete(tsDef));
+
+  // InstantiateTemplate instantiates the prototype, not the body; the
+  // FunctionDecl branch forces the definition.
+  ASTContext& C = Interp->getCI()->getASTContext();
+  std::vector<Cpp::TemplateArgInfo> fnArgs = {C.IntTy.getAsOpaquePtr()};
+  Cpp::DeclRef fnInst = Cpp::InstantiateTemplate(Decls[10], fnArgs);
+  auto* fnFD = Cpp::unwrap<clang::FunctionDecl>(fnInst);
+  EXPECT_EQ(fnFD->getDefinition(), nullptr);
+  EXPECT_NE(fnFD->getTemplateInstantiationPattern(), nullptr);
+  EXPECT_TRUE(Cpp::GetOrForceDefinition(fnInst) != nullptr);
+  EXPECT_NE(fnFD->getDefinition(), nullptr);
+}
+
 TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_SizeOf) {
   std::vector<Decl*> Decls;
   std::string code = R"(namespace N {} class C{}; int I; struct S;

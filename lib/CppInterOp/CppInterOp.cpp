@@ -659,6 +659,36 @@ bool IsComplete(ConstDeclRef DRef) {
   return INTEROP_RETURN(true);
 }
 
+DeclRef GetOrForceDefinition(DeclRef DRef) {
+  INTEROP_TRACE(DRef);
+  if (!DRef)
+    return INTEROP_RETURN(nullptr);
+
+  auto* D = unwrap<clang::Decl>(DRef);
+
+  if (auto* TD = dyn_cast<TagDecl>(D)) {
+    if (!TD->getDefinition()) {
+      clang::Sema& S = getSema();
+      QualType QT = QualType::getFromOpaquePtr(GetTypeFromScope(DRef).data);
+      SourceLocation fakeLoc = GetValidSLoc(S);
+      compat::SynthesizingCodeRAII RAII(&getInterp());
+      S.isCompleteType(fakeLoc, QT);
+    }
+    return INTEROP_RETURN(TD->getDefinition());
+  }
+
+  if (auto* FD = dyn_cast<FunctionDecl>(D)) {
+    if (!FD->getDefinition() && FD->getTemplateInstantiationPattern())
+      InstantiateFunctionDefinition(D);
+    return INTEROP_RETURN(FD->getDefinition());
+  }
+
+  if (auto* VD = dyn_cast<VarDecl>(D))
+    return INTEROP_RETURN(VD->getDefinition());
+
+  return INTEROP_RETURN(nullptr);
+}
+
 size_t SizeOf(ConstDeclRef DRef) {
   INTEROP_TRACE(DRef);
   assert(DRef);
