@@ -1992,10 +1992,6 @@ static bool AnalyzeDeallocType(
     const clang::FunctionDecl* FD, std::vector<DeallocType>& valPerParam,
     std::unordered_map<const FunctionDecl*,
                        std::optional<std::vector<DeallocType>>>& visitedFuncs);
-static bool AnalyzeDeallocType(
-    const clang::FunctionDecl* FD, std::vector<DeallocType>& valPerParam,
-    std::unordered_map<const FunctionDecl*,
-                       std::optional<std::vector<DeallocType>>>& visitedFuncs);
 namespace {
 struct DeallocationTraverser : RecursiveASTVisitor<DeallocationTraverser> {
   std::unordered_map<const clang::VarDecl*, std::set<const clang::ParmVarDecl*>>
@@ -2021,14 +2017,6 @@ struct DeallocationTraverser : RecursiveASTVisitor<DeallocationTraverser> {
     return RecursiveASTVisitor::TraverseDecl(D);
   }
 
-  // recursiveVec is VPP of callee
-  void joinVectors(std::vector<DeallocType>& recursiveVec,
-                   clang::CallExpr* CE) {
-    for (unsigned i = 0; i < recursiveVec.size() && i < CE->getNumArgs(); i++) {
-      if (recursiveVec[i] == DeallocType::None)
-        continue;
-      const clang::ParmVarDecl* PVD = resolveParam(CE->getArg(i));
-      if (!PVD)
   bool TraverseIfStmt(clang::IfStmt* IS) {
     TraverseStmt(IS->getConditionVariableDeclStmt());
     TraverseStmt(IS->getCond());
@@ -2312,9 +2300,15 @@ struct DeallocationTraverser : RecursiveASTVisitor<DeallocationTraverser> {
     if (index >= valPerParam.size())
       return;
     auto curVal = valPerParam[index];
-    // If DT did not effect index, or callee could not analyzed
-    if (DT == DeallocType::None || DT == DeallocType::Opaque)
+    // If DT did not effect index
+    if (DT == DeallocType::None)
       return;
+    // If new value from callee is Opaque, it is best to make parameter Unknown
+    // since we can not know what is going inside no-body functions
+    if (DT == DeallocType::Opaque) {
+      valPerParam[index] = DeallocType::Unknown;
+      return;
+    }
     // If the parameter has not been deallocated so far, there is no
     // contradiction
     if (curVal == DeallocType::None) {
