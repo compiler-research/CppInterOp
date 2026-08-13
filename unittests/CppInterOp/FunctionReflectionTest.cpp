@@ -829,6 +829,265 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_FunctionTypes) {
   EXPECT_TRUE(Cpp::IsSameType(typ1, typ2));
 }
 
+TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetDeallocType) {
+  std::string code = R"(
+    #include <new>
+    #include <stdlib.h>
+
+    void func0(int* p){ delete p; }
+
+    void func1(int* p){ delete[] p; }
+
+    void func2(int* p){ free(p); }
+
+    void func3(int* p, int* q){ delete q; }
+
+    void func4(int* p){ int* x = p; delete x; }
+
+    void func5(int* p){ int* x = p; int* y = x; delete y; }
+
+    void func6(int* p){ p = nullptr; delete p; }
+
+    void func7(int* p){ int* x = p; p = nullptr; delete x; }
+
+    void func8(int* p, bool b){
+      if(b)
+        delete p;
+      else
+        delete[] p;
+    }
+
+    void func9(int* p, bool b){
+      if(b)
+        delete p;
+      else
+        delete p;
+    }
+
+    void func10(int* p, int x){
+      if(x<0)
+        delete[] p;
+      if(x==0)
+        free(p);
+      else
+        delete p;
+    }
+
+    void func11(int* p);
+
+    void func12(int* p) try { delete p; } catch(...) {}
+
+    void func13(int n){}
+
+    int func14;
+
+    void func15(int* p){ int x = 5; (void)x; delete p; }
+
+    void func16(int* p){ int* x = new int; delete x; }
+
+    void func17(int* p){ delete new int; }
+
+    void func18(int* p, void(*fp)(int*)){ fp(p); }
+
+    void helper19(int*);
+
+    void func19(int* p){ helper19(p); }
+
+    void func20(int* p){ int* x; x = p; delete x; }
+
+    void func21(int* p){ *p = 5; delete p; }
+
+    void func22(int* p){ if(p == nullptr) return; delete p; }
+
+    void func23(int* p, int* q){ q = p; delete q; }
+
+    void func24(int* ptr){ func0(ptr); }
+
+    void func25(int* ptr1, int* ptr2){ func2(ptr1); func1(ptr2); }
+
+    void func26(int* ptr1, int* ptr2){ func0(ptr1); func6(ptr2); }
+
+    void func27(int* ptr1, int* ptr2){
+      int* tmp1 = ptr1;
+      func0(tmp1);
+      int* tmp2 = ptr2;
+      func22(tmp2);
+    }
+
+    void func28(int* ptr, int n){
+      if(n > 0)
+        func28(ptr, n-1);
+      delete ptr;
+    }
+
+    void func30(int* ptr, int n);
+    void func31(int* ptr, int n);
+    void func29(int* ptr, int n){
+      func30(ptr, n);
+    }
+
+    void func30(int* ptr, int n){
+      func31(ptr, n-1);
+    }
+
+    void func31(int* ptr, int n){
+      if(n > 0)
+        func29(ptr, n-1);
+      delete ptr;
+    }
+
+    // FIXME: Can not resolve parameter location in recursive call
+    // Probably impossible to solve statically
+    void func32(int* ptr1, int* ptr2, int n){
+      if(n > 0)
+        func32(ptr2, ptr1, n-1);
+      delete ptr1;
+    }
+
+    void func33(int* ptr1, int* ptr2){
+      delete ptr1;
+    }
+
+    void func34(int* ptr1, int* ptr2){
+      func33(ptr2, ptr1);
+    }
+
+    void func35(int* ptr1, int* ptr2){
+      func24(ptr1);
+      func0(ptr2);
+    }
+
+    void func36(int* ptr){
+      helper19(ptr);
+      delete ptr;
+    }
+
+    void func37(int* ptr){
+      delete ptr;
+      helper19(ptr);
+    }
+
+    void func38(int* ptr){
+      ptr = nullptr;
+      func0(ptr);
+    }
+
+    void func39(int* ptr, int n){
+      if(n > 0)
+        func0(ptr);
+      else
+        func2(ptr);
+    }
+
+    struct Klass {
+      void operator=(int* q){
+        delete q;
+      }
+    };
+    void func40(int* p, Klass& K){
+      K = p;
+    }
+
+    void func41(int* ptr){ auto l = [&]{ delete ptr; }; }
+
+    void func42(int* ptr){
+      ptr = nullptr;
+      int* x = ptr;
+      delete x;
+    }
+
+    void func43(int* ptr){ func8(ptr, true); }
+
+    void func44(int* ptr){
+      struct S { void g(int* q){ delete q; } };
+      delete ptr;
+    }
+
+    // This test's purpose is testing some lines, no specific purpose
+    int* globPtr = nullptr;
+    void func45(int* ptr){
+      int a = 5;
+      a = 6;
+      int* tmp = globPtr;
+      tmp = (int*)malloc(sizeof(int));
+      free(tmp);
+      delete ptr;
+    }
+  )";
+  TestFixture::CreateInterpreter();
+  Interp->declare(code);
+
+  using DT = Cpp::DeallocType;
+#define TESTGDT(N, BOOL, ...)                                                  \
+  {                                                                            \
+    std::vector<Cpp::DeallocType> result;                                      \
+    bool valid = Cpp::GetDeallocType(                                          \
+        Cpp::ConstFuncRef { Cpp::GetNamed("func" #N).data }, result);          \
+    EXPECT_EQ(valid, BOOL);                                                    \
+    EXPECT_EQ(result, (std::vector<Cpp::DeallocType>{__VA_ARGS__}));           \
+  }
+
+  TESTGDT(0, true, DT::Delete);
+  TESTGDT(1, true, DT::DeleteArr);
+  TESTGDT(2, true, DT::Free);
+  TESTGDT(3, true, DT::None, DT::Delete);
+  TESTGDT(4, true, DT::Delete);
+  TESTGDT(5, true, DT::Delete);
+  TESTGDT(6, true, DT::None);
+  TESTGDT(7, true, DT::Delete);
+  TESTGDT(8, true, DT::Unknown, DT::None);
+  TESTGDT(9, true, DT::Delete, DT::None);
+  TESTGDT(10, true, DT::Unknown, DT::None);
+  TESTGDT(11, false, DT::Opaque);
+  TESTGDT(12, false, DT::Opaque);
+  TESTGDT(13, true, DT::None);
+  TESTGDT(15, true, DT::Delete);
+  TESTGDT(16, true, DT::None);
+  TESTGDT(17, true, DT::None);
+  TESTGDT(18, true, DT::None, DT::None);
+  TESTGDT(19, true, DT::Unknown);
+  TESTGDT(20, true, DT::Delete);
+  TESTGDT(21, true, DT::Delete);
+  TESTGDT(22, true, DT::Delete);
+  TESTGDT(23, true, DT::None, DT::None);
+  TESTGDT(24, true, DT::Delete);
+  TESTGDT(25, true, DT::Free, DT::DeleteArr);
+  TESTGDT(26, true, DT::Delete, DT::None);
+  TESTGDT(27, true, DT::Delete, DT::Delete);
+  TESTGDT(28, true, DT::Delete, DT::None);
+  TESTGDT(29, true, DT::Delete, DT::None);
+  TESTGDT(30, true, DT::Delete, DT::None);
+  TESTGDT(31, true, DT::Delete, DT::None);
+  TESTGDT(32, true, DT::Delete, DT::None, DT::None);
+  TESTGDT(33, true, DT::Delete, DT::None);
+  TESTGDT(34, true, DT::None, DT::Delete);
+  TESTGDT(35, true, DT::Delete, DT::Delete);
+  TESTGDT(36, true, DT::Unknown);
+  TESTGDT(37, true, DT::Unknown);
+  TESTGDT(38, true, DT::None);
+  TESTGDT(39, true, DT::Unknown, DT::None);
+  // FIXME: check top of VisitCallExpr function
+  TESTGDT(40, true, DT::None, DT::None);
+  TESTGDT(41, true, DT::None);
+  TESTGDT(42, true, DT::None);
+  TESTGDT(43, true, DT::Unknown);
+  TESTGDT(44, true, DT::Delete);
+  TESTGDT(45, true, DT::Delete);
+
+#undef TESTGDT
+
+  {
+    std::vector<Cpp::DeallocType> result;
+    bool valid = Cpp::GetDeallocType(
+        Cpp::ConstFuncRef{Cpp::GetNamed("func14").data}, result);
+    EXPECT_FALSE(valid);
+    EXPECT_TRUE(result.empty());
+  }
+
+  std::vector<Cpp::DeallocType> nullResult;
+  EXPECT_FALSE(Cpp::GetDeallocType(Cpp::ConstFuncRef{nullptr}, nullResult));
+}
+
 TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetAllocType) {
   std::string code = R"(
     #include <new>

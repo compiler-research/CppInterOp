@@ -1820,6 +1820,231 @@ AllocType GetAllocType(ConstFuncRef Fn) {
   return INTEROP_RETURN(AllocType::None);
 }
 
+static bool AnalyzeDeallocType(
+    const clang::FunctionDecl* FD, std::vector<DeallocType>& valPerParam,
+    std::unordered_map<const FunctionDecl*,
+                       std::optional<std::vector<DeallocType>>>& visitedFuncs);
+namespace {
+struct DeallocationTraverser : RecursiveASTVisitor<DeallocationTraverser> {
+  std::unordered_map<const clang::VarDecl*, const clang::ParmVarDecl*> aliasMap;
+  std::set<const clang::ParmVarDecl*> overwritenParms;
+  std::vector<DeallocType>& valPerParam;
+  std::unordered_map<const FunctionDecl*,
+                     std::optional<std::vector<DeallocType>>>& visitedFuncs;
+  DeallocationTraverser(
+      std::vector<DeallocType>& v,
+      std::unordered_map<const FunctionDecl*,
+                         std::optional<std::vector<DeallocType>>>& cache)
+      : valPerParam(v), visitedFuncs(cache) {}
+
+  // Do not analyze lambda functions' bodies.
+  bool TraverseLambdaExpr(clang::LambdaExpr*) { return true; }
+
+  // Do not analyze inside of TagDecls(structs/unions/class)
+  bool TraverseDecl(clang::Decl* D) {
+    if (llvm::isa_and_nonnull<clang::TagDecl>(D))
+      return true;
+    return RecursiveASTVisitor::TraverseDecl(D);
+  }
+
+  // recursiveVec is VPP of callee
+  void joinVectors(std::vector<DeallocType>& recursiveVec,
+                   clang::CallExpr* CE) {
+    for (unsigned i = 0; i < recursiveVec.size() && i < CE->getNumArgs(); i++) {
+      if (recursiveVec[i] == DeallocType::None)
+        continue;
+      const clang::ParmVarDecl* PVD = resolveParam(CE->getArg(i));
+      if (!PVD)
+        continue;
+      updateVPP(PVD->getFunctionScopeIndex(), recursiveVec[i]);
+    }
+  }
+
+  bool VisitVarDecl(clang::VarDecl* VD) {
+    if (llvm::isa<clang::ParmVarDecl>(VD) ||
+        (!VD->getType()->isPointerType() && !VD->getType()->isRecordType()))
+      return true;
+    const clang::Expr* E = VD->getInit();
+    updateMap(VD, E);
+    return true;
+  }
+
+  bool VisitBinaryOperator(clang::BinaryOperator* BO) {
+    if (BO->getOpcode() != BO_Assign)
+      return true;
+    const auto* VD = resolveExpr(BO->getLHS());
+    updateMap(VD, BO->getRHS());
+    return true;
+  }
+
+  bool VisitCXXDeleteExpr(clang::CXXDeleteExpr* CDE) {
+    const clang::Expr* E = CDE->getArgument();
+    const auto* PVR = resolveParam(E);
+    if (!PVR)
+      return true;
+    if (CDE->isArrayForm()) {
+      updateVPP(PVR->getFunctionScopeIndex(), DeallocType::DeleteArr);
+      return true;
+    }
+    updateVPP(PVR->getFunctionScopeIndex(), DeallocType::Delete);
+    return true;
+  }
+
+  bool VisitCallExpr(clang::CallExpr* CE) {
+    // FIXME: for some operators, arg and parameter match may not match because
+    // of hidden __this__ parameter
+    if (llvm::isa<clang::CXXOperatorCallExpr>(CE))
+      return true;
+    const clang::FunctionDecl* FD = CE->getDirectCallee();
+    if (!FD)
+      return true;
+    if (FD->getBuiltinID() == Builtin::ID::BIfree) {
+      handleFree(CE);
+      return true;
+    }
+
+    // FIXME: Recursive Case
+    auto it = visitedFuncs.find(FD);
+    if (it != visitedFuncs.end()) {
+      // Function calls itself, or a cycle recursion
+      if (it->second == std::nullopt)
+        return true;
+      joinVectors(*(it->second), CE);
+      return true;
+    }
+    std::vector<DeallocType> calleeVec;
+    visitedFuncs[FD] = std::nullopt;
+    AnalyzeDeallocType(FD, calleeVec, visitedFuncs);
+    joinVectors(calleeVec, CE);
+    return true;
+  }
+
+  const clang::ParmVarDecl* resolveParam(const clang::Expr* E) {
+    const auto* VD = resolveExpr(E);
+    if (!VD)
+      return nullptr;
+    if (const auto* PVD = dyn_cast<clang::ParmVarDecl>(VD)) {
+      if (overwritenParms.count(PVD))
+        return nullptr;
+      return PVD;
+    }
+    auto it = aliasMap.find(VD);
+    if (it != aliasMap.end() && it->second != nullptr) {
+      return it->second;
+    }
+    return nullptr;
+  }
+
+  void updateMap(const clang::VarDecl* VD, const clang::Expr* E) {
+    if (!VD)
+      return;
+    if (!VD->getType()->isPointerType() && !VD->getType()->isRecordType())
+      return;
+    if (const auto* PVD = dyn_cast<clang::ParmVarDecl>(VD)) {
+      overwritenParms.insert(PVD);
+      return;
+    }
+    const auto* rhsVD = resolveExpr(E);
+
+    if (!rhsVD) {
+      aliasMap[VD] = nullptr;
+      return;
+    }
+
+    if (const auto* rhsPVD = dyn_cast<clang::ParmVarDecl>(rhsVD)) {
+      if (overwritenParms.count(rhsPVD)) {
+        aliasMap[VD] = nullptr;
+        return;
+      }
+      aliasMap[VD] = rhsPVD;
+      // FIXME: does not handle situation where one param is assigned to
+      // another param
+      return;
+    }
+
+    auto it = aliasMap.find(rhsVD);
+    if (it != aliasMap.end()) {
+      aliasMap[VD] = it->second;
+      return;
+    }
+    aliasMap[VD] = nullptr;
+  }
+
+  void updateVPP(unsigned index, DeallocType DT) {
+    if (valPerParam[index] == DeallocType::Unknown)
+      return;
+    // If new value from callee is Opaque, it is best to make parameter Unknown
+    // since we can not know what is going inside no-body functions
+    if ((valPerParam[index] != DeallocType::None && valPerParam[index] != DT) ||
+        DT == DeallocType::Opaque) {
+      valPerParam[index] = DeallocType::Unknown;
+      return;
+    }
+    valPerParam[index] = DT;
+  }
+
+  void handleFree(clang::CallExpr* CE) {
+    const clang::Expr* paramExpr = CE->getArg(0);
+    const auto* PVR = resolveParam(paramExpr);
+    if (!PVR)
+      return;
+    updateVPP(PVR->getFunctionScopeIndex(), DeallocType::Free);
+  }
+
+  const clang::VarDecl* resolveExpr(const clang::Expr* E) {
+    if (!E)
+      return nullptr;
+    E = E->IgnoreParenCasts();
+    const auto* DRE = dyn_cast<clang::DeclRefExpr>(E);
+    if (!DRE)
+      return nullptr;
+    const auto* VD = dyn_cast<clang::VarDecl>(DRE->getDecl());
+    return VD;
+  }
+};
+} // namespace
+
+static bool AnalyzeDeallocType(
+    const clang::FunctionDecl* FD, std::vector<DeallocType>& valPerParam,
+    std::unordered_map<const FunctionDecl*,
+                       std::optional<std::vector<DeallocType>>>& visitedFuncs) {
+  const unsigned int numParam = FD->getNumParams();
+  const auto* S = FD->getBody();
+  if (!S) {
+    valPerParam.assign(numParam, DeallocType::Opaque);
+    visitedFuncs[FD] = valPerParam;
+    return false;
+  }
+  const auto* CmpStmt = dyn_cast<CompoundStmt>(S);
+  if (!CmpStmt) {
+    // FIXME: try catch block are not handled
+    valPerParam.assign(numParam, DeallocType::Opaque);
+    visitedFuncs[FD] = valPerParam;
+    return false;
+  }
+  valPerParam.assign(numParam, DeallocType::None);
+  DeallocationTraverser Traverser(valPerParam, visitedFuncs);
+  Traverser.TraverseStmt(const_cast<CompoundStmt*>(CmpStmt));
+  visitedFuncs[FD] = valPerParam;
+  return true;
+}
+
+bool GetDeallocType(ConstFuncRef Fn, std::vector<DeallocType>& valPerParam) {
+  INTEROP_TRACE(Fn, INTEROP_OUT(valPerParam));
+  if (!Fn)
+    return INTEROP_RETURN(false);
+
+  const auto* D = unwrap<clang::Decl>(Fn);
+  const auto* FD = dyn_cast<clang::FunctionDecl>(D);
+  if (!FD)
+    return INTEROP_RETURN(false);
+  std::unordered_map<const FunctionDecl*,
+                     std::optional<std::vector<DeallocType>>>
+      visitedFuncs;
+  visitedFuncs[FD] = std::nullopt;
+  return INTEROP_RETURN(AnalyzeDeallocType(FD, valPerParam, visitedFuncs));
+}
+
 void GetFnTypeSignature(ConstTypeRef fn_type, std::vector<TypeRef>& sig) {
   INTEROP_TRACE(fn_type, INTEROP_OUT(sig));
   QualType QT = QualType::getFromOpaquePtr(fn_type.data);
