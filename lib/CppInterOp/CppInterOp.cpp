@@ -1279,6 +1279,11 @@ DeclRef GetParentScope(ConstDeclRef DRef) {
   if (llvm::isa_and_nonnull<TranslationUnitDecl>(D)) {
     return INTEROP_RETURN(nullptr);
   }
+  // For a method handle that is a using-shadow, the parent must be the
+  // target's declaring class, not the class holding the using-declaration:
+  // callers (e.g. CPyCppyy) use it to adjust `this` to the declaring base's
+  // subobject, and the wrapper calls the target through that base type.
+  D = UnwrapUsingShadowToFunction(D);
   auto* ParentDC = D->getDeclContext();
 
   if (!ParentDC)
