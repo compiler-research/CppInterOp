@@ -3236,6 +3236,162 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_Construct) {
   Cpp::Deallocate(scope, where);
 }
 
+// The wrappers behind Construct and by-value returns placement-new into a
+// caller-provided buffer. A class-scope operator new with no placement form
+// hides the global `operator new(size_t, void*)`, so those wrappers only
+// compile if they spell it `::new (buf) C(...)`.
+TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_ConstructClassScopeNew) {
+#ifdef _WIN32
+  GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
+#endif
+#ifdef EMSCRIPTEN
+#if CLANG_VERSION_MAJOR > 21
+  GTEST_SKIP() << "Test fails for Emscipten builds using LLVM 22";
+#endif
+#endif
+  if (TypeParam::isOutOfProcess)
+    GTEST_SKIP() << "Test fails for OOP JIT builds";
+  std::vector<const char*> interpreter_args = {"-include", "new"};
+  std::vector<Decl*> Decls;
+
+  std::string code = R"(
+    class WithClassNew {
+    public:
+      int x;
+      WithClassNew() : x(42) {}
+      static void* operator new(__SIZE_TYPE__ sz) { return ::operator new(sz); }
+      static void* operator new[](__SIZE_TYPE__ sz) {
+        return ::operator new[](sz);
+      }
+      static void operator delete(void* p) { ::operator delete(p); }
+      static void operator delete[](void* p) { ::operator delete[](p); }
+    };
+    WithClassNew MakeWithClassNew() { return WithClassNew(); }
+    )";
+
+  GetAllTopLevelDecls(code, Decls, false, interpreter_args);
+  Cpp::DeclRef scope = Cpp::GetNamed("WithClassNew");
+  ASSERT_TRUE(scope);
+
+  // Heap construction; the non-arena branch of the wrapper must keep using
+  // the unqualified `new` so it picks up the class-scope operator new.
+  Cpp::ObjectRef object = Cpp::Construct(scope);
+  ASSERT_TRUE(object);
+  EXPECT_EQ(*static_cast<int*>(object.data), 42);
+  Cpp::Destruct(object, scope, /*withFree=*/true, /*count=*/0);
+
+  // Placement construction into an arena.
+  void* where = Cpp::Allocate(scope).data;
+  ASSERT_TRUE(where);
+  EXPECT_TRUE(where == Cpp::Construct(scope, where).data);
+  EXPECT_EQ(*static_cast<int*>(where), 42);
+  Cpp::Destruct(where, scope, /*withFree=*/false, /*count=*/0);
+  Cpp::Deallocate(scope, where);
+
+  // Placement construction of an array (the wrapper's `nary > 1` branch).
+  constexpr size_t count = 3;
+  // The class holds a single int, so the array stride is one int and the
+  // constructed elements read back as int[count].
+  ASSERT_EQ(Cpp::SizeOf(scope), sizeof(int));
+  where = Cpp::Allocate(scope, count).data;
+  ASSERT_TRUE(where);
+  EXPECT_TRUE(where == Cpp::Construct(scope, where, count).data);
+  for (size_t i = 0; i < count; ++i)
+    EXPECT_EQ(static_cast<int*>(where)[i], 42);
+  Cpp::Destruct(where, scope, /*withFree=*/false, count);
+  Cpp::Deallocate(scope, where, count);
+
+  // A by-value return placement-news the result into `ret`
+  // (make_narg_call_with_return); this must also bypass the class-scope
+  // operator new.
+  Cpp::JitCall JC = Cpp::MakeFunctionCallable(Decls[1]);
+  ASSERT_TRUE(JC.getKind() == Cpp::JitCall::kGenericCall);
+  int result = 0; // WithClassNew's layout is a single int
+  JC.Invoke(&result);
+  EXPECT_EQ(result, 42);
+}
+
+// Pins down which operator new the wrappers pick when the class-scope forms
+// are all accessible, including a class-scope *placement* operator new. The
+// contract is the standard library's construct-at contract
+// ([specialized.construct]): construction into a caller-provided buffer is
+// spelled `::new (buf) C(...)`, so it constructs at `buf` directly and never
+// routes through a class-scope placement operator new (which unqualified
+// `new (buf)` would pick). Plain heap construction still goes through the
+// user's class-scope allocator. The counters make the choice observable.
+TYPED_TEST(CPPINTEROP_TEST_MODE,
+           FunctionReflection_ConstructClassScopePlacementNew) {
+#ifdef _WIN32
+  GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
+#endif
+#ifdef EMSCRIPTEN
+#if CLANG_VERSION_MAJOR > 21
+  GTEST_SKIP() << "Test fails for Emscipten builds using LLVM 22";
+#endif
+#endif
+  if (TypeParam::isOutOfProcess)
+    GTEST_SKIP() << "Test fails for OOP JIT builds";
+  std::vector<const char*> interpreter_args = {"-include", "new"};
+  std::vector<Decl*> Decls;
+
+  std::string code = R"(
+    int heap_news = 0;      // calls to the class-scope operator new(size_t)
+    int placement_news = 0; // calls to the class-scope placement form
+    class WithPlacementNew {
+    public:
+      int x;
+      WithPlacementNew() : x(7) {}
+      WithPlacementNew Clone() { return WithPlacementNew(); }
+      static void* operator new(__SIZE_TYPE__ sz) {
+        ++heap_news;
+        return ::operator new(sz);
+      }
+      static void* operator new(__SIZE_TYPE__, void* where) {
+        ++placement_news;
+        return where;
+      }
+      static void operator delete(void* p) { ::operator delete(p); }
+      static void operator delete(void*, void*) {}
+    };
+    )";
+
+  GetAllTopLevelDecls(code, Decls, false, interpreter_args);
+  Cpp::DeclRef scope = Cpp::GetNamed("WithPlacementNew");
+  ASSERT_TRUE(scope);
+
+  // Heap construction (the wrapper's non-arena `new C(...)`) must keep
+  // honoring the user's class-scope allocator.
+  Cpp::ObjectRef object = Cpp::Construct(scope);
+  ASSERT_TRUE(object);
+  EXPECT_EQ(*static_cast<int*>(object.data), 7);
+  EXPECT_EQ(Cpp::Evaluate("heap_news").unbox<int>(), 1);
+  EXPECT_EQ(Cpp::Evaluate("placement_news").unbox<int>(), 0);
+
+  // Construction into a caller-provided buffer bypasses the class-scope
+  // placement operator new, like std::construct_at does.
+  void* where = Cpp::Allocate(scope).data;
+  ASSERT_TRUE(where);
+  EXPECT_TRUE(where == Cpp::Construct(scope, where).data);
+  EXPECT_EQ(*static_cast<int*>(where), 7);
+  EXPECT_EQ(Cpp::Evaluate("placement_news").unbox<int>(), 0);
+  Cpp::Destruct(where, scope, /*withFree=*/false, /*count=*/0);
+  Cpp::Deallocate(scope, where);
+
+  // A JitCall to a method of the class with a by-value result: the wrapper
+  // stores the result into the caller's buffer with `::new (ret)`, so the
+  // class-scope placement operator new stays out of the call path here too.
+  Cpp::JitCall JC = Cpp::MakeFunctionCallable(
+      Cpp::FuncRef{Cpp::GetNamed("Clone", scope).data});
+  ASSERT_TRUE(JC.getKind() == Cpp::JitCall::kGenericCall);
+  int result = 0; // WithPlacementNew's layout is a single int
+  JC.Invoke(&result, {}, object.data);
+  EXPECT_EQ(result, 7);
+  EXPECT_EQ(Cpp::Evaluate("heap_news").unbox<int>(), 1);
+  EXPECT_EQ(Cpp::Evaluate("placement_news").unbox<int>(), 0);
+
+  Cpp::Destruct(object, scope, /*withFree=*/true, /*count=*/0);
+}
+
 // Test zero initialization of PODs and default initialization cases
 TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_ConstructPOD) {
 #ifdef _WIN32
