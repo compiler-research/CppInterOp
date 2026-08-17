@@ -204,6 +204,20 @@ configure_file(BuildInfo.inc.in
                ${CPPINTEROP_GEN_DIR}/BuildInfo.inc
                @ONLY)
 
+# clad registers itself through static initializers (FrontendPluginRegistry);
+# whole-archive linking keeps them from being dropped by the linker.
+if(CPPINTEROP_ENABLE_CLAD)
+  set(CPPINTEROP_PLUGIN_LINK_LIBS)
+  if (APPLE)
+      set(CPPINTEROP_PLUGIN_LINK_LIBS -Wl,-force_load cladPlugin -Wl,-force_load cladDifferentiator)
+  elseif(MSVC)
+      set(CPPINTEROP_PLUGIN_LINK_LIBS cladPlugin cladDifferentiator)
+      set(CLAD_LIBS "-WHOLEARCHIVE:cladPlugin.lib -WHOLEARCHIVE:cladDifferentiator.lib")
+  else()
+      set(CPPINTEROP_PLUGIN_LINK_LIBS -Wl,--whole-archive cladPlugin cladDifferentiator -Wl,--no-whole-archive)
+  endif()
+endif(CPPINTEROP_ENABLE_CLAD)
+
 # If an embedding project opts out of CppInterOp's installs rules, route the
 # library through LLVM's BUILDTREE_ONLY path so add_llvm_library() does not
 # register it in LLVMExports or call install(TARGETS) for it.
@@ -223,6 +237,7 @@ add_llvm_library(clangCppInterOp
   ${DLM}
   LINK_LIBS
   ${link_libs}
+  ${CPPINTEROP_PLUGIN_LINK_LIBS}
 )
 
 if(EMSCRIPTEN)
@@ -275,3 +290,10 @@ string(REPLACE ";" "\;" _VER CPPINTEROP_VERSION)
 set_source_files_properties(CppInterOp.cpp PROPERTIES COMPILE_DEFINITIONS
   "LLVM_BINARY_DIR=\"${LLVM_BINARY_DIR}\";CPPINTEROP_VERSION=\"${_VAR}\""
 )
+
+if(CPPINTEROP_ENABLE_CLAD)
+  set_property(SOURCE CppInterOp.cpp APPEND PROPERTY COMPILE_DEFINITIONS
+    "CPPINTEROP_ENABLE_CLAD=1"
+    "CLAD_INCLUDE_DIRS=\"${CMAKE_BINARY_DIR}/plugins/clad/include/\""
+  )
+endif()
