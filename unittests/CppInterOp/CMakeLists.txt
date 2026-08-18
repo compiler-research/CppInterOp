@@ -46,10 +46,10 @@ add_cppinterop_unittest(CppInterOpTests
   CAPITest.cpp
   CommentReflectionTest.cpp
   CppInterOpThunksTest.cpp
+  CppInterOpTypesTest.cpp
   DiagnosticTest.cpp
   EnumReflectionTest.cpp
   FunctionReflectionTest.cpp
-  HandleTypesTest.cpp
   InterpreterTest.cpp
   JitTest.cpp
   ResultTest.cpp
@@ -126,6 +126,11 @@ endif()
 
 add_subdirectory(TestSharedLib)
 add_dependencies(DynamicLibraryManagerTests TestSharedLib)
+
+# Regression guard that CppInterOpTypes.h stays a self-contained header
+# (no out-of-line .cpp dependency from libclangCppInterOp). See
+# unittests/CppInterOp/TypesSelfContainedTest/ for the rationale.
+add_subdirectory(TypesSelfContainedTest)
 
 # Cross-TU VTableOverlay perf check, built as part of the test suite.
 # Standalone-only (its Google Benchmark dependency is provisioned only then;
