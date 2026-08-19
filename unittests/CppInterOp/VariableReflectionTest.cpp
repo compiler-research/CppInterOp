@@ -235,6 +235,8 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, VariableReflection_GetVariableType) {
     E<int> *f;
     int g[4];
     auto fn = []() { return 1; };
+    extern int uarr[];
+    int uarr[7];
     )";
 
   GetAllTopLevelDecls(code, Decls);
@@ -249,6 +251,14 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, VariableReflection_GetVariableType) {
 
   EXPECT_FALSE(Cpp::IsLambdaClass(Cpp::GetVariableType(Decls[8])));
   EXPECT_TRUE(Cpp::IsLambdaClass(Cpp::GetVariableType(Decls[9])));
+
+  std::vector<Decl*> UArrDecls;
+  for (Decl* D : Decls)
+    if (Cpp::GetName(D) == "uarr")
+      UArrDecls.push_back(D);
+  ASSERT_EQ(UArrDecls.size(), 2);
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetVariableType(UArrDecls[0])), "int[7]");
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetVariableType(UArrDecls[1])), "int[7]");
 }
 
 #define CODE                                                                   \
