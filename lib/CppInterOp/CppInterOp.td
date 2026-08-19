@@ -1059,10 +1059,11 @@ def GetEnumConstantType : CppInterOpAPI {
 }
 
 def GetEnumConstantValue : CppInterOpAPI {
-  let Doc = [{Gets the index value (0,1,2, etcetera) of the enum constant
-that was passed into this function.}];
+  let Doc = [{Gets the value of the enum constant that was passed into this
+function, as its 64-bit bit pattern (values above INT64_MAX come back as
+their two's complement representation).}];
 
-  let ReturnType = "size_t";
+  let ReturnType = "int64_t";
   let Args = [
     Arg<"ConstDeclRef", "DRef">
   ];
