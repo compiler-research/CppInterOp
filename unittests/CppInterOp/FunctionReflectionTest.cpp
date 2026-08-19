@@ -1908,12 +1908,34 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_ExistsFunctionTemplate) {
     };
 
     void f(char ch) {}
+
+    void g(int) {}
+    void g(double) {}
+
+    template<typename T>
+    void h(T a) {}
+    void h(int) {}
+
+    namespace NS {
+      template<typename T>
+      void k(T a) {}
+    }
+    using NS::k;
+    void k(int) {}
     )";
 
   GetAllTopLevelDecls(code, Decls);
   EXPECT_TRUE(Cpp::ExistsFunctionTemplate("f", nullptr));
   EXPECT_TRUE(Cpp::ExistsFunctionTemplate("f", Decls[1]));
   EXPECT_FALSE(Cpp::ExistsFunctionTemplate("f", Decls[2]));
+  // An ambiguous name (overload set) is not a template just because the
+  // lookup found more than one decl: only report true if a templated
+  // function is among the results.
+  EXPECT_FALSE(Cpp::ExistsFunctionTemplate("g", nullptr));
+  EXPECT_TRUE(Cpp::ExistsFunctionTemplate("h", nullptr));
+  // The template may enter the overload set through a using-declaration:
+  // the using-shadow must be unwrapped to its target.
+  EXPECT_TRUE(Cpp::ExistsFunctionTemplate("k", nullptr));
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE,
