@@ -81,6 +81,8 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, TypeReflection_GetSizeOfType) {
   EXPECT_EQ(Cpp::GetSizeOfType(Cpp::GetTypeFromScope(Decls[5])), 0);
   EXPECT_EQ(Cpp::GetSizeOfType(Cpp::GetVariableType(Decls[6])),
             sizeof(intptr_t));
+  // A null type must not crash and has no size.
+  EXPECT_EQ(Cpp::GetSizeOfType(nullptr), 0);
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, TypeReflection_GetCanonicalType) {
