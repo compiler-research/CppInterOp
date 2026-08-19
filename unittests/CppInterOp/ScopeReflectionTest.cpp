@@ -463,12 +463,17 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_IsAbstract) {
     int sum(int a, int b) {
       return a+b;
     }
+
+    class FwdDeclared;
   )";
 
   GetAllTopLevelDecls(code, Decls);
   EXPECT_FALSE(Cpp::IsAbstract(Decls[0]));
   EXPECT_TRUE(Cpp::IsAbstract(Decls[1]));
   EXPECT_FALSE(Cpp::IsAbstract(Decls[2]));
+  // A class without a definition is not known to be abstract, and asking
+  // must not crash.
+  EXPECT_FALSE(Cpp::IsAbstract(Decls[3]));
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_IsVariable) {

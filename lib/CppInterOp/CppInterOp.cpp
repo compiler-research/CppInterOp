@@ -744,7 +744,8 @@ bool IsAbstract(ConstDeclRef DRef) {
   INTEROP_TRACE(DRef);
   const auto* D = unwrap<clang::Decl>(DRef);
   if (const auto* CXXRD = llvm::dyn_cast_or_null<clang::CXXRecordDecl>(D))
-    return INTEROP_RETURN(CXXRD->isAbstract());
+    return INTEROP_RETURN(CXXRD->hasDefinition() &&
+                          CXXRD->getDefinition()->isAbstract());
 
   return INTEROP_RETURN(false);
 }
