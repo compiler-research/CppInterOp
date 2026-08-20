@@ -1710,6 +1710,9 @@ struct AllocationTraverser : RecursiveASTVisitor<AllocationTraverser> {
   // Result var keeps the combination all possible values of previous return
   // statements
   std::optional<AllocType> result;
+  // A map every branch writes the previous value of overwriten variables
+  std::unordered_map<const clang::VarDecl*, std::optional<AllocType>>* undoLog =
+      nullptr;
 
   AllocationTraverser(std::unordered_map<const clang::FunctionDecl*,
                                          std::optional<AllocType>>& cache)
@@ -1725,6 +1728,88 @@ struct AllocationTraverser : RecursiveASTVisitor<AllocationTraverser> {
     return RecursiveASTVisitor::TraverseDecl(D);
   }
 
+  std::optional<AllocType> join(std::optional<AllocType> a,
+                                std::optional<AllocType> b) {
+    if (a == AllocType::Null)
+      return b;
+
+    if (b == AllocType::Null)
+      return a;
+
+    if (a == b)
+      return a;
+    return AllocType::Unknown;
+  }
+  void undoOnVarMap() {
+    for (auto& [VD, oldVal] : *undoLog)
+      varMap[VD] = oldVal;
+  }
+
+  bool TraverseIfStmt(clang::IfStmt* IS) {
+    TraverseStmt(IS->getConditionVariableDeclStmt());
+    TraverseStmt(IS->getCond());
+    auto* undoLogCopy = undoLog;
+    std::unordered_map<const clang::VarDecl*, std::optional<AllocType>>
+        undoLogThen;
+    undoLog = &undoLogThen;
+    TraverseStmt(IS->getThen());
+    auto* elseBranch = IS->getElse();
+    // There is no else
+    if (!elseBranch) {
+      for (auto& [VD, val] : undoLogThen) {
+        // Overwrite varMap with join of overwriten and previous value
+        varMap[VD] = join(val, varMap[VD]);
+        // If branch is nested, inform upper branch about your changes
+        if (undoLogCopy)
+          undoLogCopy->try_emplace(VD, val);
+      }
+      undoLog = undoLogCopy;
+      return true;
+    }
+
+    // Save overwriten values in if branch to join
+    std::unordered_map<const clang::VarDecl*, std::optional<AllocType>>
+        valuesInIfBranch;
+    for (auto& [VD, val] : undoLogThen)
+      valuesInIfBranch[VD] = varMap[VD];
+
+    // Take changes on varMap back before going to else branch
+    undoOnVarMap();
+
+    std::unordered_map<const clang::VarDecl*, std::optional<AllocType>>
+        undoLogElse;
+    undoLog = &undoLogElse;
+    TraverseStmt(elseBranch);
+
+    for (auto& [VD, val] : undoLogElse) {
+      auto it2 = valuesInIfBranch.find(VD);
+      // If var is just changed in else branch
+      if (it2 == valuesInIfBranch.end()) {
+        varMap[VD] = join(val, varMap[VD]);
+        continue;
+      }
+      // If var is changed in both
+      varMap[VD] = join(varMap[VD], it2->second);
+    }
+
+    for (auto& [VD, val] : valuesInIfBranch)
+      // If var is changed in both, varMap carries new value from ELSE, if it is
+      // just changed in THEN, varMap carries old value, so both situation
+      // yields to same
+      varMap[VD] = join(val, varMap[VD]);
+
+    // Inform upper branch about changes done for both inner if and else branch
+    if (undoLogCopy) {
+      for (auto& [VD, val] : undoLogThen)
+        undoLogCopy->try_emplace(VD, val);
+      for (auto& [VD, val] : undoLogElse)
+        undoLogCopy->try_emplace(VD, val);
+    }
+
+    undoLog = undoLogCopy;
+    return true;
+  }
+
   bool VisitVarDecl(VarDecl* VD) {
     Expr* expr = VD->getInit();
     if (expr)
@@ -1735,15 +1820,29 @@ struct AllocationTraverser : RecursiveASTVisitor<AllocationTraverser> {
   }
 
   bool VisitBinaryOperator(clang::BinaryOperator* BO) {
-    if (BO->getOpcode() != BO_Assign)
-      return true;
     Expr* LHS = BO->getLHS();
     LHS = LHS->IgnoreParenCasts();
-    if (auto* DRE = dyn_cast<DeclRefExpr>(LHS)) {
-      if (auto* VD = dyn_cast<VarDecl>(DRE->getDecl())) {
-        Expr* RHS = BO->getRHS();
-        varMap[VD] = handleExpr(RHS);
-      }
+    auto* DRE = dyn_cast<DeclRefExpr>(LHS);
+    if (!DRE)
+      return true;
+
+    auto* VD = dyn_cast<VarDecl>(DRE->getDecl());
+    // FIXME: BindingDecls are not handled
+    if (!VD)
+      return true;
+
+    if (BO->getOpcode() == BO_Assign) {
+      if (undoLog)
+        undoLog->try_emplace(VD, varMap[VD]);
+      Expr* RHS = BO->getRHS();
+      varMap[VD] = handleExpr(RHS);
+      return true;
+    }
+    if (BO->isCompoundAssignmentOp()) {
+      if (undoLog)
+        undoLog->try_emplace(VD, varMap[VD]);
+      varMap[VD] = AllocType::Unknown;
+      return true;
     }
     return true;
   }
@@ -1755,14 +1854,15 @@ struct AllocationTraverser : RecursiveASTVisitor<AllocationTraverser> {
     std::optional<AllocType> tmp = handleExpr(retExpr);
     if (!tmp.has_value())
       return true;
-    if (!result.has_value())
+    if (!result.has_value()) {
       result = tmp;
+      return true;
+    }
     // If function's allocation behaviour differs between different cases,
     // analyzer returns unknown.
-    else if (*result != tmp) {
-      result = AllocType::Unknown;
+    result = join(result, tmp);
+    if (result == AllocType::Unknown)
       return false;
-    }
     return true;
   }
 
@@ -1770,6 +1870,20 @@ struct AllocationTraverser : RecursiveASTVisitor<AllocationTraverser> {
     if (const auto* FD = CE->getDirectCallee()) {
       if (FD->getBuiltinID() == Builtin::ID::BImalloc)
         return AllocType::Malloc;
+      if (FD->getBuiltinID() == Builtin::ID::BI__builtin_operator_new)
+        return AllocType::OperatorNew;
+      // Detects operator new/new[]/delete/delete[]
+      if (FD->isReplaceableGlobalAllocationFunction()) {
+        switch (FD->getOverloadedOperator()) {
+        case OO_New:
+          return AllocType::OperatorNew;
+        case OO_Array_New:
+          return AllocType::OperatorNewArr;
+        // Unreachable code
+        default:
+          break; // OO_Delete/OO_Array_Delete
+        }
+      }
       auto it = visitedFuncs.find(FD);
       if (it == visitedFuncs.end()) {
         visitedFuncs[FD] = std::nullopt;
@@ -1782,8 +1896,16 @@ struct AllocationTraverser : RecursiveASTVisitor<AllocationTraverser> {
   }
 
   static AllocType handleNew(const clang::CXXNewExpr* CNE) {
-    if (CNE->getNumPlacementArgs() > 0)
-      return AllocType::None;
+    if (CNE->getNumPlacementArgs() > 0) {
+      /*
+      Non-allocating placement allocation functions
+      void* operator new  ( std::size_t count, void* ptr );
+      void* operator new[]( std::size_t count, void* ptr );
+      */
+      const clang::FunctionDecl* OpNew = CNE->getOperatorNew();
+      if (OpNew && OpNew->isReservedGlobalPlacementOperator())
+        return AllocType::None;
+    }
     if (CNE->isArray())
       return AllocType::NewArr;
     return AllocType::New;
@@ -1803,12 +1925,24 @@ struct AllocationTraverser : RecursiveASTVisitor<AllocationTraverser> {
           return it->second;
       }
       // FIXME: BindingDecl, NonTypeTemplateParmDecl are not handled
+      if (isa<BindingDecl>(DRE->getDecl()) ||
+          isa<NonTypeTemplateParmDecl>(DRE->getDecl()))
+        return AllocType::Unknown;
       return AllocType::None;
     }
 
     // Case: malloc or another func call
     if (const auto* CE = dyn_cast<CallExpr>(finExpr))
       return handleCall(CE);
+
+    // Case: NULL, nullptr or (int*)(__integerLiteral__)
+    const clang::Expr* parExpr = expr->IgnoreParens();
+    while (const auto* CE = dyn_cast<CastExpr>(parExpr)) {
+      if (CE->getCastKind() == CK_NullToPointer)
+        return AllocType::Null;
+      parExpr = CE->getSubExpr();
+    }
+
     return AllocType::None;
   }
 };
@@ -1829,6 +1963,8 @@ AnalyzeAllocType(const clang::FunctionDecl* Fn,
   if (!CmpStmt)
     return AllocType::Unknown;
   AllocationTraverser Traverser(visitedFuncs);
+  for (auto* parm : Fn->parameters())
+    Traverser.VisitVarDecl(parm);
   Traverser.TraverseStmt(const_cast<clang::CompoundStmt*>(CmpStmt));
   auto res = Traverser.result;
   visitedFuncs[Fn] = res;
