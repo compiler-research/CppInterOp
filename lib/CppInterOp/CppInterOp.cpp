@@ -1924,6 +1924,9 @@ struct AllocationTraverser : RecursiveASTVisitor<AllocationTraverser> {
           return it->second;
       }
       // FIXME: BindingDecl, NonTypeTemplateParmDecl are not handled
+      if (isa<BindingDecl>(DRE->getDecl()) ||
+          isa<NonTypeTemplateParmDecl>(DRE->getDecl()))
+        return AllocType::Unknown;
       return AllocType::None;
     }
 

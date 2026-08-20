@@ -1818,7 +1818,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetAllocType) {
   TESTAC(57, None);
   TESTAC(58, OperatorNew);
   TESTAC(59, Malloc);
-  TESTAC(70, None);
+  TESTAC(70, Unknown);
 #undef TESTAC
 
   Cpp::DeleteInterpreter();
