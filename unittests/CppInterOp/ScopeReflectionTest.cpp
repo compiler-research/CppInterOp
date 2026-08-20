@@ -465,15 +465,29 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_IsAbstract) {
     }
 
     class FwdDeclared;
+
+    template <typename T>
+    struct AbsT {
+      virtual void f() = 0;
+    };
+    AbsT<int>* makeAbsT();
   )";
 
   GetAllTopLevelDecls(code, Decls);
   EXPECT_FALSE(Cpp::IsAbstract(Decls[0]));
   EXPECT_TRUE(Cpp::IsAbstract(Decls[1]));
   EXPECT_FALSE(Cpp::IsAbstract(Decls[2]));
-  // A class without a definition is not known to be abstract, and asking
-  // must not crash.
+  // A class with no definition anywhere answers false and must not crash.
   EXPECT_FALSE(Cpp::IsAbstract(Decls[3]));
+
+  // An uninstantiated specialization is completed on demand before answering.
+  // (hasDefinition() is the passive check: IsComplete itself would force.)
+  Cpp::TypeRef PtrTy = Cpp::GetFunctionReturnType(Decls[5]);
+  Cpp::DeclRef Spec = Cpp::GetScopeFromType(Cpp::GetPointeeType(PtrTy));
+  auto* SpecRD = Cpp::unwrap<clang::CXXRecordDecl>(Spec);
+  EXPECT_FALSE(SpecRD->hasDefinition());
+  EXPECT_TRUE(Cpp::IsAbstract(Spec));
+  EXPECT_TRUE(SpecRD->hasDefinition());
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_IsVariable) {

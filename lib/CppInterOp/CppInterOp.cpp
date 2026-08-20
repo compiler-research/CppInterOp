@@ -740,12 +740,14 @@ bool IsTypedefed(ConstDeclRef DRef) {
   return INTEROP_RETURN(llvm::isa_and_nonnull<clang::TypedefNameDecl>(D));
 }
 
-bool IsAbstract(ConstDeclRef DRef) {
+bool IsAbstract(DeclRef DRef) {
   INTEROP_TRACE(DRef);
   const auto* D = unwrap<clang::Decl>(DRef);
-  if (const auto* CXXRD = llvm::dyn_cast_or_null<clang::CXXRecordDecl>(D))
-    return INTEROP_RETURN(CXXRD->hasDefinition() &&
-                          CXXRD->getDefinition()->isAbstract());
+  if (llvm::isa_and_nonnull<clang::CXXRecordDecl>(D)) {
+    const auto* Def = llvm::dyn_cast_or_null<clang::CXXRecordDecl>(
+        unwrap<clang::Decl>(GetOrForceDefinition(DRef)));
+    return INTEROP_RETURN(Def && Def->isAbstract());
+  }
 
   return INTEROP_RETURN(false);
 }

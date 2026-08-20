@@ -598,9 +598,13 @@ def Deallocate : CppInterOpAPI {
 }
 
 def IsAbstract : CppInterOpAPI {
+  let Doc = [{Checks if a class is abstract. Abstractness is a property of the
+class definition: if only a declaration is loaded, the definition is first
+forced into the AST (see GetOrForceDefinition).}];
+
   let ReturnType = "bool";
   let Args = [
-    Arg<"ConstDeclRef", "DRef">
+    Arg<"DeclRef", "DRef">
   ];
 }
 
