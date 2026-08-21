@@ -24,6 +24,7 @@
 #endif
 
 #include <fstream>
+#include <iostream>
 #include <sys/stat.h>
 #include <system_error>
 
@@ -369,6 +370,9 @@ DynamicLibraryManager::loadLibrary(StringRef libStem, bool permanent,
     // We emit callback to LibraryLoadingFailed when we get error with error
     // message.
     // TODO: Implement callbacks
+
+    if (!errMsg.empty())
+      std::cerr << errMsg << '\n';
 
     LLVM_DEBUG(dbgs() << "DynamicLibraryManager::loadLibrary(): " << errMsg);
 
