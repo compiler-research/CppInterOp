@@ -30,6 +30,7 @@
 #include "clang/Sema/Sema.h"
 
 #include "llvm/ADT/IntrusiveRefCntPtr.h"
+#include "llvm/ADT/STLForwardCompat.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/Support/FileSystem.h"
 
@@ -40,6 +41,8 @@
 #include <cstring>
 #include <memory>
 #include <string>
+#include <type_traits>
+#include <utility>
 
 #if CLANG_VERSION_MAJOR < 22
 #define clang_driver_options clang::driver::options
@@ -703,6 +706,18 @@ inline clang::QualType GetTypeFromDecl(const clang::TypeDecl* TD) {
   return TD->getASTContext().getTypeDeclType(TD);
 }
 
+// Print anonymous tags as a bare "(anonymous struct)" without the trailing
+// source location. Clang 23 replaced the AnonymousTagLocations bit with the
+// AnonymousTagMode enum stored in AnonymousTagNameStyle.
+inline void SuppressAnonymousTagLocations(clang::PrintingPolicy& Policy) {
+#if CLANG_VERSION_MAJOR < 23
+  Policy.AnonymousTagLocations = false;
+#else
+  Policy.AnonymousTagNameStyle =
+      llvm::to_underlying(clang::PrintingPolicy::AnonymousTagMode::Plain);
+#endif
+}
+
 #ifdef CPPINTEROP_USE_CLING
 using Value = cling::Value;
 #else
@@ -721,21 +736,24 @@ template <typename T> inline T convertTo(clang::Value V) {
 #endif // CPPINTEROP_USE_CLING
 
 // Refcount-shared payload wrapping a `compat::Value` for Cpp::Box's
-// K_PtrOrObj slot. Boxing-via-copy (not move): clang::Value's move ctor
-// releases its own storage on construction -- fixed upstream by
-// llvm/llvm-project#200888. The copy ctor correctly retains.
-// FIXME(llvm 23): static_assert below fails the build once the minimum
-// LLVM crosses 23, prompting the move-semantics cleanup.
-static_assert(LLVM_VERSION_MAJOR < 23,
-              "clang::Value::Value(Value&&) was fixed upstream in "
-              "llvm/llvm-project#200888; switch ValueRefCount to move "
-              "semantics and drop this workaround.");
+// K_PtrOrObj slot. On Clang < 23 the payload must be boxed by copy, not
+// move: clang::Value's move ctor released its own storage on construction
+// until Clang 23. The copy ctor retains correctly on every supported
+// version.
+// cling::Value keeps the copy path -- cling tracks a pre-23 Clang.
+#if CLANG_VERSION_MAJOR >= 23 && !defined(CPPINTEROP_USE_CLING)
+#define CPPINTEROP_VALUE_BOX_MOVE 1
+#endif
 
 namespace detail {
 struct ValueRefCount {
   std::atomic<unsigned> rc;
   Value v;
+#ifdef CPPINTEROP_VALUE_BOX_MOVE
+  explicit ValueRefCount(Value&& V) noexcept : rc(1), v(std::move(V)) {}
+#else
   explicit ValueRefCount(const Value& V) noexcept : rc(1), v(V) {}
+#endif
 
   static void retain(void* p) noexcept {
     static_cast<ValueRefCount*>(p)->rc.fetch_add(1, std::memory_order_relaxed);
@@ -750,10 +768,14 @@ struct ValueRefCount {
 } // namespace detail
 
 /// Wrap a compat::Value into a refcount-shared K_PtrOrObj Cpp::Box.
-/// `qt` is the opaque QualType (clang::QualType::getAsOpaquePtr()).
-inline Cpp::Box MakeValueBox(const Value& V, void* qt) noexcept {
-  return Cpp::Box::AdoptObject(new detail::ValueRefCount(V),
-                               &detail::ValueRefCount::Ops, qt);
+/// `qt` is the opaque clang::QualType
+inline Cpp::Box MakeValueBox(Value& V, void* qt) noexcept {
+#ifdef CPPINTEROP_VALUE_BOX_MOVE
+  auto* Payload = new detail::ValueRefCount(std::move(V));
+#else
+  auto* Payload = new detail::ValueRefCount(V);
+#endif
+  return Cpp::Box::AdoptObject(Payload, &detail::ValueRefCount::Ops, qt);
 }
 
 inline void InstantiateClassTemplateSpecialization(
