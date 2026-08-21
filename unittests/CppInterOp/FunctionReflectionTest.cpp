@@ -864,8 +864,6 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_IsAllocator) {
     void __attribute__((annotate("cppAllocNew"))) NewFunc();
     void __attribute__((annotate("cppAllocNewArr"))) NewArrFunc();
     void __attribute__((annotate("cppAllocMalloc"))) MallocFunc();
-    void __attribute__((annotate("cppAllocUnknown"))) UnknownFunc();
-    void __attribute__((annotate("cppAllocNull"))) NullFunc();
     void __attribute__((annotate("cppAllocOperatorNew"))) OpNewFunc();
     void __attribute__((annotate("cppAllocOperatorNewArr"))) OpNewArrFunc();
     void __attribute__((annotate("unrelatedAttr"))) UnrelatedFunc();
@@ -880,26 +878,24 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_IsAllocator) {
   TESTIA(malloc, Cpp::AllocType::Malloc);
   TESTIA(Allocator, Cpp::AllocType::Malloc);
   TESTIA(Allocator2, Cpp::AllocType::Malloc);
-  TESTIA(foo, std::nullopt);
-  TESTIA(Deallocator, std::nullopt);
+  TESTIA(foo, Cpp::AllocType::Unknown);
+  TESTIA(Deallocator, Cpp::AllocType::Unknown);
   TESTIA(CFAllocFunc, Cpp::AllocType::Malloc);
   TESTIA(NoneFunc, Cpp::AllocType::None);
   TESTIA(NewFunc, Cpp::AllocType::New);
   TESTIA(NewArrFunc, Cpp::AllocType::NewArr);
   TESTIA(MallocFunc, Cpp::AllocType::Malloc);
-  TESTIA(UnknownFunc, Cpp::AllocType::Unknown);
-  TESTIA(NullFunc, Cpp::AllocType::Null);
   TESTIA(OpNewFunc, Cpp::AllocType::OperatorNew);
   TESTIA(OpNewArrFunc, Cpp::AllocType::OperatorNewArr);
-  TESTIA(UnrelatedFunc, std::nullopt);
-  TESTIA(DeclspecRestrictFunc, std::nullopt);
+  TESTIA(UnrelatedFunc, Cpp::AllocType::Unknown);
+  TESTIA(DeclspecRestrictFunc, Cpp::AllocType::Unknown);
 
   //! Fn coverage
   EXPECT_EQ(Cpp::IsAllocator(Cpp::ConstFuncRef{nullptr}),
             Cpp::AllocType::Unknown);
   // casting coverage
   EXPECT_EQ(Cpp::IsAllocator(Cpp::ConstFuncRef{Cpp::GetNamed("Klass").data}),
-            std::nullopt);
+            Cpp::AllocType::Unknown);
 
   Cpp::DeleteInterpreter();
 #ifdef EMSCRIPTEN
@@ -920,7 +916,14 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_IsAllocator) {
   Interp->process(code);
 
   TESTIA(testAlloc, Cpp::AllocType::Malloc);
-  TESTIA(testNotAlloc, std::nullopt);
+  TESTIA(testNotAlloc, Cpp::AllocType::Unknown);
+  TESTIA(testMalloc, Cpp::AllocType::Malloc);
+  TESTIA(testNew, Cpp::AllocType::New);
+  TESTIA(testNewArr, Cpp::AllocType::NewArr);
+  TESTIA(testOperatorNew, Cpp::AllocType::OperatorNew);
+  TESTIA(testOperatorNewArr, Cpp::AllocType::OperatorNewArr);
+  TESTIA(testNone, Cpp::AllocType::None);
+  TESTIA(testWeirdAttr, Cpp::AllocType::Unknown);
 
   Cpp::DeleteInterpreter();
 #endif

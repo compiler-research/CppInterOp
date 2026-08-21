@@ -1648,7 +1648,7 @@ TypeRef GetFunctionReturnType(ConstFuncRef func) {
   return INTEROP_RETURN(nullptr);
 }
 
-std::optional<AllocType> IsAllocator(ConstFuncRef Fn) {
+AllocType IsAllocator(ConstFuncRef Fn) {
   INTEROP_TRACE(Fn);
   if (!Fn)
     return INTEROP_RETURN(AllocType::Unknown);
@@ -1670,8 +1670,16 @@ std::optional<AllocType> IsAllocator(ConstFuncRef Fn) {
         FD->hasAttr<NSReturnsRetainedAttr>() ||
         FD->hasAttr<OSReturnsRetainedAttr>())
       return INTEROP_RETURN(AllocType::Malloc);
-    for (const auto* attr : FD->specific_attrs<clang::AnnotateAttr>()) {
-      llvm::StringRef attrName = attr->getAnnotation();
+
+    for (const auto* attr : FD->attrs()) {
+      llvm::StringRef attrName;
+      if (const auto* swiftAttr = dyn_cast<clang::SwiftAttrAttr>(attr))
+        attrName = swiftAttr->getAttribute();
+      else if (const auto* annotateAttr = dyn_cast<clang::AnnotateAttr>(attr))
+        attrName = annotateAttr->getAnnotation();
+      else
+        continue;
+      attrName.consume_front("returns_");
       if (attrName == "cppAllocNone")
         return INTEROP_RETURN(AllocType::None);
       if (attrName == "cppAllocNew")
@@ -1680,10 +1688,6 @@ std::optional<AllocType> IsAllocator(ConstFuncRef Fn) {
         return INTEROP_RETURN(AllocType::NewArr);
       if (attrName == "cppAllocMalloc")
         return INTEROP_RETURN(AllocType::Malloc);
-      if (attrName == "cppAllocUnknown")
-        return INTEROP_RETURN(AllocType::Unknown);
-      if (attrName == "cppAllocNull")
-        return INTEROP_RETURN(AllocType::Null);
       if (attrName == "cppAllocOperatorNew")
         return INTEROP_RETURN(AllocType::OperatorNew);
       if (attrName == "cppAllocOperatorNewArr")
@@ -1693,7 +1697,7 @@ std::optional<AllocType> IsAllocator(ConstFuncRef Fn) {
 
   // Nullopt is returned because when analyzer calls this API it should know
   // whether an attribute injected before or FD has a meaningful attribute
-  return INTEROP_RETURN(std::nullopt);
+  return INTEROP_RETURN(AllocType::Unknown);
 }
 
 bool IsDeallocator(ConstFuncRef Fn) {
@@ -1911,7 +1915,7 @@ struct AllocationTraverser : RecursiveASTVisitor<AllocationTraverser> {
       if (it == visitedFuncs.end()) {
         auto storedResult = IsAllocator(wrap<ConstFuncRef>(FD));
         visitedFuncs[FD] = storedResult;
-        if (storedResult != std::nullopt)
+        if (storedResult != AllocType::Unknown)
           return storedResult;
         return AnalyzeAllocType(FD, visitedFuncs);
       }
