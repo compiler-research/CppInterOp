@@ -413,10 +413,10 @@ enum class AllocType : unsigned char {
   New,
   NewArr,
   Malloc,
-  Unknown,
-  Null,
   OperatorNew,
-  OperatorNewArr
+  OperatorNewArr,
+  Null,
+  Unknown
 };
 
 enum class DeallocType : unsigned char {
