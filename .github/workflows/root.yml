@@ -5,9 +5,9 @@ name: ROOT
 # with our checkout. Any breaking change CppInterOp introduces that
 # ROOT relies on shows up here as a configure or compile error.
 #
-# The job pins to the same axes as `main.yml`'s
-# ubu24-x86-gcc14-cling-cppyy row so the LLVM/Cling cache key
-# resolves to the same string and the artifact is shared.
+# The job pins to the same compiler/LLVM axes as `main.yml`'s cling
+# rows so the LLVM/Cling cache key resolves to the same string and
+# the artifact is shared.
 
 on:
   pull_request:

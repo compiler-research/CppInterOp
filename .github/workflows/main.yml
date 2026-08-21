@@ -53,9 +53,6 @@ jobs:
           - { name: ubu24-x86-gcc12-llvm22, os: ubuntu-24.04, compiler: gcc-12, clang-runtime: '22' }
           - { name: ubu24-x86-clang22-llvm22-asan-ubsan, os: ubuntu-24.04, compiler: clang-22, clang-runtime: '22', sanitizer: "Address;Undefined", flavor: asan }
           - { name: ubu24-x86-clang22-llvm22-msan, os: ubuntu-24.04, compiler: clang-22, clang-runtime: '22', sanitizer: "Memory", flavor: msan }
-          - { name: ubu24-x86-gcc12-llvm21-cppyy-vg, os: ubuntu-24.04, compiler: gcc-12, clang-runtime: '21', cppyy: On, Valgrind: On, flavor: system }
-          - { name: ubu24-x86-gcc12-llvm22-cppyy, os: ubuntu-24.04, compiler: gcc-12, clang-runtime: '22', cppyy: On }
-          - { name: ubu24-x86-gcc14-cling-cppyy, os: ubuntu-24.04, compiler: gcc-14, clang-runtime: *cling_llvm_major, cling: 'On', cppyy: On, flavor: cling, cling-patches: cling }
           - { name: ubu24-x86-gcc14-cling-asan, os: ubuntu-24.04, compiler: gcc-14, clang-runtime: *cling_llvm_major, cling: 'On', sanitizer: "Address", flavor: cling, cling-patches: cling }
           # selfh-ubu22-x86-gcc12-llvm22-cuda lives in `build-selfhost`
           # below; it's the only row that needs the dell awake.
@@ -66,11 +63,6 @@ jobs:
             Valgrind: On
           # MacOS Arm
           - { name: osx26-arm-clang-llvm22-cov, os: macos-26, compiler: clang, clang-runtime: '22', coverage: true }
-          - { name: osx26-arm-clang-llvm21-cppyy, os: macos-26, compiler: clang, clang-runtime: '21', cppyy: On, flavor: system }
-          - { name: osx26-arm-clang-cling-cppyy, os: macos-26, compiler: clang, clang-runtime: *cling_llvm_major, cling: 'On', cppyy: On, flavor: cling, cling-patches: ROOT }
-          # MacOS X86
-          - { name: osx26-x86-clang-llvm21-cppyy, os: macos-26-intel, compiler: clang, clang-runtime: '21', cppyy: On, flavor: system }
-          - { name: osx26-x86-clang-cling-cppyy, os: macos-26-intel, compiler: clang, clang-runtime: *cling_llvm_major, cling: 'On', cppyy: On, flavor: cling, cling-patches: ROOT }
           # Windows
           # No windows-11-arm row: x86 (win2025-msvc-llvm22) covers the
           # same MSVC+LLVM22 surface, and the arm runner ships an x64
@@ -170,14 +162,6 @@ jobs:
         verbose: true
         token: ${{ secrets.CODECOV_TOKEN }}
 
-    - name: Build and test cppyy
-      uses: ./.github/actions/Build_and_Test_cppyy
-      with:
-        cppyy: ${{ matrix.cppyy }}
-        cling: ${{ matrix.cling }}
-        valgrind: ${{ matrix.Valgrind }}
-        clang_runtime: ${{ matrix.clang-runtime }}
-
     - name: Show debug info
       if: ${{ failure() }}
       shell: bash
@@ -206,6 +190,30 @@ jobs:
       uses: mxschmitt/action-tmate@v3
       # When debugging increase to a suitable value!
       timeout-minutes: 30
+
+  # Downstream check: build compiler-research/cppjit@main against the
+  # CppInterOp ref under test and run its python test suite. Rows
+  # mirror cppjit's own PR cells, minus their C++23 and intel-mac
+  # breadth.
+  test-cppjit:
+    name: ${{ matrix.name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: cppjit-ubu24-x86-llvm21-vg, os: ubuntu-24.04, llvm: '21', flavor: system, vg: true }
+          - { name: cppjit-ubu24-x86-llvm22, os: ubuntu-24.04, llvm: '22', flavor: '' }
+          - { name: cppjit-ubu24-x86-cling, os: ubuntu-24.04, llvm: *cling_llvm_major, flavor: cling }
+          - { name: cppjit-osx26-arm-llvm21, os: macos-26, llvm: '21', flavor: system }
+    uses: compiler-research/ci-workflows/.github/workflows/cppjit.yml@main
+    with:
+      cppinterop-ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      os: ${{ matrix.os }}
+      llvm-version: ${{ matrix.llvm }}
+      llvm-flavor: ${{ matrix.flavor }}
+      llvm-flavor-version: ${{ matrix.flavor == 'cling' && format('cling-llvm{0}', matrix.llvm) || '' }}
+      python-version: '3.14'
+      valgrind: ${{ matrix.vg || false }}
 
   # The dell sleeps between runs; wake it before build-selfhost
   # dispatches to it.
