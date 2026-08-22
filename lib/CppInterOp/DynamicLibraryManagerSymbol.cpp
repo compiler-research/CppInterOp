@@ -1315,11 +1315,15 @@ void DynamicLibraryManager::initializeDyld(
   if (m_Dyld)
     delete m_Dyld;
 
+#ifdef __EMSCRIPTEN__
+  m_Dyld = new Dyld(*this, shouldPermanentlyIgnore, "WASM");
+#else
   std::string exeP = GetExecutablePath();
   auto ObjF = cantFail(llvm::object::ObjectFile::createObjectFile(exeP));
 
   m_Dyld = new Dyld(*this, shouldPermanentlyIgnore,
                     ObjF.getBinary()->getFileFormatName());
+#endif
 }
 
 std::string DynamicLibraryManager::searchLibrariesForSymbol(
