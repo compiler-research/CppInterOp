@@ -1,7 +1,7 @@
 
 #include "Utils.h"
 
-#include "../../lib/CppInterOp/Compatibility.h"
+#include "../../lib/CppInterOp/CompatibilityGLIBC.h"
 
 #include "CppInterOp/CppInterOp.h"
 
