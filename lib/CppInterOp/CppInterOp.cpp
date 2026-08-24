@@ -1319,7 +1319,9 @@ std::string GetDeclFile(ConstDeclRef DRef) {
   const clang::SourceManager& SM = D->getASTContext().getSourceManager();
   Loc = SM.getExpansionLoc(Loc);
   clang::OptionalFileEntryRef FE = SM.getFileEntryRefForID(SM.getFileID(Loc));
-  if (!FE)
+  // Interpreter input buffers are virtual files with overridden contents
+  // (input_line_N); they name no on-disk file, so report them as file-less.
+  if (!FE || SM.isFileOverridden(&FE->getFileEntry()))
     return INTEROP_RETURN("");
 
   llvm::StringRef Real = FE->getFileEntry().tryGetRealPathName();

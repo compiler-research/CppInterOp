@@ -1402,8 +1402,9 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_DeclSourceAttribution) {
 
   GetAllTopLevelDecls(code, Decls);
 
-  // Declarations parsed from a string have no FileEntry behind them, but their
-  // location is still valid, so the line is the one inside that buffer.
+  // Declarations parsed from a string live in a virtual input_line buffer,
+  // not an on-disk file; their location is still valid, so the line is the
+  // one inside that buffer.
   EXPECT_EQ(Cpp::GetDeclFile(Decls[0]), "");
   EXPECT_EQ(Cpp::GetDeclLine(Decls[0]), 1U);
 
