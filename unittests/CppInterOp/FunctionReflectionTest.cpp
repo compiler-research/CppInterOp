@@ -3,6 +3,7 @@
 #include "CppInterOp/CppInterOp.h"
 
 #include "clang/AST/ASTContext.h"
+#include "clang/AST/PrettyPrinter.h"
 #include "clang/Basic/Version.h"
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Sema/Sema.h"
@@ -10,6 +11,7 @@
 #include <CppInterOp/CppInterOpTypes.h>
 #include <cstdint>
 #include <llvm/ADT/ArrayRef.h>
+#include <llvm/Support/raw_ostream.h>
 
 #include "gtest/gtest.h"
 
@@ -3787,6 +3789,36 @@ TYPED_TEST(CPPINTEROP_TEST_MODE,
   EXPECT_EQ(Cpp::GetFunctionArgDefault(Decls[7], 0), "-5L");
   EXPECT_EQ(Cpp::GetFunctionArgDefault(Decls[8], 0), "5UL");
   EXPECT_EQ(Cpp::GetFunctionArgDefault(Decls[9], 0), "0x1f");
+}
+
+TYPED_TEST(CPPINTEROP_TEST_MODE,
+           FunctionReflection_FloatingDefaultPrinterCanary) {
+#ifdef EMSCRIPTEN
+  GTEST_SKIP() << "The wasm test binary does not link the raw clang printer "
+                  "symbols (printPretty, getDefaultArg) this test needs.";
+#else
+  std::vector<Decl*> Decls;
+  GetAllTopLevelDecls("void canary(double x = 3.14);", Decls);
+
+  // Before clang 24 the raw printer expands floats to maximum precision;
+  // UDL and invalid-range defaults hit it. llvm/llvm-project#218471 fixes
+  // the printer for clang 24. Each branch failing is a signal: see its
+  // message.
+  const auto* PD = cast<FunctionDecl>(Decls[0])->getParamDecl(0);
+  std::string Raw;
+  llvm::raw_string_ostream OS(Raw);
+  PD->getDefaultArg()->printPretty(OS, nullptr, PrintingPolicy(LangOptions()));
+#if CLANG_VERSION_MAJOR < 24
+  EXPECT_EQ(Raw, "3.1400000000000001")
+      << "clang's pretty-printer round-trips floating literals earlier than "
+         "expected (llvm/llvm-project#218471 cherry-picked?). Re-check UDL "
+         "and invalid-range defaults, then move this guard.";
+#else
+  EXPECT_EQ(Raw, "3.14")
+      << "llvm/llvm-project#218471 did not land in clang 24. Raise the "
+         "version in this guard.";
+#endif
+#endif // EMSCRIPTEN
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_Construct) {
