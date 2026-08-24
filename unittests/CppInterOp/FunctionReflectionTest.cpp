@@ -874,7 +874,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_IsAllocator) {
   // APINotes check
 #if !defined(CPPINTEROP_USE_CLING) && !defined(__EMSCRIPTEN__)
   std::string include_flag =
-      "-I" + std::string(CPPINTEROP_DIR) + "unittests/CppInterOp/APINotes";
+      "-I" + std::string(CPPINTEROP_SRC_DIR) + "/unittests/CppInterOp/APINotes";
   std::vector<const char*> interpreter_args = {
       "-fmodules", "-fimplicit-module-maps", "-fapinotes-modules",
       include_flag.c_str()};
