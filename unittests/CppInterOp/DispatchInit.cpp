@@ -6,6 +6,7 @@
 
 #include <cstdlib>
 #include <iostream>
+#include <string>
 
 // Define storage for all raw dispatch function pointers.
 using namespace Cpp;
