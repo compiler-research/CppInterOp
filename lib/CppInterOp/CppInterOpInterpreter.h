@@ -7,6 +7,7 @@
 #define CPPINTEROP_INTERPRETER_H
 
 #include "Compatibility.h"
+#include "CompatibilityGLIBC.h"
 #include "DynamicLibraryManager.h"
 #include "Paths.h"
 
