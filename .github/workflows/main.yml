@@ -53,9 +53,7 @@ jobs:
           - { name: ubu24-x86-gcc12-llvm22, os: ubuntu-24.04, compiler: gcc-12, clang-runtime: '22' }
           - { name: ubu24-x86-clang22-llvm22-asan-ubsan, os: ubuntu-24.04, compiler: clang-22, clang-runtime: '22', sanitizer: "Address;Undefined", flavor: asan }
           - { name: ubu24-x86-clang22-llvm22-msan, os: ubuntu-24.04, compiler: clang-22, clang-runtime: '22', sanitizer: "Memory", flavor: msan }
-          - { name: ubu24-x86-gcc12-llvm21-cppyy-vg, os: ubuntu-24.04, compiler: gcc-12, clang-runtime: '21', cppyy: On, Valgrind: On, flavor: system }
-          - { name: ubu24-x86-gcc12-llvm22-cppyy, os: ubuntu-24.04, compiler: gcc-12, clang-runtime: '22', cppyy: On }
-          - { name: ubu24-x86-gcc14-cling-cppyy, os: ubuntu-24.04, compiler: gcc-14, clang-runtime: *cling_llvm_major, cling: 'On', cppyy: On, flavor: cling, cling-patches: cling }
+          - { name: ubu24-x86-gcc12-llvm21-vg, os: ubuntu-24.04, compiler: gcc-12, clang-runtime: '21', Valgrind: On, flavor: system }
           - { name: ubu24-x86-gcc14-cling-asan, os: ubuntu-24.04, compiler: gcc-14, clang-runtime: *cling_llvm_major, cling: 'On', sanitizer: "Address", flavor: cling, cling-patches: cling }
           # selfh-ubu22-x86-gcc12-llvm22-cuda lives in `build-selfhost`
           # below; it's the only row that needs the dell awake.
@@ -66,11 +64,11 @@ jobs:
             Valgrind: On
           # MacOS Arm
           - { name: osx26-arm-clang-llvm22-cov, os: macos-26, compiler: clang, clang-runtime: '22', coverage: true }
-          - { name: osx26-arm-clang-llvm21-cppyy, os: macos-26, compiler: clang, clang-runtime: '21', cppyy: On, flavor: system }
-          - { name: osx26-arm-clang-cling-cppyy, os: macos-26, compiler: clang, clang-runtime: *cling_llvm_major, cling: 'On', cppyy: On, flavor: cling, cling-patches: ROOT }
+          - { name: osx26-arm-clang-llvm21, os: macos-26, compiler: clang, clang-runtime: '21', flavor: system }
+          - { name: osx26-arm-clang-cling, os: macos-26, compiler: clang, clang-runtime: *cling_llvm_major, cling: 'On', flavor: cling, cling-patches: ROOT }
           # MacOS X86
-          - { name: osx26-x86-clang-llvm21-cppyy, os: macos-26-intel, compiler: clang, clang-runtime: '21', cppyy: On, flavor: system }
-          - { name: osx26-x86-clang-cling-cppyy, os: macos-26-intel, compiler: clang, clang-runtime: *cling_llvm_major, cling: 'On', cppyy: On, flavor: cling, cling-patches: ROOT }
+          - { name: osx26-x86-clang-llvm21, os: macos-26-intel, compiler: clang, clang-runtime: '21', flavor: system }
+          - { name: osx26-x86-clang-cling, os: macos-26-intel, compiler: clang, clang-runtime: *cling_llvm_major, cling: 'On', flavor: cling, cling-patches: ROOT }
           # Windows
           # No windows-11-arm row: x86 (win2025-msvc-llvm22) covers the
           # same MSVC+LLVM22 surface, and the arm runner ships an x64
@@ -169,14 +167,6 @@ jobs:
         fail_ci_if_error: true
         verbose: true
         token: ${{ secrets.CODECOV_TOKEN }}
-
-    - name: Build and test cppyy
-      uses: ./.github/actions/Build_and_Test_cppyy
-      with:
-        cppyy: ${{ matrix.cppyy }}
-        cling: ${{ matrix.cling }}
-        valgrind: ${{ matrix.Valgrind }}
-        clang_runtime: ${{ matrix.clang-runtime }}
 
     - name: Show debug info
       if: ${{ failure() }}
