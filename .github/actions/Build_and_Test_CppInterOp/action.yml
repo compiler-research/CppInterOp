@@ -3,7 +3,7 @@ description: 'This action builds and tests CppInterOp for native platforms'
 
 # `${{ matrix.* }}` doesn't reach composite-action expressions under
 # nektos/act; github-hosted runners propagate it. Forward via inputs
-# (same pattern as Setup_Compiler / Build_and_Test_cppyy post #957).
+# (same pattern as Setup_Compiler post #957).
 inputs:
   cling:
     required: false
@@ -52,9 +52,6 @@ runs:
           CLING_DIR="$LLVM_PREFIX"
           CLING_CMAKE_DIR="$LLVM_PREFIX/lib/cmake/cling"
         fi
-
-        export CB_PYTHON_DIR="$PWD/cppyy-backend/python"
-        export CPPINTEROP_DIR="$CB_PYTHON_DIR/cppyy_backend"
 
         # `rm -rf build` guards against a stale build/ from a prior run --
         # github-hosted runners start with an empty workspace, but
@@ -255,14 +252,6 @@ runs:
           echo "CLING_DIR=$env:CLING_DIR" >> $env:GITHUB_ENV
           echo "CLING_CMAKE_DIR=$env:CLING_CMAKE_DIR" >> $env:GITHUB_ENV
         }
-
-        $env:CB_PYTHON_DIR="$env:PWD_DIR\cppyy-backend\python"
-        echo "CB_PYTHON_DIR=$env:CB_PYTHON_DIR"
-        echo "CB_PYTHON_DIR=$env:CB_PYTHON_DIR" >> $env:GITHUB_ENV
-
-        $env:CPPINTEROP_DIR="$env:CB_PYTHON_DIR\cppyy-backend"
-        echo "CPPINTEROP_DIR=$env:CPPINTEROP_DIR"
-        echo "CPPINTEROP_DIR=$env:CPPINTEROP_DIR" >> $env:GITHUB_ENV
 
         # See bash site above re: stale build/ on local repro paths.
         if (Test-Path build) { Remove-Item -Recurse -Force build }
