@@ -1,0 +1,46 @@
+name: cppjit
+
+# Build cppjit@main against the CppInterOp ref under test and run
+# its python suite. Rows are a lean subset of cppjit's PR cells.
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  schedule:
+    - cron: '30 20 * * *'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.run_id }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+env:
+  # The LLVM major the cling row builds against, matching main.yml's
+  # cling rows. The row below aliases it, so moving to the next major
+  # is this line alone.
+  CLING_LLVM_MAJOR: &cling_llvm_major '22'
+
+jobs:
+  test-cppjit:
+    name: ${{ matrix.name }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { name: ubu24-x86-llvm21-vg, os: ubuntu-24.04, llvm: '21', flavor: system, vg: true }
+          - { name: ubu24-x86-llvm22, os: ubuntu-24.04, llvm: '22', flavor: '' }
+          - { name: ubu24-x86-cling, os: ubuntu-24.04, llvm: *cling_llvm_major, flavor: cling }
+          - { name: osx26-arm-llvm21, os: macos-26, llvm: '21', flavor: system }
+    uses: compiler-research/ci-workflows/.github/workflows/cppjit.yml@main
+    with:
+      cppinterop-ref: ${{ github.event.pull_request.head.sha || github.sha }}
+      os: ${{ matrix.os }}
+      llvm-version: ${{ matrix.llvm }}
+      llvm-flavor: ${{ matrix.flavor }}
+      llvm-flavor-version: ${{ matrix.flavor == 'cling' && format('cling-llvm{0}', matrix.llvm) || '' }}
+      python-version: '3.14'
+      valgrind: ${{ matrix.vg || false }}
