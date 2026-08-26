@@ -225,6 +225,13 @@ add_llvm_library(clangCppInterOp
   ${link_libs}
 )
 
+# llvm_add_library() stamps LLVM's VERSION/SOVERSION on shared libraries on
+# ELF platforms; unsetting them ships one unversioned file, as on Darwin.
+if(NOT CPPINTEROP_SHARED_LIBRARY_VERSIONING)
+  set_property(TARGET clangCppInterOp PROPERTY VERSION)
+  set_property(TARGET clangCppInterOp PROPERTY SOVERSION)
+endif()
+
 if(EMSCRIPTEN)
   if(BUILD_SHARED_LIBS)
   # FIXME: When dynamically linking the Emscripten shared library to the
