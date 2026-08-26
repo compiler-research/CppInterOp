@@ -4999,3 +4999,57 @@ TYPED_TEST(CPPINTEROP_TEST_MODE,
                       /*interpreter_args=*/{"-std=c++23", "-include", "new"});
   EXPECT_EQ(JitCallIntNullary("BlogTransform", "drive"), 42);
 }
+
+// A by-value parameter of a move-only type must be moved into the call: the
+// wrapper otherwise fails to compile against the deleted copy constructor.
+// MoveOnly's deleted copy constructor is also non-trivial (Payload's is
+// user-provided), so triviality bits cannot classify it.
+TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_MoveOnlyByValueArgs) {
+#ifdef EMSCRIPTEN
+  GTEST_SKIP() << "Test fails for Emscripten builds";
+#endif
+  if (TypeParam::isOutOfProcess)
+    GTEST_SKIP() << "Test fails for OOP JIT builds";
+
+  std::vector<Decl*> Decls;
+  std::vector<Decl*> SubDecls;
+  std::string code = R"(
+    struct Payload {
+      Payload() = default;
+      Payload(const Payload&) {}
+    };
+    struct MoveOnly {
+      Payload p;
+      MoveOnly(const MoveOnly&) = delete;
+      MoveOnly(MoveOnly&&) = default;
+    };
+    int take(MoveOnly m) { return 1; }
+    struct Taker {
+      Taker(MoveOnly m) {}
+    };
+    struct Fwd;
+    int take_fwd(Fwd f);
+  )";
+
+  GetAllTopLevelDecls(code, Decls, /*filter_implicitGenerated=*/false,
+                      /*interpreter_args=*/{"-include", "new"});
+  ASSERT_EQ(Decls.size(), 6);
+
+  // Function argument path (make_narg_call).
+  EXPECT_EQ(Cpp::MakeFunctionCallable(Decls[2]).getKind(),
+            Cpp::JitCall::kGenericCall);
+
+  // Constructor argument path (make_narg_ctor).
+  GetAllSubDecls(Decls[3], SubDecls);
+  ASSERT_TRUE(Cpp::IsConstructor(SubDecls[1]));
+  EXPECT_EQ(Cpp::MakeFunctionCallable(SubDecls[1]).getKind(),
+            Cpp::JitCall::kConstructorCall);
+
+  // A parameter type with no reachable definition is assumed copyable; the
+  // wrapper compile reports the incomplete type (captured: on Windows the
+  // MSVC-format diagnostic would fail MSBuild's output scan).
+  testing::internal::CaptureStderr();
+  EXPECT_EQ(Cpp::MakeFunctionCallable(Decls[5]).getKind(),
+            Cpp::JitCall::kUnknown);
+  EXPECT_FALSE(testing::internal::GetCapturedStderr().empty());
+}
