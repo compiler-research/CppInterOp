@@ -3,6 +3,8 @@
 #include "CppInterOp/CppInterOp.h"
 
 #include "llvm/Support/FileSystem.h"
+#include "llvm/Support/Path.h"
+#include "llvm/Support/raw_ostream.h"
 
 #include "gtest/gtest.h"
 
@@ -124,6 +126,29 @@ TEST_F(CUDATest, Interpreter_GetLanguageCUDA) {
 
   Cpp::CreateInterpreter({}, {"--cuda"});
   EXPECT_EQ(Cpp::GetLanguage(nullptr), Cpp::InterpreterLanguage::CUDA);
+}
+
+TEST_F(CUDATest, AddIncludePathReachesDevice) {
+  SKIP_IF_NO_SDK;
+
+  Cpp::CreateInterpreter({}, {"--cuda"});
+
+  llvm::SmallString<128> Dir;
+  ASSERT_FALSE(llvm::sys::fs::createUniqueDirectory("cuda-inc", Dir));
+  llvm::SmallString<128> Header(Dir);
+  llvm::sys::path::append(Header, "device_inc.h");
+  {
+    std::error_code EC;
+    llvm::raw_fd_ostream OS(Header, EC);
+    ASSERT_FALSE(EC);
+    OS << "__global__ void header_kernel(int* x) { ++*x; }\n";
+  }
+
+  Cpp::AddIncludePath(Dir.c_str());
+  EXPECT_EQ(0, Cpp::Declare("#include \"device_inc.h\""));
+
+  llvm::sys::fs::remove(Header);
+  llvm::sys::fs::remove(Dir);
 }
 
 TEST_F(CUDATest, SimpleKernelExecution) {
