@@ -18,7 +18,7 @@ option(CPPINTEROP_BUILD_TABLEGEN_ONLY "Only build cppinterop-tblgen (for cross-c
 # add_llvm_library(... BUILDTREE_ONLY)
 option(CPPINTEROP_INSTALL "Generate install rules for CppInterOp" ON)
 
-#=Set OFF to ship the shared library as a single unversioned file, matching
+# OFF to ship the shared library as a single unversioned file, matching
 # the Darwin layout: archives that cannot carry symlinks (Python wheels)
 # would otherwise materialize the SOVERSION namelink as a second full copy.
 option(CPPINTEROP_SHARED_LIBRARY_VERSIONING
