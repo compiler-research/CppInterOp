@@ -770,6 +770,62 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_GetNamed) {
   EXPECT_EQ(Cpp::GetQualifiedName(std_string_npos_var), "std::basic_string<char>::npos");
 }
 
+// GetNamed on a class scope must find inherited members per [class.qual].
+TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_GetNamedSearchesBaseClasses) {
+  std::string code = R"(struct GNBase {
+                          typedef int value_type;
+                          int ivalue;
+                        };
+                        struct GNDerived : GNBase {};
+                        struct GNGrandChild : GNDerived {};
+
+                        struct GNLeft  { typedef int T; };
+                        struct GNRight { typedef float T; };
+                        struct GNBoth : GNLeft, GNRight {};
+                        struct GNFwd;
+
+                        template <typename T> struct GNTBase { typedef T type; };
+                        template <typename T> struct GNT : GNTBase<T> {};
+                        GNT<int> gnt_provider();
+                       )";
+
+  std::vector<const char*> interpreter_args = {"-include", "new"};
+  TestFixture::CreateInterpreter(interpreter_args);
+  Interp->declare(code);
+
+  Cpp::DeclRef base = Cpp::GetNamed("GNBase", nullptr);
+  Cpp::DeclRef derived = Cpp::GetNamed("GNDerived", nullptr);
+  ASSERT_TRUE(base);
+  ASSERT_TRUE(derived);
+
+  Cpp::DeclRef vt = Cpp::GetNamed("value_type", derived);
+  ASSERT_TRUE(vt);
+  EXPECT_EQ(Cpp::GetQualifiedName(vt), "GNBase::value_type");
+  EXPECT_EQ(vt, Cpp::GetNamed("value_type", base));
+  EXPECT_EQ(Cpp::GetQualifiedName(Cpp::GetNamed("ivalue", derived)),
+            "GNBase::ivalue");
+
+  EXPECT_EQ(Cpp::GetNamed("value_type", Cpp::GetNamed("GNGrandChild", nullptr)),
+            vt);
+
+  // An ambiguous inherited name stays unresolved.
+  EXPECT_FALSE(Cpp::GetNamed("T", Cpp::GetNamed("GNBoth", nullptr)));
+
+  // A name absent from the class and all of its bases stays unresolved.
+  EXPECT_FALSE(Cpp::GetNamed("no_such_member", derived));
+
+  // A class with no definition reachable anywhere cannot be searched.
+  EXPECT_FALSE(Cpp::GetNamed("value_type", Cpp::GetNamed("GNFwd", nullptr)));
+
+  // A member of an uninstantiated specialization: complete it, then search.
+  Cpp::DeclRef gnt = Cpp::GetScopeFromType(Cpp::GetFunctionReturnType(
+      Cpp::FuncRef{Cpp::GetNamed("gnt_provider").data}));
+  ASSERT_TRUE(gnt);
+  Cpp::DeclRef gnt_type = Cpp::GetNamed("type", gnt);
+  ASSERT_TRUE(gnt_type);
+  EXPECT_EQ(Cpp::GetName(gnt_type), "type");
+}
+
 TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_GetNamedWithUsing) {
   // Each subcase covers one form of [namespace.udecl] / [namespace.udir].
   // GetNamed must look through the alias and return the original decl,

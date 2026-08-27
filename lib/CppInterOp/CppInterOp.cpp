@@ -1257,6 +1257,34 @@ DeclRef GetNamed(const std::string& name, ConstDeclRef parent /*= nullptr*/) {
   if (ND && ND != (clang::NamedDecl*)-1)
     return INTEROP_RETURN(ND->getCanonicalDecl());
 
+  // Redeclaration-style lookup stops at the class itself; [class.qual]
+  // member lookup also searches the bases. Retry accordingly.
+  // FIXME: GetNamed should only return decls that are named and reachable
+  // within the provided decl context — the same contract question as the
+  // LookupUnqualified FIXME above: expose distinct lookup routes so callers
+  // pick the semantics they want, instead of GetNamed approximating both.
+  if (!ND && Within) {
+    if (auto* RD = llvm::dyn_cast<clang::CXXRecordDecl>(Within)) {
+      auto* Def = llvm::dyn_cast_or_null<clang::CXXRecordDecl>(
+          unwrap<clang::Decl>(GetOrForceDefinition(DeclRef(RD))));
+      if (!Def)
+        return INTEROP_RETURN(nullptr);
+      auto& S = getSema();
+      clang::DeclarationName DName = &S.Context.Idents.get(name);
+      clang::LookupResult R(S, DName, clang::SourceLocation(),
+                            clang::Sema::LookupOrdinaryName,
+                            RedeclarationKind::NotForRedeclaration);
+      R.suppressDiagnostics();
+      S.LookupQualifiedName(R, Def);
+      if (R.empty())
+        return INTEROP_RETURN(nullptr);
+      R.resolveKind();
+      if (!R.isSingleResult())
+        return INTEROP_RETURN(nullptr);
+      return INTEROP_RETURN(R.getFoundDecl()->getCanonicalDecl());
+    }
+  }
+
   // Slow path: only when qualified lookup missed AND `Within` is a
   // namespace whose enclosing chain carries at least one using-directive
   // (the only reason qualified-vs-unqualified disagree at namespace
