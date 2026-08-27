@@ -554,6 +554,10 @@ TYPED_TEST(CPPINTEROP_TEST_MODE,
   GTEST_SKIP() << "MSBuild's canonical-error scraping treats ORC's "
                   "JIT-session-failure stderr line as a build failure";
 #endif
+  // The intentional failure makes the remote dlupdate fail, and the
+  // out-of-process session then blocks instead of reporting the error.
+  if (TypeParam::isOutOfProcess)
+    GTEST_SKIP() << "A failed dlupdate wedges the out-of-process session";
   TestFixture::CreateInterpreter();
   Cpp::Declare(R"(
     int undefined_fn();
