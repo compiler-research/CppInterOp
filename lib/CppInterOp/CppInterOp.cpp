@@ -724,22 +724,42 @@ static SourceLocation GetValidSLoc(Sema& semaRef) {
 namespace {
 class clangSilent {
 public:
-  explicit clangSilent(clang::DiagnosticsEngine& diag)
-      : fDiagEngine(&diag),
-        fOldDiagValue(fDiagEngine->getSuppressAllDiagnostics()) {
-    fDiagEngine->setSuppressAllDiagnostics(true);
+  clangSilent(clang::DiagnosticsEngine& diag)
+#if LLVM_VERSION_MAJOR < 23
+      : fDiagEngine(diag) {
+#else
+      : fDiagEngine(diag), fOldClient(diag.getClient()),
+        fOldOwnedClient(diag.takeClient()) {
+#endif
+#if LLVM_VERSION_MAJOR < 23
+    fOldDiagValue = fDiagEngine.getSuppressAllDiagnostics();
+    fDiagEngine.setSuppressAllDiagnostics(true);
+#else
+    fDiagEngine.setClient(&fIgnoringClient, /*ShouldOwnClient=*/false);
+#endif
   }
 
-  ~clangSilent() { fDiagEngine->setSuppressAllDiagnostics(fOldDiagValue); }
+  ~clangSilent() {
+#if LLVM_VERSION_MAJOR < 23
+    fDiagEngine.setSuppressAllDiagnostics(fOldDiagValue);
+#else
+    if (fOldOwnedClient)
+      fDiagEngine.setClient(fOldOwnedClient.release(),
+                            /*ShouldOwnClient=*/true);
+    else
+      fDiagEngine.setClient(fOldClient, /*ShouldOwnClient=*/false);
+#endif
+  }
 
-  clangSilent(const clangSilent&) = delete;
-  clangSilent& operator=(const clangSilent&) = delete;
-  clangSilent(clangSilent&&) = delete;
-  clangSilent& operator=(clangSilent&&) = delete;
-
-private:
-  clang::DiagnosticsEngine* fDiagEngine;
+protected:
+  clang::DiagnosticsEngine& fDiagEngine;
+#if LLVM_VERSION_MAJOR < 23
   bool fOldDiagValue;
+#else
+  clang::DiagnosticConsumer* fOldClient;
+  std::unique_ptr<clang::DiagnosticConsumer> fOldOwnedClient;
+  clang::IgnoringDiagConsumer fIgnoringClient;
+#endif
 };
 } // namespace
 
