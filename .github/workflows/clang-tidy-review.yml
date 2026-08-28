@@ -23,9 +23,9 @@ jobs:
           python-version: "3.11"
 
       - name: Install LLVM and Clang
-        uses: KyleMayes/install-llvm-action@v2.0.7
+        uses: KyleMayes/install-llvm-action@v2.0.9
         with:
-          version: "20.1.4"
+          version: "21.1.8"
 
       - name: install lit
         run: pip install lit

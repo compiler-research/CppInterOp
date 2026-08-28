@@ -48,12 +48,14 @@ jobs:
         # patches. The setup step pairs it with clang-runtime.
         include:
           # Ubuntu Arm
-          - { name: ubu24-arm-gcc12-llvm22-vg, os: ubuntu-24.04-arm, compiler: gcc-12, clang-runtime: '22', Valgrind: On }
+          - { name: ubu24-arm-gcc12-llvm23-vg, os: ubuntu-24.04-arm, compiler: gcc-12, clang-runtime: '23', Valgrind: On }
           # Ubuntu X86
+          - { name: ubu24-x86-gcc12-llvm23, os: ubuntu-24.04, compiler: gcc-12, clang-runtime: '23'}
           - { name: ubu24-x86-gcc12-llvm22, os: ubuntu-24.04, compiler: gcc-12, clang-runtime: '22' }
-          - { name: ubu24-x86-clang22-llvm22-asan-ubsan, os: ubuntu-24.04, compiler: clang-22, clang-runtime: '22', sanitizer: "Address;Undefined", flavor: asan }
-          - { name: ubu24-x86-clang22-llvm22-msan, os: ubuntu-24.04, compiler: clang-22, clang-runtime: '22', sanitizer: "Memory", flavor: msan }
-          - { name: ubu24-x86-gcc12-llvm21-vg, os: ubuntu-24.04, compiler: gcc-12, clang-runtime: '21', Valgrind: On, flavor: system }
+          - { name: ubu24-x86-gcc12-llvm21, os: ubuntu-24.04, compiler: gcc-12, clang-runtime: '21' }
+          - { name: ubu24-x86-clang23-llvm23-asan-ubsan, os: ubuntu-24.04, compiler: clang-23, clang-runtime: '23', sanitizer: "Address;Undefined", flavor: asan }
+          - { name: ubu24-x86-clang23-llvm23-msan, os: ubuntu-24.04, compiler: clang-23, clang-runtime: '23', sanitizer: "Memory", flavor: msan }
+          - { name: ubu24-x86-gcc12-llvm23-vg, os: ubuntu-24.04, compiler: gcc-12, clang-runtime: '23', Valgrind: On, flavor: system }
           - { name: ubu24-x86-gcc14-cling-asan, os: ubuntu-24.04, compiler: gcc-14, clang-runtime: *cling_llvm_major, cling: 'On', sanitizer: "Address", flavor: cling, cling-patches: cling }
           # selfh-ubu22-x86-gcc12-llvm22-cuda lives in `build-selfhost`
           # below; it's the only row that needs the dell awake.
@@ -63,8 +65,8 @@ jobs:
             clang-runtime: '22'
             Valgrind: On
           # MacOS Arm
-          - { name: osx26-arm-clang-llvm22-cov, os: macos-26, compiler: clang, clang-runtime: '22', coverage: true }
-          - { name: osx26-arm-clang-llvm21, os: macos-26, compiler: clang, clang-runtime: '21', flavor: system }
+          - { name: osx26-arm-clang-llvm23-cov, os: macos-26, compiler: clang, clang-runtime: '23', coverage: true }
+          - { name: osx26-arm-clang-llvm22, os: macos-26, compiler: clang, clang-runtime: '22', flavor: system }
           - { name: osx26-arm-clang-cling, os: macos-26, compiler: clang, clang-runtime: *cling_llvm_major, cling: 'On', flavor: cling, cling-patches: ROOT }
           # MacOS X86
           - { name: osx26-x86-clang-llvm21, os: macos-26-intel, compiler: clang, clang-runtime: '21', flavor: system }
