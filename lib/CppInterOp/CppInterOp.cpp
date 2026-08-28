@@ -5588,16 +5588,42 @@ void GetIncludePaths(std::vector<std::string>& IncludePaths, bool withSystem,
 namespace {
 class clangSilent {
 public:
-  clangSilent(clang::DiagnosticsEngine& diag) : fDiagEngine(diag) {
+  clangSilent(clang::DiagnosticsEngine& diag)
+#if LLVM_VERSION_MAJOR > 22
+      : fDiagEngine(diag), fOldClient(diag.getClient()),
+        fOldOwnedClient(diag.takeClient()) {
+#else
+      : fDiagEngine(diag) {
+#endif
+#if LLVM_VERSION_MAJOR > 22
+    fDiagEngine.setClient(&fIgnoringClient, /*ShouldOwnClient=*/false);
+#else
     fOldDiagValue = fDiagEngine.getSuppressAllDiagnostics();
     fDiagEngine.setSuppressAllDiagnostics(true);
+#endif
   }
 
-  ~clangSilent() { fDiagEngine.setSuppressAllDiagnostics(fOldDiagValue); }
+  ~clangSilent() {
+#if LLVM_VERSION_MAJOR > 22
+    if (fOldOwnedClient)
+      fDiagEngine.setClient(fOldOwnedClient.release(),
+                            /*ShouldOwnClient=*/true);
+    else
+      fDiagEngine.setClient(fOldClient, /*ShouldOwnClient=*/false);
+#else
+    fDiagEngine.setSuppressAllDiagnostics(fOldDiagValue);
+#endif
+  }
 
 protected:
   clang::DiagnosticsEngine& fDiagEngine;
+#if LLVM_VERSION_MAJOR > 22
+  clang::DiagnosticConsumer* fOldClient;
+  std::unique_ptr<clang::DiagnosticConsumer> fOldOwnedClient;
+  clang::IgnoringDiagConsumer fIgnoringClient;
+#else
   bool fOldDiagValue;
+#endif
 };
 } // namespace
 
