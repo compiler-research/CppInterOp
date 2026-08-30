@@ -1097,6 +1097,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_FunctionTypes) {
 TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetDeallocType) {
   std::string code = R"(
     #include <new>
+    #include <optional>
     #include <stdlib.h>
 
     void func0(int* p){ delete p; }
@@ -1269,17 +1270,389 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetDeallocType) {
     }
 
     // This test's purpose is testing some lines, no specific purpose
-    int* globPtr = nullptr;
+    int* globPtr1 = nullptr;
     void func45(int* ptr){
       int a = 5;
       a = 6;
-      int* tmp = globPtr;
+      int* tmp = globPtr1;
       tmp = (int*)malloc(sizeof(int));
       free(tmp);
       delete ptr;
     }
+
+    void func46(int* p, int n){
+      if(n>0)
+        delete p;
+    }
+
+    void func47(int* p, int* q, int n){
+      if(n>0){
+        delete p;
+      } else {
+        delete q;
+      }
+    }
+
+    void func48(int* p, int n){
+      if(n>9)
+        delete p;
+      else if(n>5)
+        free(p);
+      else if(n>2)
+        delete p;
+      else
+        delete p;
+    }
+
+    void func49(int* p, int n){
+      if(n>0){
+        delete p;
+        free(p);
+      }
+    }
+
+    void func50(int* p, int n){
+      if(int* tmp = p){
+        delete tmp;
+      }
+    }
+
+    void func51(int* p, int n){
+      if(n>9){
+
+      }
+      else if(n>5){
+        delete p;
+      }
+      else{
+        delete p;
+      }
+    }
+
+    void func52(int* p, int n){
+      if(n>5){
+        if(n>8)
+          delete p;
+      }
+      else {
+        delete p;
+      }
+    }
+
+    void func53(int* p, int n){
+      if(n>20){
+        if(n>15){
+          if(n>10)
+            delete p;
+          else
+            delete p;
+        }
+        else {
+          delete p;
+        }
+      }
+      else {
+        delete p;
+      }
+    }
+
+    void func54(int* p, int* q, int n){
+      if(n>30){
+        delete q;
+        if(n>25){
+          if(n>22)
+            delete p;
+          else
+            delete p;
+        }
+        else {
+          delete p;
+        }
+      }
+      else if(n>20){
+        delete p;
+        if(n>15)
+          delete q;
+        else
+          free(q);
+      }
+      else {
+        delete p;
+        delete q;
+      }
+    }
+
+    void func55(int* p, int* q, int n){
+      free(p);
+      delete q;
+      if(n>30){
+        if(n>25){
+          free(p);
+          if(n>20)
+            q += 1;
+        }
+        else {
+          free(p);
+        }
+      }
+    }
+
+    void func56(int* p, int* q, int n){
+      int* x = p;
+      if(x = q){
+
+      }
+      delete x;
+    }
+
+    void func57(int* p, int n){
+      if(n>0){
+        delete p;
+        return;
+      }
+      free(p);
+    }
+
+    void func58(int* p, int n){
+      int* x = static_cast<int*>(0);
+      if(n>0)
+        x = p;
+      delete x;
+    }
+
+    void func59(int* p, int* q, int n){
+      int* x;
+      if(n>0)
+        x = p;
+      else
+        x = q;
+      delete x;
+    }
+
+    void func60(int* p, int n){
+      if(n>0)
+        delete[] p;
+    }
+
+    void func61(int* p, int n){
+      if(n>0)
+        free(p);
+    }
+
+    void func62(int* p, int n){
+      delete p;
+      if(n>0)
+        delete p;
+    }
+
+    void func63(int* p, int n){
+      if(n>0)
+        ::operator delete[](p);
+      ::operator delete[](p);
+    }
+
+    void func64(int* p, int n){
+      if(n>0)
+        ::operator delete(p);
+      if(n>5)
+        ::operator delete(p);
+    }
+
+    void func65(int* p, int n){
+      if(n>0)
+        delete p;
+      if(n>5)
+        free(p);
+    }
+
+    void func66(int* p, int n){ func46(p, n); }
+
+    void func67(int* p, int* q, int n){
+      int* x = nullptr;
+      if(n>0)
+        x = p;
+      else
+        x = q;
+      func0(x);
+    }
+
+    void func68(int* p, int* q, int n){
+      int* x = q;
+      if(n>0){
+        if(n>5)
+          x = p;
+      }
+      delete x;
+    }
+
+    bool helper69(int* p){ delete p; return true; }
+
+    void func69(int* p){
+      if(helper69(p)){
+
+      }
+    }
+
+    void func70(int* p){
+      if(p)
+        delete p;
+    }
+
+    void func71(int* p){
+      if(p)
+        delete p;
+      else
+        free(p);
+    }
+
+    void func72(int* p){
+      if(p){
+
+      }
+      else
+        delete p;
+    }
+
+    void func73(int* p, int* q){
+      if(q)
+        delete p;
+    }
+
+    void func74(int* p, int* q, int n){
+      int* x = nullptr;
+      if(n>0)
+        x = p;
+      else
+        x = q;
+      if(x)
+        delete x;
+    }
+
+    void func75(int* p){
+      if((void*)p)
+        delete p;
+    }
+
+    void func76(int* p){
+      int* x = p;
+      if(x)
+        delete x;
+    }
+
+    void func77(int* p, int n){
+      if(p){
+        if(n>0)
+          delete p;
+      }
+    }
+
+    void func78(int* p, int* q){
+      if(p){
+        p = q;
+        delete p;
+      }
+    }
+
+    void func79(int* p){
+      delete p;
+      if(p)
+        free(p);
+    }
+
+    void func80(int* p){ if(p != nullptr) delete p; }
+
+    void func81(int* p, int* q, int n){
+      int* x = p;
+      if(n>0){
+        // Nothing changed
+      }
+      else {
+        x = q;
+      }
+      delete x;
+    }
+
+    void func82(int* p){ ::operator delete(p); }
+
+    void func83(int* p){ ::operator delete[](p); }
+
+    void func84(int* p, void* buf){ ::operator delete(p, buf); }
+
+    void func85(int* p){ __builtin_operator_delete(p); }
+
+    void func86(int* p, int n){
+      if(n>0)
+        ::operator delete(p);
+    }
+
+    void func87(std::optional<int*> p){ delete *p; }
+
+    void func88(std::optional<int*> p){ delete[] *p; }
+
+    void func89(std::optional<int*> p){ free(*p); }
+
+    void func90(int* p, int* q, int n){
+      int* x = nullptr;
+      if(n>0){
+        if(n>5)
+          x = p;
+        else
+          x = q;
+      }
+      delete x;
+    }
+
+    void func91(std::optional<int*> p){ int* x = *p; delete x; }
+
+    void func92(std::optional<int*> p){
+      if(p)
+        delete *p;
+    }
+
+    void func93(std::optional<int*> p){
+      std::optional<int*> tmp = p;
+      delete *tmp;
+    }
+
+    void func94(int** p){ delete *p; }
+
+    struct PtrDeleter {
+      void operator()(int* p) const { delete p; }
+      void operator[](int* p) const { delete[] p; }
+    };
+
+    void func95(int* p){ PtrDeleter deleter; deleter(p); }
+
+    void func96(PtrDeleter d, int* p){ d(p); }
+
+    //This is a member call, so there is no offset
+    void func97(int* p){ PtrDeleter d; d.operator()(p); }
+
+    void func98(int* p){ PtrDeleter d; d[p]; }
+
+    struct Deleter {};
+    void operator+(Deleter, int* p){ delete p; }
+    //No offset
+    void func99(int* p){ Deleter d; d + p; }
+
+    struct Releaser { void release(int* p){ delete p; } };
+    //No offset
+    void func100(int* p){ Releaser r; r.release(p); }
+
+    // This test is for covering some lines, not something meaningful
+    int* globPtr2;
+    struct coverageStruct { int* operator*(int* q) { return q; } };
+
+    void func101(int* p){
+      void forCoverage(int*);
+      int* tmp = (int*)::operator new(sizeof(int));
+      ::operator delete(tmp);
+      delete globPtr2;
+      coverageStruct s;
+      delete (s * p);
+    }
   )";
-  TestFixture::CreateInterpreter();
+  TestFixture::CreateInterpreter({"-std=c++17"});
   Interp->declare(code);
 
   using DT = Cpp::DeallocType;
@@ -1314,7 +1687,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetDeallocType) {
   TESTGDT(20, true, DT::Delete);
   TESTGDT(21, true, DT::Delete);
   TESTGDT(22, true, DT::Delete);
-  TESTGDT(23, true, DT::None, DT::None);
+  TESTGDT(23, true, DT::Delete, DT::None);
   TESTGDT(24, true, DT::Delete);
   TESTGDT(25, true, DT::Free, DT::DeleteArr);
   TESTGDT(26, true, DT::Delete, DT::None);
@@ -1331,13 +1704,76 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetDeallocType) {
   TESTGDT(37, true, DT::Unknown);
   TESTGDT(38, true, DT::None);
   TESTGDT(39, true, DT::Unknown, DT::None);
-  // FIXME: check top of VisitCallExpr function
-  TESTGDT(40, true, DT::None, DT::None);
+  TESTGDT(40, true, DT::Delete, DT::None);
   TESTGDT(41, true, DT::None);
   TESTGDT(42, true, DT::None);
   TESTGDT(43, true, DT::Unknown);
   TESTGDT(44, true, DT::Delete);
   TESTGDT(45, true, DT::Delete);
+  TESTGDT(46, true, DT::MaybeDelete, DT::None);
+  TESTGDT(47, true, DT::MaybeDelete, DT::MaybeDelete, DT::None);
+  TESTGDT(48, true, DT::Unknown, DT::None);
+  TESTGDT(49, true, DT::Unknown, DT::None);
+  TESTGDT(50, true, DT::Delete, DT::None);
+  TESTGDT(51, true, DT::MaybeDelete, DT::None);
+  TESTGDT(52, true, DT::MaybeDelete, DT::None);
+  TESTGDT(53, true, DT::Delete, DT::None);
+  TESTGDT(54, true, DT::Delete, DT::Unknown, DT::None);
+  TESTGDT(55, true, DT::Free, DT::Delete, DT::None);
+  TESTGDT(56, true, DT::None, DT::Delete, DT::None);
+  TESTGDT(57, true, DT::Unknown, DT::None);
+  TESTGDT(58, true, DT::MaybeDelete, DT::None);
+  TESTGDT(59, true, DT::MaybeDelete, DT::MaybeDelete, DT::None);
+  TESTGDT(60, true, DT::MaybeDeleteArr, DT::None);
+  TESTGDT(61, true, DT::MaybeFree, DT::None);
+  TESTGDT(62, true, DT::Delete, DT::None);
+  TESTGDT(63, true, DT::OperatorDeleteArr, DT::None);
+  TESTGDT(64, true, DT::MaybeOperatorDelete, DT::None);
+  TESTGDT(65, true, DT::Unknown, DT::None);
+  TESTGDT(66, true, DT::MaybeDelete, DT::None);
+  TESTGDT(67, true, DT::MaybeDelete, DT::MaybeDelete, DT::None);
+  TESTGDT(68, true, DT::MaybeDelete, DT::MaybeDelete, DT::None);
+  TESTGDT(69, true, DT::Delete);
+  TESTGDT(70, true, DT::Delete);
+  TESTGDT(71, true, DT::Delete);
+  TESTGDT(72, true, DT::None);
+  TESTGDT(73, true, DT::MaybeDelete, DT::None);
+  TESTGDT(74, true, DT::MaybeDelete, DT::MaybeDelete, DT::None);
+  TESTGDT(75, true, DT::MaybeDelete);
+  TESTGDT(76, true, DT::Delete);
+  TESTGDT(77, true, DT::MaybeDelete, DT::None);
+  TESTGDT(78, true, DT::None, DT::MaybeDelete);
+  TESTGDT(79, true, DT::Unknown);
+  // FIXME: Unrecognized null check
+  TESTGDT(80, true, DT::MaybeDelete);
+  TESTGDT(81, true, DT::MaybeDelete, DT::MaybeDelete, DT::None);
+  TESTGDT(82, true, DT::OperatorDelete);
+  TESTGDT(83, true, DT::OperatorDeleteArr);
+  // Placement delete is not a replaceable global deallocation function, it
+  // deallocates nothing
+  TESTGDT(84, true, DT::None, DT::None);
+  TESTGDT(85, true, DT::OperatorDelete);
+  TESTGDT(86, true, DT::MaybeOperatorDelete, DT::None);
+  TESTGDT(87, true, DT::Delete);
+  TESTGDT(88, true, DT::DeleteArr);
+  TESTGDT(89, true, DT::Free);
+  TESTGDT(90, true, DT::MaybeDelete, DT::MaybeDelete, DT::None);
+  TESTGDT(91, true, DT::Delete);
+  // FIXME: cond is CK_UserDefinedConversion not
+  // CK_PointerToBoolean, so getNullCheckCond does not recognize it
+  TESTGDT(92, true, DT::MaybeDelete);
+  // FIXME: CopyConstructor assignments do not effect aliasMap
+  TESTGDT(93, true, DT::None);
+  // FIXME: double pointer, it was a must to distunguish unaryOperator and
+  // CXXCallOperatorExpr
+  TESTGDT(94, true, DT::None);
+  TESTGDT(95, true, DT::Delete);
+  TESTGDT(96, true, DT::None, DT::Delete);
+  TESTGDT(97, true, DT::Delete);
+  TESTGDT(98, true, DT::DeleteArr);
+  TESTGDT(99, true, DT::Delete);
+  TESTGDT(100, true, DT::Delete);
+  TESTGDT(101, true, DT::None);
 
 #undef TESTGDT
 

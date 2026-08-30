@@ -2108,11 +2108,13 @@ static bool AnalyzeDeallocType(
                        std::optional<std::vector<DeallocType>>>& visitedFuncs);
 namespace {
 struct DeallocationTraverser : RecursiveASTVisitor<DeallocationTraverser> {
-  std::unordered_map<const clang::VarDecl*, const clang::ParmVarDecl*> aliasMap;
-  std::set<const clang::ParmVarDecl*> overwritenParms;
+  std::unordered_map<const clang::VarDecl*, std::set<const clang::ParmVarDecl*>>
+      aliasMap;
   std::vector<DeallocType>& valPerParam;
   std::unordered_map<const FunctionDecl*,
                      std::optional<std::vector<DeallocType>>>& visitedFuncs;
+  std::unordered_map<const clang::VarDecl*,
+                     std::set<const clang::ParmVarDecl*>>* undoLog = nullptr;
   DeallocationTraverser(
       std::vector<DeallocType>& v,
       std::unordered_map<const FunctionDecl*,
@@ -2129,22 +2131,110 @@ struct DeallocationTraverser : RecursiveASTVisitor<DeallocationTraverser> {
     return RecursiveASTVisitor::TraverseDecl(D);
   }
 
-  // recursiveVec is VPP of callee
-  void joinVectors(std::vector<DeallocType>& recursiveVec,
-                   clang::CallExpr* CE) {
-    for (unsigned i = 0; i < recursiveVec.size() && i < CE->getNumArgs(); i++) {
-      if (recursiveVec[i] == DeallocType::None)
-        continue;
-      const clang::ParmVarDecl* PVD = resolveParam(CE->getArg(i));
-      if (!PVD)
-        continue;
-      updateVPP(PVD->getFunctionScopeIndex(), recursiveVec[i]);
+  bool TraverseIfStmt(clang::IfStmt* IS) {
+    TraverseStmt(IS->getConditionVariableDeclStmt());
+    TraverseStmt(IS->getCond());
+    std::vector<DeallocType> outerVPP(valPerParam.size(), DeallocType::None);
+    std::swap(outerVPP, valPerParam);
+    auto* undoLogCopy = undoLog;
+    std::unordered_map<const clang::VarDecl*,
+                       std::set<const clang::ParmVarDecl*>>
+        undoLogThen;
+    undoLog = &undoLogThen;
+    const auto* guardedVD = getNullCheckCond(IS->getCond());
+    int guardedIndex = -1;
+    if (guardedVD) {
+      auto it = aliasMap.find(guardedVD);
+      // if(ptr) delete ptr; -> ptr is accepted as Delete only when ptr points
+      // to just ONE parameter and does not have any other possible aliases
+      if (it != aliasMap.end() && it->second.size() == 1 &&
+          *it->second.begin() != nullptr)
+        guardedIndex = (*it->second.begin())->getFunctionScopeIndex();
     }
+    TraverseStmt(IS->getThen());
+    std::vector<DeallocType> thenVPP(valPerParam.size(), DeallocType::None);
+    std::swap(thenVPP, valPerParam);
+    auto* elseBranch = IS->getElse();
+    // There is no else
+    if (!elseBranch) {
+      std::swap(valPerParam, outerVPP);
+      for (auto& [VD, setPVD] : undoLogThen) {
+        // Overwrite aliasMap with join of overwriten and previous value
+        aliasMap[VD].insert(setPVD.begin(), setPVD.end());
+        // If branch is nested, inform upper branch about your changes
+        if (undoLogCopy)
+          undoLogCopy->try_emplace(VD, setPVD);
+      }
+      for (unsigned i = 0; i < valPerParam.size(); i++) {
+        if (static_cast<int>(i) == guardedIndex) {
+          updateParam(i, thenVPP[i]);
+          continue;
+        }
+        updateParam(i, join(thenVPP[i], DeallocType::None));
+      }
+      undoLog = undoLogCopy;
+      return true;
+    }
+
+    // Save overwriten values in if branch to join
+    std::unordered_map<const clang::VarDecl*,
+                       std::set<const clang::ParmVarDecl*>>
+        valuesInIfBranch;
+    for (auto& [VD, setPVD] : undoLogThen)
+      valuesInIfBranch[VD] = aliasMap[VD];
+
+    // Take changes on aliasMap back before going to else branch
+    undoOnAliasMap();
+
+    std::unordered_map<const clang::VarDecl*,
+                       std::set<const clang::ParmVarDecl*>>
+        undoLogElse;
+    undoLog = &undoLogElse;
+    TraverseStmt(elseBranch);
+    // elseVPP is not needed actually, we can just swap outerVPP and valPerParam
+    // and then outerVPP will act as elseVPP, but to keep code readable i use
+    // it
+    std::vector<DeallocType> elseVPP(valPerParam.size(), DeallocType::None);
+    std::swap(valPerParam, elseVPP);
+    std::swap(outerVPP, valPerParam);
+    for (unsigned i = 0; i < valPerParam.size(); i++) {
+      if (static_cast<int>(i) == guardedIndex) {
+        updateParam(i, thenVPP[i]);
+        continue;
+      }
+      updateParam(i, join(elseVPP[i], thenVPP[i]));
+    }
+    for (auto& [VD, setPVD] : undoLogElse) {
+      auto it2 = valuesInIfBranch.find(VD);
+      // If var is just changed in else branch
+      if (it2 == valuesInIfBranch.end()) {
+        aliasMap[VD].insert(setPVD.begin(), setPVD.end());
+        continue;
+      }
+      // If var is changed in both
+      aliasMap[VD].insert(it2->second.begin(), it2->second.end());
+    }
+
+    for (auto& [VD, setPVD] : valuesInIfBranch)
+      // If var is changed in both, aliasMap carries changes from else, if it is
+      // just changed in then, aliasMap carries old values, so both situation
+      // yields to same
+      aliasMap[VD].insert(setPVD.begin(), setPVD.end());
+
+    // Inform upper branch about changes done for both inner if and else branch
+    if (undoLogCopy) {
+      for (auto& [VD, setPVD] : undoLogThen)
+        undoLogCopy->try_emplace(VD, setPVD);
+      for (auto& [VD, setPVD] : undoLogElse)
+        undoLogCopy->try_emplace(VD, setPVD);
+    }
+
+    undoLog = undoLogCopy;
+    return true;
   }
 
   bool VisitVarDecl(clang::VarDecl* VD) {
-    if (llvm::isa<clang::ParmVarDecl>(VD) ||
-        (!VD->getType()->isPointerType() && !VD->getType()->isRecordType()))
+    if (llvm::isa<clang::ParmVarDecl>(VD))
       return true;
     const clang::Expr* E = VD->getInit();
     updateMap(VD, E);
@@ -2161,60 +2251,142 @@ struct DeallocationTraverser : RecursiveASTVisitor<DeallocationTraverser> {
 
   bool VisitCXXDeleteExpr(clang::CXXDeleteExpr* CDE) {
     const clang::Expr* E = CDE->getArgument();
-    const auto* PVR = resolveParam(E);
-    if (!PVR)
-      return true;
+    auto setPVD = resolveAlias(E);
     if (CDE->isArrayForm()) {
-      updateVPP(PVR->getFunctionScopeIndex(), DeallocType::DeleteArr);
+      updateVPP(setPVD, DeallocType::DeleteArr);
       return true;
     }
-    updateVPP(PVR->getFunctionScopeIndex(), DeallocType::Delete);
+    updateVPP(setPVD, DeallocType::Delete);
     return true;
   }
 
   bool VisitCallExpr(clang::CallExpr* CE) {
-    // FIXME: for some operators, arg and parameter match may not match because
-    // of hidden __this__ parameter
-    if (llvm::isa<clang::CXXOperatorCallExpr>(CE))
-      return true;
     const clang::FunctionDecl* FD = CE->getDirectCallee();
+    // FIXME: function pointer call, it should behave as no-body functions, but
+    // it acts as identity
     if (!FD)
       return true;
+    unsigned offset = 0;
     if (FD->getBuiltinID() == Builtin::ID::BIfree) {
       handleFree(CE);
       return true;
     }
+    if (FD->getBuiltinID() == Builtin::ID::BI__builtin_operator_delete) {
+      handleOperatorDelete(CE);
+      return true;
+    }
+    if (llvm::isa<clang::CXXOperatorCallExpr>(CE)) {
+      if (const auto* CMD = dyn_cast<clang::CXXMethodDecl>(FD)) {
+        // implicit object member functions that which is not CXXMemberCall have
+        // `this` object at 0th arguments, but it does not effect parameters so
+        // this cause offset, same goes for static operator calls but it holds
+        // and temporaryExpr at 0th arg
+        if (CMD->isStatic() || CMD->isImplicitObjectMemberFunction())
+          offset = 1;
+      }
+    }
 
-    // FIXME: Recursive Case
+    // Detects operator new/new[]/delete/delete[]
+    if (FD->isReplaceableGlobalAllocationFunction()) {
+      switch (FD->getOverloadedOperator()) {
+      case OO_Delete:
+        handleOperatorDelete(CE);
+        return true;
+      case OO_Array_Delete:
+        handleOperatorDelete(CE, true);
+        return true;
+      default:
+        return true; // OO_New/OO_Array_New
+      }
+    }
     auto it = visitedFuncs.find(FD);
     if (it != visitedFuncs.end()) {
       // Function calls itself, or a cycle recursion
       if (it->second == std::nullopt)
         return true;
-      joinVectors(*(it->second), CE);
+      joinVectors(*(it->second), CE, offset);
       return true;
     }
     std::vector<DeallocType> calleeVec;
     visitedFuncs[FD] = std::nullopt;
     AnalyzeDeallocType(FD, calleeVec, visitedFuncs);
-    joinVectors(calleeVec, CE);
+    joinVectors(calleeVec, CE, offset);
     return true;
   }
 
-  const clang::ParmVarDecl* resolveParam(const clang::Expr* E) {
+  // if(ptr) delete ptr;  this pattern should return Delete not MaybeDelete, so
+  // this function recognizes this pattern
+  const clang::VarDecl* getNullCheckCond(const clang::Expr* E) {
+    E = E->IgnoreParens();
+    const auto* ICE = dyn_cast<clang::ImplicitCastExpr>(E);
+    if (!ICE)
+      return nullptr;
+    if (ICE->getCastKind() != CastKind::CK_PointerToBoolean)
+      return nullptr;
+    // FIXME: Explicit casts are not handled:
+    // Ex: if((void*)ptr) delete ptr; ->is not recognized, for safety
+    E = E->IgnoreParenImpCasts();
+    if (const auto* DRE = dyn_cast<clang::DeclRefExpr>(E))
+      return dyn_cast<clang::VarDecl>(DRE->getDecl());
+    return nullptr;
+  }
+
+  void undoOnAliasMap() {
+    for (auto& [VD, setPVD] : *undoLog)
+      aliasMap[VD] = setPVD;
+  }
+
+  void handleOperatorDelete(clang::CallExpr* CE, bool isDeleteArr = false) {
+    const clang::Expr* paramExpr = CE->getArg(0);
+    auto setPVD = resolveAlias(paramExpr);
+    if (isDeleteArr) {
+      updateVPP(setPVD, DeallocType::OperatorDeleteArr);
+      return;
+    }
+    updateVPP(setPVD, DeallocType::OperatorDelete);
+  }
+  void handleFree(clang::CallExpr* CE) {
+    const clang::Expr* paramExpr = CE->getArg(0);
+    auto setPVD = resolveAlias(paramExpr);
+    updateVPP(setPVD, DeallocType::Free);
+  }
+
+  // recursiveVec is VPP of callee
+  void joinVectors(std::vector<DeallocType>& recursiveVec, clang::CallExpr* CE,
+                   unsigned offset) {
+    for (unsigned i = 0; i < recursiveVec.size() && i < CE->getNumArgs(); i++) {
+      auto setPVD = resolveAlias(CE->getArg(i + offset));
+      updateVPP(setPVD, recursiveVec[i]);
+    }
+  }
+
+  const clang::VarDecl* resolveExpr(const clang::Expr* E) {
+    if (!E)
+      return nullptr;
+    E = E->IgnoreParenCasts();
+    // delete *ptr; where ptr is std::optional<void*> or any other wrapper
+    if (const auto* COCE = dyn_cast<CXXOperatorCallExpr>(E)) {
+      if (COCE->getOperator() == OverloadedOperatorKind::OO_Star &&
+          !COCE->isInfixBinaryOp())
+        return resolveExpr(COCE->getArg(0));
+      return nullptr;
+    }
+    const auto* DRE = dyn_cast<clang::DeclRefExpr>(E);
+    if (!DRE)
+      return nullptr;
+    const auto* VD = dyn_cast<clang::VarDecl>(DRE->getDecl());
+    return VD;
+  }
+
+  std::set<const clang::ParmVarDecl*> resolveAlias(const clang::Expr* E) {
     const auto* VD = resolveExpr(E);
     if (!VD)
-      return nullptr;
-    if (const auto* PVD = dyn_cast<clang::ParmVarDecl>(VD)) {
-      if (overwritenParms.count(PVD))
-        return nullptr;
-      return PVD;
-    }
+      return std::set<const clang::ParmVarDecl*>{nullptr};
     auto it = aliasMap.find(VD);
-    if (it != aliasMap.end() && it->second != nullptr) {
+    if (it != aliasMap.end()) {
       return it->second;
     }
-    return nullptr;
+    return std::set<const clang::ParmVarDecl*>{nullptr};
   }
 
   void updateMap(const clang::VarDecl* VD, const clang::Expr* E) {
@@ -2222,66 +2394,109 @@ struct DeallocationTraverser : RecursiveASTVisitor<DeallocationTraverser> {
       return;
     if (!VD->getType()->isPointerType() && !VD->getType()->isRecordType())
       return;
-    if (const auto* PVD = dyn_cast<clang::ParmVarDecl>(VD)) {
-      overwritenParms.insert(PVD);
-      return;
-    }
-    const auto* rhsVD = resolveExpr(E);
-
-    if (!rhsVD) {
-      aliasMap[VD] = nullptr;
-      return;
-    }
-
-    if (const auto* rhsPVD = dyn_cast<clang::ParmVarDecl>(rhsVD)) {
-      if (overwritenParms.count(rhsPVD)) {
-        aliasMap[VD] = nullptr;
-        return;
-      }
-      aliasMap[VD] = rhsPVD;
-      // FIXME: does not handle situation where one param is assigned to
-      // another param
-      return;
-    }
-
-    auto it = aliasMap.find(rhsVD);
-    if (it != aliasMap.end()) {
-      aliasMap[VD] = it->second;
-      return;
-    }
-    aliasMap[VD] = nullptr;
+    if (undoLog)
+      undoLog->try_emplace(VD, aliasMap[VD]);
+    aliasMap[VD] = resolveAlias(E);
   }
 
-  void updateVPP(unsigned index, DeallocType DT) {
-    if (valPerParam[index] == DeallocType::Unknown)
+  void updateVPP(std::set<const clang::ParmVarDecl*>& setPVD, DeallocType DT) {
+    if (setPVD.size() != 1)
+      DT = toMaybe(DT);
+    for (auto* PVD : setPVD) {
+      if (PVD == nullptr)
+        continue;
+      updateParam(PVD->getFunctionScopeIndex(), DT);
+    }
+  }
+
+  void updateParam(unsigned index, DeallocType DT) {
+    // Probably dead code, but better to keep
+    if (index >= valPerParam.size())
+      return;
+    auto curVal = valPerParam[index];
+    // If DT did not effect index
+    if (DT == DeallocType::None)
       return;
     // If new value from callee is Opaque, it is best to make parameter Unknown
     // since we can not know what is going inside no-body functions
-    if ((valPerParam[index] != DeallocType::None && valPerParam[index] != DT) ||
-        DT == DeallocType::Opaque) {
+    if (DT == DeallocType::Opaque) {
       valPerParam[index] = DeallocType::Unknown;
       return;
     }
-    valPerParam[index] = DT;
-  }
-
-  void handleFree(clang::CallExpr* CE) {
-    const clang::Expr* paramExpr = CE->getArg(0);
-    const auto* PVR = resolveParam(paramExpr);
-    if (!PVR)
+    // If the parameter has not been deallocated so far, there is no
+    // contradiction
+    if (curVal == DeallocType::None) {
+      valPerParam[index] = DT;
       return;
-    updateVPP(PVR->getFunctionScopeIndex(), DeallocType::Free);
+    }
+    // Totally different situations
+    if (absoluteKind(curVal) != absoluteKind(DT)) {
+      valPerParam[index] = DeallocType::Unknown;
+      return;
+    }
+    // Maybe + Maybe = Maybe
+    if (isMaybe(curVal) && isMaybe(DT)) {
+      valPerParam[index] = DT;
+      return;
+    }
+    // Maybe + Absolute = Absolute
+    valPerParam[index] = absoluteKind(DT);
   }
 
-  const clang::VarDecl* resolveExpr(const clang::Expr* E) {
-    if (!E)
-      return nullptr;
-    E = E->IgnoreParenCasts();
-    const auto* DRE = dyn_cast<clang::DeclRefExpr>(E);
-    if (!DRE)
-      return nullptr;
-    const auto* VD = dyn_cast<clang::VarDecl>(DRE->getDecl());
-    return VD;
+  // Joining if-else branches
+  static DeallocType join(DeallocType a, DeallocType b) {
+    // Unknown devours
+    if (a == DeallocType::Unknown || b == DeallocType::Unknown)
+      return DeallocType::Unknown;
+    // None acts as identity
+    if (a == DeallocType::None)
+      return toMaybe(b);
+    if (b == DeallocType::None)
+      return toMaybe(a);
+    // Different deallocation types
+    if (absoluteKind(a) != absoluteKind(b))
+      return DeallocType::Unknown;
+    // If one is uncertain, their join is also uncertain
+    if (isMaybe(a) || isMaybe(b))
+      return toMaybe(a);
+    // Guaranteed a==b
+    return a;
+  }
+
+  static bool isMaybe(DeallocType DT) { return DT != absoluteKind(DT); }
+
+  static DeallocType absoluteKind(DeallocType DT) {
+    switch (DT) {
+    case DeallocType::MaybeDelete:
+      return DeallocType::Delete;
+    case DeallocType::MaybeDeleteArr:
+      return DeallocType::DeleteArr;
+    case DeallocType::MaybeFree:
+      return DeallocType::Free;
+    case DeallocType::MaybeOperatorDelete:
+      return DeallocType::OperatorDelete;
+    case DeallocType::MaybeOperatorDeleteArr:
+      return DeallocType::OperatorDeleteArr;
+    default:
+      return DT;
+    }
+  }
+
+  static DeallocType toMaybe(DeallocType DT) {
+    switch (DT) {
+    case DeallocType::Delete:
+      return DeallocType::MaybeDelete;
+    case DeallocType::DeleteArr:
+      return DeallocType::MaybeDeleteArr;
+    case DeallocType::Free:
+      return DeallocType::MaybeFree;
+    case DeallocType::OperatorDelete:
+      return DeallocType::MaybeOperatorDelete;
+    case DeallocType::OperatorDeleteArr:
+      return DeallocType::MaybeOperatorDeleteArr;
+    default:
+      return DT;
+    }
   }
 };
 } // namespace
@@ -2291,7 +2506,8 @@ static bool AnalyzeDeallocType(
     std::unordered_map<const FunctionDecl*,
                        std::optional<std::vector<DeallocType>>>& visitedFuncs) {
   const unsigned int numParam = FD->getNumParams();
-  const auto* S = FD->getBody();
+  const clang::FunctionDecl* realDef = nullptr;
+  const auto* S = FD->getBody(realDef);
   if (!S) {
     valPerParam.assign(numParam, DeallocType::Opaque);
     visitedFuncs[FD] = valPerParam;
@@ -2306,6 +2522,8 @@ static bool AnalyzeDeallocType(
   }
   valPerParam.assign(numParam, DeallocType::None);
   DeallocationTraverser Traverser(valPerParam, visitedFuncs);
+  for (auto* PVD : realDef->parameters())
+    Traverser.aliasMap[PVD] = std::set<const clang::ParmVarDecl*>{PVD};
   Traverser.TraverseStmt(const_cast<CompoundStmt*>(CmpStmt));
   visitedFuncs[FD] = valPerParam;
   return true;
