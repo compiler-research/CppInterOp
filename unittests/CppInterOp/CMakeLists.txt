@@ -65,6 +65,9 @@ if (NOT EMSCRIPTEN)
   # likewise skipped there).
   target_sources(CppInterOpTests PRIVATE CUDATest.cpp VTableOverlayTest.cpp)
 endif()
+if (CPPINTEROP_ENABLE_CLAD)
+  target_sources(CppInterOpTests PRIVATE CladTest.cpp)
+endif()
 
 if(NOT WIN32)
   set_source_files_properties(VariableReflectionTest.cpp PROPERTIES COMPILE_FLAGS
