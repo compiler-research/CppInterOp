@@ -783,6 +783,39 @@ def IsFunctionProtoType : CppInterOpAPI {
   ];
 }
 
+def GetOwnershipBehaviour : CppInterOpAPI {
+  let Doc = [{Returns the ownership behaviour the function declares, as a
+bitmask of OwnershipBehaviour flags read off its ownership_returns,
+ownership_takes and ownership_holds attributes.}];
+
+  let ReturnType = "OwnershipBehaviour";
+  let Args = [
+    Arg<"ConstFuncRef", "func">
+  ];
+}
+
+def GetDeallocationIndexes : CppInterOpAPI {
+  let Doc = [{Returns a bitmask of the parameters whose ownership the function
+takes or holds, as annotated by ownership_takes/ownership_holds: The mask is meaningful only when
+GetOwnershipBehaviour reports OwnershipTakes or OwnershipHolds.}];
+
+  let ReturnType = "uint64_t";
+  let Args = [
+    Arg<"ConstFuncRef", "func">
+  ];
+}
+
+def GetAllocationSizeParamIndex : CppInterOpAPI {
+  let Doc = [{Returns the 0-based index of the parameter carrying the allocation
+size for a function annotated with ownership_returns, or -1 if the function is
+not so annotated or the size argument was omitted.}];
+
+  let ReturnType = "int";
+  let Args = [
+    Arg<"ConstFuncRef", "func">
+  ];
+}
+
 def GetAllocType: CppInterOpAPI {
   let Doc = "Analyzes function's body to detect memory allocation behaviour";
 
