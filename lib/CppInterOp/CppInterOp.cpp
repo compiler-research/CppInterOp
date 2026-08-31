@@ -1771,7 +1771,9 @@ AllocType IsAllocator(ConstFuncRef Fn) {
   INTEROP_TRACE(Fn);
   if (!Fn)
     return INTEROP_RETURN(AllocType::Unknown);
-  const auto* D = unwrap<clang::Decl>(Fn);
+  const auto* D = UnwrapUsingShadowToFunction(unwrap<clang::Decl>(Fn));
+  if (const auto* FTD = dyn_cast<FunctionTemplateDecl>(D))
+    D = FTD->getTemplatedDecl();
   if (const auto* FD = dyn_cast<FunctionDecl>(D)) {
     if (FD->getBuiltinID() == Builtin::ID::BImalloc)
       return INTEROP_RETURN(AllocType::Malloc);
@@ -1814,8 +1816,6 @@ AllocType IsAllocator(ConstFuncRef Fn) {
     }
   }
 
-  // Nullopt is returned because when analyzer calls this API it should know
-  // whether an attribute injected before or FD has a meaningful attribute
   return INTEROP_RETURN(AllocType::Unknown);
 }
 

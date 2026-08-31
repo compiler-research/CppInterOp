@@ -844,7 +844,10 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_IsAllocator) {
   std::vector<Decl*> Decls;
   std::string code = R"(
     class Klass{
-      int val;
+      int val = 0;
+      int* __attribute__((annotate("cppAllocNone"))) getValAdress(){
+        return &val;
+      }
     };
     __attribute__((ownership_returns(malloc)))
     Klass* Allocator(){
@@ -860,18 +863,23 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_IsAllocator) {
     void __attribute__((ownership_takes(malloc, 1))) Deallocator(void* p);
     void* __attribute__((cf_returns_retained)) CFAllocFunc();
 
-    void __attribute__((annotate("cppAllocNone"))) NoneFunc();
-    void __attribute__((annotate("cppAllocNew"))) NewFunc();
-    void __attribute__((annotate("cppAllocNewArr"))) NewArrFunc();
-    void __attribute__((annotate("cppAllocMalloc"))) MallocFunc();
-    void __attribute__((annotate("cppAllocOperatorNew"))) OpNewFunc();
-    void __attribute__((annotate("cppAllocOperatorNewArr"))) OpNewArrFunc();
-    void __attribute__((annotate("unrelatedAttr"))) UnrelatedFunc();
-    __declspec(restrict) void* DeclspecRestrictFunc();
+    int* __attribute__((annotate("cppAllocNone"))) NoneFunc();
+    int* __attribute__((annotate("cppAllocNew"))) NewFunc();
+    int* __attribute__((annotate("cppAllocNewArr"))) NewArrFunc();
+    int* __attribute__((annotate("cppAllocMalloc"))) MallocFunc();
+    int* __attribute__((annotate("cppAllocOperatorNew"))) OpNewFunc();
+    int* __attribute__((annotate("cppAllocOperatorNewArr"))) OpNewArrFunc();
+    int* __attribute__((annotate("unrelatedAttr"))) UnrelatedFunc();
+    __declspec(restrict) int* DeclspecRestrictFunc();
+    template <typename T>
+    __attribute__((annotate("cppAllocNew"))) T* TemplatedFunc(){
+      return new T;
+    }
+    template <> int* TemplatedFunc();
+    template char* TemplatedFunc<char>();
   )";
-  TestFixture::CreateInterpreter(
-      {"-std=c++17", "-include", "stdlib.h", "-fdeclspec"});
-  Interp->declare(code);
+  GetAllTopLevelDecls(code, Decls, true,
+                      {"-std=c++17", "-include", "stdlib.h", "-fdeclspec"});
 #define TESTIA(N, EXP)                                                         \
   EXPECT_EQ(Cpp::IsAllocator(Cpp::ConstFuncRef { Cpp::GetNamed(#N).data }), EXP)
 
@@ -889,6 +897,20 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_IsAllocator) {
   TESTIA(OpNewArrFunc, Cpp::AllocType::OperatorNewArr);
   TESTIA(UnrelatedFunc, Cpp::AllocType::Unknown);
   TESTIA(DeclspecRestrictFunc, Cpp::AllocType::Unknown);
+
+  EXPECT_EQ(Cpp::IsAllocator(Cpp::ConstFuncRef{Decls[14]}),
+            Cpp::AllocType::New);
+  EXPECT_EQ(Cpp::IsAllocator(Cpp::ConstFuncRef{Decls[15]}),
+            Cpp::AllocType::New);
+  ASTContext& C = Interp->getCI()->getASTContext();
+  std::vector<Cpp::TemplateArgInfo> charArg = {C.CharTy.getAsOpaquePtr()};
+  EXPECT_EQ(Cpp::IsAllocator(Cpp::ConstFuncRef{
+                Cpp::InstantiateTemplate(Decls[14], charArg).data}),
+            Cpp::AllocType::New);
+
+  EXPECT_EQ(Cpp::IsAllocator(Cpp::ConstFuncRef{
+                Cpp::GetNamed("getValAdress", Cpp::GetNamed("Klass")).data}),
+            Cpp::AllocType::None);
 
   //! Fn coverage
   EXPECT_EQ(Cpp::IsAllocator(Cpp::ConstFuncRef{nullptr}),
