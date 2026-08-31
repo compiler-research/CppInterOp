@@ -6008,7 +6008,9 @@ void GetAllCppNames(ConstDeclRef DRef, std::set<std::string>& names) {
   if (const auto* TD = dyn_cast_or_null<TagDecl>(D)) {
     DC = clang::TagDecl::castToDeclContext(TD);
     decl = DC->decls_begin();
-    decl++;
+    // Skip the injected class name, but an empty tag has none.
+    if (decl != DC->decls_end())
+      decl++;
   } else if (const auto* ND = dyn_cast_or_null<NamespaceDecl>(D)) {
     DC = clang::NamespaceDecl::castToDeclContext(ND);
     decl = DC->decls_begin();
