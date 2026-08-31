@@ -90,8 +90,6 @@ typedef struct CppConstFuncRef {
 
 #else // __cplusplus
 
-#include <optional>
-
 namespace Cpp {
 
 struct DeclRef {
