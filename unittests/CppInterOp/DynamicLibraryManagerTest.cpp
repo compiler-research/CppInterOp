@@ -1,14 +1,36 @@
 #include "Utils.h"
 #include "CppInterOp/CppInterOp.h"
 
+#include "../../lib/CppInterOp/Compatibility.h"
+
 #include "clang/Basic/Version.h"
 
+#include "llvm/ADT/ArrayRef.h"
 #include "llvm/ADT/SmallString.h"
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/IR/Constants.h"
+#include "llvm/IR/DerivedTypes.h"
+#include "llvm/IR/GlobalValue.h"
+#include "llvm/IR/GlobalVariable.h"
+#include "llvm/IR/LLVMContext.h"
+#include "llvm/IR/Module.h"
+#include "llvm/IR/Type.h"
+#include "llvm/IR/Verifier.h"
+#include "llvm/Support/Casting.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Path.h"
+#include "llvm/Support/raw_ostream.h"
+#include "llvm/TargetParser/Host.h"
+#include "llvm/TargetParser/Triple.h"
 
 #include "gtest/gtest.h"
+
+#include <memory>
+
+#ifndef _WIN32
+#include <dlfcn.h>
+#endif
 
 // This function isn't referenced outside its translation unit, but it
 // can't use the "static" keyword because its address is used for
@@ -421,3 +443,129 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, DynamicLibraryManager_WeakConstantNotDemoted) {
   ASSERT_NE(Value, nullptr);
   EXPECT_EQ(Value(), 123);
 }
+
+#if !defined(_WIN32) && !defined(CPPINTEROP_USE_CLING) &&                      \
+    CPPINTEROP_WORKAROUND_BIND_PROCESS_WEAK_GLOBALS
+
+// Three of bindProcessWeakGlobals's decisions about a module are invisible to
+// the interpreter tests above, which only see whether a singleton was shared.
+// They are driven here on a hand-built module, where the resulting IR shows
+// which decision was taken.
+// TestSharedLib exports this inline static data member. It is constant
+// initialized, so the process has no guard symbol for it.
+constexpr const char* kProcessData = "_ZN16SingletonFixture15s_inline_memberE";
+constexpr const char* kProcessGuard =
+    "_ZGVN16SingletonFixture15s_inline_memberE";
+
+static std::unique_ptr<llvm::Module> MakeElfModule(llvm::LLVMContext& Ctx) {
+  auto M = std::make_unique<llvm::Module>("bindProcessWeakGlobals", Ctx);
+  llvm::Triple HostTriple(llvm::sys::getProcessTriple());
+#if CLANG_VERSION_MAJOR < 21
+  M->setTargetTriple(HostTriple.str());
+#else
+  M->setTargetTriple(HostTriple);
+#endif
+  return M;
+}
+
+// The shape clang gives an inline variable: a mutable weak definition. The
+// module takes ownership of every global built here.
+static llvm::GlobalVariable* AddWeakGlobal(llvm::Module& M, const char* Name) {
+  llvm::Type* Ty = llvm::Type::getInt32Ty(M.getContext());
+  // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
+  return new llvm::GlobalVariable(M, Ty, /*isConstant=*/false,
+                                  llvm::GlobalValue::LinkOnceODRLinkage,
+                                  llvm::ConstantInt::get(Ty, 0), Name);
+}
+
+static llvm::GlobalVariable* AddStrongGlobal(llvm::Module& M,
+                                             const char* Name) {
+  llvm::Type* Ty = llvm::Type::getInt32Ty(M.getContext());
+  // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
+  return new llvm::GlobalVariable(M, Ty, /*isConstant=*/false,
+                                  llvm::GlobalValue::ExternalLinkage,
+                                  llvm::ConstantInt::get(Ty, 0), Name);
+}
+
+static llvm::GlobalVariable*
+AddUsedList(llvm::Module& M, llvm::ArrayRef<llvm::GlobalVariable*> Els) {
+  llvm::SmallVector<llvm::Constant*, 2> Ops(Els.begin(), Els.end());
+  auto* ATy = llvm::ArrayType::get(llvm::PointerType::getUnqual(M.getContext()),
+                                   Ops.size());
+  auto* Used = new llvm::GlobalVariable(
+      M, ATy, /*isConstant=*/false, llvm::GlobalValue::AppendingLinkage,
+      llvm::ConstantArray::get(ATy, Ops), "llvm.used");
+  Used->setSection("llvm.metadata");
+  return Used;
+}
+
+class BindProcessWeakGlobals : public ::testing::Test {
+protected:
+  void SetUp() override {
+    if (!llvm::Triple(llvm::sys::getProcessTriple()).isOSBinFormatELF())
+      GTEST_SKIP() << "the dlsym-based weak-global binding targets ELF";
+
+    std::string Path = ResolveTestSharedLibPath();
+    ASSERT_STRNE("", Path.c_str());
+    ASSERT_NE(::dlopen(Path.c_str(), RTLD_NOW | RTLD_GLOBAL), nullptr);
+
+    // The premise of every case below.
+    ASSERT_NE(::dlsym(RTLD_DEFAULT, kProcessData), nullptr);
+    ASSERT_EQ(::dlsym(RTLD_DEFAULT, kProcessGuard), nullptr);
+  }
+};
+
+// Sharing the data but not the guard would re-run initialization on the
+// process copy, so a module-local guard the process lacks blocks the demotion.
+TEST_F(BindProcessWeakGlobals, GuardMissingFromProcessKeepsPair) {
+  llvm::LLVMContext Ctx;
+  auto M = MakeElfModule(Ctx);
+  llvm::GlobalVariable* Data = AddWeakGlobal(*M, kProcessData);
+  llvm::GlobalVariable* Guard = AddWeakGlobal(*M, kProcessGuard);
+
+  EXPECT_FALSE(compat::bindProcessWeakGlobals(*M));
+
+  EXPECT_TRUE(Data->hasInitializer());
+  EXPECT_TRUE(Guard->hasInitializer());
+}
+
+// A used list that names nothing demoted stays in place.
+TEST_F(BindProcessWeakGlobals, UsedListWithoutDemotedEntriesIsKept) {
+  llvm::LLVMContext Ctx;
+  auto M = MakeElfModule(Ctx);
+  llvm::GlobalVariable* Data = AddWeakGlobal(*M, kProcessData);
+  llvm::GlobalVariable* Keep = AddStrongGlobal(*M, "keep_me");
+  llvm::GlobalVariable* Used = AddUsedList(*M, {Keep});
+
+  EXPECT_TRUE(compat::bindProcessWeakGlobals(*M));
+
+  EXPECT_TRUE(Data->isDeclaration());
+  // The same object, so the list was never erased and rebuilt.
+  EXPECT_EQ(M->getNamedGlobal("llvm.used"), Used);
+}
+
+// A used list that names a demoted global is rebuilt around the survivors; a
+// declaration left in it fails the IR verifier.
+TEST_F(BindProcessWeakGlobals, UsedListIsRebuiltAroundSurvivors) {
+  llvm::LLVMContext Ctx;
+  auto M = MakeElfModule(Ctx);
+  llvm::GlobalVariable* Data = AddWeakGlobal(*M, kProcessData);
+  llvm::GlobalVariable* Keep = AddStrongGlobal(*M, "keep_me");
+  AddUsedList(*M, {Data, Keep});
+
+  EXPECT_TRUE(compat::bindProcessWeakGlobals(*M));
+
+  EXPECT_TRUE(Data->isDeclaration());
+  llvm::GlobalVariable* Rebuilt = M->getNamedGlobal("llvm.used");
+  ASSERT_NE(Rebuilt, nullptr);
+  EXPECT_EQ(Rebuilt->getSection(), "llvm.metadata");
+  auto* Init = llvm::cast<llvm::ConstantArray>(Rebuilt->getInitializer());
+  llvm::SmallVector<llvm::StringRef, 2> Survivors;
+  for (llvm::Value* Op : Init->operand_values())
+    Survivors.push_back(Op->getName());
+  ASSERT_EQ(Survivors.size(), 1U);
+  EXPECT_EQ(Survivors.front(), "keep_me");
+  EXPECT_FALSE(llvm::verifyModule(*M, &llvm::errs()));
+}
+
+#endif // bindProcessWeakGlobals is declared
