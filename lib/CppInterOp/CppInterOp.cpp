@@ -70,6 +70,7 @@
 #include "clang/Basic/Version.h"
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Interpreter/Interpreter.h"
+#include "clang/Sema/DeclSpec.h"
 #include "clang/Sema/Lookup.h"
 #include "clang/Sema/Overload.h"
 #include "clang/Sema/Ownership.h"
@@ -2606,10 +2607,12 @@ InfoToTemplateArgument(Sema& S, const TemplateArgInfo& Info) {
   if (!ArgTy.isNull() && !Digits.empty() &&
       Digits.find_first_not_of("0123456789") == llvm::StringRef::npos) {
     auto Res = llvm::APSInt(Value);
+    // extOrTrunc keeps the lenient legacy conversion; Sema re-checks anyway.
     Res = Res.extOrTrunc(S.getASTContext().getIntWidth(ArgTy));
     return TemplateArgument(S.getASTContext(), Res, ArgTy);
   }
 
+  // ArgTy is the parameter's type; it cannot identify the named entity.
   Decl* Named = GetNamedFromCompleteName(Value.str());
   // Class/alias template: a template-template argument.
   if (auto* TD = llvm::dyn_cast_or_null<TemplateDecl>(Named))
@@ -2617,13 +2620,12 @@ InfoToTemplateArgument(Sema& S, const TemplateArgInfo& Info) {
   auto* VD = llvm::dyn_cast_or_null<ValueDecl>(Named);
   if (!VD)
     return std::nullopt;
-  // Enum constants are prvalues; lvalue kind breaks constant evaluation.
-  ExprValueKind VK = llvm::isa<EnumConstantDecl>(VD) ? VK_PRValue : VK_LValue;
-  Expr* Ref = S.BuildDeclRefExpr(VD, VD->getType().getNonReferenceType(), VK,
-                                 GetValidSLoc(S));
-  if (!Ref)
+  // Clang picks the value kind and type (e.g. enumerators are prvalues).
+  DeclarationNameInfo NameInfo(VD->getDeclName(), GetValidSLoc(S));
+  ExprResult Ref = S.BuildDeclarationNameExpr(CXXScopeSpec(), NameInfo, VD);
+  if (Ref.isInvalid())
     return std::nullopt;
-  return TemplateArgument(Ref, /*IsCanonical=*/false);
+  return TemplateArgument(Ref.get(), /*IsCanonical=*/false);
 }
 
 // Adapted from inner workings of Sema::BuildCallExpr
