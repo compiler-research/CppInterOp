@@ -1333,11 +1333,9 @@ DeclRef GetNamed(const std::string& name, ConstDeclRef parent /*= nullptr*/) {
     auto* D = unwrap<clang::Decl>(GetUnderlyingScope(parent));
     Within = llvm::dyn_cast<clang::DeclContext>(D);
   }
-#ifdef CPPINTEROP_USE_CLING
+  compat::SynthesizingCodeRAII RAII(&getInterp());
   if (Within)
     Within->getPrimaryContext()->buildLookup();
-#endif
-  compat::SynthesizingCodeRAII RAII(&getInterp());
 
   // Fast path: qualified lookup. Cheap, no DRef-chain allocation, and
   // resolves every name not brought into `Within` via a using-directive.
@@ -1525,6 +1523,8 @@ int64_t GetBaseClassOffset(ConstDeclRef derived, ConstDeclRef base) {
     return INTEROP_RETURN(0);
 
   assert(derived || base);
+
+  compat::SynthesizingCodeRAII RAII(&getInterp());
 
   const auto* DD = unwrap<Decl>(derived);
   const auto* BD = unwrap<Decl>(base);
@@ -1716,6 +1716,7 @@ std::vector<FuncRef> GetFunctionsUsingName(ConstDeclRef DRef,
   clang::LookupResult R(S, DName, SourceLocation(), Sema::LookupOrdinaryName,
                         RedeclarationKind::ForVisibleRedeclaration);
 
+  compat::SynthesizingCodeRAII RAII(&getInterp());
   CppInternal::utils::Lookup::Named(&S, R, Decl::castToDeclContext(D));
 
   if (R.empty())
@@ -2469,6 +2470,7 @@ bool ExistsFunctionTemplate(const std::string& name, ConstDeclRef parent) {
     Within = llvm::dyn_cast<DeclContext>(D);
   }
 
+  compat::SynthesizingCodeRAII RAII(&getInterp());
   auto* ND = CppInternal::utils::Lookup::Named(&getSema(), name, Within);
 
   if ((intptr_t)ND == (intptr_t)0)
@@ -2506,6 +2508,9 @@ void LookupConstructors(const std::string& name, ConstDeclRef parent,
   auto* D = const_cast<Decl*>(unwrap<Decl>(parent));
 
   if (auto* CXXRD = llvm::dyn_cast_or_null<CXXRecordDecl>(D)) {
+    // Both calls below declare implicit members lazily and can deserialize
+    // decls from an AST file, which must happen within a transaction.
+    compat::SynthesizingCodeRAII RAII(&getInterp());
     getSema().ForceDeclarationOfImplicitMembers(CXXRD);
     DeclContextLookupResult Result = getSema().LookupConstructors(CXXRD);
     // Obtaining all constructors when we intend to lookup a method under a
@@ -2534,6 +2539,8 @@ bool GetClassTemplatedMethods(const std::string& name, ConstDeclRef parent,
   clang::LookupResult R(S, DName, SourceLocation(), Sema::LookupOrdinaryName,
                         RedeclarationKind::ForVisibleRedeclaration);
   auto* DC = clang::Decl::castToDeclContext(DU);
+
+  compat::SynthesizingCodeRAII RAII(&getInterp());
   CppInternal::utils::Lookup::Named(&S, R, DC);
 
   if (R.getResultKind() == clang_LookupResult_Not_Found && funcs.empty())
@@ -3223,6 +3230,7 @@ DeclRef LookupDatamember(const std::string& name, ConstDeclRef parent) {
     Within = llvm::dyn_cast<clang::DeclContext>(D);
   }
 
+  compat::SynthesizingCodeRAII RAII(&getInterp());
   auto* ND = CppInternal::utils::Lookup::Named(&getSema(), name, Within);
   if (ND && ND != (clang::NamedDecl*)-1) {
     if (llvm::isa_and_nonnull<clang::FieldDecl>(ND)) {
@@ -3283,6 +3291,7 @@ intptr_t GetVariableOffset(compat::Interpreter& I, Decl* D,
   auto& C = I.getSema().getASTContext();
 
   if (auto* FD = llvm::dyn_cast<FieldDecl>(D)) {
+    compat::SynthesizingCodeRAII RAII(&getInterp());
     clang::RecordDecl* FieldParentRecordDecl = FD->getParent();
     intptr_t offset = C.toCharUnitsFromBits(C.getFieldOffset(FD)).getQuantity();
     while (FieldParentRecordDecl->isAnonymousStructOrUnion()) {
