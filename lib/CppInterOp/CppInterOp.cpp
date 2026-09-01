@@ -1173,6 +1173,15 @@ static const clang::Decl* UnwrapUsingShadowToFunction(const clang::Decl* D) {
   return D;
 }
 
+// Resolves the FunctionDecl a decl names, looking through a using-shadow and
+// a template pattern. Null when the decl does not name a function.
+static const clang::FunctionDecl* UnwrapToFunctionDecl(const clang::Decl* D) {
+  D = UnwrapUsingShadowToFunction(D);
+  if (const auto* FTD = dyn_cast_or_null<FunctionTemplateDecl>(D))
+    D = FTD->getTemplatedDecl();
+  return dyn_cast_or_null<FunctionDecl>(D);
+}
+
 DeclRef GetUnderlyingScope(ConstDeclRef DRef) {
   INTEROP_TRACE(DRef);
   if (!DRef)
