@@ -1011,3 +1011,30 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, VariableReflection_GetPointerType) {
   EXPECT_EQ(Cpp::GetPointerType(Cpp::GetVariableType(Decls[5])),
             Cpp::GetVariableType(Decls[6]));
 }
+
+TYPED_TEST(CPPINTEROP_TEST_MODE, VariableReflection_BitFieldBasics) {
+  std::vector<Decl*> Decls;
+  std::string code = R"(
+    struct S {
+      unsigned int a : 1;
+      unsigned int b : 2;
+      unsigned int c : 4;
+      int plain;
+    };
+  )";
+  GetAllTopLevelDecls(code, Decls);
+
+  std::vector<Cpp::DeclRef> datamembers;
+  Cpp::GetDatamembers(Decls[0], datamembers);
+  ASSERT_EQ(datamembers.size(), 4U);
+
+  EXPECT_TRUE(Cpp::IsBitFieldVariable(datamembers[0]));
+  EXPECT_TRUE(Cpp::IsBitFieldVariable(datamembers[1]));
+  EXPECT_TRUE(Cpp::IsBitFieldVariable(datamembers[2]));
+  EXPECT_FALSE(Cpp::IsBitFieldVariable(datamembers[3]));
+
+  EXPECT_EQ(Cpp::GetVariableBitWidth(datamembers[0]), 1);
+  EXPECT_EQ(Cpp::GetVariableBitWidth(datamembers[1]), 2);
+  EXPECT_EQ(Cpp::GetVariableBitWidth(datamembers[2]), 4);
+  EXPECT_EQ(Cpp::GetVariableBitWidth(datamembers[3]), -1);
+}

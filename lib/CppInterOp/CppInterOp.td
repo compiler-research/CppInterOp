@@ -985,6 +985,25 @@ value stored in the variable.}];
   ];
 }
 
+def IsBitFieldVariable : CppInterOpAPI {
+  let Doc = "Checks if the provided variable is a bit-field.";
+
+  let ReturnType = "bool";
+  let Args = [
+    Arg<"ConstDeclRef", "var">
+  ];
+}
+
+def GetVariableBitWidth : CppInterOpAPI {
+  let Doc = [{Gets the declared bit width of a bit-field.
+Returns -1 if the variable is not a bit-field.}];
+
+  let ReturnType = "int";
+  let Args = [
+    Arg<"ConstDeclRef", "var">
+  ];
+}
+
 def IsPublicVariable : CppInterOpAPI {
   let Doc = "Checks if the provided variable is a 'Public' variable.";
 

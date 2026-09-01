@@ -3421,6 +3421,23 @@ intptr_t GetVariableOffset(ConstDeclRef var, ConstDeclRef parent) {
   return INTEROP_RETURN(GetVariableOffset(getInterp(), D, RD));
 }
 
+bool IsBitFieldVariable(ConstDeclRef var) {
+  INTEROP_TRACE(var);
+  const auto* D = unwrap<Decl>(var);
+  if (const auto* FD = llvm::dyn_cast_or_null<FieldDecl>(D))
+    return INTEROP_RETURN(FD->isBitField());
+  return INTEROP_RETURN(false);
+}
+
+int GetVariableBitWidth(ConstDeclRef var) {
+  INTEROP_TRACE(var);
+  const auto* D = unwrap<Decl>(var);
+  const auto* FD = llvm::dyn_cast_or_null<FieldDecl>(D);
+  if (!FD || !FD->isBitField())
+    return INTEROP_RETURN(-1);
+  return INTEROP_RETURN(static_cast<int>(FD->getBitWidthValue()));
+}
+
 // Check if the Access Specifier of the variable matches the provided value.
 bool CheckVariableAccess(ConstDeclRef var, AccessSpecifier AS) {
   const auto* D = unwrap<Decl>(var);
