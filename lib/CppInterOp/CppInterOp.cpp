@@ -3438,6 +3438,32 @@ int GetVariableBitWidth(ConstDeclRef var) {
   return INTEROP_RETURN(static_cast<int>(FD->getBitWidthValue()));
 }
 
+intptr_t GetVariableBitOffset(ConstDeclRef var, ConstDeclRef parent) {
+  INTEROP_TRACE(var, parent);
+  const auto* D = unwrap<Decl>(var);
+  const auto* FD = llvm::dyn_cast_or_null<FieldDecl>(D);
+  if (!FD || !FD->isBitField())
+    return INTEROP_RETURN(-1);
+
+  // GetVariableOffset already accounts for anonymous struct/union nesting
+  // and base-class subobject offsets, in whole bytes. Every level of that
+  // accumulation except this innermost field is a record-typed member or a
+  // base, both of which are byte-aligned -- so only FD can contribute
+  // sub-byte bits, and adding them back is exact.
+  const intptr_t byte_offset = GetVariableOffset(var, parent);
+  ASTContext& C = FD->getASTContext();
+  // Call ordering is load-bearing: getFieldOffset() needs FD's record layout,
+  // and this call sits outside the compat::SynthesizingCodeRAII that
+  // GetVariableOffset establishes for itself. It is safe only because the
+  // GetVariableOffset above already ran and left the layout cached in
+  // ASTContext. Do not reorder these two lines, and do not reach
+  // getFieldOffset on any path that skips GetVariableOffset.
+  const uint64_t sub_byte_bits = C.getFieldOffset(FD) % 8;
+  return INTEROP_RETURN(
+      static_cast<intptr_t>(static_cast<int64_t>(byte_offset) * 8 +
+                            static_cast<int64_t>(sub_byte_bits)));
+}
+
 // Check if the Access Specifier of the variable matches the provided value.
 bool CheckVariableAccess(ConstDeclRef var, AccessSpecifier AS) {
   const auto* D = unwrap<Decl>(var);

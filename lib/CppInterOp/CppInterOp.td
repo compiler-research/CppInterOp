@@ -1004,6 +1004,26 @@ Returns -1 if the variable is not a bit-field.}];
   ];
 }
 
+def GetVariableBitOffset : CppInterOpAPI {
+  let Doc = [{Gets the offset of a bit-field in bits, relative to the start
+of parent if parent is supplied, otherwise relative to the field's
+outermost non-anonymous enclosing record. Returns -1 if the variable is not
+a bit-field. A bit-field has no address of its own, so this is layout
+information for masked access, not something that can be turned into a
+pointer.
+
+Not supported for a bit-field inside a virtual base subobject: the
+underlying byte-offset computation only has a table of non-virtual base
+offsets, so a virtual base silently reads back an offset of 0 instead of
+the true one.}];
+
+  let ReturnType = "intptr_t";
+  let Args = [
+    Arg<"ConstDeclRef", "var">,
+    Arg<"ConstDeclRef", "parent", "nullptr">
+  ];
+}
+
 def IsPublicVariable : CppInterOpAPI {
   let Doc = "Checks if the provided variable is a 'Public' variable.";
 

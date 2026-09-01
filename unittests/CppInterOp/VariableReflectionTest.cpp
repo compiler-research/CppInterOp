@@ -1038,3 +1038,128 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, VariableReflection_BitFieldBasics) {
   EXPECT_EQ(Cpp::GetVariableBitWidth(datamembers[2]), 4);
   EXPECT_EQ(Cpp::GetVariableBitWidth(datamembers[3]), -1);
 }
+
+TYPED_TEST(CPPINTEROP_TEST_MODE, VariableReflection_BitFieldOffset) {
+  std::vector<Decl*> Decls;
+  std::string code = R"(
+    struct Simple {
+      unsigned int a : 1;
+      unsigned int b : 2;
+      unsigned int c : 4;
+      unsigned int d : 1;
+      unsigned int e : 8;
+    };
+    struct WithLead {
+      char pad;
+      unsigned int x : 3;
+      unsigned int y : 5;
+    };
+    struct Base { unsigned int bb : 6; };
+    struct A1 { char c; };
+    struct MI : A1, Base {};
+    struct Anon {
+      char pad;
+      struct { unsigned int u : 3; unsigned int v : 5; };
+    };
+    struct DeepAnon {
+      char pad;
+      union { struct { unsigned u : 3; unsigned v : 5; }; unsigned long long w; };
+    };
+  )";
+  GetAllTopLevelDecls(code, Decls);
+
+  std::vector<Cpp::DeclRef> simple;
+  Cpp::GetDatamembers(Decls[0], simple);
+  EXPECT_EQ(Cpp::GetVariableBitOffset(simple[0]), 0);
+  EXPECT_EQ(Cpp::GetVariableBitOffset(simple[1]), 1);
+  EXPECT_EQ(Cpp::GetVariableBitOffset(simple[2]), 3);
+  EXPECT_EQ(Cpp::GetVariableBitOffset(simple[3]), 7);
+  EXPECT_EQ(Cpp::GetVariableBitOffset(simple[4]), 8);
+
+  std::vector<Cpp::DeclRef> lead;
+  Cpp::GetDatamembers(Decls[1], lead);
+  // not a bitfield -> -1
+  EXPECT_EQ(Cpp::GetVariableBitOffset(lead[0]), -1);
+
+  // Multiple inheritance: Base::bb reached through MI. MI's first base (A1,
+  // 1 byte) is followed by Base, which still needs 4-byte alignment for its
+  // bit-field, so Base lands at a non-zero, non-trivial byte offset within
+  // MI -- unlike `struct Derived : Base` alone, whose base offset is 0 and
+  // so can't distinguish a working base-class DFS from one that never runs
+  // (GetDatamembers does not walk base classes, so Base::bb has to be
+  // looked up directly on Base and passed through with parent = MI).
+  std::vector<Cpp::DeclRef> base_members;
+  Cpp::GetDatamembers(Decls[2], base_members);
+  ASSERT_FALSE(base_members.empty());
+  EXPECT_EQ(Cpp::GetVariableBitOffset(base_members[0], Decls[4]), 32);
+
+  // anonymous struct member: offset must include the 8 bits of `pad` plus
+  // the padding needed to reach 4-byte alignment for the anonymous struct.
+  std::vector<Cpp::DeclRef> anon;
+  Cpp::GetDatamembers(Decls[5], anon);
+  ASSERT_EQ(anon.size(), 3U); // pad, u, v
+  EXPECT_EQ(Cpp::GetVariableBitOffset(anon[1], Decls[5]), 32);
+  EXPECT_EQ(Cpp::GetVariableBitOffset(anon[2], Decls[5]), 35);
+
+  // Two-level anonymous nesting: an anonymous struct inside an anonymous
+  // union, itself inside a named struct.
+  std::vector<Cpp::DeclRef> deep_anon;
+  Cpp::GetDatamembers(Decls[6], deep_anon);
+  ASSERT_EQ(deep_anon.size(), 4U); // pad, u, v, w
+  EXPECT_EQ(Cpp::GetVariableBitOffset(deep_anon[1], Decls[6]), 64);
+  EXPECT_EQ(Cpp::GetVariableBitOffset(deep_anon[2], Decls[6]), 67);
+
+  // Invariant the downstream cppjit reader actually depends on: the byte
+  // part of the bit offset always agrees with GetVariableOffset, on every
+  // ABI -- this holds even where the exact bit value below is ABI-specific
+  // (WithLead), so check it for every bit-field across every fixture here.
+  auto check_invariant = [](Cpp::DeclRef m, Cpp::DeclRef p) {
+    if (Cpp::IsBitFieldVariable(m)) {
+      EXPECT_EQ(Cpp::GetVariableBitOffset(m, p) / 8,
+                Cpp::GetVariableOffset(m, p));
+    }
+  };
+  for (auto m : simple)
+    check_invariant(m, nullptr);
+  for (auto m : lead)
+    check_invariant(m, nullptr);
+  check_invariant(base_members[0], Decls[4]);
+  for (auto m : anon)
+    check_invariant(m, Decls[5]);
+  for (auto m : deep_anon)
+    check_invariant(m, Decls[6]);
+
+  // The ABI-specific WithLead bit offsets live in
+  // VariableReflection_BitFieldOffsetItaniumABI below, so that its Windows
+  // skip can be an early one like every other skip in this file.
+}
+
+// Split out of VariableReflection_BitFieldOffset purely so the skip can come
+// first: these offsets depend on the ABI's rule for a bit-field that follows a
+// non-bit-field member. The Itanium ABI packs it into the padding after `pad`
+// (offsets 8 and 11); the MS ABI starts a fresh allocation unit instead
+// (32 and 35). A tail GTEST_SKIP() in the parent test would be silently
+// disabled by anyone appending an assertion after it.
+TYPED_TEST(CPPINTEROP_TEST_MODE, VariableReflection_BitFieldOffsetItaniumABI) {
+#ifdef _WIN32
+  GTEST_SKIP() << "WithLead bit-offsets assume the Itanium ABI's rule for a "
+                  "bit-field following a non-bit-field; the MS ABI starts a "
+                  "fresh allocation unit instead.";
+#endif
+
+  std::vector<Decl*> Decls;
+  std::string code = R"(
+    struct WithLead {
+      char pad;
+      unsigned int x : 3;
+      unsigned int y : 5;
+    };
+  )";
+  GetAllTopLevelDecls(code, Decls);
+
+  std::vector<Cpp::DeclRef> lead;
+  Cpp::GetDatamembers(Decls[0], lead);
+  ASSERT_EQ(lead.size(), 3U); // pad, x, y
+  EXPECT_EQ(Cpp::GetVariableBitOffset(lead[1]), 8);
+  EXPECT_EQ(Cpp::GetVariableBitOffset(lead[2]), 11);
+}
