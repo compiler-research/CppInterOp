@@ -1317,6 +1317,26 @@ TYPED_TEST(CPPINTEROP_TEST_MODE,
   EXPECT_FALSE(Cpp::InstantiateTemplate(Decls[0], args5));
 }
 
+TYPED_TEST(CPPINTEROP_TEST_MODE,
+           ScopeReflection_InstantiateTemplateUnreferenceableNamedArg) {
+  std::vector<Decl*> Decls;
+  std::string code = R"(
+    template <void (*F)()> struct WithFnPtrArg {};
+    void DeletedFn() = delete;
+  )";
+
+  GetAllTopLevelDecls(code, Decls);
+
+  // Clang refuses to build the reference, so the argument never reaches Sema.
+  testing::internal::CaptureStderr();
+  std::vector<Cpp::TemplateArgInfo> args1 = {{nullptr, "DeletedFn"}};
+  Cpp::DeclRef Inst1 = Cpp::InstantiateTemplate(Decls[0], args1);
+  std::string Diagnostics = testing::internal::GetCapturedStderr();
+
+  EXPECT_FALSE(Inst1);
+  EXPECT_NE(Diagnostics.find("deleted function"), std::string::npos);
+}
+
 TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_InstantiateVarTemplate) {
   std::vector<Decl*> Decls;
   std::string code = R"(
