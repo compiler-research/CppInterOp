@@ -482,6 +482,13 @@ pointer+size overload with \c template_args.data() and
   ];
 }
 
+def SupportsNamedTemplateArguments : CppInterOpAPI {
+  let Doc = [{\returns true if a \c TemplateArgInfo value may name a constant
+entity or a template instead of holding an integral literal.}];
+
+  let ReturnType = "bool";
+}
+
 def GetParentScope : CppInterOpAPI {
   let Doc = "Gets the parent of the scope that is passed as a parameter.";
 

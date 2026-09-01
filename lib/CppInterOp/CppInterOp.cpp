@@ -5990,6 +5990,11 @@ DeclRef InstantiateTemplate(DeclRef tmpl,
                           template_args.size(), instantiate_body));
 }
 
+bool SupportsNamedTemplateArguments() {
+  INTEROP_TRACE();
+  return INTEROP_RETURN(true);
+}
+
 void GetClassTemplateArgs(ConstDeclRef templ_instance,
                           std::vector<TemplateArgInfo>& args) {
   INTEROP_TRACE(templ_instance, INTEROP_OUT(args));
