@@ -1093,6 +1093,82 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_FunctionTypes) {
 
   EXPECT_TRUE(Cpp::IsSameType(typ1, typ2));
 }
+TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_OwnershipAttributes) {
+  std::vector<Decl*> Decls;
+  std::string code = R"(
+    class Klass {
+      int val;
+    };
+
+    __attribute__((ownership_returns(malloc)))
+    void* alloc_no_size(unsigned long sz);
+
+    __attribute__((ownership_returns(malloc, 1)))
+    void* alloc_sized(unsigned long sz);
+
+    __attribute__((ownership_returns(malloc, 2)))
+    void* alloc_sized2(void* hint, unsigned long sz);
+
+    __attribute__((ownership_takes(malloc, 1)))
+    void dealloc(void* p);
+
+    __attribute__((ownership_holds(malloc, 1, 2)))
+    void hold_two(void* p, void* q);
+
+    __attribute__((ownership_returns(malloc)))
+    __attribute__((ownership_takes(malloc, 1)))
+    void* realloc_like(void* p, unsigned long sz);
+
+    void plain(void* p);
+
+    template <typename T>
+    __attribute__((ownership_returns(malloc, 2)))
+    __attribute__((ownership_takes(malloc, 1)))
+    T* templated_alloc(void* p, unsigned long sz);
+    )";
+  GetAllTopLevelDecls(code, Decls, true);
+
+  Cpp::ConstFuncRef Klass{Decls[0]};
+  Cpp::ConstFuncRef AllocNoSize{Decls[1]};
+  Cpp::ConstFuncRef AllocSized{Decls[2]};
+  Cpp::ConstFuncRef AllocSized2{Decls[3]};
+  Cpp::ConstFuncRef Dealloc{Decls[4]};
+  Cpp::ConstFuncRef HoldTwo{Decls[5]};
+  Cpp::ConstFuncRef ReallocLike{Decls[6]};
+  Cpp::ConstFuncRef Plain{Decls[7]};
+  Cpp::ConstFuncRef TemplatedAlloc{Decls[8]};
+
+  using OB = Cpp::OwnershipBehaviour;
+  EXPECT_EQ(Cpp::GetOwnershipBehaviour(AllocNoSize), OB::OwnershipReturns);
+  EXPECT_EQ(Cpp::GetOwnershipBehaviour(Dealloc), OB::OwnershipTakes);
+  EXPECT_EQ(Cpp::GetOwnershipBehaviour(HoldTwo), OB::OwnershipHolds);
+  EXPECT_EQ(Cpp::GetOwnershipBehaviour(ReallocLike),
+            OB::OwnershipReturns | OB::OwnershipTakes);
+  EXPECT_EQ(Cpp::GetOwnershipBehaviour(Plain), OB::Unknown);
+  EXPECT_EQ(Cpp::GetOwnershipBehaviour(Klass), OB::Unknown);
+  EXPECT_EQ(Cpp::GetOwnershipBehaviour({nullptr}), OB::Unknown);
+
+  EXPECT_EQ(Cpp::GetOwnershipBehaviour(TemplatedAlloc),
+            OB::OwnershipReturns | OB::OwnershipTakes);
+  EXPECT_EQ(Cpp::GetDeallocationIndexes(TemplatedAlloc), uint64_t{0b1});
+  EXPECT_EQ(Cpp::GetAllocationSizeParamIndex(TemplatedAlloc), 1);
+
+  EXPECT_EQ(Cpp::GetDeallocationIndexes(Dealloc), uint64_t{0b1});
+  EXPECT_EQ(Cpp::GetDeallocationIndexes(HoldTwo), uint64_t{0b11});
+  EXPECT_EQ(Cpp::GetDeallocationIndexes(ReallocLike), uint64_t{0b1});
+  EXPECT_EQ(Cpp::GetDeallocationIndexes(AllocNoSize), uint64_t{0});
+  EXPECT_EQ(Cpp::GetDeallocationIndexes(Plain), uint64_t{0});
+  EXPECT_EQ(Cpp::GetDeallocationIndexes(Klass), uint64_t{0});
+  EXPECT_EQ(Cpp::GetDeallocationIndexes({nullptr}), uint64_t{0});
+
+  EXPECT_EQ(Cpp::GetAllocationSizeParamIndex(AllocSized), 0);
+  EXPECT_EQ(Cpp::GetAllocationSizeParamIndex(AllocSized2), 1);
+  EXPECT_EQ(Cpp::GetAllocationSizeParamIndex(AllocNoSize), -1);
+  EXPECT_EQ(Cpp::GetAllocationSizeParamIndex(Dealloc), -1);
+  EXPECT_EQ(Cpp::GetAllocationSizeParamIndex(Plain), -1);
+  EXPECT_EQ(Cpp::GetAllocationSizeParamIndex(Klass), -1);
+  EXPECT_EQ(Cpp::GetAllocationSizeParamIndex({nullptr}), -1);
+}
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetDeallocType) {
   std::string code = R"(

@@ -1767,6 +1767,82 @@ TypeRef GetFunctionReturnType(ConstFuncRef func) {
   return INTEROP_RETURN(nullptr);
 }
 
+bool IsFunctionProtoType(ConstTypeRef TyRef) {
+  INTEROP_TRACE(TyRef);
+  QualType QT = QualType::getFromOpaquePtr(TyRef.data);
+  const auto* T = QT.getTypePtr();
+  return INTEROP_RETURN(llvm::isa_and_nonnull<clang::FunctionProtoType>(T));
+}
+
+OwnershipBehaviour GetOwnershipBehaviour(ConstFuncRef Fn) {
+  INTEROP_TRACE(Fn);
+  if (!Fn)
+    return INTEROP_RETURN(OwnershipBehaviour::Unknown);
+  const auto* D = UnwrapUsingShadowToFunction(unwrap<clang::Decl>(Fn));
+  if (const auto* FTD = dyn_cast<FunctionTemplateDecl>(D))
+    D = FTD->getTemplatedDecl();
+  const auto* FD = dyn_cast<FunctionDecl>(D);
+  if (!FD)
+    return INTEROP_RETURN(OwnershipBehaviour::Unknown);
+
+  OwnershipBehaviour result = OwnershipBehaviour::Unknown; // 0b000
+  for (const auto* FDA : FD->specific_attrs<OwnershipAttr>()) {
+    switch (FDA->getOwnKind()) {
+    case OwnershipAttr::Returns:
+      result = result | OwnershipBehaviour::OwnershipReturns;
+      break;
+    case OwnershipAttr::Takes:
+      result = result | OwnershipBehaviour::OwnershipTakes;
+      break;
+    case OwnershipAttr::Holds:
+      result = result | OwnershipBehaviour::OwnershipHolds;
+      break;
+    }
+  }
+  return INTEROP_RETURN(result);
+}
+
+uint64_t GetDeallocationIndexes(ConstFuncRef Fn) {
+  INTEROP_TRACE(Fn);
+  if (!Fn)
+    return INTEROP_RETURN(uint64_t{0});
+  const auto* D = UnwrapUsingShadowToFunction(unwrap<clang::Decl>(Fn));
+  if (const auto* FTD = dyn_cast<FunctionTemplateDecl>(D))
+    D = FTD->getTemplatedDecl();
+  const auto* FD = dyn_cast<FunctionDecl>(D);
+  if (!FD)
+    return INTEROP_RETURN(uint64_t{0});
+  uint64_t result = 0;
+  for (const auto* attr : FD->specific_attrs<OwnershipAttr>()) {
+    if (attr->getOwnKind() == OwnershipAttr::Returns)
+      continue;
+    for (const auto& Idx : attr->args()) {
+      unsigned index = Idx.getASTIndex();
+      if (index < 64)
+        result |= (uint64_t{1} << index);
+    }
+  }
+  return INTEROP_RETURN(result);
+}
+
+int GetAllocationSizeParamIndex(ConstFuncRef Fn) {
+  INTEROP_TRACE(Fn);
+  if (!Fn)
+    return INTEROP_RETURN(-1);
+  const auto* D = UnwrapUsingShadowToFunction(unwrap<clang::Decl>(Fn));
+  if (const auto* FTD = dyn_cast<FunctionTemplateDecl>(D))
+    D = FTD->getTemplatedDecl();
+  const auto* FD = dyn_cast<FunctionDecl>(D);
+  if (!FD)
+    return INTEROP_RETURN(-1);
+  for (const auto* attr : FD->specific_attrs<OwnershipAttr>()) {
+    if (attr->getOwnKind() != OwnershipAttr::Returns || attr->args().empty())
+      continue;
+    return INTEROP_RETURN(static_cast<int>(attr->args_begin()->getASTIndex()));
+  }
+  return INTEROP_RETURN(-1);
+}
+
 bool IsAllocator(ConstFuncRef Fn) {
   INTEROP_TRACE(Fn);
   if (!Fn)
@@ -1809,13 +1885,6 @@ bool IsDeallocator(ConstFuncRef Fn) {
   }
 
   return INTEROP_RETURN(false);
-}
-
-bool IsFunctionProtoType(ConstTypeRef TyRef) {
-  INTEROP_TRACE(TyRef);
-  QualType QT = QualType::getFromOpaquePtr(TyRef.data);
-  const auto* T = QT.getTypePtr();
-  return INTEROP_RETURN(llvm::isa_and_nonnull<clang::FunctionProtoType>(T));
 }
 
 static std::optional<AllocType>
