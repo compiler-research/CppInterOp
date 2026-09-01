@@ -1767,31 +1767,56 @@ TypeRef GetFunctionReturnType(ConstFuncRef func) {
   return INTEROP_RETURN(nullptr);
 }
 
-bool IsAllocator(ConstFuncRef Fn) {
+AllocType IsAllocator(ConstFuncRef Fn) {
   INTEROP_TRACE(Fn);
   if (!Fn)
-    return INTEROP_RETURN(false);
-  const auto* D = unwrap<clang::Decl>(Fn);
+    return INTEROP_RETURN(AllocType::Unknown);
+  const auto* D = UnwrapUsingShadowToFunction(unwrap<clang::Decl>(Fn));
+  if (const auto* FTD = dyn_cast<FunctionTemplateDecl>(D))
+    D = FTD->getTemplatedDecl();
   if (const auto* FD = dyn_cast<FunctionDecl>(D)) {
     if (FD->getBuiltinID() == Builtin::ID::BImalloc)
-      return INTEROP_RETURN(true);
+      return INTEROP_RETURN(AllocType::Malloc);
     if (const auto* FDA = FD->getAttr<RestrictAttr>()) {
       if (FDA->getSemanticSpelling() != RestrictAttr::Declspec_restrict)
-        return INTEROP_RETURN(true);
+        return INTEROP_RETURN(AllocType::Malloc);
     }
 
     if (const auto* FDA = FD->getAttr<OwnershipAttr>()) {
       if (FDA->getOwnKind() == OwnershipAttr::Returns)
-        return INTEROP_RETURN(true);
+        return INTEROP_RETURN(AllocType::Malloc);
     }
 
     if (FD->hasAttr<CFReturnsRetainedAttr>() ||
         FD->hasAttr<NSReturnsRetainedAttr>() ||
         FD->hasAttr<OSReturnsRetainedAttr>())
-      return INTEROP_RETURN(true);
+      return INTEROP_RETURN(AllocType::Malloc);
+
+    for (const auto* attr : FD->attrs()) {
+      llvm::StringRef attrName;
+      if (const auto* swiftAttr = dyn_cast<clang::SwiftAttrAttr>(attr))
+        attrName = swiftAttr->getAttribute();
+      else if (const auto* annotateAttr = dyn_cast<clang::AnnotateAttr>(attr))
+        attrName = annotateAttr->getAnnotation();
+      else
+        continue;
+      attrName.consume_front("returns_");
+      if (attrName == "cppAllocNone")
+        return INTEROP_RETURN(AllocType::None);
+      if (attrName == "cppAllocNew")
+        return INTEROP_RETURN(AllocType::New);
+      if (attrName == "cppAllocNewArr")
+        return INTEROP_RETURN(AllocType::NewArr);
+      if (attrName == "cppAllocMalloc")
+        return INTEROP_RETURN(AllocType::Malloc);
+      if (attrName == "cppAllocOperatorNew")
+        return INTEROP_RETURN(AllocType::OperatorNew);
+      if (attrName == "cppAllocOperatorNewArr")
+        return INTEROP_RETURN(AllocType::OperatorNewArr);
+    }
   }
 
-  return INTEROP_RETURN(false);
+  return INTEROP_RETURN(AllocType::Unknown);
 }
 
 bool IsDeallocator(ConstFuncRef Fn) {
@@ -2007,7 +2032,10 @@ struct AllocationTraverser : RecursiveASTVisitor<AllocationTraverser> {
       }
       auto it = visitedFuncs.find(FD);
       if (it == visitedFuncs.end()) {
-        visitedFuncs[FD] = std::nullopt;
+        auto storedResult = IsAllocator(wrap<ConstFuncRef>(FD));
+        visitedFuncs[FD] = storedResult;
+        if (storedResult != AllocType::Unknown)
+          return storedResult;
         return AnalyzeAllocType(FD, visitedFuncs);
       }
       return it->second;

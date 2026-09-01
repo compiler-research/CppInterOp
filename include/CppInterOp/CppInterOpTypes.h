@@ -90,6 +90,8 @@ typedef struct CppConstFuncRef {
 
 #else // __cplusplus
 
+#include <optional>
+
 namespace Cpp {
 
 struct DeclRef {
@@ -411,11 +413,10 @@ enum class AllocType : unsigned char {
   New,
   NewArr,
   Malloc,
-  Unknown,
-  CustomAlloc,
-  Null,
   OperatorNew,
-  OperatorNewArr
+  OperatorNewArr,
+  Null,
+  Unknown
 };
 
 enum class DeallocType : unsigned char {
