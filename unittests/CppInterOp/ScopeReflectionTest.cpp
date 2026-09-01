@@ -1226,6 +1226,8 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_InstantiateNNTPClassTemplate) {
 
 TYPED_TEST(CPPINTEROP_TEST_MODE,
            ScopeReflection_InstantiateTemplateNamedNTTPArg) {
+  EXPECT_TRUE(Cpp::SupportsNamedTemplateArguments());
+
   std::vector<Decl*> Decls;
   std::string code = R"(
     template <int N> struct WithIntArg {};
