@@ -1214,6 +1214,15 @@ static const clang::Decl* UnwrapUsingShadowToFunction(const clang::Decl* D) {
   return D;
 }
 
+// Resolves the FunctionDecl a decl names, looking through a using-shadow and
+// a template pattern. Null when the decl does not name a function.
+static const clang::FunctionDecl* UnwrapToFunctionDecl(const clang::Decl* D) {
+  D = UnwrapUsingShadowToFunction(D);
+  if (const auto* FTD = dyn_cast_or_null<FunctionTemplateDecl>(D))
+    D = FTD->getTemplatedDecl();
+  return dyn_cast_or_null<FunctionDecl>(D);
+}
+
 DeclRef GetUnderlyingScope(ConstDeclRef DRef) {
   INTEROP_TRACE(DRef);
   if (!DRef)
@@ -1860,10 +1869,7 @@ OwnershipBehaviour GetOwnershipBehaviour(ConstFuncRef Fn) {
   INTEROP_TRACE(Fn);
   if (!Fn)
     return INTEROP_RETURN(OwnershipBehaviour::Unknown);
-  const auto* D = UnwrapUsingShadowToFunction(unwrap<clang::Decl>(Fn));
-  if (const auto* FTD = dyn_cast<FunctionTemplateDecl>(D))
-    D = FTD->getTemplatedDecl();
-  const auto* FD = dyn_cast<FunctionDecl>(D);
+  const auto* FD = UnwrapToFunctionDecl(unwrap<clang::Decl>(Fn));
   if (!FD)
     return INTEROP_RETURN(OwnershipBehaviour::Unknown);
 
@@ -1888,10 +1894,7 @@ uint64_t GetDeallocationIndexes(ConstFuncRef Fn) {
   INTEROP_TRACE(Fn);
   if (!Fn)
     return INTEROP_RETURN(uint64_t{0});
-  const auto* D = UnwrapUsingShadowToFunction(unwrap<clang::Decl>(Fn));
-  if (const auto* FTD = dyn_cast<FunctionTemplateDecl>(D))
-    D = FTD->getTemplatedDecl();
-  const auto* FD = dyn_cast<FunctionDecl>(D);
+  const auto* FD = UnwrapToFunctionDecl(unwrap<clang::Decl>(Fn));
   if (!FD)
     return INTEROP_RETURN(uint64_t{0});
   uint64_t result = 0;
@@ -1911,10 +1914,7 @@ int GetAllocationSizeParamIndex(ConstFuncRef Fn) {
   INTEROP_TRACE(Fn);
   if (!Fn)
     return INTEROP_RETURN(-1);
-  const auto* D = UnwrapUsingShadowToFunction(unwrap<clang::Decl>(Fn));
-  if (const auto* FTD = dyn_cast<FunctionTemplateDecl>(D))
-    D = FTD->getTemplatedDecl();
-  const auto* FD = dyn_cast<FunctionDecl>(D);
+  const auto* FD = UnwrapToFunctionDecl(unwrap<clang::Decl>(Fn));
   if (!FD)
     return INTEROP_RETURN(-1);
   for (const auto* attr : FD->specific_attrs<OwnershipAttr>()) {
@@ -1929,10 +1929,7 @@ AllocType IsAllocator(ConstFuncRef Fn) {
   INTEROP_TRACE(Fn);
   if (!Fn)
     return INTEROP_RETURN(AllocType::Unknown);
-  const auto* D = UnwrapUsingShadowToFunction(unwrap<clang::Decl>(Fn));
-  if (const auto* FTD = dyn_cast<FunctionTemplateDecl>(D))
-    D = FTD->getTemplatedDecl();
-  if (const auto* FD = dyn_cast<FunctionDecl>(D)) {
+  if (const auto* FD = UnwrapToFunctionDecl(unwrap<clang::Decl>(Fn))) {
     if (FD->getBuiltinID() == Builtin::ID::BImalloc)
       return INTEROP_RETURN(AllocType::Malloc);
     if (const auto* FDA = FD->getAttr<RestrictAttr>()) {
