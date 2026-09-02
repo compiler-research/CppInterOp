@@ -113,6 +113,7 @@ TYPED_TEST(CppInterOpTest, CAPI_TemplateQueries) {
   auto tmpl = cppinterop_GetNamed("CAPITmpl", nullptr);
   EXPECT_TRUE(cppinterop_IsTemplate(tmpl));
   EXPECT_FALSE(cppinterop_IsTemplateSpecialization(tmpl));
+  EXPECT_TRUE(cppinterop_SupportsNamedTemplateArguments());
 }
 
 TYPED_TEST(CppInterOpTest, CAPI_ClassMemberQueries) {

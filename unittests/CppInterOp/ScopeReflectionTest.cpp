@@ -1,11 +1,13 @@
 #include "Utils.h"
 
+#include "../../lib/CppInterOp/Unwrap.h"
 #include "CppInterOp/CppInterOp.h"
 
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/ASTDumper.h"
 #include "clang/AST/Decl.h"
 #include "clang/AST/DeclBase.h"
+#include "clang/AST/DeclTemplate.h"
 #include "clang/AST/GlobalDecl.h"
 #include "clang/AST/Type.h"
 #include "clang/Basic/Version.h"
@@ -1220,6 +1222,121 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_InstantiateNNTPClassTemplate) {
   Cpp::TypeRef IntTy = C.IntTy.getAsOpaquePtr();
   std::vector<Cpp::TemplateArgInfo> args1 = {{IntTy.data, "5"}};
   EXPECT_TRUE(Cpp::InstantiateTemplate(Decls[0], args1));
+}
+
+TYPED_TEST(CPPINTEROP_TEST_MODE,
+           ScopeReflection_InstantiateTemplateNamedNTTPArg) {
+  EXPECT_TRUE(Cpp::SupportsNamedTemplateArguments());
+
+  std::vector<Decl*> Decls;
+  std::string code = R"(
+    template <int N> struct WithIntArg {};
+    template <const char* S> struct WithCharPtrArg {};
+    constexpr int IntVal = 42;
+    namespace Nested { constexpr int QualVal = 7; }
+    enum Colors { kRed = 1, kGreen = 2 };
+    constexpr char Greeting[] = "arg";
+  )";
+
+  GetAllTopLevelDecls(code, Decls);
+  ASTContext& C = Interp->getCI()->getASTContext();
+  Cpp::TypeRef IntTy = C.IntTy.getAsOpaquePtr();
+
+  // Non-numeric values name constant entities.
+  std::vector<Cpp::TemplateArgInfo> args1 = {{IntTy.data, "IntVal"}};
+  Cpp::DeclRef Inst1 = Cpp::InstantiateTemplate(Decls[0], args1);
+  EXPECT_TRUE(Inst1);
+  auto* CTSD1 = cast<ClassTemplateSpecializationDecl>(Cpp::unwrap<Decl>(Inst1));
+  EXPECT_EQ(CTSD1->getTemplateArgs()[0].getAsIntegral(), 42);
+
+  std::vector<Cpp::TemplateArgInfo> args2 = {{IntTy.data, "Nested::QualVal"}};
+  Cpp::DeclRef Inst2 = Cpp::InstantiateTemplate(Decls[0], args2);
+  EXPECT_TRUE(Inst2);
+  auto* CTSD2 = cast<ClassTemplateSpecializationDecl>(Cpp::unwrap<Decl>(Inst2));
+  EXPECT_EQ(CTSD2->getTemplateArgs()[0].getAsIntegral(), 7);
+
+  std::vector<Cpp::TemplateArgInfo> args3 = {{IntTy.data, "kGreen"}};
+  Cpp::DeclRef Inst3 = Cpp::InstantiateTemplate(Decls[0], args3);
+  EXPECT_TRUE(Inst3);
+  auto* CTSD3 = cast<ClassTemplateSpecializationDecl>(Cpp::unwrap<Decl>(Inst3));
+  EXPECT_EQ(CTSD3->getTemplateArgs()[0].getAsIntegral(), 2);
+
+  // Array-to-pointer decay; m_Type is unused for named arguments.
+  std::vector<Cpp::TemplateArgInfo> args4 = {{IntTy.data, "Greeting"}};
+  Cpp::DeclRef Inst4 = Cpp::InstantiateTemplate(Decls[1], args4);
+  EXPECT_TRUE(Inst4);
+
+  // Unknown names fail cleanly.
+  std::vector<Cpp::TemplateArgInfo> args5 = {{IntTy.data, "NoSuchName"}};
+  EXPECT_FALSE(Cpp::InstantiateTemplate(Decls[0], args5));
+
+  // Negative literals stay on the numeric path.
+  std::vector<Cpp::TemplateArgInfo> args6 = {{IntTy.data, "-3"}};
+  Cpp::DeclRef Inst6 = Cpp::InstantiateTemplate(Decls[0], args6);
+  EXPECT_TRUE(Inst6);
+  auto* CTSD6 = cast<ClassTemplateSpecializationDecl>(Cpp::unwrap<Decl>(Inst6));
+  EXPECT_EQ(CTSD6->getTemplateArgs()[0].getAsIntegral(), -3);
+
+  // A missing intermediate scope stops the "::" walk.
+  std::vector<Cpp::TemplateArgInfo> missing_scope = {
+      {IntTy.data, "NoSuchScope::QualVal"}};
+  EXPECT_FALSE(Cpp::InstantiateTemplate(Decls[0], missing_scope));
+
+  // A name that resolves to something other than a value is rejected.
+  std::vector<Cpp::TemplateArgInfo> not_a_value = {{IntTy.data, "Nested"}};
+  EXPECT_FALSE(Cpp::InstantiateTemplate(Decls[0], not_a_value));
+}
+
+TYPED_TEST(CPPINTEROP_TEST_MODE,
+           ScopeReflection_InstantiateTemplateTemplateArg) {
+  std::vector<Decl*> Decls;
+  std::string code = R"(
+    template <template <typename> typename TT> struct WithTemplateArg {};
+    template <typename T> struct PlainTmpl {};
+    namespace Nested { template <typename T> struct QualTmpl {}; }
+    template <typename T> using AliasTmpl = PlainTmpl<T>;
+  )";
+
+  GetAllTopLevelDecls(code, Decls);
+
+  // m_Type is null for template-template args; the name carries everything.
+  std::vector<Cpp::TemplateArgInfo> args1 = {{nullptr, "PlainTmpl"}};
+  Cpp::DeclRef Inst1 = Cpp::InstantiateTemplate(Decls[0], args1);
+  EXPECT_TRUE(Inst1);
+  auto* CTSD1 = cast<ClassTemplateSpecializationDecl>(Cpp::unwrap<Decl>(Inst1));
+  EXPECT_EQ(CTSD1->getTemplateArgs()[0].getKind(), TemplateArgument::Template);
+
+  std::vector<Cpp::TemplateArgInfo> args2 = {{nullptr, "Nested::QualTmpl"}};
+  EXPECT_TRUE(Cpp::InstantiateTemplate(Decls[0], args2));
+
+  std::vector<Cpp::TemplateArgInfo> args3 = {{nullptr, "AliasTmpl"}};
+  EXPECT_TRUE(Cpp::InstantiateTemplate(Decls[0], args3));
+
+  // Unknown template names fail cleanly, as does a null type with no value.
+  std::vector<Cpp::TemplateArgInfo> args4 = {{nullptr, "NoSuchTmpl"}};
+  EXPECT_FALSE(Cpp::InstantiateTemplate(Decls[0], args4));
+  std::vector<Cpp::TemplateArgInfo> args5 = {{nullptr, nullptr}};
+  EXPECT_FALSE(Cpp::InstantiateTemplate(Decls[0], args5));
+}
+
+TYPED_TEST(CPPINTEROP_TEST_MODE,
+           ScopeReflection_InstantiateTemplateUnreferenceableNamedArg) {
+  std::vector<Decl*> Decls;
+  std::string code = R"(
+    template <void (*F)()> struct WithFnPtrArg {};
+    void DeletedFn() = delete;
+  )";
+
+  GetAllTopLevelDecls(code, Decls);
+
+  // Clang refuses to build the reference, so the argument never reaches Sema.
+  testing::internal::CaptureStderr();
+  std::vector<Cpp::TemplateArgInfo> args1 = {{nullptr, "DeletedFn"}};
+  Cpp::DeclRef Inst1 = Cpp::InstantiateTemplate(Decls[0], args1);
+  std::string Diagnostics = testing::internal::GetCapturedStderr();
+
+  EXPECT_FALSE(Inst1);
+  EXPECT_NE(Diagnostics.find("deleted function"), std::string::npos);
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_InstantiateVarTemplate) {
