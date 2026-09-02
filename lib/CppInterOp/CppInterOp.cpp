@@ -79,6 +79,7 @@
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/SmallVector.h"
+#include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/StringRef.h"
 #include "llvm/Demangle/Demangle.h"
 #include "llvm/ExecutionEngine/JITSymbol.h"
@@ -6112,6 +6113,11 @@ std::string GetFunctionArgDefault(ConstFuncRef func, size_t param_index) {
     PI = (FD->getTemplatedDecl())->getNonObjectParameter(param_index);
 
   if (PI->hasDefaultArg()) {
+    // Print the AST with ConstantsAsWritten and the interpreter's ASTContext:
+    // literal leaves with valid source ranges then render from source text
+    // ("3.14", not the representation-precision "3.1400000000000001"). The
+    // previous std::stod normalization terminated the exception-free build on
+    // symbolic defaults such as `double ratio = kDefaultRatio`.
     std::string Result;
     llvm::raw_string_ostream OS(Result);
     const Expr* DefaultArgExpr = nullptr;
@@ -6120,20 +6126,30 @@ std::string GetFunctionArgDefault(ConstFuncRef func, size_t param_index) {
       DefaultArgExpr = PI->getUninstantiatedDefaultArg();
     else
       DefaultArgExpr = PI->getDefaultArg();
-    DefaultArgExpr->printPretty(OS, nullptr, PrintingPolicy(LangOptions()));
+    ASTContext& Ctx = getASTContext();
+    PrintingPolicy Policy(Ctx.getLangOpts());
+    Policy.ConstantsAsWritten = true;
+    DefaultArgExpr->printPretty(OS, nullptr, Policy, /*Indentation=*/0,
+                                /*NewlineSymbol=*/"\n", &Ctx);
 
-    // FIXME: Floats are printed in clang with the precision of their underlying
-    // representation and not as written. This is a deficiency in the printing
-    // mechanism of clang which we require extra work to mitigate. For example
-    // float PI = 3.14 is printed as 3.1400000000000001
-    if (PI->getType()->isFloatingType()) {
-      if (!Result.empty() && Result.back() == '.')
-        return INTEROP_RETURN(Result);
-      auto DefaultArgValue = std::stod(Result);
-      std::ostringstream oss;
-      oss << DefaultArgValue;
-      Result = oss.str();
-    }
+    // CPyCppyy evaluates numeric defaults in Python after stripping
+    // uppercase literal suffixes, so print the suffix in its canonical
+    // uppercase form ("5.f" -> "5.F"). The per-kind alphabets keep hex
+    // digits safe: 'f' in 0x1f is a digit of an IntegerLiteral, whose
+    // suffix alphabet has no 'f'.
+    const Expr* Leaf = DefaultArgExpr->IgnoreImpCasts();
+    if (const auto* UO = llvm::dyn_cast<clang::UnaryOperator>(Leaf))
+      Leaf = UO->getSubExpr()->IgnoreImpCasts();
+    const char* SuffixAlphabet = nullptr;
+    if (llvm::isa<IntegerLiteral>(Leaf))
+      SuffixAlphabet = "uUlLzZ";
+    else if (llvm::isa<FloatingLiteral>(Leaf))
+      SuffixAlphabet = "fFlL";
+    if (SuffixAlphabet)
+      for (size_t I = Result.find_last_not_of(SuffixAlphabet) + 1;
+           I < Result.size(); ++I)
+        Result[I] = llvm::toUpper(Result[I]);
+
     return INTEROP_RETURN(Result);
   }
   return INTEROP_RETURN("");
