@@ -30,7 +30,11 @@
 #include "llvm/ADT/SmallSet.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/ExecutionEngine/JITSymbol.h"
+#include "llvm/ExecutionEngine/Orc/AbsoluteSymbols.h"
+#include "llvm/ExecutionEngine/Orc/CoreContainers.h"
 #include "llvm/ExecutionEngine/Orc/LLJIT.h"
+#include "llvm/ExecutionEngine/Orc/Shared/ExecutorAddress.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/Error.h"
 #include "llvm/Support/TargetSelect.h"
@@ -261,6 +265,38 @@ private:
   mutable std::once_flag sDLMInit;
   bool outOfProcess;
 
+#if !defined(_WIN32) && !defined(__EMSCRIPTEN__)
+  // Whether compat::nativeThreadLocalAddress has been defined into the main
+  // JITDylib under the name the redirected IR calls. See
+  // compat::redirectNativeTLSDeclarations.
+  bool NativeTLSHelperInstalled = false;
+
+  void installNativeTLSHelperOnce() {
+    if (NativeTLSHelperInstalled)
+      return;
+    NativeTLSHelperInstalled = true;
+    // Redirects run pre-Execute, so the executor may not exist yet on the
+    // very first input; an empty execution forces it into existence.
+    if (llvm::Error Err = inner->ParseAndExecute("")) {
+      llvm::logAllUnhandledErrors(std::move(Err), llvm::errs(),
+                                  "Failed to create the execution engine:");
+      return;
+    }
+    llvm::orc::LLJIT* J = compat::getExecutionEngine(*inner);
+    auto* HelperFn = &compat::nativeThreadLocalAddress;
+    auto Addr = llvm::orc::ExecutorAddr::fromPtr(HelperFn);
+    auto Flags =
+        llvm::JITSymbolFlags::Exported | llvm::JITSymbolFlags::Callable;
+    llvm::orc::SymbolMap Syms;
+    Syms[J->mangleAndIntern("__cppinterop_native_tls_addr")] =
+        llvm::orc::ExecutorSymbolDef(Addr, Flags);
+    if (llvm::Error Err = J->getMainJITDylib().define(
+            llvm::orc::absoluteSymbols(std::move(Syms))))
+      llvm::logAllUnhandledErrors(std::move(Err), llvm::errs(),
+                                  "Failed to define the native-TLS helper:");
+  }
+#endif // !_WIN32 && !__EMSCRIPTEN__
+
 public:
   Interpreter(std::unique_ptr<clang::Interpreter> CI,
               std::unique_ptr<IOContext> ctx = nullptr, bool oop = false)
@@ -368,7 +404,24 @@ public:
   }
 
   llvm::Error ParseAndExecute(llvm::StringRef Code, clang::Value* V = nullptr) {
-    return inner->ParseAndExecute(Code, V);
+    // Value-returning execution keeps clang's LastValue handling (private to
+    // clang::Interpreter), so delegate. The no-value path -- used by wrapper
+    // compilation -- is split so the module can be sanitized before Execute.
+    if (V)
+      return inner->ParseAndExecute(Code, V);
+    auto PTU = inner->Parse(Code);
+    if (!PTU)
+      return PTU.takeError();
+    if (PTU->TheModule) {
+#if !defined(_WIN32) && !defined(__EMSCRIPTEN__)
+      if (!outOfProcess &&
+          compat::redirectNativeTLSDeclarations(*PTU->TheModule))
+        installNativeTLSHelperOnce();
+#endif // !_WIN32 && !__EMSCRIPTEN__
+      if (llvm::Error Err = inner->Execute(*PTU))
+        return Err;
+    }
+    return llvm::Error::success();
   }
 
   llvm::Error Undo(unsigned N = 1) { return compat::Undo(*inner, N); }
@@ -462,6 +515,12 @@ public:
 
     if (PTU)
       *PTU = &*PTUOrErr;
+
+#if !defined(_WIN32) && !defined(__EMSCRIPTEN__)
+    if (PTUOrErr->TheModule && !outOfProcess &&
+        compat::redirectNativeTLSDeclarations(*PTUOrErr->TheModule))
+      installNativeTLSHelperOnce();
+#endif // !_WIN32 && !__EMSCRIPTEN__
 
     if (auto Err = Execute(*PTUOrErr)) {
       llvm::logAllUnhandledErrors(std::move(Err), llvm::errs(),

@@ -4999,3 +4999,120 @@ TYPED_TEST(CPPINTEROP_TEST_MODE,
                       /*interpreter_args=*/{"-std=c++23", "-include", "new"});
   EXPECT_EQ(JitCallIntNullary("BlogTransform", "drive"), 42);
 }
+
+// Jitted std::call_once crosses the emulated-TLS boundary: the inlined
+// call_once template writes libstdc++'s native-TLS __once_callable /
+// __once_call (via once_flag::_Prepare_execution), which under the JIT's
+// emulated TLS lowers to __emutls_v.* companion lookups nothing defines.
+// The redirect (compat::redirectNativeTLSDeclarations) routes those accesses
+// to the calling thread's native copies instead, so the jitted writer and
+// libstdc++'s native reader (__once_proxy) share storage. Exercises the full
+// protocol: the callable must run exactly once and its effect be observable.
+TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_NativeTLSStdCallOnce) {
+#ifdef __EMSCRIPTEN__
+  GTEST_SKIP() << "the native-TLS redirect is not built for Emscripten";
+#endif
+#ifdef CPPINTEROP_USE_CLING
+  GTEST_SKIP() << "redirectNativeTLSDeclarations is wired into the clang-repl "
+                  "CppInternal::Interpreter path, not cling's interpreter";
+#endif
+#if defined(_WIN32) || defined(__APPLE__)
+  GTEST_SKIP() << "the native-TLS redirect targets ELF emulated TLS";
+#endif
+  if (TypeParam::isOutOfProcess)
+    GTEST_SKIP() << "the dlsym-based native-TLS redirect is in-process only";
+
+  std::vector<Decl*> Decls;
+  std::string header = R"(
+    #include <mutex>
+    namespace TlsOnce {
+      inline int onceValue = 0;
+      inline std::once_flag onceFlag;
+      inline int runTwice() {
+        std::call_once(onceFlag, [] { ++onceValue; });
+        std::call_once(onceFlag, [] { ++onceValue; });
+        return onceValue;
+      }
+    }
+  )";
+  // -include new: MakeFunctionCallable's wrapper uses placement new.
+  GetAllTopLevelDecls(header, Decls, /*filter_implicitGenerated=*/false,
+                      /*interpreter_args=*/{"-std=c++23", "-include", "new"});
+
+  Interp->process("namespace TlsOnce { int drive() { return runTwice(); } }");
+  EXPECT_EQ(JitCallIntNullary("TlsOnce", "drive"), 1);
+}
+
+// MakeFunctionCallable's wrapper goes through ParseAndExecute, not process(),
+// so that path needs the redirect too; two users pin one helper per JIT.
+TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_NativeTLSInWrapperModule) {
+#ifdef __EMSCRIPTEN__
+  GTEST_SKIP() << "the native-TLS redirect is not built for Emscripten";
+#endif
+#ifdef CPPINTEROP_USE_CLING
+  GTEST_SKIP() << "redirectNativeTLSDeclarations is wired into the clang-repl "
+                  "CppInternal::Interpreter path, not cling's interpreter";
+#endif
+#if defined(_WIN32) || defined(__APPLE__)
+  GTEST_SKIP() << "the native-TLS redirect targets ELF emulated TLS";
+#endif
+  if (TypeParam::isOutOfProcess)
+    GTEST_SKIP() << "the dlsym-based native-TLS redirect is in-process only";
+
+  std::vector<Decl*> Decls;
+  std::string header = R"(
+    #include <mutex>
+    namespace TlsWrapOnce {
+      inline int firstValue = 0;
+      inline std::once_flag firstFlag;
+      inline int runFirst() {
+        std::call_once(firstFlag, [] { ++firstValue; });
+        return firstValue;
+      }
+      inline int secondValue = 0;
+      inline std::once_flag secondFlag;
+      inline int runSecond() {
+        std::call_once(secondFlag, [] { ++secondValue; });
+        return secondValue;
+      }
+    }
+  )";
+  // -include new: MakeFunctionCallable's wrapper uses placement new.
+  GetAllTopLevelDecls(header, Decls, /*filter_implicitGenerated=*/false,
+                      /*interpreter_args=*/{"-std=c++23", "-include", "new"});
+
+  EXPECT_EQ(JitCallIntNullary("TlsWrapOnce", "runFirst"), 1);
+  EXPECT_EQ(JitCallIntNullary("TlsWrapOnce", "runSecond"), 1);
+}
+
+// A JIT-defined thread_local is invisible to dlsym, so the redirect must skip
+// it and leave the reference on the emulated-TLS companion.
+TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_NativeTLSKeepsJitDefined) {
+#ifdef __EMSCRIPTEN__
+  GTEST_SKIP() << "the native-TLS redirect is not built for Emscripten";
+#endif
+#ifdef CPPINTEROP_USE_CLING
+  GTEST_SKIP() << "redirectNativeTLSDeclarations is wired into the clang-repl "
+                  "CppInternal::Interpreter path, not cling's interpreter";
+#endif
+#if defined(_WIN32) || defined(__APPLE__)
+  GTEST_SKIP() << "the native-TLS redirect targets ELF emulated TLS";
+#endif
+  if (TypeParam::isOutOfProcess)
+    GTEST_SKIP() << "the dlsym-based native-TLS redirect is in-process only";
+
+  std::vector<Decl*> Decls;
+  std::string header = R"(
+    namespace TlsJitDefined {
+      thread_local int counter = 7;
+    }
+  )";
+  // -include new: MakeFunctionCallable's wrapper uses placement new.
+  GetAllTopLevelDecls(header, Decls, /*filter_implicitGenerated=*/false,
+                      /*interpreter_args=*/{"-std=c++23", "-include", "new"});
+
+  // A separate input sees counter as an external thread_local declaration.
+  Interp->process(
+      "namespace TlsJitDefined { int bump() { return ++counter; } }");
+  EXPECT_EQ(JitCallIntNullary("TlsJitDefined", "bump"), 8);
+}
