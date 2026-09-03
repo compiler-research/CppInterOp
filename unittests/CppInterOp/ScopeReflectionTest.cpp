@@ -1201,6 +1201,282 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_GetAllCppNames) {
   test_get_all_cpp_names(Decls[5], {});
 }
 
+TYPED_TEST(CPPINTEROP_TEST_MODE,
+           ScopeReflection_EnumerateTranslationUnitDecls) {
+  std::vector<Decl*> Decls;
+  std::string code = R"(
+    class A { int a; };
+    namespace N { class B { int b; }; }
+    void myfunc() {}
+  )";
+
+  GetAllTopLevelDecls(code, Decls);
+
+  std::vector<Cpp::DeclRef> All;
+  Cpp::EnumerateTranslationUnitDecls(All);
+
+  std::set<std::string> names;
+  for (auto D : All)
+    names.insert(Cpp::GetQualifiedName(D));
+
+  // Spans every partial translation unit, so the user declarations are found
+  // alongside the compiler predefines of the initial one.
+  EXPECT_TRUE(names.count("A"));
+  EXPECT_TRUE(names.count("N"));
+  EXPECT_TRUE(names.count("myfunc"));
+  EXPECT_TRUE(names.count("__int128_t"));
+}
+
+TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_EnumerateAfterUndo) {
+  // Known limitation, not ours: clang-repl's Undo clears name lookup but leaves
+  // the withdrawn unit's TranslationUnitDecl and its decls in the redeclaration
+  // chain (IncrementalParser::CleanUpPTU, "FIXME: We should de-allocate
+  // MostRecentTU"), so an enumeration walking that chain still reports them.
+  GTEST_SKIP() << "blocked on clang-repl Undo not unlinking the withdrawn "
+                  "partial translation unit";
+
+  std::vector<Decl*> Decls;
+  std::string code = "class Kept { int a; };";
+
+  GetAllTopLevelDecls(code, Decls);
+  Cpp::Declare("class Withdrawn { int b; };");
+  Cpp::Undo(1);
+
+  // Does the redeclaration chain still hand back the withdrawn unit's decls?
+  std::vector<Cpp::DeclRef> All;
+  Cpp::EnumerateTranslationUnitDecls(All);
+
+  std::set<std::string> names;
+  for (auto D : All)
+    names.insert(Cpp::GetQualifiedName(D));
+
+  EXPECT_TRUE(names.count("Kept"));
+  EXPECT_FALSE(names.count("Withdrawn"));
+}
+
+TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_DeclShapePredicates) {
+  std::vector<Decl*> Decls;
+  std::string code = R"(
+    enum class Scoped { a };
+    enum Unscoped { b };
+    union Uni { int i; float f; };
+    struct Plain { int x; };
+    struct Fwd;
+    template <typename T> struct Klass { T t; };
+    template <typename T> using Alias = Klass<T>;
+    template <typename... Ts> struct Pack {};
+    void fn_decl();
+    void fn_def() {}
+    int var_def;
+    extern int var_decl;
+  )";
+
+  GetAllTopLevelDecls(code, Decls);
+
+  EXPECT_TRUE(Cpp::IsScopedEnum(Decls[0]));
+  EXPECT_FALSE(Cpp::IsScopedEnum(Decls[1]));
+  EXPECT_FALSE(Cpp::IsScopedEnum(Decls[3]));
+
+  EXPECT_TRUE(Cpp::IsUnion(Decls[2]));
+  EXPECT_FALSE(Cpp::IsUnion(Decls[3]));
+
+  EXPECT_TRUE(Cpp::IsAliasTemplate(Decls[6]));
+  EXPECT_FALSE(Cpp::IsAliasTemplate(Decls[5]));
+
+  // A forward declaration and its definition are otherwise indistinguishable.
+  EXPECT_TRUE(Cpp::IsDefinition(Decls[3]));
+  EXPECT_FALSE(Cpp::IsDefinition(Decls[4]));
+  EXPECT_FALSE(Cpp::IsDefinition(Decls[8]));
+  EXPECT_TRUE(Cpp::IsDefinition(Decls[9]));
+
+  // A template is asked about through the entity it describes.
+  EXPECT_TRUE(Cpp::IsDefinition(Decls[5]));
+
+  // An alias template describes no tag, function or variable, so it can only
+  // reach the fallback.
+  EXPECT_TRUE(Cpp::IsDefinition(Decls[6]));
+
+  // extern without an initializer declares the variable but does not define it.
+  EXPECT_TRUE(Cpp::IsDefinition(Decls[10]));
+  EXPECT_FALSE(Cpp::IsDefinition(Decls[11]));
+
+  EXPECT_FALSE(Cpp::IsDefinition(nullptr));
+
+  Cpp::DeclRef Ts = Cpp::GetTemplateParameter(Decls[7], 0);
+  Cpp::DeclRef T = Cpp::GetTemplateParameter(Decls[5], 0);
+  ASSERT_TRUE(Ts && T);
+  EXPECT_TRUE(Cpp::IsParameterPack(Ts));
+  EXPECT_FALSE(Cpp::IsParameterPack(T));
+}
+
+TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_OverloadCount) {
+  std::vector<Decl*> Decls;
+  std::string code = R"(
+    namespace over {
+      void f(int);
+      void f(double);
+      template <typename T> void g(T);
+      template <typename T> void g(T, T);
+      void h(int);
+    }
+    int over_var;
+  )";
+
+  GetAllTopLevelDecls(code, Decls);
+
+  Cpp::DeclRef ns = Cpp::GetScope("over");
+  ASSERT_TRUE(ns);
+  EXPECT_EQ(Cpp::GetOverloadCount(ns, "f"), 2U);
+  // GetFunctionsUsingName keeps FunctionDecls only, so it misses these.
+  EXPECT_EQ(Cpp::GetOverloadCount(ns, "g"), 2U);
+  EXPECT_EQ(Cpp::GetOverloadCount(ns, "h"), 1U);
+  EXPECT_EQ(Cpp::GetOverloadCount(ns, "nosuch"), 0U);
+
+  // A variable holds no lookup table, so it reports no overloads.
+  EXPECT_EQ(Cpp::GetOverloadCount(Decls[1], "f"), 0U);
+  EXPECT_EQ(Cpp::GetOverloadCount(nullptr, "f"), 0U);
+}
+
+TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_TemplateParameters) {
+  std::vector<Decl*> Decls;
+  std::string code = R"(
+    template <typename> struct Holder {};
+    template <typename T, int N = 4, template <typename> class C = Holder,
+              typename U = double>
+    struct Box {};
+    template <typename T> T identity(T v) { return v; }
+    struct Plain {};
+  )";
+
+  GetAllTopLevelDecls(code, Decls);
+
+  EXPECT_EQ(Cpp::GetNumTemplateParameters(Decls[1]), 4U);
+  EXPECT_EQ(Cpp::GetNumTemplateParameters(Decls[2]), 1U);
+  EXPECT_EQ(Cpp::GetNumTemplateParameters(Decls[3]), 0U);
+
+  Cpp::DeclRef T = Cpp::GetTemplateParameter(Decls[1], 0);
+  Cpp::DeclRef N = Cpp::GetTemplateParameter(Decls[1], 1);
+  Cpp::DeclRef C = Cpp::GetTemplateParameter(Decls[1], 2);
+  Cpp::DeclRef U = Cpp::GetTemplateParameter(Decls[1], 3);
+  ASSERT_TRUE(T && N && C && U);
+
+  EXPECT_EQ(Cpp::GetName(T), "T");
+  EXPECT_EQ(Cpp::GetName(N), "N");
+  EXPECT_EQ(Cpp::GetName(C), "C");
+
+  EXPECT_EQ(Cpp::GetTemplateParameterKind(T), Cpp::TemplateParamKind::Type);
+  EXPECT_EQ(Cpp::GetTemplateParameterKind(N), Cpp::TemplateParamKind::NonType);
+  EXPECT_EQ(Cpp::GetTemplateParameterKind(C), Cpp::TemplateParamKind::Template);
+  EXPECT_EQ(Cpp::GetTemplateParameterKind(Decls[3]),
+            Cpp::TemplateParamKind::Unknown);
+
+  EXPECT_EQ(Cpp::GetTemplateParameterDefault(T), "");
+  EXPECT_EQ(Cpp::GetTemplateParameterDefault(N), "4");
+  EXPECT_EQ(Cpp::GetTemplateParameterDefault(C), "Holder");
+  EXPECT_EQ(Cpp::GetTemplateParameterDefault(U), "double");
+
+  // The parameter list is also reachable from the entity a template describes,
+  // which is what a caller holding a record or a function has.
+  Cpp::DeclRef BoxRecord = Cpp::GetParentScope(T);
+  Cpp::DeclRef IdentityFn =
+      Cpp::GetParentScope(Cpp::GetTemplateParameter(Decls[2], 0));
+  ASSERT_TRUE(BoxRecord && IdentityFn);
+  EXPECT_EQ(Cpp::GetName(BoxRecord), "Box");
+  EXPECT_EQ(Cpp::GetName(IdentityFn), "identity");
+  EXPECT_EQ(Cpp::GetNumTemplateParameters(BoxRecord), 4U);
+  EXPECT_EQ(Cpp::GetNumTemplateParameters(IdentityFn), 1U);
+
+  // Out of range yields nothing rather than faulting.
+  EXPECT_FALSE(Cpp::GetTemplateParameter(Decls[1], 4));
+
+  EXPECT_EQ(Cpp::GetNumTemplateParameters(nullptr), 0U);
+  EXPECT_FALSE(Cpp::GetTemplateParameter(nullptr, 0));
+  EXPECT_EQ(Cpp::GetTemplateParameterKind(nullptr),
+            Cpp::TemplateParamKind::Unknown);
+  EXPECT_EQ(Cpp::GetTemplateParameterDefault(nullptr), "");
+}
+
+TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_DeclSourceAttribution) {
+  std::vector<Decl*> Decls;
+  std::string code = "class FromBuffer { int a; };";
+
+  GetAllTopLevelDecls(code, Decls);
+
+  // Declarations parsed from a string live in a virtual input_line buffer,
+  // not an on-disk file; their location is still valid, so the line is the
+  // one inside that buffer.
+  EXPECT_EQ(Cpp::GetDeclFile(Decls[0]), "");
+  EXPECT_EQ(Cpp::GetDeclLine(Decls[0]), 1U);
+
+  // Declarations from a real header carry a path and a line.
+  Interp->process("#include <vector>");
+  Cpp::DeclRef Vector = Cpp::GetScope("vector", Cpp::GetScope("std"));
+  ASSERT_TRUE(Vector);
+  EXPECT_NE(Cpp::GetDeclFile(Vector), "");
+  EXPECT_GT(Cpp::GetDeclLine(Vector), 0U);
+
+  EXPECT_TRUE(Cpp::IsInSystemHeader(Vector));
+  EXPECT_FALSE(Cpp::IsInSystemHeader(Decls[0]));
+
+  // The translation unit spans every buffer, so it names no single position.
+  Cpp::DeclRef Global = Cpp::GetGlobalScope();
+  ASSERT_TRUE(Global);
+  EXPECT_EQ(Cpp::GetDeclFile(Global), "");
+  EXPECT_EQ(Cpp::GetDeclLine(Global), 0u);
+
+  EXPECT_EQ(Cpp::GetDeclFile(nullptr), "");
+  EXPECT_EQ(Cpp::GetDeclLine(nullptr), 0U);
+  EXPECT_FALSE(Cpp::IsInSystemHeader(nullptr));
+}
+
+TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_EnumerationIntrospection) {
+  std::vector<Decl*> Decls;
+  std::string code = R"(
+    template <typename T> struct Holder {
+      struct Inner { T value; };
+    };
+    template <typename T> struct Holder<T*> { };
+    struct Plain { Plain* next; };
+    struct WithFriend { friend void hiddenFriend(WithFriend) {} };
+    template <typename T> T varTemplate = T{};
+  )";
+
+  GetAllTopLevelDecls(code, Decls);
+
+  // The class template is not a DeclContext: its members must still
+  // enumerate, in declaration order.
+  std::vector<Cpp::DeclRef> All;
+  Cpp::EnumerateTranslationUnitDecls(All);
+  int HolderAt = -1;
+  int InnerAt = -1;
+  for (size_t i = 0; i < All.size(); ++i) {
+    std::string Name = Cpp::GetName(All[i]);
+    if (Name == "Holder" && HolderAt < 0)
+      HolderAt = static_cast<int>(i);
+    if (Name == "Inner" && InnerAt < 0)
+      InnerAt = static_cast<int>(i);
+  }
+  ASSERT_GE(HolderAt, 0);
+  ASSERT_GT(InnerAt, HolderAt);
+
+  EXPECT_TRUE(Cpp::IsClassTemplate(Decls[0]));
+  EXPECT_FALSE(Cpp::IsClassTemplate(Decls[2]));
+  EXPECT_FALSE(Cpp::IsClassTemplate(Decls[4])); // variable template
+
+  // A partial specialization declares parameters of its own.
+  EXPECT_EQ(Cpp::GetNumTemplateParameters(Decls[1]), 1U);
+
+  EXPECT_FALSE(Cpp::IsFriendDeclared(Decls[2]));
+
+  // The injected class name is compiler-synthesized; the class is not.
+  bool SawImplicitPlain = false;
+  for (Cpp::DeclRef D : All)
+    if (Cpp::GetName(D) == "Plain" && Cpp::IsImplicitDecl(D))
+      SawImplicitPlain = true;
+  EXPECT_TRUE(SawImplicitPlain);
+  EXPECT_FALSE(Cpp::IsImplicitDecl(Decls[2]));
+}
+
 TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_InstantiateNNTPClassTemplate) {
   std::vector<Decl *> Decls;
   std::string code = R"(

@@ -656,6 +656,169 @@ def GetAllCppNames : CppInterOpAPI {
   ];
 }
 
+def EnumerateTranslationUnitDecls : CppInterOpAPI {
+  let Doc = [{Collects every named declaration the interpreter has parsed, in
+declaration order.
+
+An incremental interpreter creates one TranslationUnitDecl per partial
+translation unit, so this walks the whole redeclaration chain; enumerating a
+single node would only report whichever partial unit that node belongs to.
+Declarations the compiler predefines (builtin types) are included like any
+other -- filter on GetDeclFile if only user declarations are wanted.
+Unnamed declarations (static_assert, file-scope asm) are skipped: they carry
+nothing to enumerate, and the name accessors are not defined on them.
+\param[out] Decls - the declarations found.}];
+
+  let ReturnType = "void";
+  let Args = [
+    OutArg<"std::vector<DeclRef>&", "Decls">
+  ];
+}
+
+def IsScopedEnum : CppInterOpAPI {
+  let Doc = [{Checks whether an enum was declared with enum class or enum struct.
+Unscoped enums do not expose their constants the same way, so a caller has to
+tell them apart.}];
+
+  let ReturnType = "bool";
+  let Args = [Arg<"ConstDeclRef", "DRef">];
+}
+
+def IsUnion : CppInterOpAPI {
+  let Doc = "Checks whether a record was declared union rather than class or struct.";
+
+  let ReturnType = "bool";
+  let Args = [Arg<"ConstDeclRef", "DRef">];
+}
+
+def IsAliasTemplate : CppInterOpAPI {
+  let Doc = [{Checks whether a template is an alias template, which names a type
+only once its arguments arrive and so cannot be treated as a class template.}];
+
+  let ReturnType = "bool";
+  let Args = [Arg<"ConstDeclRef", "DRef">];
+}
+
+def IsParameterPack : CppInterOpAPI {
+  let Doc = "Checks whether a template parameter is a pack.";
+
+  let ReturnType = "bool";
+  let Args = [Arg<"ConstDeclRef", "DRef">];
+}
+
+def IsClassTemplate : CppInterOpAPI {
+  let Doc = [{Checks whether a template declares a class, telling it apart
+from the function, variable and alias templates IsTemplate also accepts.}];
+
+  let ReturnType = "bool";
+  let Args = [Arg<"ConstDeclRef", "DRef">];
+}
+
+def IsImplicitDecl : CppInterOpAPI {
+  let Doc = [{Checks whether a declaration was synthesized by the compiler
+rather than written in source: injected class names, implicit members,
+builtin declarations materialized at first use.}];
+
+  let ReturnType = "bool";
+  let Args = [Arg<"ConstDeclRef", "DRef">];
+}
+
+def IsFriendDeclared : CppInterOpAPI {
+  let Doc = [{Checks whether a declaration was written as a friend. A hidden
+friend's semantic scope is the enclosing namespace, yet it is not findable
+by qualified lookup there — callers enumerating a namespace usually want
+them excluded.}];
+
+  let ReturnType = "bool";
+  let Args = [Arg<"ConstDeclRef", "DRef">];
+}
+
+def IsDefinition : CppInterOpAPI {
+  let Doc = [{Checks whether this declaration is the definition rather than a
+forward declaration. Without it a forward declaration and its definition are
+indistinguishable, and they carry different source locations.}];
+
+  let ReturnType = "bool";
+  let Args = [Arg<"ConstDeclRef", "DRef">];
+}
+
+def GetOverloadCount : CppInterOpAPI {
+  let Doc = [{Number of overloads a name has in a scope, function templates
+included. GetFunctionsUsingName reports only FunctionDecls, so it undercounts a
+name whose overloads are templates.}];
+
+  let ReturnType = "unsigned";
+  let Args = [
+    Arg<"ConstDeclRef", "DRef">,
+    Arg<"const std::string&", "Name">
+  ];
+}
+
+def GetNumTemplateParameters : CppInterOpAPI {
+  let Doc = [{Number of parameters a template declares, or 0 when the
+declaration is not a template.
+
+Accepts the template itself as well as the class or function it describes, so a
+caller that walked to a CXXRecordDecl does not have to find the
+ClassTemplateDecl first.}];
+
+  let ReturnType = "unsigned";
+  let Args = [Arg<"ConstDeclRef", "DRef">];
+}
+
+def GetTemplateParameter : CppInterOpAPI {
+  let Doc = [{The template parameter at \c Index, or nullptr when out of range.
+
+The result is the parameter declaration itself, so the ordinary name accessors
+apply to it.}];
+
+  let ReturnType = "DeclRef";
+  let Args = [
+    Arg<"ConstDeclRef", "DRef">,
+    Arg<"unsigned", "Index">
+  ];
+}
+
+def GetTemplateParameterKind : CppInterOpAPI {
+  let Doc = [{Whether a template parameter stands for a type, a value or a
+template. Returns Unknown for anything that is not a template parameter.}];
+
+  let ReturnType = "TemplateParamKind";
+  let Args = [Arg<"ConstDeclRef", "DRef">];
+}
+
+def GetTemplateParameterDefault : CppInterOpAPI {
+  let Doc = [{The spelling of a template parameter's default argument, or an
+empty string when it has none.}];
+
+  let ReturnType = "std::string";
+  let Args = [Arg<"ConstDeclRef", "DRef">];
+}
+
+def GetDeclFile : CppInterOpAPI {
+  let Doc = [{Gets the file a declaration was written in, or an empty string
+when it has no valid source location (compiler predefines).}];
+
+  let ReturnType = "std::string";
+  let Args = [Arg<"ConstDeclRef", "DRef">];
+}
+
+def GetDeclLine : CppInterOpAPI {
+  let Doc = [{Gets the 1-based line a declaration was written on, or 0 when it
+has no valid source location.}];
+
+  let ReturnType = "unsigned";
+  let Args = [Arg<"ConstDeclRef", "DRef">];
+}
+
+def IsInSystemHeader : CppInterOpAPI {
+  let Doc = [{Checks whether a declaration comes from a system header, that is
+one found through an -isystem path or marked with a system line directive.}];
+
+  let ReturnType = "bool";
+  let Args = [Arg<"ConstDeclRef", "DRef">];
+}
+
 def GetUsingNamespaces : CppInterOpAPI {
   let Doc = "Gets the list of namespaces utilized in the supplied scope.";
 
