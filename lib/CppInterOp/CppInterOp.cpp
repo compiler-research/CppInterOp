@@ -3992,6 +3992,30 @@ void collect_type_info(const FunctionDecl* FD, QualType& QT,
   get_type_as_string(QT, type_name, C, Policy);
 }
 
+bool IsCopyConstructorDeleted(QualType QT) {
+  CXXRecordDecl* RD = QT->getAsCXXRecordDecl();
+  if (!RD) {
+    // For types that are not C++ records (such as PODs), we assume that they
+    // are copyable, ie their copy constructor is not deleted.
+    return false;
+  }
+
+  RD = unwrap<CXXRecordDecl>(GetOrForceDefinition(DeclRef(RD)));
+  if (!RD)
+    return false;
+
+  if (RD->hasSimpleCopyConstructor())
+    return false;
+
+  for (auto* Ctor : RD->ctors())
+    if (Ctor->isCopyConstructor())
+      return Ctor->isDeleted();
+
+  // The return value is somewhat arbitrary: we did not see a deleted copy
+  // ctor. The user will be told if the generated code doesn't compile.
+  return false;
+}
+
 void make_narg_ctor(const FunctionDecl* FD, const unsigned N,
                     std::ostringstream& typedefbuf, std::ostringstream& callbuf,
                     const std::string& class_name, int indent_level,
@@ -4036,7 +4060,18 @@ void make_narg_ctor(const FunctionDecl* FD, const unsigned N,
       } else if (isPointer) {
         callbuf << "*(" << type_name.c_str() << "**)args[" << i << "]";
       } else {
+        // By-value construction: Figure out if the type can be
+        // copy-constructed. This is tricky and cannot be done in a fully
+        // reliable way, also because std::vector<T> always defines a copy
+        // constructor, even if the type T is only moveable. As a heuristic, we
+        // only check if the copy constructor is deleted, or would be if
+        // implicit.
+        bool Move = IsCopyConstructorDeleted(QT);
+        if (Move)
+          callbuf << "static_cast<" << type_name << "&&>(";
         callbuf << "*(" << type_name.c_str() << "*)args[" << i << "]";
+        if (Move)
+          callbuf << ")";
       }
     }
     callbuf << ")";
@@ -4216,17 +4251,11 @@ void make_narg_call(const FunctionDecl* FD, const std::string& return_type,
               << type_name.c_str() << "*)args[" << i << "]";
     } else if (isPointer) {
       callbuf << "*(" << type_name.c_str() << "**)args[" << i << "]";
-    } else if (rtdecl &&
-               (rtdecl->hasTrivialCopyConstructor() &&
-                !rtdecl->hasSimpleCopyConstructor()) &&
-               rtdecl->hasMoveConstructor()) {
+    } else if (rtdecl && IsCopyConstructorDeleted(QT)) {
       // By-value construction; this may either copy or move, but there is no
       // information here in terms of intent. Thus, simply assume that the
       // intent is to move if there is no viable copy constructor (ie. if the
-      // code would otherwise fail to even compile). There does not appear to be
-      // a simple way of determining whether a viable copy constructor exists,
-      // so check for the most common case: the trivial one, but not uniquely
-      // available, while there is a move constructor.
+      // code would otherwise fail to even compile).
 
       // Move construction as needed for classes (note that this is
       // implicit). Emit `std::move`'s expansion directly rather than the
