@@ -586,16 +586,22 @@ public:
                                          incpaths, withSystem, withFlags);
   }
 
-  CompilationResult loadLibrary(const std::string& filename, bool lookup) {
+  CompilationResult loadLibrary(const std::string& filename, bool lookup,
+                                std::string* error = nullptr) {
     llvm::Triple triple(getCompilerInstance()->getTargetOpts().Triple);
     if (triple.isWasm()) {
+      // LCOV_EXCL_START -- no coverage lane runs the wasm path.
       // On WASM, dlopen-style canonical lookup has no effect.
       if (auto Err = inner->LoadDynamicLibrary(filename.c_str())) {
-        llvm::logAllUnhandledErrors(std::move(Err), llvm::errs(),
-                                    "loadLibrary: ");
+        std::string Msg = llvm::toString(std::move(Err));
+        if (error)
+          *error = std::move(Msg);
+        else
+          llvm::errs() << "loadLibrary: " << Msg << '\n';
         return kFailure;
       }
       return kSuccess;
+      // LCOV_EXCL_STOP
     }
 
     DynamicLibraryManager* DLM = getDynamicLibraryManager();
@@ -604,9 +610,14 @@ public:
       canonicalLib = DLM->lookupLibrary(filename);
 
     const std::string& library = lookup ? canonicalLib : filename;
-    if (!library.empty()) {
-      switch (
-          DLM->loadLibrary(library, /*permanent*/ false, /*resolved*/ true)) {
+    if (library.empty()) {
+      if (error)
+        *error = filename + ": library not found";
+      return kMoreInputExpected;
+    }
+    {
+      switch (DLM->loadLibrary(library, /*permanent*/ false, /*resolved*/ true,
+                               error)) {
       case DynamicLibraryManager::kLoadLibSuccess: // Intentional fall through
       case DynamicLibraryManager::kLoadLibAlreadyLoaded:
         return kSuccess;
@@ -618,7 +629,6 @@ public:
         return kFailure;
       }
     }
-    return kMoreInputExpected;
   }
 
   std::string toString(const char* type, void* obj) {
