@@ -3,8 +3,11 @@
 
 #include "clang/Basic/Version.h"
 
+#include "llvm/ADT/SmallString.h"
+
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Path.h"
+#include "llvm/Support/raw_ostream.h"
 
 #include "gtest/gtest.h"
 
@@ -67,6 +70,36 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, DynamicLibraryManager_Sanity) {
   // require the library to be actually unloaded but just the handle to be
   // invalidated...
   // EXPECT_FALSE(Cpp::GetFunctionAddress("ret_zero"));
+}
+
+// A failed dlopen must report the dlerror() text on stderr.
+TYPED_TEST(CPPINTEROP_TEST_MODE, DynamicLibraryManager_LoadFailureReason) {
+#if defined(EMSCRIPTEN) || defined(_WIN32)
+  GTEST_SKIP() << "Test checks dlerror-style messages";
+#endif
+  if (TypeParam::isOutOfProcess)
+    GTEST_SKIP() << "Test fails for OOP JIT builds";
+
+  EXPECT_TRUE(TestFixture::CreateInterpreter());
+
+  // A file that exists but is not a shared library makes dlopen fail.
+  int FD = -1;
+  llvm::SmallString<256> BadLib;
+  ASSERT_FALSE(llvm::sys::fs::createTemporaryFile("bad-lib", "so", FD, BadLib));
+  {
+    llvm::raw_fd_ostream OS(FD, /*shouldClose=*/true);
+    OS << "not a shared library";
+  }
+
+  testing::internal::CaptureStderr();
+  EXPECT_FALSE(Cpp::LoadLibrary(BadLib.c_str(), /*lookup=*/false));
+  std::string Err = testing::internal::GetCapturedStderr();
+  // dlerror() names the failing file.
+  EXPECT_NE(Err.find(llvm::sys::path::filename(BadLib).str()),
+            std::string::npos)
+      << "stderr was: '" << Err << "'";
+
+  EXPECT_FALSE(llvm::sys::fs::remove(BadLib));
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, DynamicLibraryManager_BasicSymbolLookup) {
