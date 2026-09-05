@@ -185,15 +185,15 @@ static bool SkipShutDown = false;
 /// Constructed as a function-local static AFTER sInterpreters, so its dtor
 /// fires FIRST (reverse-of-construction); llvm_shutdown then drains the
 /// ManagedStatic registry, including sInterpreters, deterministically.
-/// The llvm_shutdown call itself is gated on LLVM 23+, where
-/// Platform::lookupResolvedInitSymbols (llvm/llvm-project#196874) makes
+/// The llvm_shutdown call itself is gated on LLVM 24+. Waiting for
+/// Platform::lookupResolvedInitSymbols (llvm/llvm-project#196874) which makes
 /// ~Interpreter's JIT deinit skip lazy materialization. On older LLVM
 /// the same chain SEGFAULTs in cleanUp against destroyed function-local
 /// statics, so the dtor is a no-op and sInterpreters leaks instead.
 struct InterpreterShutdown {
   ~InterpreterShutdown() {
     if (!SkipShutDown) {
-#if LLVM_VERSION_MAJOR > 22
+#if LLVM_VERSION_MAJOR > 23
       llvm::llvm_shutdown();
 #endif
     }
@@ -1023,7 +1023,7 @@ static std::string GetCompleteNameImpl(ConstDeclRef DRef, bool qualified) {
       Policy.Suppress_Elab = true;
     } else {
       Policy.SuppressScope = true;
-      Policy.AnonymousTagLocations = false;
+      compat::SuppressAnonymousTagLocations(Policy);
       Policy.SuppressTemplateArgsInCXXConstructors = false;
       Policy.SuppressDefaultTemplateArgs = false;
       Policy.AlwaysIncludeTypeForTemplateArgument = true;
@@ -5617,16 +5617,42 @@ void GetIncludePaths(std::vector<std::string>& IncludePaths, bool withSystem,
 namespace {
 class clangSilent {
 public:
-  clangSilent(clang::DiagnosticsEngine& diag) : fDiagEngine(diag) {
+  clangSilent(clang::DiagnosticsEngine& diag)
+#if LLVM_VERSION_MAJOR > 22
+      : fDiagEngine(diag), fOldClient(diag.getClient()),
+        fOldOwnedClient(diag.takeClient()) {
+#else
+      : fDiagEngine(diag) {
+#endif
+#if LLVM_VERSION_MAJOR > 22
+    fDiagEngine.setClient(&fIgnoringClient, /*ShouldOwnClient=*/false);
+#else
     fOldDiagValue = fDiagEngine.getSuppressAllDiagnostics();
     fDiagEngine.setSuppressAllDiagnostics(true);
+#endif
   }
 
-  ~clangSilent() { fDiagEngine.setSuppressAllDiagnostics(fOldDiagValue); }
+  ~clangSilent() {
+#if LLVM_VERSION_MAJOR > 22
+    if (fOldOwnedClient)
+      fDiagEngine.setClient(fOldOwnedClient.release(),
+                            /*ShouldOwnClient=*/true);
+    else
+      fDiagEngine.setClient(fOldClient, /*ShouldOwnClient=*/false);
+#else
+    fDiagEngine.setSuppressAllDiagnostics(fOldDiagValue);
+#endif
+  }
 
 protected:
   clang::DiagnosticsEngine& fDiagEngine;
+#if LLVM_VERSION_MAJOR > 22
+  clang::DiagnosticConsumer* fOldClient;
+  std::unique_ptr<clang::DiagnosticConsumer> fOldOwnedClient;
+  clang::IgnoringDiagConsumer fIgnoringClient;
+#else
   bool fOldDiagValue;
+#endif
 };
 } // namespace
 
