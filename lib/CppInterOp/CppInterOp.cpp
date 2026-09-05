@@ -4372,6 +4372,52 @@ void make_narg_ctor_with_return(const FunctionDecl* FD, const unsigned N,
   }
 }
 
+// A wrapper can only name a type whose spelling is reachable from file
+// scope: the head of the sugared name and every record enclosing it must be
+// public, and decltype/typeof sugar is spelled as its expression, whose
+// names may only resolve in the declaring scope. Builtins and compound types
+// keep the status quo.
+bool isWrapperSpellable(QualType QT) {
+  for (const clang::Type* T = QT.getTypePtr();;) {
+    if (isa<DecltypeType, TypeOfExprType>(T))
+      return false;
+    if (isa<TypedefType, RecordType>(T))
+      break;
+    QualType Next = T->getLocallyUnqualifiedSingleStepDesugaredType();
+    if (Next.getTypePtr() == T)
+      break;
+    T = Next.getTypePtr();
+  }
+  const NamedDecl* D = nullptr;
+  if (const auto* TT = QT->getAs<TypedefType>())
+    D = TT->getDecl();
+  else if (const auto* RD = QT->getAsRecordDecl())
+    D = RD;
+  while (D) {
+    if (D->getAccess() != AS_public && D->getAccess() != AS_none)
+      return false;
+    D = llvm::dyn_cast<NamedDecl>(D->getDeclContext());
+  }
+  return true;
+}
+
+// The type the wrapper spells for QT: the first reachable spelling when
+// desugaring QT one step at a time, or QT unchanged when there is none. A
+// typedef nested in a private helper class desugars to the type it names;
+// a public typedef of a private class is reachable as written and stays,
+// and its canonical type could not be spelled at all.
+QualType getWrapperSpellableType(QualType QT) {
+  const ASTContext& C = getASTContext();
+  for (QualType T = QT;;) {
+    if (isWrapperSpellable(T))
+      return T;
+    QualType Next = T.getSingleStepDesugaredType(C);
+    if (Next == T)
+      return QT;
+    T = Next;
+  }
+}
+
 void make_narg_call_with_return(compat::Interpreter& I, const FunctionDecl* FD,
                                 const unsigned N, const std::string& class_name,
                                 std::ostringstream& buf, int indent_level) {
@@ -4400,7 +4446,7 @@ void make_narg_call_with_return(compat::Interpreter& I, const FunctionDecl* FD,
     make_narg_ctor_with_return(FD, N, class_name, buf, indent_level);
     return;
   }
-  QualType QT = FD->getReturnType();
+  QualType QT = getWrapperSpellableType(FD->getReturnType());
   if (QT->isVoidType()) {
     std::ostringstream typedefbuf;
     std::ostringstream callbuf;
