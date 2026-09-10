@@ -3,8 +3,11 @@
 
 #include "clang/Basic/Version.h"
 
+#include "llvm/ADT/SmallString.h"
+
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Path.h"
+#include "llvm/Support/raw_ostream.h"
 
 #include "gtest/gtest.h"
 
@@ -67,6 +70,63 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, DynamicLibraryManager_Sanity) {
   // require the library to be actually unloaded but just the handle to be
   // invalidated...
   // EXPECT_FALSE(Cpp::GetFunctionAddress("ret_zero"));
+}
+
+// A failed dlopen must report the dlerror() text on stderr.
+TYPED_TEST(CPPINTEROP_TEST_MODE, DynamicLibraryManager_LoadFailureReason) {
+#if defined(EMSCRIPTEN) || defined(_WIN32)
+  GTEST_SKIP() << "Test checks dlerror-style messages";
+#endif
+  if (TypeParam::isOutOfProcess)
+    GTEST_SKIP() << "Test fails for OOP JIT builds";
+
+  EXPECT_TRUE(TestFixture::CreateInterpreter());
+
+  // A file that exists but is not a shared library makes dlopen fail.
+  int FD = -1;
+  llvm::SmallString<256> BadLib;
+  ASSERT_FALSE(llvm::sys::fs::createTemporaryFile("bad-lib", "so", FD, BadLib));
+  {
+    llvm::raw_fd_ostream OS(FD, /*shouldClose=*/true);
+    OS << "not a shared library";
+  }
+
+  testing::internal::CaptureStderr();
+  EXPECT_FALSE(Cpp::LoadLibrary(BadLib.c_str(), /*lookup=*/false));
+  std::string Err = testing::internal::GetCapturedStderr();
+  // dlerror() names the failing file.
+  EXPECT_NE(Err.find(llvm::sys::path::filename(BadLib).str()),
+            std::string::npos)
+      << "stderr was: '" << Err << "'";
+
+  // With an out-parameter the reason goes there and not to stderr.
+  std::string Reason = "stale";
+  testing::internal::CaptureStderr();
+  EXPECT_FALSE(Cpp::LoadLibrary(BadLib.c_str(), /*lookup=*/false, &Reason));
+#ifdef CPPINTEROP_USE_CLING
+  testing::internal::GetCapturedStderr(); // cling still prints its own text
+#else
+  EXPECT_EQ(testing::internal::GetCapturedStderr(), "");
+#endif
+  EXPECT_NE(Reason.find(llvm::sys::path::filename(BadLib).str()),
+            std::string::npos)
+      << "reason was: '" << Reason << "'";
+
+  // A failed lookup reports that too.
+  EXPECT_FALSE(
+      Cpp::LoadLibrary("no-such-cppinterop-lib", /*lookup=*/true, &Reason));
+  EXPECT_NE(Reason.find("no-such-cppinterop-lib"), std::string::npos)
+      << "reason was: '" << Reason << "'";
+
+  // Success clears a stale reason.
+  std::string BinaryPath = GetExecutablePath(/*Argv0=*/nullptr);
+  Cpp::AddSearchPath(llvm::sys::path::parent_path(BinaryPath).str().c_str());
+  Reason = "stale";
+  EXPECT_TRUE(Cpp::LoadLibrary("TestSharedLib", /*lookup=*/true, &Reason))
+      << "reason was: '" << Reason << "'";
+  EXPECT_EQ(Reason, "");
+
+  EXPECT_FALSE(llvm::sys::fs::remove(BadLib));
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, DynamicLibraryManager_BasicSymbolLookup) {

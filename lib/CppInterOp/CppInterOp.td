@@ -245,12 +245,20 @@ GetResourceDir() function.}];
 def LoadLibrary : CppInterOpAPI {
   let Doc = [{Finds \c lib_stem considering the list of search paths and loads it by
 calling dlopen.
+\param[out] error - if non-null, receives the reason a load failed (the
+           dlerror() text, or a not-found note when lookup fails). When it
+           is set the reason is not also written to stderr. The Cling
+           backend only reports a generic note.
 \returns true on success.}];
 
+  // std::string* cannot cross the C ABI; CXCppInterOp.cpp keeps the
+  // two-argument cppinterop_LoadLibrary wrapper by hand.
+  let NoCWrapper = true;
   let ReturnType = "bool";
   let Args = [
     Arg<"const char*", "lib_stem">,
-    Arg<"bool", "lookup", "true">
+    Arg<"bool", "lookup", "true">,
+    Arg<"std::string*", "error", "nullptr">
   ];
 }
 

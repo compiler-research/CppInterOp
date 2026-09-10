@@ -5746,10 +5746,26 @@ std::string LookupLibrary(const char* lib_name) {
       getInterp().getDynamicLibraryManager()->lookupLibrary(lib_name));
 }
 
-bool LoadLibrary(const char* lib_stem, bool lookup) {
-  INTEROP_TRACE(lib_stem, lookup);
+bool LoadLibrary(const char* lib_stem, bool lookup, std::string* error) {
+  INTEROP_TRACE(lib_stem, lookup, error);
+  if (error)
+    error->clear();
+#ifdef CPPINTEROP_USE_CLING
+  // cling::Interpreter::loadLibrary has no reason channel; report what the
+  // lookup alone can tell.
   compat::Interpreter::CompilationResult res =
       getInterp().loadLibrary(lib_stem, lookup);
+  if (res != compat::Interpreter::kSuccess && error) {
+    bool NotFound =
+        lookup &&
+        getInterp().getDynamicLibraryManager()->lookupLibrary(lib_stem).empty();
+    *error = std::string(lib_stem) +
+             (NotFound ? ": library not found" : ": failed to load");
+  }
+#else
+  compat::Interpreter::CompilationResult res =
+      getInterp().loadLibrary(lib_stem, lookup, error);
+#endif
 
   return INTEROP_RETURN(res == compat::Interpreter::kSuccess);
 }
