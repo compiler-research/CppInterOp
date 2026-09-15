@@ -19,6 +19,7 @@
 #include "clang/AST/GlobalDecl.h"
 #include "clang/Basic/LangOptions.h"
 #include "clang/Basic/TargetOptions.h"
+#include "clang/Basic/Version.h"
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Frontend/FrontendOptions.h"
 #include "clang/Lex/Preprocessor.h"
@@ -32,6 +33,7 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringMap.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/ADT/StringSet.h"
 #include "llvm/ExecutionEngine/JITSymbol.h"
 #include "llvm/ExecutionEngine/Orc/AbsoluteSymbols.h"
 #include "llvm/ExecutionEngine/Orc/Core.h"
@@ -324,6 +326,12 @@ private:
   mutable std::once_flag sDLMInit;
   bool outOfProcess;
 
+#if CLANG_VERSION_MAJOR < 24
+  // Weak thread_local definitions already handed to the JIT, so later modules
+  // demote their duplicates. See compat::dedupeWeakEmulatedTLS.
+  llvm::StringSet<> DedupedWeakTLS;
+#endif
+
 public:
   Interpreter(std::unique_ptr<clang::Interpreter> CI,
               std::unique_ptr<IOContext> ctx = nullptr, bool oop = false)
@@ -446,7 +454,24 @@ public:
   }
 
   llvm::Error ParseAndExecute(llvm::StringRef Code, clang::Value* V = nullptr) {
+#if CLANG_VERSION_MAJOR < 24
+    // Value-returning execution keeps clang's LastValue handling (private to
+    // clang::Interpreter), so delegate. The no-value path -- used by wrapper
+    // compilation -- is split so the module can be sanitized before Execute.
+    if (V)
+      return inner->ParseAndExecute(Code, V);
+    auto PTU = inner->Parse(Code);
+    if (!PTU)
+      return PTU.takeError();
+    if (PTU->TheModule) {
+      compat::dedupeWeakEmulatedTLS(*PTU->TheModule, DedupedWeakTLS);
+      if (llvm::Error Err = inner->Execute(*PTU))
+        return Err;
+    }
+    return llvm::Error::success();
+#else
     return inner->ParseAndExecute(Code, V);
+#endif
   }
 
   llvm::Error Undo(unsigned N = 1) { return compat::Undo(*inner, N); }
@@ -540,6 +565,11 @@ public:
 
     if (PTU)
       *PTU = &*PTUOrErr;
+
+#if CLANG_VERSION_MAJOR < 24
+    if (PTUOrErr->TheModule)
+      compat::dedupeWeakEmulatedTLS(*PTUOrErr->TheModule, DedupedWeakTLS);
+#endif
 
     if (auto Err = Execute(*PTUOrErr)) {
       llvm::logAllUnhandledErrors(std::move(Err), llvm::errs(),
