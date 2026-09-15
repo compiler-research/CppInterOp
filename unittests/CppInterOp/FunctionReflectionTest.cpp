@@ -3,6 +3,7 @@
 #include "CppInterOp/CppInterOp.h"
 
 #include "clang/AST/ASTContext.h"
+#include "clang/AST/PrettyPrinter.h"
 #include "clang/Basic/Version.h"
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Sema/Sema.h"
@@ -10,6 +11,7 @@
 #include <CppInterOp/CppInterOpTypes.h>
 #include <cstdint>
 #include <llvm/ADT/ArrayRef.h>
+#include <llvm/Support/raw_ostream.h>
 
 #include "gtest/gtest.h"
 
@@ -3721,10 +3723,10 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetFunctionArgDefault) {
   GetAllTopLevelDecls(code, Decls);
 
   EXPECT_EQ(Cpp::GetFunctionArgDefault(Decls[0], 0), "");
-  EXPECT_EQ(Cpp::GetFunctionArgDefault(Decls[0], 1), "4.");
+  EXPECT_EQ(Cpp::GetFunctionArgDefault(Decls[0], 1), "4.0");
   EXPECT_EQ(Cpp::GetFunctionArgDefault(Decls[0], 2), "\"default\"");
   EXPECT_EQ(Cpp::GetFunctionArgDefault(Decls[0], 3), "\'c\'");
-  EXPECT_EQ(Cpp::GetFunctionArgDefault(Decls[1], 0), "0.");
+  EXPECT_EQ(Cpp::GetFunctionArgDefault(Decls[1], 0), "0.0");
   EXPECT_EQ(Cpp::GetFunctionArgDefault(Decls[1], 1), "3.123");
   EXPECT_EQ(Cpp::GetFunctionArgDefault(Decls[1], 2), "34126");
 
@@ -3739,7 +3741,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetFunctionArgDefault) {
   EXPECT_EQ(Cpp::GetFunctionArgDefault(Decls[4], 0), "");
   EXPECT_EQ(Cpp::GetFunctionArgDefault(Decls[4], 1), "");
   EXPECT_EQ(Cpp::GetFunctionArgDefault(Decls[4], 2), "\'a\'");
-  EXPECT_EQ(Cpp::GetFunctionArgDefault(Decls[4], 3), "0.");
+  EXPECT_EQ(Cpp::GetFunctionArgDefault(Decls[4], 3), "0.0");
 
   ASTContext& C = Interp->getCI()->getASTContext();
   std::vector<Cpp::TemplateArgInfo> template_args = {C.IntTy.getAsOpaquePtr()};
@@ -3752,6 +3754,71 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetFunctionArgDefault) {
   Cpp::FuncRef fn = fns[0];
   EXPECT_EQ(Cpp::GetFunctionArgDefault(fn, 0), "");
   EXPECT_EQ(Cpp::GetFunctionArgDefault(fn, 1), "S()");
+}
+
+TYPED_TEST(CPPINTEROP_TEST_MODE,
+           FunctionReflection_GetFunctionArgDefaultSymbolic) {
+  std::vector<Decl*> Decls;
+  std::string code = R"(
+    constexpr double kDefaultRatio = 0.5;
+    double default_ratio();
+    double scaled(double ratio = kDefaultRatio);
+    double rescaled(double ratio = default_ratio());
+    double inverted(double ratio = 2.0 / kDefaultRatio);
+    double pi_ish(double p = 3.14);
+    float take_float(float a = 5.f);
+    long take_long(long a = -5l);
+    unsigned long take_ulong(unsigned long a = 5ul);
+    int take_hex(int a = 0x1f);
+    )";
+
+  GetAllTopLevelDecls(code, Decls);
+
+  // A floating-typed default need not be a numeric literal. Formatting a
+  // symbolic default must not crash (the removed std::stod normalization
+  // terminated the exception-free build) and must render it as written.
+  EXPECT_EQ(Cpp::GetFunctionArgDefault(Decls[2], 0), "kDefaultRatio");
+  EXPECT_EQ(Cpp::GetFunctionArgDefault(Decls[3], 0), "default_ratio()");
+  EXPECT_EQ(Cpp::GetFunctionArgDefault(Decls[4], 0), "2.0 / kDefaultRatio");
+  // Literals render exactly as written, not at representation precision.
+  EXPECT_EQ(Cpp::GetFunctionArgDefault(Decls[5], 0), "3.14");
+  // Numeric-literal suffixes render uppercase: cppyy strips only that form
+  // before it evaluates the default in Python ("5.f" is a Python syntax
+  // error, "5.F" strips to "5."). Hex digits are not suffixes.
+  EXPECT_EQ(Cpp::GetFunctionArgDefault(Decls[6], 0), "5.F");
+  EXPECT_EQ(Cpp::GetFunctionArgDefault(Decls[7], 0), "-5L");
+  EXPECT_EQ(Cpp::GetFunctionArgDefault(Decls[8], 0), "5UL");
+  EXPECT_EQ(Cpp::GetFunctionArgDefault(Decls[9], 0), "0x1f");
+}
+
+TYPED_TEST(CPPINTEROP_TEST_MODE,
+           FunctionReflection_FloatingDefaultPrinterCanary) {
+#ifdef EMSCRIPTEN
+  GTEST_SKIP() << "The wasm test binary does not link the raw clang printer "
+                  "symbols (printPretty, getDefaultArg) this test needs.";
+#else
+  std::vector<Decl*> Decls;
+  GetAllTopLevelDecls("void canary(double x = 3.14);", Decls);
+
+  // Before clang 24 the raw printer expands floats to maximum precision;
+  // UDL and invalid-range defaults hit it. llvm/llvm-project#218471 fixes
+  // the printer for clang 24. Each branch failing is a signal: see its
+  // message.
+  const auto* PD = cast<FunctionDecl>(Decls[0])->getParamDecl(0);
+  std::string Raw;
+  llvm::raw_string_ostream OS(Raw);
+  PD->getDefaultArg()->printPretty(OS, nullptr, PrintingPolicy(LangOptions()));
+#if CLANG_VERSION_MAJOR < 24
+  EXPECT_EQ(Raw, "3.1400000000000001")
+      << "clang's pretty-printer round-trips floating literals earlier than "
+         "expected (llvm/llvm-project#218471 cherry-picked?). Re-check UDL "
+         "and invalid-range defaults, then move this guard.";
+#else
+  EXPECT_EQ(Raw, "3.14")
+      << "llvm/llvm-project#218471 did not land in clang 24. Raise the "
+         "version in this guard.";
+#endif
+#endif // EMSCRIPTEN
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_Construct) {
