@@ -28,7 +28,10 @@ infrastructure are described first.
 
 ## Introspection
 
--
+- Added bit-field reflection: `IsBitFieldVariable`, `GetVariableBitWidth` and
+  `GetVariableBitOffset` report whether a data member is a bit-field, its
+  declared width in bits, and its bit offset within the enclosing object, so
+  language bindings can read and write bit-fields without guessing the layout.
 
 ## Just-in-Time Compilation
 
