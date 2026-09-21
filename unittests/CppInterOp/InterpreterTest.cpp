@@ -106,6 +106,40 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_Evaluate) {
   EXPECT_NE(sV.getObjectPtr(), nullptr);
 }
 
+TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_EvaluateWithStatus) {
+#ifdef _WIN32
+  GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
+#endif
+  if (TypeParam::isOutOfProcess)
+    GTEST_SKIP() << "Test fails for OOP JIT builds";
+  TestFixture::CreateInterpreter();
+
+  Cpp::Box value;
+  EXPECT_EQ(Cpp::Evaluate("40 + 2", value), 0);
+  EXPECT_EQ(value.unbox<int>(), 42);
+
+  EXPECT_NE(Cpp::Evaluate("#error status-aware evaluation", value), 0);
+  EXPECT_EQ(value.getKind(), Cpp::Box::K_Unspecified);
+
+  EXPECT_EQ(Cpp::Evaluate("class EvalStatus_NoValue {};", value), 0);
+  EXPECT_EQ(value.getKind(), Cpp::Box::K_Unspecified);
+}
+
+TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_GetValueAsString) {
+#ifdef _WIN32
+  GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
+#endif
+  if (TypeParam::isOutOfProcess)
+    GTEST_SKIP() << "Test fails for OOP JIT builds";
+  TestFixture::CreateInterpreter();
+
+  EXPECT_EQ(Cpp::GetValueAsString(Cpp::Evaluate("42")), "(int) 42");
+
+  Cpp::Box object = Cpp::Evaluate("struct Printable {} printable; printable");
+  EXPECT_EQ(Cpp::GetValueAsString(object).rfind("(Printable", 0), 0U);
+  EXPECT_TRUE(Cpp::GetValueAsString(Cpp::Box{}).empty());
+}
+
 // Copy semantics mirror clang::Value: fundamentals POD-copy; K_PtrOrObj is
 // refcounted-shallow (retain bumps a ref, dtor releases). The test exercises
 // both: fundamentals copy independently, K_PtrOrObj copy shares the payload

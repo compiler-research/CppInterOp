@@ -5669,25 +5669,27 @@ static Cpp::Box::Kind classifyByQualType(clang::QualType QT) {
   return Cpp::Box::K_PtrOrObj;
 }
 
-Box Evaluate(const char* code) {
+int Evaluate(const char* code, Box& value) {
   INTEROP_TRACE(code);
   compat::Value V;
   auto res = getInterp().evaluate(code, V);
   CPPINTEROP_MSAN_UNPOISON_VALUE(V);
+  value = Box{};
   if (res != 0 || !V.hasValue())
-    return INTEROP_RETURN(Box{});
+    return INTEROP_RETURN(res);
 
   clang::QualType QT = V.getType();
   void* qt = QT.getAsOpaquePtr();
   switch (classifyByQualType(QT)) {
 #define X(TyRef, name)                                                         \
   case Cpp::Box::K_##name:                                                     \
-    return INTEROP_RETURN(                                                     \
-        Cpp::Box::Create<TyRef>(compat::convertTo<TyRef>(V), qt));
+    value = Cpp::Box::Create<TyRef>(compat::convertTo<TyRef>(V), qt);           \
+    return INTEROP_RETURN(0);
     CPP_BOX_BUILTIN_TYPES
 #undef X
   case Cpp::Box::K_PtrOrObj:
-    return INTEROP_RETURN(compat::MakeValueBox(V, qt));
+    value = compat::MakeValueBox(V, qt);
+    return INTEROP_RETURN(0);
   case Cpp::Box::K_Char_U:
   case Cpp::Box::K_Void:
   case Cpp::Box::K_Unspecified:
@@ -5696,6 +5698,69 @@ Box Evaluate(const char* code) {
     llvm_unreachable("Box::Kind not produced by classifyByQualType");
   }
   llvm_unreachable("classifyByQualType returned an unhandled Kind");
+}
+
+Box Evaluate(const char* code) {
+  Box value;
+  Evaluate(code, value);
+  return value;
+}
+
+std::string GetValueAsString(const Box& value) {
+  INTEROP_TRACE(value);
+  if (value.getKind() == Box::K_Unspecified ||
+      value.getKind() == Box::K_Void)
+    return INTEROP_RETURN(std::string{});
+
+  std::string result;
+  llvm::raw_string_ostream stream(result);
+
+#ifndef CPPINTEROP_USE_CLING
+  if (value.getKind() == Box::K_PtrOrObj) {
+    compat::GetValueFromBox(value).print(stream);
+  } else {
+    if (!value.getType())
+      return INTEROP_RETURN(std::string{});
+
+    auto& clangInterp = static_cast<clang::Interpreter&>(getInterp());
+    compat::Value printable(&clangInterp, value.getType());
+    clang::QualType QT = clang::QualType::getFromOpaquePtr(value.getType());
+    const auto* BT = QT->getAs<clang::BuiltinType>();
+    if (value.getKind() == Box::K_UChar && BT &&
+        BT->getKind() == clang::BuiltinType::Char_U) {
+      printable.setChar_U(value.unbox<unsigned char>());
+    } else switch (value.getKind()) {
+#define X(TyRef, name)                                                         \
+  case Box::K_##name:                                                         \
+    printable.set##name(value.unbox<TyRef>());                                \
+    break;
+      CPP_BOX_BUILTIN_TYPES
+#undef X
+    case Box::K_Char_U:
+    case Box::K_Void:
+    case Box::K_PtrOrObj:
+    case Box::K_Unspecified:
+      llvm_unreachable("unexpected Box kind while formatting a value");
+    }
+    printable.print(stream);
+  }
+#else
+  // Cling does not expose clang-repl's value printer. Keep the API useful for
+  // fundamental values; object pretty-printing is a clang-repl capability.
+  stream << "(" << GetTypeAsString(ConstTypeRef(value.getType())) << ") ";
+  if (value.getKind() == Box::K_PtrOrObj)
+    stream << value.getObjectPtr();
+  else
+    value.visit([&stream](auto v) -> int {
+      stream << v;
+      return 0;
+    });
+#endif
+
+  stream.flush();
+  if (!result.empty() && result.back() == '\n')
+    result.pop_back();
+  return INTEROP_RETURN(result);
 }
 
 std::string LookupLibrary(const char* lib_name) {
