@@ -486,6 +486,16 @@ include_directories(BEFORE SYSTEM
 #Removes flag due to issue with Google test download when LLVM_ENABLE_WERROR=On
 string(REPLACE "-Wcovered-switch-default" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 
+# TEST-ONLY, drop before merge: fail the MSVC rows on C4275. LLVM passes
+# -wd4275 project-wide, so /WX alone cannot see the warning -- strip the
+# suppression and promote what is left to an error.
+if(MSVC)
+  string(REPLACE "-wd4275" "" CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
+  string(REPLACE "-wd4275" "" CMAKE_C_FLAGS "${CMAKE_C_FLAGS}")
+  set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /we4275")
+  set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /we4275")
+endif()
+
 file(STRINGS "VERSION" CPPINTEROP_VERSION)
 string(REPLACE "." ";" VERSION_LIST "${CPPINTEROP_VERSION}")
 list(GET VERSION_LIST 0 CPPINTEROP_VERSION_MAJOR)
