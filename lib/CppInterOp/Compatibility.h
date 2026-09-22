@@ -447,6 +447,18 @@ inline bool configureBundledOOPRuntime(clang::IncrementalExecutorBuilder& B) {
 }
 #endif // LLVM_VERSION_MAJOR > 21
 
+// On x86_64 ELF the small and medium code models encode the .eh_frame
+// personality reference (DW.ref.__gxx_personality_v0) as a 32-bit
+// PC-relative value that every exception-bearing module shares. In a
+// conda environment the JIT can place a module more than 2GB from that
+// shared definition, past the range of the 32-bit reference. The module
+// fails to link with a JITLink Delta32 error. The large code model uses
+// a 64-bit reference. Other targets and object formats are unaffected.
+static inline bool useLargeCodeModel() {
+  const llvm::Triple T(llvm::sys::getProcessTriple());
+  return T.getArch() == llvm::Triple::x86_64 && T.isOSBinFormatELF();
+}
+
 inline std::unique_ptr<clang::Interpreter>
 createClangInterpreter(std::vector<const char*>& args, int stdin_fd = -1,
                        int stdout_fd = -1, int stderr_fd = -1) {
@@ -482,14 +494,13 @@ createClangInterpreter(std::vector<const char*>& args, int stdin_fd = -1,
       });
   // The IncrementalExecutorBuilder must outlive the IncrementalCompiler
   // it gets attached to, so it's a unique_ptr at function scope.
-  std::unique_ptr<clang::IncrementalExecutorBuilder> OutOfProcessConfig;
+  std::unique_ptr<clang::IncrementalExecutorBuilder> ExecutorBuilder;
   if (oopRequested) {
-    OutOfProcessConfig = std::make_unique<clang::IncrementalExecutorBuilder>();
-    OutOfProcessConfig->IsOutOfProcess = true;
-    if (configureBundledOOPRuntime(*OutOfProcessConfig)) {
+    ExecutorBuilder = std::make_unique<clang::IncrementalExecutorBuilder>();
+    ExecutorBuilder->IsOutOfProcess = true;
+    if (configureBundledOOPRuntime(*ExecutorBuilder)) {
       outOfProcess = true;
-      CB.SetDriverCompilationCallback(
-          OutOfProcessConfig->UpdateOrcRuntimePathCB);
+      CB.SetDriverCompilationCallback(ExecutorBuilder->UpdateOrcRuntimePathCB);
     } else {
       llvm::errs()
           << "[CreateClangInterpreter]: --use-oop-jit requested but the "
@@ -497,7 +508,7 @@ createClangInterpreter(std::vector<const char*>& args, int stdin_fd = -1,
              "(<libdir>/cppinterop-rt/{liborc_rt.a,llvm-jitlink-executor}) "
              "is missing from CppInterOp's build/install tree. Falling "
              "back to in-process JIT.\n";
-      OutOfProcessConfig.reset();
+      ExecutorBuilder.reset();
     }
   }
 #endif
@@ -537,9 +548,9 @@ createClangInterpreter(std::vector<const char*>& args, int stdin_fd = -1,
     // configureBundledOOPRuntime() above; UpdateOrcRuntimePathCB was
     // replaced with a no-op there too, so the upstream auto-discovery
     // safety check doesn't run.
-    OutOfProcessConfig->UseSharedMemory = false;
-    OutOfProcessConfig->SlabAllocateSize = 0;
-    OutOfProcessConfig->CustomizeFork = [stdin_fd, stdout_fd, stderr_fd]() {
+    ExecutorBuilder->UseSharedMemory = false;
+    ExecutorBuilder->SlabAllocateSize = 0;
+    ExecutorBuilder->CustomizeFork = [stdin_fd, stdout_fd, stderr_fd]() {
       dup2(stdin_fd, STDIN_FILENO);
       dup2(stdout_fd, STDOUT_FILENO);
       dup2(stderr_fd, STDERR_FILENO);
@@ -547,12 +558,31 @@ createClangInterpreter(std::vector<const char*>& args, int stdin_fd = -1,
       setvbuf(fdopen(stderr_fd, "w+"), nullptr, _IONBF, 0);
     };
   }
+  if (!outOfProcess && useLargeCodeModel()) {
+    ExecutorBuilder = std::make_unique<clang::IncrementalExecutorBuilder>();
+    ExecutorBuilder->CM = llvm::CodeModel::Large;
+  }
   auto innerOrErr =
       CudaEnabled ? clang::Interpreter::createWithCUDA(std::move(*ciOrErr),
                                                        std::move(DeviceCI))
-                  : clang::Interpreter::create(
-                        std::move(*ciOrErr),
-                        outOfProcess ? std::move(OutOfProcessConfig) : nullptr);
+                  : clang::Interpreter::create(std::move(*ciOrErr),
+                                               std::move(ExecutorBuilder));
+#elif LLVM_VERSION_MAJOR == 21
+  std::unique_ptr<llvm::orc::LLJITBuilder> JB;
+  if (useLargeCodeModel()) {
+    if (auto JTMBOrErr = llvm::orc::JITTargetMachineBuilder::detectHost()) {
+      JTMBOrErr->setCodeModel(llvm::CodeModel::Large);
+      JB = std::make_unique<llvm::orc::LLJITBuilder>();
+      JB->setJITTargetMachineBuilder(std::move(*JTMBOrErr));
+    } else {
+      llvm::consumeError(JTMBOrErr.takeError());
+    }
+  }
+  auto innerOrErr =
+      CudaEnabled
+          ? clang::Interpreter::createWithCUDA(std::move(*ciOrErr),
+                                               std::move(DeviceCI))
+          : clang::Interpreter::create(std::move(*ciOrErr), std::move(JB));
 #else
   auto innerOrErr =
       CudaEnabled ? clang::Interpreter::createWithCUDA(std::move(*ciOrErr),
