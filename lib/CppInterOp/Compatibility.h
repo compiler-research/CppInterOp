@@ -10,11 +10,7 @@
 #include "clang/AST/GlobalDecl.h"
 #include "clang/Basic/DiagnosticIDs.h"
 #include "clang/Basic/DiagnosticOptions.h"
-#if CLANG_VERSION_MAJOR < 21
-#include "clang/Basic/Cuda.h"
-#else
 #include "clang/Basic/OffloadArch.h"
-#endif
 #include "clang/Basic/SourceLocation.h"
 #include "clang/Basic/Specifiers.h"
 #include "clang/Basic/Version.h"
@@ -81,23 +77,6 @@ static inline char* GetEnv(const char* Var_Name) {
   return getenv(Var_Name);
 #endif
 }
-
-#if CLANG_VERSION_MAJOR < 21
-#define Print_Canonical_Types PrintCanonicalTypes
-#else
-#define Print_Canonical_Types PrintAsCanonical
-#endif
-
-#if CLANG_VERSION_MAJOR < 21
-#define clang_LookupResult_Found clang::LookupResult::Found
-#define clang_LookupResult_Not_Found clang::LookupResult::NotFound
-#define clang_LookupResult_Found_Overloaded clang::LookupResult::FoundOverloaded
-#else
-#define clang_LookupResult_Found clang::LookupResultKind::Found
-#define clang_LookupResult_Not_Found clang::LookupResultKind::NotFound
-#define clang_LookupResult_Found_Overloaded                                    \
-  clang::LookupResultKind::FoundOverloaded
-#endif
 
 #define STRINGIFY(s) STRINGIFY_X(s)
 #define STRINGIFY_X(...) #__VA_ARGS__
@@ -277,14 +256,8 @@ inline bool detectCudaInstallPath(const std::vector<const char*>& args,
       new clang::DiagnosticIDs());
   // NOLINTNEXTLINE(cppcoreguidelines-owning-memory)
   auto* DiagsBuffer = new clang::TextDiagnosticBuffer;
-#if CLANG_VERSION_MAJOR < 21
-  llvm::IntrusiveRefCntPtr<clang::DiagnosticOptions> DiagOpts(
-      new clang::DiagnosticOptions());
-  clang::DiagnosticsEngine Diags(DiagID, DiagOpts, DiagsBuffer);
-#else
   clang::DiagnosticOptions DiagOpts;
   clang::DiagnosticsEngine Diags(DiagID, DiagOpts, DiagsBuffer);
-#endif
 
   clang::driver::Driver D("clang", TT, Diags);
   D.setCheckInputsExist(false);

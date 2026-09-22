@@ -2539,16 +2539,16 @@ bool GetClassTemplatedMethods(const std::string& name, ConstDeclRef parent,
   compat::SynthesizingCodeRAII RAII(&getInterp());
   CppInternal::utils::Lookup::Named(&S, R, DC);
 
-  if (R.getResultKind() == clang_LookupResult_Not_Found && funcs.empty())
+  if (R.getResultKind() == clang::LookupResultKind::NotFound && funcs.empty())
     return INTEROP_RETURN(false);
 
   // Distinct match, single Decl
-  else if (R.getResultKind() == clang_LookupResult_Found) {
+  else if (R.getResultKind() == clang::LookupResultKind::Found) {
     if (IsTemplatedFunction(R.getFoundDecl()))
       funcs.push_back(R.getFoundDecl());
   }
   // Loop over overload set
-  else if (R.getResultKind() == clang_LookupResult_Found_Overloaded) {
+  else if (R.getResultKind() == clang::LookupResultKind::FoundOverloaded) {
     for (auto* Found : R) {
       if (IsTemplatedFunction(Found))
         funcs.push_back(Found);
@@ -3872,7 +3872,7 @@ static void GetDeclName(const clang::Decl* D, ASTContext& Context,
   PrintingPolicy Policy(Context.getPrintingPolicy());
   Policy.SuppressTagKeyword = true;
   Policy.SuppressUnwrittenScope = true;
-  Policy.Print_Canonical_Types = true;
+  Policy.PrintAsCanonical = true;
   if (const auto* TD = dyn_cast<TypeDecl>(D)) {
     // This is a class, struct, or union member.
     QualType QT;
@@ -5492,24 +5492,10 @@ InterpRef CreateInterpreter(const std::vector<const char*>& Args /*={}*/,
 #if !defined(CPPINTEROP_USE_CLING) && !defined(EMSCRIPTEN)
   DefineAbsoluteSymbol(*I, "__ci_newtag",
                        reinterpret_cast<uint64_t>(&__ci_newtag));
-// llvm >= 21 has this defined as a C symbol that does not require mangling
-#if CLANG_VERSION_MAJOR >= 21
+  // A C symbol since LLVM 21, so it needs no mangling.
   DefineAbsoluteSymbol(
       *I, "__clang_Interpreter_SetValueWithAlloc",
       reinterpret_cast<uint64_t>(&__clang_Interpreter_SetValueWithAlloc));
-#else
-  // obtain mangled name
-  auto* D =
-      unwrap<Decl>(Cpp::GetNamed("__clang_Interpreter_SetValueWithAlloc"));
-  if (auto* FD = llvm::dyn_cast_or_null<FunctionDecl>(D)) {
-    auto GD = GlobalDecl(FD);
-    std::string mangledName;
-    compat::maybeMangleDeclName(GD, mangledName);
-    DefineAbsoluteSymbol(
-        *I, mangledName.c_str(),
-        reinterpret_cast<uint64_t>(&__clang_Interpreter_SetValueWithAlloc));
-  }
-#endif
 
   DefineAbsoluteSymbol(
       *I, "__clang_Interpreter_SetValueNoAlloc",
