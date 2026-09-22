@@ -2,6 +2,7 @@
 #include "Utils.h"
 
 #include "../../lib/CppInterOp/CompatibilityGLIBC.h"
+#include "../../lib/CppInterOp/ErrorInternal.h"
 
 #include "CppInterOp/CppInterOp.h"
 
@@ -14,6 +15,7 @@
 #endif // CPPINTEROP_USE_REPL
 
 #include "clang/Basic/Version.h"
+#include "clang/Frontend/CompilerInstance.h"
 
 #include "llvm/ADT/SmallString.h"
 #include "llvm/Config/llvm-config.h"
@@ -409,6 +411,52 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_ActivateInterpreter) {
 
   EXPECT_TRUE(Cpp::ActivateInterpreter(Cpp17));
   EXPECT_EQ(Cpp::Evaluate("__cplusplus").unbox<long>(), 201703L);
+}
+
+TYPED_TEST(CPPINTEROP_TEST_MODE,
+           Interpreter_FieldsAfterChangingActiveInterpreter) {
+  auto InterpA = TestFixture::CreateInterpreter();
+  ASSERT_TRUE(InterpA);
+  void* intOfA = Cpp::unwrap<compat::Interpreter>(InterpA)
+                     ->getCI()
+                     ->getASTContext()
+                     .IntTy.getAsOpaquePtr();
+  EXPECT_EQ(Cpp::GetType("int").data, intOfA);
+
+#ifndef _WIN32
+  // Leave a diagnostic in InterpA
+  EXPECT_NE(0, Cpp::Declare("int err = ;", false));
+#endif
+
+  auto InterpB = TestFixture::CreateInterpreter();
+  ASSERT_TRUE(InterpB);
+  void* intOfB = Cpp::unwrap<compat::Interpreter>(InterpB)
+                     ->getCI()
+                     ->getASTContext()
+                     .IntTy.getAsOpaquePtr();
+  EXPECT_EQ(Cpp::GetType("int").data, intOfB);
+
+  auto InterpC = TestFixture::CreateInterpreter();
+  ASSERT_TRUE(InterpC);
+  void* intOfC = Cpp::unwrap<compat::Interpreter>(InterpC)
+                     ->getCI()
+                     ->getASTContext()
+                     .IntTy.getAsOpaquePtr();
+  EXPECT_EQ(Cpp::GetType("int").data, intOfC);
+
+  // [A, B, C] -> [B, C, A]
+  ASSERT_TRUE(Cpp::ActivateInterpreter(InterpA));
+  EXPECT_EQ(Cpp::GetType("int").data, intOfA);
+
+#ifndef _WIN32
+  // InterpB has no diagnostics, InterpA has one
+  EXPECT_EQ(Cpp::GetPendingDiagnosticCount(InterpA), 1);
+  EXPECT_EQ(Cpp::GetPendingDiagnosticCount(InterpB), 0);
+#endif
+
+  // [B, C, A] -> [B, A]
+  ASSERT_TRUE(Cpp::DeleteInterpreter(InterpC));
+  EXPECT_EQ(Cpp::GetType("int").data, intOfA);
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_Process) {
