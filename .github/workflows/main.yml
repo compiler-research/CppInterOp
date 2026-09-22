@@ -48,11 +48,10 @@ jobs:
         # patches. The setup step pairs it with clang-runtime.
         include:
           # Ubuntu Arm
-          - { name: ubu24-arm-gcc12-llvm23-vg, os: ubuntu-24.04-arm, compiler: gcc-12, clang-runtime: '23', Valgrind: On }
+          - { name: ubu24-arm-gcc12-llvm23, os: ubuntu-24.04-arm, compiler: gcc-12, clang-runtime: '23' }
           # Ubuntu X86
-          - { name: ubu24-x86-gcc12-llvm23, os: ubuntu-24.04, compiler: gcc-12, clang-runtime: '23'}
+          - { name: ubu24-x86-gcc12-llvm23, os: ubuntu-24.04, compiler: gcc-12, clang-runtime: '23' }
           - { name: ubu24-x86-gcc12-llvm22, os: ubuntu-24.04, compiler: gcc-12, clang-runtime: '22' }
-          - { name: ubu24-x86-gcc12-llvm21, os: ubuntu-24.04, compiler: gcc-12, clang-runtime: '21' }
           - { name: ubu24-x86-clang23-llvm23-asan-ubsan, os: ubuntu-24.04, compiler: clang-23, clang-runtime: '23', sanitizer: "Address;Undefined", flavor: asan }
           - { name: ubu24-x86-clang23-llvm23-msan, os: ubuntu-24.04, compiler: clang-23, clang-runtime: '23', sanitizer: "Memory", flavor: msan }
           - { name: ubu24-x86-gcc12-llvm23-vg, os: ubuntu-24.04, compiler: gcc-12, clang-runtime: '23', Valgrind: On, flavor: system }
