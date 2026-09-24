@@ -87,6 +87,39 @@ no-value-after-success.
   ];
 }
 
+def EvaluateWithStatus : CppInterOpAPI {
+  let CppName = "Evaluate";
+  let DispatchName = "EvaluateWithStatus";
+  let Doc = [{Declares and executes \c code, writes its typed result to
+\c value, and preserves the interpreter compilation status.
+\c value is \c K_Unspecified when execution succeeds without producing a
+value, or when execution fails; use the integer return value to distinguish
+those cases.
+\param[in] code - the snippet to declare and execute.
+\param[out] value - receives the typed execution result.
+\returns 0 on success.}];
+  let NoCWrapper = true;
+  let ReturnType = "int";
+  let Args = [
+    Arg<"const char*", "code">,
+    OutArg<"Box&", "value">
+  ];
+}
+
+def GetValueAsString : CppInterOpAPI {
+  let Doc = [{Formats an evaluated value using the interpreter's value printer.
+This preserves clang-repl's type and data formatting, including registered
+pretty printers for records.
+\param[in] value - a value returned by \c Evaluate.
+\returns the display string without a trailing newline, or an empty string for
+         \c K_Unspecified and \c K_Void.}];
+  let NoCWrapper = true;
+  let ReturnType = "std::string";
+  let Args = [
+    Arg<"const Box&", "value">
+  ];
+}
+
 // NOTE: The legacy C-ABI overload `intptr_t Evaluate(const char*, bool*)`
 // and its matching C wrapper `cppinterop_Evaluate` live hand-written in
 // CXCppInterOp.cpp / CppInterOp.h (look for "C-ABI"). They are not
