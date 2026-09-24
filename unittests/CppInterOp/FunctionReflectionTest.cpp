@@ -2974,9 +2974,6 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_IsVirtualMethod) {
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_JitCallAdvanced) {
-#if CLANG_VERSION_MAJOR == 20 && defined(CPPINTEROP_USE_CLING) && defined(_WIN32)
-  GTEST_SKIP() << "Test fails with Cling on Windows";
-#endif
 #ifdef EMSCRIPTEN
 #if CLANG_VERSION_MAJOR > 21
   GTEST_SKIP() << "Test fails for Emscipten builds using LLVM 22";
@@ -4461,10 +4458,6 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_DestructArray) {
 TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_UndoTest) {
 #ifdef _WIN32
   GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
-#endif
-#if CLANG_VERSION_MAJOR == 20 && defined(CPPINTEROP_USE_CLING) &&           \
-    defined(__APPLE__)
-  GTEST_SKIP() << "Disabled on osx for cling based on llvm 20. Needs fixing.";
 #endif
 #if defined(CPPINTEROP_USE_CLING)
   GTEST_SKIP() << "cling unload walks a module already freed by ORC "

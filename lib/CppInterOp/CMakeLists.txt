@@ -107,6 +107,10 @@ if (LLVM_LINK_LLVM_DYLIB)
     Option
     TargetParser
     )
+  # Since LLVM 23 clangCodeGen lowers call ABIs through llvm/lib/ABI.
+  if(LLVM_VERSION_MAJOR GREATER 22)
+    list(APPEND LLVM_LINK_COMPONENTS ABI)
+  endif()
 endif(LLVM_LINK_LLVM_DYLIB)
 
 # Generate .inc files from CppInterOp.td using cppinterop-tblgen.

@@ -122,10 +122,6 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, VariableReflection_GetDatamembers) {
 CODE
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, VariableReflection_DatamembersWithAnonymousStructOrUnion) {
-#if CLANG_VERSION_MAJOR == 20 && defined(CPPINTEROP_USE_CLING) && defined(_WIN32)
-  GTEST_SKIP() << "Test fails with Cling on Windows";
-#endif
-
   std::vector<Decl*> Decls;
 #define Stringify(s) Stringifyx(s)
 #define Stringifyx(...) #__VA_ARGS__
@@ -640,10 +636,6 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, VariableReflection_VariableOffsetsWithInheritan
 #ifdef __EMSCRIPTEN__
   GTEST_SKIP() << "This test crashes for Emscripten builds of CppInterOp";
 #endif
-#if CLANG_VERSION_MAJOR == 20 && defined(CPPINTEROP_USE_CLING) && defined(_WIN32)
-  GTEST_SKIP() << "Test fails with Cling on Windows";
-#endif
-
   std::vector<const char*> interpreter_args = {"-include", "new"};
   TestFixture::CreateInterpreter(interpreter_args);
 
