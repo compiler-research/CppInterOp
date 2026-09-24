@@ -202,9 +202,10 @@ struct InterpreterShutdown {
 };
 
 // Function-static storage for interpreters
-static std::deque<InterpreterInfo>&
+static std::deque<std::unique_ptr<InterpreterInfo>>&
 GetInterpreters(bool SetCrashHandler = true) {
-  static llvm::ManagedStatic<std::deque<InterpreterInfo>> sInterpreters;
+  static llvm::ManagedStatic<std::deque<std::unique_ptr<InterpreterInfo>>>
+      sInterpreters;
   static std::once_flag ProcessInitialized;
   std::call_once(ProcessInitialized, [SetCrashHandler]() {
     if (SetCrashHandler)
@@ -241,7 +242,7 @@ GetInterpreters(bool SetCrashHandler = true) {
 // Global crash handler for the entire process
 static void DefaultProcessCrashHandler(void*) {
   // Access the static deque via the getter
-  std::deque<InterpreterInfo>& Interps = GetInterpreters();
+  std::deque<std::unique_ptr<InterpreterInfo>>& Interps = GetInterpreters();
 
   llvm::errs() << "\n**************************************************\n";
   llvm::errs() << "  CppInterOp CRASH DETECTED\n";
@@ -258,8 +259,8 @@ static void DefaultProcessCrashHandler(void*) {
   if (!Interps.empty()) {
     llvm::errs() << "  Active Interpreters:\n";
     for (const auto& Info : Interps) {
-      if (Info.Interpreter)
-        llvm::errs() << "    - " << Info.Interpreter << "\n";
+      if (Info->Interpreter)
+        llvm::errs() << "    - " << Info->Interpreter << "\n";
     }
   }
 
@@ -279,9 +280,11 @@ static void DefaultProcessCrashHandler(void*) {
 
 static void RegisterInterpreter(compat::Interpreter* I, bool Owned,
                                 std::vector<std::string> ArgvStorage = {}) {
-  std::deque<InterpreterInfo>& Interps = GetInterpreters(Owned);
-  Interps.emplace_back(I, Owned, std::move(ArgvStorage));
-  InstallDiagConsumer(&Interps.back());
+  std::deque<std::unique_ptr<InterpreterInfo>>& Interps =
+      GetInterpreters(Owned);
+  Interps.emplace_back(
+      std::make_unique<InterpreterInfo>(I, Owned, std::move(ArgvStorage)));
+  InstallDiagConsumer(Interps.back().get());
 }
 
 static InterpreterInfo& getInterpInfo(compat::Interpreter* I = nullptr) {
@@ -290,10 +293,10 @@ static InterpreterInfo& getInterpInfo(compat::Interpreter* I = nullptr) {
          "Interpreter instance must be set before calling this!");
   if (I) {
     for (auto& Info : Interps)
-      if (Info.Interpreter == I)
-        return Info;
+      if (Info->Interpreter == I)
+        return *Info;
   }
-  return Interps.back();
+  return *Interps.back();
 }
 
 static compat::Interpreter& getInterp(InterpRef I = nullptr) {
@@ -308,10 +311,10 @@ CPPINTEROP_API InterpreterInfo* GetInterpInfo(InterpRef I) {
 
 InterpRef GetInterpreter() {
   INTEROP_TRACE();
-  std::deque<InterpreterInfo>& Interps = GetInterpreters();
+  std::deque<std::unique_ptr<InterpreterInfo>>& Interps = GetInterpreters();
   if (Interps.empty())
     return INTEROP_RETURN(nullptr);
-  return INTEROP_RETURN(Interps.back().Interpreter);
+  return INTEROP_RETURN(Interps.back()->Interpreter);
 }
 
 void UseExternalInterpreter(InterpRef I) {
@@ -327,11 +330,11 @@ bool ActivateInterpreter(InterpRef I) {
   if (!I)
     return INTEROP_RETURN(false);
 
-  std::deque<InterpreterInfo>& Interps = GetInterpreters();
+  std::deque<std::unique_ptr<InterpreterInfo>>& Interps = GetInterpreters();
   auto* Interp = unwrap<compat::Interpreter>(I);
   auto found =
       std::find_if(Interps.begin(), Interps.end(), [Interp](const auto& Info) {
-        return Info.Interpreter == Interp;
+        return Info->Interpreter == Interp;
       });
   if (found == Interps.end())
     return INTEROP_RETURN(false);
@@ -344,7 +347,7 @@ bool ActivateInterpreter(InterpRef I) {
 
 bool DeleteInterpreter(InterpRef I /*=nullptr*/) {
   INTEROP_TRACE(I);
-  std::deque<InterpreterInfo>& Interps = GetInterpreters();
+  std::deque<std::unique_ptr<InterpreterInfo>>& Interps = GetInterpreters();
   if (Interps.empty())
     return INTEROP_RETURN(false);
 
@@ -356,7 +359,7 @@ bool DeleteInterpreter(InterpRef I /*=nullptr*/) {
   auto* Interp = unwrap<compat::Interpreter>(I);
   auto found =
       std::find_if(Interps.begin(), Interps.end(), [Interp](const auto& Info) {
-        return Info.Interpreter == Interp;
+        return Info->Interpreter == Interp;
       });
   if (found == Interps.end())
     return INTEROP_RETURN(false); // failure
@@ -3720,7 +3723,7 @@ static void RegisterPerms(llvm::StringMap<QualType>& Map, QualType QT,
 ALLOW_ACCESS(ASTContext, Types, llvm::SmallVector<clang::Type*, 0>);
 static void PopulateBuiltinMap(ASTContext& Context) {
   const PrintingPolicy Policy(Context.getLangOpts());
-  auto& BuiltinMap = GetInterpreters().back().BuiltinMap;
+  auto& BuiltinMap = GetInterpreters().back()->BuiltinMap;
   const auto& Types = ACCESS(Context, Types);
 
   for (clang::Type* T : Types) {
@@ -3796,7 +3799,7 @@ static void PopulateBuiltinMap(ASTContext& Context) {
   BuiltinMap["unsigned"] = Context.UnsignedIntTy;
 }
 static QualType findBuiltinType(llvm::StringRef typeName, ASTContext& Context) {
-  llvm::StringMap<QualType>& BuiltinMap = GetInterpreters().back().BuiltinMap;
+  llvm::StringMap<QualType>& BuiltinMap = GetInterpreters().back()->BuiltinMap;
   if (BuiltinMap.empty())
     PopulateBuiltinMap(Context);
 

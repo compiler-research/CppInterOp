@@ -55,26 +55,8 @@ struct InterpreterInfo {
                   std::vector<std::string> ArgvStrs = {})
       : Interpreter(I), isOwned(Owned), ArgvStorage(std::move(ArgvStrs)) {}
 
-  InterpreterInfo(InterpreterInfo&& Other) noexcept
-      : Interpreter(Other.Interpreter), isOwned(Other.isOwned),
-        ArgvStorage(std::move(Other.ArgvStorage)),
-        OdrUseCounter(Other.OdrUseCounter) {
-    Other.Interpreter = nullptr;
-    Other.isOwned = false;
-  }
-  InterpreterInfo& operator=(InterpreterInfo&& Other) noexcept {
-    if (this != &Other) {
-      if (isOwned)
-        delete Interpreter;
-      Interpreter = Other.Interpreter;
-      isOwned = Other.isOwned;
-      ArgvStorage = std::move(Other.ArgvStorage);
-      OdrUseCounter = Other.OdrUseCounter;
-      Other.Interpreter = nullptr;
-      Other.isOwned = false;
-    }
-    return *this;
-  }
+  InterpreterInfo(InterpreterInfo&& Other) = delete;
+  InterpreterInfo& operator=(InterpreterInfo&& Other) = delete;
 
   ~InterpreterInfo() {
     if (isOwned)
