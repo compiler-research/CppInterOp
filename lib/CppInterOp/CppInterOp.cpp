@@ -1827,7 +1827,7 @@ AllocType IsAllocator(ConstFuncRef Fn) {
 bool IsDeallocator(ConstFuncRef Fn) {
   INTEROP_TRACE(Fn);
   if (!Fn)
-    INTEROP_RETURN(false);
+    return INTEROP_RETURN(false);
   const auto* D = unwrap<clang::Decl>(Fn);
   if (const auto* FD = dyn_cast<FunctionDecl>(D)) {
     if (FD->getBuiltinID() == Builtin::ID::BIfree)
