@@ -3546,6 +3546,8 @@ bool IsSameType(ConstTypeRef type_a, ConstTypeRef type_b) {
 
 bool IsPointerType(ConstTypeRef TyRef) {
   INTEROP_TRACE(TyRef);
+  if (!TyRef)
+    return INTEROP_RETURN(false);
   QualType QT = QualType::getFromOpaquePtr(TyRef.data);
   return INTEROP_RETURN(QT->isPointerType());
 }
