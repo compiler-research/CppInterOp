@@ -1893,21 +1893,92 @@ AllocType IsAllocator(ConstFuncRef Fn) {
   return INTEROP_RETURN(AllocType::Unknown);
 }
 
-bool IsDeallocator(ConstFuncRef Fn) {
+// First index of vector is allocated for `self`, if function
+// does not have self 0th index will be DeallocType::None.
+// So actual first parameter is located at 1st index it is
+// also compatible with Clang convension.
+std::vector<DeallocType> IsDeallocator(ConstFuncRef Fn) {
   INTEROP_TRACE(Fn);
-  if (!Fn)
-    INTEROP_RETURN(false);
-  const auto* D = unwrap<clang::Decl>(Fn);
+  const auto* D = UnwrapUsingShadowToFunction(unwrap<clang::Decl>(Fn));
+  if (const auto* FTD = dyn_cast<FunctionTemplateDecl>(D))
+    D = FTD->getTemplatedDecl();
   if (const auto* FD = dyn_cast<FunctionDecl>(D)) {
-    if (FD->getBuiltinID() == Builtin::ID::BIfree)
-      return INTEROP_RETURN(true);
-    if (const auto* FDA = FD->getAttr<OwnershipAttr>()) {
-      if (FDA->getOwnKind() == OwnershipAttr::Takes)
-        return INTEROP_RETURN(true);
+    if (FD->getBuiltinID() == Builtin::ID::BIfree) {
+      std::vector<DeallocType> freeVPP{DeallocType::None, DeallocType::Free};
+      return INTEROP_RETURN(freeVPP);
     }
+    const unsigned numParam = FD->getNumParams();
+    std::vector<DeallocType> VPP(numParam + 1, DeallocType::None);
+    for (const auto* FDA : FD->specific_attrs<OwnershipAttr>()) {
+      // If it does not return, either holds or takes
+      if (FDA->getOwnKind() == OwnershipAttr::Returns)
+        continue;
+      // If GCC's ownership attrs are used, it is assumed to be free
+      for (const ParamIdx index : FDA->args())
+        // Self can not be attributed with ownership_attr
+        VPP[index.getASTIndex() + 1] = DeallocType::Free;
+    }
+    // Traverse annotate_attrs
+    for (const auto* FDA : FD->specific_attrs<AnnotateAttr>()) {
+      llvm::StringRef attrName = FDA->getAnnotation();
+      DeallocType kind;
+      if (attrName == "cppDeallocFree")
+        kind = DeallocType::Free;
+      else if (attrName == "cppDeallocDelete")
+        kind = DeallocType::Delete;
+      else if (attrName == "cppDeallocDeleteArr")
+        kind = DeallocType::DeleteArr;
+      else if (attrName == "cppDeallocNone")
+        kind = DeallocType::None;
+      // If annotate_attr is any other thing continue
+      else
+        continue;
+      // Traverse all args of annotate_attr
+      for (const auto* E : FDA->args()) {
+        // Since we support FTDs, we must do that check
+        if (E->isValueDependent())
+          continue;
+        Expr::EvalResult evalRes;
+        // Not int
+        if (!E->EvaluateAsInt(evalRes, FD->getASTContext()))
+          continue;
+        const int64_t index = evalRes.Val.getInt().getSExtValue();
+        if (index < 0 || (uint64_t)index >= VPP.size())
+          continue;
+        VPP[index] = kind;
+      }
+    }
+    // Traverse APINotes attrs
+    for (const auto* FDA : FD->specific_attrs<SwiftAttrAttr>()) {
+      llvm::StringRef attrName = FDA->getAttribute();
+      attrName.consume_front("returns_");
+      llvm::SmallVector<llvm::StringRef, 8> tokens;
+      attrName.split(tokens, ' ', -1, false);
+      for (llvm::StringRef token : tokens) {
+        if (token.consume_front("cppDeallocDelete_")) {
+          unsigned index;
+          if (!token.getAsInteger(10, index) && index < VPP.size()) {
+            VPP[index] = DeallocType::Delete;
+          }
+        } else if (token.consume_front("cppDeallocDeleteArr_")) {
+          unsigned index;
+          if (!token.getAsInteger(10, index) && index < VPP.size())
+            VPP[index] = DeallocType::DeleteArr;
+        } else if (token.consume_front("cppDeallocFree_")) {
+          unsigned index;
+          if (!token.getAsInteger(10, index) && index < VPP.size())
+            VPP[index] = DeallocType::Free;
+        } else if (token.consume_front("cppDeallocNone_")) {
+          unsigned index;
+          if (!token.getAsInteger(10, index) && index < VPP.size())
+            VPP[index] = DeallocType::None;
+        }
+      }
+    }
+    return INTEROP_RETURN(VPP);
   }
-
-  return INTEROP_RETURN(false);
+  // If given parameter is not a function, returns Opaque
+  return INTEROP_RETURN(std::vector<DeallocType>(1, DeallocType::Opaque));
 }
 
 bool IsFunctionProtoType(ConstTypeRef TyRef) {
