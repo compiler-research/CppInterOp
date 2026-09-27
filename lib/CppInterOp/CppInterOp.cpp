@@ -1974,21 +1974,108 @@ AllocType IsAllocator(ConstFuncRef Fn) {
   return INTEROP_RETURN(AllocType::Unknown);
 }
 
-bool IsDeallocator(ConstFuncRef Fn) {
-  INTEROP_TRACE(Fn);
-  if (!Fn)
-    INTEROP_RETURN(false);
-  const auto* D = unwrap<clang::Decl>(Fn);
-  if (const auto* FD = dyn_cast<FunctionDecl>(D)) {
-    if (FD->getBuiltinID() == Builtin::ID::BIfree)
-      return INTEROP_RETURN(true);
-    if (const auto* FDA = FD->getAttr<OwnershipAttr>()) {
-      if (FDA->getOwnKind() == OwnershipAttr::Takes)
-        return INTEROP_RETURN(true);
+// We follow Clang's convention for ownership attributes, parameters are 1
+// indexed. Therefore if a function has an implicit this, you should use
+// cppDeallocDelete_2 to labeling first actual parameter, also it is not allowed
+// to label implicit `this`.
+// Function appends a DeallocType to the vector taken, for every argument in
+// the function including implicit this. If an argument does not have an
+// deallocation ownership, Opaque value is added.
+bool IsDeallocator(ConstFuncRef Fn, std::vector<DeallocType>& VPP) {
+  INTEROP_TRACE(Fn, INTEROP_OUT(VPP));
+  const auto* FD = UnwrapToFunctionDecl(unwrap<clang::Decl>(Fn));
+  if (!FD)
+    return INTEROP_RETURN(false);
+  const auto* MD = dyn_cast<CXXMethodDecl>(FD);
+  const bool hasImplicitThis = MD && MD->isImplicitObjectMemberFunction();
+  const unsigned numParam = FD->getNumParams();
+  std::vector<DeallocType> newVPP(numParam + hasImplicitThis,
+                                  DeallocType::Opaque);
+  if (FD->getBuiltinID() == Builtin::ID::BIfree) {
+    VPP.push_back(DeallocType::Free);
+    return INTEROP_RETURN(true);
+  }
+  for (const auto* FDA : FD->specific_attrs<OwnershipAttr>()) {
+    // If it does not return, either holds or takes
+    if (FDA->getOwnKind() == OwnershipAttr::Returns)
+      continue;
+    // If GCC's ownership attrs are used, it is assumed to be free
+    for (const ParamIdx index : FDA->args())
+      // Self can not be attributed with ownership_attr
+      newVPP[index.getLLVMIndex()] = DeallocType::Free;
+  }
+  // Traverse annotate_attrs
+  for (const auto* FDA : FD->specific_attrs<AnnotateAttr>()) {
+    llvm::StringRef attrName = FDA->getAnnotation();
+    DeallocType kind;
+    if (attrName == "cppDeallocFree")
+      kind = DeallocType::Free;
+    else if (attrName == "cppDeallocDelete")
+      kind = DeallocType::Delete;
+    else if (attrName == "cppDeallocDeleteArr")
+      kind = DeallocType::DeleteArr;
+    else if (attrName == "cppDeallocNone")
+      kind = DeallocType::None;
+    // If annotate_attr is any other thing continue
+    else
+      continue;
+    // If attribute has no argument, it is assumed to attribute
+    // for first index (after implicit this)
+    if (FDA->args_size() == 0) {
+      if (numParam >= 1)
+        newVPP[hasImplicitThis] = kind;
+      continue;
+    }
+    // Traverse all args of annotate_attr
+    for (const auto* E : FDA->args()) {
+      // Since we support FTDs, we must do that check
+      if (E->isValueDependent())
+        continue;
+      Expr::EvalResult evalRes;
+      // Not int
+      if (!E->EvaluateAsInt(evalRes, FD->getASTContext()))
+        continue;
+      const int64_t index = evalRes.Val.getInt().getSExtValue();
+      if (index < 1 || (uint64_t)index > newVPP.size() ||
+          (index == 1 && hasImplicitThis))
+        continue;
+      newVPP[index - 1] = kind;
     }
   }
-
-  return INTEROP_RETURN(false);
+  // Traverse APINotes attrs
+  for (const auto* FDA : FD->specific_attrs<SwiftAttrAttr>()) {
+    llvm::StringRef attrName = FDA->getAttribute();
+    attrName.consume_front("returns_");
+    llvm::SmallVector<llvm::StringRef, 8> tokens;
+    attrName.split(tokens, ' ', -1, false);
+    for (llvm::StringRef token : tokens) {
+      DeallocType kind;
+      if (token.consume_front("cppDeallocDeleteArr"))
+        kind = DeallocType::DeleteArr;
+      else if (token.consume_front("cppDeallocDelete"))
+        kind = DeallocType::Delete;
+      else if (token.consume_front("cppDeallocFree"))
+        kind = DeallocType::Free;
+      else if (token.consume_front("cppDeallocNone"))
+        kind = DeallocType::None;
+      else
+        continue;
+      // If attribute is cppDealloc`DeallocType` without index,
+      // it is assumed to be attribute for first index (after implicit this)
+      if (token.empty()) {
+        if (numParam >= 1)
+          newVPP[hasImplicitThis] = kind;
+        continue;
+      }
+      unsigned index;
+      if (!token.consume_front("_") || token.getAsInteger(10, index) ||
+          index < 1 || index > newVPP.size() || (hasImplicitThis && index == 1))
+        continue;
+      newVPP[index - 1] = kind;
+    }
+  }
+  VPP.insert(VPP.end(), newVPP.begin(), newVPP.end());
+  return INTEROP_RETURN(true);
 }
 
 bool IsFunctionProtoType(ConstTypeRef TyRef) {
