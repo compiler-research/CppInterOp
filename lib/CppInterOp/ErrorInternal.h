@@ -66,16 +66,21 @@ struct alignas(16) ErrorSlice {
 // into a slice. Impl code returns llvm::Expected<T> with these on
 // the failure path; makeResult wraps them into Result<T>.
 
-class CPPINTEROP_API StatusError : public llvm::ErrorInfo<StatusError> {
+// Export the members, not the class: MSVC propagates a class-level
+// dllexport onto the llvm::ErrorInfo<> base, which LLVM does not export,
+// and warns C4275. ID and the out-of-line virtuals are exported here; the
+// vtable follows log() as key function, at the library's visibility.
+class StatusError : public llvm::ErrorInfo<StatusError> {
 public:
-  static char ID;
+  CPPINTEROP_API static char ID;
   Status Code;
   std::string Message;
 
   StatusError(Status C, std::string M) : Code(C), Message(std::move(M)) {}
 
-  void log(llvm::raw_ostream& OS) const override;
-  [[nodiscard]] std::error_code convertToErrorCode() const override;
+  CPPINTEROP_API void log(llvm::raw_ostream& OS) const override;
+  [[nodiscard]] CPPINTEROP_API std::error_code
+  convertToErrorCode() const override;
 };
 
 /// Allocate a fresh slice on the heap, refcount 0. Caller bumps the
