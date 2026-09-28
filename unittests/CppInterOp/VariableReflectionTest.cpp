@@ -936,6 +936,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, VariableReflection_Is_Get_Pointer) {
   EXPECT_TRUE(Cpp::IsPointerType(Cpp::GetVariableType(Decls[4])));
   EXPECT_FALSE(Cpp::IsPointerType(Cpp::GetVariableType(Decls[5])));
   EXPECT_TRUE(Cpp::IsPointerType(Cpp::GetVariableType(Decls[6])));
+  EXPECT_FALSE(Cpp::IsPointerType(Cpp::ConstTypeRef{nullptr}));
 
   EXPECT_EQ(Cpp::GetPointeeType(Cpp::GetVariableType(Decls[2])),
             Cpp::GetVariableType(Decls[1]));
