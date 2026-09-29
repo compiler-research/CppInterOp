@@ -11,6 +11,9 @@
 #include "Unwrap.h"
 #include "CppInterOp/Error.h"
 
+// Generated at configure time; defines CPPINTEROP_BAKED_INTERPRETER_ARGS
+// and CPPINTEROP_CLANG_RESOURCE_DIR when the build baked them in.
+#include "BakedArgs.h"
 #include "Compatibility.h"
 #include "ErrorInternal.h"
 #include "InterpreterInfo.h"
@@ -5349,6 +5352,13 @@ bool DefineAbsoluteSymbol(compat::Interpreter& I, const char* unmangled_name,
 #endif
 
 static std::string MakeResourcesPath() {
+#ifdef CPPINTEROP_CLANG_RESOURCE_DIR
+  // Recorded at configure time from the clang this library links against;
+  // the LLVM_BINARY_DIR derivation below misses whenever clang's headers
+  // are installed under a different prefix than LLVM's libraries.
+  if (sys::fs::is_directory(CPPINTEROP_CLANG_RESOURCE_DIR))
+    return CPPINTEROP_CLANG_RESOURCE_DIR;
+#endif
   StringRef Dir;
 #ifdef LLVM_BINARY_DIR
   Dir = LLVM_BINARY_DIR;
@@ -5441,13 +5451,37 @@ InterpRef CreateInterpreter(const std::vector<const char*>& Args /*={}*/,
   // copies and move them into the interpreter's InterpreterInfo entry.
   std::vector<std::string> ArgvStorage;
   ArgvStorage.push_back(sys::fs::getMainExecutable(nullptr, nullptr));
+  // Arguments compiled in at configure time, e.g. a packager recording the
+  // toolchain header paths the in-process clang cannot probe for. They
+  // precede the embedder's arguments so they act as defaults: conflicts in
+  // the clang invocation are resolved later-wins, and the embedder's
+  // -resource-dir stays ahead of the baked one (ExtractArgument below).
+  // CPPINTEROP_EXTRA_INTERPRETER_ARGS from the environment follows both.
+  std::vector<const char*> AllArgs;
+#ifdef CPPINTEROP_BAKED_INTERPRETER_ARGS
+  // Storage for the split arguments; must outlive the pointers in AllArgs.
+  std::vector<std::string> BakedStorage;
+  StringRef Baked(CPPINTEROP_BAKED_INTERPRETER_ARGS);
+  while (!Baked.empty()) {
+    StringRef Arg;
+    std::tie(Arg, Baked) = Baked.split(' ');
+    if (!Arg.empty())
+      BakedStorage.push_back(Arg.str());
+  }
+  for (const std::string& Arg : BakedStorage)
+    AllArgs.push_back(Arg.c_str());
+#endif
+  AllArgs.insert(AllArgs.end(), Args.begin(), Args.end());
   // In some systems, CppInterOp cannot manually detect the correct resource.
   // Then the -resource-dir passed by the user is assumed to be the correct
   // location. Prioritising it over detecting it within CppInterOp. Extracting
   // the resource-dir from the arguments is required because we set the
   // necessary library search location explicitly below. Because by default,
   // linker flags are ignored in repl (issue #748)
+  // The embedder's -resource-dir wins over any baked one.
   std::string ResourceDir = ExtractArgument(Args, "-resource-dir");
+  if (ResourceDir.empty())
+    ResourceDir = ExtractArgument(AllArgs, "-resource-dir");
   if (ResourceDir.empty())
     ResourceDir = MakeResourcesPath();
   llvm::Triple T(llvm::sys::getProcessTriple());
@@ -5489,7 +5523,7 @@ InterpRef CreateInterpreter(const std::vector<const char*>& Args /*={}*/,
     }
   }
 #endif
-  ArgvStorage.insert(ArgvStorage.end(), Args.begin(), Args.end());
+  ArgvStorage.insert(ArgvStorage.end(), AllArgs.begin(), AllArgs.end());
   // To keep the Interpreter creation interface between cling and clang-repl
   // to some extent compatible we should put Args and GpuArgs together. On the
   // receiving end we should check for -xcuda to know.
