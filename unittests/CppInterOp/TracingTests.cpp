@@ -9,12 +9,14 @@
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/raw_ostream.h"
 
+#include <CppInterOp/CppInterOpTypes.h>
 #include <cstdint>
 #include <fstream>
 #include <gmock/gmock.h>
 #include <gtest/gtest.h>
 #include <regex>
 #include <sstream>
+#include <string>
 
 using namespace CppInterOp::Tracing;
 using ::testing::HasSubstr;
@@ -195,6 +197,50 @@ TEST_F(TracingTest, ScalarPointerOutRendersAsNullptr) {
   EXPECT_EQ(ScalarOutDummy("x", &err), 42);
   auto output = TheTraceInfo->getLastLogEntry();
   EXPECT_THAT(output, HasSubstr("Cpp::ScalarOutDummy(\"x\", nullptr)"));
+}
+
+// Scalar-reference OUT helper: an enum/bool out-param wrapped with
+// INTEROP_OUT is rendered as a fresh local so the reproducer compiles.
+bool ScalarRefOutDummy(Cpp::QualKind& qual, bool& flag) {
+  INTEROP_TRACE(INTEROP_OUT(qual), INTEROP_OUT(flag));
+  qual = Cpp::QualKind::Const;
+  flag = true;
+  return INTEROP_RETURN(true);
+}
+
+bool ScalarRefOutOuter(Cpp::QualKind& qual, bool& flag) {
+  INTEROP_TRACE(INTEROP_OUT(qual), INTEROP_OUT(flag));
+  return INTEROP_RETURN(ScalarRefOutDummy(qual, flag));
+}
+
+TEST_F(TracingTest, ScalarRefOutRendersAsLocal) {
+  Cpp::QualKind qual = Cpp::QualKind::None;
+  bool flag = false;
+  EXPECT_TRUE(ScalarRefOutDummy(qual, flag));
+  flag = true;
+  qual = Cpp::QualKind::Restrict;
+  EXPECT_TRUE(ScalarRefOutDummy(qual, flag));
+  auto output = getFullLog();
+  // Every call gets its own locals, holding the arguments' values on entry.
+  EXPECT_THAT(output, HasSubstr("auto _out0 = static_cast<Cpp::QualKind>(0);"));
+  EXPECT_THAT(output, HasSubstr("auto _out1 = false;"));
+  EXPECT_THAT(output, HasSubstr("Cpp::ScalarRefOutDummy(_out0, _out1);"));
+  EXPECT_THAT(output, HasSubstr("auto _out2 = static_cast<Cpp::QualKind>(" +
+                                std::to_string(
+                                    static_cast<int>(Cpp::QualKind::Restrict)) +
+                                ");"));
+  EXPECT_THAT(output, HasSubstr("auto _out3 = true;"));
+  EXPECT_THAT(output, HasSubstr("Cpp::ScalarRefOutDummy(_out2, _out3);"));
+}
+
+TEST_F(TracingTest, ScalarRefOutNestedCallNotEmitted) {
+  Cpp::QualKind qual = Cpp::QualKind::None;
+  bool flag = false;
+  EXPECT_TRUE(ScalarRefOutOuter(qual, flag));
+  auto output = getFullLog();
+  EXPECT_THAT(output, HasSubstr("Cpp::ScalarRefOutOuter(_out0, _out1);"));
+  EXPECT_THAT(output, Not(HasSubstr("_out2")));
+  EXPECT_THAT(output, Not(HasSubstr("ScalarRefOutDummy")));
 }
 
 // Shadows the public API name Cpp::Process (which is not OUT in the .td)
