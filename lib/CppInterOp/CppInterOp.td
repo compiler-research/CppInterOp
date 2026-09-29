@@ -451,6 +451,16 @@ underlying decl is not a class it returns the input unchanged.}];
   ];
 }
 
+def GetTemplatedDecl : CppInterOpAPI {
+  let Doc = [{Returns the templated (pattern) declaration of the
+template the given declaration belongs to.}];
+
+  let ReturnType = "DeclRef";
+  let Args = [
+    Arg<"DeclRef", "DRef">
+  ];
+}
+
 def InstantiateTemplate : CppInterOpAPI {
   let Doc = [{Builds a template instantiation for a given templated declaration.
 Offers a single interface for instantiation of class, function and

@@ -437,6 +437,33 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_IsTemplateSpecialization) {
           Cpp::GetScopeFromType(Cpp::GetVariableType(Decls[1]))));
 }
 
+TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_GetTemplatedDecl) {
+  std::vector<Decl*> Decls;
+  std::string code = R"(
+    template <typename T> struct MyTmpl { T value; };
+    MyTmpl<int> inst_int;
+    MyTmpl<double> inst_double;
+    template <typename T> T func_template(T t) { return t; }
+    )";
+
+  GetAllTopLevelDecls(code, Decls);
+  ASSERT_EQ(Decls.size(), 4U);
+
+  auto Pattern = Cpp::GetTemplatedDecl(Decls[0]);
+  auto GetScopeOfVar = [](Decl* D) {
+    return Cpp::GetScopeFromType(Cpp::GetVariableType(D));
+  };
+
+  EXPECT_EQ(Cpp::GetTemplatedDecl(GetScopeOfVar(Decls[1])), Pattern);
+  EXPECT_EQ(Cpp::GetTemplatedDecl(GetScopeOfVar(Decls[2])), Pattern);
+
+  ASSERT_TRUE(Cpp::GetTemplatedDecl(Decls[3]));
+  ASSERT_TRUE(Cpp::IsFunction((Cpp::GetTemplatedDecl(Decls[3]))));
+  ASSERT_NE(Cpp::GetTemplatedDecl(Decls[3]), Decls[3]);
+
+  EXPECT_FALSE(Cpp::GetTemplatedDecl(nullptr));
+}
+
 TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_IsTypedefed) {
   std::vector<Decl *> Decls;
   std::string code = R"(
