@@ -783,6 +783,7 @@ size_t SizeOf(ConstDeclRef DRef) {
 
   if (const auto* RD = dyn_cast<RecordDecl>(unwrap<Decl>(DRef))) {
     ASTContext& Context = RD->getASTContext();
+    compat::SynthesizingCodeRAII RAII(&getInterp());
     const ASTRecordLayout& Layout = Context.getASTRecordLayout(RD);
     return INTEROP_RETURN(Layout.getSize().getQuantity());
   }
@@ -1125,6 +1126,9 @@ static Decl* GetScopeFromType(QualType QT) {
   if (auto* Type = QT.getCanonicalType().getTypePtrOrNull()) {
     Type = Type->getPointeeOrArrayElementType();
     Type = Type->getUnqualifiedDesugaredType();
+    // getDecl() and getAsCXXRecordDecl() walk the redecl chain, which may
+    // deserialize it.
+    compat::SynthesizingCodeRAII RAII(&getInterp());
     if (auto* ET = llvm::dyn_cast<EnumType>(Type))
       return ET->getDecl();
     CXXRecordDecl* CXXRD = Type->getAsCXXRecordDecl();
@@ -1328,7 +1332,7 @@ bool HasReachableUsingDirective(const clang::DeclContext* DC) {
 
 DeclRef GetNamed(const std::string& name, ConstDeclRef parent /*= nullptr*/) {
   INTEROP_TRACE(name, parent);
-  clang::DeclContext* Within = 0;
+  clang::DeclContext* Within = nullptr;
   if (parent) {
     auto* D = unwrap<clang::Decl>(GetUnderlyingScope(parent));
     Within = llvm::dyn_cast<clang::DeclContext>(D);
@@ -1429,6 +1433,9 @@ size_t GetNumBases(ConstDeclRef DRef) {
   INTEROP_TRACE(DRef);
   const auto* D = unwrap<Decl>(DRef);
 
+  // hasDefinition() completes the redecl chain (dataPtr), which may
+  // deserialize it; so does getNumBases() below.
+  compat::SynthesizingCodeRAII RAII(&getInterp());
   if (const auto* CTSD =
           llvm::dyn_cast_or_null<ClassTemplateSpecializationDecl>(D))
     if (!CTSD->hasDefinition())
@@ -1446,6 +1453,7 @@ DeclRef GetBaseClass(ConstDeclRef DRef, size_t ibase) {
   INTEROP_TRACE(DRef, ibase);
   const auto* D = unwrap<Decl>(DRef);
   const auto* CXXRD = llvm::dyn_cast_or_null<CXXRecordDecl>(D);
+  compat::SynthesizingCodeRAII RAII(&getInterp());
   if (!CXXRD || CXXRD->getNumBases() <= ibase)
     return INTEROP_RETURN(nullptr);
 
@@ -3350,6 +3358,7 @@ DeclRef LookupDatamember(const std::string& name, ConstDeclRef parent) {
 bool IsLambdaClass(ConstTypeRef TyRef) {
   INTEROP_TRACE(TyRef);
   QualType QT = QualType::getFromOpaquePtr(TyRef.data);
+  compat::SynthesizingCodeRAII RAII(&getInterp());
   if (auto* CXXRD = QT->getAsCXXRecordDecl()) {
     return INTEROP_RETURN(CXXRD->isLambda());
   }
