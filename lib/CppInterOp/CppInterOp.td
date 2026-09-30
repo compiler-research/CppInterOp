@@ -1352,8 +1352,10 @@ def IsAllocator : CppInterOpAPI {
 }
 
 def IsDeallocator : CppInterOpAPI {
-  let Doc = "Checks if the provided function is a deallocator function";
-  let ReturnType = "bool";
+  let Doc = [{Returns a vector where each index holds DeallocType of
+corresponding parameter of the given function, 0th index keeps value for
+`self` parameter if exists, therefore parameters are 1-indexed}];
+  let ReturnType = "std::vector<DeallocType>";
   let Args = [
     Arg<"ConstFuncRef", "func">
   ];

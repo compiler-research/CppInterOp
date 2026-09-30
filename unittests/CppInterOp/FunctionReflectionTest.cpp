@@ -986,28 +986,238 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_IsDeallocator) {
   std::vector<Decl*> Decls;
   std::string code = R"(
     class Klass{
-      int val;
-    };
-    __attribute__((ownership_takes(malloc, 1)))
-    void Deallocator(Klass* arg){
-      delete arg;
-    }
-    void foo();
-    )";
-  GetAllTopLevelDecls(code, Decls, true);
-  EXPECT_TRUE(Cpp::IsDeallocator(Decls[1]));
-  EXPECT_FALSE(Cpp::IsDeallocator(Decls[2]));
+      int val = 0;
+      __attribute__((annotate("cppDeallocNone")))
+      int* getValAdress(){
+        return &val;
+      }
 
-  code = R"(
-  #include <stdlib.h>
-    void test(){
-      //Do Nothing
+      // Index 0 denotes the implicit object parameter.
+      __attribute__((annotate("cppDeallocDelete", 0)))
+      void releaseSelf(){
+        delete this;
+      }
+
+      __attribute__((annotate("cppDeallocDelete", 0),
+                     annotate("cppDeallocFree", 1)))
+      void releaseBoth(void* p);
+
+      // `this` occupies source index 1, so `p` is index 3.
+      // That is clang's convension. Not same as ours
+      void __attribute__((ownership_takes(malloc, 3)))
+      methodTakes(int n, void* p);
+
+      // Static methods have no implicit object parameter, so clang counts
+      // from the first real parameter and 0th index stays meaningless.
+      static void __attribute__((ownership_takes(malloc, 2)))
+      staticTakes(int n, void* p);
+
+      static void __attribute__((annotate("cppDeallocFree", 1)))
+      staticFree(void* p);
+
+      // FIXME: This is wrong usage
+      static void __attribute__((annotate("cppDeallocDelete", 0)))
+      staticSelf(void* p);
+
+      static void __attribute__((swift_attr("cppDeallocDeleteArr_1")))
+      staticSwift(void* p);
+    };
+
+    void Plain();
+
+    void __attribute__((ownership_takes(malloc, 1)))
+    Deallocator(void* p);
+
+    void __attribute__((ownership_takes(malloc, 1, 3)))
+    TakesMulti(void* a, int n, void* b);
+
+    void __attribute__((ownership_holds(malloc, 2)))
+    HoldsFunc(int n, void* p);
+
+    void* __attribute__((ownership_returns(malloc, 1)))
+    ReturnsFunc(int size);
+
+    void __attribute__((annotate("cppDeallocFree", 1)))
+    FreeFunc(void* p);
+
+    void __attribute__((annotate("cppDeallocDelete", 1)))
+    DeleteFunc(Klass* p);
+
+    void __attribute__((annotate("cppDeallocDeleteArr", 1)))
+    DeleteArrFunc(Klass* p);
+
+    void __attribute__((annotate("cppDeallocNone", 1)))
+    NoneDeallocFunc(void* p);
+
+    void __attribute__((annotate("cppDeallocFree", 1, 3)))
+    MultiFunc(void* a, int n, void* b);
+
+    void __attribute__((annotate("unrelatedAttr", 1)))
+    UnrelatedFunc(void* p);
+
+    void __attribute__((annotate("cppDeallocFree", 99)))
+    OutOfRangeFunc(void* p);
+
+    void __attribute__((annotate("cppDeallocFree", -1)))
+    NegativeFunc(void* p);
+
+    void __attribute__((annotate("cppDeallocFree", "self")))
+    NotIntFunc(void* p);
+
+    void __attribute__((annotate("cppDeallocFree", 1),
+                        annotate("cppDeallocDelete", 1)))
+    LastWinsFunc(void* p);
+
+    void __attribute__((swift_attr("cppDeallocFree_1")))
+    SwiftFreeFunc(void* p);
+
+    void __attribute__((
+        swift_attr("returns_cppDeallocDelete_1 cppDeallocFree_2")))
+    SwiftMultiFunc(Klass* a, void* b);
+
+    void __attribute__((swift_attr("cppDeallocDeleteArr_1")))
+    SwiftDeleteArrFunc(Klass* p);
+
+    void __attribute__((swift_attr("cppDeallocNone_1")))
+    SwiftNoneFunc(void* p);
+
+    void __attribute__((swift_attr("cppDeallocFree_xyz")))
+    SwiftBadIndexFunc(void* p);
+
+    void __attribute__((swift_attr("cppDeallocFree_99")))
+    SwiftOutOfRangeFunc(void* p);
+
+    void __attribute__((swift_attr("unrelatedSwiftAttr")))
+    SwiftUnrelatedFunc(void* p);
+
+    template <typename T>
+    void __attribute__((annotate("cppDeallocDelete", 1)))
+    TemplatedFunc(T* p){
+      delete p;
     }
+
+    template <int N>
+    void __attribute__((annotate("cppDeallocFree", N)))
+    DependentFunc(void* p){}
+    )";
+  GetAllTopLevelDecls(code, Decls, true,
+                      {"-std=c++17", "-include", "stdlib.h"});
+
+  using DT = Cpp::DeallocType;
+  // Index 0 holds the value for `self`, so parameters start at index 1.
+#define TESTID(N, ...)                                                         \
+  EXPECT_EQ(Cpp::IsDeallocator(Cpp::ConstFuncRef { Cpp::GetNamed(#N).data }),  \
+            (std::vector<DT>{__VA_ARGS__}))
+#define TESTIDM(SCOPE, N, ...)                                                 \
+  EXPECT_EQ(Cpp::IsDeallocator(Cpp::ConstFuncRef{                              \
+                Cpp::GetNamed(#N, Cpp::GetNamed(#SCOPE)).data}),               \
+            (std::vector<DT>{__VA_ARGS__}))
+
+  // Builtin deallocator and a function without any attribute.
+  TESTID(free, DT::None, DT::Free);
+  TESTID(Plain, DT::None);
+
+  // GCC's ownership attributes; `self` is not expressible through them.
+  TESTID(Deallocator, DT::None, DT::Free);
+  TESTID(TakesMulti, DT::None, DT::Free, DT::None, DT::Free);
+  TESTID(HoldsFunc, DT::None, DT::None, DT::Free);
+  TESTID(ReturnsFunc, DT::None, DT::None);
+
+  // CppInterOp's own annotate spelling; indexes are vector slots as-is.
+  TESTID(FreeFunc, DT::None, DT::Free);
+  TESTID(DeleteFunc, DT::None, DT::Delete);
+  TESTID(DeleteArrFunc, DT::None, DT::DeleteArr);
+  TESTID(NoneDeallocFunc, DT::None, DT::None);
+  TESTID(MultiFunc, DT::None, DT::Free, DT::None, DT::Free);
+
+  // Malformed or unrelated annotations leave the vector untouched.
+  TESTID(UnrelatedFunc, DT::None, DT::None);
+  TESTID(OutOfRangeFunc, DT::None, DT::None);
+  TESTID(NegativeFunc, DT::None, DT::None);
+  TESTID(NotIntFunc, DT::None, DT::None);
+  // On a conflicting index the last matching attribute wins.
+  TESTID(LastWinsFunc, DT::None, DT::Delete);
+
+  // swift_attr spelling, the channel API Notes feeds.
+  TESTID(SwiftFreeFunc, DT::None, DT::Free);
+  TESTID(SwiftMultiFunc, DT::None, DT::Delete, DT::Free);
+  TESTID(SwiftDeleteArrFunc, DT::None, DT::DeleteArr);
+  TESTID(SwiftNoneFunc, DT::None, DT::None);
+  TESTID(SwiftBadIndexFunc, DT::None, DT::None);
+  TESTID(SwiftOutOfRangeFunc, DT::None, DT::None);
+  TESTID(SwiftUnrelatedFunc, DT::None, DT::None);
+
+  // Methods: index 0 is the implicit object parameter.
+  TESTIDM(Klass, getValAdress, DT::None);
+  TESTIDM(Klass, releaseSelf, DT::Delete);
+  TESTIDM(Klass, releaseBoth, DT::Delete, DT::Free);
+  TESTIDM(Klass, methodTakes, DT::None, DT::None, DT::Free);
+
+  // Static methods: index 1 is the first parameter again, and slot 0 is never
+  // `self` -- writing to it is accepted but carries no meaning.
+  TESTIDM(Klass, staticTakes, DT::None, DT::None, DT::Free);
+  TESTIDM(Klass, staticFree, DT::None, DT::Free);
+  TESTIDM(Klass, staticSelf, DT::Delete, DT::None);
+  TESTIDM(Klass, staticSwift, DT::None, DT::DeleteArr);
+
+  // Templates are unwrapped to their pattern; a value-dependent index cannot
+  // be folded, therefore ignored.
+  Decl* templatedFunc = Decls[Decls.size() - 2];
+  Decl* dependentFunc = Decls[Decls.size() - 1];
+  EXPECT_EQ(Cpp::IsDeallocator(Cpp::ConstFuncRef{templatedFunc}),
+            (std::vector<DT>{DT::None, DT::Delete}));
+  EXPECT_EQ(Cpp::IsDeallocator(Cpp::ConstFuncRef{dependentFunc}),
+            (std::vector<DT>{DT::None, DT::None}));
+
+  ASTContext& C = Interp->getCI()->getASTContext();
+  std::vector<Cpp::TemplateArgInfo> charArg = {C.CharTy.getAsOpaquePtr()};
+  EXPECT_EQ(Cpp::IsDeallocator(Cpp::ConstFuncRef{
+                Cpp::InstantiateTemplate(templatedFunc, charArg).data}),
+            (std::vector<DT>{DT::None, DT::Delete}));
+
+  // After instantiation the index is no longer value-dependent, so it folds.
+  std::vector<Cpp::TemplateArgInfo> oneArg = {{C.IntTy.getAsOpaquePtr(), "1"}};
+  EXPECT_EQ(Cpp::IsDeallocator(Cpp::ConstFuncRef{
+                Cpp::InstantiateTemplate(dependentFunc, oneArg).data}),
+            (std::vector<DT>{DT::None, DT::Free}));
+
+  // Casting coverage: a non-function declaration cannot be analyzed.
+  EXPECT_EQ(Cpp::IsDeallocator(Cpp::ConstFuncRef{Cpp::GetNamed("Klass").data}),
+            (std::vector<DT>{DT::Opaque}));
+
+  Cpp::DeleteInterpreter();
+#ifdef EMSCRIPTEN
+  GTEST_SKIP() << "Test fails for Emscipten builds";
+#endif
+  // APINotes check
+#ifndef CPPINTEROP_USE_CLING
+  std::string include_flag =
+      "-I" + std::string(CPPINTEROP_SRC_DIR) + "/unittests/CppInterOp/APINotes";
+  std::vector<const char*> interpreter_args = {
+      "-fmodules", "-fimplicit-module-maps", "-fapinotes-modules",
+      include_flag.c_str()};
+  TestFixture::CreateInterpreter(interpreter_args);
+  code = R"(
+  #include "TestHeader.h"
   )";
-  TestFixture::CreateInterpreter();
   Interp->process(code);
-  auto freeDecl = Cpp::GetNamed("free");
-  EXPECT_TRUE(Cpp::IsDeallocator(Cpp::ConstFuncRef{freeDecl.data}));
+
+  TESTID(testDeallocFree, DT::None, DT::Free);
+  TESTID(testDeallocDelete, DT::None, DT::Delete);
+  TESTID(testDeallocDeleteArr, DT::None, DT::DeleteArr);
+  TESTID(testDeallocNone, DT::None, DT::None);
+  TESTID(testDeallocMulti, DT::None, DT::Delete, DT::Free);
+  TESTID(testDeallocWeirdAttr, DT::None, DT::None);
+
+  // API Notes + method tests
+  TESTIDM(KlassNotes, releaseArg, DT::None, DT::Free);
+  TESTIDM(KlassNotes, releaseSelf, DT::Delete);
+  TESTIDM(KlassNotes, releaseBoth, DT::Delete, DT::Free);
+
+  Cpp::DeleteInterpreter();
+#endif
+#undef TESTIDM
+#undef TESTID
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetFunctionNumArgs) {
