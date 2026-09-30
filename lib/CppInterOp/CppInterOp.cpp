@@ -1944,8 +1944,11 @@ std::vector<FuncRef> GetFunctionsUsingName(ConstDeclRef DRef,
   clang::LookupResult R(S, DName, SourceLocation(), Sema::LookupOrdinaryName,
                         RedeclarationKind::ForVisibleRedeclaration);
 
+  auto* Within = Decl::castToDeclContext(D);
   compat::SynthesizingCodeRAII RAII(&getInterp());
-  CppInternal::utils::Lookup::Named(&S, R, Decl::castToDeclContext(D));
+  if (Within)
+    Within->getPrimaryContext()->buildLookup();
+  CppInternal::utils::Lookup::Named(&S, R, Within);
 
   if (R.empty())
     return INTEROP_RETURN(funcs);
@@ -2886,6 +2889,8 @@ bool ExistsFunctionTemplate(const std::string& name, ConstDeclRef parent) {
   }
 
   compat::SynthesizingCodeRAII RAII(&getInterp());
+  if (Within)
+    const_cast<DeclContext*>(Within->getPrimaryContext())->buildLookup();
   auto* ND = CppInternal::utils::Lookup::Named(&getSema(), name, Within);
 
   if ((intptr_t)ND == (intptr_t)0)
@@ -2956,6 +2961,8 @@ bool GetClassTemplatedMethods(const std::string& name, ConstDeclRef parent,
   auto* DC = clang::Decl::castToDeclContext(DU);
 
   compat::SynthesizingCodeRAII RAII(&getInterp());
+  if (DC)
+    DC->getPrimaryContext()->buildLookup();
   CppInternal::utils::Lookup::Named(&S, R, DC);
 
   if (R.getResultKind() == clang::LookupResultKind::NotFound && funcs.empty())
@@ -3694,6 +3701,8 @@ DeclRef LookupDatamember(const std::string& name, ConstDeclRef parent) {
   }
 
   compat::SynthesizingCodeRAII RAII(&getInterp());
+  if (Within)
+    const_cast<clang::DeclContext*>(Within->getPrimaryContext())->buildLookup();
   auto* ND = CppInternal::utils::Lookup::Named(&getSema(), name, Within);
   if (ND && ND != (clang::NamedDecl*)-1) {
     if (llvm::isa_and_nonnull<clang::FieldDecl>(ND)) {
@@ -4167,6 +4176,8 @@ TypeRef GetPointerType(ConstTypeRef TyRef) {
 
 TypeRef GetReferencedType(ConstTypeRef TyRef, bool rvalue) {
   INTEROP_TRACE(TyRef, rvalue);
+  if (!TyRef.data)
+    return INTEROP_RETURN(nullptr);
   QualType QT = QualType::getFromOpaquePtr(TyRef.data);
   if (rvalue)
     return INTEROP_RETURN(
@@ -4207,7 +4218,8 @@ TypeRef GetUnderlyingType(ConstTypeRef TyRef) {
 std::string GetTypeAsString(ConstTypeRef var) {
   INTEROP_TRACE(var);
   QualType QT = QualType::getFromOpaquePtr(var.data);
-  PrintingPolicy Policy(getASTContext().getPrintingPolicy());
+  // FIXME: Get the default printing policy from the ASTContext.
+  PrintingPolicy Policy((LangOptions()));
   Policy.Bool = true;               // Print bool instead of _Bool.
   Policy.SuppressTagKeyword = true; // Do not print `class std::string`.
   Policy.Suppress_Elab = true;
@@ -4788,8 +4800,6 @@ void make_narg_call(const FunctionDecl* FD, const std::string& return_type,
     else
       callbuf << "((" << class_name << "*)obj)->";
 
-    if (op_flag)
-      callbuf << class_name << "::";
   } else if (isa<NamedDecl>(get_non_transparent_decl_context(FD))) {
     // This is a namespace member.
     if (op_flag || N <= 1)
