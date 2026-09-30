@@ -342,6 +342,17 @@ enum QualKind : unsigned char {
   All = Const | Volatile | Restrict
 };
 
+/// What a template parameter stands for.
+enum class TemplateParamKind : unsigned char {
+  Unknown,
+  /// A type parameter: template <typename T>.
+  Type,
+  /// A value parameter: template <int N>.
+  NonType,
+  /// A template parameter: template <template <typename> class C>.
+  Template
+};
+
 /// Enum modelling programming languages.
 enum class InterpreterLanguage : unsigned char {
   Unknown,
