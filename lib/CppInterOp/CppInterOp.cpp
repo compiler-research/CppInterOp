@@ -1443,6 +1443,23 @@ DeclRef GetNamed(const std::string& name, ConstDeclRef parent /*= nullptr*/) {
   return INTEROP_RETURN(nullptr);
 }
 
+bool IsVisibleName(const std::string& name, ConstDeclRef parent /*= nullptr*/) {
+  INTEROP_TRACE(name, parent);
+  clang::DeclContext* Within = nullptr;
+  if (parent) {
+    auto* D = unwrap<clang::Decl>(GetUnderlyingScope(parent));
+    Within = llvm::dyn_cast<clang::DeclContext>(D);
+  }
+  compat::SynthesizingCodeRAII RAII(&getInterp());
+  if (Within)
+    Within->getPrimaryContext()->buildLookup();
+
+  // LookupUnqualified returns the (D*)-1 sentinel for overload sets and
+  // ambiguous results, which still means the name exists.
+  clang::DeclarationName DName = &getSema().Context.Idents.get(name);
+  return INTEROP_RETURN(LookupUnqualified(getSema(), DName, Within) != nullptr);
+}
+
 DeclRef GetParentScope(ConstDeclRef DRef) {
   INTEROP_TRACE(DRef);
   // const_cast: the returned DeclRef is a mutable DRef, so the caller may
