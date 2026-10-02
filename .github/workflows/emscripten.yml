@@ -36,7 +36,7 @@ jobs:
           - { name: ubu24-arm-emscr-llvm22,   os: ubuntu-24.04-arm, arch: arm64,  clang-runtime: &clang_rt '22', wasm: 'true' }
           - { name: osx26-arm-emscr-llvm22,   os: macos-26,         arch: arm64,  clang-runtime: *clang_rt, wasm: 'true' }
           - { name: ubu24-x86-emscr-llvm22,   os: ubuntu-24.04,     arch: x86_64, clang-runtime: *clang_rt, wasm: 'true' }
-          - { name: win2025-x86-emscr-llvm22, os: windows-2025,     arch: x86_64, clang-runtime: *clang_rt, wasm: 'true', skip-in-prs: 'true' }
+          - { name: win2025-x86-emscr-llvm22, os: windows-2025,     arch: x86_64, clang-runtime: *clang_rt, wasm: 'true' }
 
     steps:
     - uses: actions/checkout@v6
@@ -97,8 +97,7 @@ jobs:
 
     # No build-on-miss: a cache miss hard-fails the row instead of
     # silently inline-building (~30 min). Forces recipe-side drift to
-    # surface immediately. The win2025 row has no cell yet and is
-    # `skip-in-prs: 'true'` to keep PRs unaffected.
+    # surface immediately.
     - name: Setup llvm-wasm cell
       if: ${{ !(github.event_name == 'pull_request' && matrix.skip-in-prs == 'true') }}
       uses: compiler-research/ci-workflows/actions/setup-recipe@main
@@ -120,6 +119,16 @@ jobs:
       shell: powershell
       run: |
         micromamba shell hook -s cmd.exe --root-prefix C:\Users\runneradmin\micromamba-root
+
+    # The cell's native half (tblgens, LLVMSupport, ...) is built with
+    # MSVC; the native cppinterop-tblgen links against it with -G Ninja,
+    # which takes whatever compiler is on PATH -- MinGW without this.
+    # Pinned to the release ci-workflows' publish-recipe uses.
+    - name: Set up MSVC developer environment (Windows)
+      if: ${{ runner.os == 'Windows' && !(github.event_name == 'pull_request' && matrix.skip-in-prs == 'true') }}
+      uses: ilammy/msvc-dev-cmd@v1.13.0
+      with:
+        arch: x64
 
     - name: Build and test CppInterOp
       if: ${{ !(github.event_name == 'pull_request' && matrix.skip-in-prs == 'true') }}
