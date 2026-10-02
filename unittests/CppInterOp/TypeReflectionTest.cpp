@@ -10,6 +10,7 @@
 #include "gtest/gtest.h"
 
 #include <cstdint>
+#include <tuple>
 
 using namespace TestUtils;
 using namespace llvm;
@@ -852,4 +853,83 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, TypeReflection_IsSameType) {
                               Cpp::GetVariableType(Decls[4])));
   EXPECT_TRUE(Cpp::IsSameType(Cpp::GetVariableType(Decls[5]),
                               Cpp::GetVariableType(Decls[6])));
+}
+
+TYPED_TEST(CPPINTEROP_TEST_MODE, TypeReflection_IsEquivalentTypes) {
+  std::vector<Decl*> Decls;
+  std::string code = R"(
+    struct EqBase {};
+    struct EqDerived : EqBase {};
+  )";
+
+  GetAllTopLevelDecls(code, Decls);
+  ASSERT_EQ(Decls.size(), 2U);
+
+  Cpp::TypeRef Int = Cpp::GetType("int");
+  Cpp::TypeRef Double = Cpp::GetType("double");
+  Cpp::TypeRef IntPtr = Cpp::GetPointerType(Int);
+  Cpp::TypeRef IntLRef = Cpp::GetReferencedType(Int);
+  Cpp::TypeRef IntRRef = Cpp::GetReferencedType(Int, /*rvalue=*/true);
+  Cpp::TypeRef ConstInt = Cpp::AddTypeQualifier(Int, Cpp::QualKind::Const);
+  Cpp::TypeRef VolatileInt =
+      Cpp::AddTypeQualifier(Int, Cpp::QualKind::Volatile);
+  Cpp::TypeRef Base = Cpp::GetTypeFromScope(Decls[0]);
+  Cpp::TypeRef Derived = Cpp::GetTypeFromScope(Decls[1]);
+
+  using Result = std::tuple<bool, Cpp::QualKind, Cpp::ValueKind, bool>;
+  auto Equiv = [](Cpp::TypeRef A, Cpp::TypeRef B) {
+    Cpp::QualKind qual;
+    Cpp::ValueKind ref;
+    bool pointer;
+    bool res = Cpp::IsEquivalentTypes(A, B, qual, ref, pointer);
+    return Result(res, qual, ref, pointer);
+  };
+  constexpr auto NoQual = Cpp::QualKind::None;
+  constexpr auto NoRef = Cpp::ValueKind::None;
+  constexpr auto LRef = Cpp::ValueKind::LValue;
+  constexpr auto RRef = Cpp::ValueKind::RValue;
+
+  // Same type, or one type derived from the other.
+  EXPECT_EQ(Equiv(Int, Int), Result(true, NoQual, NoRef, false));
+  EXPECT_EQ(Equiv(Derived, Base), Result(true, NoQual, NoRef, false));
+  EXPECT_EQ(Equiv(Base, Derived), Result(true, NoQual, NoRef, false));
+
+  // Differing qualifiers.
+  EXPECT_EQ(Equiv(Int, ConstInt),
+            Result(true, Cpp::QualKind::Const, NoRef, false));
+  EXPECT_EQ(Equiv(VolatileInt, Int),
+            Result(true, Cpp::QualKind::Volatile, NoRef, false));
+  EXPECT_EQ(
+      Equiv(IntPtr, Cpp::AddTypeQualifier(IntPtr, Cpp::QualKind::Restrict)),
+      Result(true, Cpp::QualKind::Restrict, NoRef, false));
+  EXPECT_EQ(Equiv(ConstInt, VolatileInt),
+            Result(true, Cpp::QualKind::Const | Cpp::QualKind::Volatile, NoRef,
+                   false));
+
+  // References.
+  EXPECT_EQ(Equiv(IntLRef, Int), Result(true, NoQual, LRef, false));
+  EXPECT_EQ(Equiv(IntRRef, Int), Result(true, NoQual, RRef, false));
+  EXPECT_EQ(Equiv(Int, Cpp::GetReferencedType(ConstInt)),
+            Result(true, Cpp::QualKind::Const, LRef, false));
+  EXPECT_EQ(Equiv(Int, IntRRef), Result(true, NoQual, RRef, false));
+  EXPECT_EQ(Equiv(Cpp::GetReferencedType(Derived), Base),
+            Result(true, NoQual, LRef, false));
+
+  // Pointers.
+  EXPECT_EQ(Equiv(IntPtr, Int), Result(true, NoQual, NoRef, true));
+  EXPECT_EQ(Equiv(Int, Cpp::GetPointerType(ConstInt)),
+            Result(true, Cpp::QualKind::Const, NoRef, true));
+  EXPECT_EQ(Equiv(Cpp::GetPointerType(Derived), Base),
+            Result(true, NoQual, NoRef, true));
+
+  // Non-equivalent types; the out parameters are reset.
+  EXPECT_EQ(Equiv(Int, Double), Result(false, NoQual, NoRef, false));
+  EXPECT_EQ(Equiv(IntLRef, Double), Result(false, NoQual, NoRef, false));
+  EXPECT_EQ(Equiv(IntRRef, Double), Result(false, NoQual, NoRef, false));
+  EXPECT_EQ(Equiv(Double, IntLRef), Result(false, NoQual, NoRef, false));
+  EXPECT_EQ(Equiv(Double, IntRRef), Result(false, NoQual, NoRef, false));
+  EXPECT_EQ(Equiv(IntPtr, Double), Result(false, NoQual, NoRef, false));
+  EXPECT_EQ(Equiv(Double, IntPtr), Result(false, NoQual, NoRef, false));
+  EXPECT_EQ(Equiv(Int, nullptr), Result(false, NoQual, NoRef, false));
+  EXPECT_EQ(Equiv(nullptr, Int), Result(false, NoQual, NoRef, false));
 }

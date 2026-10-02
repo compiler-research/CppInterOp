@@ -144,6 +144,9 @@ public:
   /// Allocate the next `_retN` index for a vector-return placeholder.
   unsigned nextRetIndex() { return m_RetCount++; }
 
+  /// Allocate a fresh, never-aliased `_outN` index (scalar reference OUTs).
+  unsigned nextOutIndex() { return m_OutCount++; }
+
   /// Resolve an OUT-container source address to its `_outN` index.
   /// First call with a given address allocates a fresh slot; later
   /// calls return the same slot so the reproducer reuses the buffer.
@@ -259,6 +262,11 @@ struct OutParam {
   bool IsPointerContainer = false;
   /// Scalar pointer OUT (e.g. `bool*`); rendered as `nullptr`.
   bool IsScalarPointer = false;
+  /// Scalar reference OUT (e.g. `bool&`): the name of the reproducer's
+  /// local and a renderer for the argument's value on entry (at SourceAddr),
+  /// which the local starts from. Only called when the call is traced.
+  std::string ScalarRefName;
+  std::string (*ScalarRefInit)(const void*) = nullptr;
   /// Address of the source container object (not its data buffer);
   /// multiple calls with the same container alias the same `_outN`
   /// buffer in the reproducer so accumulation across calls replays
@@ -418,7 +426,7 @@ struct ReproBuffer {
     for (auto kw : {"enum ", "class ", "struct "})
       if (s.consume_front(kw))
         break;
-    return s.take_until([](char c) { return c == '>'; }).str();
+    return s.take_until([](char c) { return c == '>' || c == ','; }).str();
 #else
     // gcc:   "... [with T = QualKind; ...]"
     // clang: "... [T = QualKind]"
@@ -450,8 +458,9 @@ struct ReproBuffer {
 
   /// Format a comma-separated argument list. Pointer-container OUTs
   /// emit `_outN` (next index from \p OutIndices); scalar pointer OUTs
-  /// emit `nullptr` (the replay does not consume the value); non-pointer
-  /// containers are skipped, matching the legacy rendering.
+  /// emit `nullptr` (the replay does not consume the value); scalar
+  /// reference OUTs emit their local's name; non-pointer containers are
+  /// skipped, matching the legacy rendering.
   template <typename... Args>
   void format(llvm::ArrayRef<unsigned> OutIndices, Args&&... args) {
     bool first = true;
@@ -469,6 +478,11 @@ struct ReproBuffer {
             OS << ", ";
           first = false;
           OS << "nullptr";
+        } else if (!val.ScalarRefName.empty()) {
+          if (!first)
+            OS << ", ";
+          first = false;
+          OS << val.ScalarRefName;
         }
       } else {
         if (!first)
@@ -480,6 +494,25 @@ struct ReproBuffer {
     (appendOne(std::forward<Args>(args)), ...);
   }
 };
+
+/// Scalar reference overload (e.g. `QualKind& qual`). The reproducer
+/// declares a fresh local (`auto _outN = ...;`) holding the argument's value
+/// on entry and passes it, so the call compiles and an in-out argument
+/// replays with its original input.
+/// Limited to enums and bool, whose rendering keeps the type under `auto`.
+template <
+    typename T,
+    std::enable_if_t<std::is_enum_v<T> || std::is_same_v<T, bool>, int> = 0>
+OutParam MakeOutParam(T& V) {
+  OutParam OP;
+  OP.SourceAddr = &V;
+  OP.ScalarRefInit = [](const void* P) {
+    ReproBuffer RB;
+    RB.append(*static_cast<const T*>(P));
+    return RB.Buffer.str().str();
+  };
+  return OP;
+}
 
 /// Matches std::vector<T*> for any pointer element type. Used by
 /// TraceRegion::record to recognise functions whose return value is a
@@ -556,6 +589,16 @@ class TraceRegion {
       auto [idx, firstUse] = TheTraceInfo->outIndexFor(op.SourceAddr);
       m_Data->OutIndices.push_back(idx);
       m_Data->OutFirstUse.push_back(firstUse);
+    }
+    // Scalar reference OUT: declare a fresh local; format() renders its
+    // name at the call site.
+    if (!m_Data->Nested && op.ScalarRefInit) {
+      op.ScalarRefName =
+          llvm::formatv("_out{0}", TheTraceInfo->nextOutIndex()).str();
+      TheTraceInfo->appendToLog(llvm::formatv("  auto {0} = {1};",
+                                              op.ScalarRefName,
+                                              op.ScalarRefInit(op.SourceAddr))
+                                    .str());
     }
     if (op.RegisterHandles)
       m_Data->OutCallbacks.push_back(std::move(op.RegisterHandles));
