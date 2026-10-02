@@ -977,10 +977,16 @@ TYPED_TEST(CPPINTEROP_TEST_MODE,
   Cpp::GetEnumConstantDatamembers(MyEnumClass, datamembers);
   EXPECT_EQ(datamembers.size(), 9);
   EXPECT_TRUE(Cpp::IsEnumType(Cpp::GetVariableType(datamembers[0])));
+  EXPECT_EQ(Cpp::GetName(datamembers[0]), "FOUR");
+  EXPECT_EQ(Cpp::GetName(datamembers[3]), "ONE");
+  EXPECT_EQ(Cpp::GetName(datamembers[8]), "NINE");
+  EXPECT_EQ(Cpp::GetEnumConstantValue(datamembers[8]), 2);
 
   std::vector<Cpp::DeclRef> datamembers2;
   Cpp::GetEnumConstantDatamembers(MyEnumClass, datamembers2, false);
   EXPECT_EQ(datamembers2.size(), 6);
+  EXPECT_EQ(Cpp::GetName(datamembers2[5]), "THREE");
+  EXPECT_EQ(Cpp::GetEnumConstantValue(datamembers2[5]), 2);
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, VariableReflection_Is_Get_Pointer) {
