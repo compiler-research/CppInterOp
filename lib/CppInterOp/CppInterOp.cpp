@@ -3323,6 +3323,8 @@ void GetEnumConstantDatamembers(ConstDeclRef DRef,
   INTEROP_TRACE(DRef, INTEROP_OUT(datamembers), include_enum_class);
   std::vector<DeclRef> EDs;
   GetClassDecls<EnumDecl>(DRef, EDs);
+  // enumerator_begin() loads the enumerators, which may deserialize them.
+  compat::SynthesizingCodeRAII RAII(&getInterp());
   for (DeclRef i : EDs) {
     auto* ED = unwrap<EnumDecl>(i);
 
