@@ -809,7 +809,15 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_DISABLED_DetectResourceDir) {
   GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
 #endif
   TestFixture::CreateInterpreter();
-  EXPECT_STRNE(Cpp::DetectResourceDir().c_str(), Cpp::GetResourceDir());
+  // The clang on PATH yields either nothing or a resource dir of this
+  // library's clang major version. That dir may be the interpreter's own
+  // (same clang, or CreateInterpreter fell back to this detection), so the
+  // two cannot be required to differ.
+  std::string Detected = Cpp::DetectResourceDir();
+  if (!Detected.empty()) {
+    EXPECT_STREQ(llvm::sys::path::filename(Detected).str().c_str(),
+                 CLANG_VERSION_MAJOR_STRING);
+  }
   llvm::SmallString<256> Clang(LLVM_BINARY_DIR);
   llvm::sys::path::append(Clang, "bin", "clang");
 
