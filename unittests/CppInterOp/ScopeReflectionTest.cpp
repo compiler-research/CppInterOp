@@ -8,6 +8,7 @@
 #include "clang/AST/DeclBase.h"
 #include "clang/AST/GlobalDecl.h"
 #include "clang/AST/Type.h"
+#include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/Version.h"
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Sema/Sema.h"
@@ -287,6 +288,51 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_IsComplete) {
   Cpp::TypeRef retTy = Cpp::GetFunctionReturnType(Decls[7]);
   EXPECT_TRUE(Cpp::IsComplete(Cpp::GetScopeFromType(retTy)));
   EXPECT_FALSE(Cpp::IsComplete(nullptr));
+}
+
+TYPED_TEST(CPPINTEROP_TEST_MODE,
+           ScopeReflection_IsCompleteSilentFailedInstantiation) {
+  // IsComplete() runs isCompleteType(), which attempts implicit
+  // instantiation. A failing attempt must neither print an error nor advance
+  // the engine's trap counters (suppressed diagnostics still increment
+  // TrapNumErrorsOccurred), and it must leave the interpreter usable.
+  TestFixture::CreateInterpreter();
+  // The specializations are only pointed to, so they are declared but not
+  // instantiated yet: the instantiation attempt happens inside IsComplete().
+  ASSERT_EQ(Interp->declare(R"(
+    template <typename T> struct FwdOnly;
+    template <typename T> struct Broken { typename T::missing_type m; };
+    FwdOnly<int>* g_pf;
+    Broken<int>* g_pb;
+  )"),
+            0);
+
+  auto spec_of = [&](const char* var) {
+    Cpp::DeclRef V = Cpp::GetNamed(var);
+    if (!V)
+      return Cpp::DeclRef{};
+    return Cpp::GetScopeFromType(
+        Cpp::GetPointeeType(Cpp::GetVariableType(V)));
+  };
+  Cpp::DeclRef FwdSpec = spec_of("g_pf");
+  Cpp::DeclRef BrokenSpec = spec_of("g_pb");
+  ASSERT_TRUE(FwdSpec);
+  ASSERT_TRUE(BrokenSpec);
+
+  auto& Diags = Interp->getCI()->getSema().getDiagnostics();
+
+  // Declaration-only template: no definition exists.
+  EXPECT_FALSE(Cpp::IsComplete(FwdSpec));
+
+  // A definition exists but its instantiation fails. IsComplete()'s result
+  // follows clang's semantics for invalid specializations; what IsComplete
+  // must guarantee is that the query leaves no trace.
+  clang::DiagnosticErrorTrap Trap(Diags);
+  Cpp::IsComplete(BrokenSpec);
+  EXPECT_FALSE(Trap.hasErrorOccurred());
+
+  // Nothing above left the interpreter in an error state.
+  EXPECT_EQ(Interp->declare("int valid_after_failed_instantiation = 1;"), 0);
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_GetOrForceDefinition) {
