@@ -352,7 +352,7 @@ runs:
                 -DSYSROOT_PATH=$SYSROOT_PATH                     \
                 -DCPPINTEROP_TABLEGEN_EXE=$CPPINTEROP_TBLGEN_EXE \
                 -DCMAKE_SHARED_LINKER_FLAGS="-Wl,--lto-partitions=${{ env.ncpus }}" \
-                -DCMAKE_EXE_LINKER_FLAGS="-Wl,--lto-partitions=${{ env.ncpus }}" \  
+                -DCMAKE_EXE_LINKER_FLAGS="-Wl,--lto-partitions=${{ env.ncpus }}" \
                 ../
         fi
         emmake make -j ${{ env.ncpus }} check-cppinterop
