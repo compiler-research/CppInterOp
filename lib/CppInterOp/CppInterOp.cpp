@@ -1767,6 +1767,14 @@ TypeRef GetFunctionReturnType(ConstFuncRef func) {
           needInstantiation = true;
       }
 
+      if (needInstantiation && FD->getTrailingRequiresClause()) {
+        compat::SynthesizingCodeRAII RAII(&getInterp());
+        clang::ConstraintSatisfaction Satisfaction;
+        if (getSema().CheckFunctionConstraints(FD, Satisfaction) ||
+            !Satisfaction.IsSatisfied)
+          needInstantiation = false;
+      }
+
       if (needInstantiation) {
         // Lazy AST instantiation — logically const for the caller.
         InstantiateFunctionDefinition(
