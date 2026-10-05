@@ -335,6 +335,8 @@ runs:
                 -DLLVM_ENABLE_WERROR=On                      \
                 -DSYSROOT_PATH=$SYSROOT_PATH               \
                 -DCPPINTEROP_TABLEGEN_EXE=$CPPINTEROP_TBLGEN_EXE \
+                -DCMAKE_SHARED_LINKER_FLAGS="-Wl,--lto-partitions=${{ env.ncpus }}" \
+                -DCMAKE_EXE_LINKER_FLAGS="-Wl,--lto-partitions=${{ env.ncpus }}" \
                 ../
         else
           emcmake cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    \
@@ -349,6 +351,8 @@ runs:
                 -DLLVM_ENABLE_WERROR=On                      \
                 -DSYSROOT_PATH=$SYSROOT_PATH                     \
                 -DCPPINTEROP_TABLEGEN_EXE=$CPPINTEROP_TBLGEN_EXE \
+                -DCMAKE_SHARED_LINKER_FLAGS="-Wl,--lto-partitions=${{ env.ncpus }}" \
+                -DCMAKE_EXE_LINKER_FLAGS="-Wl,--lto-partitions=${{ env.ncpus }}" \  
                 ../
         fi
         emmake make -j ${{ env.ncpus }} check-cppinterop
@@ -496,6 +500,8 @@ runs:
                 -DLLVM_ENABLE_WERROR=On                      \
                 -DSYSROOT_PATH=${{ env.SYSROOT_PATH }}              \
                 -DCPPINTEROP_TABLEGEN_EXE=$CPPINTEROP_TBLGEN_EXE \
+                -DCMAKE_SHARED_LINKER_FLAGS="-Wl,--lto-partitions=${{ env.ncpus }}" \
+                -DCMAKE_EXE_LINKER_FLAGS="-Wl,--lto-partitions=${{ env.ncpus }}" \
                 ../
         else
           emcmake cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    \
@@ -509,6 +515,8 @@ runs:
                 -DLLVM_ENABLE_WERROR=On                      \
                 -DSYSROOT_PATH=${{ env.SYSROOT_PATH }}                  \
                 -DCPPINTEROP_TABLEGEN_EXE=$CPPINTEROP_TBLGEN_EXE \
+                -DCMAKE_SHARED_LINKER_FLAGS="-Wl,--lto-partitions=${{ env.ncpus }}" \
+                -DCMAKE_EXE_LINKER_FLAGS="-Wl,--lto-partitions=${{ env.ncpus }}" \
                 ../
         fi
         os="${{ matrix.os }}"
