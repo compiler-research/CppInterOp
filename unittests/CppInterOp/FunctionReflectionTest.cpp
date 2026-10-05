@@ -997,6 +997,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_IsDeallocator) {
   GetAllTopLevelDecls(code, Decls, true);
   EXPECT_TRUE(Cpp::IsDeallocator(Decls[1]));
   EXPECT_FALSE(Cpp::IsDeallocator(Decls[2]));
+  EXPECT_FALSE(Cpp::IsDeallocator(Cpp::ConstFuncRef{nullptr}));
 
   code = R"(
   #include <stdlib.h>
