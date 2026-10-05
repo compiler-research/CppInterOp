@@ -3542,7 +3542,7 @@ intptr_t GetVariableOffset(compat::Interpreter& I, Decl* D,
           !InitVD->getType().isVolatileQualified() &&
           (InitVD->isConstexpr() || InitVD->getType().isConstQualified())) {
         if (const APValue* val = InitVD->evaluateValue()) {
-          if (InitVD->getType()->isIntegralType(C))
+          if (InitVD->getType()->isIntegralOrEnumerationType())
             // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
             return reinterpret_cast<intptr_t>(val->getInt().getRawData());
           if (intptr_t ArrAddr = MaterializeConstArrayValue(
@@ -3575,7 +3575,7 @@ intptr_t GetVariableOffset(compat::Interpreter& I, Decl* D,
       if (VD->hasInit() &&
           (VD->isConstexpr() || VD->getType().isConstQualified())) {
         if (const APValue* val = VD->evaluateValue()) {
-          if (VD->getType()->isIntegralType(C)) {
+          if (VD->getType()->isIntegralOrEnumerationType()) {
             return (intptr_t)val->getInt().getRawData();
           }
         }
