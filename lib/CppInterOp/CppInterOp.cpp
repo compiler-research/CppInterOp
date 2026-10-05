@@ -80,6 +80,7 @@
 #include "clang/Sema/TemplateDeduction.h"
 
 #include "llvm/ADT/APInt.h"
+#include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/STLExtras.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/SmallVector.h"
@@ -3416,7 +3417,7 @@ TypeRef GetVariableType(ConstDeclRef var) {
 // address instead of re-evaluating and re-allocating on every call.
 static intptr_t
 MaterializeConstArrayValue(ASTContext& C, const VarDecl* VD, const APValue& Val,
-                           std::map<const VarDecl*, intptr_t>& Cache) {
+                           llvm::DenseMap<const VarDecl*, intptr_t>& Cache) {
   const clang::ArrayType* AT =
       Val.isArray() ? C.getAsArrayType(VD->getType()) : nullptr;
   const uint64_t EltBytes =
