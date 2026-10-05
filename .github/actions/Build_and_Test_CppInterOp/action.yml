@@ -335,8 +335,6 @@ runs:
                 -DLLVM_ENABLE_WERROR=On                      \
                 -DSYSROOT_PATH=$SYSROOT_PATH               \
                 -DCPPINTEROP_TABLEGEN_EXE=$CPPINTEROP_TBLGEN_EXE \
-                -DCMAKE_SHARED_LINKER_FLAGS="-Wl,--lto-partitions=${{ env.ncpus }}" \
-                -DCMAKE_EXE_LINKER_FLAGS="-Wl,--lto-partitions=${{ env.ncpus }}" \
                 ../
         else
           emcmake cmake -G Ninja -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    \
@@ -351,8 +349,6 @@ runs:
                 -DLLVM_ENABLE_WERROR=On                      \
                 -DSYSROOT_PATH=$SYSROOT_PATH                     \
                 -DCPPINTEROP_TABLEGEN_EXE=$CPPINTEROP_TBLGEN_EXE \
-                -DCMAKE_SHARED_LINKER_FLAGS="-Wl,--lto-partitions=${{ env.ncpus }}" \
-                -DCMAKE_EXE_LINKER_FLAGS="-Wl,--lto-partitions=${{ env.ncpus }}" \
                 ../
         fi
         emmake ninja -j ${{ env.ncpus }} check-cppinterop
@@ -500,8 +496,6 @@ runs:
                 -DLLVM_ENABLE_WERROR=On                      \
                 -DSYSROOT_PATH=${{ env.SYSROOT_PATH }}              \
                 -DCPPINTEROP_TABLEGEN_EXE=$CPPINTEROP_TBLGEN_EXE \
-                -DCMAKE_SHARED_LINKER_FLAGS="-Wl,--lto-partitions=${{ env.ncpus }}" \
-                -DCMAKE_EXE_LINKER_FLAGS="-Wl,--lto-partitions=${{ env.ncpus }}" \
                 ../
         else
           emcmake cmake -G Ninja -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    \
@@ -515,8 +509,6 @@ runs:
                 -DLLVM_ENABLE_WERROR=On                      \
                 -DSYSROOT_PATH=${{ env.SYSROOT_PATH }}                  \
                 -DCPPINTEROP_TABLEGEN_EXE=$CPPINTEROP_TBLGEN_EXE \
-                -DCMAKE_SHARED_LINKER_FLAGS="-Wl,--lto-partitions=${{ env.ncpus }}" \
-                -DCMAKE_EXE_LINKER_FLAGS="-Wl,--lto-partitions=${{ env.ncpus }}" \
                 ../
         fi
         os="${{ matrix.os }}"
@@ -615,9 +607,6 @@ runs:
 
         # Build CppInterOp next to cling and llvm-project.
         # See bash sites above re: stale build/ on local repro paths.
-        # --lto-partitions: the cell's wasm LLVM/Clang libraries are LTO
-        # bitcode, so linking libclangCppInterOp.so code-generates all of
-        # Clang -- on one thread unless wasm-ld may split it.
         # -G Ninja: emcmake's default on Windows is MinGW Makefiles, whose
         # mingw32-make runs every command through a shell -- costly when
         # each one is already emcc.bat, then python, then clang.
@@ -639,8 +628,6 @@ runs:
                 -DCMAKE_INSTALL_PREFIX="$env:PREFIX"         `
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            `
                 -DLLVM_ENABLE_WERROR=On                      `
-                -DCMAKE_SHARED_LINKER_FLAGS="-Wl,--lto-partitions=${{ env.ncpus }}" `
-                -DCMAKE_EXE_LINKER_FLAGS="-Wl,--lto-partitions=${{ env.ncpus }}" `
                 -DSYSROOT_PATH="$env:SYSROOT_PATH"              `
                 -DCPPINTEROP_TABLEGEN_EXE="$env:CPPINTEROP_TBLGEN_EXE" `
                 ..\
@@ -657,8 +644,6 @@ runs:
                 -DCMAKE_INSTALL_PREFIX="$env:PREFIX"      `
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            `
                 -DLLVM_ENABLE_WERROR=On                      `
-                -DCMAKE_SHARED_LINKER_FLAGS="-Wl,--lto-partitions=${{ env.ncpus }}" `
-                -DCMAKE_EXE_LINKER_FLAGS="-Wl,--lto-partitions=${{ env.ncpus }}" `
                 -DSYSROOT_PATH="$env:SYSROOT_PATH"                     `
                 -DCPPINTEROP_TABLEGEN_EXE="$env:CPPINTEROP_TBLGEN_EXE" `
                 ..\
@@ -743,8 +728,6 @@ runs:
                 -DCMAKE_INSTALL_PREFIX=${{ env.PREFIX }}        `
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            `
                 -DLLVM_ENABLE_WERROR=On                      `
-                -DCMAKE_SHARED_LINKER_FLAGS="-Wl,--lto-partitions=${{ env.ncpus }}" `
-                -DCMAKE_EXE_LINKER_FLAGS="-Wl,--lto-partitions=${{ env.ncpus }}" `
                 -DSYSROOT_PATH=${{ env.SYSROOT_PATH }}             `
                 -DCPPINTEROP_TABLEGEN_EXE="${{ env.CPPINTEROP_TBLGEN_EXE }}" `
                 ..\
@@ -760,8 +743,6 @@ runs:
                 -DCMAKE_INSTALL_PREFIX=${{ env.PREFIX }}      `
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            `
                 -DLLVM_ENABLE_WERROR=On                      `
-                -DCMAKE_SHARED_LINKER_FLAGS="-Wl,--lto-partitions=${{ env.ncpus }}" `
-                -DCMAKE_EXE_LINKER_FLAGS="-Wl,--lto-partitions=${{ env.ncpus }}" `
                 -DSYSROOT_PATH=${{ env.SYSROOT_PATH }}                    `
                 -DCPPINTEROP_TABLEGEN_EXE="${{ env.CPPINTEROP_TBLGEN_EXE }}" `
                 ..\
