@@ -842,6 +842,50 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetFunctionReturnType) {
       "double");
 }
 
+TYPED_TEST(CPPINTEROP_TEST_MODE,
+           FunctionReflection_GetFunctionReturnTypeUnsatisfiedConstraint) {
+  TestFixture::CreateInterpreter({"-std=c++20"});
+  Cpp::Declare(R"(
+    template <typename T> struct ConstrainedAuto {
+      T m_value;
+      auto size() const requires requires { m_value.size(); } {
+        return m_value.size();
+      }
+      decltype(auto) key() const requires requires { m_value.key(); } {
+        return m_value.key();
+      }
+    };
+    struct WithKey { int key() const { return 1; } };
+  )");
+
+  ASTContext& C = Interp->getCI()->getASTContext();
+  std::vector<Cpp::TemplateArgInfo> int_arg = {C.IntTy.getAsOpaquePtr()};
+  Cpp::DeclRef inst =
+      Cpp::InstantiateTemplate(Cpp::GetNamed("ConstrainedAuto"), int_arg);
+  ASSERT_TRUE(inst);
+
+  testing::internal::CaptureStderr();
+  Cpp::DeclRef size = Cpp::GetNamed("size", inst);
+  Cpp::DeclRef key = Cpp::GetNamed("key", inst);
+  ASSERT_TRUE(size);
+  ASSERT_TRUE(key);
+  Cpp::GetFunctionReturnType(Cpp::FuncRef{size.data});
+  Cpp::GetFunctionReturnType(Cpp::FuncRef{key.data});
+  std::string err = testing::internal::GetCapturedStderr();
+  EXPECT_EQ(err, "");
+  EXPECT_FALSE(Cpp::unwrap<Decl>(size)->isInvalidDecl());
+  EXPECT_FALSE(Cpp::unwrap<Decl>(key)->isInvalidDecl());
+
+  std::vector<Cpp::TemplateArgInfo> with_key_arg = {
+      Cpp::GetTypeFromScope(Cpp::GetNamed("WithKey")).data};
+  Cpp::DeclRef inst2 =
+      Cpp::InstantiateTemplate(Cpp::GetNamed("ConstrainedAuto"), with_key_arg);
+  ASSERT_TRUE(inst2);
+  EXPECT_EQ(Cpp::GetTypeAsString(Cpp::GetFunctionReturnType(
+                Cpp::FuncRef{Cpp::GetNamed("key", inst2).data})),
+            "int");
+}
+
 TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_IsAllocator) {
   std::vector<Decl*> Decls;
   std::string code = R"(
