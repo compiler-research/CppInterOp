@@ -1,6 +1,7 @@
 #include "Utils.h"
 
 #include "CppInterOp/CppInterOp.h"
+#include "CppInterOp/Unwrap.h"
 
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/PrettyPrinter.h"
