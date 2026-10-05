@@ -413,10 +413,10 @@ runs:
           sudo safaridriver --enable
           python -m pip install selenium
           echo "Running CppInterOpTests in Safari"
-          emrun --no_browser --kill_exit --timeout 60 --browser-args="--headless --no-sandbox"  CppInterOpTests.html &
+          emrun --no_browser --kill_exit --timeout 15 --browser-args="--headless --no-sandbox"  CppInterOpTests.html &
           python ../../../scripts/browser_tests_safari.py CppInterOpTests.html
           echo "Running DynamicLibraryManagerTests in Safari"          
-          emrun --no_browser --kill_exit --timeout 60 --browser-args="--headless --no-sandbox"  DynamicLibraryManagerTests.html &
+          emrun --no_browser --kill_exit --timeout 15 --browser-args="--headless --no-sandbox"  DynamicLibraryManagerTests.html &
           python ../../../scripts/browser_tests_safari.py DynamicLibraryManagerTests.html
         else
           export ARCHITECHURE=$(uname -m)
