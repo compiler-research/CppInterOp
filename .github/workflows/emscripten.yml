@@ -33,10 +33,10 @@ jobs:
         # YAML-quote `wasm` / `skip-in-prs` so workflow `if:` checks
         # comparing them work uniformly under act and github-hosted.
         include:
-          - { name: ubu24-arm-emscr-llvm22,   os: ubuntu-24.04-arm, arch: arm64,  clang-runtime: &clang_rt '22', wasm: 'true' }
-          - { name: osx26-arm-emscr-llvm22,   os: macos-26,         arch: arm64,  clang-runtime: *clang_rt, wasm: 'true' }
-          - { name: ubu24-x86-emscr-llvm22,   os: ubuntu-24.04,     arch: x86_64, clang-runtime: *clang_rt, wasm: 'true' }
-          - { name: win2025-x86-emscr-llvm22, os: windows-2025,     arch: x86_64, clang-runtime: *clang_rt, wasm: 'true', skip-in-prs: 'true' }
+          - { name: ubu24-arm-emscr-llvm23,   os: ubuntu-24.04-arm, arch: arm64,  clang-runtime: &clang_rt '23', wasm: 'true' }
+          - { name: osx26-arm-emscr-llvm23,   os: macos-26,         arch: arm64,  clang-runtime: *clang_rt, wasm: 'true' }
+          - { name: ubu24-x86-emscr-llvm23,   os: ubuntu-24.04,     arch: x86_64, clang-runtime: *clang_rt, wasm: 'true' }
+          - { name: win2025-x86-emscr-llvm23, os: windows-2025,     arch: x86_64, clang-runtime: *clang_rt, wasm: 'true', skip-in-prs: 'true' }
 
     steps:
     - uses: actions/checkout@v6
