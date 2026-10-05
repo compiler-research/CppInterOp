@@ -467,13 +467,12 @@ TYPED_TEST(CPPINTEROP_TEST_MODE,
       static const InClassScopedEnum kScoped = InClassScopedEnum::kS1;
     };
   )");
-  Cpp::DeclRef enum_klass = Cpp::GetNamed("InClassConstEnumInit");
-  EXPECT_TRUE(enum_klass);
+  EXPECT_TRUE(Cpp::GetNamed("InClassConstEnumInit"));
 
-  EXPECT_TRUE(Cpp::GetVariableOffset(Cpp::GetNamed("kEnum", enum_klass)));
+  EXPECT_TRUE(Cpp::GetVariableOffset(Cpp::GetNamed("kEnum", Cpp::GetNamed("InClassConstEnumInit"))));
   EXPECT_EQ(Cpp::GetEnumConstantValue(Cpp::GetNamed("kE1")), 5);
 
-  EXPECT_TRUE(Cpp::GetVariableOffset(Cpp::GetNamed("kScoped", enum_klass)));
+  EXPECT_TRUE(Cpp::GetVariableOffset(Cpp::GetNamed("kScoped", Cpp::GetNamed("InClassConstEnumInit"))));
   EXPECT_EQ(Cpp::GetEnumConstantValue(Cpp::GetNamed("kS1", Cpp::GetNamed("InClassScopedEnum"))), -3);
   // NOLINTEND(cppcoreguidelines-pro-type-reinterpret-cast,
   //           performance-no-int-to-ptr)
