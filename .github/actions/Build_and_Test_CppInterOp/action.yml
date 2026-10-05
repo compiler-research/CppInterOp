@@ -301,7 +301,7 @@ runs:
         # specific .inc files via cppinterop-tblgen.
         NATIVE_LLVM_BUILD_DIR="$LLVM_DIR/native_build"
         mkdir -p native_cppinterop_build && pushd native_cppinterop_build
-        cmake -DCMAKE_BUILD_TYPE=Release \
+        cmake -G Ninja -DCMAKE_BUILD_TYPE=Release \
               -DLLVM_DIR=$NATIVE_LLVM_BUILD_DIR/lib/cmake/llvm \
               -DCPPINTEROP_ENABLE_TESTING=OFF \
               -DCMAKE_CXX_STANDARD=17 \
@@ -320,7 +320,7 @@ runs:
         mkdir build
         cd build
         if [[ "${cling_on}" == "ON" ]]; then
-          emcmake cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}        \
+          emcmake cmake -G Ninja -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}        \
                 -DCPPINTEROP_USE_CLING=ON                                  \
                 -DCPPINTEROP_USE_REPL=OFF                                  \
                 -DCMAKE_PREFIX_PATH=$PREFIX                     \
@@ -339,7 +339,7 @@ runs:
                 -DCMAKE_EXE_LINKER_FLAGS="-Wl,--lto-partitions=${{ env.ncpus }}" \
                 ../
         else
-          emcmake cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    \
+          emcmake cmake -G Ninja -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    \
                 -DCMAKE_PREFIX_PATH=$PREFIX                      \
                 -DLLVM_DIR=$LLVM_BUILD_DIR/lib/cmake/llvm       \
                 -DLLD_DIR=$LLVM_BUILD_DIR/lib/cmake/lld         \
@@ -355,7 +355,7 @@ runs:
                 -DCMAKE_EXE_LINKER_FLAGS="-Wl,--lto-partitions=${{ env.ncpus }}" \
                 ../
         fi
-        emmake make -j ${{ env.ncpus }} check-cppinterop
+        emmake ninja -j ${{ env.ncpus }} check-cppinterop
         os="${{ matrix.os }}"
         if [[ "${os}" != macos* ]] ; then
           actual_size=$(stat -c%s "./lib/libclangCppInterOp.so")
@@ -486,7 +486,7 @@ runs:
         mkdir build_static
         cd build_static
         if [[ "${cling_on}" == "ON" ]]; then
-          emcmake cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}        \
+          emcmake cmake -G Ninja -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}        \
                 -DCPPINTEROP_USE_CLING=ON                                  \
                 -DCPPINTEROP_USE_REPL=OFF                                  \
                 -DCMAKE_PREFIX_PATH=${{ env.PREFIX }}                    \
@@ -504,7 +504,7 @@ runs:
                 -DCMAKE_EXE_LINKER_FLAGS="-Wl,--lto-partitions=${{ env.ncpus }}" \
                 ../
         else
-          emcmake cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    \
+          emcmake cmake -G Ninja -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    \
                 -DCMAKE_PREFIX_PATH=${{ env.PREFIX }}                      \
                 -DLLVM_DIR=${{ env.LLVM_BUILD_DIR }}/lib/cmake/llvm       \
                 -DLLD_DIR=${{ env.LLVM_BUILD_DIR }}/lib/cmake/lld         \
@@ -521,9 +521,9 @@ runs:
         fi
         os="${{ matrix.os }}"
         if [[ "${os}" != macos* ]] ; then
-          EMCC_CORES=1 emmake make -j 1 check-cppinterop
+          EMCC_CORES=1 emmake ninja -j 1 check-cppinterop
         else
-          emmake make -j ${{ env.ncpus }} check-cppinterop
+          emmake ninja -j ${{ env.ncpus }} check-cppinterop
         fi
         cd ./unittests/CppInterOp/
         os="${{ matrix.os }}"
