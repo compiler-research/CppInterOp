@@ -308,7 +308,7 @@ runs:
               -DLLVM_ENABLE_WERROR=On  \
               -DCPPINTEROP_BUILD_TABLEGEN_ONLY=ON \
               ../
-        cmake --build . --target cppinterop-tblgen -j ${{ env.ncpus }}
+        cmake --build . --target cppinterop-tblgen
         export CPPINTEROP_TBLGEN_EXE=$(find $PWD -name cppinterop-tblgen -type f | head -1)
         echo "Found cppinterop-tblgen at: $CPPINTEROP_TBLGEN_EXE"
         echo "CPPINTEROP_TBLGEN_EXE=$CPPINTEROP_TBLGEN_EXE" >> $GITHUB_ENV
@@ -351,7 +351,7 @@ runs:
                 -DCPPINTEROP_TABLEGEN_EXE=$CPPINTEROP_TBLGEN_EXE \
                 ../
         fi
-        emmake ninja -j ${{ env.ncpus }} check-cppinterop
+        emmake ninja check-cppinterop
         os="${{ matrix.os }}"
         if [[ "${os}" != macos* ]] ; then
           actual_size=$(stat -c%s "./lib/libclangCppInterOp.so")
@@ -456,7 +456,7 @@ runs:
           fi
         fi
         cd ../..
-        emmake ninja -j ${{ env.ncpus }} install
+        emmake ninja install
         cd ..
 
         echo "PATH=$PATH" >> $GITHUB_ENV
@@ -599,7 +599,7 @@ runs:
               -DCMAKE_CXX_STANDARD=17 -DLLVM_ENABLE_WERROR=On `
               -DCPPINTEROP_BUILD_TABLEGEN_ONLY=ON `
               ..\
-        cmake --build . --target cppinterop-tblgen -j ${{ env.ncpus }}
+        cmake --build . --target cppinterop-tblgen
         $env:CPPINTEROP_TBLGEN_EXE = (Get-ChildItem -Recurse -Filter "cppinterop-tblgen.exe" | Select-Object -First 1).FullName
         echo "Found cppinterop-tblgen at: $env:CPPINTEROP_TBLGEN_EXE"
         echo "CPPINTEROP_TBLGEN_EXE=$env:CPPINTEROP_TBLGEN_EXE" >> $env:GITHUB_ENV
@@ -660,7 +660,7 @@ runs:
             exit $LASTEXITCODE
          }
         }
-        Error-OnFailure{ emmake ninja -j ${{ env.ncpus }} check-cppinterop }
+        Error-OnFailure{ emmake ninja check-cppinterop }
         cd .\unittests\CppInterOp\
         # curl.exe and tar.exe, not Invoke-WebRequest and Expand-Archive:
         # Windows PowerShell redraws a progress bar per chunk downloaded and
@@ -684,7 +684,7 @@ runs:
         echo "Running DynamicLibraryManagerTests in Chromium"
         Error-OnFailure { emrun.bat --browser="chrome.exe" --kill_exit --timeout 60 --browser-args="--headless --no-sandbox"  DynamicLibraryManagerTests.html }
         cd ..\..
-        Error-OnFailure { emmake ninja -j ${{ env.ncpus }} install }
+        Error-OnFailure { emmake ninja install }
         echo "SYSROOT_PATH=$env:SYSROOT_PATH" >> $GITHUB_ENV
         echo "LLVM_BUILD_DIR=$env:LLVM_BUILD_DIR" >> $GITHUB_ENV
         echo "CPLUS_INCLUDE_PATH=$env:CPLUS_INCLUDE_PATH" >> $GITHUB_ENV
@@ -747,7 +747,7 @@ runs:
                 -DCPPINTEROP_TABLEGEN_EXE="${{ env.CPPINTEROP_TBLGEN_EXE }}" `
                 ..\
         }
-        Error-OnFailure { emmake ninja -j ${{ env.ncpus }} check-cppinterop }
+        Error-OnFailure { emmake ninja check-cppinterop }
         cd .\unittests\CppInterOp\
         echo "Running CppInterOpTests in Firefox"
         Error-OnFailure { emrun.bat --browser="firefox.exe" --kill_exit --timeout 60 --browser-args="--headless"  CppInterOpTests.html }
