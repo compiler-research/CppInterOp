@@ -50,7 +50,7 @@ jobs:
       uses: actions/cache@v6
       with:
         path: ${{env.EM_CACHE_FOLDER}}
-        key: ${{env.EM_VERSION}}-${{ matrix.os }}
+        key: ${{env.EM_VERSION}}-${{ runner.os }}
 
     - uses: emscripten-core/setup-emsdk@v16
       with:
@@ -95,16 +95,6 @@ jobs:
       shell: powershell
       run: |
         micromamba shell hook -s cmd.exe --root-prefix C:\Users\runneradmin\micromamba-root
-
-    # The cell's native half (tblgens, LLVMSupport, ...) is built with
-    # MSVC; the native cppinterop-tblgen links against it with -G Ninja,
-    # which takes whatever compiler is on PATH -- MinGW without this.
-    # Pinned to the release ci-workflows' publish-recipe uses.
-    - name: Set up MSVC developer environment (Windows)
-      if: ${{ runner.os == 'Windows' && !(github.event_name == 'pull_request' && matrix.skip-in-prs == 'true') }}
-      uses: ilammy/msvc-dev-cmd@v1.13.0
-      with:
-        arch: x64
 
     - name: Build and test CppInterOp
       if: ${{ !(github.event_name == 'pull_request' && matrix.skip-in-prs == 'true') }}
