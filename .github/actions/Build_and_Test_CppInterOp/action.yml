@@ -284,10 +284,8 @@ runs:
       shell: bash -l {0}
       run: |
         set -e
-        ./emsdk/emsdk activate ${{ env.EMSDK_VER }}
-        source ./emsdk/emsdk_env.sh
         micromamba create -f environment-wasm.yml --platform=emscripten-wasm32 -c https://prefix.dev/emscripten-forge-4x -c https://prefix.dev/conda-forge
-        export SYSROOT_PATH=$PWD/emsdk/upstream/emscripten/cache/sysroot
+        export SYSROOT_PATH=$PWD/emsdk-cache/upstream/emscripten/cache/sysroot
         export PREFIX=$MAMBA_ROOT_PREFIX/envs/CppInterOp-wasm
         export CMAKE_PREFIX_PATH=$PREFIX
         export CMAKE_SYSTEM_PREFIX_PATH=$PREFIX
@@ -467,15 +465,10 @@ runs:
         echo "PREFIX=$PREFIX" >> $GITHUB_ENV
   
     - name: Emscripten build of CppInterOp on Unix systems (static library)
-      if: runner.os != 'Windows' && !(startsWith(matrix.os, 'ubuntu') && matrix.clang-runtime == '19' && endsWith(matrix.os, 'arm')) && inputs.wasm == 'true' && env.BUILD_STATIC_LIBRARY == 'On'
+      if: runner.os != 'Windows' && inputs.wasm == 'true' && env.BUILD_STATIC_LIBRARY == 'On'
       shell: bash -l {0}
       run: |
-        # FIXME: Static library builds, but tests fail to build on Github runner for Ubuntu arm llvm 19 case
-        #        Disabled build for now
         set -e
-        ./emsdk/emsdk activate ${{ env.EMSDK_VER }}
-        source ./emsdk/emsdk_env.sh
-
         # Build CppInterOp next to cling and llvm-project.
         # See native-shared site above re: stale build/ on local repro.
         rm -rf build_static
@@ -562,10 +555,8 @@ runs:
       shell: powershell
       run: |
         micromamba create -f environment-wasm.yml --platform=emscripten-wasm32 -c https://prefix.dev/emscripten-forge-4x -c https://prefix.dev/conda-forge
-        .\emsdk\emsdk activate ${{ env.EMSDK_VER }}
-        .\emsdk\emsdk_env.ps1
         $env:PWD_DIR= $PWD.Path
-        $env:SYSROOT_PATH="$env:EMSDK/upstream/emscripten/cache/sysroot"
+        $env:SYSROOT_PATH="$env:PWD_DIR/emsdk-cache/upstream/emscripten/cache/sysroot"
         echo "SYSROOT_PATH=$env:SYSROOT_PATH"
         echo "SYSROOT_PATH=$env:SYSROOT_PATH" >> $env:GITHUB_ENV
         
@@ -694,8 +685,6 @@ runs:
       if: ${{ runner.os == 'Windows' && inputs.wasm == 'true' && env.BUILD_STATIC_LIBRARY == 'On' }}
       shell: powershell
       run: |
-       .\emsdk\emsdk activate ${{ env.EMSDK_VER }}
-        .\emsdk\emsdk_env.ps1
         function Error-OnFailure {
           param (
               [Parameter(Mandatory)]
