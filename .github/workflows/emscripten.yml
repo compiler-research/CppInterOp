@@ -56,6 +56,7 @@ jobs:
       with:
         version: ${{env.EM_VERSION}}
         actions-cache-folder: ${{env.EM_CACHE_FOLDER}}
+        cache-key: ${{env.EM_VERSION}}-${{ runner.os }}
 
     - name: Setup default Build Type
       if: ${{ !(github.event_name == 'pull_request' && matrix.skip-in-prs == 'true') }}
@@ -68,8 +69,6 @@ jobs:
         # from catthehacker/ubuntu:act-24.04; install it so bin/repro works.
         sudo apt-get update
         sudo apt-get install -y --no-install-recommends cmake ninja-build
-        sudo apt-get autoremove
-        sudo apt-get clean
 
     # No build-on-miss: a cache miss hard-fails the row instead of
     # silently inline-building (~30 min). Forces recipe-side drift to
