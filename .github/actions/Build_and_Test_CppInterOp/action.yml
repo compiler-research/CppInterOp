@@ -555,13 +555,11 @@ runs:
       shell: powershell
       run: |
         micromamba create -f environment-wasm.yml --platform=emscripten-wasm32 -c https://prefix.dev/emscripten-forge-4x -c https://prefix.dev/conda-forge
-        $env:PWD_DIR= $PWD.Path
+        $env:PWD_DIR= $PWD.Path.Replace('\', '/')
         $env:SYSROOT_PATH="$env:PWD_DIR/emsdk-cache/emsdk-main/upstream/emscripten/cache/sysroot"
-        echo "SYSROOT_PATH=$env:SYSROOT_PATH"
         echo "SYSROOT_PATH=$env:SYSROOT_PATH" >> $env:GITHUB_ENV
         
         $env:PREFIX="$env:MAMBA_ROOT_PREFIX/envs/CppInterOp-wasm"
-        echo "PREFIX=$env:PREFIX"
         echo "PREFIX=$env:PREFIX" >> $env:GITHUB_ENV
         
         $env:CMAKE_PREFIX_PATH=$env:PREFIX
@@ -569,11 +567,9 @@ runs:
         
         # setup-recipe extracts the cell to $PWD_DIR\install\.
         $env:LLVM_DIR="$env:PWD_DIR\install"
-        echo "LLVM_DIR=$env:LLVM_DIR"
         echo "LLVM_DIR=$env:LLVM_DIR" >> $env:GITHUB_ENV
 
         $env:LLVM_BUILD_DIR="$env:LLVM_DIR\build"
-        echo "LLVM_BUILD_DIR=$env:LLVM_BUILD_DIR"
         echo "LLVM_BUILD_DIR=$env:LLVM_BUILD_DIR" >> $env:GITHUB_ENV
 
         # Build native cppinterop-tblgen for .inc file generation.
@@ -676,10 +672,6 @@ runs:
         Error-OnFailure { emrun.bat --browser="chrome.exe" --kill_exit --timeout 60 --browser-args="--headless --no-sandbox"  DynamicLibraryManagerTests.html }
         cd ..\..
         Error-OnFailure { emmake ninja install }
-        echo "SYSROOT_PATH=$env:SYSROOT_PATH" >> $GITHUB_ENV
-        echo "LLVM_BUILD_DIR=$env:LLVM_BUILD_DIR" >> $GITHUB_ENV
-        echo "CPLUS_INCLUDE_PATH=$env:CPLUS_INCLUDE_PATH" >> $GITHUB_ENV
-        echo "PREFIX=$env:PREFIX" >> $GITHUB_ENV
 
     - name: Emscripten build of CppInterOp on Windows systems (static library)
       if: ${{ runner.os == 'Windows' && inputs.wasm == 'true' && env.BUILD_STATIC_LIBRARY == 'On' }}
