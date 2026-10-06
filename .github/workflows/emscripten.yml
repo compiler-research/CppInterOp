@@ -14,7 +14,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  EM_VERSION: 5.0.1
+  EM_VERSION: 4.0.9
   EM_CACHE_FOLDER: 'emsdk-cache'
   BUILD_STATIC_LIBRARY: ${{ github.event_name == 'schedule' && 'On' || 'Off' }}
 
@@ -41,24 +41,18 @@ jobs:
     - uses: actions/checkout@v6
       if: ${{ !(github.event_name == 'pull_request' && matrix.skip-in-prs == 'true') }}
 
-    - name: Set up Python
-      if: ${{ !(github.event_name == 'pull_request' && matrix.skip-in-prs == 'true') }}
-      uses: actions/setup-python@v6
-      with:
-        python-version: '3.11'
-
     - name: Save PR Info
       if: ${{ !(github.event_name == 'pull_request' && matrix.skip-in-prs == 'true') }}
       uses: ./.github/actions/Miscellaneous/Save_PR_Info
 
     - name: Setup cache
       id: cache-system-libraries
-      uses: actions/cache@v5
+      uses: actions/cache@v6
       with:
         path: ${{env.EM_CACHE_FOLDER}}
-        key: ${{env.EM_VERSION}}-${{ runner.os }}
+        key: ${{env.EM_VERSION}}-${{ matrix.os }}
 
-    - uses: emscripten-core/setup-emsdk@v15
+    - uses: emscripten-core/setup-emsdk@v16
       with:
         version: ${{env.EM_VERSION}}
         actions-cache-folder: ${{env.EM_CACHE_FOLDER}}
