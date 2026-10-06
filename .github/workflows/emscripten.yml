@@ -14,9 +14,8 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  # emsdk for the consumer-side xeus-cpp build; the llvm-wasm cell
-  # bakes its own emsdk version into the recipe.
-  EMSDK_VER: "4.0.9"
+  EM_VERSION: 5.0.1
+  EM_CACHE_FOLDER: 'emsdk-cache'
   BUILD_STATIC_LIBRARY: ${{ github.event_name == 'schedule' && 'On' || 'Off' }}
 
 jobs:
@@ -52,12 +51,17 @@ jobs:
       if: ${{ !(github.event_name == 'pull_request' && matrix.skip-in-prs == 'true') }}
       uses: ./.github/actions/Miscellaneous/Save_PR_Info
 
-    - name: Setup emsdk
-      if: ${{ !(github.event_name == 'pull_request' && matrix.skip-in-prs == 'true') }}
-      run: |
-          git clone --depth=1 https://github.com/emscripten-core/emsdk.git
-          cd emsdk
-          ./emsdk install  ${{ env.EMSDK_VER }}
+    - name: Setup cache
+      id: cache-system-libraries
+      uses: actions/cache@v5
+      with:
+        path: ${{env.EM_CACHE_FOLDER}}
+        key: ${{env.EM_VERSION}}-${{ runner.os }}
+
+    - uses: emscripten-core/setup-emsdk@v15
+      with:
+        version: ${{env.EM_VERSION}}
+        actions-cache-folder: ${{env.EM_CACHE_FOLDER}}
 
     - name: Setup default Build Type
       if: ${{ !(github.event_name == 'pull_request' && matrix.skip-in-prs == 'true') }}
