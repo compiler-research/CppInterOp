@@ -285,7 +285,7 @@ runs:
       run: |
         set -e
         micromamba create -f environment-wasm.yml --platform=emscripten-wasm32 -c https://prefix.dev/emscripten-forge-4x -c https://prefix.dev/conda-forge
-        export SYSROOT_PATH=$PWD/emsdk-cache/upstream/emscripten/cache/sysroot
+        export SYSROOT_PATH=$PWD/emsdk-cache/emsdk-main/upstream/emscripten/cache/sysroot
         export PREFIX=$MAMBA_ROOT_PREFIX/envs/CppInterOp-wasm
         export CMAKE_PREFIX_PATH=$PREFIX
         export CMAKE_SYSTEM_PREFIX_PATH=$PREFIX
@@ -556,7 +556,7 @@ runs:
       run: |
         micromamba create -f environment-wasm.yml --platform=emscripten-wasm32 -c https://prefix.dev/emscripten-forge-4x -c https://prefix.dev/conda-forge
         $env:PWD_DIR= $PWD.Path
-        $env:SYSROOT_PATH="$env:PWD_DIR/emsdk-cache/upstream/emscripten/cache/sysroot"
+        $env:SYSROOT_PATH="$env:PWD_DIR/emsdk-cache/emsdk-main/upstream/emscripten/cache/sysroot"
         echo "SYSROOT_PATH=$env:SYSROOT_PATH"
         echo "SYSROOT_PATH=$env:SYSROOT_PATH" >> $env:GITHUB_ENV
         
