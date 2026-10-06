@@ -63,28 +63,6 @@ jobs:
       if: ${{ !(github.event_name == 'pull_request' && matrix.skip-in-prs == 'true') }}
       uses: ./.github/actions/Miscellaneous/Select_Default_Build_Type
 
-    - name: Install deps on Windows
-      if: ${{ runner.os == 'windows' && !(github.event_name == 'pull_request' && matrix.skip-in-prs == 'true') }}
-      run: |
-        choco install findutils ninja
-        $env:PATH="C:\Program Files (x86)\GnuWin32\bin;$env:PATH"
-        $env:PATH="C:\Program Files (x86)\Ninja\bin;$env:PATH"
-
-    - name: Install deps on MacOS
-      if: ${{ runner.os == 'macOS' && !(github.event_name == 'pull_request' && matrix.skip-in-prs == 'true') }}
-      run: |
-        brew update
-        export ARCHITECHURE=$(uname -m)
-        if [[ "$ARCHITECHURE" != "x86_64" ]]; then
-          brew remove unxip
-        fi
-        # workaround for https://github.com/actions/setup-python/issues/577
-        for pkg in $(brew list | grep '^python@'); do
-          brew unlink "$pkg"
-          brew link --overwrite "$pkg"
-        done
-        brew install ninja
-
     - name: Install deps on Linux
       if: ${{ runner.os == 'Linux' && !(github.event_name == 'pull_request' && matrix.skip-in-prs == 'true') }}
       run: |
