@@ -91,6 +91,10 @@ jobs:
       run: |
         micromamba shell hook -s cmd.exe --root-prefix C:\Users\runneradmin\micromamba-root
 
+    - name: Set up MSVC developer environment
+      if: ${{ runner.os == 'Windows' && !(github.event_name == 'pull_request' && matrix.skip-in-prs == 'true') }}
+      uses: ilammy/msvc-dev-cmd@v1.13.0
+
     - name: Build and test CppInterOp
       if: ${{ !(github.event_name == 'pull_request' && matrix.skip-in-prs == 'true') }}
       uses: ./.github/actions/Build_and_Test_CppInterOp
