@@ -14,9 +14,8 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  # emsdk for the consumer-side xeus-cpp build; the llvm-wasm cell
-  # bakes its own emsdk version into the recipe.
-  EMSDK_VER: "4.0.9"
+  EM_VERSION: 4.0.9
+  EM_CACHE_FOLDER: 'emsdk-cache'
   BUILD_STATIC_LIBRARY: ${{ github.event_name == 'schedule' && 'On' || 'Off' }}
 
 jobs:
@@ -42,48 +41,22 @@ jobs:
     - uses: actions/checkout@v6
       if: ${{ !(github.event_name == 'pull_request' && matrix.skip-in-prs == 'true') }}
 
-    - name: Set up Python
-      if: ${{ !(github.event_name == 'pull_request' && matrix.skip-in-prs == 'true') }}
-      uses: actions/setup-python@v6
+    - name: Setup cache
+      id: cache-system-libraries
+      uses: actions/cache@v6
       with:
-        python-version: '3.11'
+        path: ${{env.EM_CACHE_FOLDER}}
+        key: ${{env.EM_VERSION}}-${{ matrix.os }}
 
-    - name: Save PR Info
-      if: ${{ !(github.event_name == 'pull_request' && matrix.skip-in-prs == 'true') }}
-      uses: ./.github/actions/Miscellaneous/Save_PR_Info
-
-    - name: Setup emsdk
-      if: ${{ !(github.event_name == 'pull_request' && matrix.skip-in-prs == 'true') }}
-      run: |
-          git clone --depth=1 https://github.com/emscripten-core/emsdk.git
-          cd emsdk
-          ./emsdk install  ${{ env.EMSDK_VER }}
+    - uses: emscripten-core/setup-emsdk@v16
+      with:
+        version: ${{env.EM_VERSION}}
+        actions-cache-folder: ${{env.EM_CACHE_FOLDER}}
+        cache-key: ${{env.EM_VERSION}}-${{ matrix.os }}
 
     - name: Setup default Build Type
       if: ${{ !(github.event_name == 'pull_request' && matrix.skip-in-prs == 'true') }}
       uses: ./.github/actions/Miscellaneous/Select_Default_Build_Type
-
-    - name: Install deps on Windows
-      if: ${{ runner.os == 'windows' && !(github.event_name == 'pull_request' && matrix.skip-in-prs == 'true') }}
-      run: |
-        choco install findutils ninja
-        $env:PATH="C:\Program Files (x86)\GnuWin32\bin;$env:PATH"
-        $env:PATH="C:\Program Files (x86)\Ninja\bin;$env:PATH"
-
-    - name: Install deps on MacOS
-      if: ${{ runner.os == 'macOS' && !(github.event_name == 'pull_request' && matrix.skip-in-prs == 'true') }}
-      run: |
-        brew update
-        export ARCHITECHURE=$(uname -m)
-        if [[ "$ARCHITECHURE" != "x86_64" ]]; then
-          brew remove unxip
-        fi
-        # workaround for https://github.com/actions/setup-python/issues/577
-        for pkg in $(brew list | grep '^python@'); do
-          brew unlink "$pkg"
-          brew link --overwrite "$pkg"
-        done
-        brew install ninja
 
     - name: Install deps on Linux
       if: ${{ runner.os == 'Linux' && !(github.event_name == 'pull_request' && matrix.skip-in-prs == 'true') }}
@@ -92,8 +65,6 @@ jobs:
         # from catthehacker/ubuntu:act-24.04; install it so bin/repro works.
         sudo apt-get update
         sudo apt-get install -y --no-install-recommends cmake ninja-build
-        sudo apt-get autoremove
-        sudo apt-get clean
 
     # No build-on-miss: a cache miss hard-fails the row instead of
     # silently inline-building (~30 min). Forces recipe-side drift to
@@ -120,15 +91,9 @@ jobs:
       run: |
         micromamba shell hook -s cmd.exe --root-prefix C:\Users\runneradmin\micromamba-root
 
-    # The cell's native half (tblgens, LLVMSupport, ...) is built with
-    # MSVC; the native cppinterop-tblgen links against it with -G Ninja,
-    # which takes whatever compiler is on PATH -- MinGW without this.
-    # Pinned to the release ci-workflows' publish-recipe uses.
-    - name: Set up MSVC developer environment (Windows)
+    - name: Set up MSVC developer environment
       if: ${{ runner.os == 'Windows' && !(github.event_name == 'pull_request' && matrix.skip-in-prs == 'true') }}
       uses: ilammy/msvc-dev-cmd@v1.13.0
-      with:
-        arch: x64
 
     - name: Build and test CppInterOp
       if: ${{ !(github.event_name == 'pull_request' && matrix.skip-in-prs == 'true') }}
@@ -141,8 +106,7 @@ jobs:
       if: ${{ runner.os != 'windows' && !(github.event_name == 'pull_request' && matrix.skip-in-prs == 'true') }}
       shell: bash -l {0}
       run: |
-        ./emsdk/emsdk activate ${{ env.EMSDK_VER }}
-        source ./emsdk/emsdk_env.sh
+        set -e
         micromamba activate CppInterOp-wasm
         # Track xeus-cpp's cppinterop-v2.0 branch: the post-typing API
         # introduced by the strong-typing change is not yet on xeus-cpp main.
@@ -150,26 +114,22 @@ jobs:
           https://github.com/compiler-research/xeus-cpp.git
         cd ./xeus-cpp
         mkdir build
-        pushd build
-        export CMAKE_PREFIX_PATH=${{ env.PREFIX }}
+        cd build
         export CMAKE_SYSTEM_PREFIX_PATH=${{ env.PREFIX }}
-        emcmake cmake \
+        emcmake cmake -G Ninja \
           -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}          \
           -DCMAKE_PREFIX_PATH=${{ env.PREFIX }}             \
           -DCMAKE_INSTALL_PREFIX=${{ env.PREFIX }}          \
-          -DXEUS_CPP_EMSCRIPTEN_WASM_BUILD=ON               \
           -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            \
           -DXEUS_CPP_RESOURCE_DIR=${{ env.LLVM_BUILD_DIR }}/lib/clang/${{ matrix.clang-runtime }} \
           -DSYSROOT_PATH=${{ env.SYSROOT_PATH }}                     \
           ..
-        emmake make -j ${{ env.ncpus }} install
+        emmake ninja install
 
     - name: Build xeus-cpp on Windows systems
       if: ${{ runner.os == 'windows' && !(github.event_name == 'pull_request' && matrix.skip-in-prs == 'true') }}
       shell: powershell
       run: |
-        .\emsdk\emsdk activate ${{ env.EMSDK_VER }}
-        .\emsdk\emsdk_env.ps1
         micromamba activate CppInterOp-wasm
         # Track xeus-cpp's cppinterop-v2.0 branch: the post-typing API
         # introduced by the strong-typing change is not yet on xeus-cpp main.
@@ -177,19 +137,17 @@ jobs:
           https://github.com/compiler-research/xeus-cpp.git
         cd .\xeus-cpp
         mkdir build
-        pushd build
-        $env:CMAKE_PREFIX_PATH="${{ env.PREFIX }}"
+        cd build
         $env:CMAKE_SYSTEM_PREFIX_PATH="${{ env.PREFIX }}"
-        emcmake cmake `
+        emcmake cmake -G Ninja `
           -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}          `
           -DCMAKE_PREFIX_PATH=${{ env.PREFIX }}             `
           -DCMAKE_INSTALL_PREFIX=${{ env.PREFIX }}          `
-          -DXEUS_CPP_EMSCRIPTEN_WASM_BUILD=ON               `
           -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            `
           -DXEUS_CPP_RESOURCE_DIR=${{ env.LLVM_BUILD_DIR }}\lib\clang\${{ matrix.clang-runtime }} `
           -DSYSROOT_PATH=${{ env.SYSROOT_PATH }}                `
           ..
-        emmake make -j ${{ env.ncpus }} install
+        emmake ninja install
 
     - name: Test xeus-cpp C++ Emscripten on Unix Systems
       if: ${{ runner.os != 'windows' && !(github.event_name == 'pull_request' && matrix.skip-in-prs == 'true') }}
@@ -229,7 +187,7 @@ jobs:
       shell: bash -l {0}
       run: |
           cd ./xeus-cpp/
-          micromamba create -n xeus-lite-host jupyterlite-core jupyterlite-xeus jupyter_server jupyterlab notebook python-libarchive-c -c conda-forge
+          micromamba create -n xeus-lite-host jupyterlite-core jupyterlite-xeus jupyter_server jupyterlab notebook python-libarchive-c -c conda-forge -q --strict-channel-priority
           micromamba activate xeus-lite-host
           jupyter lite build --XeusAddon.prefix=${{ env.PREFIX }} --contents notebooks/xeus-cpp-lite-demo.ipynb --contents notebooks/tinyraytracer.ipynb --contents notebooks/images/marie.png --contents notebooks/audio/audio.wav --output-dir dist
 
@@ -238,6 +196,6 @@ jobs:
       shell: powershell
       run: |
           cd .\xeus-cpp\
-          micromamba create -n xeus-lite-host jupyterlite-core jupyterlite-xeus jupyter_server jupyterlab notebook python-libarchive-c -c conda-forge
+          micromamba create -n xeus-lite-host jupyterlite-core jupyterlite-xeus jupyter_server jupyterlab notebook python-libarchive-c -c conda-forge -q --strict-channel-priority
           micromamba activate xeus-lite-host
           jupyter lite build --XeusAddon.prefix=${{ env.PREFIX }} --contents notebooks/xeus-cpp-lite-demo.ipynb --contents notebooks/tinyraytracer.ipynb --contents notebooks/images/marie.png --contents notebooks/audio/audio.wav --output-dir dist
