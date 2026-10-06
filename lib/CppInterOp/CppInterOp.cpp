@@ -1189,6 +1189,20 @@ DeclRef GetUnderlyingScope(ConstDeclRef DRef) {
       GetUnderlyingScopeImpl(unwrap<clang::Decl>(DRef))));
 }
 
+DeclRef GetTemplatedDecl(DeclRef DRef) {
+  INTEROP_TRACE(DRef);
+  auto* D = unwrap<clang::Decl>(DRef);
+  if (auto* CTSD =
+          llvm::dyn_cast_or_null<clang::ClassTemplateSpecializationDecl>(D))
+    return INTEROP_RETURN(
+        CTSD->getSpecializedTemplate()->getTemplatedDecl()->getCanonicalDecl());
+  if (auto* CTD = llvm::dyn_cast_or_null<clang::ClassTemplateDecl>(D))
+    return INTEROP_RETURN(CTD->getTemplatedDecl()->getCanonicalDecl());
+  if (auto* FTD = llvm::dyn_cast_or_null<clang::FunctionTemplateDecl>(D))
+    return INTEROP_RETURN(FTD->getTemplatedDecl()->getCanonicalDecl());
+  return INTEROP_RETURN(DRef);
+}
+
 DeclRef GetScope(const std::string& name, ConstDeclRef parent) {
   INTEROP_TRACE(name, parent);
   // FIXME: GetScope should be replaced by a general purpose lookup
