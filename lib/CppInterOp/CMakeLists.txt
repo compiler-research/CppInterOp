@@ -73,11 +73,6 @@ if (LLVM_LINK_LLVM_DYLIB)
   # Do NOT expand to every LLVM library: some (e.g. LLVMInterpreter) require
   # optional dependencies (libffi) that may not be installed.
   set(llvm_component_libs LLVMFrontendDriver)
-  foreach(component_lib ${llvm_component_libs})
-    if(NOT TARGET ${component_lib})
-      list(REMOVE_ITEM llvm_component_libs ${component_lib})
-    endif()
-  endforeach()
   while(NOT "${new_libs}" STREQUAL "")
     foreach(lib ${new_libs})
       if(TARGET ${lib})

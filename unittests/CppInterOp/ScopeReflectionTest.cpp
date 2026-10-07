@@ -8,12 +8,12 @@
 #include "clang/AST/ASTDumper.h"
 #include "clang/AST/Decl.h"
 #include "clang/AST/DeclBase.h"
+#include "clang/AST/ExternalASTSource.h"
 #include "clang/AST/GlobalDecl.h"
 #include "clang/AST/Type.h"
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/Version.h"
 #include "clang/Frontend/CompilerInstance.h"
-#include "clang/Sema/ExternalSemaSource.h"
 #include "clang/Sema/Sema.h"
 
 #include "llvm/ADT/IntrusiveRefCntPtr.h"
@@ -1178,7 +1178,7 @@ namespace {
 // https://github.com/cms-analysis/HiggsAnalysis-CombinedLimit/issues/1289,
 // where cppjit built the Python proxy from the incomplete declaration and
 // silently dropped the entire base hierarchy.
-class LazyDefinitionSource : public clang::ExternalSemaSource {
+class LazyDefinitionSource : public clang::ExternalASTSource {
 public:
   explicit LazyDefinitionSource(std::map<std::string, std::string> Defs)
       : Pending(std::move(Defs)) {}
