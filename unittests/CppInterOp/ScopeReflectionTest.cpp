@@ -1,5 +1,7 @@
 #include "Utils.h"
 
+#include "../../lib/CppInterOp/Unwrap.h"
+
 #include "CppInterOp/CppInterOp.h"
 
 #include "clang/AST/ASTContext.h"
@@ -11,13 +13,18 @@
 #include "clang/Basic/Diagnostic.h"
 #include "clang/Basic/Version.h"
 #include "clang/Frontend/CompilerInstance.h"
+#include "clang/Sema/ExternalSemaSource.h"
 #include "clang/Sema/Sema.h"
+
+#include "llvm/ADT/IntrusiveRefCntPtr.h"
 
 #include "gtest/gtest.h"
 
 #include <CppInterOp/CppInterOpTypes.h>
+#include <map>
 #include <memory>
 #include <string>
+#include <utility>
 
 using namespace TestUtils;
 using namespace llvm;
@@ -1162,6 +1169,89 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_GetBaseClass) {
   auto A_class = Cpp::GetBaseClass(TC3_A_Decl, 0);
   EXPECT_EQ(Cpp::GetCompleteName(A_class), "A");
 }
+
+namespace {
+// Mimics ROOT's runtime-dictionary autoloading: the interpreter knows a
+// class only as a forward declaration (as injected by a non-ACLiC
+// dictionary), and the definition is materialized lazily through the
+// external source when Sema asks to complete the type. Reproduces
+// https://github.com/cms-analysis/HiggsAnalysis-CombinedLimit/issues/1289,
+// where cppjit built the Python proxy from the incomplete declaration and
+// silently dropped the entire base hierarchy.
+class LazyDefinitionSource : public clang::ExternalSemaSource {
+public:
+  explicit LazyDefinitionSource(std::map<std::string, std::string> Defs)
+      : Pending(std::move(Defs)) {}
+
+  void CompleteType(clang::TagDecl* Tag) override {
+    auto It = Pending.find(Tag->getName().str());
+    if (It == Pending.end())
+      return;
+    // Erase before declaring: Declare re-enters Sema, which may ask again.
+    std::string Code = std::move(It->second);
+    Pending.erase(It);
+    Cpp::Declare(Code.c_str());
+  }
+
+private:
+  std::map<std::string, std::string> Pending;
+};
+
+TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_GetBasesOfLazilyDefinedClass) {
+  TestFixture::CreateInterpreter();
+  Cpp::Declare("class LateBoundBase {};"
+               "class LateBoundDerived;"
+               "class LateBoundOther;");
+  Cpp::DeclRef Derived = Cpp::GetNamed("LateBoundDerived");
+  Cpp::DeclRef Other = Cpp::GetNamed("LateBoundOther");
+  ASSERT_TRUE(Derived);
+  ASSERT_TRUE(Other);
+  ASSERT_FALSE(Cpp::IsComplete(Derived));
+  ASSERT_FALSE(Cpp::IsComplete(Other));
+
+  // RequireCompleteTypeImpl consults the ASTContext's external source, not
+  // Sema's; the IntrusiveRefCntPtr hands ownership to the context, which
+  // releases the source at interpreter teardown.
+  ASTContext& Ctx = Interp->getCI()->getASTContext();
+  if (Ctx.getExternalSource())
+    GTEST_SKIP() << "Interpreter already has an external source installed";
+  Ctx.setExternalSource(llvm::IntrusiveRefCntPtr<clang::ExternalASTSource>(
+      new LazyDefinitionSource(
+          {{"LateBoundDerived",
+            "class LateBoundDerived : public LateBoundBase {};"},
+           {"LateBoundOther",
+            "class LateBoundOther : public LateBoundBase {};"}})));
+
+  // Sema only routes a type to the external source when the declaration is
+  // marked as externally stored (as deserialized autoload stubs are). The
+  // AST drops that mark once the external source was asked for the lexical
+  // contents, which may happen while another class is materialized, so
+  // mark each class right before it is first queried.
+  auto MarkAsAutoloadStub = [](Cpp::DeclRef Fwd) {
+    for (auto* RD : Cpp::unwrap<clang::TagDecl>(Fwd)->redecls())
+      RD->setHasExternalLexicalStorage();
+  };
+
+  // Without resolving the definition through Sema, both queries operated
+  // on the forward declaration and saw an empty base list. Each class is
+  // first queried through a different entry point, so that each of them
+  // has to complete the type on its own.
+  MarkAsAutoloadStub(Derived);
+  EXPECT_EQ(Cpp::GetNumBases(Derived), 1U);
+  EXPECT_TRUE(Cpp::IsComplete(Derived));
+  Cpp::DeclRef Base = Cpp::GetBaseClass(Derived, 0);
+  ASSERT_TRUE(Base);
+  EXPECT_EQ(Cpp::GetQualifiedName(Base), "LateBoundBase");
+
+  MarkAsAutoloadStub(Other);
+  Base = Cpp::GetBaseClass(Other, 0);
+  ASSERT_TRUE(Base);
+  EXPECT_EQ(Cpp::GetQualifiedName(Base), "LateBoundBase");
+  EXPECT_TRUE(Cpp::IsComplete(Other));
+  EXPECT_EQ(Cpp::GetNumBases(Other), 1U);
+  EXPECT_FALSE(Cpp::GetBaseClass(Other, 1));
+}
+} // namespace
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_IsSubclass) {
   std::vector<Decl *> Decls;

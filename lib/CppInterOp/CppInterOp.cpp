@@ -1482,19 +1482,25 @@ DeclRef GetParentScope(ConstDeclRef DRef) {
 
 size_t GetNumBases(ConstDeclRef DRef) {
   INTEROP_TRACE(DRef);
-  const auto* D = unwrap<Decl>(DRef);
+  // const_cast: completing the definition mutates the AST, but the base list
+  // is logically a read-only property of the class. Taking a mutable DeclRef
+  // would make unqualified calls in downstream wrappers ambiguous via ADL.
+  auto* D = const_cast<Decl*>(unwrap<Decl>(DRef));
 
   // hasDefinition() completes the redecl chain (dataPtr), which may
   // deserialize it; so does getNumBases() below.
   compat::SynthesizingCodeRAII RAII(&getInterp());
-  if (const auto* CTSD =
-          llvm::dyn_cast_or_null<ClassTemplateSpecializationDecl>(D))
+  if (auto* CTSD = llvm::dyn_cast_or_null<ClassTemplateSpecializationDecl>(D))
     if (!CTSD->hasDefinition())
-      compat::InstantiateClassTemplateSpecialization(
-          getInterp(), const_cast<ClassTemplateSpecializationDecl*>(CTSD));
-  if (const auto* CXXRD = llvm::dyn_cast_or_null<CXXRecordDecl>(D)) {
-    if (CXXRD->hasDefinition())
-      return INTEROP_RETURN(CXXRD->getNumBases());
+      compat::InstantiateClassTemplateSpecialization(getInterp(), CTSD);
+  if (llvm::isa_and_nonnull<CXXRecordDecl>(D)) {
+    // A class known only as an autoload-annotated forward declaration
+    // (e.g., injected by a runtime ROOT dictionary) is not completed by
+    // hasDefinition(); resolve its definition through Sema first, or the
+    // base list is silently empty.
+    if (const auto* Def = llvm::dyn_cast_or_null<CXXRecordDecl>(
+            unwrap<Decl>(GetOrForceDefinition(D))))
+      return INTEROP_RETURN(Def->getNumBases());
   }
 
   return INTEROP_RETURN(0);
@@ -1502,9 +1508,16 @@ size_t GetNumBases(ConstDeclRef DRef) {
 
 DeclRef GetBaseClass(ConstDeclRef DRef, size_t ibase) {
   INTEROP_TRACE(DRef, ibase);
-  const auto* D = unwrap<Decl>(DRef);
-  const auto* CXXRD = llvm::dyn_cast_or_null<CXXRecordDecl>(D);
+  // const_cast: see GetNumBases.
+  auto* D = const_cast<Decl*>(unwrap<Decl>(DRef));
+  if (!llvm::isa_and_nonnull<CXXRecordDecl>(D))
+    return INTEROP_RETURN(nullptr);
+
   compat::SynthesizingCodeRAII RAII(&getInterp());
+  // See GetNumBases: autoload-annotated forward declarations need Sema to
+  // resolve their definition before bases are visible.
+  const auto* CXXRD = llvm::dyn_cast_or_null<CXXRecordDecl>(
+      unwrap<Decl>(GetOrForceDefinition(D)));
   if (!CXXRD || CXXRD->getNumBases() <= ibase)
     return INTEROP_RETURN(nullptr);
 

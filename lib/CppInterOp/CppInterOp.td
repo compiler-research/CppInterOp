@@ -713,7 +713,9 @@ def IsVirtualMethod : CppInterOpAPI {
 
 def GetNumBases : CppInterOpAPI {
   let Doc = [{Gets the number of Base Classes for the Derived Class that
-is passed as a parameter.}];
+is passed as a parameter. Bases are a property of the class definition: if
+only a declaration is loaded, the definition is first forced into the AST
+(see GetOrForceDefinition).}];
 
   let ReturnType = "size_t";
   let Args = [
@@ -735,7 +737,8 @@ def GetBaseClass : CppInterOpAPI {
   let Doc = [{Gets a specific Base Class using its index. Typically GetNumBases()
 is used to get the number of Base Classes, and then that number
 can be used to iterate through the index value to get each specific
-base class.}];
+base class. As for GetNumBases(), the definition is forced into the AST if
+only a declaration is loaded.}];
 
   let ReturnType = "DeclRef";
   let Args = [
