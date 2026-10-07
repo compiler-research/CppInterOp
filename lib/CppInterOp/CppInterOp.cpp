@@ -721,6 +721,28 @@ static SourceLocation GetValidSLoc(Sema& semaRef) {
   return SM.getLocForStartOfFile(SM.getMainFileID());
 }
 
+namespace {
+class clangSilent {
+public:
+  explicit clangSilent(clang::DiagnosticsEngine& diag)
+      : fDiagEngine(&diag),
+        fOldDiagValue(fDiagEngine->getSuppressAllDiagnostics()) {
+    fDiagEngine->setSuppressAllDiagnostics(true);
+  }
+
+  ~clangSilent() { fDiagEngine->setSuppressAllDiagnostics(fOldDiagValue); }
+
+  clangSilent(const clangSilent&) = delete;
+  clangSilent& operator=(const clangSilent&) = delete;
+  clangSilent(clangSilent&&) = delete;
+  clangSilent& operator=(clangSilent&&) = delete;
+
+private:
+  clang::DiagnosticsEngine* fDiagEngine;
+  bool fOldDiagValue;
+};
+} // namespace
+
 // See TClingClassInfo::IsLoaded
 bool IsComplete(ConstDeclRef DRef) {
   INTEROP_TRACE(DRef);
@@ -734,7 +756,21 @@ bool IsComplete(ConstDeclRef DRef) {
     clang::Sema& S = getSema();
     SourceLocation fakeLoc = GetValidSLoc(S);
     compat::SynthesizingCodeRAII RAII(&getInterp());
-    return INTEROP_RETURN(S.isCompleteType(fakeLoc, QT));
+    // Query only: attempting the implicit instantiation of a specialization
+    // that can never be defined (its template is only declared) must neither
+    // print an error nor leave the diagnostics engine in an error state that
+    // poisons the next translation unit. Suppressed diagnostics still bump
+    // the engine's trap counters (DiagnosticsEngine::ProcessDiag increments
+    // TrapNumErrorsOccurred before the suppression check), and a prior
+    // operation may already have flagged an error, so carry a trap over the
+    // query and reset on any sign of diagnostics.
+    clangSilent Silence(S.getDiagnostics());
+    bool HadError = S.getDiagnostics().hasErrorOccurred();
+    clang::DiagnosticErrorTrap Trap(S.getDiagnostics());
+    bool complete = S.isCompleteType(fakeLoc, QT);
+    if (HadError || Trap.hasErrorOccurred())
+      S.getDiagnostics().Reset(/*soft=*/true);
+    return INTEROP_RETURN(complete);
   }
 
   if (const auto* CXXRD = dyn_cast<CXXRecordDecl>(D))
@@ -5906,22 +5942,6 @@ void GetIncludePaths(std::vector<std::string>& IncludePaths, bool withSystem,
     IncludePaths.push_back(i);
   return INTEROP_VOID_RETURN();
 }
-
-namespace {
-class clangSilent {
-public:
-  clangSilent(clang::DiagnosticsEngine& diag) : fDiagEngine(diag) {
-    fOldDiagValue = fDiagEngine.getSuppressAllDiagnostics();
-    fDiagEngine.setSuppressAllDiagnostics(true);
-  }
-
-  ~clangSilent() { fDiagEngine.setSuppressAllDiagnostics(fOldDiagValue); }
-
-protected:
-  clang::DiagnosticsEngine& fDiagEngine;
-  bool fOldDiagValue;
-};
-} // namespace
 
 static int Declare(compat::Interpreter& I, const char* code, bool silent) {
   // Trap diagnostics on both paths: I.declare's rc is 0 even when
