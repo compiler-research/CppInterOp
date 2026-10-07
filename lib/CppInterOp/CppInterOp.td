@@ -1716,6 +1716,22 @@ i.e. have the same canonical type.}];
   ];
 }
 
+def IsEquivalentTypes : CppInterOpAPI {
+  let Doc = [{Checks if two types are equivalent up to CVR qualifiers,
+references and pointers, or if one type derives from the other. On return,
+\c qual holds the CVR qualifiers that differ between the two types, \c ref
+the kind of reference that was stripped and \c pointer whether a pointer was
+stripped.}];
+  let ReturnType = "bool";
+  let Args = [
+    Arg<"ConstTypeRef", "typ1">,
+    Arg<"ConstTypeRef", "typ2">,
+    OutArg<"QualKind&", "qual">,
+    OutArg<"ValueKind&", "ref">,
+    OutArg<"bool&", "pointer">
+  ];
+}
+
 def IsVoidPointerType : CppInterOpAPI {
   let Doc = "Checks if type is a void pointer.";
   let ReturnType = "bool";

@@ -9,6 +9,7 @@
 
 #include "CppInterOp/CppInterOp.h"
 #include "Unwrap.h"
+#include "CppInterOp/CppInterOpTypes.h"
 #include "CppInterOp/Error.h"
 
 // Generated at configure time; defines CPPINTEROP_BAKED_INTERPRETER_ARGS
@@ -3774,6 +3775,90 @@ bool IsSameType(ConstTypeRef type_a, ConstTypeRef type_b) {
   QualType QT1 = QualType::getFromOpaquePtr(type_a.data);
   QualType QT2 = QualType::getFromOpaquePtr(type_b.data);
   return INTEROP_RETURN(getASTContext().hasSameType(QT1, QT2));
+}
+
+static bool IsEquivalentTypesImpl(ConstTypeRef typ1, ConstTypeRef typ2,
+                                  QualKind& qual, ValueKind& ref,
+                                  bool& pointer) {
+  QualType type1 = QualType::getFromOpaquePtr(typ1.data);
+  QualType type2 = QualType::getFromOpaquePtr(typ2.data);
+
+  // hasSameType/hasSameUnqualifiedType are static only since LLVM 22, so
+  // they are called through an instance.
+  // NOLINTBEGIN(readability-static-accessed-through-instance)
+  auto& C = getASTContext();
+  bool SameType = C.hasSameType(type1, type2);
+  bool SameUnqualifiedType = C.hasSameUnqualifiedType(type1, type2);
+  // NOLINTEND(readability-static-accessed-through-instance)
+
+  // check if same type
+  if (SameType || IsTypeDerivedFrom(typ1, typ2) ||
+      IsTypeDerivedFrom(typ2, typ1))
+    return true;
+
+  // check if same type after removing qualifiers
+  if (SameUnqualifiedType) {
+    if (type1.isConstQualified() != type2.isConstQualified())
+      qual = qual | QualKind::Const;
+    if (type1.isVolatileQualified() != type2.isVolatileQualified())
+      qual = qual | QualKind::Volatile;
+    if (type1.isRestrictQualified() != type2.isRestrictQualified())
+      qual = qual | QualKind::Restrict;
+    return true;
+  }
+
+  // check if same type after removing references
+  if (type1->isLValueReferenceType() &&
+      IsEquivalentTypesImpl(type1.getNonReferenceType().getAsOpaquePtr(), typ2,
+                            qual, ref, pointer)) {
+    ref = ref | ValueKind::LValue;
+    return true;
+  }
+  if (type1->isRValueReferenceType() &&
+      IsEquivalentTypesImpl(type1.getNonReferenceType().getAsOpaquePtr(), typ2,
+                            qual, ref, pointer)) {
+    ref = ref | ValueKind::RValue;
+    return true;
+  }
+  if (type2->isLValueReferenceType() &&
+      IsEquivalentTypesImpl(type2.getNonReferenceType().getAsOpaquePtr(), typ1,
+                            qual, ref, pointer)) {
+    ref = ref | ValueKind::LValue;
+    return true;
+  }
+  if (type2->isRValueReferenceType() &&
+      IsEquivalentTypesImpl(type2.getNonReferenceType().getAsOpaquePtr(), typ1,
+                            qual, ref, pointer)) {
+    ref = ref | ValueKind::RValue;
+    return true;
+  }
+
+  // check if same type after removing pointers
+  if (type1->isAnyPointerType() &&
+      IsEquivalentTypesImpl(type1->getPointeeType().getAsOpaquePtr(), typ2,
+                            qual, ref, pointer)) {
+    pointer = true;
+    return true;
+  }
+  if (type2->isAnyPointerType() &&
+      IsEquivalentTypesImpl(type2->getPointeeType().getAsOpaquePtr(), typ1,
+                            qual, ref, pointer)) {
+    pointer = true;
+    return true;
+  }
+  return false;
+}
+
+bool IsEquivalentTypes(ConstTypeRef typ1, ConstTypeRef typ2, QualKind& qual,
+                       ValueKind& ref, bool& pointer) {
+  qual = QualKind::None;
+  ref = ValueKind::None;
+  pointer = false;
+  INTEROP_TRACE(typ1, typ2, INTEROP_OUT(qual), INTEROP_OUT(ref),
+                INTEROP_OUT(pointer));
+  if (!typ1 || !typ2)
+    return INTEROP_RETURN(false);
+  return INTEROP_RETURN(IsEquivalentTypesImpl(typ1, typ2, qual, ref, pointer));
 }
 
 bool IsPointerType(ConstTypeRef TyRef) {
