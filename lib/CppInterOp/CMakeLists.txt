@@ -328,6 +328,15 @@ if(NOT _clang_resource_dir AND NOT CODE_COVERAGE
     set(_clang_resource_dir "${_detected_resource_dir}")
   endif()
 endif()
+# Some distributions split the clang driver from the libraries and headers
+# (e.g. a Nix clang package with lib/clang/<major>/include but no bin/clang).
+# Fall back to the resource directory's standard location under the prefix.
+set(_prefix_resource_dir
+  "${CLANG_INSTALL_PREFIX}/lib${LLVM_LIBDIR_SUFFIX}/clang/${LLVM_VERSION_MAJOR}")
+if(NOT _clang_resource_dir AND NOT CODE_COVERAGE AND CLANG_INSTALL_PREFIX
+   AND EXISTS "${_prefix_resource_dir}/include")
+  set(_clang_resource_dir "${_prefix_resource_dir}")
+endif()
 message(STATUS "Clang resource directory: ${_clang_resource_dir}")
 
 string(REPLACE ";" "\;" _VER CPPINTEROP_VERSION)
