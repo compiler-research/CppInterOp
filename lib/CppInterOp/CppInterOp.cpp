@@ -812,6 +812,21 @@ DeclRef GetOrForceDefinition(DeclRef DRef) {
   return INTEROP_RETURN(nullptr);
 }
 
+// The definition of D if D is a class, forced into the AST if only a
+// declaration is loaded (e.g. an autoload-annotated forward declaration
+// injected by a runtime ROOT dictionary, which hasDefinition() does not
+// complete). const_cast: completing the definition mutates the AST, but the
+// definition is logically a read-only property of the class. Taking a mutable
+// DeclRef in the public API would make unqualified calls in downstream
+// wrappers ambiguous via ADL.
+static CXXRecordDecl* GetCXXRecordDefinition(const Decl* D) {
+  if (!isa_and_nonnull<CXXRecordDecl>(D))
+    return nullptr;
+  return dyn_cast_or_null<CXXRecordDecl>(unwrap<Decl>(
+      // NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast)
+      GetOrForceDefinition(DeclRef(const_cast<Decl*>(D)))));
+}
+
 size_t SizeOf(ConstDeclRef DRef) {
   INTEROP_TRACE(DRef);
   assert(DRef);
@@ -866,14 +881,8 @@ bool IsTypedefed(ConstDeclRef DRef) {
 
 bool IsAbstract(DeclRef DRef) {
   INTEROP_TRACE(DRef);
-  const auto* D = unwrap<clang::Decl>(DRef);
-  if (llvm::isa_and_nonnull<clang::CXXRecordDecl>(D)) {
-    const auto* Def = llvm::dyn_cast_or_null<clang::CXXRecordDecl>(
-        unwrap<clang::Decl>(GetOrForceDefinition(DRef)));
-    return INTEROP_RETURN(Def && Def->isAbstract());
-  }
-
-  return INTEROP_RETURN(false);
+  const auto* Def = GetCXXRecordDefinition(unwrap<clang::Decl>(DRef));
+  return INTEROP_RETURN(Def && Def->isAbstract());
 }
 
 bool IsEnumScope(ConstDeclRef DRef) {
@@ -1197,19 +1206,11 @@ static const clang::Decl* GetUnderlyingScopeImpl(const clang::Decl* D) {
 // return that target; otherwise return D unchanged. The using-shadow
 // is the only carrier of the "effective access" introduced into the
 // derived class, so callers that need access info should consult D
-// before unwrapping.
-static clang::Decl* UnwrapUsingShadowToFunction(clang::Decl* D) {
-  if (auto* USD = dyn_cast_or_null<UsingShadowDecl>(D))
-    if (auto* Target = USD->getTargetDecl())
-      if (isa<FunctionDecl>(Target) || isa<FunctionTemplateDecl>(Target))
-        return Target;
-  return D;
-}
-
-static const clang::Decl* UnwrapUsingShadowToFunction(const clang::Decl* D) {
+// before unwrapping. DeclT is Decl or const Decl.
+template <typename DeclT> static DeclT* UnwrapUsingShadowToFunction(DeclT* D) {
   if (const auto* USD = dyn_cast_or_null<UsingShadowDecl>(D))
-    if (const auto* Target = USD->getTargetDecl())
-      if (isa<FunctionDecl>(Target) || isa<FunctionTemplateDecl>(Target))
+    if (auto* Target = USD->getTargetDecl())
+      if (isa<FunctionDecl, FunctionTemplateDecl>(Target))
         return Target;
   return D;
 }
@@ -1408,8 +1409,7 @@ DeclRef GetNamed(const std::string& name, ConstDeclRef parent /*= nullptr*/) {
   // pick the semantics they want, instead of GetNamed approximating both.
   if (!ND && Within) {
     if (auto* RD = llvm::dyn_cast<clang::CXXRecordDecl>(Within)) {
-      auto* Def = llvm::dyn_cast_or_null<clang::CXXRecordDecl>(
-          unwrap<clang::Decl>(GetOrForceDefinition(DeclRef(RD))));
+      auto* Def = GetCXXRecordDefinition(RD);
       if (!Def)
         return INTEROP_RETURN(nullptr);
       auto& S = getSema();
@@ -1482,42 +1482,26 @@ DeclRef GetParentScope(ConstDeclRef DRef) {
 
 size_t GetNumBases(ConstDeclRef DRef) {
   INTEROP_TRACE(DRef);
-  // const_cast: completing the definition mutates the AST, but the base list
-  // is logically a read-only property of the class. Taking a mutable DeclRef
-  // would make unqualified calls in downstream wrappers ambiguous via ADL.
-  auto* D = const_cast<Decl*>(unwrap<Decl>(DRef));
+  const auto* D = unwrap<Decl>(DRef);
 
   // hasDefinition() completes the redecl chain (dataPtr), which may
   // deserialize it; so does getNumBases() below.
   compat::SynthesizingCodeRAII RAII(&getInterp());
-  if (auto* CTSD = llvm::dyn_cast_or_null<ClassTemplateSpecializationDecl>(D))
+  if (const auto* CTSD =
+          llvm::dyn_cast_or_null<ClassTemplateSpecializationDecl>(D))
     if (!CTSD->hasDefinition())
-      compat::InstantiateClassTemplateSpecialization(getInterp(), CTSD);
-  if (llvm::isa_and_nonnull<CXXRecordDecl>(D)) {
-    // A class known only as an autoload-annotated forward declaration
-    // (e.g., injected by a runtime ROOT dictionary) is not completed by
-    // hasDefinition(); resolve its definition through Sema first, or the
-    // base list is silently empty.
-    if (const auto* Def = llvm::dyn_cast_or_null<CXXRecordDecl>(
-            unwrap<Decl>(GetOrForceDefinition(D))))
-      return INTEROP_RETURN(Def->getNumBases());
-  }
-
-  return INTEROP_RETURN(0);
+      // const_cast: see GetCXXRecordDefinition.
+      compat::InstantiateClassTemplateSpecialization(
+          // NOLINTNEXTLINE(cppcoreguidelines-pro-type-const-cast)
+          getInterp(), const_cast<ClassTemplateSpecializationDecl*>(CTSD));
+  const auto* Def = GetCXXRecordDefinition(D);
+  return INTEROP_RETURN(Def ? Def->getNumBases() : 0);
 }
 
 DeclRef GetBaseClass(ConstDeclRef DRef, size_t ibase) {
   INTEROP_TRACE(DRef, ibase);
-  // const_cast: see GetNumBases.
-  auto* D = const_cast<Decl*>(unwrap<Decl>(DRef));
-  if (!llvm::isa_and_nonnull<CXXRecordDecl>(D))
-    return INTEROP_RETURN(nullptr);
-
   compat::SynthesizingCodeRAII RAII(&getInterp());
-  // See GetNumBases: autoload-annotated forward declarations need Sema to
-  // resolve their definition before bases are visible.
-  const auto* CXXRD = llvm::dyn_cast_or_null<CXXRecordDecl>(
-      unwrap<Decl>(GetOrForceDefinition(D)));
+  const auto* CXXRD = GetCXXRecordDefinition(unwrap<Decl>(DRef));
   if (!CXXRD || CXXRD->getNumBases() <= ibase)
     return INTEROP_RETURN(nullptr);
 
@@ -4265,7 +4249,7 @@ bool IsCopyConstructorDeleted(QualType QT) {
     return false;
   }
 
-  RD = unwrap<CXXRecordDecl>(GetOrForceDefinition(DeclRef(RD)));
+  RD = GetCXXRecordDefinition(RD);
   if (!RD)
     return false;
 
@@ -5666,14 +5650,10 @@ InterpRef CreateInterpreter(const std::vector<const char*>& Args /*={}*/,
   std::vector<const char*> AllArgs;
 #ifdef CPPINTEROP_BAKED_INTERPRETER_ARGS
   // Storage for the split arguments; must outlive the pointers in AllArgs.
-  std::vector<std::string> BakedStorage;
-  StringRef Baked(CPPINTEROP_BAKED_INTERPRETER_ARGS);
-  while (!Baked.empty()) {
-    StringRef Arg;
-    std::tie(Arg, Baked) = Baked.split(' ');
-    if (!Arg.empty())
-      BakedStorage.push_back(Arg.str());
-  }
+  SmallVector<StringRef, 8> BakedParts;
+  StringRef(CPPINTEROP_BAKED_INTERPRETER_ARGS)
+      .split(BakedParts, ' ', /*MaxSplit=*/-1, /*KeepEmpty=*/false);
+  std::vector<std::string> BakedStorage(BakedParts.begin(), BakedParts.end());
   for (const std::string& Arg : BakedStorage)
     AllArgs.push_back(Arg.c_str());
 #endif
@@ -5962,17 +5942,11 @@ static int Declare(compat::Interpreter& I, const char* code, bool silent) {
   // distinguish "parsed cleanly" from "parsed with errors".
   clang::DiagnosticsEngine& Diag = I.getSema().getDiagnostics();
   clang::DiagnosticErrorTrap Trap(Diag);
-  if (silent) {
-    clangSilent diagSuppr(Diag);
-    auto result = I.declare(code);
-    if (Trap.hasErrorOccurred())
-      return 1;
-    return result;
-  }
+  std::optional<clangSilent> diagSuppr;
+  if (silent)
+    diagSuppr.emplace(Diag);
   auto result = I.declare(code);
-  if (Trap.hasErrorOccurred())
-    return 1;
-  return result;
+  return Trap.hasErrorOccurred() ? 1 : result;
 }
 
 int Declare(const char* code, bool silent) {

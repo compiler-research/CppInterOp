@@ -191,25 +191,13 @@ TYPED_TEST(CPPINTEROP_TEST_MODE,
 
   GetAllTopLevelDecls(code, Decls);
 
-  std::vector<Cpp::FuncRef> derived_methods;
-  Cpp::GetClassMethods(Decls[1], derived_methods);
-
-  // Find the using-promoted foo (the two-argument overload).
-  bool found_using_promoted = false;
-  Cpp::FuncRef using_promoted;
-  for (auto m : derived_methods) {
-    if (Cpp::GetName(Cpp::DeclRef{m.data}) != "foo")
-      continue;
-    if (Cpp::GetFunctionNumArgs(m) == 2) {
-      found_using_promoted = true;
-      using_promoted = m;
-      EXPECT_TRUE(Cpp::IsPublicMethod(m));
-      EXPECT_FALSE(Cpp::IsProtectedMethod(m));
-      EXPECT_FALSE(Cpp::IsConstructor(m));
-    }
-  }
-  EXPECT_TRUE(found_using_promoted)
+  // The using-promoted foo (the two-argument overload).
+  Cpp::FuncRef using_promoted = FindMethod(Decls[1], "foo", 2);
+  ASSERT_TRUE(using_promoted)
       << "using-promoted base method missing from GetClassMethods";
+  EXPECT_TRUE(Cpp::IsPublicMethod(using_promoted));
+  EXPECT_FALSE(Cpp::IsProtectedMethod(using_promoted));
+  EXPECT_FALSE(Cpp::IsConstructor(using_promoted));
 
   // Resolving the address of the using-promoted overload must transparently
   // unwrap the using-shadow to its target before emitting code. This is the
@@ -217,15 +205,8 @@ TYPED_TEST(CPPINTEROP_TEST_MODE,
   // (the reflection-only APIs above all go through the const overload), and the
   // resolved address must match the one obtained directly from the base method.
 #ifndef _WIN32 // GetFunctionAddress is disabled on Windows; see its own test.
-  if (!TypeParam::isOutOfProcess && found_using_promoted) {
-    std::vector<Cpp::FuncRef> base_methods;
-    Cpp::GetClassMethods(Decls[0], base_methods);
-    Cpp::FuncRef base_foo;
-    for (auto m : base_methods) {
-      if (Cpp::GetName(Cpp::DeclRef{m.data}) == "foo" &&
-          Cpp::GetFunctionNumArgs(m) == 2)
-        base_foo = m;
-    }
+  if (!TypeParam::isOutOfProcess) {
+    Cpp::FuncRef base_foo = FindMethod(Decls[0], "foo", 2);
     ASSERT_TRUE(base_foo);
 
     void* shadow_addr = Cpp::GetFunctionAddress(using_promoted);
@@ -234,19 +215,10 @@ TYPED_TEST(CPPINTEROP_TEST_MODE,
   }
 #endif
 
-  std::vector<Cpp::FuncRef> hidden_methods;
-  Cpp::GetClassMethods(Decls[2], hidden_methods);
-
-  bool found_hidden = false;
-  for (auto m : hidden_methods) {
-    if (Cpp::GetName(Cpp::DeclRef{m.data}) == "foo" &&
-        Cpp::GetFunctionNumArgs(m) == 2) {
-      found_hidden = true;
-      EXPECT_FALSE(Cpp::IsPublicMethod(m));
-      EXPECT_TRUE(Cpp::IsProtectedMethod(m));
-    }
-  }
-  EXPECT_TRUE(found_hidden);
+  Cpp::FuncRef hidden = FindMethod(Decls[2], "foo", 2);
+  ASSERT_TRUE(hidden);
+  EXPECT_FALSE(Cpp::IsPublicMethod(hidden));
+  EXPECT_TRUE(Cpp::IsProtectedMethod(hidden));
 }
 
 // Companion to the access test above, covering the *call* path: a method
@@ -284,16 +256,8 @@ TYPED_TEST(CPPINTEROP_TEST_MODE,
   GetAllTopLevelDecls(code, Decls, /*filter_implicitGenerated=*/false,
                       /*interpreter_args=*/{"-include", "new"});
 
-  std::vector<Cpp::FuncRef> derived_methods;
-  Cpp::GetClassMethods(Decls[1], derived_methods);
-
-  // Locate the using-promoted foo (the two-argument overload from the base).
-  Cpp::FuncRef using_promoted;
-  for (auto m : derived_methods) {
-    if (Cpp::GetName(Cpp::DeclRef{m.data}) == "foo" &&
-        Cpp::GetFunctionNumArgs(m) == 2)
-      using_promoted = m;
-  }
+  // The using-promoted foo (the two-argument overload from the base).
+  Cpp::FuncRef using_promoted = FindMethod(Decls[1], "foo", 2);
   ASSERT_TRUE(using_promoted);
 
   // Compiling this wrapper exercises the relaxAccessControl path: the generated
@@ -363,16 +327,8 @@ TYPED_TEST(CPPINTEROP_TEST_MODE,
   GetAllTopLevelDecls(code, Decls, /*filter_implicitGenerated=*/false,
                       /*interpreter_args=*/{"-include", "new"});
 
-  std::vector<Cpp::FuncRef> derived_methods;
-  Cpp::GetClassMethods(Decls[2], derived_methods);
-
-  // Locate the using-imported set_value (the one-argument overload).
-  Cpp::FuncRef imported;
-  for (auto m : derived_methods) {
-    if (Cpp::GetName(Cpp::DeclRef{m.data}) == "set_value" &&
-        Cpp::GetFunctionNumArgs(m) == 1)
-      imported = m;
-  }
+  // The using-imported set_value (the one-argument overload).
+  Cpp::FuncRef imported = FindMethod(Decls[2], "set_value", 1);
   ASSERT_TRUE(imported);
 
   // The declaring scope of the imported method is SecondBase, not Derived.
@@ -400,13 +356,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE,
   std::array<void*, 1> args = {(void*)&v};
   SetValue.Invoke(nullptr, {args.data(), /*args_size=*/1}, second_base);
 
-  std::vector<Cpp::FuncRef> second_base_methods;
-  Cpp::GetClassMethods(Decls[1], second_base_methods);
-  Cpp::FuncRef get_value;
-  for (auto m : second_base_methods) {
-    if (Cpp::GetName(Cpp::DeclRef{m.data}) == "get_value")
-      get_value = m;
-  }
+  Cpp::FuncRef get_value = FindMethod(Decls[1], "get_value");
   ASSERT_TRUE(get_value);
 
   int result = 0;
@@ -415,13 +365,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE,
 
   // The FirstBase subobject must be untouched (no write through an
   // unadjusted pointer).
-  std::vector<Cpp::FuncRef> first_base_methods;
-  Cpp::GetClassMethods(Decls[0], first_base_methods);
-  Cpp::FuncRef get_a;
-  for (auto m : first_base_methods) {
-    if (Cpp::GetName(Cpp::DeclRef{m.data}) == "get_a")
-      get_a = m;
-  }
+  Cpp::FuncRef get_a = FindMethod(Decls[0], "get_a");
   ASSERT_TRUE(get_a);
 
   long long a = 0;
@@ -4126,7 +4070,12 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_Construct) {
 // The wrappers behind Construct and by-value returns placement-new into a
 // caller-provided buffer. A class-scope operator new with no placement form
 // hides the global `operator new(size_t, void*)`, so those wrappers only
-// compile if they spell it `::new (buf) C(...)`.
+// compile if they spell it `::new (buf) C(...)`. That is also the standard
+// library's construct-at contract ([specialized.construct]): construction into
+// a caller-provided buffer never routes through a class-scope *placement*
+// operator new (which unqualified `new (buf)` would pick), while plain heap
+// construction still goes through the user's class-scope allocator. The
+// counters in WithPlacementNew make the choice observable.
 TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_ConstructClassScopeNew) {
 #ifdef _WIN32
   GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
@@ -4138,7 +4087,6 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_ConstructClassScopeNew) {
 #endif
   if (TypeParam::isOutOfProcess)
     GTEST_SKIP() << "Test fails for OOP JIT builds";
-  std::vector<const char*> interpreter_args = {"-include", "new"};
   std::vector<Decl*> Decls;
 
   std::string code = R"(
@@ -4154,9 +4102,28 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_ConstructClassScopeNew) {
       static void operator delete[](void* p) { ::operator delete[](p); }
     };
     WithClassNew MakeWithClassNew() { return WithClassNew(); }
+
+    int heap_news = 0;      // calls to the class-scope operator new(size_t)
+    int placement_news = 0; // calls to the class-scope placement form
+    class WithPlacementNew {
+    public:
+      int x;
+      WithPlacementNew() : x(7) {}
+      WithPlacementNew Clone() { return WithPlacementNew(); }
+      static void* operator new(__SIZE_TYPE__ sz) {
+        ++heap_news;
+        return ::operator new(sz);
+      }
+      static void* operator new(__SIZE_TYPE__, void* where) {
+        ++placement_news;
+        return where;
+      }
+      static void operator delete(void* p) { ::operator delete(p); }
+      static void operator delete(void*, void*) {}
+    };
     )";
 
-  GetAllTopLevelDecls(code, Decls, false, interpreter_args);
+  GetAllTopLevelDecls(code, Decls, false, {"-include", "new"});
   Cpp::DeclRef scope = Cpp::GetNamed("WithClassNew");
   ASSERT_TRUE(scope);
 
@@ -4196,59 +4163,13 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_ConstructClassScopeNew) {
   int result = 0; // WithClassNew's layout is a single int
   JC.Invoke(&result);
   EXPECT_EQ(result, 42);
-}
 
-// Pins down which operator new the wrappers pick when the class-scope forms
-// are all accessible, including a class-scope *placement* operator new. The
-// contract is the standard library's construct-at contract
-// ([specialized.construct]): construction into a caller-provided buffer is
-// spelled `::new (buf) C(...)`, so it constructs at `buf` directly and never
-// routes through a class-scope placement operator new (which unqualified
-// `new (buf)` would pick). Plain heap construction still goes through the
-// user's class-scope allocator. The counters make the choice observable.
-TYPED_TEST(CPPINTEROP_TEST_MODE,
-           FunctionReflection_ConstructClassScopePlacementNew) {
-#ifdef _WIN32
-  GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
-#endif
-#ifdef EMSCRIPTEN
-#if CLANG_VERSION_MAJOR > 21
-  GTEST_SKIP() << "Test fails for Emscipten builds using LLVM 22";
-#endif
-#endif
-  if (TypeParam::isOutOfProcess)
-    GTEST_SKIP() << "Test fails for OOP JIT builds";
-  std::vector<const char*> interpreter_args = {"-include", "new"};
-  std::vector<Decl*> Decls;
-
-  std::string code = R"(
-    int heap_news = 0;      // calls to the class-scope operator new(size_t)
-    int placement_news = 0; // calls to the class-scope placement form
-    class WithPlacementNew {
-    public:
-      int x;
-      WithPlacementNew() : x(7) {}
-      WithPlacementNew Clone() { return WithPlacementNew(); }
-      static void* operator new(__SIZE_TYPE__ sz) {
-        ++heap_news;
-        return ::operator new(sz);
-      }
-      static void* operator new(__SIZE_TYPE__, void* where) {
-        ++placement_news;
-        return where;
-      }
-      static void operator delete(void* p) { ::operator delete(p); }
-      static void operator delete(void*, void*) {}
-    };
-    )";
-
-  GetAllTopLevelDecls(code, Decls, false, interpreter_args);
-  Cpp::DeclRef scope = Cpp::GetNamed("WithPlacementNew");
+  scope = Cpp::GetNamed("WithPlacementNew");
   ASSERT_TRUE(scope);
 
   // Heap construction (the wrapper's non-arena `new C(...)`) must keep
   // honoring the user's class-scope allocator.
-  Cpp::ObjectRef object = Cpp::Construct(scope);
+  object = Cpp::Construct(scope);
   ASSERT_TRUE(object);
   EXPECT_EQ(*static_cast<int*>(object.data), 7);
   EXPECT_EQ(Cpp::Evaluate("heap_news").unbox<int>(), 1);
@@ -4256,7 +4177,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE,
 
   // Construction into a caller-provided buffer bypasses the class-scope
   // placement operator new, like std::construct_at does.
-  void* where = Cpp::Allocate(scope).data;
+  where = Cpp::Allocate(scope).data;
   ASSERT_TRUE(where);
   EXPECT_TRUE(where == Cpp::Construct(scope, where).data);
   EXPECT_EQ(*static_cast<int*>(where), 7);
@@ -4267,10 +4188,10 @@ TYPED_TEST(CPPINTEROP_TEST_MODE,
   // A JitCall to a method of the class with a by-value result: the wrapper
   // stores the result into the caller's buffer with `::new (ret)`, so the
   // class-scope placement operator new stays out of the call path here too.
-  Cpp::JitCall JC = Cpp::MakeFunctionCallable(
+  JC = Cpp::MakeFunctionCallable(
       Cpp::FuncRef{Cpp::GetNamed("Clone", scope).data});
   ASSERT_TRUE(JC.getKind() == Cpp::JitCall::kGenericCall);
-  int result = 0; // WithPlacementNew's layout is a single int
+  result = 0; // WithPlacementNew's layout is a single int
   JC.Invoke(&result, {}, object.data);
   EXPECT_EQ(result, 7);
   EXPECT_EQ(Cpp::Evaluate("heap_news").unbox<int>(), 1);
