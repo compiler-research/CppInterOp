@@ -1340,6 +1340,30 @@ CODE;
             (char*)(A*)g.get() - (char*)g.get());
 }
 
+TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_IsBaseReachedVirtually) {
+  std::vector<Decl*> Decls;
+  std::string code = R"(
+    struct A { int m_a; };
+    struct B : virtual A { int m_b; };
+    struct C : public B { int m_c; };
+    struct D : public A { int m_d; };
+    struct E { int m_e; };
+    struct G : virtual D { int m_g; };
+  )";
+
+  GetAllTopLevelDecls(code, Decls);
+
+  EXPECT_TRUE(Cpp::IsBaseReachedVirtually(Decls[1], Decls[0]));
+  EXPECT_TRUE(Cpp::IsBaseReachedVirtually(Decls[2], Decls[0]));
+  EXPECT_FALSE(Cpp::IsBaseReachedVirtually(Decls[2], Decls[1]));
+  EXPECT_FALSE(Cpp::IsBaseReachedVirtually(Decls[3], Decls[0]));
+  EXPECT_TRUE(Cpp::IsBaseReachedVirtually(Decls[5], Decls[3]));
+  EXPECT_TRUE(Cpp::IsBaseReachedVirtually(Decls[5], Decls[0]));
+  EXPECT_FALSE(Cpp::IsBaseReachedVirtually(Decls[3], Decls[4]));
+  EXPECT_FALSE(Cpp::IsBaseReachedVirtually(Decls[0], Decls[0]));
+  EXPECT_FALSE(Cpp::IsBaseReachedVirtually(Decls[0], Decls[1]));
+}
+
 TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_GetAllCppNames) {
   std::vector<Decl *> Decls;
   std::string code = R"(
