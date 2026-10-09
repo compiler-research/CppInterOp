@@ -1645,6 +1645,36 @@ int64_t GetBaseClassOffset(ConstDeclRef derived, ConstDeclRef base) {
       ComputeBaseOffset(getSema().getASTContext(), DCXXRD, Paths.front()));
 }
 
+bool IsBaseReachedVirtually(ConstDeclRef derived, ConstDeclRef base) {
+  INTEROP_TRACE(derived, base);
+  if (!derived || !base || derived == base)
+    return INTEROP_RETURN(false);
+
+  compat::SynthesizingCodeRAII RAII(&getInterp());
+
+  const auto* DCXXRD = dyn_cast<CXXRecordDecl>(unwrap<Decl>(derived));
+  const auto* BCXXRD = dyn_cast<CXXRecordDecl>(unwrap<Decl>(base));
+  if (!DCXXRD || !BCXXRD || !DCXXRD->hasDefinition())
+    return INTEROP_RETURN(false);
+
+#if defined(__GNUC__) && !defined(__clang__) && defined(__SANITIZE_ADDRESS__)
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wmaybe-uninitialized"
+#endif
+  CXXBasePaths Paths(/*FindAmbiguities=*/false, /*RecordPaths=*/true,
+                     /*DetectVirtual=*/false);
+#if defined(__GNUC__) && !defined(__clang__) && defined(__SANITIZE_ADDRESS__)
+#pragma GCC diagnostic pop
+#endif
+  if (!DCXXRD->isDerivedFrom(BCXXRD, Paths))
+    return INTEROP_RETURN(false);
+
+  for (const CXXBasePathElement& Element : Paths.front())
+    if (Element.Base->isVirtual())
+      return INTEROP_RETURN(true);
+  return INTEROP_RETURN(false);
+}
+
 template <typename DeclType, typename HandleType>
 static void GetClassDecls(ConstDeclRef DRef, std::vector<HandleType>& methods) {
   if (!DRef)

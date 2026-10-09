@@ -781,6 +781,19 @@ used to get to the Base Class fields.}];
   ];
 }
 
+def IsBaseReachedVirtually : CppInterOpAPI {
+  let Doc = [{Checks if the path from the supplied Derived Class to the
+provided Base Class goes through a virtual base. The offset of such a base
+depends on the dynamic type of the object, so GetBaseClassOffset() is then only
+valid for objects whose dynamic type is the Derived Class itself.}];
+
+  let ReturnType = "bool";
+  let Args = [
+    Arg<"ConstDeclRef", "derived">,
+    Arg<"ConstDeclRef", "base">
+  ];
+}
+
 def GetClassMethods : CppInterOpAPI {
   let Doc = [{Sets a list of all the Methods that are in the Class that is
 supplied as a parameter.
