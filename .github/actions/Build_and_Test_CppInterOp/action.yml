@@ -728,7 +728,7 @@ runs:
                 -DCPPINTEROP_TABLEGEN_EXE="${{ env.CPPINTEROP_TBLGEN_EXE }}" `
                 ..\
         }
-        Error-OnFailure { emmake ninja check-cppinterop }
+        Error-OnFailure { emmake ninja check-cppinterop -j 2 }
         cd .\unittests\CppInterOp\
         echo "Running CppInterOpTests in Firefox"
         Error-OnFailure { emrun.bat --browser="firefox.exe" --kill_exit --timeout 60 --browser-args="--headless"  CppInterOpTests.html }
