@@ -16,7 +16,7 @@ concurrency:
 env:
   EM_VERSION: 4.0.9
   EM_CACHE_FOLDER: 'emsdk-cache'
-  BUILD_STATIC_LIBRARY: ${{ github.event_name == 'schedule' && 'On' || 'Off' }}
+  BUILD_STATIC_LIBRARY: 'On'
 
 jobs:
   build:
