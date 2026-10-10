@@ -1365,10 +1365,18 @@ def IsAllocator : CppInterOpAPI {
 }
 
 def IsDeallocator : CppInterOpAPI {
-  let Doc = "Checks if the provided function is a deallocator function";
+  let Doc = [{Records the memory deallocation behaviour of each parameter of
+  the given function, as declared by its attributes. Appends one entry per
+  parameter to VPP, preceded by one entry for the object parameter if the
+  function has an implicit this; whatever VPP already holds is left
+  untouched. A parameter labelled cppDeallocNone is reported as None, while
+  one carrying no deallocation attribute is reported as Opaque. Labelling
+  the object parameter is not supported and is ignored. Returns false if
+  func is not a function, in which case VPP is not modified.}];
   let ReturnType = "bool";
   let Args = [
-    Arg<"ConstFuncRef", "func">
+    Arg<"ConstFuncRef", "func">,
+    OutArg<"std::vector<DeallocType>&", "VPP">
   ];
 }
 
