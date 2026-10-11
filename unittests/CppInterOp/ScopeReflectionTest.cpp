@@ -21,6 +21,8 @@
 #include "gtest/gtest.h"
 
 #include <CppInterOp/CppInterOpTypes.h>
+#include <array>
+#include <cstdint>
 #include <map>
 #include <memory>
 #include <string>
@@ -1340,28 +1342,101 @@ CODE;
             (char*)(A*)g.get() - (char*)g.get());
 }
 
-TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_IsBaseReachedVirtually) {
+TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_GetBaseClassOffsetWithAddress) {
   std::vector<Decl*> Decls;
-  std::string code = R"(
-    struct A { int m_a; };
-    struct B : virtual A { int m_b; };
-    struct C : public B { int m_c; };
-    struct D : public A { int m_d; };
-    struct E { int m_e; };
-    struct G : virtual D { int m_g; };
-  )";
+  // Layout fixtures own no resources and do not need custom copy/move members.
+  // NOLINTBEGIN(cppcoreguidelines-special-member-functions)
+#define Stringify(s) Stringifyx(s)
+#define Stringifyx(...) #__VA_ARGS__
+#define CODE                                                                   \
+  struct VB {                                                                  \
+    int m_vb;                                                                  \
+  };                                                                           \
+  struct IC {                                                                  \
+    int m_ic;                                                                  \
+  };                                                                           \
+  struct Pad {                                                                 \
+    std::array<int, 2> padding;                                                \
+  };                                                                           \
+  struct M : Pad, IC {                                                         \
+    int m_m;                                                                   \
+  };                                                                           \
+  struct Lead {                                                                \
+    virtual ~Lead() = default;                                                 \
+    std::array<long, 2> padding;                                               \
+  };                                                                           \
+  struct VD2 : Lead, virtual VB {                                              \
+    int m_vd2;                                                                 \
+  };                                                                           \
+  struct ID3 : Lead, virtual M {                                               \
+    int m_id3;                                                                 \
+  };                                                                           \
+  struct NearlyEmpty {                                                         \
+    virtual ~NearlyEmpty() = default;                                          \
+    virtual int id() const { return 42; }                                      \
+  };                                                                           \
+  struct WithVCalls : virtual NearlyEmpty {                                    \
+    int value;                                                                 \
+    int id() const override { return 7; }                                      \
+  };
 
-  GetAllTopLevelDecls(code, Decls);
+  CODE;
+  // NOLINTEND(cppcoreguidelines-special-member-functions)
+  GetAllTopLevelDecls(Stringify(CODE), Decls, false, {"-include", "array"});
+#undef Stringifyx
+#undef Stringify
+#undef CODE
 
-  EXPECT_TRUE(Cpp::IsBaseReachedVirtually(Decls[1], Decls[0]));
-  EXPECT_TRUE(Cpp::IsBaseReachedVirtually(Decls[2], Decls[0]));
-  EXPECT_FALSE(Cpp::IsBaseReachedVirtually(Decls[2], Decls[1]));
-  EXPECT_FALSE(Cpp::IsBaseReachedVirtually(Decls[3], Decls[0]));
-  EXPECT_TRUE(Cpp::IsBaseReachedVirtually(Decls[5], Decls[3]));
-  EXPECT_TRUE(Cpp::IsBaseReachedVirtually(Decls[5], Decls[0]));
-  EXPECT_FALSE(Cpp::IsBaseReachedVirtually(Decls[3], Decls[4]));
-  EXPECT_FALSE(Cpp::IsBaseReachedVirtually(Decls[0], Decls[0]));
-  EXPECT_FALSE(Cpp::IsBaseReachedVirtually(Decls[0], Decls[1]));
+  // These complete types exist only in the host, not in the interpreter.
+  // Other also exists solely for its layout and owns no resources.
+  struct Other { // NOLINT(cppcoreguidelines-special-member-functions)
+    virtual ~Other() = default;
+    std::array<long, 100> padding;
+  };
+  struct Hidden : Other, VD2 {
+    long value;
+  };
+  struct Hidden3 : Other, ID3 {
+    long value;
+  };
+  struct First : virtual NearlyEmpty {};
+  struct HiddenCalls : First, WithVCalls {
+    long value;
+    [[nodiscard]] int id() const override { return WithVCalls::id(); }
+  };
+
+  Hidden hidden;
+  VD2* p = &hidden;
+  int64_t expected = (char*)(VB*)p - (char*)p;
+  ASSERT_NE(Cpp::GetBaseClassOffset(Decls[5], Decls[0]), expected);
+  EXPECT_EQ(Cpp::GetBaseClassOffset(Decls[5], Decls[0], p), expected);
+
+  // The last part of ID3 -> virtual M -> IC has a nonzero non-virtual offset.
+  Hidden3 hidden3;
+  ID3* p3 = &hidden3;
+  int64_t expected_ic = (char*)(IC*)p3 - (char*)p3;
+  ASSERT_NE(Cpp::GetBaseClassOffset(Decls[6], Decls[1]), expected_ic);
+  EXPECT_EQ(Cpp::GetBaseClassOffset(Decls[6], Decls[1], p3), expected_ic);
+
+  // Preserve the static behavior for ordinary bases and the same class.
+  EXPECT_EQ(Cpp::GetBaseClassOffset(Decls[5], Decls[4], p),
+            (char*)(Lead*)p - (char*)p);
+  EXPECT_EQ(Cpp::GetBaseClassOffset(Decls[5], Decls[5], p), 0);
+
+  // A complete VD2 has a nonzero vbptr offset on Microsoft targets.
+  VD2 complete;
+  EXPECT_EQ(Cpp::GetBaseClassOffset(Decls[5], Decls[0], &complete),
+            Cpp::GetBaseClassOffset(Decls[5], Decls[0]));
+  EXPECT_EQ(Cpp::GetBaseClassOffset(Decls[5], Decls[0], &complete),
+            (char*)(VB*)&complete - (char*)&complete);
+
+  // A nearly-empty virtual base introduces vcall slots on Itanium targets.
+  // It can precede the WithVCalls subobject, requiring a signed offset.
+  HiddenCalls hidden_calls;
+  WithVCalls* pc = &hidden_calls;
+  EXPECT_EQ(pc->id(), 7);
+  EXPECT_EQ(Cpp::GetBaseClassOffset(Decls[8], Decls[7], pc),
+            (char*)(NearlyEmpty*)pc - (char*)pc);
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_GetAllCppNames) {

@@ -771,26 +771,17 @@ def GetOperator : CppInterOpAPI {
 }
 
 def GetBaseClassOffset : CppInterOpAPI {
-  let Doc = [{Each base has its own offset in a Derived Class. This offset can be
-used to get to the Base Class fields.}];
+  let Doc = [{Returns the byte offset from derived to base. Without an address,
+the offset comes from the record layout of a complete derived object. If address
+points to a live derived object or subobject and the path to base contains a
+virtual base, the offset is read from its vtable/vbtable. This also works when
+the complete object's dynamic type is unknown to the interpreter.}];
 
   let ReturnType = "int64_t";
   let Args = [
     Arg<"ConstDeclRef", "derived">,
-    Arg<"ConstDeclRef", "base">
-  ];
-}
-
-def IsBaseReachedVirtually : CppInterOpAPI {
-  let Doc = [{Checks if the path from the supplied Derived Class to the
-provided Base Class goes through a virtual base. The offset of such a base
-depends on the dynamic type of the object, so GetBaseClassOffset() is then only
-valid for objects whose dynamic type is the Derived Class itself.}];
-
-  let ReturnType = "bool";
-  let Args = [
-    Arg<"ConstDeclRef", "derived">,
-    Arg<"ConstDeclRef", "base">
+    Arg<"ConstDeclRef", "base">,
+    Arg<"const void*", "address", "nullptr">
   ];
 }
 
