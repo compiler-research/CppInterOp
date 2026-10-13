@@ -261,7 +261,7 @@ if(NOT CPPINTEROP_SHARED_LIBRARY_VERSIONING)
   set_property(TARGET clangCppInterOp PROPERTY SOVERSION)
 endif()
 
-set(my_interface_libs "" CACHE INTERNAL "Get list of libraries clangcppinterop links too")
+set(my_interface_libs "" CACHE INTERNAL "Get list of libraries clangcppinterop links to")
 if(EMSCRIPTEN)
   if(BUILD_SHARED_LIBS)
   # FIXME: When dynamically linking the Emscripten shared library to the
@@ -284,6 +284,17 @@ if(EMSCRIPTEN)
     PRIVATE "SHELL: ${CPPINTEROP_LIBRARY_WASM_FLAGS}"
     PRIVATE "SHELL: ${CPPINTEROP_EXTRA_WASM_FLAGS}"
   )
+  if (CPPINTEROP_ENABLE_TESTING)
+    if (CPPINTEROP_BUILT_STANDALONE)
+       set(CPPINTEROP_TESTS_DIR "${CMAKE_BINARY_DIR}/unittests/CppInterOp/")
+    else ()
+       set(CPPINTEROP_TESTS_DIR "${CMAKE_BINARY_DIR}/tools/cppinterop/unittests/CppInterOp/")
+    endif ()
+    # When compiling Emscripten tests the CppInterOp library it links to is expected to be in the same folder as the compiled Javascript
+    add_custom_command(TARGET clangCppInterOp POST_BUILD
+      COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:clangCppInterOp> ${CPPINTEROP_TESTS_DIR}
+    )
+  endif(CPPINTEROP_ENABLE_TESTING)
   else()
   target_compile_options(clangCppInterOp
     PRIVATE "SHELL: ${CPPINTEROP_LIBRARY_WASM_FLAGS}"
@@ -352,7 +363,7 @@ if(EMSCRIPTEN)
 
     # Find recursive interface libraries for my_interface_libs
     get_recursive_interface_libs(${link_libs} my_interface_libs_list)
-    set(my_interface_libs "INTERFACE_LINK_LIBRARIES ${my_interface_libs_list}")
+    set(my_interface_libs "INTERFACE_LINK_LIBRARIES \"${my_interface_libs_list}\"" CACHE INTERNAL "Get list of libraries clangcppinterop links to")
   endif (CPPINTEROP_BUILT_STANDALONE)
   endif(BUILD_SHARED_LIBS)
 endif(EMSCRIPTEN)
