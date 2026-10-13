@@ -58,6 +58,7 @@ endif()
 set_target_properties(clangCppInterOp PROPERTIES
   INTERFACE_INCLUDE_DIRECTORIES ${_include}
   IMPORTED_LOCATION ${_lib}
+  @my_interface_libs@
   )
 if (MSVC)
   if (IS_DIRECTORY "${CPPINTEROP_INSTALL_PREFIX}/include")
