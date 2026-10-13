@@ -40,13 +40,6 @@ if (EMSCRIPTEN)
     "SHELL:--preload-file ${ESCAPED_SYSROOT_PATH}/include@/include"
     "SHELL:--emrun"
   )
-
-  if (BUILD_SHARED_LIBS)
-    # When compiling Emscripten tests the CppInterOp library it links to is expected to be in the same folder as the compiled Javascript
-    add_custom_command(TARGET clangCppInterOp POST_BUILD
-      COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:clangCppInterOp> ${CMAKE_BINARY_DIR}/unittests/CppInterOp/
-    )
-  endif(BUILD_SHARED_LIBS)
 endif()
 
 add_cppinterop_unittest(CppInterOpTests
