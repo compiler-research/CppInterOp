@@ -49,8 +49,13 @@ set(CPPINTEROP_LLVM_VERSION_SUFFIX "@LLVM_VERSION_SUFFIX@")
 set(CPPINTEROP_LLVM_PACKAGE_VERSION "@CPPINTEROP_LLVM_VERSION@")
 set(CPPINTEROP_VERSION "@CPPINTEROP_VERSION@")
 
+# Whether clangCppInterOp is a shared library. Under Emscripten the imported
+# target below is made static whatever we ask for, so its TYPE cannot tell.
+# FIXME: Seen with emsdk 4.0.9; drop this once emsdk keeps the type.
+set(CPPINTEROP_SHARED_LIB @BUILD_SHARED_LIBS@)
+
 # Provide all our library targets to users.
-if (@BUILD_SHARED_LIBS@)
+if (CPPINTEROP_SHARED_LIB)
   add_library(clangCppInterOp SHARED IMPORTED)
 else()
   add_library(clangCppInterOp STATIC IMPORTED)
@@ -58,6 +63,7 @@ endif()
 set_target_properties(clangCppInterOp PROPERTIES
   INTERFACE_INCLUDE_DIRECTORIES ${_include}
   IMPORTED_LOCATION ${_lib}
+  @CPPINTEROP_CONFIG_INTERFACE_LIBS@
   )
 if (MSVC)
   if (IS_DIRECTORY "${CPPINTEROP_INSTALL_PREFIX}/include")
