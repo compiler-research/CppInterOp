@@ -54,7 +54,7 @@ jobs:
           - { name: ubu24-x86-gcc12-llvm22, os: ubuntu-24.04, compiler: gcc-12, clang-runtime: '22' }
           - { name: ubu24-x86-clang23-llvm23-asan-ubsan, os: ubuntu-24.04, compiler: clang-23, clang-runtime: '23', sanitizer: "Address;Undefined", flavor: asan }
           - { name: ubu24-x86-clang23-llvm23-msan, os: ubuntu-24.04, compiler: clang-23, clang-runtime: '23', sanitizer: "Memory", flavor: msan }
-          - { name: ubu24-x86-gcc12-llvm23-vg, os: ubuntu-24.04, compiler: gcc-12, clang-runtime: '23', Valgrind: On, flavor: system }
+          - { name: ubu24-x86-gcc12-llvm23-vg, os: ubuntu-24.04, compiler: gcc-12, clang-runtime: '23', Valgrind: On }
           - { name: ubu24-x86-gcc14-cling-asan, os: ubuntu-24.04, compiler: gcc-14, clang-runtime: *cling_llvm_major, cling: 'On', sanitizer: "Address", flavor: cling, cling-patches: cling }
           # selfh-ubu22-x86-gcc12-llvm22-cuda lives in `build-selfhost`
           # below; it's the only row that needs the dell awake.

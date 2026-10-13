@@ -20,13 +20,13 @@
 #include "Sins.h" // for access to private members
 #include "Tracing.h"
 
-// MSan workaround for clang-repl <= 22: __clang_Interpreter_SetValueNoAlloc
+// MSan workaround for clang-repl <= 23: __clang_Interpreter_SetValueNoAlloc
 // receives JIT-emitted values through varargs, and MSan cannot track shadow
 // across that JIT/native boundary -- the returned Value carries correct bits
 // but an uninit shadow, which trips downstream reads (convertTo, ~Value).
-// Fixed upstream in llvm/llvm-project#196894; unpoison locally for older LLVM.
+// Waiting for llvm/llvm-project#196894; unpoison locally until it lands.
 #if defined(__has_feature)
-#if __has_feature(memory_sanitizer) && LLVM_VERSION_MAJOR <= 22
+#if __has_feature(memory_sanitizer) && LLVM_VERSION_MAJOR <= 23
 #include <sanitizer/msan_interface.h>
 #define CPPINTEROP_MSAN_UNPOISON_VALUE(v) __msan_unpoison(&(v), sizeof(v))
 #else
