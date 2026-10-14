@@ -12,6 +12,7 @@
 #include <CppInterOp/CppInterOpTypes.h>
 #include <cstdint>
 #include <llvm/ADT/ArrayRef.h>
+#include <llvm/Support/Casting.h>
 #include <llvm/Support/raw_ostream.h>
 
 #include "gtest/gtest.h"
@@ -2901,9 +2902,9 @@ TYPED_TEST(CPPINTEROP_TEST_MODE,
 
   std::vector<Cpp::FuncRef> ambiguous_candidates;
   std::vector<Cpp::FuncRef> candidates;
-  for (auto i : Decls) {
+  for (auto* i : Decls) {
     if (Cpp::IsFunction(i))
-      candidates.push_back(i);
+      candidates.emplace_back(i);
   }
   EXPECT_EQ(candidates.size(), 3);
 
@@ -2926,7 +2927,9 @@ TYPED_TEST(CPPINTEROP_TEST_MODE,
 
 TYPED_TEST(CPPINTEROP_TEST_MODE,
            FunctionReflection_BestOverloadFunctionMatch_CandidateKinds) {
-  std::vector<Decl*> Decls, SubDecls, DerivedDecls;
+  std::vector<Decl*> Decls;
+  std::vector<Decl*> SubDecls;
+  std::vector<Decl*> DerivedDecls;
   std::string code = R"(
     struct BOKinds {
       BOKinds(int) {}
@@ -2953,8 +2956,8 @@ TYPED_TEST(CPPINTEROP_TEST_MODE,
   Cpp::TypeRef KindsTy = Cpp::GetTypeFromScope(Decls[0]);
   Cpp::TypeRef DerivedTy = Cpp::GetTypeFromScope(Decls[1]);
   std::vector<Cpp::FuncRef> ambiguous_candidates;
-  auto Match = [&](std::vector<Cpp::FuncRef> candidates,
-                   std::vector<Cpp::TemplateArgInfo> arg_types) {
+  auto Match = [&](const std::vector<Cpp::FuncRef>& candidates,
+                   const std::vector<Cpp::TemplateArgInfo>& arg_types) {
     return Cpp::GetFunctionSignature(Cpp::BestOverloadFunctionMatch(
         candidates, {}, arg_types, ambiguous_candidates));
   };
