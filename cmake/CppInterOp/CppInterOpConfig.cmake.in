@@ -54,7 +54,7 @@ if (@BUILD_SHARED_LIBS@)
   add_library(clangCppInterOp SHARED IMPORTED)
   # Emscripten will override the type of the library as static
   # so library type canot be detected with emsdk 4.0.9
-  # Should be drop this for emsdk 6.0.8
+  # Should be able drop this for emsdk 6.0.8
   if (EMSCRIPTEN)
     set(CPPINTEROP_SHARED_LIB TRUE)
   endif ()
