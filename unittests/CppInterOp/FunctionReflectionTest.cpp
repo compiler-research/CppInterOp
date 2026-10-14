@@ -972,12 +972,22 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_IsAllocator) {
 #endif
   std::string include_flag;
   // APINotes check
-#ifndef CPPINTEROP_USE_CLING
+#if defined(CPPINTEROP_USE_CLING) && !defined(__linux__)
+  // We support modules with cling on Linux only
+  GTEST_SKIP() << "Test runs only on Linux in cling";
+#endif
   include_flag =
       "-I" + std::string(CPPINTEROP_SRC_DIR) + "/unittests/CppInterOp/APINotes";
   std::vector<const char*> interpreter_args = {
       "-fmodules", "-fimplicit-module-maps", "-fapinotes-modules",
       include_flag.c_str()};
+#ifdef CPPINTEROP_USE_CLING
+  // cling looks up module.modulemap next to cling/Interpreter/
+  // RuntimeUniverse.h. This include path makes that header reachable.
+  std::string cling_include_flag =
+      "-I" + std::string(CPPINTEROP_CLING_INCLUDE_DIR);
+  interpreter_args.push_back(cling_include_flag.c_str());
+#endif
   TestFixture::CreateInterpreter(interpreter_args);
   code = R"(
   #include "TestHeader.h"
@@ -995,7 +1005,6 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_IsAllocator) {
   TESTIA(testWeirdAttr, Cpp::AllocType::Unknown);
 
   Cpp::DeleteInterpreter();
-#endif
 #undef TESTIA
   include_flag =
       "-I" + std::string(CPPINTEROP_SRC_DIR) + "/unittests/CppInterOp/APINotes";
