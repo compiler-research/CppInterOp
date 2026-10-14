@@ -8,6 +8,7 @@
 #include "clang/AST/Decl.h"
 #include "clang/AST/DeclTemplate.h"
 #include "clang/AST/GlobalDecl.h"
+#include "clang/AST/PrettyPrinter.h"
 #include "clang/Basic/DiagnosticIDs.h"
 #include "clang/Basic/DiagnosticOptions.h"
 #include "clang/Basic/OffloadArch.h"

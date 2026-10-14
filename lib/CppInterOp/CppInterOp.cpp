@@ -86,6 +86,7 @@
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringExtras.h"
 #include "llvm/ADT/StringRef.h"
+#include "llvm/Config/llvm-config.h"
 #include "llvm/Demangle/Demangle.h"
 #include "llvm/ExecutionEngine/JITSymbol.h"
 #include "llvm/ExecutionEngine/Orc/AbsoluteSymbols.h"
@@ -726,13 +727,13 @@ class clangSilent {
 public:
   clangSilent(clang::DiagnosticsEngine& diag)
 #if LLVM_VERSION_MAJOR < 23
-      : fDiagEngine(diag) {
+      : fDiagEngine(diag),
+        fOldDiagValue(fDiagEngine.getSuppressAllDiagnostics()) {
 #else
       : fDiagEngine(diag), fOldClient(diag.getClient()),
         fOldOwnedClient(diag.takeClient()) {
 #endif
 #if LLVM_VERSION_MAJOR < 23
-    fOldDiagValue = fDiagEngine.getSuppressAllDiagnostics();
     fDiagEngine.setSuppressAllDiagnostics(true);
 #else
     fDiagEngine.setClient(&fIgnoringClient, /*ShouldOwnClient=*/false);
