@@ -9,9 +9,9 @@ build:
   tools:
     python: "3.11"
   apt_packages:
-    - clang-20
+    - clang-21
     - cmake
     - doxygen
-    - libclang-20-dev
-    - llvm-20-dev
-    - llvm-20-tools
+    - libclang-21-dev
+    - llvm-21-dev
+    - llvm-21-tools
