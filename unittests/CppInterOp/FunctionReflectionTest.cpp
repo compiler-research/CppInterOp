@@ -1031,28 +1031,295 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_IsDeallocator) {
   std::vector<Decl*> Decls;
   std::string code = R"(
     class Klass{
-      int val;
-    };
-    __attribute__((ownership_takes(malloc, 1)))
-    void Deallocator(Klass* arg){
-      delete arg;
-    }
-    void foo();
-    )";
-  GetAllTopLevelDecls(code, Decls, true);
-  EXPECT_TRUE(Cpp::IsDeallocator(Decls[1]));
-  EXPECT_FALSE(Cpp::IsDeallocator(Decls[2]));
+    public:
+      int val = 0;
 
-  code = R"(
-  #include <stdlib.h>
-    void test(){
-      //Do Nothing
+      // `this` is the only slot of a method without parameters.
+      __attribute__((annotate("cppDeallocNone")))
+      int* getValAdress(){
+        return &val;
+      }
+
+      // `this` occupies source index 1 and labelling it is ignored.
+      __attribute__((annotate("cppDeallocDelete", 1)))
+      void releaseSelf(){
+        delete this;
+      }
+
+      // The label on `this` is dropped, `p` is source index 2.
+      __attribute__((annotate("cppDeallocDelete", 1),
+                     annotate("cppDeallocFree", 2)))
+      void releaseBoth(void* p);
+
+      // Clang rejects index 1 for the implicit object parameter, so `p` is
+      // source index 3.
+      void __attribute__((ownership_takes(malloc, 3)))
+      methodTakes(int n, void* p);
+
+      // Labelling `this` is ignored on the swift_attr channel as well.
+      __attribute__((swift_attr("cppDeallocDelete_1")))
+      void swiftSelf(void* p);
+
+      // Static methods have no implicit object parameter, so they are counted
+      // like free functions and index 0 is never valid.
+      static void __attribute__((ownership_takes(malloc, 2)))
+      staticTakes(int n, void* p);
+
+      static void __attribute__((annotate("cppDeallocFree", 1)))
+      staticFree(void* p);
+
+      static void __attribute__((annotate("cppDeallocDelete", 0)))
+      staticZeroIndex(void* p);
+
+      static void __attribute__((swift_attr("cppDeallocDeleteArr_1")))
+      staticSwift(void* p);
+    };
+
+    void Plain();
+
+    void __attribute__((ownership_takes(malloc, 1)))
+    Deallocator(void* p);
+
+    void __attribute__((ownership_takes(malloc, 1, 3)))
+    TakesMulti(void* a, int n, void* b);
+
+    void __attribute__((ownership_holds(malloc, 2)))
+    HoldsFunc(int n, void* p);
+
+    void* __attribute__((ownership_returns(malloc, 1)))
+    ReturnsFunc(int size);
+
+    void __attribute__((annotate("cppDeallocFree", 1)))
+    FreeFunc(void* p);
+
+    void __attribute__((annotate("cppDeallocDelete", 1)))
+    DeleteFunc(Klass* p);
+
+    void __attribute__((annotate("cppDeallocDeleteArr", 1)))
+    DeleteArrFunc(Klass* p);
+
+    void __attribute__((annotate("cppDeallocNone", 1)))
+    NoneDeallocFunc(void* p);
+
+    void __attribute__((annotate("cppDeallocFree", 1, 3)))
+    MultiFunc(void* a, int n, void* b);
+
+    // Without an index the first parameter is labelled.
+    void __attribute__((annotate("cppDeallocFree")))
+    BareFunc(void* p, int n);
+
+    void __attribute__((annotate("unrelatedAttr", 1)))
+    UnrelatedFunc(void* p);
+
+    void __attribute__((annotate("cppDeallocFree", 99)))
+    OutOfRangeFunc(void* p);
+
+    void __attribute__((annotate("cppDeallocFree", 0)))
+    ZeroIndexFunc(void* p);
+
+    void __attribute__((annotate("cppDeallocFree", -1)))
+    NegativeFunc(void* p);
+
+    void __attribute__((annotate("cppDeallocFree", "self")))
+    NotIntFunc(void* p);
+
+    void __attribute__((annotate("cppDeallocFree", 1),
+                        annotate("cppDeallocDelete", 1)))
+    LastWinsFunc(void* p);
+
+    void __attribute__((swift_attr("cppDeallocFree_1")))
+    SwiftFreeFunc(void* p);
+
+    void __attribute__((
+        swift_attr("returns_cppDeallocDelete_1 cppDeallocFree_2")))
+    SwiftMultiFunc(Klass* a, void* b);
+
+    void __attribute__((swift_attr("cppDeallocDeleteArr_1")))
+    SwiftDeleteArrFunc(Klass* p);
+
+    void __attribute__((swift_attr("cppDeallocNone_1")))
+    SwiftNoneFunc(void* p);
+
+    void __attribute__((swift_attr("cppDeallocFree_xyz")))
+    SwiftBadIndexFunc(void* p);
+
+    void __attribute__((swift_attr("cppDeallocFree_0")))
+    SwiftZeroIndexFunc(void* p);
+
+    void __attribute__((swift_attr("cppDeallocFree_99")))
+    SwiftOutOfRangeFunc(void* p);
+
+    void __attribute__((swift_attr("unrelatedSwiftAttr")))
+    SwiftUnrelatedFunc(void* p);
+
+    template <typename T>
+    void __attribute__((annotate("cppDeallocDelete", 1)))
+    TemplatedFunc(T* p){
+      delete p;
     }
+
+    template <int N>
+    void __attribute__((annotate("cppDeallocFree", N)))
+    DependentFunc(void* p){}
+    )";
+  GetAllTopLevelDecls(code, Decls, true,
+                      {"-std=c++17", "-include", "stdlib.h"});
+
+  using DT = Cpp::DeallocType;
+  // A slot carries the value of the source index one above it: for a function
+  // with an implicit object parameter slot 0 is `this` and the first real
+  // parameter is slot 1, otherwise the first parameter is slot 0.
+  // IsDeallocator appends its slots, so the vector starts out empty. A
+  // parameter without a deallocation attribute is reported as Opaque, which is
+  // what tells it apart from one labelled cppDeallocNone.
+#define TESTIDD(DECL, ...)                                                     \
+  {                                                                            \
+    std::vector<DT> expected{__VA_ARGS__};                                     \
+    std::vector<DT> result;                                                    \
+    EXPECT_TRUE(Cpp::IsDeallocator(Cpp::ConstFuncRef{DECL}, result));          \
+    EXPECT_EQ(result, expected);                                               \
+  }
+#define TESTID(N, ...) TESTIDD(Cpp::GetNamed(#N).data, __VA_ARGS__)
+#define TESTIDM(SCOPE, N, ...)                                                 \
+  TESTIDD(Cpp::GetNamed(#N, Cpp::GetNamed(#SCOPE)).data, __VA_ARGS__)
+
+  // The builtin deallocator.
+  TESTID(free, DT::Free);
+
+  // GCC's ownership attributes, whose indexes need no translation.
+  TESTID(Deallocator, DT::Free);
+  TESTID(TakesMulti, DT::Free, DT::Opaque, DT::Free);
+  TESTID(HoldsFunc, DT::Opaque, DT::Free);
+  TESTID(ReturnsFunc, DT::Opaque);
+
+  // CppInterOp's own annotate spelling.
+  TESTID(FreeFunc, DT::Free);
+  TESTID(DeleteFunc, DT::Delete);
+  TESTID(DeleteArrFunc, DT::DeleteArr);
+  // A slot labelled cppDeallocNone is None, not Opaque.
+  TESTID(NoneDeallocFunc, DT::None);
+  TESTID(MultiFunc, DT::Free, DT::Opaque, DT::Free);
+  TESTID(BareFunc, DT::Free, DT::Opaque);
+
+  // Malformed or unrelated annotations label nothing.
+  TESTID(UnrelatedFunc, DT::Opaque);
+  TESTID(OutOfRangeFunc, DT::Opaque);
+  TESTID(ZeroIndexFunc, DT::Opaque);
+  TESTID(NegativeFunc, DT::Opaque);
+  TESTID(NotIntFunc, DT::Opaque);
+  // On a repeated index the last matching attribute wins.
+  TESTID(LastWinsFunc, DT::Delete);
+
+  // swift_attr spelling, the channel API Notes feeds.
+  TESTID(SwiftFreeFunc, DT::Free);
+  TESTID(SwiftMultiFunc, DT::Delete, DT::Free);
+  TESTID(SwiftDeleteArrFunc, DT::DeleteArr);
+  TESTID(SwiftNoneFunc, DT::None);
+  TESTID(SwiftBadIndexFunc, DT::Opaque);
+  TESTID(SwiftZeroIndexFunc, DT::Opaque);
+  TESTID(SwiftOutOfRangeFunc, DT::Opaque);
+  TESTID(SwiftUnrelatedFunc, DT::Opaque);
+
+  // Methods: slot 0 is `this` and cannot be labelled.
+  TESTIDM(Klass, getValAdress, DT::Opaque);
+  TESTIDM(Klass, releaseSelf, DT::Opaque);
+  TESTIDM(Klass, releaseBoth, DT::Opaque, DT::Free);
+  TESTIDM(Klass, methodTakes, DT::Opaque, DT::Opaque, DT::Free);
+  TESTIDM(Klass, swiftSelf, DT::Opaque, DT::Opaque);
+
+  // Static methods are counted like free functions.
+  TESTIDM(Klass, staticTakes, DT::Opaque, DT::Free);
+  TESTIDM(Klass, staticFree, DT::Free);
+  TESTIDM(Klass, staticZeroIndex, DT::Opaque);
+  TESTIDM(Klass, staticSwift, DT::DeleteArr);
+
+  // Templates are unwrapped to their pattern; a value-dependent index cannot
+  // be folded, therefore it is ignored. GetNamed does not resolve function
+  // template names, so the two trailing top level decls of the fixture are
+  // used.
+  Decl* templatedFunc = Decls[Decls.size() - 2];
+  Decl* dependentFunc = Decls[Decls.size() - 1];
+  TESTIDD(templatedFunc, DT::Delete);
+  TESTIDD(dependentFunc, DT::Opaque);
+
+  ASTContext& C = Interp->getCI()->getASTContext();
+  std::vector<Cpp::TemplateArgInfo> charArg = {C.CharTy.getAsOpaquePtr()};
+  TESTIDD(Cpp::InstantiateTemplate(templatedFunc, charArg).data, DT::Delete);
+
+  // After instantiation the index is no longer value-dependent, so it folds.
+  std::vector<Cpp::TemplateArgInfo> oneArg = {{C.IntTy.getAsOpaquePtr(), "1"}};
+  TESTIDD(Cpp::InstantiateTemplate(dependentFunc, oneArg).data, DT::Free);
+
+  // A function without parameters contributes no slot at all.
+  {
+    std::vector<DT> result;
+    EXPECT_TRUE(Cpp::IsDeallocator(
+        Cpp::ConstFuncRef{Cpp::GetNamed("Plain").data}, result));
+    EXPECT_TRUE(result.empty());
+  }
+
+  // The slots are appended, so what the vector already holds is left alone.
+  // Unknown is used as the marker because Opaque is what the function itself
+  // writes into an unlabelled slot.
+  {
+    std::vector<DT> result(2, DT::Unknown);
+    EXPECT_TRUE(Cpp::IsDeallocator(
+        Cpp::ConstFuncRef{Cpp::GetNamed("MultiFunc").data}, result));
+    EXPECT_EQ(result, (std::vector<DT>{DT::Unknown, DT::Unknown, DT::Free,
+                                       DT::Opaque, DT::Free}));
+
+    // Appending again grows the vector by the next function's slot count.
+    EXPECT_TRUE(Cpp::IsDeallocator(
+        Cpp::ConstFuncRef{Cpp::GetNamed("FreeFunc").data}, result));
+    EXPECT_EQ(result, (std::vector<DT>{DT::Unknown, DT::Unknown, DT::Free,
+                                       DT::Opaque, DT::Free, DT::Free}));
+  }
+
+  // Casting coverage: a non-function declaration cannot be analyzed, and the
+  // vector is left untouched.
+  {
+    std::vector<DT> result{DT::Unknown};
+    EXPECT_FALSE(Cpp::IsDeallocator(
+        Cpp::ConstFuncRef{Cpp::GetNamed("Klass").data}, result));
+    EXPECT_EQ(result, (std::vector<DT>{DT::Unknown}));
+  }
+
+  Cpp::DeleteInterpreter();
+#ifdef EMSCRIPTEN
+  GTEST_SKIP() << "Test fails for Emscipten builds";
+#endif
+  // APINotes check
+#ifndef CPPINTEROP_USE_CLING
+  std::string include_flag =
+      "-I" + std::string(CPPINTEROP_SRC_DIR) + "/unittests/CppInterOp/APINotes";
+  std::vector<const char*> interpreter_args = {
+      "-fmodules", "-fimplicit-module-maps", "-fapinotes-modules",
+      include_flag.c_str()};
+  TestFixture::CreateInterpreter(interpreter_args);
+  code = R"(
+  #include "TestHeader.h"
   )";
-  TestFixture::CreateInterpreter();
   Interp->process(code);
-  auto freeDecl = Cpp::GetNamed("free");
-  EXPECT_TRUE(Cpp::IsDeallocator(Cpp::ConstFuncRef{freeDecl.data}));
+
+  TESTID(testDeallocFree, DT::Free);
+  TESTID(testDeallocDelete, DT::Delete);
+  TESTID(testDeallocDeleteArr, DT::DeleteArr);
+  TESTID(testDeallocNone, DT::None);
+  TESTID(testDeallocMulti, DT::Delete, DT::Free);
+  TESTID(testDeallocWeirdAttr, DT::Opaque);
+
+  // Methods carried through API Notes; `this` stays unlabellable there too.
+  TESTIDM(KlassNotes, releaseArg, DT::Opaque, DT::Free);
+  TESTIDM(KlassNotes, releaseSelf, DT::Opaque);
+  TESTIDM(KlassNotes, releaseBoth, DT::Opaque, DT::Free);
+  // Without an index `this` is skipped and the first parameter is labelled.
+  TESTIDM(KlassNotes, releaseBare, DT::Opaque, DT::Delete);
+
+  Cpp::DeleteInterpreter();
+#endif
+#undef TESTIDM
+#undef TESTID
+#undef TESTIDD
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetFunctionNumArgs) {
