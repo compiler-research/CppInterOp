@@ -3,7 +3,7 @@ channels:
   - https://prefix.dev/emscripten-forge-4x
   - https://prefix.dev/conda-forge
 dependencies:
-  - emscripten-abi==4.0.9
+  - emscripten-abi==6.0.8
   - nlohmann_json
   - nlohmann_json-abi
   - xeus-lite

@@ -175,7 +175,7 @@ TEST(ResultTest, Ignore_SuppressesDroppedErrorAbort) {
   SUCCEED();
 }
 
-#ifndef EMSCRIPTEN
+#ifndef __EMSCRIPTEN__
 
 #ifndef NDEBUG
 TEST(ResultDeathTest, DroppedError_Aborts) {

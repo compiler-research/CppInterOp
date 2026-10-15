@@ -78,7 +78,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_DebugFlag) {
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_Evaluate) {
-#ifdef EMSCRIPTEN
+#ifdef __EMSCRIPTEN__
   GTEST_SKIP() << "Test fails for Emscipten builds";
 #endif
 #ifdef _WIN32
@@ -118,7 +118,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_Evaluate) {
 // both: fundamentals copy independently, K_PtrOrObj copy shares the payload
 // pointer and survives the original going out of scope.
 TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_Evaluate_Copy) {
-#ifdef EMSCRIPTEN
+#ifdef __EMSCRIPTEN__
   GTEST_SKIP() << "Test fails for Emscipten builds";
 #endif
 #ifdef _WIN32
@@ -205,7 +205,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_Evaluate_Copy) {
 // (b) Kind known only at runtime -- the GenericExecutor pattern, where
 // the visitor must accept every fundamental T.
 TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_Evaluate_VisitDispatch) {
-#ifdef EMSCRIPTEN
+#ifdef __EMSCRIPTEN__
   GTEST_SKIP() << "Test fails for Emscipten builds";
 #endif
 #ifdef _WIN32
@@ -243,7 +243,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_Evaluate_VisitDispatch) {
 // Evaluate. Each line exercises a distinct branch of the switch in
 // CppInterOp.cpp's classifyByQualType.
 TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_Evaluate_AllFundamentals) {
-#ifdef EMSCRIPTEN
+#ifdef __EMSCRIPTEN__
   GTEST_SKIP() << "Test fails for Emscipten builds";
 #endif
 #ifdef _WIN32
@@ -281,7 +281,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_Evaluate_AllFundamentals) {
 // convertTo. A pure class decl is no-Value across all clang-repl
 // versions; `int x = 5;` is bound on newer ones.
 TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_Evaluate_NonValueStatement) {
-#ifdef EMSCRIPTEN
+#ifdef __EMSCRIPTEN__
   GTEST_SKIP() << "Test fails for Emscipten builds";
 #endif
 #ifdef _WIN32
@@ -316,7 +316,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_DeleteInterpreter) {
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_StaticDtorsRunOnDelete) {
-#ifdef EMSCRIPTEN
+#ifdef __EMSCRIPTEN__
   GTEST_SKIP() << "Test fails for Emscripten builds";
 #endif
   if (TypeParam::isOutOfProcess)
@@ -360,7 +360,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_StaticDtorsRunOnDelete) {
 // ShutdownDoesNotMaterializeAgainstDestroyedGlobals test.
 TYPED_TEST(CPPINTEROP_TEST_MODE,
            Interpreter_ShutdownDoesNotMaterializeAgainstDestroyedGlobals) {
-#ifdef EMSCRIPTEN
+#ifdef __EMSCRIPTEN__
   GTEST_SKIP() << "Test fails for Emscripten builds";
 #endif
   if (TypeParam::isOutOfProcess)
@@ -383,7 +383,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE,
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_ActivateInterpreter) {
-#ifdef EMSCRIPTEN_STATIC_LIBRARY
+#ifdef EMSCRIPTEN___STATIC_LIBRARY
   GTEST_SKIP() << "Test fails for Emscipten static library build";
 #endif
   if (TypeParam::isOutOfProcess)
@@ -412,7 +412,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_ActivateInterpreter) {
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_Process) {
-#ifdef EMSCRIPTEN_STATIC_LIBRARY
+#ifdef EMSCRIPTEN___STATIC_LIBRARY
   GTEST_SKIP() << "Test fails for Emscipten static library build";
 #endif
 #ifdef _WIN32
@@ -754,7 +754,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_DeclareReportsParseErrors) {
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_EmscriptenExceptionHandling) {
-#ifndef EMSCRIPTEN
+#ifndef __EMSCRIPTEN__
   GTEST_SKIP() << "This test is intended to check exception handling for Emscripten builds.";
 #endif
     std::vector<const char*> Args = {
@@ -805,7 +805,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_CreateInterpreter) {
 
 #ifdef LLVM_BINARY_DIR
 TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_DetectResourceDir) {
-#ifdef EMSCRIPTEN
+#ifdef __EMSCRIPTEN__
   GTEST_SKIP() << "Test fails for Emscipten builds";
 #endif
 #else
@@ -839,7 +839,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_DISABLED_DetectResourceDir) {
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_DetectSystemCompilerIncludePaths) {
-#ifdef EMSCRIPTEN
+#ifdef __EMSCRIPTEN__
   GTEST_SKIP() << "Test fails for Emscipten builds";
 #endif
 #ifdef _WIN32
@@ -1056,7 +1056,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, SignalHandler_MultipleInterpreters) {
 }
 #endif // GTEST_HAS_DEATH_TEST
 
-#ifndef EMSCRIPTEN
+#ifndef __EMSCRIPTEN__
 TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_WrapperCacheIsPerInterpreter) {
   if (TypeParam::isOutOfProcess)
     GTEST_SKIP() << "Test fails for OOP JIT builds";

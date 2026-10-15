@@ -1141,7 +1141,7 @@ TEST_F(TracingTest, WriteToFileSuppressesSelfTrace) {
 // Tests: reproducer compiles via interpreter
 // ---------------------------------------------------------------------------
 
-#ifndef EMSCRIPTEN
+#ifndef __EMSCRIPTEN__
 TEST_F(TracingTest, ReproducerCompilesViaInterpreter) {
   // Create an interpreter so we can exercise real API calls.
   Cpp::CreateInterpreter({});
@@ -1217,7 +1217,7 @@ TEST_F(TracingTest, ReproducerCompilesViaInterpreter) {
 // ---------------------------------------------------------------------------
 
 TEST_F(TracingTest, JitCallWrapperSourceLogged) {
-#ifdef EMSCRIPTEN
+#ifdef __EMSCRIPTEN__
 #if CLANG_VERSION_MAJOR > 21
   GTEST_SKIP() << "Test fails for Emscipten builds using LLVM 22";
 #endif
@@ -1387,7 +1387,7 @@ TEST_F(TracingTest, LogEntriesIncludeTimingAnnotation) {
 // Tests: StartTracing / StopTracing region-based tracing
 // ---------------------------------------------------------------------------
 
-#ifndef EMSCRIPTEN
+#ifndef __EMSCRIPTEN__
 static std::string ReadFileToString(const std::string& path) {
   std::ifstream ifs(path);
   return {std::istreambuf_iterator<char>(ifs),

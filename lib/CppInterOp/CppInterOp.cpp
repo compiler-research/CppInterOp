@@ -5660,7 +5660,7 @@ CPPINTEROP_API JitCall MakeFunctionCallable(ConstFuncRef func) {
 }
 
 namespace {
-#if !defined(CPPINTEROP_USE_CLING) && !defined(EMSCRIPTEN)
+#if !defined(CPPINTEROP_USE_CLING) && !defined(__EMSCRIPTEN__)
 bool DefineAbsoluteSymbol(compat::Interpreter& I, const char* unmangled_name,
                           uint64_t address) {
   using namespace llvm;
@@ -5965,7 +5965,7 @@ InterpRef CreateInterpreter(const std::vector<const char*>& Args /*={}*/,
   RegisterInterpreter(I, /*Owned=*/true, std::move(ArgvStorage));
 
 // Define runtime symbols in the JIT dylib for clang-repl
-#if !defined(CPPINTEROP_USE_CLING) && !defined(EMSCRIPTEN)
+#if !defined(CPPINTEROP_USE_CLING) && !defined(__EMSCRIPTEN__)
   DefineAbsoluteSymbol(*I, "__ci_newtag",
                        reinterpret_cast<uint64_t>(&__ci_newtag));
   // A C symbol since LLVM 21, so it needs no mangling.
