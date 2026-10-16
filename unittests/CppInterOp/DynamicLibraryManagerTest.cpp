@@ -63,7 +63,7 @@ static std::string ResolveTestSharedLibPath() {
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, DynamicLibraryManager_Sanity) {
-#ifdef EMSCRIPTEN
+#ifdef __EMSCRIPTEN__
   GTEST_SKIP() << "Test fails for Emscipten builds";
 #endif
 
@@ -109,7 +109,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, DynamicLibraryManager_Sanity) {
 
 // A failed dlopen must report the dlerror() text on stderr.
 TYPED_TEST(CPPINTEROP_TEST_MODE, DynamicLibraryManager_LoadFailureReason) {
-#if defined(EMSCRIPTEN) || defined(_WIN32)
+#if defined(__EMSCRIPTEN__) || defined(_WIN32)
   GTEST_SKIP() << "Test checks dlerror-style messages";
 #endif
   if (TypeParam::isOutOfProcess)
@@ -165,7 +165,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, DynamicLibraryManager_LoadFailureReason) {
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, DynamicLibraryManager_BasicSymbolLookup) {
-#ifndef EMSCRIPTEN
+#ifndef __EMSCRIPTEN__
   GTEST_SKIP() << "This test is only intended for Emscripten builds.";
 #endif
   if (TypeParam::isOutOfProcess)
@@ -195,7 +195,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, DynamicLibraryManager_BasicSymbolLookup) {
 // JIT each hold their own instance of what the program means to be one
 // singleton, and teardown destroys it twice.
 TYPED_TEST(CPPINTEROP_TEST_MODE, DynamicLibraryManager_SharedWeakGlobals) {
-#ifdef EMSCRIPTEN
+#ifdef __EMSCRIPTEN__
   GTEST_SKIP() << "Test not intended for Emscripten builds";
 #endif
 #ifdef CPPINTEROP_USE_CLING
@@ -295,7 +295,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, DynamicLibraryManager_SharedWeakGlobals) {
 // private duplicate.
 TYPED_TEST(CPPINTEROP_TEST_MODE,
            DynamicLibraryManager_SharedDynamicInitSingleton) {
-#ifdef EMSCRIPTEN
+#ifdef __EMSCRIPTEN__
   GTEST_SKIP() << "Test not intended for Emscripten builds";
 #endif
 #ifdef CPPINTEROP_USE_CLING
@@ -365,7 +365,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE,
 // used global keeps the list non-empty, so it is rebuilt rather than erased. A
 // clean Execute proves the rewrite ran; the shared address proves the demotion.
 TYPED_TEST(CPPINTEROP_TEST_MODE, DynamicLibraryManager_SharedUsedWeakGlobal) {
-#ifdef EMSCRIPTEN
+#ifdef __EMSCRIPTEN__
   GTEST_SKIP() << "Test not intended for Emscripten builds";
 #endif
 #ifdef CPPINTEROP_USE_CLING
@@ -419,7 +419,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, DynamicLibraryManager_SharedUsedWeakGlobal) {
 // leaves the definition alone and the JIT keeps its own working private copy.
 // Pins the dlsym-miss branch (candidate left untouched).
 TYPED_TEST(CPPINTEROP_TEST_MODE, DynamicLibraryManager_JitOnlyWeakGlobalKept) {
-#ifdef EMSCRIPTEN
+#ifdef __EMSCRIPTEN__
   GTEST_SKIP() << "Test not intended for Emscripten builds";
 #endif
 #ifdef CPPINTEROP_USE_CLING
@@ -466,7 +466,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, DynamicLibraryManager_JitOnlyWeakGlobalKept) {
 // ODR-harmless). Pins the isConstant() guard: nothing breaks and the jitted
 // copy reads the right value even though the process may hold its own.
 TYPED_TEST(CPPINTEROP_TEST_MODE, DynamicLibraryManager_WeakConstantNotDemoted) {
-#ifdef EMSCRIPTEN
+#ifdef __EMSCRIPTEN__
   GTEST_SKIP() << "Test not intended for Emscripten builds";
 #endif
 #ifdef CPPINTEROP_USE_CLING

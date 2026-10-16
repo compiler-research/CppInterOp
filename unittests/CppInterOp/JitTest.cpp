@@ -12,7 +12,7 @@ static int printf_jit(const char* format, ...) {
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, Jit_InsertOrReplaceJitSymbol) {
-#ifdef EMSCRIPTEN
+#ifdef __EMSCRIPTEN__
   GTEST_SKIP() << "Test fails for Emscipten builds";
 #endif
 #ifdef _WIN32
@@ -74,7 +74,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, Jit_StreamRedirect) {
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, Jit_StreamRedirectJIT) {
-#ifdef EMSCRIPTEN
+#ifdef __EMSCRIPTEN__
   GTEST_SKIP() << "Test fails for Emscipten builds";
 #endif
 #ifdef _WIN32
