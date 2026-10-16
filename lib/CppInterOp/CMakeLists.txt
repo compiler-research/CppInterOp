@@ -261,6 +261,7 @@ if(NOT CPPINTEROP_SHARED_LIBRARY_VERSIONING)
   set_property(TARGET clangCppInterOp PROPERTY SOVERSION)
 endif()
 
+set(my_interface_libs "" CACHE INTERNAL "Get list of libraries clangcppinterop links to")
 if(EMSCRIPTEN)
   if(BUILD_SHARED_LIBS)
   # FIXME: When dynamically linking the Emscripten shared library to the
@@ -283,6 +284,17 @@ if(EMSCRIPTEN)
     PRIVATE "SHELL: ${CPPINTEROP_LIBRARY_WASM_FLAGS}"
     PRIVATE "SHELL: ${CPPINTEROP_EXTRA_WASM_FLAGS}"
   )
+  if (CPPINTEROP_ENABLE_TESTING)
+    if (CPPINTEROP_BUILT_STANDALONE)
+       set(CPPINTEROP_TESTS_DIR "${CMAKE_BINARY_DIR}/unittests/CppInterOp/")
+    else ()
+       set(CPPINTEROP_TESTS_DIR "${CMAKE_BINARY_DIR}/tools/cppinterop/unittests/CppInterOp/")
+    endif ()
+    # When compiling Emscripten tests the CppInterOp library it links to is expected to be in the same folder as the compiled Javascript
+    add_custom_command(TARGET clangCppInterOp POST_BUILD
+      COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:clangCppInterOp> ${CPPINTEROP_TESTS_DIR}
+    )
+  endif(CPPINTEROP_ENABLE_TESTING)
   else()
   target_compile_options(clangCppInterOp
     PRIVATE "SHELL: ${CPPINTEROP_LIBRARY_WASM_FLAGS}"
@@ -293,13 +305,65 @@ if(EMSCRIPTEN)
       PRIVATE "SHELL: -s WASM_BIGINT"
       PRIVATE "SHELL: ${CPPINTEROP_EXTRA_WASM_FLAGS}"
   )
+  function(get_recursive_interface_libs target_name out_var)
+      set(processed_targets "")
+      set(pending_targets "${target_name}")
+      set(all_interfaces "")
+
+      while(pending_targets)
+          list(POP_FRONT pending_targets current_target)
+
+          # Clean up any generator expression wrapper if present (e.g. $<LINK_ONLY:foo> -> foo)
+          # This regex looks for $<NAME:content> and extracts the content.
+          set(raw_target "${current_target}")
+          if(raw_target MATCHES "^\\$<[A-Za-z_]+:(.+)>$")
+              set(raw_target "${CMAKE_MATCH_1}")
+           endif()
+
+          if(NOT raw_target IN_LIST processed_targets)
+              list(APPEND processed_targets "${raw_target}")
+
+              # Verify if the unwrapped name is a valid CMake target
+              if(TARGET "${raw_target}")
+                  list(APPEND all_interfaces "${raw_target}")
+
+                  get_target_property(ifaces "${raw_target}" INTERFACE_LINK_LIBRARIES)
+
+                  if(ifaces)
+                      foreach(lib ${ifaces})
+                          # If the dependency itself is wrapped in a genex like $<LINK_ONLY:target>,
+                          # we want to extract the inner target name to process it.
+                          set(processed_lib "${lib}")
+                          if(processed_lib MATCHES "^\\$<[A-Za-z_]+:(.+)>$")
+                              set(processed_lib "${CMAKE_MATCH_1}")
+                          endif()
+
+                          if(TARGET "${processed_lib}")
+                              list(APPEND pending_targets "${processed_lib}")
+                          else()
+                              # Keep non-target literals or un-evaluatable entries
+                              list(APPEND all_interfaces "${lib}")
+                          endif()
+                      endforeach()
+                  endif()
+              else()
+                  # If it's a raw library name or path that isn't a defined target
+                  list(APPEND all_interfaces "${current_target}")
+              endif()
+          endif()
+      endwhile()
+
+      # Clean up and de-duplicate
+      if(all_interfaces)
+          list(REMOVE_DUPLICATES all_interfaces)
+      endif()
+      set(${out_var} "${all_interfaces}" PARENT_SCOPE)
+  endfunction()
+
+  # Find recursive interface libraries for my_interface_libs
+  get_recursive_interface_libs(${link_libs} my_interface_libs_list)
+  set(my_interface_libs "INTERFACE_LINK_LIBRARIES \"${my_interface_libs_list}\"" CACHE INTERNAL "Get list of libraries clangcppinterop links to")
   endif(BUILD_SHARED_LIBS)
-  if (CPPINTEROP_ENABLE_TESTING)
-    # When compiling Emscripten tests the CppInterOp library it links to is expected to be in the same folder as the compiled Javascript
-    add_custom_command(TARGET clangCppInterOp POST_BUILD
-      COMMAND ${CMAKE_COMMAND} -E copy $<TARGET_FILE:clangCppInterOp> ${CMAKE_BINARY_DIR}/unittests/CppInterOp/
-    )
-  endif(CPPINTEROP_ENABLE_TESTING)
 endif(EMSCRIPTEN)
 
 if(TARGET CppInterOpTableGen)

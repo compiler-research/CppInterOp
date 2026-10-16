@@ -496,15 +496,6 @@ list(GET VERSION_LIST 0 CPPINTEROP_VERSION_MAJOR)
 list(GET VERSION_LIST 1 CPPINTEROP_VERSION_MINOR)
 list(GET VERSION_LIST 2 CPPINTEROP_VERSION_PATCH)
 
-configure_file(
-  ${CMAKE_CURRENT_SOURCE_DIR}/cmake/CppInterOp/CppInterOpConfig.cmake.in
-  ${CMAKE_CURRENT_BINARY_DIR}/lib/cmake/CppInterOp/CppInterOpConfig.cmake
-  @ONLY)
-configure_file(
-  ${CMAKE_CURRENT_SOURCE_DIR}/cmake/CppInterOp/CppInterOpConfigVersion.cmake.in
-  ${CMAKE_CURRENT_BINARY_DIR}/lib/cmake/CppInterOp/CppInterOpConfigVersion.cmake
-  @ONLY)
-
 if(CPPINTEROP_INSTALL)
   install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/lib/cmake/CppInterOp/
     DESTINATION lib/cmake/CppInterOp
@@ -630,6 +621,15 @@ if(NOT EMSCRIPTEN AND NOT CPPINTEROP_TABLEGEN_EXE)
   add_subdirectory(utils/TableGen)
 endif()
 add_subdirectory(lib)
+
+configure_file(
+  ${CMAKE_CURRENT_SOURCE_DIR}/cmake/CppInterOp/CppInterOpConfig.cmake.in
+  ${CMAKE_CURRENT_BINARY_DIR}/lib/cmake/CppInterOp/CppInterOpConfig.cmake
+  @ONLY)
+configure_file(
+  ${CMAKE_CURRENT_SOURCE_DIR}/cmake/CppInterOp/CppInterOpConfigVersion.cmake.in
+  ${CMAKE_CURRENT_BINARY_DIR}/lib/cmake/CppInterOp/CppInterOpConfigVersion.cmake
+  @ONLY)
 
 if(CPPINTEROP_INSTALL)
   # Installing the headers needs to depend on generating the tablegen'd
