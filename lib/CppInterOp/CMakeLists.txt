@@ -277,7 +277,6 @@ if(EMSCRIPTEN)
     PRIVATE "SHELL: ${CPPINTEROP_EXTRA_WASM_FLAGS}"
   )
   target_link_options(clangCppInterOp
-    PRIVATE "SHELL: -s SIDE_MODULE=1"
     PRIVATE "SHELL: ${SYMBOLS_LIST}"
     PRIVATE "SHELL: -Oz"
     PRIVATE "SHELL: -flto"

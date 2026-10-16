@@ -190,7 +190,7 @@ initialised for the micromamba install)
 .. code:: bash
 
    cd ../../CppInterOp/
-   micromamba create -f environment-wasm.yml --platform=emscripten-wasm32 -c https://prefix.dev/emscripten-forge-4x -c https://prefix.dev/conda-forge
+   micromamba create -f environment-wasm.yml --platform=emscripten-wasm32 -c https://prefix.dev/emscripten-forge-bot/emscripten-forge-6x -c https://prefix.dev/conda-forge
    micromamba activate CppInterOp-wasm
 
 You will also want to set a few environment variables. On Linux and osx you define them as follows

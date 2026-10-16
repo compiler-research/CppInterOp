@@ -165,7 +165,7 @@ by executing (assumes you have micromamba installed and that your shell is initi
 
 ```bash
 cd ../../CppInterOp/
-micromamba create -f environment-wasm.yml --platform=emscripten-wasm32 -c https://prefix.dev/emscripten-forge-4x -c https://prefix.dev/conda-forge
+micromamba create -f environment-wasm.yml --platform=emscripten-wasm32 -c https://prefix.dev/emscripten-forge-bot/emscripten-forge-6x -c https://prefix.dev/conda-forge
 micromamba activate CppInterOp-wasm
 ```
 

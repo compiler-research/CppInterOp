@@ -383,7 +383,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE,
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_ActivateInterpreter) {
-#ifdef EMSCRIPTEN___STATIC_LIBRARY
+#ifdef EMSCRIPTEN_STATIC_LIBRARY
   GTEST_SKIP() << "Test fails for Emscipten static library build";
 #endif
   if (TypeParam::isOutOfProcess)
@@ -412,7 +412,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_ActivateInterpreter) {
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_Process) {
-#ifdef EMSCRIPTEN___STATIC_LIBRARY
+#ifdef EMSCRIPTEN_STATIC_LIBRARY
   GTEST_SKIP() << "Test fails for Emscipten static library build";
 #endif
 #ifdef _WIN32

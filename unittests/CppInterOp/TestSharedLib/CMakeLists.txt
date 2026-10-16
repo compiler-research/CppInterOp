@@ -16,7 +16,6 @@ if (EMSCRIPTEN)
   )
 
   target_link_options(TestSharedLib
-    PRIVATE "SHELL: -s SIDE_MODULE=1"
     PUBLIC "SHELL: ${CPPINTEROP_EXTRA_WASM_FLAGS}"
   )
 endif()
