@@ -153,6 +153,10 @@ def CMap_Signedness     : CTypeMap<"Signedness*", "unsigned*",
 def CMap_TemplateArgInfoPtr : CTypeMap<"const TemplateArgInfo*",
     "const TemplateArgInfo*">;
 
+// Cpp::ProtectedCallFn is an alias of the file-scope C typedef, so the C
+// wrapper passes the callback through unchanged.
+def CMap_ProtectedCallFn : CTypeMap<"ProtectedCallFn", "CppProtectedCallFn">;
+
 //===----------------------------------------------------------------------===//
 // Collection type maps — trigger signature rewriting in the emitter.
 //===----------------------------------------------------------------------===//

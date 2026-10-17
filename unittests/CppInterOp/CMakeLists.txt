@@ -62,8 +62,10 @@ if (NOT EMSCRIPTEN)
   # Emscripten has no GPU; CUDA tests are native-only. The VTableOverlay
   # tests need Cpp::Construct, whose placement-new JIT wrapper does not
   # compile under the Emscripten clang-repl (see FunctionReflection_Construct,
-  # likewise skipped there).
-  target_sources(CppInterOpTests PRIVATE CUDATest.cpp VTableOverlayTest.cpp)
+  # likewise skipped there). The signal guard is a stub without POSIX
+  # signal delivery.
+  target_sources(CppInterOpTests PRIVATE CUDATest.cpp SignalGuardTest.cpp
+    VTableOverlayTest.cpp)
 endif()
 
 if(NOT WIN32)

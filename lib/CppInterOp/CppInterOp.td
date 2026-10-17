@@ -1160,6 +1160,58 @@ only debug output for jitcall events.}];
   ];
 }
 
+// --- Signal protection ---
+
+def EnableSignalProtection : CppInterOpAPI {
+  let Doc = [{Installs or removes the signal handlers behind \c InvokeProtected.
+Nothing is installed until the first call with \c true. The handled signals
+are SIGSEGV, SIGBUS, SIGILL, SIGFPE and SIGABRT. The disposition each signal
+had before is saved. \c EnableSignalProtection(false) reinstates it, and so
+does the handler when a signal arrives on a thread with no protected call in
+flight, so an unprotected fault still reaches the previous handler or the
+default action. Code that resets dispositions removes the handlers again.
+LLVM's crash handler does so the first time it runs for any signal it owns,
+a SIGINT included, so call this again afterwards.
+\param[in] enable - true installs the handlers, false restores the saved
+          dispositions.
+\returns true if protection is active after the call. Always false on Windows
+         and Emscripten, where the mechanism is a stub.}];
+
+  let ReturnType = "bool";
+  let Args = [
+    Arg<"bool", "enable", "true">
+  ];
+}
+
+def IsSignalProtectionEnabled : CppInterOpAPI {
+  let Doc = [{\returns true while \c EnableSignalProtection(true) is in effect.
+Handlers removed by a third party are not detected.}];
+
+  let ReturnType = "bool";
+}
+
+def InvokeProtected : CppInterOpAPI {
+  let Doc = [{Runs \c fn(arg) and reports a handled signal raised while it ran as
+the return value. The recovery is a \c siglongjmp from the signal handler
+back into this call. No destructor between the fault and this call runs,
+locks taken there stay locked, and the process may be inconsistent after a
+fault inside the JIT or the C++ runtime. Treat a nonzero result as a
+diagnostic for an interactive session, not as recovery. Protected calls nest
+and each thread has its own frames. A stack overflow is caught only on a
+thread that has an alternate signal stack. \c fn must not let a C++
+exception escape.
+\param[in] fn - the callback to run.
+\param[in] arg - passed to \c fn verbatim.
+\returns 0 when \c fn returned or protection is not enabled, otherwise the
+         number of the signal that interrupted \c fn.}];
+
+  let ReturnType = "int";
+  let Args = [
+    Arg<"ProtectedCallFn", "fn">,
+    Arg<"void*", "arg", "nullptr">
+  ];
+}
+
 def GetDoxygenComment : CppInterOpAPI {
   let Doc = [{Retrieves the Doxygen documentation comment for a declaration.
 \param[in] scope -- The declaration to get the comment for.
