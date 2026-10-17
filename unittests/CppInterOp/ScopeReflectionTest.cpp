@@ -997,6 +997,46 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_GetNamedWithUsing) {
       << "anonymous-namespace member should be visible at TU scope";
 }
 
+TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_IsVisibleName) {
+  std::string code = R"(
+    namespace N {
+      int x;
+      void f(int);
+      void f(double);
+    }
+    namespace P { using namespace N; }
+    namespace Q { int y; }
+    using namespace P;
+    int z;
+  )";
+
+  TestFixture::CreateInterpreter();
+  Interp->declare(code);
+
+  Cpp::DeclRef ns_N = Cpp::GetNamed("N");
+  Cpp::DeclRef ns_P = Cpp::GetNamed("P");
+  Cpp::DeclRef ns_Q = Cpp::GetNamed("Q");
+  ASSERT_TRUE(ns_N);
+  ASSERT_TRUE(ns_P);
+  ASSERT_TRUE(ns_Q);
+
+  // Direct members, including overload sets.
+  EXPECT_TRUE(Cpp::IsVisibleName("x", ns_N));
+  EXPECT_TRUE(Cpp::IsVisibleName("f", ns_N));
+  // Through a using-directive, also from the global scope, where the
+  // directive is transitive (global -> P -> N).
+  EXPECT_TRUE(Cpp::IsVisibleName("x", ns_P));
+  EXPECT_TRUE(Cpp::IsVisibleName("x"));
+  EXPECT_TRUE(Cpp::IsVisibleName("f", Cpp::GetGlobalScope()));
+  // Enclosing scopes are searched too.
+  EXPECT_TRUE(Cpp::IsVisibleName("z", ns_Q));
+  // Names not reachable by unqualified lookup.
+  EXPECT_FALSE(Cpp::IsVisibleName("y"));
+  EXPECT_FALSE(Cpp::IsVisibleName("y", ns_N));
+  EXPECT_FALSE(Cpp::IsVisibleName("does_not_exist"));
+  EXPECT_FALSE(Cpp::IsVisibleName("does_not_exist", ns_P));
+}
+
 TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_GetParentScope) {
   std::string code = R"(namespace N1 {
                         namespace N2 {

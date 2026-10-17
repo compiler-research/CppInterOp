@@ -117,6 +117,18 @@ a specific named entity (functions, enums, etcetera).}];
   ];
 }
 
+def IsVisibleName : CppInterOpAPI {
+  let Doc = [{Checks whether unqualified name lookup of \c name from within
+\c parent (the global scope if null) finds any declaration, including
+overload sets and declarations made visible by using-directives.}];
+
+  let ReturnType = "bool";
+  let Args = [
+    Arg<"const std::string&", "name">,
+    Arg<"ConstDeclRef", "parent", "nullptr">
+  ];
+}
+
 def GetGlobalScope : CppInterOpAPI {
   let Doc = "Gets the global scope of the whole C++  instance.";
 
