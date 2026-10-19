@@ -117,6 +117,18 @@ a specific named entity (functions, enums, etcetera).}];
   ];
 }
 
+def IsVisibleName : CppInterOpAPI {
+  let Doc = [{Checks whether unqualified name lookup of \c name from within
+\c parent (the global scope if null) finds any declaration, including
+overload sets and declarations made visible by using-directives.}];
+
+  let ReturnType = "bool";
+  let Args = [
+    Arg<"const std::string&", "name">,
+    Arg<"ConstDeclRef", "parent", "nullptr">
+  ];
+}
+
 def GetGlobalScope : CppInterOpAPI {
   let Doc = "Gets the global scope of the whole C++  instance.";
 
@@ -771,13 +783,17 @@ def GetOperator : CppInterOpAPI {
 }
 
 def GetBaseClassOffset : CppInterOpAPI {
-  let Doc = [{Each base has its own offset in a Derived Class. This offset can be
-used to get to the Base Class fields.}];
+  let Doc = [{Returns the byte offset from derived to base. Without an address,
+the offset comes from the record layout of a complete derived object. If address
+points to a live derived object or subobject and the path to base contains a
+virtual base, the offset is read from its vtable/vbtable. This also works when
+the complete object's dynamic type is unknown to the interpreter.}];
 
   let ReturnType = "int64_t";
   let Args = [
     Arg<"ConstDeclRef", "derived">,
-    Arg<"ConstDeclRef", "base">
+    Arg<"ConstDeclRef", "base">,
+    Arg<"const void*", "address", "nullptr">
   ];
 }
 

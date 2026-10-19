@@ -5,6 +5,7 @@
 #include "../../lib/CppInterOp/Unwrap.h"
 
 #include "CppInterOp/CppInterOp.h"
+#include "CppInterOp/CppInterOpTypes.h"
 #define CPPINTEROP_TEST_MODE CppInterOpTest
 
 #include <cstring>
@@ -58,6 +59,20 @@ void GetAllTopLevelDecls(const std::string& code,
                          const std::vector<const char*>& interpreter_args = {});
 void GetAllSubDecls(clang::Decl* D, std::vector<clang::Decl*>& SubDecls,
                     bool filter_implicitGenerated = false);
+
+// The first method of `scope` called `name` (taking `nargs` arguments, if
+// given), or a null FuncRef. Inline, so that test binaries that do not link
+// Utils.cpp can use it.
+inline Cpp::FuncRef FindMethod(Cpp::DeclRef scope, const std::string& name,
+                               int nargs = -1) {
+  std::vector<Cpp::FuncRef> methods;
+  Cpp::GetClassMethods(scope, methods);
+  for (auto m : methods)
+    if (Cpp::GetName(Cpp::DeclRef{m.data}) == name &&
+        (nargs < 0 || Cpp::GetFunctionNumArgs(m) == size_t(nargs)))
+      return m;
+  return nullptr;
+}
 } // end namespace TestUtils
 
 bool IsTargetX86();

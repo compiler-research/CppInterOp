@@ -72,11 +72,6 @@ if (LLVM_LINK_LLVM_DYLIB)
   # Do NOT expand to every LLVM library: some (e.g. LLVMInterpreter) require
   # optional dependencies (libffi) that may not be installed.
   set(llvm_component_libs LLVMFrontendDriver)
-  foreach(component_lib ${llvm_component_libs})
-    if(NOT TARGET ${component_lib})
-      list(REMOVE_ITEM llvm_component_libs ${component_lib})
-    endif()
-  endforeach()
   while(NOT "${new_libs}" STREQUAL "")
     foreach(lib ${new_libs})
       if(TARGET ${lib})
@@ -272,21 +267,21 @@ if(EMSCRIPTEN)
   string(REPLACE "\n" " " SYMBOLS_LIST "${SYMBOLS_LIST}")
 
   target_compile_options(clangCppInterOp
-    PRIVATE "SHELL: -Oz"
-    PRIVATE "SHELL: -flto"
+    PRIVATE "SHELL: ${CPPINTEROP_LIBRARY_WASM_FLAGS}"
     PRIVATE "SHELL: ${CPPINTEROP_EXTRA_WASM_FLAGS}"
   )
   target_link_options(clangCppInterOp
     PRIVATE "SHELL: ${SYMBOLS_LIST}"
-    PRIVATE "SHELL: -Oz"
-    PRIVATE "SHELL: -flto"
+    PRIVATE "SHELL: ${CPPINTEROP_LIBRARY_WASM_FLAGS}"
     PRIVATE "SHELL: ${CPPINTEROP_EXTRA_WASM_FLAGS}"
   )
   else()
   target_compile_options(clangCppInterOp
+    PRIVATE "SHELL: ${CPPINTEROP_LIBRARY_WASM_FLAGS}"
     PRIVATE "SHELL: ${CPPINTEROP_EXTRA_WASM_FLAGS}"
   )
   target_link_options(clangCppInterOp
+      PRIVATE "SHELL: ${CPPINTEROP_LIBRARY_WASM_FLAGS}"
       PRIVATE "SHELL: ${CPPINTEROP_EXTRA_WASM_FLAGS}"
   )
   endif(BUILD_SHARED_LIBS)
