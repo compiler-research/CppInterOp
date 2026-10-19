@@ -1584,9 +1584,9 @@ bool IsSubclass(ConstDeclRef derived, ConstDeclRef base) {
 // This is an internal helper function for the CppInterOp library (as evident
 // by the 'static' declaration), while the similar GetBaseClassOffset()
 // function below is exposed to library users.
-static unsigned ComputeBaseOffset(const ASTContext& Context,
-                                  const CXXRecordDecl* DerivedRD,
-                                  const CXXBasePath& Path) {
+static int64_t ComputeBaseOffset(ASTContext& Context,
+                                 const CXXRecordDecl* DerivedRD,
+                                 const CXXBasePath& Path, const void* address) {
   CharUnits NonVirtualOffset = CharUnits::Zero();
 
   unsigned NonVirtualStart = 0;
@@ -1621,15 +1621,55 @@ static unsigned ComputeBaseOffset(const ASTContext& Context,
   // CharUnits.
   // return BaseOffset(DerivedRD, VirtuaBose, aBlnVirtualOffset);
   if (VirtualBase) {
-    const ASTRecordLayout& Layout = Context.getASTRecordLayout(DerivedRD);
-    CharUnits VirtualOffset = Layout.getVBaseClassOffset(VirtualBase);
+    CharUnits VirtualOffset;
+
+    if (address) {
+      const char* Object = static_cast<const char*>(address);
+      if (Context.getTargetInfo().getCXXABI().isMicrosoft()) {
+        const ASTRecordLayout& Layout = Context.getASTRecordLayout(DerivedRD);
+        CharUnits VBPtrOffset = Layout.getVBPtrOffset();
+        auto& VTContext =
+            *cast<MicrosoftVTableContext>(Context.getVTableContext());
+        unsigned VBTableIndex =
+            VTContext.getVBTableIndex(DerivedRD, VirtualBase);
+        const char* VBTable = nullptr;
+        std::memcpy(static_cast<void*>(&VBTable),
+                    Object + VBPtrOffset.getQuantity(), sizeof(VBTable));
+        int32_t Offset = 0;
+        std::memcpy(&Offset, VBTable + (VBTableIndex * sizeof(Offset)),
+                    sizeof(Offset));
+
+        // Microsoft vbtable entries are relative to the vbptr, not the object.
+        VirtualOffset = VBPtrOffset + CharUnits::fromQuantity(Offset);
+      } else {
+        auto& VTContext =
+            *cast<ItaniumVTableContext>(Context.getVTableContext());
+        CharUnits VBaseOffsetOffset =
+            VTContext.getVirtualBaseOffsetOffset(DerivedRD, VirtualBase);
+        const char* VTable = nullptr;
+        std::memcpy(static_cast<void*>(&VTable), Object, sizeof(VTable));
+
+        // Itanium virtual base offsets are relative to this subobject. The
+        // slot is relative to the vtable address point and can follow vcall
+        // offsets, so obtain it from the vtable context.
+        ptrdiff_t Offset = 0;
+        std::memcpy(&Offset, VTable + VBaseOffsetOffset.getQuantity(),
+                    sizeof(Offset));
+        VirtualOffset = CharUnits::fromQuantity(Offset);
+      }
+    } else {
+      const ASTRecordLayout& Layout = Context.getASTRecordLayout(DerivedRD);
+      VirtualOffset = Layout.getVBaseClassOffset(VirtualBase);
+    }
+
     return (NonVirtualOffset + VirtualOffset).getQuantity();
   }
   return NonVirtualOffset.getQuantity();
 }
 
-int64_t GetBaseClassOffset(ConstDeclRef derived, ConstDeclRef base) {
-  INTEROP_TRACE(derived, base);
+int64_t GetBaseClassOffset(ConstDeclRef derived, ConstDeclRef base,
+                           const void* address) {
+  INTEROP_TRACE(derived, base, address);
   if (base == derived)
     return INTEROP_RETURN(0);
 
@@ -1662,8 +1702,8 @@ int64_t GetBaseClassOffset(ConstDeclRef derived, ConstDeclRef base) {
   DCXXRD->isDerivedFrom(BCXXRD, Paths);
 
   // FIXME: We might want to cache these requests as they seem expensive.
-  return INTEROP_RETURN(
-      ComputeBaseOffset(getSema().getASTContext(), DCXXRD, Paths.front()));
+  return INTEROP_RETURN(ComputeBaseOffset(getSema().getASTContext(), DCXXRD,
+                                          Paths.front(), address));
 }
 
 template <typename DeclType, typename HandleType>
