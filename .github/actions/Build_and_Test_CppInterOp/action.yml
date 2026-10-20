@@ -737,4 +737,4 @@ runs:
         echo "Running CppInterOpTests in Chromium"
         Error-OnFailure { emrun.bat --browser="chrome.exe" --kill_exit --timeout 90 --browser-args="--headless --no-sandbox"  CppInterOpTests.html }
         echo "Running DynamicLibraryManagerTests in Chromium"
-        Error-OnFailure{ emrun.bat --browser="chrome.exe" --kill_exit --timeout 90 --browser-args="--headless --no-sandbox"  DynamicLibraryManagerTests.html }  
+        Error-OnFailure{ emrun.bat --browser="chrome.exe" --kill_exit --timeout 90 --browser-args="--headless --no-sandbox"  DynamicLibraryManagerTests.html }
