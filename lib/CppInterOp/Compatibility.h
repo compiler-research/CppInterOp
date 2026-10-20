@@ -945,6 +945,10 @@ inline Cpp::Box MakeValueBox(Value& V, void* qt) noexcept {
   return Cpp::Box::AdoptObject(Payload, &detail::ValueRefCount::Ops, qt);
 }
 
+inline const Value& GetValueFromBox(const Cpp::Box& box) noexcept {
+  return static_cast<const detail::ValueRefCount*>(box.getObjectPtr())->v;
+}
+
 inline void InstantiateClassTemplateSpecialization(
     Interpreter& interp, clang::ClassTemplateSpecializationDecl* CTSD) {
 #ifdef CPPINTEROP_USE_CLING
