@@ -16,23 +16,30 @@
 #include "clang/Basic/Version.h"
 
 #include "llvm/ADT/SmallString.h"
+#include "llvm/ADT/SmallVector.h"
 #include "llvm/Config/llvm-config.h"
 #include "llvm/Support/BuryPointer.h"
 #include "llvm/Support/FileSystem.h"
+#include "llvm/Support/MemoryBuffer.h"
 #include "llvm/Support/Path.h"
+#include "llvm/Support/Program.h"
 
 #include <gmock/gmock.h>
 #include "gtest/gtest.h"
 
 #include <algorithm>
+#include <array>
 #include <csignal>
 #include <cstdlib>
+#include <optional>
 
 #ifndef _WIN32
+#include <stdlib.h> // NOLINT(modernize-deprecated-headers): POSIX setenv
 #include <sys/wait.h>
 #include <unistd.h>
 #endif
 
+using ::testing::Not;
 using ::testing::StartsWith;
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_Version) {
@@ -432,6 +439,201 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_Process) {
   // with root-project/root#23610.
   EXPECT_FALSE(Cpp::Process("extern \"C\" int unresolved_fn();"
                             "int unresolved_r = unresolved_fn();") == 0);
+#endif
+}
+
+#if !defined(_WIN32) && !defined(EMSCRIPTEN) && !defined(CPPINTEROP_USE_CLING)
+constexpr const char* JitSourceCode =
+    R"(extern "C" const char* jit_source_path() { return __FILE__; }
+int add3(int a) {
+  int b = a + 1;
+  int c = b + 2;
+  return c;
+}
+)";
+
+// Sets CPPINTEROP_JIT_SOURCE_DIR to a new temporary directory.
+struct ScopedJitSourceDir {
+  llvm::SmallString<128> Dir;
+  explicit ScopedJitSourceDir(const char* Prefix = "cppinterop-jit-src") {
+    llvm::SmallString<128> Created;
+    // The interpreter resolves symlinks; on macOS /var is /private/var.
+    if (!llvm::sys::fs::createUniqueDirectory(Prefix, Created) &&
+        !llvm::sys::fs::real_path(Created, Dir))
+      setenv("CPPINTEROP_JIT_SOURCE_DIR", Dir.c_str(), /*overwrite=*/1);
+  }
+  ScopedJitSourceDir(const ScopedJitSourceDir&) = delete;
+  ScopedJitSourceDir& operator=(const ScopedJitSourceDir&) = delete;
+  ScopedJitSourceDir(ScopedJitSourceDir&&) = delete;
+  ScopedJitSourceDir& operator=(ScopedJitSourceDir&&) = delete;
+  ~ScopedJitSourceDir() {
+    unsetenv("CPPINTEROP_JIT_SOURCE_DIR");
+    EXPECT_FALSE(llvm::sys::fs::remove_directories(Dir));
+  }
+};
+
+// Declares JitSourceCode and returns the file that __FILE__ names in it.
+static std::string DeclareJitSource() {
+  if (Cpp::Declare(JitSourceCode))
+    return {};
+  void* Fn = Cpp::GetFunctionAddress("jit_source_path");
+  if (!Fn)
+    return {};
+  return TestUtils::BitCastFn<const char* (*)()>(Fn)();
+}
+#endif
+
+TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_JitSourceDir) {
+#if defined(_WIN32) || defined(EMSCRIPTEN) || defined(CPPINTEROP_USE_CLING)
+  GTEST_SKIP() << "CPPINTEROP_JIT_SOURCE_DIR is a clang-repl feature; the "
+                  "test uses setenv";
+#else
+  if (TypeParam::isOutOfProcess)
+    GTEST_SKIP() << "the test calls jitted code in-process";
+  ScopedJitSourceDir Scope;
+  ASSERT_FALSE(Scope.Dir.empty());
+  auto I = TestFixture::CreateInterpreter({"-g"});
+  ASSERT_TRUE(I);
+
+  std::string Path = DeclareJitSource();
+  EXPECT_THAT(Path, StartsWith(Scope.Dir.str().str()));
+  auto Buf = llvm::MemoryBuffer::getFile(Path);
+  ASSERT_TRUE(Buf) << Path;
+  EXPECT_EQ((*Buf)->getBuffer(), JitSourceCode);
+  Cpp::DeleteInterpreter(I);
+#endif
+}
+
+// The #line directive escapes a quote in the path.
+TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_JitSourceDirQuoted) {
+#if defined(_WIN32) || defined(EMSCRIPTEN) || defined(CPPINTEROP_USE_CLING)
+  GTEST_SKIP() << "CPPINTEROP_JIT_SOURCE_DIR is a clang-repl feature; the "
+                  "test uses setenv";
+#else
+  if (TypeParam::isOutOfProcess)
+    GTEST_SKIP() << "the test calls jitted code in-process";
+  ScopedJitSourceDir Scope("cppinterop-jit\"src");
+  ASSERT_FALSE(Scope.Dir.empty());
+  auto I = TestFixture::CreateInterpreter({"-g"});
+  ASSERT_TRUE(I);
+  std::string Path = DeclareJitSource();
+  EXPECT_THAT(Path, StartsWith(Scope.Dir.str().str()));
+  EXPECT_TRUE(llvm::sys::fs::exists(Path)) << Path;
+  Cpp::DeleteInterpreter(I);
+#endif
+}
+
+// A directory that cannot be created turns the feature off.
+TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_JitSourceDirUnusable) {
+#if defined(_WIN32) || defined(EMSCRIPTEN) || defined(CPPINTEROP_USE_CLING)
+  GTEST_SKIP() << "CPPINTEROP_JIT_SOURCE_DIR is a clang-repl feature; the "
+                  "test uses setenv";
+#else
+  if (TypeParam::isOutOfProcess)
+    GTEST_SKIP() << "the test calls jitted code in-process";
+  llvm::SmallString<128> File;
+  ASSERT_FALSE(
+      llvm::sys::fs::createTemporaryFile("cppinterop-jit-src", "txt", File));
+  llvm::SmallString<128> Below(File);
+  llvm::sys::path::append(Below, "sub");
+  setenv("CPPINTEROP_JIT_SOURCE_DIR", Below.c_str(), /*overwrite=*/1);
+  auto I = TestFixture::CreateInterpreter({"-g"});
+  unsetenv("CPPINTEROP_JIT_SOURCE_DIR");
+  ASSERT_TRUE(I);
+  std::string Path = DeclareJitSource();
+  EXPECT_FALSE(Path.empty());
+  EXPECT_THAT(Path, Not(StartsWith(File.str().str())));
+  Cpp::DeleteInterpreter(I);
+  EXPECT_FALSE(llvm::sys::fs::remove(File));
+#endif
+}
+
+// An input that cannot be written is parsed from memory.
+TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_JitSourceDirRemoved) {
+#if defined(_WIN32) || defined(EMSCRIPTEN) || defined(CPPINTEROP_USE_CLING)
+  GTEST_SKIP() << "CPPINTEROP_JIT_SOURCE_DIR is a clang-repl feature; the "
+                  "test uses setenv";
+#else
+  if (TypeParam::isOutOfProcess)
+    GTEST_SKIP() << "the test calls jitted code in-process";
+  ScopedJitSourceDir Scope;
+  ASSERT_FALSE(Scope.Dir.empty());
+  auto I = TestFixture::CreateInterpreter({"-g"});
+  ASSERT_TRUE(I);
+  ASSERT_FALSE(llvm::sys::fs::remove_directories(Scope.Dir));
+  std::string Path = DeclareJitSource();
+  EXPECT_FALSE(Path.empty());
+  EXPECT_THAT(Path, Not(StartsWith(Scope.Dir.str().str())));
+  Cpp::DeleteInterpreter(I);
+#endif
+}
+
+// Runs in the gdb inferior of Interpreter_JitSourceDirGdb only.
+TYPED_TEST(CPPINTEROP_TEST_MODE, DISABLED_Interpreter_JitSourceDirGdbInferior) {
+#if !defined(_WIN32) && !defined(EMSCRIPTEN) && !defined(CPPINTEROP_USE_CLING)
+  ASSERT_TRUE(TestFixture::CreateInterpreter({"-g", "-O0"}));
+  ASSERT_FALSE(DeclareJitSource().empty());
+  EXPECT_EQ(0, Cpp::Process("int r = add3(4);"));
+#endif
+}
+
+// gdb sets a breakpoint by file and line in jitted code, shows the source,
+// and steps.
+TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_JitSourceDirGdb) {
+#if !defined(__linux__) || defined(EMSCRIPTEN) || defined(CPPINTEROP_USE_CLING)
+  GTEST_SKIP() << "the test uses the GDB JIT interface of clang-repl on Linux";
+#else
+  if (TypeParam::isOutOfProcess)
+    GTEST_SKIP() << "the inferior uses the in-process JIT";
+  auto Gdb = llvm::sys::findProgramByName("gdb");
+  if (!Gdb)
+    GTEST_SKIP() << "gdb not found";
+
+  ScopedJitSourceDir Scope;
+  ASSERT_FALSE(Scope.Dir.empty());
+  // The file name hashes the code, so the inferior writes the same path.
+  auto I = TestFixture::CreateInterpreter();
+  ASSERT_TRUE(I);
+  std::string Path = DeclareJitSource();
+  ASSERT_FALSE(Path.empty());
+  Cpp::DeleteInterpreter(I);
+
+  void* Self = (void*)&DeclareJitSource;
+  std::string Exe = llvm::sys::fs::getMainExecutable(nullptr, Self);
+  std::string Break = "break " + Path + ":4";
+  const char* Suite = ::testing::UnitTest::GetInstance()
+                          ->current_test_info()
+                          ->test_suite_name();
+  std::string Filter = std::string("--gtest_filter=") + Suite +
+                       ".DISABLED_Interpreter_JitSourceDirGdbInferior";
+  llvm::SmallString<128> Log(Scope.Dir);
+  llvm::sys::path::append(Log, "gdb.log");
+  const std::array<llvm::StringRef, 7> Commands = {"set breakpoint pending on",
+                                                   Break,
+                                                   "run",
+                                                   "info locals",
+                                                   "next",
+                                                   "print c",
+                                                   "kill"};
+  llvm::SmallVector<llvm::StringRef, 32> Args = {*Gdb, "-nx", "-batch", "-iex",
+                                                 "set debuginfod enabled off"};
+  for (llvm::StringRef Command : Commands)
+    Args.append({"-ex", Command});
+  Args.append({"--args", Exe, Filter, "--gtest_also_run_disabled_tests"});
+  const std::array<std::optional<llvm::StringRef>, 3> Redirects = {
+      std::nullopt, Log.str(), Log.str()};
+  llvm::sys::ExecuteAndWait(*Gdb, Args, std::nullopt, Redirects,
+                            /*SecondsToWait=*/300);
+  auto Out = llvm::MemoryBuffer::getFile(Log);
+  ASSERT_TRUE(Out);
+  llvm::StringRef Text = (*Out)->getBuffer();
+  if (Text.contains("ptrace:") || Text.contains("Operation not permitted"))
+    GTEST_SKIP() << "gdb cannot trace processes here:\n" << Text.str();
+  EXPECT_TRUE(Text.contains("Breakpoint 1, add3 (a=4) at")) << Text.str();
+  EXPECT_TRUE(Text.contains("4\t  int c = b + 2;")) << Text.str();
+  EXPECT_TRUE(Text.contains("b = 5")) << Text.str();
+  EXPECT_TRUE(Text.contains("5\t  return c;")) << Text.str();
+  EXPECT_TRUE(Text.contains("$1 = 7")) << Text.str();
 #endif
 }
 

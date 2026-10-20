@@ -22,6 +22,11 @@ services and pushes it onto a stack.
 \param[in] Args - the list of arguments for interpreter constructor.
 \param[in] CPPINTEROP_EXTRA_INTERPRETER_ARGS - an env variable, if defined,
           adds additional arguments to the interpreter.
+\param[in] CPPINTEROP_JIT_SOURCE_DIR - an env variable, if defined, makes
+          the interpreter write each input to a file in that directory and
+          name that file in debug info and diagnostics. With -g in \c Args,
+          debuggers can then show the source and break by file and line.
+          Experimental.
 \returns nullptr on failure.}];
 
   let ReturnType = "InterpRef";
