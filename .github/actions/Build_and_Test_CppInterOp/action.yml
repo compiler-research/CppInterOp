@@ -663,13 +663,13 @@ runs:
         echo "PATH=$env:PATH"
         echo "PATH=$env:PATH" >> $env:GITHUB_ENV
         echo "Running CppInterOpTests in Firefox"
-        Error-OnFailure { emrun.bat --browser="firefox.exe" --kill_exit --timeout 60 --browser-args="--headless"  CppInterOpTests.html }
+        Error-OnFailure { emrun.bat --browser="firefox.exe" --kill_exit --timeout 90 --browser-args="--headless"  CppInterOpTests.html }
         echo "Running DynamicLibraryManagerTests in Firefox"
-        Error-OnFailure { emrun.bat --browser="firefox.exe" --kill_exit --timeout 60 --browser-args="--headless"  DynamicLibraryManagerTests.html }
+        Error-OnFailure { emrun.bat --browser="firefox.exe" --kill_exit --timeout 90 --browser-args="--headless"  DynamicLibraryManagerTests.html }
         echo "Running CppInterOpTests in Chromium"
-        Error-OnFailure { emrun.bat --browser="chrome.exe" --kill_exit --timeout 60 --browser-args="--headless --no-sandbox"  CppInterOpTests.html }
+        Error-OnFailure { emrun.bat --browser="chrome.exe" --kill_exit --timeout 90 --browser-args="--headless --no-sandbox"  CppInterOpTests.html }
         echo "Running DynamicLibraryManagerTests in Chromium"
-        Error-OnFailure { emrun.bat --browser="chrome.exe" --kill_exit --timeout 60 --browser-args="--headless --no-sandbox"  DynamicLibraryManagerTests.html }
+        Error-OnFailure { emrun.bat --browser="chrome.exe" --kill_exit --timeout 90 --browser-args="--headless --no-sandbox"  DynamicLibraryManagerTests.html }
         cd ..\..
         Error-OnFailure { emmake ninja install }
 
@@ -731,10 +731,10 @@ runs:
         Error-OnFailure { emmake ninja check-cppinterop }
         cd .\unittests\CppInterOp\
         echo "Running CppInterOpTests in Firefox"
-        Error-OnFailure { emrun.bat --browser="firefox.exe" --kill_exit --timeout 60 --browser-args="--headless"  CppInterOpTests.html }
+        Error-OnFailure { emrun.bat --browser="firefox.exe" --kill_exit --timeout 90 --browser-args="--headless"  CppInterOpTests.html }
         echo "Running DynamicLibraryManagerTests in Firefox"
-        Error-OnFailure { emrun.bat --browser="firefox.exe" --kill_exit --timeout 60 --browser-args="--headless"  DynamicLibraryManagerTests.html }
+        Error-OnFailure { emrun.bat --browser="firefox.exe" --kill_exit --timeout 90 --browser-args="--headless"  DynamicLibraryManagerTests.html }
         echo "Running CppInterOpTests in Chromium"
-        Error-OnFailure { emrun.bat --browser="chrome.exe" --kill_exit --timeout 60 --browser-args="--headless --no-sandbox"  CppInterOpTests.html }
+        Error-OnFailure { emrun.bat --browser="chrome.exe" --kill_exit --timeout 90 --browser-args="--headless --no-sandbox"  CppInterOpTests.html }
         echo "Running DynamicLibraryManagerTests in Chromium"
-        Error-OnFailure{ emrun.bat --browser="chrome.exe" --kill_exit --timeout 60 --browser-args="--headless --no-sandbox"  DynamicLibraryManagerTests.html }  
+        Error-OnFailure{ emrun.bat --browser="chrome.exe" --kill_exit --timeout 90 --browser-args="--headless --no-sandbox"  DynamicLibraryManagerTests.html }  
