@@ -60,6 +60,13 @@ void GetAllTopLevelDecls(const std::string& code,
 void GetAllSubDecls(clang::Decl* D, std::vector<clang::Decl*>& SubDecls,
                     bool filter_implicitGenerated = false);
 
+// Whether the current interpreter can be restarted with -fmodules. cling
+// mounts its runtime modulemaps (std.modulemap, ...) from the directory that
+// holds cling/Interpreter/RuntimeUniverse.h; a build without them (e.g. ROOT
+// with runtime_cxxmodules=OFF) aborts on -fmodules. Always true for
+// clang-repl. Needs a running interpreter.
+bool HasRuntimeModulemaps();
+
 // The first method of `scope` called `name` (taking `nargs` arguments, if
 // given), or a null FuncRef. Inline, so that test binaries that do not link
 // Utils.cpp can use it.
