@@ -910,6 +910,8 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_IsAllocator) {
   EXPECT_EQ(Cpp::IsAllocator(Cpp::ConstFuncRef{Cpp::GetNamed("Klass").data}),
             Cpp::AllocType::Unknown);
 
+  const bool has_modulemaps = TestUtils::HasRuntimeModulemaps();
+
   Cpp::DeleteInterpreter();
 #ifdef EMSCRIPTEN
   GTEST_SKIP() << "Test fails for Emscipten builds";
@@ -920,6 +922,8 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_IsAllocator) {
   // We support modules with cling on Linux only
   GTEST_SKIP() << "Test runs only on Linux in cling";
 #endif
+  if (!has_modulemaps)
+    GTEST_SKIP() << "cling was built without its runtime modulemaps";
   include_flag =
       "-I" + std::string(CPPINTEROP_SRC_DIR) + "/unittests/CppInterOp/APINotes";
   std::vector<const char*> interpreter_args = {
