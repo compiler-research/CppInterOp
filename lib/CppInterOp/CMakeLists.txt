@@ -317,7 +317,9 @@ set(_clang_resource_dir "${CPPINTEROP_CLANG_RESOURCE_DIR}")
 # directory makes MakeResourcesPath() return early at runtime, leaving the
 # runtime fallback paths below it uncovered. An explicit
 # CPPINTEROP_CLANG_RESOURCE_DIR override is always honored.
-if(NOT _clang_resource_dir AND NOT CODE_COVERAGE
+# A build-tree ClangConfig leaves CLANG_INSTALL_PREFIX empty; without the
+# check the probe would run /bin/clang, which can be another clang.
+if(NOT _clang_resource_dir AND NOT CODE_COVERAGE AND CLANG_INSTALL_PREFIX
    AND EXISTS "${CLANG_INSTALL_PREFIX}/bin/clang")
   execute_process(
     COMMAND "${CLANG_INSTALL_PREFIX}/bin/clang" -print-resource-dir
