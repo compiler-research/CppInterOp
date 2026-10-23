@@ -230,7 +230,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE,
 // end to end: compile the wrapper and actually invoke it.
 TYPED_TEST(CPPINTEROP_TEST_MODE,
            FunctionReflection_MakeFunctionCallable_UsingShadow) {
-#ifdef EMSCRIPTEN
+#ifdef __EMSCRIPTEN__
   GTEST_SKIP() << "Test fails for Emscripten builds";
 #endif
 #if defined(CPPINTEROP_USE_CLING) && defined(_WIN32)
@@ -294,7 +294,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE,
 // test_regression.py::test50_using_decl_base_this_offset.
 TYPED_TEST(CPPINTEROP_TEST_MODE,
            FunctionReflection_UsingShadow_BaseThisOffset) {
-#ifdef EMSCRIPTEN
+#ifdef __EMSCRIPTEN__
   GTEST_SKIP() << "Test fails for Emscripten builds";
 #endif
 #if defined(CPPINTEROP_USE_CLING) && defined(_WIN32)
@@ -913,7 +913,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_IsAllocator) {
   const bool has_modulemaps = TestUtils::HasRuntimeModulemaps();
 
   Cpp::DeleteInterpreter();
-#ifdef EMSCRIPTEN
+#ifdef __EMSCRIPTEN__
   GTEST_SKIP() << "Test fails for Emscipten builds";
 #endif
   std::string include_flag;
@@ -1242,7 +1242,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_IsDeallocator) {
   }
 
   Cpp::DeleteInterpreter();
-#ifdef EMSCRIPTEN
+#ifdef __EMSCRIPTEN__
   GTEST_SKIP() << "Test fails for Emscipten builds";
 #endif
   // APINotes check
@@ -2194,7 +2194,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetAllocType) {
     )";
   std::string include_flag =
       "-I" + std::string(CPPINTEROP_SRC_DIR) + "/unittests/CppInterOp/APINotes";
-#ifndef EMSCRIPTEN
+#ifndef __EMSCRIPTEN__
   TestFixture::CreateInterpreter(
       {"-std=c++17", include_flag.c_str(), "-include", "TestAttributeMerge.h"});
 #else
@@ -2268,7 +2268,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetAllocType) {
   TESTAC(58, OperatorNew);
   TESTAC(59, Malloc);
   TESTAC(70, Unknown);
-#ifndef EMSCRIPTEN
+#ifndef __EMSCRIPTEN__
   TESTAC(71, Malloc);
 #endif
 #undef TESTAC
@@ -3319,7 +3319,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_IsVirtualMethod) {
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_JitCallAdvanced) {
-#ifdef EMSCRIPTEN
+#ifdef __EMSCRIPTEN__
 #if CLANG_VERSION_MAJOR > 21
   GTEST_SKIP() << "Test fails for Emscipten builds using LLVM 22";
 #endif
@@ -3456,7 +3456,7 @@ template int instantiation_in_host<int>();
 #endif
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetFunctionCallWrapper) {
-#ifdef EMSCRIPTEN
+#ifdef __EMSCRIPTEN__
   GTEST_SKIP() << "Test fails for Emscipten builds";
 #endif
 #if defined(CPPINTEROP_USE_CLING) && defined(_WIN32)
@@ -4052,7 +4052,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE,
   //
   // Only checks JitCall::getKind(), i.e. that the wrapper *compiles*; it never
   // Invoke()s it, so no out-of-process skip is needed.
-#ifdef EMSCRIPTEN
+#ifdef __EMSCRIPTEN__
 #if CLANG_VERSION_MAJOR > 21
   // The Emscripten JIT (LLVM 22) cannot compile this by-value wrapper -- a
   // separate limitation from the type printing under test, shared with the
@@ -4242,7 +4242,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE,
 
 TYPED_TEST(CPPINTEROP_TEST_MODE,
            FunctionReflection_FloatingDefaultPrinterCanary) {
-#ifdef EMSCRIPTEN
+#ifdef __EMSCRIPTEN__
   GTEST_SKIP() << "The wasm test binary does not link the raw clang printer "
                   "symbols (printPretty, getDefaultArg) this test needs.";
 #else
@@ -4274,7 +4274,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_Construct) {
 #ifdef _WIN32
   GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
 #endif
-#ifdef EMSCRIPTEN
+#ifdef __EMSCRIPTEN__
 #if CLANG_VERSION_MAJOR > 21
   GTEST_SKIP() << "Test fails for Emscipten builds using LLVM 22";
 #endif
@@ -4357,7 +4357,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_ConstructClassScopeNew) {
 #ifdef _WIN32
   GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
 #endif
-#ifdef EMSCRIPTEN
+#ifdef __EMSCRIPTEN__
 #if CLANG_VERSION_MAJOR > 21
   GTEST_SKIP() << "Test fails for Emscipten builds using LLVM 22";
 #endif
@@ -4482,7 +4482,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_ConstructPOD) {
 #ifdef _WIN32
   GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
 #endif
-#ifdef EMSCRIPTEN
+#ifdef __EMSCRIPTEN__
 #if CLANG_VERSION_MAJOR > 21
   GTEST_SKIP() << "Test fails for Emscipten builds using LLVM 22";
 #endif
@@ -4527,7 +4527,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_ConstructNested) {
 #ifdef _WIN32
   GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
 #endif
-#ifdef EMSCRIPTEN
+#ifdef __EMSCRIPTEN__
 #if CLANG_VERSION_MAJOR > 21
   GTEST_SKIP() << "Test fails for Emscipten builds using LLVM 22";
 #endif
@@ -4639,7 +4639,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_ConstructArray) {
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_Destruct) {
-#ifdef EMSCRIPTEN
+#ifdef __EMSCRIPTEN__
   GTEST_SKIP() << "Test fails for Emscipten builds";
 #endif
 
@@ -4701,7 +4701,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_Destruct) {
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_DestructArray) {
-#ifdef EMSCRIPTEN
+#ifdef __EMSCRIPTEN__
   GTEST_SKIP() << "Test fails for Emscipten builds";
 #endif
 
@@ -4785,7 +4785,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_UndoTest) {
   GTEST_SKIP() << "cling unload walks a module already freed by ORC "
                   "clone-on-emit; skip until the cling-side fix lands.";
 #endif
-#ifdef EMSCRIPTEN
+#ifdef __EMSCRIPTEN__
   GTEST_SKIP() << "Test fails for Emscipten builds";
 #else
   TestFixture::CreateInterpreter();
@@ -4812,7 +4812,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_FailingTest1) {
 #ifdef _WIN32
   GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
 #endif
-#ifdef EMSCRIPTEN_SHARED_LIBRARY
+#ifdef __EMSCRIPTEN___SHARED_LIBRARY
   GTEST_SKIP() << "Test fails for Emscipten shared library builds";
 #endif
   TestFixture::CreateInterpreter();
@@ -5107,7 +5107,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_DeducingThisIntrospection) {
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_DeducingThisJitCall) {
-#ifdef EMSCRIPTEN
+#ifdef __EMSCRIPTEN__
 #if CLANG_VERSION_MAJOR > 21
   GTEST_SKIP() << "Test fails for Emscripten builds using LLVM 22";
 #endif
@@ -5160,7 +5160,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_DeducingThisJitCall) {
 
 TYPED_TEST(CPPINTEROP_TEST_MODE,
            FunctionReflection_DeducingThisRValueRefJitCall) {
-#ifdef EMSCRIPTEN
+#ifdef __EMSCRIPTEN__
 #if CLANG_VERSION_MAJOR > 21
   GTEST_SKIP() << "Test fails for Emscripten builds using LLVM 22";
 #endif
@@ -5268,7 +5268,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE,
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_DeducingThisByValueCopy) {
-#ifdef EMSCRIPTEN
+#ifdef __EMSCRIPTEN__
 #if CLANG_VERSION_MAJOR > 21
   GTEST_SKIP() << "Test fails for Emscripten builds using LLVM 22";
 #endif
@@ -5313,7 +5313,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_DeducingThisByValueCopy) {
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_DeducingThisInheritance) {
-#ifdef EMSCRIPTEN
+#ifdef __EMSCRIPTEN__
 #if CLANG_VERSION_MAJOR > 21
   GTEST_SKIP() << "Test fails for Emscripten builds using LLVM 22";
 #endif
@@ -5374,7 +5374,7 @@ static int JitCallIntNullary(const char* ns, const char* fn) {
 
 TYPED_TEST(CPPINTEROP_TEST_MODE,
            FunctionReflection_DeducingThisBlogDeduplication) {
-#ifdef EMSCRIPTEN
+#ifdef __EMSCRIPTEN__
 #if CLANG_VERSION_MAJOR > 21
   GTEST_SKIP() << "Test fails for Emscripten builds using LLVM 22";
 #endif
@@ -5406,7 +5406,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE,
 
 TYPED_TEST(CPPINTEROP_TEST_MODE,
            FunctionReflection_DeducingThisBlogCRTPPostfix) {
-#ifdef EMSCRIPTEN
+#ifdef __EMSCRIPTEN__
 #if CLANG_VERSION_MAJOR > 21
   GTEST_SKIP() << "Test fails for Emscripten builds using LLVM 22";
 #endif
@@ -5440,7 +5440,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE,
 
 TYPED_TEST(CPPINTEROP_TEST_MODE,
            FunctionReflection_DeducingThisBlogRecursiveLambda) {
-#ifdef EMSCRIPTEN
+#ifdef __EMSCRIPTEN__
 #if CLANG_VERSION_MAJOR > 21
   GTEST_SKIP() << "Test fails for Emscripten builds using LLVM 22";
 #endif
@@ -5469,7 +5469,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE,
 
 TYPED_TEST(CPPINTEROP_TEST_MODE,
            FunctionReflection_DeducingThisBlogLambdaForwarding) {
-#ifdef EMSCRIPTEN
+#ifdef __EMSCRIPTEN__
 #if CLANG_VERSION_MAJOR > 21
   GTEST_SKIP() << "Test fails for Emscripten builds using LLVM 22";
 #endif
@@ -5503,7 +5503,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE,
 
 TYPED_TEST(CPPINTEROP_TEST_MODE,
            FunctionReflection_DeducingThisBlogPassByValue) {
-#ifdef EMSCRIPTEN
+#ifdef __EMSCRIPTEN__
 #if CLANG_VERSION_MAJOR > 21
   GTEST_SKIP() << "Test fails for Emscripten builds using LLVM 22";
 #endif
@@ -5545,7 +5545,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE,
 
 TYPED_TEST(CPPINTEROP_TEST_MODE,
            FunctionReflection_DeducingThisBlogSfinaeTransform) {
-#ifdef EMSCRIPTEN
+#ifdef __EMSCRIPTEN__
 #if CLANG_VERSION_MAJOR > 21
   GTEST_SKIP() << "Test fails for Emscripten builds using LLVM 22";
 #endif
@@ -5580,7 +5580,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE,
 // MoveOnly's deleted copy constructor is also non-trivial (Payload's is
 // user-provided), so triviality bits cannot classify it.
 TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_MoveOnlyByValueArgs) {
-#ifdef EMSCRIPTEN
+#ifdef __EMSCRIPTEN__
   GTEST_SKIP() << "Test fails for Emscripten builds";
 #endif
   if (TypeParam::isOutOfProcess)
@@ -5649,7 +5649,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_MoveOnlyByValueArgs) {
 // clean under ASan/LSan.
 TYPED_TEST(CPPINTEROP_TEST_MODE,
            FunctionReflection_DiscardDuplicateWeakEmulatedTLS) {
-#ifdef EMSCRIPTEN
+#ifdef __EMSCRIPTEN__
   GTEST_SKIP() << "Test fails for Emscripten builds";
 #endif
 #ifdef CPPINTEROP_USE_CLING
@@ -5707,7 +5707,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE,
 // above.
 TYPED_TEST(CPPINTEROP_TEST_MODE,
            FunctionReflection_DiscardDuplicateWeakEmulatedTLSZeroInit) {
-#ifdef EMSCRIPTEN
+#ifdef __EMSCRIPTEN__
   GTEST_SKIP() << "Test fails for Emscripten builds";
 #endif
 #ifdef CPPINTEROP_USE_CLING
@@ -5762,7 +5762,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE,
 // in a private member class is not spellable there (and, unlike a typedef of
 // a builtin, is not desugared by get_type_as_string), the canonical type is.
 TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_PrivateTypedefReturn) {
-#ifdef EMSCRIPTEN
+#ifdef __EMSCRIPTEN__
   GTEST_SKIP() << "Test fails for Emscripten builds";
 #endif
   if (TypeParam::isOutOfProcess)
@@ -5791,7 +5791,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_PrivateTypedefReturn) {
 // The private path desugars to a public typedef of a private class: that
 // typedef is spellable, the canonical type is not.
 TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_PrivateTypedefChainReturn) {
-#ifdef EMSCRIPTEN
+#ifdef __EMSCRIPTEN__
   GTEST_SKIP() << "Test fails for Emscripten builds";
 #endif
   if (TypeParam::isOutOfProcess)
@@ -5833,7 +5833,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_PrivateTypedefChainReturn) {
 // the canonical type is spellable. A typedef of a class type underneath keeps
 // the sugar from being desugared when the type is printed (a builtin would be).
 TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_DecltypeReturn) {
-#ifdef EMSCRIPTEN
+#ifdef __EMSCRIPTEN__
   GTEST_SKIP() << "Test fails for Emscripten builds";
 #endif
   if (TypeParam::isOutOfProcess)

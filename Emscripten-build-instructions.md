@@ -19,16 +19,16 @@ cd ./CppInterOp-wasm
 ```
 
 To create a wasm build of CppInterOp we make use of the emsdk toolchain. This can be installed by executing (we only currently  
-support version 4.0.9)
+support version 6.0.8)
 ```bash
 git clone https://github.com/emscripten-core/emsdk.git
-./emsdk/emsdk install  4.0.9
+./emsdk/emsdk install  6.0.8
 ```
 
 and to activate the emsdk environment on Linux and osx execute (we are defining SYSROOT_PATH for use later)
 
 ```bash
-./emsdk/emsdk activate 4.0.9
+./emsdk/emsdk activate 6.0.8
 source ./emsdk/emsdk_env.sh
 export SYSROOT_PATH=$PWD/emsdk/upstream/emscripten/cache/sysroot
 ```
@@ -36,7 +36,7 @@ export SYSROOT_PATH=$PWD/emsdk/upstream/emscripten/cache/sysroot
 and on Windows execute in Powershell
 
 ```powershell
-.\emsdk\emsdk activate 4.0.9
+.\emsdk\emsdk activate 6.0.8
 .\emsdk\emsdk_env.ps1
 $env:PWD_DIR= $PWD.Path
 $env:SYSROOT_PATH="$env:EMSDK/upstream/emscripten/cache/sysroot"
@@ -165,7 +165,7 @@ by executing (assumes you have micromamba installed and that your shell is initi
 
 ```bash
 cd ../../CppInterOp/
-micromamba create -f environment-wasm.yml --platform=emscripten-wasm32 -c https://prefix.dev/emscripten-forge-4x -c https://prefix.dev/conda-forge
+micromamba create -f environment-wasm.yml --platform=emscripten-wasm32 -c https://prefix.dev/emscripten-forge-bot/emscripten-forge-6x -c https://prefix.dev/conda-forge
 micromamba activate CppInterOp-wasm
 ```
 

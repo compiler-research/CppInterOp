@@ -32,19 +32,19 @@ Now move into this directory using the following command
 
 To create a wasm build of CppInterOp we make use of the emsdk toolchain.
 This can be installed by executing (we only currently support version
-4.0.9)
+6.0.8)
 
 .. code:: bash
 
    git clone https://github.com/emscripten-core/emsdk.git
-   ./emsdk/emsdk install  4.0.9
+   ./emsdk/emsdk install  6.0.8
 
 and to activate the emsdk environment on Linux and osx execute 
 (we are defining SYSROOT_PATH for use later)
 
 .. code:: bash
 
-   ./emsdk/emsdk activate 4.0.9
+   ./emsdk/emsdk activate 6.0.8
    source ./emsdk/emsdk_env.sh
    export SYSROOT_PATH=$PWD/emsdk/upstream/emscripten/cache/sysroot
 
@@ -52,7 +52,7 @@ and on Windows execute in Powershell
 
 .. code:: powershell
 
-   .\emsdk\emsdk activate 4.0.9
+   .\emsdk\emsdk activate 6.0.8
    .\emsdk\emsdk_env.ps1
    $env:PWD_DIR= $PWD.Path
    $env:SYSROOT_PATH="$env:EMSDK/upstream/emscripten/cache/sysroot"
@@ -190,7 +190,7 @@ initialised for the micromamba install)
 .. code:: bash
 
    cd ../../CppInterOp/
-   micromamba create -f environment-wasm.yml --platform=emscripten-wasm32 -c https://prefix.dev/emscripten-forge-4x -c https://prefix.dev/conda-forge
+   micromamba create -f environment-wasm.yml --platform=emscripten-wasm32 -c https://prefix.dev/emscripten-forge-bot/emscripten-forge-6x -c https://prefix.dev/conda-forge
    micromamba activate CppInterOp-wasm
 
 You will also want to set a few environment variables. On Linux and osx you define them as follows
