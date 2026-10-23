@@ -540,12 +540,17 @@ public:
     if (isInSyntaxOnlyMode())
       return nullptr;
 
-    auto addressOrErr =
-        getSymbolAddressFromLinkerName(SymName); // TODO: Or getSymbolAddress
+    auto addressOrErr = getSymbolAddressFromLinkerName(SymName);
     if (addressOrErr)
       return addressOrErr->toPtr<void*>();
+    llvm::consumeError(addressOrErr.takeError());
 
-    llvm::consumeError(addressOrErr.takeError()); // okay to be missing
+    // Fall back to the IR name
+    auto irOrErr = getSymbolAddress(SymName);
+    if (irOrErr)
+      return irOrErr->toPtr<void*>();
+
+    llvm::consumeError(irOrErr.takeError()); // okay to be missing
     return nullptr;
   }
 
