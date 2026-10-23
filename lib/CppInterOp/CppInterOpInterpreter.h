@@ -43,8 +43,13 @@
 #include "llvm/ExecutionEngine/Orc/Shared/ExecutorSymbolDef.h"
 #include "llvm/Support/Compiler.h"
 #include "llvm/Support/Error.h"
+#include "llvm/Support/FileSystem.h"
+#include "llvm/Support/Format.h"
+#include "llvm/Support/Path.h"
+#include "llvm/Support/Process.h"
 #include "llvm/Support/TargetSelect.h"
 #include "llvm/Support/raw_ostream.h"
+#include "llvm/Support/xxhash.h"
 #include "llvm/TargetParser/Triple.h"
 
 #ifndef _WIN32
@@ -59,6 +64,8 @@
 #include <cstdio>
 #include <memory>
 #include <mutex>
+#include <string>
+#include <system_error>
 #include <tuple>
 #include <utility>
 #include <vector>
@@ -320,11 +327,65 @@ private:
     return std::make_tuple(stdin_fd, stdout_fd, stderr_fd);
   }
 
+  static std::string sourceDirFromEnv() {
+    auto Env = llvm::sys::Process::GetEnv("CPPINTEROP_JIT_SOURCE_DIR");
+    if (!Env || Env->empty())
+      return {};
+    llvm::SmallString<256> Dir;
+    std::error_code EC = llvm::sys::fs::create_directories(*Env);
+    if (!EC)
+      EC = llvm::sys::fs::real_path(*Env, Dir);
+    if (EC) {
+      llvm::errs() << "[CPPINTEROP_JIT_SOURCE_DIR]: cannot use '" << *Env
+                   << "': " << EC.message() << "\n";
+      return {};
+    }
+    return Dir.str().str();
+  }
+
+  /// With CPPINTEROP_JIT_SOURCE_DIR, writes \p Code to that directory and
+  /// returns it, in \p Buffer, after a #line that names the file, so debug
+  /// info and diagnostics point to a file on disk. Else returns \p Code.
+  llvm::StringRef withSourceFile(llvm::StringRef Code,
+                                 std::string& Buffer) const {
+    if (SourceDir.empty() || Code.empty())
+      return Code;
+    llvm::SmallString<256> Path(SourceDir);
+    // A content hash keeps the path stable across runs.
+    std::string Name;
+    llvm::raw_string_ostream(Name)
+        << "input_" << llvm::format_hex_no_prefix(llvm::xxh3_64bits(Code), 16)
+        << ".cpp";
+    llvm::sys::path::append(Path, Name);
+    // Same name means same bytes; writeToOutput renames, so no partial file.
+    if (!llvm::sys::fs::exists(Path)) {
+      if (llvm::Error Err =
+              llvm::writeToOutput(Path, [Code](llvm::raw_ostream& OS) {
+                OS << Code;
+                return llvm::Error::success();
+              })) {
+        llvm::consumeError(std::move(Err));
+        return Code;
+      }
+    }
+    Buffer = "#line 1 \"";
+    for (char C : Path) {
+      if (C == '\\' || C == '"')
+        Buffer += '\\';
+      Buffer += C;
+    }
+    Buffer += "\"\n";
+    Buffer += Code;
+    return Buffer;
+  }
+
   std::unique_ptr<clang::Interpreter> inner;
   std::unique_ptr<IOContext> io_context;
   mutable std::unique_ptr<DynamicLibraryManager> sDLM;
   mutable std::once_flag sDLMInit;
   bool outOfProcess;
+  // Absolute directory from CPPINTEROP_JIT_SOURCE_DIR; empty means disabled.
+  std::string SourceDir = sourceDirFromEnv();
 
 #if CLANG_VERSION_MAJOR < 24
   // Weak thread_local definitions already handed to the JIT, so later modules
@@ -446,7 +507,8 @@ public:
   }
 
   llvm::Expected<clang::PartialTranslationUnit&> Parse(llvm::StringRef Code) {
-    return inner->Parse(Code);
+    std::string Buffer;
+    return inner->Parse(withSourceFile(Code, Buffer));
   }
 
   llvm::Error Execute(clang::PartialTranslationUnit& T) {
@@ -457,6 +519,8 @@ public:
     // Value-returning execution keeps clang's LastValue handling (private to
     // clang::Interpreter), so delegate. The no-value path -- used by wrapper
     // compilation -- is split so the module can be sanitized before Execute.
+    std::string Buffer;
+    Code = withSourceFile(Code, Buffer);
     if (V)
       return inner->ParseAndExecute(Code, V);
     auto PTU = inner->Parse(Code);
