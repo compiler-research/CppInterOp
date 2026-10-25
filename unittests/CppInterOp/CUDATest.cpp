@@ -168,6 +168,17 @@ TEST_F(CUDATest, SimpleKernelExecution) {
 // with a __device__ transform, multi-block atomicAdd
 TEST_F(CUDATest, CUB_BlockReduceWithDeviceFunction) {
   SKIP_IF_NO_RUNTIME;
+#ifndef CPPINTEROP_USE_CLING
+  // clang-repl creates the device TargetMachine without the target features,
+  // so its PTX carries the minimum ISA version of the arch. The shfl.sync of
+  // CUB's block reduction needs PTX ISA 6.0, first implied by sm_70.
+  std::string arch;
+  unsigned sm = 0;
+  if (compat::detectNVPTXArch(arch) &&
+      !llvm::StringRef(arch).drop_front(3).getAsInteger(10, sm) && sm < 70)
+    GTEST_SKIP() << "CUB needs PTX ISA 6.0, clang-repl emits the minimum of "
+                 << arch;
+#endif
 
   Cpp::CreateInterpreter({}, {"--cuda"});
 
