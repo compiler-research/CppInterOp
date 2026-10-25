@@ -74,6 +74,7 @@ TEST_F(CUDATest, DetectCudaInstallAndArch) {
   // no args: rely on auto-detect
   EXPECT_TRUE(compat::detectCudaInstallPath(args, path));
   EXPECT_TRUE(llvm::StringRef(path).starts_with("/usr/local/cuda"));
+  const std::string detectedPath = path;
 
   // explicit path (self-hosted CUDA runners are on 12.3)
   args = {"--cuda-path=/usr/local/cuda-12.3"};
@@ -93,9 +94,11 @@ TEST_F(CUDATest, DetectCudaInstallAndArch) {
   EXPECT_TRUE(compat::detectNVPTXArch(arch));
   EXPECT_TRUE(llvm::StringRef(arch).starts_with("sm_"));
 
-  EXPECT_TRUE(Cpp::CreateInterpreter(
-      {}, {"--cuda", "--cuda-path=/usr/local/cuda-12.3",
-           "--offload-arch=sm_70"}));
+  // explicit path and arch
+  std::string pathArg = "--cuda-path=" + detectedPath;
+  std::string archArg = "--offload-arch=" + arch;
+  EXPECT_TRUE(
+      Cpp::CreateInterpreter({}, {"--cuda", pathArg.c_str(), archArg.c_str()}));
 }
 #endif
 
