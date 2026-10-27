@@ -61,6 +61,28 @@ inline void* dlGetProcAddress(const char* name,
   }
 
   std::call_once(*init, [customLibPath]() {
+  // Already loaded libCppInterOpclang.so in the process is prefered over
+  // dlopening.
+#ifdef _WIN32
+    if (HMODULE self = GetModuleHandleA(nullptr)) {
+      if (auto* proc = reinterpret_cast<void* (*)(const char*)>(
+              GetProcAddress(self, "CppGetProcAddress"))) {
+        getProc = proc;
+        return;
+      }
+    }
+#else
+    if (void* self = dlopen(nullptr, RTLD_LOCAL | RTLD_NOW)) {
+      // NOLINTNEXTLINE(cppcoreguidelines-pro-type-reinterpret-cast)
+      if (auto* proc = reinterpret_cast<void* (*)(const char*)>(
+              dlsym(self, "CppGetProcAddress"))) {
+        getProc = proc;
+        return;
+      }
+      dlclose(self);
+    }
+#endif
+
     const char* path =
         customLibPath ? customLibPath : std::getenv("CPPINTEROP_LIBRARY_PATH");
     if (!path)

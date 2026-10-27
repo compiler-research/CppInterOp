@@ -31,10 +31,10 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { name: ubu24-x86-llvm21-vg, os: ubuntu-24.04, llvm: '21', flavor: system, vg: true }
+          - { name: ubu24-x86-llvm23-vg, os: ubuntu-24.04, llvm: '23', flavor: '', vg: true }
           - { name: ubu24-x86-llvm22, os: ubuntu-24.04, llvm: '22', flavor: '' }
           - { name: ubu24-x86-cling, os: ubuntu-24.04, llvm: *cling_llvm_major, flavor: cling }
-          - { name: osx26-arm-llvm21, os: macos-26, llvm: '21', flavor: system }
+          - { name: osx26-arm-llvm23, os: macos-26, llvm: '23', flavor: system }
     uses: compiler-research/ci-workflows/.github/workflows/cppjit.yml@main
     with:
       cppinterop-ref: ${{ github.event.pull_request.head.sha || github.sha }}
