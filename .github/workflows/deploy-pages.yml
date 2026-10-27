@@ -67,7 +67,7 @@ jobs:
       uses: compiler-research/ci-workflows/actions/setup-recipe@main
       with:
         recipe: llvm-wasm
-        version: ${{ matrix.clang-runtime }}
+        version: ${{ matrix.clang-runtime }}-emsdk${{env.EM_VERSION}}
         os: ${{ matrix.os }}
         arch: ${{ matrix.arch }}
 
