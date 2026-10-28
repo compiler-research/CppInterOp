@@ -621,7 +621,7 @@ runs:
         }
         else
         {
-          emcmake cmake -G Ninja -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    `
+          emcmake cmake -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    `
                 -DCMAKE_PREFIX_PATH="$env:PREFIX"                      `
                 -DLLVM_DIR="$env:LLVM_BUILD_DIR\lib\cmake\llvm"        `
                 -DLLD_DIR="$env:LLVM_BUILD_DIR\lib\cmake\lld"        `
@@ -647,7 +647,8 @@ runs:
             exit $LASTEXITCODE
          }
         }
-        Error-OnFailure{ emmake ninja check-cppinterop }
+        $env:EMCC_CORES=1
+        Error-OnFailure{ emmake make check-cppinterop -j 1 }
         cd .\unittests\CppInterOp\
         # curl.exe and tar.exe, not Invoke-WebRequest and Expand-Archive:
         # Windows PowerShell redraws a progress bar per chunk downloaded and
