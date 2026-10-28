@@ -164,6 +164,21 @@ filegroup(
     srcs = glob(["lib/CppInterOp/*.h"]),
 )
 
+# configure_file(BakedArgs.h.in -> BakedArgs.h) with no baked values: an
+# absolute build-time path does not hold in runfiles, so the runtime fallbacks apply.
+genrule(
+    name = "gen_baked_args_h",
+    srcs = ["lib/CppInterOp/BakedArgs.h.in"],
+    outs = ["lib/CppInterOp/gen/BakedArgs.h"],
+    cmd = "sed -e 's|@_baked_defines@||' $< > $@",
+)
+
+cc_library(
+    name = "baked_args",
+    hdrs = [":gen_baked_args_h"],
+    strip_include_prefix = "lib/CppInterOp/gen",
+)
+
 # lib/CppInterOp: the clangCppInterOp library (CPPINTEROP_USE_REPL backend,
 # non-EMSCRIPTEN sources from add_llvm_library(clangCppInterOp ...)).
 cc_library(
@@ -192,6 +207,7 @@ cc_library(
     # consumer swaps in shipped .so's). It rides on :lib so it propagates into
     # the solib link below and any direct cc_test linker.
     deps = [
+        ":baked_args",
         ":llvm_system_libs",
         "@llvm//:headers",
     ],
