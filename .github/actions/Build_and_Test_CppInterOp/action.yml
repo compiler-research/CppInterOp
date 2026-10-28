@@ -647,7 +647,9 @@ runs:
             exit $LASTEXITCODE
          }
         }
-        Error-OnFailure{ emmake ninja check-cppinterop }
+	$env:EMCC_CORES=2
+        Error-OnFailure{ emmake ninja check-cppinterop -j 2}
+	$env:EMCC_CORES=3
         cd .\unittests\CppInterOp\
         # curl.exe and tar.exe, not Invoke-WebRequest and Expand-Archive:
         # Windows PowerShell redraws a progress bar per chunk downloaded and
