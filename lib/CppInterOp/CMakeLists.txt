@@ -267,6 +267,7 @@ if(EMSCRIPTEN)
   string(REPLACE "\n" " " SYMBOLS_LIST "${SYMBOLS_LIST}")
 
   target_compile_options(clangCppInterOp
+    PRIVATE "SHELL: -Xclang -target-feature -Xclang +exception-handling"
     PRIVATE "SHELL: ${CPPINTEROP_LIBRARY_WASM_FLAGS}"
     PRIVATE "SHELL: ${CPPINTEROP_EXTRA_WASM_FLAGS}"
   )
