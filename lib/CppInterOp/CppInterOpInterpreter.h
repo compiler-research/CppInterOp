@@ -18,10 +18,12 @@
 #include "clang/AST/DeclarationName.h"
 #include "clang/AST/GlobalDecl.h"
 #include "clang/Basic/LangOptions.h"
+#include "clang/Basic/SourceManager.h"
 #include "clang/Basic/TargetOptions.h"
 #include "clang/Basic/Version.h"
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Frontend/FrontendOptions.h"
+#include "clang/Lex/HeaderSearchOptions.h"
 #include "clang/Lex/Preprocessor.h"
 #include "clang/Sema/Lookup.h"
 #include "clang/Sema/Redeclaration.h"
@@ -335,10 +337,9 @@ private:
 #endif
 
   static void AddIncludePathsToCI(llvm::StringRef PathsStr,
-                                  const clang::CompilerInstance* CI,
+                                  clang::CompilerInstance* CI,
                                   const char* Delim) {
-    clang::HeaderSearchOptions& HOpts =
-        const_cast<clang::HeaderSearchOptions&>(CI->getHeaderSearchOpts());
+    auto& HOpts = CI->getHeaderSearchOpts();
 
     // Save the current number of entries
     size_t Idx = HOpts.UserEntries.size();
@@ -687,7 +688,7 @@ public:
   ///\param[in] Delim - Delimiter to separate paths or NULL if a single path
   ///
   void AddIncludePaths(llvm::StringRef PathsStr, const char* Delim = ":") {
-    AddIncludePathsToCI(PathsStr, getCompilerInstance(), Delim);
+    AddIncludePathsToCI(PathsStr, inner->getCompilerInstance(), Delim);
     // The device-side instance resolves headers through its own HeaderSearch.
     if (deviceCI)
       AddIncludePathsToCI(PathsStr, deviceCI, Delim);

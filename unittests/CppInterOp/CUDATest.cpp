@@ -2,6 +2,7 @@
 
 #include "CppInterOp/CppInterOp.h"
 
+#include "llvm/ADT/SmallString.h"
 #include "llvm/Support/FileSystem.h"
 #include "llvm/Support/Path.h"
 #include "llvm/Support/raw_ostream.h"
@@ -10,6 +11,7 @@
 
 #include <cstdint>
 #include <string>
+#include <system_error>
 #include <vector>
 
 using namespace TestUtils;
@@ -147,8 +149,8 @@ TEST_F(CUDATest, AddIncludePathReachesDevice) {
   Cpp::AddIncludePath(Dir.c_str());
   EXPECT_EQ(0, Cpp::Declare("#include \"device_inc.h\""));
 
-  llvm::sys::fs::remove(Header);
-  llvm::sys::fs::remove(Dir);
+  EXPECT_FALSE(llvm::sys::fs::remove(Header));
+  EXPECT_FALSE(llvm::sys::fs::remove(Dir));
 }
 
 TEST_F(CUDATest, SimpleKernelExecution) {
