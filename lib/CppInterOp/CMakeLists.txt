@@ -274,7 +274,6 @@ if(EMSCRIPTEN)
     PRIVATE "SHELL: ${SYMBOLS_LIST}"
     PRIVATE "SHELL: ${CPPINTEROP_LIBRARY_WASM_FLAGS}"
     PRIVATE "SHELL: ${CPPINTEROP_EXTRA_WASM_FLAGS}"
-    PRIVATE "SHELL: -target-feature +exception-handling"
   )
   else()
   target_compile_options(clangCppInterOp
