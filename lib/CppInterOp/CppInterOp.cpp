@@ -4674,27 +4674,33 @@ void make_narg_call(const FunctionDecl* FD, const std::string& return_type,
                                /*Qualified=*/false);
       name = complete_name;
 
-      // If a template has consecutive parameter packs, then it is impossible to
-      // use the explicit name in the wrapper, since the TyRef deduction is what
-      // determines the split of the packs. Instead, we'll revert to the
-      // non-templated function name and hope that the TyRef casts in the
-      // wrapper will suffice.
+      // A template parameter pack that is not the last template parameter
+      // greedily consumes every explicit template argument, so a
+      // specialization of such a template cannot be named with its full
+      // argument list: the arguments meant for the parameters after the pack
+      // (consecutive packs, or defaulted SFINAE parameters such as
+      // `template <typename... Args, typename V = T,
+      //            enable_if_t<..., bool> = false>`) would end up in the pack
+      // and the call would fail to compile. Spell only the arguments up to and
+      // including the pack, and leave the parameters after it to deduction
+      // from the casted wrapper arguments and to their defaults.
       std::string simple_name = FD->getNameAsString();
       if (FD->isTemplateInstantiation() && FD->getPrimaryTemplate()) {
         const auto* FTDecl =
             llvm::dyn_cast<FunctionTemplateDecl>(FD->getPrimaryTemplate());
-        if (FTDecl) {
+        const TemplateArgumentList* TAL = FD->getTemplateSpecializationArgs();
+        if (FTDecl && TAL) {
           auto* templateParms = FTDecl->getTemplateParameters();
-          int numPacks = 0;
           for (size_t iParam = 0, nParams = templateParms->size();
-               iParam < nParams; ++iParam) {
-            if (templateParms->getParam(iParam)->isTemplateParameterPack())
-              numPacks += 1;
-            else
-              numPacks = 0;
-          }
-          if (numPacks > 1) {
-            name = simple_name;
+               iParam + 1 < nParams && iParam < TAL->size(); ++iParam) {
+            if (!templateParms->getParam(iParam)->isTemplateParameterPack())
+              continue;
+            std::string truncated_name = simple_name;
+            llvm::raw_string_ostream truncated_stream(truncated_name);
+            clang::printTemplateArgumentList(
+                truncated_stream, TAL->asArray().slice(0, iParam + 1), PP);
+            name = truncated_stream.str();
+            break;
           }
         }
       }
