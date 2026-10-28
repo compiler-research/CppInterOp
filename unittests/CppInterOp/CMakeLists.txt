@@ -31,8 +31,8 @@ if (EMSCRIPTEN)
     "SHELL:${CPPINTEROP_EXTRA_WASM_FLAGS}"
     "SHELL:-s MAIN_MODULE=1"
     "SHELL:-s ALLOW_MEMORY_GROWTH=1"
-    "SHELL:-s STACK_SIZE=128mb"
-    "SHELL:-s INITIAL_MEMORY=256mb"
+    "SHELL:-s STACK_SIZE=32mb"
+    "SHELL:-s INITIAL_MEMORY=64mb"
     "SHELL:--preload-file ${ESCAPED_SYSROOT_PATH}/include@/include"
     "SHELL:--emrun"
   )

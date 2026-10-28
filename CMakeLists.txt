@@ -27,7 +27,7 @@ option(CPPINTEROP_SHARED_LIBRARY_VERSIONING
 set(CPPINTEROP_BAKED_INTERPRETER_ARGS "" CACHE STRING
   "Space-separated arguments passed at interpreter creation (no quoting: arguments containing spaces are not supported)")
 if(EMSCRIPTEN)
-  set(CPPINTEROP_LIBRARY_WASM_FLAGS "-Oz -flto" CACHE STRING "Extra flags for build of CppInterOp library")
+  set(CPPINTEROP_LIBRARY_WASM_FLAGS "-Oz -flto -sSUPPORT_LONGJMP=wasm" CACHE STRING "Extra flags for build of CppInterOp library")
   set(CPPINTEROP_EXTRA_WASM_FLAGS "-fwasm-exceptions" CACHE STRING "Extra flags for wasm (all targets)")
 endif()
 

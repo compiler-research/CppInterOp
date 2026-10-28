@@ -4972,9 +4972,6 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_FailingTest1) {
 #ifdef _WIN32
   GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
 #endif
-#ifdef __EMSCRIPTEN___SHARED_LIBRARY
-  GTEST_SKIP() << "Test fails for Emscipten shared library builds";
-#endif
   TestFixture::CreateInterpreter();
   EXPECT_FALSE(Cpp::Declare(R"(
     class WithOutEqualOp1 {};
