@@ -247,7 +247,6 @@ To build and test your Emscripten build of CppInterOp on using node Windows exec
 mkdir build
 cd ./build/
 emcmake cmake -G Ninja -DCMAKE_BUILD_TYPE=Release    `
-                -DCMAKE_PREFIX_PATH="$env:PREFIX"                      `
                 -DLLVM_DIR="$env:LLVM_BUILD_DIR\lib\cmake\llvm"        `
                 -DLLD_DIR="$env:LLVM_BUILD_DIR\lib\cmake\lld"        `
                 -DClang_DIR="$env:LLVM_BUILD_DIR\lib\cmake\clang"    `
@@ -391,7 +390,6 @@ emcmake -G Ninja cmake \
           -DCMAKE_BUILD_TYPE=Release                                     \
           -DCMAKE_PREFIX_PATH=$PREFIX                                    \
           -DCMAKE_INSTALL_PREFIX=$PREFIX                                 \
-          -DXEUS_CPP_EMSCRIPTEN_WASM_BUILD=ON                            \
           -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON                         \
           -DXEUS_CPP_RESOURCE_DIR="$LLVM_BUILD_DIR/lib/clang/$LLVM_VERSION" \
           -DSYSROOT_PATH=$SYSROOT_PATH                                   \
@@ -412,7 +410,6 @@ emcmake cmake -G Ninja `
           -DCMAKE_BUILD_TYPE=Release                                     `
           -DCMAKE_PREFIX_PATH="$env:PREFIX"                                    `
           -DCMAKE_INSTALL_PREFIX="$env:PREFIX"                                 `
-          -DXEUS_CPP_EMSCRIPTEN_WASM_BUILD=ON                            `
           -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON                         `
           -DXEUS_CPP_RESOURCE_DIR="$env:LLVM_BUILD_DIR/lib/clang/$env:LLVM_VERSION" `
           -DSYSROOT_PATH="$env:SYSROOT_PATH"                                   `
