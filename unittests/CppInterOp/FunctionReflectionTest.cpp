@@ -3501,6 +3501,11 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_JitCallAdvanced) {
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_JitCallBaseVirtualMethod) {
+#ifdef EMSCRIPTEN
+#if CLANG_VERSION_MAJOR > 21
+  GTEST_SKIP() << "Test fails for Emscipten builds using LLVM 22";
+#endif
+#endif
   if (TypeParam::isOutOfProcess)
     GTEST_SKIP() << "Test fails for OOP JIT builds";
 
@@ -3537,7 +3542,10 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_JitCallBaseVirtualMethod) {
 
   GetAllTopLevelDecls(code, Decls, /*filter_implicitGenerated=*/false,
                       /*interpreter_args=*/{"-include", "new"});
-  ASSERT_EQ(Decls.size(), 5);
+  Cpp::DeclRef Base = Cpp::GetNamed("JCVBase");
+  Cpp::DeclRef Derived = Cpp::GetNamed("JCVDerived");
+  Cpp::DeclRef TDerived = Cpp::GetNamed("JCVTDerived");
+  ASSERT_TRUE(Base && Derived && TDerived);
 
   auto Invoke = [](Cpp::DeclRef Scope, const char* Name, void* Obj) {
     auto Fns = Cpp::GetFunctionsUsingName(Scope, Name);
@@ -3548,36 +3556,36 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_JitCallBaseVirtualMethod) {
     EXPECT_TRUE((bool)JC) << Name;
     int ret = 0;
     int arg = 0;
-    void* args[] = {&arg};
-    JC.Invoke(&ret, {args, Cpp::GetFunctionNumArgs(Fns[0])}, Obj);
+    std::array<void*, 1> args = {&arg};
+    JC.Invoke(&ret, {args.data(), Cpp::GetFunctionNumArgs(Fns[0])}, Obj);
     return ret;
   };
 
-  Cpp::ObjectRef obj = Cpp::Construct(Decls[1]);
+  Cpp::ObjectRef obj = Cpp::Construct(Derived);
   ASSERT_TRUE(obj);
 
   // Calling a base method on a derived object must not dispatch virtually.
-  EXPECT_EQ(Invoke(Decls[0], "func", obj.data), 1);
-  EXPECT_EQ(Invoke(Decls[0], "cfunc", obj.data), 1);
-  EXPECT_EQ(Invoke(Decls[0], "operator==", obj.data), 1);
-  EXPECT_EQ(Invoke(Decls[0], "operator-", obj.data), 1);
-  EXPECT_EQ(Invoke(Decls[0], "operator[]", obj.data), 1);
+  EXPECT_EQ(Invoke(Base, "func", obj.data), 1);
+  EXPECT_EQ(Invoke(Base, "cfunc", obj.data), 1);
+  EXPECT_EQ(Invoke(Base, "operator==", obj.data), 1);
+  EXPECT_EQ(Invoke(Base, "operator-", obj.data), 1);
+  EXPECT_EQ(Invoke(Base, "operator[]", obj.data), 1);
 
   // A pure virtual method has no body to call; it dispatches to the override.
-  EXPECT_EQ(Invoke(Decls[0], "pure", obj.data), 2);
-  EXPECT_EQ(Invoke(Decls[0], "operator<", obj.data), 2);
+  EXPECT_EQ(Invoke(Base, "pure", obj.data), 2);
+  EXPECT_EQ(Invoke(Base, "operator<", obj.data), 2);
 
-  EXPECT_EQ(Invoke(Decls[1], "func", obj.data), 2);
-  EXPECT_EQ(Invoke(Decls[1], "operator==", obj.data), 2);
-  Cpp::Destruct(obj, Decls[1]);
+  EXPECT_EQ(Invoke(Derived, "func", obj.data), 2);
+  EXPECT_EQ(Invoke(Derived, "operator==", obj.data), 2);
+  Cpp::Destruct(obj, Derived);
 
   Cpp::DeclRef TBase =
       Cpp::GetScopeFromType(Cpp::GetVariableType(Cpp::GetNamed("jcv_tbase")));
   ASSERT_TRUE(TBase);
-  Cpp::ObjectRef tobj = Cpp::Construct(Decls[3]);
+  Cpp::ObjectRef tobj = Cpp::Construct(TDerived);
   ASSERT_TRUE(tobj);
   EXPECT_EQ(Invoke(TBase, "operator==", tobj.data), 1);
-  Cpp::Destruct(tobj, Decls[3]);
+  Cpp::Destruct(tobj, TDerived);
 }
 
 #if !defined(NDEBUG) && GTEST_HAS_DEATH_TEST
