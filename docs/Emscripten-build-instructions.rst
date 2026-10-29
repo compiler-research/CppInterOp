@@ -36,7 +36,7 @@ This can be installed by executing (we only currently support version
 
 .. code:: bash
 
-   git clone https://github.com/emscripten-core/emsdk.git
+   git clone --depth=1 https://github.com/emscripten-core/emsdk.git
    ./emsdk/emsdk install  6.0.8
 
 and to activate the emsdk environment on Linux and osx execute 
@@ -46,7 +46,7 @@ and to activate the emsdk environment on Linux and osx execute
 
    ./emsdk/emsdk activate 6.0.8
    source ./emsdk/emsdk_env.sh
-   export SYSROOT_PATH=$PWD/emsdk/upstream/emscripten/cache/sysroot
+   export SYSROOT_PATH=$EMSDK/emsdk/upstream/emscripten/cache/sysroot
 
 and on Windows execute in Powershell
 
@@ -54,7 +54,6 @@ and on Windows execute in Powershell
 
    .\emsdk\emsdk activate 6.0.8
    .\emsdk\emsdk_env.ps1
-   $env:PWD_DIR= $PWD.Path
    $env:SYSROOT_PATH="$env:EMSDK/upstream/emscripten/cache/sysroot"
 
 Now clone the 22.x release of the LLVM project repository and CppInterOp
@@ -65,7 +64,8 @@ appropriately)
 
 .. code:: bash
 
-   git clone --depth=1 --branch release/22.x https://github.com/llvm/llvm-project.git
+   git clone --depth=1 --branch release/23.x https://github.com/llvm/llvm-project.git
+   git clone --depth=1 git@github.com:compiler-research/ci-workflows.git
    git clone --depth=1 https://github.com/compiler-research/CppInterOp.git
 
 Now move into the cloned llvm-project folder and apply the required patches. On Linux and osx this
@@ -74,16 +74,15 @@ executing
 .. code:: bash
 
    cd ./llvm-project/
-   git apply -v ../CppInterOp/patches/llvm/emscripten-clang22-*.patch
+   git apply -v ../ci-workflows/recipes/llvm-wasm/patches/emscripten-clang23-*.patch
 
 On Windows execute the following
 
 .. code:: powershell
 
    cd .\llvm-project\
-   cp -r ..\patches\llvm\emscripten-clang22*
-   git apply -v emscripten-clang22-1-enable_exception_handling.patch
-   git apply -v emscripten-clang22-2-webassembly_target_machine_reordering.patch
+   cp -r ..\ci-workflows\recipes\llvm-wasm\patches\emscripten-clang23*
+   git apply -v emscripten-clang23-1-enable_exception_handling.patch
 
 We are now in a position to build an emscripten build of llvm by executing the following on Linux
 and osx
@@ -92,14 +91,14 @@ and osx
 
    mkdir native_build
    cd native_build
-   cmake -DLLVM_ENABLE_PROJECTS=clang -DLLVM_TARGETS_TO_BUILD=host -DCMAKE_BUILD_TYPE=Release ../llvm/
-   cmake --build . --target llvm-tblgen clang-tblgen --parallel $(nproc --all)
+   cmake -G Ninja -DLLVM_ENABLE_PROJECTS=clang -DLLVM_TARGETS_TO_BUILD=host -DCMAKE_BUILD_TYPE=Release ../llvm/
+   cmake --build . --target llvm-tblgen clang-tblgen
    export NATIVE_LLVM_BUILD_DIR==$PWD
    export NATIVE_LLVM_BIN_DIR=$PWD/bin/
    cd ..
    mkdir build
    cd build
-   emcmake cmake -DCMAKE_BUILD_TYPE=Release \
+   emcmake cmake -G Ninja -DCMAKE_BUILD_TYPE=Release \
                  -DLLVM_HOST_TRIPLE=wasm32-unknown-emscripten \
                  -DLLVM_TARGETS_TO_BUILD="WebAssembly" \
                  -DLLVM_ENABLE_LIBEDIT=OFF \
@@ -112,17 +111,18 @@ and osx
                  -DCMAKE_CXX_FLAGS="-Dwait4=__syscall_wait4" \
                  -DLLVM_INCLUDE_BENCHMARKS=OFF                   \
                  -DLLVM_INCLUDE_EXAMPLES=OFF                     \
-                 -DLLVM_INCLUDE_TESTS=OFF                        \
                  -DLLVM_ENABLE_THREADS=OFF                       \
                  -DLLVM_BUILD_TOOLS=OFF                          \
                  -DLLVM_ENABLE_LIBPFM=OFF                        \
                  -DCLANG_BUILD_TOOLS=OFF                         \
                  -DLLVM_NATIVE_TOOL_DIR=$NATIVE_LLVM_BIN_DIR 		\
-                 -DCMAKE_C_FLAGS_RELEASE="-Oz -g0 -DNDEBUG" \
-                 -DCMAKE_CXX_FLAGS_RELEASE="-Oz -g0 -DNDEBUG" \
+                 -DCMAKE_C_FLAGS_RELEASE="-Oz -g0 -DNDEBUG -mno-tail-call" \
+                 -DCMAKE_CXX_FLAGS_RELEASE="-Oz -g0 -DNDEBUG -mno-tail-call" \
+		 -DCMAKE_EXE_LINKER_FLAGS="-mno-tail-call" \
                  -DLLVM_ENABLE_LTO=Full \
                  ../llvm
-   EMCC_CFLAGS="-sSUPPORT_LONGJMP=wasm -fwasm-exceptions" emmake make libclang clangInterpreter clangStaticAnalyzerCore -j $(nproc --all)
+   EMCC_CFLAGS=" -fwasm-exceptions" emmake ninja ClangReplInterpreterTests
+   node ./tools/clang/unittests/Interpreter/ClangReplInterpreterTests.js
 
 or executing
 
@@ -130,15 +130,15 @@ or executing
 
    mkdir native_build
    cd native_build
-   cmake -DLLVM_ENABLE_PROJECTS=clang -DLLVM_TARGETS_TO_BUILD=host -DCMAKE_BUILD_TYPE=Release -G Ninja ../llvm/
-   cmake --build . --target llvm-tblgen clang-tblgen --parallel $(nproc --all)
+   cmake -G Ninja -DLLVM_ENABLE_PROJECTS=clang -DLLVM_TARGETS_TO_BUILD=host -DCMAKE_BUILD_TYPE=Release -G Ninja ../llvm/
+   cmake --build . --target llvm-tblgen clang-tblgen
    $env:PWD_DIR= $PWD.Path
    $env:NATIVE_LLVM_BUILD_DIR=="$env:PWD_DIR"
    $env:NATIVE_LLVM_BIN_DIR=="$env:PWD_DIR/bin/"
    cd ..
    mkdir build
    cd build
-   emcmake cmake -DCMAKE_BUILD_TYPE=Release `
+   emcmake cmake -G Ninja -DCMAKE_BUILD_TYPE=Release `
                         -DLLVM_HOST_TRIPLE=wasm32-unknown-emscripten `
                         -DLLVM_TARGETS_TO_BUILD="WebAssembly" `
                         -DLLVM_ENABLE_LIBEDIT=OFF `
@@ -151,19 +151,19 @@ or executing
                         -DCMAKE_CXX_FLAGS="-Dwait4=__syscall_wait4" `
                         -DLLVM_INCLUDE_BENCHMARKS=OFF                   `
                         -DLLVM_INCLUDE_EXAMPLES=OFF                     `
-                        -DLLVM_INCLUDE_TESTS=OFF                        `
                         -DLLVM_ENABLE_THREADS=OFF                       `
                         -DLLVM_BUILD_TOOLS=OFF                          `
                         -DLLVM_ENABLE_LIBPFM=OFF                        `
                         -DCLANG_BUILD_TOOLS=OFF                         `
                         -DLLVM_NATIVE_TOOL_DIR="$env:NATIVE_BIN_DIR" 		    `
-                        -G Ninja `
-                        -DCMAKE_C_FLAGS_RELEASE="-Oz -g0 -DNDEBUG" `
-                        -DCMAKE_CXX_FLAGS_RELEASE="-Oz -g0 -DNDEBUG" `
+                        -DCMAKE_C_FLAGS_RELEASE="-Oz -g0 -DNDEBUG -mno-tail-call" `
+                        -DCMAKE_CXX_FLAGS_RELEASE="-Oz -g0 -DNDEBUG -mno-tail-call" `
+			-DCMAKE_EXE_LINKER_FLAGS="-mno-tail-call" `
                         -DLLVM_ENABLE_LTO=Full `
                         ..\llvm
-   $env:EMCC_CFLAGS="-sSUPPORT_LONGJMP=wasm -fwasm-exceptions"
-   emmake ninja libclang clangInterpreter clangStaticAnalyzerCore
+   $env:EMCC_CFLAGS="-fwasm-exceptions"
+   emmake ninja ClangReplInterpreterTests
+   node ./tools/clang/unittests/Interpreter/ClangReplInterpreterTests.js
    $env:EMCC_CFLAGS=""
 
 on Windows. Once this finishes building we need to take note of where we built our llvm build.
@@ -179,7 +179,7 @@ and
 .. code:: powershell
 
    $env:PWD_DIR= $PWD.Path
-   $env:LLVM_BUILD_DIR="$env:PWD_DIR\llvm-project\build"
+   $env:LLVM_BUILD_DIR="$env:PWD_DIR"
 
 
 on Windows. We can move onto building the wasm version of CppInterOp. We will do
@@ -219,13 +219,14 @@ On Linux and osx:
 
 .. code:: bash
 
-   mkdir -p native_cppinterop_build && cd native_cppinterop_build
-   cmake -DCMAKE_BUILD_TYPE=Release \
+   mkdir native_cppinterop_build
+   cd native_cppinterop_build
+   cmake -G Ninja -DCMAKE_BUILD_TYPE=Release \
          -DLLVM_DIR=$NATIVE_LLVM_BUILD_DIR/lib/cmake/llvm \
-	     -DCMAKE_CXX_STANDARD=17 \
+	 -DCMAKE_CXX_STANDARD=17 \
          -DCPPINTEROP_BUILD_TABLEGEN_ONLY=ON \
          ../
-   cmake --build . --target cppinterop-tblgen -j $(nproc --all)
+   cmake --build . --target cppinterop-tblgen
    export CPPINTEROP_TBLGEN_EXE=$(find $PWD -name cppinterop-tblgen -type f | head -1)
    cd ..
 
@@ -235,12 +236,12 @@ On Windows:
 
    mkdir native_cppinterop_build
    cd native_cppinterop_build
-   cmake -DCMAKE_BUILD_TYPE=Release `
+   cmake -G Ninja -DCMAKE_BUILD_TYPE=Release `
          -DLLVM_DIR="$env:NATIVE_LLVM_BUILD_DIR\lib\cmake\llvm" `
-	     -DCMAKE_CXX_STANDARD=17 `
+	 -DCMAKE_CXX_STANDARD=17 `
          -DCPPINTEROP_BUILD_TABLEGEN_ONLY=ON `
          ..\
-   cmake --build . --target cppinterop-tblgen -j $(nproc --all)
+   cmake --build . --target cppinterop-tblgen
    $env:CPPINTEROP_TBLGEN_EXE = (Get-ChildItem -Recurse -Filter "cppinterop-tblgen.exe" | Select-Object -First 1).FullName
    cd ..
 
@@ -251,7 +252,7 @@ Now to build and test your Emscripten build of CppInterOp on Linux and osx execu
 
    mkdir build
    cd ./build/
-   emcmake cmake -DCMAKE_BUILD_TYPE=Release    \
+   emcmake cmake -G Ninja  -DCMAKE_BUILD_TYPE=Release    \
                  -DLLVM_DIR=$LLVM_BUILD_DIR/lib/cmake/llvm      \
                  -DLLD_DIR=$LLVM_BUILD_DIR/lib/cmake/lld     \
                  -DClang_DIR=$LLVM_BUILD_DIR/lib/cmake/clang     \
@@ -261,14 +262,16 @@ Now to build and test your Emscripten build of CppInterOp on Linux and osx execu
                  -DSYSROOT_PATH=$SYSROOT_PATH                                   \
                  -DCPPINTEROP_TABLEGEN_EXE=$CPPINTEROP_TBLGEN_EXE \
                  ../
-   emmake make -j $(nproc --all) check-cppinterop
+   emmake ninja check-cppinterop
 
 To build and test your Emscripten build of CppInterOp on Windows execute the following
 (BUILD_SHARED_LIBS=ON is only needed if building xeus-cpp, as CppInterOp can be built as an Emscripten static library)
 
 .. code:: powershell
 
-   emcmake cmake -DCMAKE_BUILD_TYPE=Release    `
+   mkdir build
+   cd ./build/
+   emcmake cmake -G Ninja -DCMAKE_BUILD_TYPE=Release    `
                 -DCMAKE_PREFIX_PATH="$env:PREFIX"                      `
                 -DLLVM_DIR="$env:LLVM_BUILD_DIR\lib\cmake\llvm"        `
                 -DLLD_DIR="$env:LLVM_BUILD_DIR\lib\cmake\lld"        `
@@ -280,7 +283,7 @@ To build and test your Emscripten build of CppInterOp on Windows execute the fol
                 -DSYSROOT_PATH="$env:SYSROOT_PATH"                     `
                 -DCPPINTEROP_TABLEGEN_EXE="$env:CPPINTEROP_TBLGEN_EXE" `
                 ..\
-   emmake make -j $(nproc --all) check-cppinterop
+   emmake ninja check-cppinterop
 
 It is possible to run the Emscripten tests in a headless browser. To do this we will first move to the tests directory
 
@@ -391,7 +394,7 @@ Assuming it passes all test you can install by executing the following.
 
 .. code:: bash
 
-   emmake make -j $(nproc --all) install
+   emmake ninja install
 
 ## Xeus-cpp-lite Wasm Build Instructions
 
@@ -404,11 +407,11 @@ by executing (replace LLVM_VERSION with the version of llvm you are building aga
 
    cd ../..
    git clone --depth=1 https://github.com/compiler-research/xeus-cpp.git
-   export LLVM_VERSION=22
+   export LLVM_VERSION=23
    cd ./xeus-cpp
    mkdir build
    cd build
-   emcmake cmake \
+   emcmake cmake -G Ninja \
            -DCMAKE_BUILD_TYPE=Release                                     \
            -DCMAKE_PREFIX_PATH=$PREFIX                                    \
            -DCMAKE_INSTALL_PREFIX=$PREFIX                                 \
@@ -417,7 +420,7 @@ by executing (replace LLVM_VERSION with the version of llvm you are building aga
 	   -DXEUS_CPP_RESOURCE_DIR="$LLVM_BUILD_DIR/lib/clang/$LLVM_VERSION" \
            -DSYSROOT_PATH=$SYSROOT_PATH                                   \
            ..
-   emmake make -j $(nproc --all) install
+   emmake ninja install
 
 and on Windows by executing 
 
@@ -425,11 +428,11 @@ and on Windows by executing
 
    cd ..\..
    git clone --depth=1 https://github.com/compiler-research/xeus-cpp.git
-   $env:LLVM_VERSION=22
+   $env:LLVM_VERSION=23
    cd .\xeus-cpp
    mkdir build
    cd build
-   emcmake cmake `
+   emcmake cmake -G Ninja`
            -DCMAKE_BUILD_TYPE=Release                                     `
            -DCMAKE_PREFIX_PATH="$env:PREFIX"                              `
            -DCMAKE_INSTALL_PREFIX="$env:PREFIX"                           `
@@ -438,7 +441,7 @@ and on Windows by executing
 	        -DXEUS_CPP_RESOURCE_DIR="$env:LLVM_BUILD_DIR/lib/clang/$env:LLVM_VERSION" `
            -DSYSROOT_PATH="$env:SYSROOT_PATH"                              `
            ..
-   emmake make -j $(nproc --all) install
+   emmake ninja install
 
 To build and test Jupyter Lite with this kernel locally on Linux/MacOS you can execute the following
 
