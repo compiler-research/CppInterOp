@@ -885,6 +885,9 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, VariableReflection_IsConstVariable) {
 
 TYPED_TEST(CPPINTEROP_TEST_MODE,
            VariableReflection_DISABLED_GetArrayDimensions) {
+#ifdef EMSCRIPTEN_ON_WINDOWS
+  GTEST_SKIP() << "Test crashes Windows Emscripten ci job due to lack of memory when running tests in Chromium";
+#endif  
   std::vector<Decl *> Decls;
   std::string code =  R"(
     int a;
