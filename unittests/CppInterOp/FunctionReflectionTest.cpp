@@ -3605,7 +3605,12 @@ template int instantiation_in_host<int>();
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetFunctionCallWrapper) {
 #ifdef EMSCRIPTEN
-  GTEST_SKIP() << "Test fails for Emscipten builds";
+  // Emscripten's dynamic linker keeps one process-global symbol table, so
+  // JIT'd definitions outlive the test that made them. An earlier test's
+  // `void f1(int)` is what this test's `int f1(int)` wrapper links against
+  // (same mangled name, mismatched type), and the `C::C()` defined here in
+  // turn shadows FunctionReflection_ConstructArray's.
+  GTEST_SKIP() << "JIT'd symbols collide across tests under Emscripten";
 #endif
 #if defined(CPPINTEROP_USE_CLING) && defined(_WIN32)
   GTEST_SKIP() << "Disabled, invoking functions containing printf does not work with Cling on Windows";
@@ -4517,11 +4522,6 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_ConstructClassScopeNew) {
 #ifdef _WIN32
   GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
 #endif
-#ifdef EMSCRIPTEN
-#if CLANG_VERSION_MAJOR > 21
-  GTEST_SKIP() << "Test fails for Emscipten builds using LLVM 22";
-#endif
-#endif
   if (TypeParam::isOutOfProcess)
     GTEST_SKIP() << "Test fails for OOP JIT builds";
   std::vector<Decl*> Decls;
@@ -4747,9 +4747,6 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_ConstructNested) {
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_ConstructArray) {
-#if defined(EMSCRIPTEN)
-  GTEST_SKIP() << "Test fails for Emscripten builds";
-#endif
 #ifdef _WIN32
   GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
 #endif
@@ -5267,11 +5264,6 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_DeducingThisIntrospection) {
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_DeducingThisJitCall) {
-#ifdef EMSCRIPTEN
-#if CLANG_VERSION_MAJOR > 21
-  GTEST_SKIP() << "Test fails for Emscripten builds using LLVM 22";
-#endif
-#endif
   if (TypeParam::isOutOfProcess)
     GTEST_SKIP() << "Test fails for OOP JIT builds";
 
@@ -5320,11 +5312,6 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_DeducingThisJitCall) {
 
 TYPED_TEST(CPPINTEROP_TEST_MODE,
            FunctionReflection_DeducingThisRValueRefJitCall) {
-#ifdef EMSCRIPTEN
-#if CLANG_VERSION_MAJOR > 21
-  GTEST_SKIP() << "Test fails for Emscripten builds using LLVM 22";
-#endif
-#endif
   if (TypeParam::isOutOfProcess)
     GTEST_SKIP() << "Test fails for OOP JIT builds";
 
@@ -5430,11 +5417,6 @@ TYPED_TEST(CPPINTEROP_TEST_MODE,
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_DeducingThisByValueCopy) {
-#ifdef EMSCRIPTEN
-#if CLANG_VERSION_MAJOR > 21
-  GTEST_SKIP() << "Test fails for Emscripten builds using LLVM 22";
-#endif
-#endif
   if (TypeParam::isOutOfProcess)
     GTEST_SKIP() << "Test fails for OOP JIT builds";
 
@@ -5536,11 +5518,6 @@ static int JitCallIntNullary(const char* ns, const char* fn) {
 
 TYPED_TEST(CPPINTEROP_TEST_MODE,
            FunctionReflection_DeducingThisBlogDeduplication) {
-#ifdef EMSCRIPTEN
-#if CLANG_VERSION_MAJOR > 21
-  GTEST_SKIP() << "Test fails for Emscripten builds using LLVM 22";
-#endif
-#endif
   if (TypeParam::isOutOfProcess)
     GTEST_SKIP() << "Test fails for OOP JIT builds";
 
@@ -5568,11 +5545,6 @@ TYPED_TEST(CPPINTEROP_TEST_MODE,
 
 TYPED_TEST(CPPINTEROP_TEST_MODE,
            FunctionReflection_DeducingThisBlogCRTPPostfix) {
-#ifdef EMSCRIPTEN
-#if CLANG_VERSION_MAJOR > 21
-  GTEST_SKIP() << "Test fails for Emscripten builds using LLVM 22";
-#endif
-#endif
   if (TypeParam::isOutOfProcess)
     GTEST_SKIP() << "Test fails for OOP JIT builds";
 
@@ -5602,11 +5574,6 @@ TYPED_TEST(CPPINTEROP_TEST_MODE,
 
 TYPED_TEST(CPPINTEROP_TEST_MODE,
            FunctionReflection_DeducingThisBlogRecursiveLambda) {
-#ifdef EMSCRIPTEN
-#if CLANG_VERSION_MAJOR > 21
-  GTEST_SKIP() << "Test fails for Emscripten builds using LLVM 22";
-#endif
-#endif
   if (TypeParam::isOutOfProcess)
     GTEST_SKIP() << "Test fails for OOP JIT builds";
 
@@ -5631,11 +5598,6 @@ TYPED_TEST(CPPINTEROP_TEST_MODE,
 
 TYPED_TEST(CPPINTEROP_TEST_MODE,
            FunctionReflection_DeducingThisBlogLambdaForwarding) {
-#ifdef EMSCRIPTEN
-#if CLANG_VERSION_MAJOR > 21
-  GTEST_SKIP() << "Test fails for Emscripten builds using LLVM 22";
-#endif
-#endif
   if (TypeParam::isOutOfProcess)
     GTEST_SKIP() << "Test fails for OOP JIT builds";
 
@@ -5665,11 +5627,6 @@ TYPED_TEST(CPPINTEROP_TEST_MODE,
 
 TYPED_TEST(CPPINTEROP_TEST_MODE,
            FunctionReflection_DeducingThisBlogPassByValue) {
-#ifdef EMSCRIPTEN
-#if CLANG_VERSION_MAJOR > 21
-  GTEST_SKIP() << "Test fails for Emscripten builds using LLVM 22";
-#endif
-#endif
   if (TypeParam::isOutOfProcess)
     GTEST_SKIP() << "Test fails for OOP JIT builds";
 
@@ -5707,11 +5664,6 @@ TYPED_TEST(CPPINTEROP_TEST_MODE,
 
 TYPED_TEST(CPPINTEROP_TEST_MODE,
            FunctionReflection_DeducingThisBlogSfinaeTransform) {
-#ifdef EMSCRIPTEN
-#if CLANG_VERSION_MAJOR > 21
-  GTEST_SKIP() << "Test fails for Emscripten builds using LLVM 22";
-#endif
-#endif
   if (TypeParam::isOutOfProcess)
     GTEST_SKIP() << "Test fails for OOP JIT builds";
 
@@ -5811,9 +5763,6 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_MoveOnlyByValueArgs) {
 // clean under ASan/LSan.
 TYPED_TEST(CPPINTEROP_TEST_MODE,
            FunctionReflection_DiscardDuplicateWeakEmulatedTLS) {
-#ifdef EMSCRIPTEN
-  GTEST_SKIP() << "Test fails for Emscripten builds";
-#endif
 #ifdef CPPINTEROP_USE_CLING
   GTEST_SKIP() << "dedupeWeakEmulatedTLS is wired into the clang-repl "
                   "CppInternal::Interpreter path, not cling's interpreter";
@@ -5869,9 +5818,6 @@ TYPED_TEST(CPPINTEROP_TEST_MODE,
 // above.
 TYPED_TEST(CPPINTEROP_TEST_MODE,
            FunctionReflection_DiscardDuplicateWeakEmulatedTLSZeroInit) {
-#ifdef EMSCRIPTEN
-  GTEST_SKIP() << "Test fails for Emscripten builds";
-#endif
 #ifdef CPPINTEROP_USE_CLING
   GTEST_SKIP() << "dedupeWeakEmulatedTLS is wired into the clang-repl "
                   "CppInternal::Interpreter path, not cling's interpreter";
