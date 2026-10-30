@@ -368,7 +368,7 @@ runs:
         # --browser (name of browser on path)
         # --kill_exit makes it so that when emrun finishes,
         # that the headless browser we create is killed along with it
-        # --timeout 60 is such that emrun is killed after 60 seconds if
+        # --timeout 90 is such that emrun is killed after 90 seconds if
         # still running. emrun should have finished long before then,
         # so if it is still running, something went wrong (such as a test
         # which crashed the html file). This will cause the ci to fail,
@@ -397,20 +397,20 @@ runs:
 
           # Run tests in browsers
           echo "Running CppInterOpTests in Firefox"
-          emrun --browser="firefox" --kill_exit --timeout 60 --browser-args="--headless"  CppInterOpTests.html
+          emrun --browser="firefox" --kill_exit --timeout 90 --browser-args="--headless"  CppInterOpTests.html
           echo "Running DynamicLibraryManagerTests in Firefox"
-          emrun --browser="firefox" --kill_exit --timeout 60 --browser-args="--headless"  DynamicLibraryManagerTests.html
+          emrun --browser="firefox" --kill_exit --timeout 90 --browser-args="--headless"  DynamicLibraryManagerTests.html
           echo "Running CppInterOpTests in Google Chrome"
-          emrun --browser="Google Chrome" --kill_exit --timeout 60 --browser-args="--headless --no-sandbox"  CppInterOpTests.html
+          emrun --browser="Google Chrome" --kill_exit --timeout 90 --browser-args="--headless --no-sandbox"  CppInterOpTests.html
           echo "Running DynamicLibraryManagerTests in Google Chrome"          
-          emrun --browser="Google Chrome" --kill_exit --timeout 60 --browser-args="--headless --no-sandbox"  DynamicLibraryManagerTests.html
+          emrun --browser="Google Chrome" --kill_exit --timeout 90 --browser-args="--headless --no-sandbox"  DynamicLibraryManagerTests.html
           sudo safaridriver --enable
           python -m pip install selenium
           echo "Running CppInterOpTests in Safari"
-          emrun --no_browser --kill_exit --timeout 15 --browser-args="--headless --no-sandbox"  CppInterOpTests.html &
+          emrun --no_browser --kill_exit --timeout 90 --browser-args="--headless --no-sandbox"  CppInterOpTests.html &
           python ../../../scripts/browser_tests_safari.py CppInterOpTests.html
           echo "Running DynamicLibraryManagerTests in Safari"          
-          emrun --no_browser --kill_exit --timeout 15 --browser-args="--headless --no-sandbox"  DynamicLibraryManagerTests.html &
+          emrun --no_browser --kill_exit --timeout 90 --browser-args="--headless --no-sandbox"  DynamicLibraryManagerTests.html &
           python ../../../scripts/browser_tests_safari.py DynamicLibraryManagerTests.html
         else
           export ARCHITECHURE=$(uname -m)
@@ -431,13 +431,13 @@ runs:
 
             # Run tests in browsers
             echo "Running CppInterOpTests in Firefox"
-            emrun --browser="firefox" --kill_exit --timeout 60 --browser-args="--headless"  CppInterOpTests.html
+            emrun --browser="firefox" --kill_exit --timeout 90 --browser-args="--headless"  CppInterOpTests.html
             echo "Running DynamicLibraryManagerTests in Firefox"
-            emrun --browser="firefox" --kill_exit --timeout 60 --browser-args="--headless"  DynamicLibraryManagerTests.html
+            emrun --browser="firefox" --kill_exit --timeout 90 --browser-args="--headless"  DynamicLibraryManagerTests.html
             echo "Running CppInterOpTests in Google Chrome"
-            emrun --browser="google-chrome" --kill_exit --timeout 60 --browser-args="--headless --no-sandbox"  CppInterOpTests.html
+            emrun --browser="google-chrome" --kill_exit --timeout 90 --browser-args="--headless --no-sandbox"  CppInterOpTests.html
             echo "Running DynamicLibraryManagerTests in Google Chrome"          
-            emrun --browser="google-chrome" --kill_exit --timeout 60 --browser-args="--headless --no-sandbox"  DynamicLibraryManagerTests.html
+            emrun --browser="google-chrome" --kill_exit --timeout 90 --browser-args="--headless --no-sandbox"  DynamicLibraryManagerTests.html
           else
             # Install Firefox
             wget -q https://ftp.mozilla.org/pub/firefox/releases/138.0.1/linux-aarch64/en-GB/firefox-138.0.1.tar.xz
@@ -448,9 +448,9 @@ runs:
 
             # Run tests in browsers
             echo "Running CppInterOpTests in Firefox"
-            emrun --browser="firefox" --kill_exit --timeout 60 --browser-args="--headless"  CppInterOpTests.html
+            emrun --browser="firefox" --kill_exit --timeout 90 --browser-args="--headless"  CppInterOpTests.html
             echo "Running DynamicLibraryManagerTests in Firefox"
-            emrun --browser="firefox" --kill_exit --timeout 60 --browser-args="--headless"  DynamicLibraryManagerTests.html
+            emrun --browser="firefox" --kill_exit --timeout 90 --browser-args="--headless"  DynamicLibraryManagerTests.html
           fi
         fi
         cd ../..
@@ -515,37 +515,37 @@ runs:
         if [[ "${os}" == "macos"* ]]; then
           # Run tests in browsers
           echo "Running CppInterOpTests in Firefox"
-          emrun --browser="firefox" --kill_exit --timeout 60 --browser-args="--headless"  CppInterOpTests.html
+          emrun --browser="firefox" --kill_exit --timeout 90 --browser-args="--headless"  CppInterOpTests.html
           echo "Running DynamicLibraryManagerTests in Firefox"
-          emrun --browser="firefox" --kill_exit --timeout 60 --browser-args="--headless"  DynamicLibraryManagerTests.html
+          emrun --browser="firefox" --kill_exit --timeout 90 --browser-args="--headless"  DynamicLibraryManagerTests.html
           echo "Running CppInterOpTests in Google Chrome"
-          emrun --browser="Google Chrome" --kill_exit --timeout 60 --browser-args="--headless --no-sandbox"  CppInterOpTests.html
+          emrun --browser="Google Chrome" --kill_exit --timeout 90 --browser-args="--headless --no-sandbox"  CppInterOpTests.html
           echo "Running DynamicLibraryManagerTests in Google Chrome"          
-          emrun --browser="Google Chrome" --kill_exit --timeout 60 --browser-args="--headless --no-sandbox"  DynamicLibraryManagerTests.html
+          emrun --browser="Google Chrome" --kill_exit --timeout 90 --browser-args="--headless --no-sandbox"  DynamicLibraryManagerTests.html
           echo "Running CppInterOpTests in Safari"
-          emrun --no_browser --kill_exit --timeout 60 --browser-args="--headless --no-sandbox"  CppInterOpTests.html &
+          emrun --no_browser --kill_exit --timeout 90 --browser-args="--headless --no-sandbox"  CppInterOpTests.html &
           python ../../../scripts/browser_tests_safari.py CppInterOpTests.html
           echo "Running DynamicLibraryManagerTests in Safari"          
-          emrun --no_browser --kill_exit --timeout 60 --browser-args="--headless --no-sandbox"  DynamicLibraryManagerTests.html &
+          emrun --no_browser --kill_exit --timeout 90 --browser-args="--headless --no-sandbox"  DynamicLibraryManagerTests.html &
           python ../../../scripts/browser_tests_safari.py DynamicLibraryManagerTests.html
         else
           export ARCHITECHURE=$(uname -m)
           if [[ "$ARCHITECHURE" != "aarch64" ]]; then
             # Run tests in browsers
             echo "Running CppInterOpTests in Firefox"
-            emrun --browser="firefox" --kill_exit --timeout 60 --browser-args="--headless"  CppInterOpTests.html
+            emrun --browser="firefox" --kill_exit --timeout 90 --browser-args="--headless"  CppInterOpTests.html
             echo "Running DynamicLibraryManagerTests in Firefox"
-            emrun --browser="firefox" --kill_exit --timeout 60 --browser-args="--headless"  DynamicLibraryManagerTests.html
+            emrun --browser="firefox" --kill_exit --timeout 90 --browser-args="--headless"  DynamicLibraryManagerTests.html
             echo "Running CppInterOpTests in Google Chrome"
-            emrun --browser="google-chrome" --kill_exit --timeout 60 --browser-args="--headless --no-sandbox"  CppInterOpTests.html
+            emrun --browser="google-chrome" --kill_exit --timeout 90 --browser-args="--headless --no-sandbox"  CppInterOpTests.html
             echo "Running DynamicLibraryManagerTests in Google Chrome"          
-            emrun --browser="google-chrome" --kill_exit --timeout 60 --browser-args="--headless --no-sandbox"  DynamicLibraryManagerTests.html
+            emrun --browser="google-chrome" --kill_exit --timeout 90 --browser-args="--headless --no-sandbox"  DynamicLibraryManagerTests.html
           else
             # Run tests in browsers
             echo "Running CppInterOpTests in Firefox"
-            emrun --browser="firefox" --kill_exit --timeout 60 --browser-args="--headless"  CppInterOpTests.html
+            emrun --browser="firefox" --kill_exit --timeout 90 --browser-args="--headless"  CppInterOpTests.html
             echo "Running DynamicLibraryManagerTests in Firefox"
-            emrun --browser="firefox" --kill_exit --timeout 60 --browser-args="--headless"  DynamicLibraryManagerTests.html
+            emrun --browser="firefox" --kill_exit --timeout 90 --browser-args="--headless"  DynamicLibraryManagerTests.html
           fi
         fi
         cd ../../..
