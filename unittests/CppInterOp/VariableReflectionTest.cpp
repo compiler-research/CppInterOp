@@ -661,6 +661,9 @@ TYPED_TEST(CPPINTEROP_TEST_MODE,
   // interpreter's AST (and anything derived from it, e.g. a crash
   // reproducer) may not depend on how many queries a sibling interpreter
   // has run.
+#ifdef __EMSCRIPTEN__
+  GTEST_SKIP() << "Test crashes Windows Emscripten ci job due to lack of memory when running tests in Firefox";
+#endif
   Cpp::InterpRef I1 = TestFixture::CreateInterpreter();
   ASSERT_TRUE(I1);
   Cpp::Declare(R"(struct PerInterpA { inline static int probe = 1; };)");
