@@ -1024,6 +1024,9 @@ TYPED_TEST(CPPINTEROP_TEST_MODE,
 
 TYPED_TEST(CPPINTEROP_TEST_MODE,
            VariableReflection_EnumConstantsOfClassTemplateFromAST) {
+#ifdef EMSCRIPTEN_ON_WINDOWS
+  GTEST_SKIP() << "Test crashes Windows Emscripten ci job due to lack of memory when running tests in Chromium";
+#endif
   // Bindings query every enumerator of a class when they build its proxy, so
   // these queries must be answered from the AST. Evaluating e.g.
   // "EnumHolder<char>::kA;" in the interpreter instead costs a parse and JIT
