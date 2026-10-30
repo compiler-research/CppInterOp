@@ -845,6 +845,9 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, VariableReflection_IsPrivateVariable) {
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, VariableReflection_IsStaticVariable) {
+#ifdef EMSCRIPTEN_ON_WINDOWS
+  GTEST_SKIP() << "Test crashes Windows Emscripten ci job due to lack of memory when running tests in Chromium";
+#endif
   std::vector<Decl *> Decls, SubDecls;
   std::string code =  R"(
     class C {
