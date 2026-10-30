@@ -990,6 +990,9 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, VariableReflection_StaticConstExprDatamember) {
 
 TYPED_TEST(CPPINTEROP_TEST_MODE,
            VariableReflection_GetEnumConstantDatamembers) {
+#ifdef EMSCRIPTEN_ON_WINDOWS
+  GTEST_SKIP() << "Test crashes Windows Emscripten ci job due to lack of memory when running tests in Chromium";
+#endif
   TestFixture::CreateInterpreter();
 
   Cpp::Declare(R"(
