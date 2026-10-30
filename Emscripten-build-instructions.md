@@ -357,13 +357,13 @@ Invoke-WebRequest -Uri "https://download.mozilla.org/?product=firefox-latest-ssl
 & "C:\Program Files\7-Zip\7z.exe" x "firefox-setup.exe"
 $env:PATH="$PWD\core;$PWD\chrome-win;$env:PATH"
 echo "Running CppInterOpTests in Firefox"
-python.exe emrun.py --browser="firefox.exe" --kill_exit --timeout 60 --browser-args="--headless"  CppInterOpTests.html
+python.exe $env:EMSDK/upstream/emscripten/emrun.py --browser="firefox.exe" --kill_exit --timeout 60 --browser-args="--headless"  CppInterOpTests.html
 echo "Running DynamicLibraryManagerTests in Firefox"
-python.exe emrun.py --browser="firefox.exe" --kill_exit --timeout 60 --browser-args="--headless"  DynamicLibraryManagerTests.html
+python.exe $env:EMSDK/upstream/emscripten/emrun.py --browser="firefox.exe" --kill_exit --timeout 60 --browser-args="--headless"  DynamicLibraryManagerTests.html
 echo "Running CppInterOpTests in Chromium"
-python.exe emrun.py --browser="chrome.exe" --kill_exit --timeout 60 --browser-args="--headless --no-sandbox"  CppInterOpTests.html
+python.exe $env:EMSDK/upstream/emscripten/emrun.py --browser="chrome.exe" --kill_exit --timeout 60 --browser-args="--headless --no-sandbox"  CppInterOpTests.html
 echo "Running DynamicLibraryManagerTests in Chromium"
-python.exe emrun.py --browser="chrome.exe" --kill_exit --timeout 60 --browser-args="--headless --no-sandbox"  DynamicLibraryManagerTests.html
+python.exe $env:EMSDK/upstream/emscripten/emrun.py --browser="chrome.exe" --kill_exit --timeout 60 --browser-args="--headless --no-sandbox"  DynamicLibraryManagerTests.html
 ```
 
 Assuming it passes all test you can install by executing the following

@@ -178,9 +178,9 @@ jobs:
         cd .\xeus-cpp\build\test
         node test_xeus_cpp.js
         echo "Running test_xeus_cpp in Firefox"
-        Error-OnFailure { python.exe emrun.py --browser="firefox.exe" --kill_exit --timeout 60 --browser-args="--headless"  test_xeus_cpp.html }
+        Error-OnFailure { python.exe $env:EMSDK/upstream/emscripten/emrun.py --browser="firefox.exe" --kill_exit --timeout 60 --browser-args="--headless"  test_xeus_cpp.html }
         echo "Running test_xeus_cpp in Chromium"
-        Error-OnFailure { python.exe emrun.py --browser="chrome.exe" --kill_exit --timeout 60 --browser-args="--headless --no-sandbox"  test_xeus_cpp.html }
+        Error-OnFailure { python.exe $env:EMSDK/upstream/emscripten/emrun.py --browser="chrome.exe" --kill_exit --timeout 60 --browser-args="--headless --no-sandbox"  test_xeus_cpp.html }
 
     - name: Jupyter Lite integration
       if: ${{ runner.os != 'windows' && !(github.event_name == 'pull_request' && matrix.skip-in-prs == 'true') }}
