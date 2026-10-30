@@ -661,7 +661,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE,
   // interpreter's AST (and anything derived from it, e.g. a crash
   // reproducer) may not depend on how many queries a sibling interpreter
   // has run.
-#ifdef __EMSCRIPTEN__
+#ifdef EMSCRIPTEN_ON_WINDOWS
   GTEST_SKIP() << "Test crashes Windows Emscripten ci job due to lack of memory when running tests in Firefox";
 #endif
   Cpp::InterpRef I1 = TestFixture::CreateInterpreter();
@@ -797,7 +797,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, VariableReflection_IsPublicVariable) {
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, VariableReflection_IsProtectedVariable) {
-#ifdef __EMSCRIPTEN__
+#ifdef EMSCRIPTEN_ON_WINDOWS
   GTEST_SKIP() << "Test crashes Windows Emscripten ci job due to lack of memory when running tests in Chromium";
 #endif
   std::vector<Decl *> Decls, SubDecls;
@@ -821,7 +821,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, VariableReflection_IsProtectedVariable) {
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, VariableReflection_IsPrivateVariable) {
-#ifdef __EMSCRIPTEN__
+#ifdef EMSCRIPTEN_ON_WINDOWS
   GTEST_SKIP() << "Test crashes Windows Emscripten ci job due to lack of memory when running tests in Chromium";
 #endif
   std::vector<Decl *> Decls, SubDecls;
