@@ -3226,6 +3226,38 @@ TYPED_TEST(CPPINTEROP_TEST_MODE,
   EXPECT_EQ(Match({SubDecls[5]}, {}), "int BOKinds::get()");
 }
 
+TYPED_TEST(CPPINTEROP_TEST_MODE,
+           FunctionReflection_BestOverloadFunctionMatchNamedArg) {
+  std::vector<Decl*> Decls;
+  std::string code = R"(
+    template <int N> void Sized(double& d) {}
+    constexpr int IntVal = 3;
+  )";
+  GetAllTopLevelDecls(code, Decls);
+
+  std::vector<Cpp::FuncRef> ambiguous_candidates;
+  std::vector<Cpp::FuncRef> candidates;
+  candidates.emplace_back(Decls[0]);
+
+  ASTContext& C = Interp->getCI()->getASTContext();
+  std::vector<Cpp::TemplateArgInfo> arg_types = {
+      C.getLValueReferenceType(C.DoubleTy).getAsOpaquePtr()};
+  std::vector<Cpp::TemplateArgInfo> named_args = {
+      {C.IntTy.getAsOpaquePtr(), "IntVal"}};
+
+  Cpp::FuncRef fn = Cpp::BestOverloadFunctionMatch(
+      candidates, named_args, arg_types, ambiguous_candidates);
+  EXPECT_TRUE(fn);
+  EXPECT_EQ(fn,
+            Cpp::FuncRef{Cpp::InstantiateTemplate(Decls[0], named_args).data});
+
+  // An unknown name fails the whole match, not only the one argument.
+  std::vector<Cpp::TemplateArgInfo> unknown_args = {
+      {C.IntTy.getAsOpaquePtr(), "NoSuchName"}};
+  EXPECT_FALSE(Cpp::BestOverloadFunctionMatch(candidates, unknown_args,
+                                              arg_types, ambiguous_candidates));
+}
+
 TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_IsPublicMethod) {
   std::vector<Decl *> Decls, SubDecls;
   std::string code = R"(
