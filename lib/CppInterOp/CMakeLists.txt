@@ -423,9 +423,15 @@ set_source_files_properties(CppInterOp.cpp PROPERTIES COMPILE_DEFINITIONS
 )
 
 if(CPPINTEROP_ENABLE_CLAD)
+  if(EMSCRIPTEN)
+    # Wasm consumers stage the clad headers at /include in the Emscripten VFS.
+    set(_clad_runtime_include_dir "/include")
+  else()
+    set(_clad_runtime_include_dir "${CMAKE_BINARY_DIR}/plugins/clad/include/")
+  endif()
   set_property(SOURCE CppInterOp.cpp APPEND PROPERTY COMPILE_DEFINITIONS
     "CPPINTEROP_ENABLE_CLAD=1"
-    "CLAD_INCLUDE_DIRS=\"${CMAKE_BINARY_DIR}/plugins/clad/include/\""
+    "CLAD_INCLUDE_DIRS=\"${_clad_runtime_include_dir}\""
   )
 endif()
 
