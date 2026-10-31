@@ -4625,7 +4625,10 @@ void make_narg_call(const FunctionDecl* FD, const std::string& return_type,
     else
       callbuf << "((" << class_name << "*)obj)->";
 
-    if (op_flag)
+    // Qualify the call so that it reaches exactly this method rather than
+    // dispatching to an override. A pure virtual method usually has no body
+    // to call, so it keeps the virtual dispatch.
+    if ((op_flag || N <= 1) && !MD->isPureVirtual())
       callbuf << class_name << "::";
   } else if (isa<NamedDecl>(get_non_transparent_decl_context(FD))) {
     // This is a namespace member.
