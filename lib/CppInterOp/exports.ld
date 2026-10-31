@@ -85,3 +85,6 @@
 -Wl,--export=_ZN5clang17ExternalASTSource30GetExternalCXXCtorInitializersEy
 -Wl,--export=_ZN5clang17ExternalASTSourceD2Ev
 -Wl,--export=_ZNK5clang17ExternalASTSource20getMemoryBufferSizesERNS0_17MemoryBufferSizesE
+-Wl,--export=_ZN5clang11LangOptionsC1Ev
+-Wl,--export=_ZN5clang11ParmVarDecl13getDefaultArgEv
+-Wl,--export=_ZNK5clang4Stmt11printPrettyERN4llvm11raw_ostreamEPNS_13PrinterHelperERKNS_14PrintingPolicyEjNS1_9StringRefEPKNS_10ASTContextE

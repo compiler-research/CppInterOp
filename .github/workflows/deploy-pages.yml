@@ -14,7 +14,7 @@ permissions:
   id-token: write
 
 env:
-  EM_VERSION: 4.0.9
+  EM_VERSION: 6.0.8
   EM_CACHE_FOLDER: 'emsdk-cache'
   BUILD_STATIC_LIBRARY: Off
 
@@ -27,7 +27,7 @@ jobs:
       matrix:
         # arch + wasm shape mirror emscripten.yml's matrix (see comment there).
         include:
-          - { name: osx26-arm-emscr-llvm22, os: macos-26, arch: arm64, clang-runtime: '22', wasm: 'true' }
+          - { name: osx26-arm-emscr-llvm23, os: macos-26, arch: arm64, clang-runtime: '23', wasm: 'true' }
 
     steps:
     - uses: actions/checkout@v6
@@ -67,7 +67,7 @@ jobs:
       uses: compiler-research/ci-workflows/actions/setup-recipe@main
       with:
         recipe: llvm-wasm
-        version: ${{ matrix.clang-runtime }}
+        version: ${{ matrix.clang-runtime }}-emsdk${{env.EM_VERSION}}
         os: ${{ matrix.os }}
         arch: ${{ matrix.arch }}
 

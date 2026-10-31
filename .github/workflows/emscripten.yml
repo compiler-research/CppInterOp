@@ -14,7 +14,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  EM_VERSION: 4.0.9
+  EM_VERSION: 6.0.8
   EM_CACHE_FOLDER: 'emsdk-cache'
   BUILD_STATIC_LIBRARY: ${{ github.event_name == 'schedule' && 'On' || 'Off' }}
 
@@ -32,10 +32,10 @@ jobs:
         # YAML-quote `wasm` / `skip-in-prs` so workflow `if:` checks
         # comparing them work uniformly under act and github-hosted.
         include:
-          - { name: ubu24-arm-emscr-llvm22,   os: ubuntu-24.04-arm, arch: arm64,  clang-runtime: &clang_rt '22', wasm: 'true' }
-          - { name: osx26-arm-emscr-llvm22,   os: macos-26,         arch: arm64,  clang-runtime: *clang_rt, wasm: 'true' }
-          - { name: ubu24-x86-emscr-llvm22,   os: ubuntu-24.04,     arch: x86_64, clang-runtime: *clang_rt, wasm: 'true' }
-          - { name: win2025-x86-emscr-llvm22, os: windows-2025,     arch: x86_64, clang-runtime: *clang_rt, wasm: 'true' }
+          - { name: ubu24-arm-emscr-llvm23,   os: ubuntu-24.04-arm, arch: arm64,  clang-runtime: &clang_rt '23', wasm: 'true' }
+          - { name: osx26-arm-emscr-llvm23,   os: macos-26,         arch: arm64,  clang-runtime: *clang_rt, wasm: 'true' }
+          - { name: ubu24-x86-emscr-llvm23,   os: ubuntu-24.04,     arch: x86_64, clang-runtime: *clang_rt, wasm: 'true' }
+          - { name: win2025-x86-emscr-llvm23, os: windows-2025,     arch: x86_64, clang-runtime: *clang_rt, wasm: 'true' }
 
     steps:
     - uses: actions/checkout@v6
@@ -74,7 +74,7 @@ jobs:
       uses: compiler-research/ci-workflows/actions/setup-recipe@main
       with:
         recipe: llvm-wasm
-        version: ${{ matrix.clang-runtime }}
+        version: ${{ matrix.clang-runtime }}-emsdk${{env.EM_VERSION}}
         os: ${{ matrix.os }}
         arch: ${{ matrix.arch }}
 
@@ -178,9 +178,11 @@ jobs:
         cd .\xeus-cpp\build\test
         node test_xeus_cpp.js
         echo "Running test_xeus_cpp in Firefox"
-        Error-OnFailure { emrun.bat --browser="firefox.exe" --kill_exit --timeout 90 --browser-args="--headless"  test_xeus_cpp.html }
+
+        Error-OnFailure { python.exe $env:EMSDK/upstream/emscripten/emrun.py --browser="firefox.exe" --kill_exit --timeout 90 --browser-args="--headless"  test_xeus_cpp.html }
         echo "Running test_xeus_cpp in Chromium"
-        Error-OnFailure { emrun.bat --browser="chrome.exe" --kill_exit --timeout 90 --browser-args="--headless --no-sandbox"  test_xeus_cpp.html }
+        Error-OnFailure { python.exe $env:EMSDK/upstream/emscripten/emrun.py --browser="chrome.exe" --kill_exit --timeout 90 --browser-args="--headless --no-sandbox"  test_xeus_cpp.html }
+
 
     - name: Jupyter Lite integration
       if: ${{ runner.os != 'windows' && !(github.event_name == 'pull_request' && matrix.skip-in-prs == 'true') }}

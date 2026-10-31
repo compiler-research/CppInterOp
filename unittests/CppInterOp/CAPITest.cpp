@@ -174,7 +174,7 @@ TYPED_TEST(CppInterOpTest, CAPI_ClassMemberQueries) {
 }
 
 TYPED_TEST(CppInterOpTest, CAPI_Construct) {
-#ifdef EMSCRIPTEN
+#ifdef __EMSCRIPTEN__
   GTEST_SKIP() << "Test fails for Emscripten builds";
 #endif
   if (TypeParam::isOutOfProcess)

@@ -661,6 +661,9 @@ TYPED_TEST(CPPINTEROP_TEST_MODE,
   // interpreter's AST (and anything derived from it, e.g. a crash
   // reproducer) may not depend on how many queries a sibling interpreter
   // has run.
+#ifdef EMSCRIPTEN_ON_WINDOWS
+  GTEST_SKIP() << "Test crashes Windows Emscripten ci job due to lack of memory when running tests in Firefox";
+#endif
   Cpp::InterpRef I1 = TestFixture::CreateInterpreter();
   ASSERT_TRUE(I1);
   Cpp::Declare(R"(struct PerInterpA { inline static int probe = 1; };)");
@@ -794,6 +797,9 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, VariableReflection_IsPublicVariable) {
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, VariableReflection_IsProtectedVariable) {
+#ifdef EMSCRIPTEN_ON_WINDOWS
+  GTEST_SKIP() << "Test crashes Windows Emscripten ci job due to lack of memory when running tests in Chromium";
+#endif
   std::vector<Decl *> Decls, SubDecls;
   std::string code = R"(
     class C {
@@ -815,6 +821,9 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, VariableReflection_IsProtectedVariable) {
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, VariableReflection_IsPrivateVariable) {
+#ifdef EMSCRIPTEN_ON_WINDOWS
+  GTEST_SKIP() << "Test crashes Windows Emscripten ci job due to lack of memory when running tests in Chromium";
+#endif
   std::vector<Decl *> Decls, SubDecls;
   std::string code = R"(
     class C {
@@ -836,6 +845,9 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, VariableReflection_IsPrivateVariable) {
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, VariableReflection_IsStaticVariable) {
+#ifdef EMSCRIPTEN_ON_WINDOWS
+  GTEST_SKIP() << "Test crashes Windows Emscripten ci job due to lack of memory when running tests in Chromium";
+#endif
   std::vector<Decl *> Decls, SubDecls;
   std::string code =  R"(
     class C {
@@ -852,6 +864,9 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, VariableReflection_IsStaticVariable) {
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, VariableReflection_IsConstVariable) {
+#ifdef EMSCRIPTEN_ON_WINDOWS
+  GTEST_SKIP() << "Test crashes Windows Emscripten ci job due to lack of memory when running tests in Chromium";
+#endif
   std::vector<Decl *> Decls, SubDecls;
   std::string code =  R"(
     class C {
@@ -870,6 +885,9 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, VariableReflection_IsConstVariable) {
 
 TYPED_TEST(CPPINTEROP_TEST_MODE,
            VariableReflection_DISABLED_GetArrayDimensions) {
+#ifdef EMSCRIPTEN_ON_WINDOWS
+  GTEST_SKIP() << "Test crashes Windows Emscripten ci job due to lack of memory when running tests in Chromium";
+#endif
   std::vector<Decl *> Decls;
   std::string code =  R"(
     int a;
@@ -894,7 +912,9 @@ TYPED_TEST(CPPINTEROP_TEST_MODE,
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, VariableReflection_StaticConstExprDatamember) {
-
+#ifdef EMSCRIPTEN_ON_WINDOWS
+  GTEST_SKIP() << "Test crashes Windows Emscripten ci job due to lack of memory when running tests in Chromium";
+#endif
 #ifdef _WIN32
   GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
 #endif
@@ -970,6 +990,9 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, VariableReflection_StaticConstExprDatamember) {
 
 TYPED_TEST(CPPINTEROP_TEST_MODE,
            VariableReflection_GetEnumConstantDatamembers) {
+#ifdef EMSCRIPTEN_ON_WINDOWS
+  GTEST_SKIP() << "Test crashes Windows Emscripten ci job due to lack of memory when running tests in Chromium";
+#endif
   TestFixture::CreateInterpreter();
 
   Cpp::Declare(R"(
@@ -1001,6 +1024,9 @@ TYPED_TEST(CPPINTEROP_TEST_MODE,
 
 TYPED_TEST(CPPINTEROP_TEST_MODE,
            VariableReflection_EnumConstantsOfClassTemplateFromAST) {
+#ifdef EMSCRIPTEN_ON_WINDOWS
+  GTEST_SKIP() << "Test crashes Windows Emscripten ci job due to lack of memory when running tests in Chromium";
+#endif
   // Bindings query every enumerator of a class when they build its proxy, so
   // these queries must be answered from the AST. Evaluating e.g.
   // "EnumHolder<char>::kA;" in the interpreter instead costs a parse and JIT
@@ -1051,6 +1077,9 @@ TYPED_TEST(CPPINTEROP_TEST_MODE,
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, VariableReflection_Is_Get_Pointer) {
+#ifdef EMSCRIPTEN_ON_WINDOWS
+  GTEST_SKIP() << "Test crashes Windows Emscripten ci job due to lack of memory when running tests in Chromium";
+#endif
   TestFixture::CreateInterpreter();
   std::vector<Decl*> Decls;
   std::string code = R"(
@@ -1083,6 +1112,9 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, VariableReflection_Is_Get_Pointer) {
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, VariableReflection_Is_Get_Reference) {
+#ifdef EMSCRIPTEN_ON_WINDOWS
+  GTEST_SKIP() << "Test crashes Windows Emscripten ci job due to lack of memory when running tests in Chromium";
+#endif
   TestFixture::CreateInterpreter();
   std::vector<Decl*> Decls;
   std::string code = R"(
@@ -1125,6 +1157,9 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, VariableReflection_Is_Get_Reference) {
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, VariableReflection_GetPointerType) {
+#ifdef EMSCRIPTEN_ON_WINDOWS
+  GTEST_SKIP() << "Test crashes Windows Emscripten ci job due to lack of memory when running tests in Chromium";
+#endif
   TestFixture::CreateInterpreter();
   std::vector<Decl*> Decls;
   std::string code = R"(

@@ -9,9 +9,6 @@ if (EMSCRIPTEN)
   # Enables the test binary as the main WebAssembly module, allowing dynamic
   # linking of side modules (TestSharedLib).
   #
-  # WASM_BIGINT:
-  # Enables JS BigInt integration in WASM so 64-bit integer types round-trip.
-  #
   # ALLOW_MEMORY_GROWTH=1:
   # Lets the WebAssembly linear memory grow at runtime. Without it we hit
   # abortOnCannotGrowMemory during the tests.
@@ -33,7 +30,6 @@ if (EMSCRIPTEN)
   set(CPPINTEROP_COMMON_WASM_TEST_LINK_FLAGS
     "SHELL:${CPPINTEROP_EXTRA_WASM_FLAGS}"
     "SHELL:-s MAIN_MODULE=1"
-    "SHELL:-s WASM_BIGINT"
     "SHELL:-s ALLOW_MEMORY_GROWTH=1"
     "SHELL:-s STACK_SIZE=32mb"
     "SHELL:-s INITIAL_MEMORY=64mb"
