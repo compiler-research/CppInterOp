@@ -207,6 +207,11 @@ TYPED_TEST(CppInterOpTest, CAPI_EnumFunctions) {
   auto unqual = cppinterop_RemoveTypeQualifier(type, /*kConst=*/1U);
   EXPECT_FALSE(cppinterop_HasTypeQualifier(unqual, /*kConst=*/1U));
 
+  // HasAttribute takes AttrKind (unsigned in C).
+  // AttrKind::None == 0U, AttrKind::Any == 1U << 5
+  EXPECT_TRUE(cppinterop_HasAttribute(scope, /*None=*/0U));
+  EXPECT_FALSE(cppinterop_HasAttribute(scope, /*Any=*/32U));
+
   // GetLanguage returns an InterpreterLanguage enum as unsigned char.
   // CXX == 5 (Unknown=0, Asm=1, CIR=2, LLVM_IR=3, C=4, CXX=5)
   EXPECT_EQ(cppinterop_GetLanguage(nullptr), 5);

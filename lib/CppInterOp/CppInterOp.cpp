@@ -702,6 +702,35 @@ bool IsFunction(ConstDeclRef DRef) {
   return INTEROP_RETURN(isa<FunctionDecl>(D));
 }
 
+bool HasAttribute(ConstDeclRef DRef, AttrKind kind) {
+  INTEROP_TRACE(DRef, kind);
+  if (!DRef)
+    return INTEROP_RETURN(false);
+
+  const auto* D = unwrap<Decl>(DRef);
+  if (kind == AttrKind::None)
+    return INTEROP_RETURN(!D->hasAttrs());
+  if (kind == AttrKind::Any)
+    return INTEROP_RETURN(D->hasAttrs());
+
+  AttrKind Attrs = AttrKind::None;
+  if (D->hasAttr<CUDAGlobalAttr>())
+    Attrs = Attrs | AttrKind::CUDAGlobal;
+  if (D->hasAttr<CUDADeviceAttr>())
+    Attrs = Attrs | AttrKind::CUDADevice;
+  if (D->hasAttr<CUDAHostAttr>())
+    Attrs = Attrs | AttrKind::CUDAHost;
+  if (D->hasAttr<CUDAConstantAttr>())
+    Attrs = Attrs | AttrKind::CUDAConstant;
+  if (D->hasAttr<CUDASharedAttr>())
+    Attrs = Attrs | AttrKind::CUDAShared;
+  // Bits no attribute stands for are ignored.
+  const AttrKind Wanted =
+      kind & (AttrKind::CUDAGlobal | AttrKind::CUDADevice | AttrKind::CUDAHost |
+              AttrKind::CUDAConstant | AttrKind::CUDAShared);
+  return INTEROP_RETURN((Attrs & Wanted) == Wanted);
+}
+
 bool IsFunctionPointerType(ConstTypeRef TyRef) {
   INTEROP_TRACE(TyRef);
   QualType QT = QualType::getFromOpaquePtr(TyRef.data);
