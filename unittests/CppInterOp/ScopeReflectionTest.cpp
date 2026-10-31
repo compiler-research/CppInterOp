@@ -252,6 +252,18 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_IsClass) {
   EXPECT_FALSE(Cpp::IsClass(Decls[2]));
 }
 
+TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_HasAttribute) {
+  std::vector<Decl*> Decls;
+  GetAllTopLevelDecls("void plain(); [[deprecated]] void old();", Decls);
+  EXPECT_TRUE(Cpp::HasAttribute(Decls[0], Cpp::AttrKind::None));
+  EXPECT_FALSE(Cpp::HasAttribute(Decls[0], Cpp::AttrKind::Any));
+  EXPECT_FALSE(Cpp::HasAttribute(Decls[1], Cpp::AttrKind::None));
+  EXPECT_TRUE(Cpp::HasAttribute(Decls[1], Cpp::AttrKind::Any));
+  EXPECT_FALSE(Cpp::HasAttribute(Decls[1], Cpp::AttrKind::CUDAGlobal));
+  EXPECT_FALSE(Cpp::HasAttribute(nullptr, Cpp::AttrKind::None));
+  EXPECT_FALSE(Cpp::HasAttribute(nullptr, Cpp::AttrKind::Any));
+}
+
 TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_IsClassPolymorphic) {
   std::vector<Decl*> Decls;
   GetAllTopLevelDecls(R"(
