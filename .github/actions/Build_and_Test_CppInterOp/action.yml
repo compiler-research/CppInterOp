@@ -728,7 +728,9 @@ runs:
                 -DCPPINTEROP_TABLEGEN_EXE="${{ env.CPPINTEROP_TBLGEN_EXE }}" `
                 ..\
         }
-        Error-OnFailure { emmake ninja check-cppinterop }
+        $env:EMCC_CORES=2
+        Error-OnFailure { emmake ninja check-cppinterop -j 2 }
+        $EMCC_CORES=4
         cd .\unittests\CppInterOp\
         echo "Running CppInterOpTests in Firefox"
         Error-OnFailure { python.exe $env:EMSDK/upstream/emscripten/emrun.py --browser="firefox.exe" --kill_exit --timeout 90 --browser-args="--headless"  CppInterOpTests.html }
