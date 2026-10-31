@@ -25,13 +25,16 @@ protected:
     auto I = Cpp::CreateInterpreter({}, {"--cuda"});
     if (!I)
       return;
+    // Launch from a host function in a later input: a top-level launch in the
+    // defining input runs before the device binary is registered, and LLVM 22
+    // rejects it in device compilation.
     if (Cpp::Declare("__global__ void test_func() {}"
-                     "test_func<<<1,1>>>();") != 0)
+                     "void test_launch() { test_func<<<1,1>>>(); }") != 0)
       return;
 
     HasSDK = true;
 
-    if (Cpp::Declare("cudaDeviceSynchronize();") != 0) {
+    if (Cpp::Declare("test_launch(); cudaDeviceSynchronize();") != 0) {
       Cpp::DeleteInterpreter(I);
       return;
     }
@@ -74,6 +77,7 @@ TEST_F(CUDATest, DetectCudaInstallAndArch) {
   // no args: rely on auto-detect
   EXPECT_TRUE(compat::detectCudaInstallPath(args, path));
   EXPECT_TRUE(llvm::StringRef(path).starts_with("/usr/local/cuda"));
+  const std::string detectedPath = path;
 
   // explicit path (self-hosted CUDA runners are on 12.3)
   args = {"--cuda-path=/usr/local/cuda-12.3"};
@@ -93,9 +97,11 @@ TEST_F(CUDATest, DetectCudaInstallAndArch) {
   EXPECT_TRUE(compat::detectNVPTXArch(arch));
   EXPECT_TRUE(llvm::StringRef(arch).starts_with("sm_"));
 
-  EXPECT_TRUE(Cpp::CreateInterpreter(
-      {}, {"--cuda", "--cuda-path=/usr/local/cuda-12.3",
-           "--offload-arch=sm_70"}));
+  // explicit path and arch
+  std::string pathArg = "--cuda-path=" + detectedPath;
+  std::string archArg = "--offload-arch=" + arch;
+  EXPECT_TRUE(
+      Cpp::CreateInterpreter({}, {"--cuda", pathArg.c_str(), archArg.c_str()}));
 }
 #endif
 
@@ -132,13 +138,17 @@ TEST_F(CUDATest, SimpleKernelExecution) {
   Cpp::CreateInterpreter({}, {"--cuda"});
   EXPECT_EQ(0, Cpp::Declare(R"(
     __global__ void addOne(int* x) { *x += 1; }
+    void launchAddOne(int* x) { addOne<<<1,1>>>(x); }
+  )")) << "Failed to declare kernel";
+
+  EXPECT_EQ(0, Cpp::Declare(R"(
     int* d;
     cudaMallocManaged(&d, sizeof(int));
     *d = 41;
-    addOne<<<1,1>>>(d);
+    launchAddOne(d);
     cudaDeviceSynchronize();
     int kernelErr = (int)cudaGetLastError();
-  )")) << "Failed to declare/launch kernel";
+  )")) << "Failed to launch kernel";
 
   Cpp::Box kernelErrV = Cpp::Evaluate("kernelErr");
   EXPECT_NE(kernelErrV.getKind(), Cpp::Box::K_Unspecified);
@@ -158,6 +168,17 @@ TEST_F(CUDATest, SimpleKernelExecution) {
 // with a __device__ transform, multi-block atomicAdd
 TEST_F(CUDATest, CUB_BlockReduceWithDeviceFunction) {
   SKIP_IF_NO_RUNTIME;
+#ifndef CPPINTEROP_USE_CLING
+  // clang-repl creates the device TargetMachine without the target features,
+  // so its PTX carries the minimum ISA version of the arch. The shfl.sync of
+  // CUB's block reduction needs PTX ISA 6.0, first implied by sm_70.
+  std::string arch;
+  unsigned sm = 0;
+  if (compat::detectNVPTXArch(arch) &&
+      !llvm::StringRef(arch).drop_front(3).getAsInteger(10, sm) && sm < 70)
+    GTEST_SKIP() << "CUB needs PTX ISA 6.0, clang-repl emits the minimum of "
+                 << arch;
+#endif
 
   Cpp::CreateInterpreter({}, {"--cuda"});
 
@@ -179,6 +200,11 @@ TEST_F(CUDATest, CUB_BlockReduceWithDeviceFunction) {
       if (threadIdx.x == 0)
         atomicAdd(output, block_sum);
     }
+
+    void launchSumOfSquares(const int* input, int* output, int N,
+                            int numBlocks) {
+      sumOfSquaresKernel<<<numBlocks, BLOCK_SIZE>>>(input, output, N);
+    }
   )")) << "Failed to declare kernel";
 
   EXPECT_EQ(0, Cpp::Declare(R"(
@@ -190,7 +216,7 @@ TEST_F(CUDATest, CUB_BlockReduceWithDeviceFunction) {
     for (int i = 0; i < N; i++) d_in[i] = i + 1; // 1..256
     *d_out = 0;
     int numBlocks = (N + BLOCK_SIZE - 1) / BLOCK_SIZE;
-    sumOfSquaresKernel<<<numBlocks, BLOCK_SIZE>>>(d_in, d_out, N);
+    launchSumOfSquares(d_in, d_out, N, numBlocks);
     cudaError_t syncErr = cudaDeviceSynchronize();
     cudaError_t lastErr = cudaGetLastError();
   )")) << "Failed to launch kernel";
