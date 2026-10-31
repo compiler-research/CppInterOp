@@ -18,10 +18,12 @@
 #include "clang/AST/DeclarationName.h"
 #include "clang/AST/GlobalDecl.h"
 #include "clang/Basic/LangOptions.h"
+#include "clang/Basic/SourceManager.h"
 #include "clang/Basic/TargetOptions.h"
 #include "clang/Basic/Version.h"
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Frontend/FrontendOptions.h"
+#include "clang/Lex/HeaderSearchOptions.h"
 #include "clang/Lex/Preprocessor.h"
 #include "clang/Sema/Lookup.h"
 #include "clang/Sema/Redeclaration.h"
@@ -325,6 +327,8 @@ private:
   mutable std::unique_ptr<DynamicLibraryManager> sDLM;
   mutable std::once_flag sDLMInit;
   bool outOfProcess;
+  // The device-side CompilerInstance under --cuda, owned by inner.
+  clang::CompilerInstance* deviceCI = nullptr;
 
 #if CLANG_VERSION_MAJOR < 24
   // Weak thread_local definitions already handed to the JIT, so later modules
@@ -332,10 +336,37 @@ private:
   llvm::StringSet<> DedupedWeakTLS;
 #endif
 
+  static void AddIncludePathsToCI(llvm::StringRef PathsStr,
+                                  clang::CompilerInstance* CI,
+                                  const char* Delim) {
+    auto& HOpts = CI->getHeaderSearchOpts();
+
+    // Save the current number of entries
+    size_t Idx = HOpts.UserEntries.size();
+    CppInternal::utils::AddIncludePaths(PathsStr, HOpts, Delim);
+
+    clang::Preprocessor& PP = CI->getPreprocessor();
+    clang::SourceManager& SM = PP.getSourceManager();
+    clang::FileManager& FM = SM.getFileManager();
+    clang::HeaderSearch& HSearch = PP.getHeaderSearchInfo();
+    const bool isFramework = false;
+
+    // Add all the new entries into Preprocessor
+    for (const size_t N = HOpts.UserEntries.size(); Idx < N; ++Idx) {
+      const clang::HeaderSearchOptions::Entry& E = HOpts.UserEntries[Idx];
+      if (auto DE = FM.getOptionalDirectoryRef(E.Path))
+        HSearch.AddSearchPath(
+            clang::DirectoryLookup(*DE, clang::SrcMgr::C_User, isFramework),
+            E.Group == clang::frontend::Angled);
+    }
+  }
+
 public:
   Interpreter(std::unique_ptr<clang::Interpreter> CI,
-              std::unique_ptr<IOContext> ctx = nullptr, bool oop = false)
-      : inner(std::move(CI)), io_context(std::move(ctx)), outOfProcess(oop) {}
+              std::unique_ptr<IOContext> ctx = nullptr, bool oop = false,
+              clang::CompilerInstance* DevCI = nullptr)
+      : inner(std::move(CI)), io_context(std::move(ctx)), outOfProcess(oop),
+        deviceCI(DevCI) {}
 
 public:
   static std::unique_ptr<Interpreter>
@@ -370,8 +401,9 @@ public:
 
     // Currently, we can't pass IOContext in `createClangInterpreter`, that's
     // why fd's are passed. This should be refactored later.
-    auto CI =
-        compat::createClangInterpreter(vargs, stdin_fd, stdout_fd, stderr_fd);
+    clang::CompilerInstance* deviceCI = nullptr;
+    auto CI = compat::createClangInterpreter(vargs, stdin_fd, stdout_fd,
+                                             stderr_fd, &deviceCI);
     if (!CI) {
       llvm::errs() << "Interpreter creation failed\n";
       return nullptr;
@@ -394,7 +426,7 @@ public:
 #endif
 
     return std::make_unique<Interpreter>(std::move(CI), std::move(io_ctx),
-                                         outOfProcess);
+                                         outOfProcess, deviceCI);
   }
 
   ~Interpreter() {
@@ -656,28 +688,10 @@ public:
   ///\param[in] Delim - Delimiter to separate paths or NULL if a single path
   ///
   void AddIncludePaths(llvm::StringRef PathsStr, const char* Delim = ":") {
-    const clang::CompilerInstance* CI = getCompilerInstance();
-    clang::HeaderSearchOptions& HOpts =
-        const_cast<clang::HeaderSearchOptions&>(CI->getHeaderSearchOpts());
-
-    // Save the current number of entries
-    size_t Idx = HOpts.UserEntries.size();
-    CppInternal::utils::AddIncludePaths(PathsStr, HOpts, Delim);
-
-    clang::Preprocessor& PP = CI->getPreprocessor();
-    clang::SourceManager& SM = PP.getSourceManager();
-    clang::FileManager& FM = SM.getFileManager();
-    clang::HeaderSearch& HSearch = PP.getHeaderSearchInfo();
-    const bool isFramework = false;
-
-    // Add all the new entries into Preprocessor
-    for (const size_t N = HOpts.UserEntries.size(); Idx < N; ++Idx) {
-      const clang::HeaderSearchOptions::Entry& E = HOpts.UserEntries[Idx];
-      if (auto DE = FM.getOptionalDirectoryRef(E.Path))
-        HSearch.AddSearchPath(
-            clang::DirectoryLookup(*DE, clang::SrcMgr::C_User, isFramework),
-            E.Group == clang::frontend::Angled);
-    }
+    AddIncludePathsToCI(PathsStr, inner->getCompilerInstance(), Delim);
+    // The device-side instance resolves headers through its own HeaderSearch.
+    if (deviceCI)
+      AddIncludePathsToCI(PathsStr, deviceCI, Delim);
   }
 
   ///\brief Adds a single include path (-I).
