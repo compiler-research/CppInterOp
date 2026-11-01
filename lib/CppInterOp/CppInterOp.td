@@ -275,7 +275,9 @@ calling dlopen.
 }
 
 def ObjToString : CppInterOpAPI {
-  let Doc = "Tries to load provided objects in a string format (prettyprint).";
+  let Doc = [{Tries to load provided objects in a string format (prettyprint).
+Returns an empty string if the object has no string representation. This is
+always the case with clang-repl, which does not implement it yet.}];
 
   let ReturnType = "std::string";
   let Args = [
