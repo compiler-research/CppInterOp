@@ -340,8 +340,8 @@ To do this on Ubuntu x86 execute the following
    export PATH="$PWD:$PATH"
    cd -
 
-   wget https://ftp.mozilla.org/pub/firefox/releases/138.0.1/linux-x86_64/en-GB/firefox-138.0.1.tar.xz
-   tar -xJf firefox-138.0.1.tar.xz
+   wget https://ftp.mozilla.org/pub/firefox/releases/159.0/linux-x86_64/en-GB/firefox-159.0.tar.xz
+   tar -xJf firefox-159.0.tar.xz
    cd ./firefox
    export PATH="$PWD:$PATH"
    cd -
@@ -360,8 +360,8 @@ so we currently only run the tests using Firefox on this platform, unlike other 
 
 .. code:: bash
 
-   wget https://ftp.mozilla.org/pub/firefox/releases/138.0.1/linux-aarch64/en-GB/firefox-138.0.1.tar.xz
-   tar -xJf firefox-138.0.1.tar.xz
+   wget https://ftp.mozilla.org/pub/firefox/releases/159.0/linux-aarch64/en-GB/firefox-159.0.tar.xz
+   tar -xJf firefox-159.0.tar.xz
    cd ./firefox
    export PATH="$PWD:$PATH"
    cd -
@@ -375,7 +375,7 @@ To do this on Windows x86 execute the following
 
 .. code:: powershell
 
-   Invoke-WebRequest -Uri "https://commondatastorage.googleapis.com/chromium-browser-snapshots/Win/1411573/chrome-win.zip" -OutFile "$PWD\chrome-win.zip" -Verbose
+   Invoke-WebRequest -Uri "https://commondatastorage.googleapis.com/chromium-browser-snapshots/Win/1732565/chrome-win.zip" -OutFile "$PWD\chrome-win.zip" -Verbose
    Expand-Archive -Path "$PWD\chrome-win.zip" -DestinationPath "$PWD" -Force -Verbose
    Invoke-WebRequest -Uri "https://download.mozilla.org/?product=firefox-latest-ssl&os=win64&lang=en-US" -OutFile "firefox-setup.exe" -Verbose
    & "C:\Program Files\7-Zip\7z.exe" x "firefox-setup.exe"
