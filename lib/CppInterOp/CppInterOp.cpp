@@ -3789,16 +3789,34 @@ intptr_t GetVariableOffset(compat::Interpreter& I, Decl* D,
     void* address = llvm::sys::DynamicLibrary::SearchForAddressOfSymbol(
         mangledName.c_str());
 
+    // Instantiate an available inline definition before a lookup can invoke
+    // the library autoloader. Leave externally supplied template variables
+    // on the normal lookup path, including explicit instantiation declarations.
+    if (!address && !VD->hasInit()) {
+      if (VarDecl* Def = VD->getDefinition(); Def && Def->hasInit()) {
+        VD = Def;
+      } else if (VarDecl* Pattern = VD->getTemplateInstantiationPattern()) {
+        const VarDecl* PatternDef = Pattern->getDefinition();
+        if (PatternDef &&
+            (PatternDef->isInline() || PatternDef->isConstexpr()) &&
+            VD->getTemplateSpecializationKindForInstantiation() !=
+                TSK_ExplicitInstantiationDeclaration) {
+          {
+            compat::SynthesizingCodeRAII RAII(&I);
+            I.getSema().InstantiateVariableDefinition(SourceLocation(), VD);
+          }
+          if (VarDecl* Def = VD->getDefinition())
+            VD = Def;
+        }
+      }
+    }
+
     // A const variable whose constant initializer is in the AST: serve the
     // evaluated value before the JIT lookup. This must stay *after* the
     // search in the loaded binaries above: a symbol that a binary does
     // export keeps its real address. A missed lookup falls through to the
     // symbol autoloader, which scans and parses every library on the
-    // search path (over a thousand file opens with ROOT, ~0.5 s), only to
-    // end up in the evaluate fallback below anyway: in-class initialized
-    // static members like TString::kNPOS are exported by no binary. Unlike
-    // that fallback, don't instantiate templates here, so no Sema work is
-    // added for variables the lookup would have found.
+    // search path, even for members that can be resolved from the AST.
     if (!address) {
       const VarDecl* InitVD = VD->hasInit() ? VD : VD->getDefinition();
       if (InitVD && InitVD->hasInit() &&
@@ -3815,6 +3833,16 @@ intptr_t GetVariableOffset(compat::Interpreter& I, Decl* D,
       }
     }
 
+    // Non-integral constexpr members (e.g. std::string_view) need real
+    // storage. Emit an available discardable-ODR definition before asking
+    // the JIT for its address, rather than searching libraries for a symbol
+    // whose definition is still deferred. The helper's transaction must
+    // commit before the lookup below.
+    bool EmittedBeforeLookup = false;
+    if (!address && VD->getDefinition() &&
+        C.GetGVALinkageForVariable(VD) == GVA_DiscardableODR)
+      EmittedBeforeLookup = EmitVariableViaOdrUse(I, VD);
+
     if (!address)
       address = I.getAddressOfGlobal(GD);
     if (!address) {
@@ -3829,8 +3857,8 @@ intptr_t GetVariableOffset(compat::Interpreter& I, Decl* D,
         if (VarDecl* Def = VD->getDefinition()) {
           VD = Def;
         } else if (VD->getTemplateInstantiationPattern()) {
-          compat::SynthesizingCodeRAII RAII(&getInterp());
-          getSema().InstantiateVariableDefinition(SourceLocation(), VD);
+          compat::SynthesizingCodeRAII RAII(&I);
+          I.getSema().InstantiateVariableDefinition(SourceLocation(), VD);
           if (VarDecl* Inst = VD->getDefinition())
             VD = Inst;
         }
@@ -3844,7 +3872,7 @@ intptr_t GetVariableOffset(compat::Interpreter& I, Decl* D,
         }
       }
     }
-    if (!address) {
+    if (!address && !EmittedBeforeLookup) {
       auto Linkage = C.GetGVALinkageForVariable(VD);
       // Odr-use emission only for discardable-ODR entities (inline/constexpr
       // statics) — the class the used-list crash traced to. Internal-linkage

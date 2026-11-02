@@ -11,6 +11,7 @@
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Sema/Sema.h"
 
+#include "llvm/ExecutionEngine/Orc/LLJIT.h"
 #include "llvm/Support/Error.h"
 
 #include "gtest/gtest.h"
@@ -18,6 +19,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
@@ -474,6 +476,85 @@ TYPED_TEST(CPPINTEROP_TEST_MODE,
   EXPECT_EQ(Cpp::GetEnumConstantValue(Cpp::GetNamed("kS1", Cpp::GetNamed("InClassScopedEnum"))), -3);
   // NOLINTEND(cppcoreguidelines-pro-type-reinterpret-cast,
   //           performance-no-int-to-ptr)
+}
+
+TYPED_TEST(CPPINTEROP_TEST_MODE,
+           VariableReflection_GetVariableOffset_ConstexprTemplateNoAutoload) {
+#ifdef __EMSCRIPTEN__
+  GTEST_SKIP() << "This test observes native ORC symbol lookup";
+#endif
+  TestFixture::CreateInterpreter({"-std=c++17"});
+  ASSERT_EQ(Cpp::Declare(R"(
+    #include <string_view>
+    template <class T> struct TemplateProbe {
+      static constexpr std::string_view typeName = "TemplateProbe";
+    };
+    template <class T> struct OutOfLineTemplateProbe {
+      static constexpr std::string_view typeName = "TemplateProbe";
+    };
+    template <class T>
+    constexpr std::string_view OutOfLineTemplateProbe<T>::typeName;
+  )"),
+            0);
+
+  // Returning the right value is insufficient: a failed lookup can first
+  // invoke ROOT's autoloader and scan every library on its search path.
+  class MemberLookupRecorder final : public llvm::orc::DefinitionGenerator {
+    llvm::orc::SymbolStringPtr Symbol;
+
+  public:
+    unsigned Misses = 0;
+    explicit MemberLookupRecorder(llvm::orc::SymbolStringPtr Symbol)
+        : Symbol(std::move(Symbol)) {}
+
+    llvm::Error
+    tryToGenerate(llvm::orc::LookupState&, llvm::orc::LookupKind,
+                  llvm::orc::JITDylib&, llvm::orc::JITDylibLookupFlags,
+                  const llvm::orc::SymbolLookupSet& Symbols) override {
+      for (const auto& Entry : Symbols)
+        if (Entry.first == Symbol)
+          ++Misses;
+      return llvm::Error::success();
+    }
+  };
+
+  auto* Jit = compat::getExecutionEngine(*Interp);
+  ASSERT_TRUE(Jit);
+  for (const char* Name : {"TemplateProbe", "OutOfLineTemplateProbe"}) {
+    SCOPED_TRACE(Name);
+    Cpp::DeclRef Tmpl = Cpp::GetNamed(Name);
+    ASSERT_TRUE(Tmpl);
+    std::vector<Cpp::TemplateArgInfo> Args = {
+        {Interp->getCI()->getASTContext().IntTy.getAsOpaquePtr()}};
+    Cpp::DeclRef Klass = Cpp::InstantiateTemplate(Tmpl, Args);
+    ASSERT_TRUE(Klass);
+    Cpp::DeclRef Member = Cpp::GetNamed("typeName", Klass);
+    ASSERT_TRUE(Member);
+
+    std::string MangledName;
+    compat::maybeMangleDeclName(GlobalDecl(Cpp::unwrap<VarDecl>(Member)),
+                                MangledName);
+    auto& Recorder = Jit->getMainJITDylib().addGenerator(
+        std::make_unique<MemberLookupRecorder>(
+            Jit->mangleAndIntern(MangledName)));
+    intptr_t Address = Cpp::GetVariableOffset(Member);
+    ASSERT_NE(Address, 0);
+    EXPECT_EQ(Recorder.Misses, 0u);
+    EXPECT_EQ(Cpp::GetVariableOffset(Member), Address);
+    EXPECT_EQ(Recorder.Misses, 0u);
+
+    EXPECT_FALSE(Cpp::unwrap<Decl>(Member)->hasAttr<clang::UsedAttr>());
+    if (TypeParam::isOutOfProcess)
+      continue;
+
+    std::string QualifiedName = std::string(Name) + "<int>::typeName";
+    EXPECT_TRUE(Cpp::Evaluate((QualifiedName + " == \"TemplateProbe\"").c_str())
+                    .unbox<bool>());
+    EXPECT_TRUE(Cpp::Evaluate(("(__INTPTR_TYPE__)&" + QualifiedName +
+                               " == " + std::to_string(Address))
+                                  .c_str())
+                    .unbox<bool>());
+  }
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE,
