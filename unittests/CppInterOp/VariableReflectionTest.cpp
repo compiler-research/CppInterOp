@@ -866,6 +866,11 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, VariableReflection_VariableOffsetsWithInheritan
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, VariableReflection_IsPublicVariable) {
+#ifdef EMSCRIPTEN_ON_WINDOWS
+  GTEST_SKIP()
+      << "Test crashes Windows Emscripten ci job due to lack of memory "
+         "when running tests in Firefox";
+#endif
   std::vector<Decl *> Decls, SubDecls;
   std::string code = R"(
     class C {
