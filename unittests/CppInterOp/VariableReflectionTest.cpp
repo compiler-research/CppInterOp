@@ -1,5 +1,6 @@
 #include "Utils.h"
 
+#include "../../lib/CppInterOp/Compatibility.h"
 #include "../../lib/CppInterOp/Unwrap.h"
 
 #include "CppInterOp/CppInterOp.h"
@@ -7,12 +8,19 @@
 
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/Attr.h"
-#include "clang/Basic/Version.h"
+#include "clang/AST/Decl.h"
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Sema/Sema.h"
 
+#include "llvm/ExecutionEngine/Orc/Core.h"
 #include "llvm/ExecutionEngine/Orc/LLJIT.h"
+#include "llvm/ExecutionEngine/Orc/SymbolStringPool.h"
 #include "llvm/Support/Error.h"
+
+// Newer LLVM versions split SymbolLookupSet out of Core.h.
+#if __has_include("llvm/ExecutionEngine/Orc/SymbolLookupSet.h")
+#include "llvm/ExecutionEngine/Orc/SymbolLookupSet.h"
+#endif
 
 #include "gtest/gtest.h"
 
@@ -501,11 +509,13 @@ TYPED_TEST(CPPINTEROP_TEST_MODE,
   // invoke ROOT's autoloader and scan every library on its search path.
   class MemberLookupRecorder final : public llvm::orc::DefinitionGenerator {
     llvm::orc::SymbolStringPtr Symbol;
+    unsigned Misses = 0;
 
   public:
-    unsigned Misses = 0;
     explicit MemberLookupRecorder(llvm::orc::SymbolStringPtr Symbol)
         : Symbol(std::move(Symbol)) {}
+
+    [[nodiscard]] unsigned getMisses() const { return Misses; }
 
     llvm::Error
     tryToGenerate(llvm::orc::LookupState&, llvm::orc::LookupKind,
@@ -525,7 +535,8 @@ TYPED_TEST(CPPINTEROP_TEST_MODE,
     Cpp::DeclRef Tmpl = Cpp::GetNamed(Name);
     ASSERT_TRUE(Tmpl);
     std::vector<Cpp::TemplateArgInfo> Args = {
-        {Interp->getCI()->getASTContext().IntTy.getAsOpaquePtr()}};
+        {Interp->getCI()->getASTContext().IntTy.getAsOpaquePtr()},
+    };
     Cpp::DeclRef Klass = Cpp::InstantiateTemplate(Tmpl, Args);
     ASSERT_TRUE(Klass);
     Cpp::DeclRef Member = Cpp::GetNamed("typeName", Klass);
@@ -539,9 +550,9 @@ TYPED_TEST(CPPINTEROP_TEST_MODE,
             Jit->mangleAndIntern(MangledName)));
     intptr_t Address = Cpp::GetVariableOffset(Member);
     ASSERT_NE(Address, 0);
-    EXPECT_EQ(Recorder.Misses, 0u);
+    EXPECT_EQ(Recorder.getMisses(), 0U);
     EXPECT_EQ(Cpp::GetVariableOffset(Member), Address);
-    EXPECT_EQ(Recorder.Misses, 0u);
+    EXPECT_EQ(Recorder.getMisses(), 0U);
 
     EXPECT_FALSE(Cpp::unwrap<Decl>(Member)->hasAttr<clang::UsedAttr>());
     if (TypeParam::isOutOfProcess)
