@@ -749,11 +749,10 @@ public:
     }
   }
 
-  std::string toString(const char* type, void* obj) {
-    assert(0 && "toString is not implemented!");
-    std::string ret;
-    return ret; // TODO: Implement
-  }
+  // FIXME: Implement on top of clang-repl's value printer once it supports
+  // user-defined types. Until then report "no representation" with an empty
+  // string, the same way in every build, so callers can fall back.
+  std::string toString(const char* /*type*/, void* /*obj*/) { return {}; }
 
   CompilationResult undo(unsigned N = 1) {
     if (llvm::Error Err = Undo(N)) {

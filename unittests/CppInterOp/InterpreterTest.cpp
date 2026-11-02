@@ -753,6 +753,18 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_DeclareReportsParseErrors) {
                             /*silent=*/false));
 }
 
+TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_ObjToString) {
+  TestFixture::CreateInterpreter();
+
+  int Value = 42;
+#ifdef CPPINTEROP_USE_CLING
+  EXPECT_FALSE(Cpp::ObjToString("int", &Value).empty());
+#else
+  // Not implemented for clang-repl: an empty string, not an abort.
+  EXPECT_EQ(Cpp::ObjToString("int", &Value), "");
+#endif
+}
+
 TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_EmscriptenExceptionHandling) {
 #ifndef __EMSCRIPTEN__
   GTEST_SKIP() << "This test is intended to check exception handling for Emscripten builds.";
