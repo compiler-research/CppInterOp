@@ -47,6 +47,7 @@ int capi_c_test_main(void) {
   (void)&cppinterop_GetEnums;
   (void)&cppinterop_DisposeStringArray;
   (void)&cppinterop_InstantiateTemplate;
+  (void)&cppinterop_HasAttribute;
   (void)&cppinterop_HasTypeQualifier;
   (void)&cppinterop_GetLanguage;
   (void)&cppinterop_GetBaseClassOffset;
