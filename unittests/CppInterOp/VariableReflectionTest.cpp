@@ -496,9 +496,13 @@ TYPED_TEST(CPPINTEROP_TEST_MODE,
     #include <string_view>
     template <class T> struct TemplateProbe {
       static constexpr std::string_view typeName = "TemplateProbe";
+      static constexpr int unused = sizeof(typename T::missing);
+      void unusedMethod() { typename T::missing value; }
     };
     template <class T> struct OutOfLineTemplateProbe {
       static constexpr std::string_view typeName = "TemplateProbe";
+      static constexpr int unused = sizeof(typename T::missing);
+      void unusedMethod() { typename T::missing value; }
     };
     template <class T>
     constexpr std::string_view OutOfLineTemplateProbe<T>::typeName;
@@ -530,6 +534,12 @@ TYPED_TEST(CPPINTEROP_TEST_MODE,
 
   auto* Jit = compat::getExecutionEngine(*Interp);
   ASSERT_TRUE(Jit);
+  auto CountAnchors = [] {
+    unsigned Count = 0;
+    while (Cpp::GetNamed("__cppinterop_odr_use_v" + std::to_string(Count)))
+      ++Count;
+    return Count;
+  };
   for (const char* Name : {"TemplateProbe", "OutOfLineTemplateProbe"}) {
     SCOPED_TRACE(Name);
     Cpp::DeclRef Tmpl = Cpp::GetNamed(Name);
@@ -551,8 +561,16 @@ TYPED_TEST(CPPINTEROP_TEST_MODE,
     intptr_t Address = Cpp::GetVariableOffset(Member);
     ASSERT_NE(Address, 0);
     EXPECT_EQ(Recorder.getMisses(), 0U);
+    const unsigned Anchors = CountAnchors();
     EXPECT_EQ(Cpp::GetVariableOffset(Member), Address);
     EXPECT_EQ(Recorder.getMisses(), 0U);
+    EXPECT_EQ(CountAnchors(), Anchors);
+
+    // Taking this member's address must not instantiate the other, deliberately
+    // ill-formed member definitions, just as in compiled C++.
+    Cpp::DeclRef Unused = Cpp::GetNamed("unused", Klass);
+    ASSERT_TRUE(Unused);
+    EXPECT_FALSE(Cpp::unwrap<VarDecl>(Unused)->hasInit());
 
     EXPECT_FALSE(Cpp::unwrap<Decl>(Member)->hasAttr<clang::UsedAttr>());
     if (TypeParam::isOutOfProcess)
@@ -566,6 +584,34 @@ TYPED_TEST(CPPINTEROP_TEST_MODE,
                                   .c_str())
                     .unbox<bool>());
   }
+}
+
+TYPED_TEST(CPPINTEROP_TEST_MODE,
+           VariableReflection_GetVariableOffset_OdrUseAfterUndo) {
+#ifdef __EMSCRIPTEN__
+  GTEST_SKIP() << "This test requires native JIT module removal";
+#endif
+  TestFixture::CreateInterpreter({"-std=c++17"});
+  ASSERT_EQ(Cpp::Declare(R"(
+    #include <string_view>
+    struct UndoProbe {
+      inline static const std::string_view name = "UndoProbe";
+    };
+  )"),
+            0);
+  Cpp::DeclRef Klass = Cpp::GetNamed("UndoProbe");
+  ASSERT_TRUE(Klass);
+  Cpp::DeclRef Member = Cpp::GetNamed("name", Klass);
+  ASSERT_TRUE(Member);
+  ASSERT_NE(Cpp::GetVariableOffset(Member), 0);
+  ASSERT_EQ(Cpp::Undo(), 0);
+  intptr_t Address = Cpp::GetVariableOffset(Member);
+  ASSERT_NE(Address, 0);
+  if (!TypeParam::isOutOfProcess)
+    EXPECT_TRUE(Cpp::Evaluate(("(__INTPTR_TYPE__)&UndoProbe::name == " +
+                               std::to_string(Address))
+                                  .c_str())
+                    .unbox<bool>());
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE,

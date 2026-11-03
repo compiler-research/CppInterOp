@@ -3792,6 +3792,8 @@ intptr_t GetVariableOffset(compat::Interpreter& I, Decl* D,
     // Instantiate an available inline definition before a lookup can invoke
     // the library autoloader. Leave externally supplied template variables
     // on the normal lookup path, including explicit instantiation declarations.
+    // This address request odr-uses this member, not the other member
+    // definitions.
     if (!address && !VD->hasInit()) {
       if (VarDecl* Def = VD->getDefinition(); Def && Def->hasInit()) {
         VD = Def;
@@ -3840,6 +3842,8 @@ intptr_t GetVariableOffset(compat::Interpreter& I, Decl* D,
     // commit before the lookup below.
     bool EmittedBeforeLookup = false;
     if (!address && VD->getDefinition() &&
+        !getInterpInfo(&I).MaterializedODRVariables.contains(
+            VD->getCanonicalDecl()) &&
         C.GetGVALinkageForVariable(VD) == GVA_DiscardableODR)
       EmittedBeforeLookup = EmitVariableViaOdrUse(I, VD);
 
@@ -3890,6 +3894,8 @@ intptr_t GetVariableOffset(compat::Interpreter& I, Decl* D,
                                   "Failed to GetVariableOffset:");
       return 0;
     }
+    if (EmittedBeforeLookup)
+      getInterpInfo(&I).MaterializedODRVariables.insert(VD->getCanonicalDecl());
     return (intptr_t)jitTargetAddressToPointer<void*>(VDAorErr.get());
   }
 
@@ -7049,6 +7055,7 @@ void CodeComplete(std::vector<std::string>& Results, const char* code,
 int Undo(unsigned N) {
   INTEROP_TRACE(N);
   compat::SynthesizingCodeRAII RAII(&getInterp());
+  getInterpInfo().MaterializedODRVariables.clear();
 #ifdef CPPINTEROP_USE_CLING
   getInterp().unload(N);
   return INTEROP_RETURN(compat::Interpreter::kSuccess);

@@ -23,6 +23,7 @@
 #include "clang/AST/Type.h"
 
 #include "llvm/ADT/DenseMap.h"
+#include "llvm/ADT/DenseSet.h"
 #include "llvm/ADT/StringMap.h"
 
 #include <cstdint>
@@ -57,6 +58,9 @@ struct InterpreterInfo {
   // per-interpreter so a fresh interpreter's AST does not depend on
   // sibling interpreters' query history.
   unsigned OdrUseCounter = 0;
+  // Definitions successfully emitted before GetVariableOffset's first lookup.
+  // Clear on undo so a removed JIT definition can be materialized again.
+  llvm::DenseSet<const clang::VarDecl*> MaterializedODRVariables;
 
   InterpreterInfo(compat::Interpreter* I, bool Owned,
                   std::vector<std::string> ArgvStrs = {})
@@ -65,7 +69,8 @@ struct InterpreterInfo {
   InterpreterInfo(InterpreterInfo&& Other) noexcept
       : Interpreter(Other.Interpreter), isOwned(Other.isOwned),
         ArgvStorage(std::move(Other.ArgvStorage)),
-        OdrUseCounter(Other.OdrUseCounter) {
+        OdrUseCounter(Other.OdrUseCounter),
+        MaterializedODRVariables(std::move(Other.MaterializedODRVariables)) {
     Other.Interpreter = nullptr;
     Other.isOwned = false;
   }
@@ -77,6 +82,7 @@ struct InterpreterInfo {
       isOwned = Other.isOwned;
       ArgvStorage = std::move(Other.ArgvStorage);
       OdrUseCounter = Other.OdrUseCounter;
+      MaterializedODRVariables = std::move(Other.MaterializedODRVariables);
       Other.Interpreter = nullptr;
       Other.isOwned = false;
     }
