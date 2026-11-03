@@ -404,6 +404,11 @@ TYPED_TEST(CPPINTEROP_TEST_MODE,
 
 TYPED_TEST(CPPINTEROP_TEST_MODE,
            VariableReflection_GetVariableOffset_InClassConstInit) {
+#ifdef EMSCRIPTEN_ON_WINDOWS
+  GTEST_SKIP()
+      << "Test crashes Windows Emscripten ci job due to lack of memory "
+         "when running tests in Firefox";
+#endif
   // External-linkage static members initialized in-class, which no binary
   // exports (TString::kNPOS is the in-the-wild shape). The value is served
   // from the evaluated initializer, without a JIT lookup that would fall
