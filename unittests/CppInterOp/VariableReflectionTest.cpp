@@ -607,11 +607,12 @@ TYPED_TEST(CPPINTEROP_TEST_MODE,
   ASSERT_EQ(Cpp::Undo(), 0);
   intptr_t Address = Cpp::GetVariableOffset(Member);
   ASSERT_NE(Address, 0);
-  if (!TypeParam::isOutOfProcess)
+  if (!TypeParam::isOutOfProcess) {
     EXPECT_TRUE(Cpp::Evaluate(("(__INTPTR_TYPE__)&UndoProbe::name == " +
                                std::to_string(Address))
                                   .c_str())
                     .unbox<bool>());
+  }
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE,
