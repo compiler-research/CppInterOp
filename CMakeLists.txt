@@ -34,9 +34,6 @@ endif()
 # Clad plugin options
 option(CPPINTEROP_ENABLE_CLAD "Enable the Clad automatic differentiation plugin." OFF)
 set(CLAD_BUILD_TYPE "Release" CACHE STRING "Build type for clad plugins")
-if(EMSCRIPTEN AND CPPINTEROP_ENABLE_CLAD)
-  message(FATAL_ERROR "CPPINTEROP_ENABLE_CLAD is not supported for Emscripten builds yet.")
-endif()
 
 if (CPPINTEROP_USE_CLING AND CPPINTEROP_USE_REPL)
 message(FATAL_ERROR "We can only use Cling (${CPPINTEROP_USE_CLING}=On) or Repl (CPPINTEROP_USE_REPL=On), but not both of them.")
