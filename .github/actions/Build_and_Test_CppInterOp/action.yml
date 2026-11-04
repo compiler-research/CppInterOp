@@ -505,11 +505,7 @@ runs:
                 ../
         fi
         os="${{ matrix.os }}"
-        if [[ "${os}" != macos* ]] ; then
-          EMCC_CORES=1 emmake ninja -j 1 check-cppinterop
-        else
-          emmake ninja -j ${{ env.ncpus }} check-cppinterop
-        fi
+        EMCC_CORES=1 emmake ninja -j 1 check-cppinterop
         cd ./unittests/CppInterOp/
         os="${{ matrix.os }}"
         if [[ "${os}" == "macos"* ]]; then
