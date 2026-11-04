@@ -1,5 +1,6 @@
 #include "Utils.h"
 
+#include "../../lib/CppInterOp/Compatibility.h"
 #include "../../lib/CppInterOp/Unwrap.h"
 
 #include "CppInterOp/CppInterOp.h"
@@ -7,17 +8,26 @@
 
 #include "clang/AST/ASTContext.h"
 #include "clang/AST/Attr.h"
-#include "clang/Basic/Version.h"
+#include "clang/AST/Decl.h"
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Sema/Sema.h"
 
+#include "llvm/ExecutionEngine/Orc/Core.h"
+#include "llvm/ExecutionEngine/Orc/LLJIT.h"
+#include "llvm/ExecutionEngine/Orc/SymbolStringPool.h"
 #include "llvm/Support/Error.h"
+
+// Newer LLVM versions split SymbolLookupSet out of Core.h.
+#if __has_include("llvm/ExecutionEngine/Orc/SymbolLookupSet.h")
+#include "llvm/ExecutionEngine/Orc/SymbolLookupSet.h"
+#endif
 
 #include "gtest/gtest.h"
 
 #include <array>
 #include <cstddef>
 #include <cstdint>
+#include <memory>
 #include <string>
 #include <utility>
 #include <vector>
@@ -394,6 +404,11 @@ TYPED_TEST(CPPINTEROP_TEST_MODE,
 
 TYPED_TEST(CPPINTEROP_TEST_MODE,
            VariableReflection_GetVariableOffset_InClassConstInit) {
+#ifdef EMSCRIPTEN_ON_WINDOWS
+  GTEST_SKIP()
+      << "Test crashes Windows Emscripten ci job due to lack of memory "
+         "when running tests in Firefox";
+#endif
   // External-linkage static members initialized in-class, which no binary
   // exports (TString::kNPOS is the in-the-wild shape). The value is served
   // from the evaluated initializer, without a JIT lookup that would fall
@@ -474,6 +489,135 @@ TYPED_TEST(CPPINTEROP_TEST_MODE,
   EXPECT_EQ(Cpp::GetEnumConstantValue(Cpp::GetNamed("kS1", Cpp::GetNamed("InClassScopedEnum"))), -3);
   // NOLINTEND(cppcoreguidelines-pro-type-reinterpret-cast,
   //           performance-no-int-to-ptr)
+}
+
+TYPED_TEST(CPPINTEROP_TEST_MODE,
+           VariableReflection_GetVariableOffset_ConstexprTemplateNoAutoload) {
+#ifdef __EMSCRIPTEN__
+  GTEST_SKIP() << "This test observes native ORC symbol lookup";
+#endif
+  TestFixture::CreateInterpreter({"-std=c++17"});
+  ASSERT_EQ(Cpp::Declare(R"(
+    #include <string_view>
+    template <class T> struct TemplateProbe {
+      static constexpr std::string_view typeName = "TemplateProbe";
+      static constexpr int unused = sizeof(typename T::missing);
+      void unusedMethod() { typename T::missing value; }
+    };
+    template <class T> struct OutOfLineTemplateProbe {
+      static constexpr std::string_view typeName = "TemplateProbe";
+      static constexpr int unused = sizeof(typename T::missing);
+      void unusedMethod() { typename T::missing value; }
+    };
+    template <class T>
+    constexpr std::string_view OutOfLineTemplateProbe<T>::typeName;
+  )"),
+            0);
+
+  // Returning the right value is insufficient: a failed lookup can first
+  // invoke ROOT's autoloader and scan every library on its search path.
+  class MemberLookupRecorder final : public llvm::orc::DefinitionGenerator {
+    llvm::orc::SymbolStringPtr Symbol;
+    unsigned Misses = 0;
+
+  public:
+    explicit MemberLookupRecorder(llvm::orc::SymbolStringPtr Symbol)
+        : Symbol(std::move(Symbol)) {}
+
+    [[nodiscard]] unsigned getMisses() const { return Misses; }
+
+    llvm::Error
+    tryToGenerate(llvm::orc::LookupState&, llvm::orc::LookupKind,
+                  llvm::orc::JITDylib&, llvm::orc::JITDylibLookupFlags,
+                  const llvm::orc::SymbolLookupSet& Symbols) override {
+      for (const auto& Entry : Symbols)
+        if (Entry.first == Symbol)
+          ++Misses;
+      return llvm::Error::success();
+    }
+  };
+
+  auto* Jit = compat::getExecutionEngine(*Interp);
+  ASSERT_TRUE(Jit);
+  auto CountAnchors = [] {
+    unsigned Count = 0;
+    while (Cpp::GetNamed("__cppinterop_odr_use_v" + std::to_string(Count)))
+      ++Count;
+    return Count;
+  };
+  for (const char* Name : {"TemplateProbe", "OutOfLineTemplateProbe"}) {
+    SCOPED_TRACE(Name);
+    Cpp::DeclRef Tmpl = Cpp::GetNamed(Name);
+    ASSERT_TRUE(Tmpl);
+    std::vector<Cpp::TemplateArgInfo> Args = {
+        {Interp->getCI()->getASTContext().IntTy.getAsOpaquePtr()},
+    };
+    Cpp::DeclRef Klass = Cpp::InstantiateTemplate(Tmpl, Args);
+    ASSERT_TRUE(Klass);
+    Cpp::DeclRef Member = Cpp::GetNamed("typeName", Klass);
+    ASSERT_TRUE(Member);
+
+    std::string MangledName;
+    compat::maybeMangleDeclName(GlobalDecl(Cpp::unwrap<VarDecl>(Member)),
+                                MangledName);
+    auto& Recorder = Jit->getMainJITDylib().addGenerator(
+        std::make_unique<MemberLookupRecorder>(
+            Jit->mangleAndIntern(MangledName)));
+    intptr_t Address = Cpp::GetVariableOffset(Member);
+    ASSERT_NE(Address, 0);
+    EXPECT_EQ(Recorder.getMisses(), 0U);
+    const unsigned Anchors = CountAnchors();
+    EXPECT_EQ(Cpp::GetVariableOffset(Member), Address);
+    EXPECT_EQ(Recorder.getMisses(), 0U);
+    EXPECT_EQ(CountAnchors(), Anchors);
+
+    // Taking this member's address must not instantiate the other, deliberately
+    // ill-formed member definitions, just as in compiled C++.
+    Cpp::DeclRef Unused = Cpp::GetNamed("unused", Klass);
+    ASSERT_TRUE(Unused);
+    EXPECT_FALSE(Cpp::unwrap<VarDecl>(Unused)->hasInit());
+
+    EXPECT_FALSE(Cpp::unwrap<Decl>(Member)->hasAttr<clang::UsedAttr>());
+    if (TypeParam::isOutOfProcess)
+      continue;
+
+    std::string QualifiedName = std::string(Name) + "<int>::typeName";
+    EXPECT_TRUE(Cpp::Evaluate((QualifiedName + " == \"TemplateProbe\"").c_str())
+                    .unbox<bool>());
+    EXPECT_TRUE(Cpp::Evaluate(("(__INTPTR_TYPE__)&" + QualifiedName +
+                               " == " + std::to_string(Address))
+                                  .c_str())
+                    .unbox<bool>());
+  }
+}
+
+TYPED_TEST(CPPINTEROP_TEST_MODE,
+           VariableReflection_GetVariableOffset_OdrUseAfterUndo) {
+#ifdef __EMSCRIPTEN__
+  GTEST_SKIP() << "This test requires native JIT module removal";
+#endif
+  TestFixture::CreateInterpreter({"-std=c++17"});
+  ASSERT_EQ(Cpp::Declare(R"(
+    #include <string_view>
+    struct UndoProbe {
+      inline static const std::string_view name = "UndoProbe";
+    };
+  )"),
+            0);
+  Cpp::DeclRef Klass = Cpp::GetNamed("UndoProbe");
+  ASSERT_TRUE(Klass);
+  Cpp::DeclRef Member = Cpp::GetNamed("name", Klass);
+  ASSERT_TRUE(Member);
+  ASSERT_NE(Cpp::GetVariableOffset(Member), 0);
+  ASSERT_EQ(Cpp::Undo(), 0);
+  intptr_t Address = Cpp::GetVariableOffset(Member);
+  ASSERT_NE(Address, 0);
+  if (!TypeParam::isOutOfProcess) {
+    EXPECT_TRUE(Cpp::Evaluate(("(__INTPTR_TYPE__)&UndoProbe::name == " +
+                               std::to_string(Address))
+                                  .c_str())
+                    .unbox<bool>());
+  }
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE,
@@ -774,6 +918,11 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, VariableReflection_VariableOffsetsWithInheritan
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, VariableReflection_IsPublicVariable) {
+#ifdef EMSCRIPTEN_ON_WINDOWS
+  GTEST_SKIP()
+      << "Test crashes Windows Emscripten ci job due to lack of memory "
+         "when running tests in Firefox";
+#endif
   std::vector<Decl *> Decls, SubDecls;
   std::string code = R"(
     class C {
