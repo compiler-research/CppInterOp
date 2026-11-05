@@ -36,7 +36,13 @@ infrastructure are described first.
 
 ## Incremental C++
 
--
+- A failed `Declare`, `Process` or `Evaluate` withdraws its inputs, also when
+  it fails to link or to run. A module that cannot link no longer breaks the
+  inputs after it.
+- New `GetInputCount` gives a checkpoint for `Undo`.
+- A failed input or an undo also rolls back implicit instantiations, macros,
+  include state, namespace members and replaced redeclarations. See
+  [Undo and failed inputs](UndoAndFailedInputs.rst).
 
 ## Misc
 
