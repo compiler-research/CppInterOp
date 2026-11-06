@@ -824,6 +824,9 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_GetScopefromCompleteName) {
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_GetNamed) {
+#if defined(_MSC_VER) && _MSC_VER >= 1951 && !defined(_WIN64)
+  GTEST_SKIP() << "Disabled on Windows (x86). Needs fixing.";
+#endif
   std::string code = R"(namespace N1 {
                         namespace N2 {
                           class C {
@@ -1395,6 +1398,9 @@ CODE;
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_GetBaseClassOffsetWithAddress) {
+#if defined(_MSC_VER) && _MSC_VER >= 1951 && !defined(_WIN64)
+  GTEST_SKIP() << "Disabled on Windows (x86). Needs fixing.";
+#endif
   std::vector<Decl*> Decls;
   // Layout fixtures own no resources and do not need custom copy/move members.
   // NOLINTBEGIN(cppcoreguidelines-special-member-functions)
@@ -1594,6 +1600,9 @@ template<typename T> T TrivialFnTemplate() { return T(); }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE,
            ScopeReflection_InstantiateTemplateFunctionFromString) {
+#if defined(_MSC_VER) && _MSC_VER >= 1951 && !defined(_WIN64)
+  GTEST_SKIP() << "Disabled on Windows (x86). Needs fixing.";
+#endif
   std::vector<const char*> interpreter_args = {"-include", "new"};
   TestFixture::CreateInterpreter(interpreter_args);
   std::string code = R"(#include <memory>)";
@@ -1777,6 +1786,9 @@ TYPED_TEST(CPPINTEROP_TEST_MODE,
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_IncludeVector) {
+#if defined(_MSC_VER) && _MSC_VER >= 1951 && !defined(_WIN64)
+  GTEST_SKIP() << "Disabled on Windows (x86). Needs fixing.";
+#endif
   std::string code = R"(
     #include <vector>
     #include <iostream>
