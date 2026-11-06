@@ -1699,6 +1699,23 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_InstantiateTemplate) {
   EXPECT_TRUE(TA4_1.getAsIntegral() == 3);
 }
 
+TYPED_TEST(CPPINTEROP_TEST_MODE,
+           ScopeReflection_InstantiateTemplateFailureKeepsInterpreterUsable) {
+  TestFixture::CreateInterpreter();
+  ASSERT_EQ(Cpp::Declare("template <unsigned N> struct Buf { int tag; };"), 0);
+  Cpp::DeclRef Buf = Cpp::GetNamed("Buf");
+  ASSERT_TRUE(Buf);
+
+  // A type argument for a non-type template parameter is an error.
+  std::vector<Cpp::TemplateArgInfo> args = {Cpp::GetType("int").data};
+  testing::internal::CaptureStderr();
+  EXPECT_FALSE(Cpp::InstantiateTemplate(Buf, args));
+  std::string err = testing::internal::GetCapturedStderr();
+  EXPECT_NE(err.find("non-type template parameter"), std::string::npos);
+
+  EXPECT_EQ(Cpp::Declare("int valid_after_failed_instantiation = 1;"), 0);
+}
+
 TYPED_TEST(CPPINTEROP_TEST_MODE, ScopeReflection_GetClassTemplateArgs) {
   std::vector<Decl*> Decls;
   std::string code = R"(

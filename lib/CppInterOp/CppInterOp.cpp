@@ -6416,6 +6416,8 @@ static Decl* InstantiateTemplate(TemplateDecl* TemplateD,
   // This is not right but we don't have a lot of options to choose from as a
   // template instantiation requires a valid source location.
   SourceLocation fakeLoc = GetValidSLoc(S);
+  // Errors from Sema calls outside an input would fail the next input.
+  compat::DiagnosticsEngineRAII DiagsRAII(S.getDiagnostics());
   if (auto* FunctionTemplate = dyn_cast<FunctionTemplateDecl>(TemplateD)) {
     FunctionDecl* Specialization = nullptr;
     clang::sema::TemplateDeductionInfo Info(fakeLoc);
