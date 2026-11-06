@@ -1660,6 +1660,12 @@ potentially mangled symbol name.}];
   ];
 }
 
+def GetInputCount : CppInterOpAPI {
+  let Doc = [{Returns the number of inputs the interpreter holds. Pass the
+difference to a later count to \\c Undo to return to that point.}];
+  let ReturnType = "size_t";
+}
+
 def Undo : CppInterOpAPI {
   let Doc = [{Reverts the last N operations performed by the interpreter.
 \\param[in] N The number of operations to undo. Defaults to 1.

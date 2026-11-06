@@ -25,5 +25,6 @@ C++ to simpler, more interactive languages like Python.
   reference
   tutorials
   DebuggingCppInterOp
+  UndoAndFailedInputs
   FAQ
   DevelopersDocumentation
