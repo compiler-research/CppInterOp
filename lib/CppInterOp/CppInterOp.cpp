@@ -71,6 +71,7 @@
 #include "clang/Basic/Specifiers.h"
 #include "clang/Basic/Version.h"
 #include "clang/Frontend/CompilerInstance.h"
+#include "clang/Frontend/TextDiagnosticPrinter.h"
 #include "clang/Interpreter/Interpreter.h"
 #include "clang/Sema/Lookup.h"
 #include "clang/Sema/Overload.h"
@@ -789,6 +790,46 @@ protected:
   std::unique_ptr<clang::DiagnosticConsumer> fOldOwnedClient;
   clang::IgnoringDiagConsumer fIgnoringClient;
 #endif
+};
+
+/// Renders the diagnostics emitted during its lifetime into a string, formatted
+/// as clang prints them (with source snippets and instantiation notes), instead
+/// of passing them to the installed consumer. Like clangSilent this keeps
+/// probing operations quiet, but the diagnostics remain available to report
+/// where appropriate.
+class clangCapture {
+public:
+  clangCapture(clang::DiagnosticsEngine& diag, const clang::LangOptions& LO,
+               const clang::Preprocessor* PP)
+      : fDiagEngine(diag), fOldClient(diag.getClient()),
+        fOldOwnedClient(diag.takeClient()), fStream(fText),
+        fPrinter(fStream, diag.getDiagnosticOptions()) {
+    // required to initialize the printer's internal clang::TextDiagnostic
+    fPrinter.BeginSourceFile(LO, PP);
+    fDiagEngine.setClient(&fPrinter, /*ShouldOwnClient=*/false);
+  }
+
+  ~clangCapture() {
+    fPrinter.EndSourceFile();
+    if (fOldOwnedClient)
+      fDiagEngine.setClient(fOldOwnedClient.release(),
+                            /*ShouldOwnClient=*/true);
+    else
+      fDiagEngine.setClient(fOldClient, /*ShouldOwnClient=*/false);
+  }
+
+  const std::string& str() {
+    fStream.flush();
+    return fText;
+  }
+
+private:
+  clang::DiagnosticsEngine& fDiagEngine;
+  clang::DiagnosticConsumer* fOldClient;
+  std::unique_ptr<clang::DiagnosticConsumer> fOldOwnedClient;
+  std::string fText;
+  llvm::raw_string_ostream fStream;
+  clang::TextDiagnosticPrinter fPrinter;
 };
 } // namespace
 
@@ -2941,6 +2982,15 @@ bool GetClassTemplatedMethods(const std::string& name, ConstDeclRef parent,
   return INTEROP_RETURN(!funcs.empty());
 }
 
+// Diagnostics from the instantiation of the body of the best match in the last
+// call to BestOverloadFunctionMatch on this thread
+static thread_local std::string LastOverloadMatchDiagnostics;
+
+std::string GetLastOverloadMatchDiagnostics() {
+  INTEROP_TRACE();
+  return INTEROP_RETURN(LastOverloadMatchDiagnostics);
+}
+
 // Adapted from inner workings of Sema::BuildCallExpr
 FuncRef
 BestOverloadFunctionMatch(const std::vector<FuncRef>& candidates,
@@ -2950,6 +3000,7 @@ BestOverloadFunctionMatch(const std::vector<FuncRef>& candidates,
                           bool is_operator /*= false*/) {
   INTEROP_TRACE(candidates, explicit_types, arg_types,
                 INTEROP_OUT(ambiguous_candidates), is_operator);
+  LastOverloadMatchDiagnostics.clear();
   auto& S = getSema();
   auto& C = S.getASTContext();
 
@@ -3058,6 +3109,46 @@ BestOverloadFunctionMatch(const std::vector<FuncRef>& candidates,
     for (const auto& i : Overloads) {
       if (i.Best)
         ambiguous_candidates.emplace_back(i.Function);
+    }
+  }
+
+  // If the winner is a not-yet-instantiated template specialization, force
+  // the instantiation of its body now, and reject the match if the body turns
+  // out to be ill-formed. Callers use this function to probe whether a valid
+  // instantiation exists, so an ill-formed body must surface as "no viable
+  // function" here rather than as a hard error when a call wrapper is compiled
+  // for it later. This mirrors cling's LookupHelper::overloadFunctionSelector.
+  // Note that probing with an expression-SFINAE helper instead is not
+  // equivalent: C++20 rewritten (reversed) operator candidates make
+  // comparisons like a member operator==(const Base&) ambiguous, which is a
+  // hard substitution failure in a SFINAE context but only a warning in a
+  // function body. DefinitionRequired stays false: a pattern without a body
+  // (defined in a library) is still a valid match.
+  // The body is ill-formed if any error occurred during its instantiation
+  // (including those of the templates it instantiates in turn), not only if
+  // the specialization itself was marked invalid: e.g. a failing static_assert
+  // or an error in a nested instantiation leaves the specialization valid, and
+  // accepting it would either run code that should not have compiled, or fail
+  // at link time for the missing nested definition. The diagnostics are
+  // captured rather than printed, and can be retrieved with
+  // GetLastOverloadMatchDiagnostics.
+  if (Result && Result->isTemplateInstantiation() && !Result->isDefined()) {
+    DiagnosticsEngine& Diags = S.getDiagnostics();
+    bool Failed;
+    {
+      clangCapture Capture(Diags, S.getLangOpts(), &S.getPreprocessor());
+      clang::DiagnosticErrorTrap ErrorTrap(Diags);
+      S.InstantiateFunctionDefinition(Loc, Result, /*Recursive=*/true);
+      Failed = Result->isInvalidDecl() || ErrorTrap.hasErrorOccurred();
+      LastOverloadMatchDiagnostics = Capture.str();
+    }
+    if (Failed) {
+      // Mark the specialization invalid, so that later lookups reject it as a
+      // substitution failure instead of finding it already defined.
+      Result->setInvalidDecl();
+      Diags.Reset(/*soft=*/true);
+      Diags.getClient()->clear();
+      Result = nullptr;
     }
   }
 
@@ -6426,6 +6517,11 @@ static Decl* InstantiateTemplate(TemplateDecl* TemplateD,
       // FIXME: Diagnose what happened.
       (void)Result;
     }
+    // Never hand out a specialization whose (attempted) instantiation turned
+    // out to be ill-formed, e.g. one rejected by BestOverloadFunctionMatch:
+    // any use of it, such as compiling a call wrapper, can only fail.
+    if (Specialization && Specialization->isInvalidDecl())
+      return nullptr;
     if (instantiate_body)
       InstantiateFunctionDefinition(Specialization);
     return Specialization;
