@@ -809,6 +809,11 @@ public:
     fDiagEngine.setClient(&fPrinter, /*ShouldOwnClient=*/false);
   }
 
+  clangCapture(const clangCapture&) = delete;
+  clangCapture& operator=(const clangCapture&) = delete;
+  clangCapture(clangCapture&&) = delete;
+  clangCapture& operator=(clangCapture&&) = delete;
+
   ~clangCapture() {
     fPrinter.EndSourceFile();
     if (fOldOwnedClient)
@@ -2984,6 +2989,7 @@ bool GetClassTemplatedMethods(const std::string& name, ConstDeclRef parent,
 
 // Diagnostics from the instantiation of the body of the best match in the last
 // call to BestOverloadFunctionMatch on this thread
+// NOLINTNEXTLINE(cppcoreguidelines-avoid-non-const-global-variables)
 static thread_local std::string LastOverloadMatchDiagnostics;
 
 std::string GetLastOverloadMatchDiagnostics() {

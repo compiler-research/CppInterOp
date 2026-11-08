@@ -4,6 +4,7 @@
 #include "../../lib/CppInterOp/Unwrap.h"
 
 #include "clang/AST/ASTContext.h"
+#include "clang/AST/DeclTemplate.h"
 #include "clang/AST/PrettyPrinter.h"
 #include "clang/Basic/Version.h"
 #include "clang/Frontend/CompilerInstance.h"
@@ -12,6 +13,7 @@
 #include <CppInterOp/CppInterOpTypes.h>
 #include <cstdint>
 #include <llvm/ADT/ArrayRef.h>
+#include <llvm/ADT/StringRef.h>
 #include <llvm/Support/Casting.h>
 #include <llvm/Support/raw_ostream.h>
 
@@ -3164,10 +3166,15 @@ TYPED_TEST(CPPINTEROP_TEST_MODE,
     static int get() { return T::missing; }
   };
   template <typename T> int nested_error(T) { return Nested<T>::get(); }
+  // the warning is enabled explicitly, since it is disabled by default in
+  // some configurations (e.g. cling on Windows)
+  #pragma clang diagnostic push
+  #pragma clang diagnostic warning "-Wdeprecated-declarations"
   template <typename T> struct Old {
     [[deprecated("use something else")]] static int get() { return 1; }
   };
   template <typename T> int warns(T) { return Old<T>::get(); }
+  #pragma clang diagnostic pop
   template <typename T> int fine(T) { return 1; }
   )";
   GetAllTopLevelDecls(code, Decls);
