@@ -2,8 +2,7 @@
  Wasm Build Instructions
 #########################
 
-It should be noted that the wasm build of CppInterOp is still
-experimental and subject to change. Try a Jupyter Lite demo of xeus-cpp by clicking
+Try a Jupyter Lite demo of xeus-cpp by clicking
 
 .. image:: https://jupyterlite.rtfd.io/en/latest/_static/badge.svg
    :target: https://compiler-research.github.io/CppInterOp/lab/index.html
@@ -56,11 +55,7 @@ and on Windows execute in Powershell
    .\emsdk\emsdk_env.ps1
    $env:SYSROOT_PATH="$env:EMSDK/upstream/emscripten/cache/sysroot"
 
-Now clone the 22.x release of the LLVM project repository and CppInterOp
-(the building of the emscripten version of llvm can be avoided by
-executing micromamba install llvm -c
-<https://repo.mamba.pm/emscripten-forge> and setting the LLVM_BUILD_DIR/$env:LLVM_BUILD_DIR
-appropriately)
+Now clone the 23.x release of the LLVM project repository and CppInterOp
 
 .. code:: bash
 
