@@ -4195,6 +4195,122 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetFunctionCallWrapper) {
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE,
+           FunctionReflection_JitCallNonTrailingParameterPack) {
+  // Regression test for https://github.com/root-project/root/issues/14016.
+  // When a parameter pack is followed by further (defaulted) template
+  // parameters, as in the SFINAE idiom below, the specialization cannot be
+  // spelled with its full explicit template argument list: the non-trailing
+  // pack swallows every explicit argument. The call wrapper has to stop the
+  // explicit list at the pack and leave the rest to deduction and defaults.
+#ifdef EMSCRIPTEN_ON_WINDOWS
+  GTEST_SKIP() << "Test fails for Emscripten builds on Windows";
+#endif
+  if (TypeParam::isOutOfProcess)
+    GTEST_SKIP() << "Test fails for OOP JIT builds";
+
+  std::vector<const char*> interpreter_args = {"-include", "new"};
+  TestFixture::CreateInterpreter(interpreter_args);
+  // Stdlib-free stand-ins for std::enable_if_t and std::is_arithmetic_v.
+  Interp->process(R"(
+    template <bool, typename T> struct enable_if {};
+    template <typename T> struct enable_if<true, T> { using type = T; };
+    template <bool B, typename T> using enable_if_t = typename enable_if<B, T>::type;
+    template <typename T> struct is_arithmetic { static const bool value = false; };
+    template <> struct is_arithmetic<int> { static const bool value = true; };
+    template <> struct is_arithmetic<float> { static const bool value = true; };
+
+    template <typename T> struct TestSfinae {
+      template <typename... Args, typename V = T,
+                enable_if_t<is_arithmetic<V>::value, bool> = false>
+      int test_pack(Args... args) { return sizeof...(Args); }
+    };
+    template <typename... Args, typename V = int,
+              enable_if_t<is_arithmetic<V>::value, bool> = false>
+    int free_pack(Args... args) { return 10 * sizeof...(Args); }
+    // A non-deducible parameter before the pack must stay explicit, and so
+    // must the pack elements themselves.
+    template <typename A, typename... Other, typename B>
+    int partial_pack(B b) { return 100 * sizeof(A) + 10 * sizeof...(Other) + b; }
+  )");
+
+  ASTContext& C = Interp->getCI()->getASTContext();
+  std::vector<Cpp::TemplateArgInfo> int3 = {C.IntTy.getAsOpaquePtr(),
+                                            C.IntTy.getAsOpaquePtr(),
+                                            C.IntTy.getAsOpaquePtr()};
+  int a = 1;
+  int b = 2;
+  int c = 3;
+  std::array<void*, 3> args = {&a, &b, &c};
+  std::vector<Cpp::FuncRef> candidates;
+  std::vector<Cpp::FuncRef> ambiguous;
+
+  // Member template of a class template.
+  Cpp::DeclRef TestSfinaeFloat = Cpp::InstantiateTemplate(
+      Cpp::GetNamed("TestSfinae"), {C.FloatTy.getAsOpaquePtr()});
+  EXPECT_TRUE(TestSfinaeFloat);
+  Cpp::GetClassTemplatedMethods("test_pack", TestSfinaeFloat, candidates);
+  EXPECT_EQ(candidates.size(), 1);
+  // For a non-static method the first argument type is the object's type.
+  std::vector<Cpp::TemplateArgInfo> self_int3 = {
+      Cpp::GetTypeFromScope(TestSfinaeFloat).data, C.IntTy.getAsOpaquePtr(),
+      C.IntTy.getAsOpaquePtr(), C.IntTy.getAsOpaquePtr()};
+  Cpp::FuncRef test_pack =
+      Cpp::BestOverloadFunctionMatch(candidates, {}, self_int3, ambiguous);
+  EXPECT_TRUE(test_pack);
+  Cpp::JitCall test_pack_call = Cpp::MakeFunctionCallable(test_pack);
+  ASSERT_EQ(test_pack_call.getKind(), Cpp::JitCall::kGenericCall);
+
+  Cpp::ObjectRef obj = Cpp::Construct(TestSfinaeFloat);
+  EXPECT_TRUE(obj);
+  int result = 0;
+  test_pack_call.Invoke(&result, {args.data(), /*args_size=*/3}, obj.data);
+  EXPECT_EQ(result, 3);
+  Cpp::Destruct(obj, TestSfinaeFloat);
+
+  // Free function template.
+  candidates.clear();
+  Cpp::GetClassTemplatedMethods("free_pack", Cpp::GetGlobalScope(), candidates);
+  EXPECT_EQ(candidates.size(), 1);
+  Cpp::FuncRef free_pack =
+      Cpp::BestOverloadFunctionMatch(candidates, {}, int3, ambiguous);
+  EXPECT_TRUE(free_pack);
+  Cpp::JitCall free_pack_call = Cpp::MakeFunctionCallable(free_pack);
+  ASSERT_EQ(free_pack_call.getKind(), Cpp::JitCall::kGenericCall);
+
+  result = 0;
+  free_pack_call.Invoke(&result, {args.data(), /*args_size=*/3});
+  EXPECT_EQ(result, 30);
+
+  // Explicit `A` only: the empty pack and `B` are deduced.
+  candidates.clear();
+  Cpp::GetClassTemplatedMethods("partial_pack", Cpp::GetGlobalScope(),
+                                candidates);
+  EXPECT_EQ(candidates.size(), 1);
+  Cpp::FuncRef partial_pack =
+      Cpp::BestOverloadFunctionMatch(candidates, {C.DoubleTy.getAsOpaquePtr()},
+                                     {C.IntTy.getAsOpaquePtr()}, ambiguous);
+  EXPECT_TRUE(partial_pack);
+  Cpp::JitCall partial_pack_call = Cpp::MakeFunctionCallable(partial_pack);
+  ASSERT_EQ(partial_pack_call.getKind(), Cpp::JitCall::kGenericCall);
+  int seven = 7;
+  std::array<void*, 1> one_arg = {&seven};
+  result = 0;
+  partial_pack_call.Invoke(&result, {one_arg.data(), /*args_size=*/1});
+  EXPECT_EQ(result, (100 * sizeof(double)) + 7);
+
+  // Explicit `A` and one pack element: both must survive in the wrapper.
+  Cpp::FuncRef partial_pack2 = Cpp::BestOverloadFunctionMatch(
+      candidates, {C.DoubleTy.getAsOpaquePtr(), C.IntTy.getAsOpaquePtr()},
+      {C.IntTy.getAsOpaquePtr()}, ambiguous);
+  EXPECT_TRUE(partial_pack2);
+  Cpp::JitCall partial_pack2_call = Cpp::MakeFunctionCallable(partial_pack2);
+  ASSERT_EQ(partial_pack2_call.getKind(), Cpp::JitCall::kGenericCall);
+  result = 0;
+  partial_pack2_call.Invoke(&result, {one_arg.data(), /*args_size=*/1});
+  EXPECT_EQ(result, (100 * sizeof(double)) + 10 + 7);
+}
+
+TYPED_TEST(CPPINTEROP_TEST_MODE,
            FunctionReflection_WrapAliasTemplateReturnType) {
   // Regression test for cppyy issue
   // https://github.com/compiler-research/cppyy/issues/218 (original reproducer:
