@@ -25,6 +25,7 @@
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/StringMap.h"
 
+#include <cstddef>
 #include <cstdint>
 #include <deque>
 #include <string>
@@ -42,6 +43,8 @@ struct InterpreterInfo {
   // interpreter, so the caches must be destroyed together with it.
   llvm::DenseMap<const clang::FunctionDecl*, void*> WrapperStore;
   llvm::DenseMap<const clang::Decl*, void*> DtorWrapperStore;
+  // The input that holds each cached wrapper, keyed on the wrapper.
+  llvm::DenseMap<const void*, size_t> WrapperInput;
   // Constant-array initializers materialized by GetVariableOffset, keyed on
   // the AST node so each variable is laid out once (stable address per
   // query, no bump-allocator growth). A 0 entry records a deterministic

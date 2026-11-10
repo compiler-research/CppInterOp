@@ -16,6 +16,7 @@
 #include "BakedArgs.h"
 #include "Compatibility.h"
 #include "ErrorInternal.h"
+#include "InputRollback.h"
 #include "InterpreterInfo.h"
 #include "Sins.h" // for access to private members
 #include "Tracing.h"
@@ -43,6 +44,7 @@
 #include "clang/AST/DeclAccessPair.h"
 #include "clang/AST/DeclBase.h"
 #include "clang/AST/DeclCXX.h"
+#include "clang/AST/DeclContextInternals.h"
 #include "clang/AST/DeclTemplate.h"
 #include "clang/AST/DeclarationName.h"
 #include "clang/AST/Expr.h"
@@ -72,6 +74,7 @@
 #include "clang/Basic/Version.h"
 #include "clang/Frontend/CompilerInstance.h"
 #include "clang/Interpreter/Interpreter.h"
+#include "clang/Interpreter/PartialTranslationUnit.h"
 #include "clang/Sema/Lookup.h"
 #include "clang/Sema/Overload.h"
 #include "clang/Sema/Ownership.h"
@@ -82,6 +85,7 @@
 #include "llvm/ADT/APInt.h"
 #include "llvm/ADT/DenseMap.h"
 #include "llvm/ADT/STLExtras.h"
+#include "llvm/ADT/SmallPtrSet.h"
 #include "llvm/ADT/SmallString.h"
 #include "llvm/ADT/SmallVector.h"
 #include "llvm/ADT/StringExtras.h"
@@ -120,6 +124,7 @@
 #include <iostream>
 #include <iterator>
 #include <limits>
+#include <list>
 #include <map>
 #include <memory>
 #include <optional>
@@ -128,6 +133,7 @@
 #include <stack>
 #include <string>
 #include <sys/types.h>
+#include <type_traits>
 #ifndef _WIN32
 #include <unistd.h>
 #endif
@@ -3368,8 +3374,7 @@ struct VTableOverlay {
   VTableOverlayDtorHook cleanup = nullptr;
   void* cleanup_data = nullptr;
 
-  VTableOverlay(void** block, void** orig_vptr, void* inst,
-                std::size_t n_extra)
+  VTableOverlay(void** block, void** orig_vptr, void* inst, std::size_t n_extra)
       : block(block), original_vptr(orig_vptr), inst(inst),
         n_extra_prefix_slots(n_extra) {
     // Stash self-pointer in the hidden slot before publishing the vptr;
@@ -3531,8 +3536,7 @@ MakeVTableOverlay(void* inst, ConstDeclRef base, const ConstFuncRef* methods,
     slots.push_back(slot);
   }
   auto* ov = applyVTableOverlay(inst, total_method_slots, slots.data(),
-                                overlay_fns, n_overlays,
-                                n_extra_prefix_slots);
+                                overlay_fns, n_overlays, n_extra_prefix_slots);
   if (!ov)
     return INTEROP_RETURN(nullptr);
 
@@ -4319,6 +4323,212 @@ inline void indent(std::ostringstream& buf, int indent_level) {
   static const std::string kIndentString("   ");
   for (int i = 0; i < indent_level; ++i)
     buf << kIndentString;
+}
+
+#ifndef CPPINTEROP_USE_CLING
+ALLOW_ACCESS(clang::Interpreter, PTUs,
+             std::list<clang::PartialTranslationUnit>);
+
+size_t InputCountOfImpl(clang::Interpreter& I) {
+  auto& PTUs = ACCESS(I, PTUs);
+  return PTUs.size();
+}
+
+ALLOW_ACCESS(clang::Interpreter, LastValue, clang::Value);
+
+void TakeLastValueImpl(clang::Interpreter& I, clang::Value& V) {
+  auto& Last = ACCESS(I, LastValue);
+  if (Last.isValid())
+    V = std::move(Last);
+}
+
+size_t InputCount(compat::Interpreter& I) {
+  clang::Interpreter& Inner = I;
+  return InputCountOfImpl(Inner);
+}
+
+// clang's Undo leaves the names in the TU scope.
+void CollectScopeNames(clang::Sema& S, clang::DeclContext* DC,
+                       llvm::SmallVectorImpl<clang::NamedDecl*>& Out) {
+  for (clang::Decl* D : DC->decls()) {
+    if (auto* LS = llvm::dyn_cast<clang::LinkageSpecDecl>(D))
+      CollectScopeNames(S, LS, Out);
+    else if (auto* ND = llvm::dyn_cast<clang::NamedDecl>(D))
+      if (!ND->getDeclName().isEmpty() && S.TUScope->isDeclScope(ND))
+        Out.push_back(ND);
+  }
+}
+
+void CollectTopLevelNames(clang::DeclContext* DC,
+                          llvm::SmallVectorImpl<clang::NamedDecl*>& Out) {
+  for (clang::Decl* D : DC->decls()) {
+    if (auto* LS = llvm::dyn_cast<clang::LinkageSpecDecl>(D))
+      CollectTopLevelNames(LS, Out);
+    else if (auto* ND = llvm::dyn_cast<clang::NamedDecl>(D))
+      if (!ND->getDeclName().isEmpty())
+        Out.push_back(ND);
+  }
+}
+
+// clang's Undo leaves what an input added to an earlier namespace.
+void CollectReopenedMembers(
+    clang::DeclContext* DC, bool Reopened,
+    llvm::SmallVectorImpl<std::pair<clang::DeclContext*, clang::Decl*>>& Out) {
+  for (clang::Decl* D : DC->decls()) {
+    if (Reopened)
+      Out.push_back({DC, D});
+    if (auto* NS = llvm::dyn_cast<clang::NamespaceDecl>(D))
+      CollectReopenedMembers(NS, Reopened || !NS->isFirstDecl(), Out);
+    else if (auto* LS = llvm::dyn_cast<clang::LinkageSpecDecl>(D))
+      CollectReopenedMembers(LS, Reopened, Out);
+  }
+}
+
+// Cut the redeclaration chain back to \p P, or a withdrawn definition still
+// counts. The public API allows this only for a first declaration.
+void CutChainAfter(clang::Decl* P) {
+  if (P->getPreviousDecl())
+    return;
+  if (auto* FD = llvm::dyn_cast<clang::FunctionDecl>(P)) {
+    if (!FD->getDescribedFunctionTemplate())
+      FD->setPreviousDecl(nullptr);
+  } else if (auto* VD = llvm::dyn_cast<clang::VarDecl>(P)) {
+    if (!VD->getDescribedVarTemplate())
+      VD->setPreviousDecl(nullptr);
+  } else if (auto* TND = llvm::dyn_cast<clang::TypedefNameDecl>(P)) {
+    TND->setPreviousDecl(nullptr);
+  } else if (auto* NS = llvm::dyn_cast<clang::NamespaceDecl>(P)) {
+    NS->setPreviousDecl(nullptr);
+  }
+}
+
+// Since llvm/llvm-project#218149 clang's Undo keeps the enumerators of an
+// unscoped enum visible. Record the lookup they are in before the undo, which
+// can give a withdrawn namespace a redeclaration chain of its own.
+void CollectEnumerators(
+    clang::Decl* D,
+    llvm::SmallVectorImpl<std::pair<clang::DeclContext*, clang::NamedDecl*>>&
+        Out) {
+  auto* ED = llvm::dyn_cast<clang::EnumDecl>(D);
+  if (!ED || ED->isScoped())
+    return;
+  clang::DeclContext* Primary = ED->getDeclContext()->getPrimaryContext();
+  for (clang::EnumConstantDecl* E : ED->enumerators())
+    Out.push_back({Primary, E});
+}
+
+void HideEnumerator(clang::Sema& S, clang::DeclContext* Primary,
+                    clang::NamedDecl* E) {
+  if (S.TUScope && S.TUScope->isDeclScope(E)) {
+    S.TUScope->RemoveDecl(E);
+    S.IdResolver.RemoveDecl(E);
+  }
+  clang::StoredDeclsMap* Map = Primary->getLookupPtr();
+  if (!Map)
+    return;
+  auto Pos = Map->find(E->getDeclName());
+  if (Pos == Map->end())
+    return;
+  Pos->second.remove(E);
+  if (Pos->second.isNull())
+    Map->erase(Pos);
+}
+
+// Undo the inputs after the first \p Keep.
+bool WithdrawInputs(compat::Interpreter& I, size_t Keep) {
+  clang::Interpreter& Inner = I;
+  auto& PTUs = ACCESS(Inner, PTUs);
+  if (PTUs.size() <= Keep)
+    return true;
+  clang::Sema& S = I.getSema();
+  llvm::SmallVector<clang::NamedDecl*, 8> Names;
+  llvm::SmallVector<clang::NamedDecl*, 8> TopLevel;
+  llvm::SmallVector<std::pair<clang::DeclContext*, clang::Decl*>, 8> Members;
+  for (auto It = std::next(PTUs.begin(), static_cast<std::ptrdiff_t>(Keep));
+       It != PTUs.end(); ++It) {
+    if (S.getLangOpts().CPlusPlus && S.TUScope)
+      CollectScopeNames(S, It->TUPart, Names);
+    CollectTopLevelNames(It->TUPart, TopLevel);
+    CollectReopenedMembers(It->TUPart, /*Reopened=*/false, Members);
+  }
+  llvm::SmallVector<std::pair<clang::DeclContext*, clang::NamedDecl*>, 8>
+      Enumerators;
+  for (clang::NamedDecl* ND : TopLevel)
+    CollectEnumerators(ND, Enumerators);
+  for (auto& [DC, D] : Members)
+    CollectEnumerators(D, Enumerators);
+  if (I.undo(static_cast<unsigned>(PTUs.size() - Keep)) !=
+      compat::Interpreter::kSuccess)
+    return false;
+  for (clang::NamedDecl* ND : Names) {
+    S.TUScope->RemoveDecl(ND);
+    S.IdResolver.RemoveDecl(ND);
+  }
+  for (auto& [Primary, E] : Enumerators)
+    HideEnumerator(S, Primary, E);
+  // Innermost first. Since llvm/llvm-project#218149 clang's Undo does this.
+  for (auto& [DC, D] : llvm::reverse(Members))
+    if (DC->containsDecl(D))
+      DC->removeDecl(D);
+  // A redeclaration replaced the earlier declaration in the scope and the
+  // lookup; put it back.
+  llvm::SmallPtrSet<clang::Decl*, 16> Withdrawn(TopLevel.begin(),
+                                                TopLevel.end());
+  for (auto& [DC, D] : Members)
+    Withdrawn.insert(D);
+  auto Previous = [&](clang::Decl* D) {
+    clang::Decl* Prev = D->getPreviousDecl();
+    while (Prev && Withdrawn.contains(Prev))
+      Prev = Prev->getPreviousDecl();
+    return llvm::dyn_cast_or_null<clang::NamedDecl>(Prev);
+  };
+  for (clang::NamedDecl* ND : TopLevel)
+    if (clang::NamedDecl* Prev = Previous(ND)) {
+      CutChainAfter(Prev);
+      if (S.TUScope && !S.TUScope->isDeclScope(Prev)) {
+        S.TUScope->AddDecl(Prev);
+        S.IdResolver.AddDecl(Prev);
+      }
+      Prev->getDeclContext()->makeDeclVisibleInContext(Prev);
+    }
+  for (auto& [DC, D] : Members)
+    if (clang::NamedDecl* Prev = Previous(D)) {
+      CutChainAfter(Prev);
+      Prev->getDeclContext()->makeDeclVisibleInContext(Prev);
+    }
+  if (CppInternal::InputRollback* R = I.getRollback())
+    R->withdrawFrom(Keep);
+  // Drop the cached wrappers that live in a withdrawn input.
+  InterpreterInfo& Info = getInterpInfo(&I);
+  auto DropWithdrawn = [&](auto& Store) {
+    llvm::SmallVector<typename std::decay_t<decltype(Store)>::key_type, 8> Dead;
+    for (const auto& [Key, Wrapper] : Store) {
+      auto In = Info.WrapperInput.find(Wrapper);
+      if (In != Info.WrapperInput.end() && In->second >= Keep)
+        Dead.push_back(Key);
+    }
+    for (const auto& Key : Dead)
+      Store.erase(Key);
+  };
+  DropWithdrawn(Info.WrapperStore);
+  DropWithdrawn(Info.DtorWrapperStore);
+  llvm::SmallVector<const void*, 8> Dead;
+  for (const auto& [Wrapper, Input] : Info.WrapperInput)
+    if (Input >= Keep)
+      Dead.push_back(Wrapper);
+  for (const void* Wrapper : Dead)
+    Info.WrapperInput.erase(Wrapper);
+  return true;
+}
+#endif
+
+void NoteWrapperInput(compat::Interpreter& I, const void* Wrapper) {
+#ifndef CPPINTEROP_USE_CLING
+  getInterpInfo(&I).WrapperInput[Wrapper] = InputCount(I) - 1;
+#else
+  (void)I;
+  (void)Wrapper;
+#endif
 }
 
 void* compile_wrapper(compat::Interpreter& I, const std::string& wrapper_name,
@@ -5497,6 +5707,7 @@ JitCall::GenericCall make_wrapper(compat::Interpreter& I,
       compile_wrapper(I, wrapper_name, wrapper_code, withAccessControl);
   if (wrapper) {
     WrapperStore.insert(std::make_pair(FD, wrapper));
+    NoteWrapperInput(I, wrapper);
   } else {
     llvm::errs() << "TClingCallFunc::make_wrapper"
                  << ":"
@@ -5688,6 +5899,7 @@ static JitCall::DestructorCall make_dtor_wrapper(compat::Interpreter& interp,
                             /*withAccessControl=*/false);
   if (F) {
     DtorWrapperStore.insert(std::make_pair(D, F));
+    NoteWrapperInput(interp, F);
   } else {
     llvm::errs() << "make_dtor_wrapper"
                  << "Failed to compile\n"
@@ -6173,7 +6385,14 @@ static int Declare(compat::Interpreter& I, const char* code, bool silent) {
   std::optional<clangSilent> diagSuppr;
   if (silent)
     diagSuppr.emplace(Diag);
+#ifdef CPPINTEROP_USE_CLING
   auto result = I.declare(code);
+#else
+  const size_t Before = InputCount(I);
+  auto result = I.declare(code);
+  if (result != compat::Interpreter::kSuccess || Trap.hasErrorOccurred())
+    WithdrawInputs(I, Before);
+#endif
   return Trap.hasErrorOccurred() ? 1 : result;
 }
 
@@ -6189,9 +6408,17 @@ int Process(const char* code) {
   // run time, so callers cannot rely on it alone.
   clang::DiagnosticsEngine& Diag = getSema().getDiagnostics();
   clang::DiagnosticErrorTrap Trap(Diag);
-  if (getInterp().process(code) != compat::Interpreter::kSuccess)
-    return INTEROP_RETURN(1);
-  return INTEROP_RETURN(Trap.hasErrorOccurred() ? 1 : 0);
+  compat::Interpreter& I = getInterp();
+#ifndef CPPINTEROP_USE_CLING
+  const size_t Before = InputCount(I);
+#endif
+  const bool Failed = I.process(code) != compat::Interpreter::kSuccess ||
+                      Trap.hasErrorOccurred();
+#ifndef CPPINTEROP_USE_CLING
+  if (Failed)
+    WithdrawInputs(I, Before);
+#endif
+  return INTEROP_RETURN(Failed ? 1 : 0);
 }
 
 // Classify the QualType of a successfully-evaluated value into a
@@ -6249,7 +6476,15 @@ static Cpp::Box::Kind classifyByQualType(clang::QualType QT) {
 Box Evaluate(const char* code) {
   INTEROP_TRACE(code);
   compat::Value V;
-  auto res = getInterp().evaluate(code, V);
+  compat::Interpreter& I = getInterp();
+#ifndef CPPINTEROP_USE_CLING
+  const size_t Before = InputCount(I);
+#endif
+  auto res = I.evaluate(code, V);
+#ifndef CPPINTEROP_USE_CLING
+  if (res != 0)
+    WithdrawInputs(I, Before);
+#endif
   CPPINTEROP_MSAN_UNPOISON_VALUE(V);
   if (res != 0 || !V.hasValue())
     return INTEROP_RETURN(Box{});
@@ -7053,8 +7288,32 @@ int Undo(unsigned N) {
   getInterp().unload(N);
   return INTEROP_RETURN(compat::Interpreter::kSuccess);
 #else
-  return INTEROP_RETURN(getInterp().undo(N));
+  compat::Interpreter& I = getInterp();
+  const size_t Count = InputCount(I);
+  if (N > Count || !WithdrawInputs(I, Count - N))
+    return INTEROP_RETURN(compat::Interpreter::kFailure);
+  return INTEROP_RETURN(compat::Interpreter::kSuccess);
+#endif
+}
+
+size_t GetInputCount() {
+  INTEROP_TRACE();
+#ifdef CPPINTEROP_USE_CLING
+  return INTEROP_RETURN(0);
+#else
+  return INTEROP_RETURN(InputCount(getInterp()));
 #endif
 }
 
 } // namespace Cpp
+
+#ifndef CPPINTEROP_USE_CLING
+CPPINTEROP_API size_t CppInternal::InputCountOf(clang::Interpreter& I) {
+  return Cpp::InputCountOfImpl(I);
+}
+
+CPPINTEROP_API void CppInternal::TakeLastValue(clang::Interpreter& I,
+                                               clang::Value& V) {
+  Cpp::TakeLastValueImpl(I, V);
+}
+#endif
