@@ -217,3 +217,12 @@
    fun:*TargetLowering*LowerCallTo*
    ...
 }
+{
+   # Reached through requires-expression instantiation, which only the
+   # C++23 <mutex> test brings in. Origin is a ConstantExpr APValue in
+   # the bump allocator; valgrind matches the read site.
+   llvm/llvm-project#194147: Sema::BuildExprRequirement
+   Memcheck:Cond
+   fun:*Sema*BuildExprRequirement*
+   ...
+}
