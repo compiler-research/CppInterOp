@@ -144,14 +144,15 @@ set(CPPINTEROP_TD_FILE ${CPPINTEROP_TD_DIR}/CppInterOp.td)
 set(CPPINTEROP_TD_DEPS ${CPPINTEROP_TD_FILE}
                         ${CPPINTEROP_TD_DIR}/CppInterOpAPI.td)
 
-if(CPPINTEROP_TABLEGEN_EXE)
+# add_tablegen() sets CPPINTEROP_TABLEGEN_EXE to the target's bare name.
+# Prefer the target so CMake resolves its path and builds it first.
+if(TARGET cppinterop-tblgen)
+  set(CPPINTEROP_TBLGEN_CMD $<TARGET_FILE:cppinterop-tblgen>)
+  set(CPPINTEROP_TBLGEN_DEPS cppinterop-tblgen ${CPPINTEROP_TD_DEPS})
+elseif(CPPINTEROP_TABLEGEN_EXE)
   # Cross-compilation: use the provided native binary.
   set(CPPINTEROP_TBLGEN_CMD ${CPPINTEROP_TABLEGEN_EXE})
   set(CPPINTEROP_TBLGEN_DEPS ${CPPINTEROP_TD_DEPS})
-elseif(NOT EMSCRIPTEN)
-  # Native build: use the just-built target.
-  set(CPPINTEROP_TBLGEN_CMD $<TARGET_FILE:cppinterop-tblgen>)
-  set(CPPINTEROP_TBLGEN_DEPS cppinterop-tblgen ${CPPINTEROP_TD_DEPS})
 endif()
 
 if(CPPINTEROP_TBLGEN_CMD)
