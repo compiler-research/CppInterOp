@@ -4,6 +4,10 @@ add_llvm_library(TestDownstreamLib
   BUILDTREE_ONLY
   TestDownstreamLib.cpp)
 add_dependencies(TestDownstreamLib CppInterOpTableGen)
+# Dispatch.h calls dlopen/dlsym, which require libdl with older glibc sysroots.
+if(CMAKE_DL_LIBS)
+  target_link_libraries(TestDownstreamLib PRIVATE ${CMAKE_DL_LIBS})
+endif()
 # NDEBUG mirrors cppyy's Release build so the JitCall::Invoke asserts
 # don't drag in extra UND refs. target_compile_options so the flag
 # appends after add_llvm_library's `-UNDEBUG`.
