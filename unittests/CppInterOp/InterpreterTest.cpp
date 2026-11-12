@@ -113,6 +113,48 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_Evaluate) {
   EXPECT_NE(sV.getObjectPtr(), nullptr);
 }
 
+TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_EvaluateWithStatus) {
+#ifdef _WIN32
+  GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
+#endif
+  if (TypeParam::isOutOfProcess)
+    GTEST_SKIP() << "Test fails for OOP JIT builds";
+  TestFixture::CreateInterpreter();
+
+  Cpp::Box value;
+  ASSERT_EQ(Cpp::Evaluate("40 + 2", value), 0);
+  EXPECT_EQ(value.unbox<int>(), 42);
+
+  EXPECT_NE(Cpp::Evaluate("#error status-aware evaluation", value), 0);
+  EXPECT_EQ(value.getKind(), Cpp::Box::K_Unspecified);
+
+  EXPECT_EQ(Cpp::Evaluate("class EvalStatus_NoValue {};", value), 0);
+  EXPECT_EQ(value.getKind(), Cpp::Box::K_Unspecified);
+}
+
+TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_GetValueAsString) {
+#if LLVM_VERSION_MAJOR < 23
+  GTEST_SKIP() << "Clang-repl last-value printing requires LLVM 23";
+#endif
+#ifdef _WIN32
+  GTEST_SKIP() << "Disabled on Windows. Needs fixing.";
+#endif
+  if (TypeParam::isOutOfProcess)
+    GTEST_SKIP() << "Test fails for OOP JIT builds";
+  TestFixture::CreateInterpreter({"-funsigned-char"});
+
+  EXPECT_EQ(Cpp::GetValueAsString(Cpp::Evaluate("42")), "(int) 42");
+
+  Cpp::Box character = Cpp::Evaluate("char c = 'A'; c");
+  EXPECT_EQ(character.getKind(), Cpp::Box::K_UChar);
+  EXPECT_THAT(Cpp::GetValueAsString(character), StartsWith("(char)"));
+
+  Cpp::Box object = Cpp::Evaluate("struct Printable {} printable; printable");
+  EXPECT_EQ(Cpp::GetValueAsString(object).rfind("(Printable", 0), 0U);
+  EXPECT_TRUE(Cpp::GetValueAsString(Cpp::Box{}).empty());
+  EXPECT_TRUE(Cpp::GetValueAsString(Cpp::Box::Create<int>(42)).empty());
+}
+
 // Copy semantics mirror clang::Value: fundamentals POD-copy; K_PtrOrObj is
 // refcounted-shallow (retain bumps a ref, dtor releases). The test exercises
 // both: fundamentals copy independently, K_PtrOrObj copy shares the payload
