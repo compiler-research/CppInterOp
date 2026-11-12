@@ -285,13 +285,13 @@ export PATH="$PWD:$PATH"
 cd -
 
 echo "Running CppInterOpTests in Firefox"
-emrun --browser="firefox" --kill_exit --timeout 60 --browser-args="--headless"  CppInterOpTests.html
+emrun --browser="firefox" --kill_exit --timeout 90 --browser-args="--headless"  CppInterOpTests.html
 echo "Running DynamicLibraryManagerTests in Firefox"
-emrun --browser="firefox" --kill_exit --timeout 60 --browser-args="--headless"  DynamicLibraryManagerTests.html
+emrun --browser="firefox" --kill_exit --timeout 90 --browser-args="--headless"  DynamicLibraryManagerTests.html
 echo "Running CppInterOpTests in Google Chrome"
-emrun --browser="Google Chrome" --kill_exit --timeout 60 --browser-args="--headless --no-sandbox"  CppInterOpTests.html
+emrun --browser="Google Chrome" --kill_exit --timeout 90 --browser-args="--headless --no-sandbox"  CppInterOpTests.html
 echo "Running DynamicLibraryManagerTests in Google Chrome"          
-emrun --browser="Google Chrome" --kill_exit --timeout 60 --browser-args="--headless --no-sandbox"  DynamicLibraryManagerTests.html
+emrun --browser="Google Chrome" --kill_exit --timeout 90 --browser-args="--headless --no-sandbox"  DynamicLibraryManagerTests.html
 ```
 
 To run tests in Safari you can make use of safaridriver. How to enable this will depend on
@@ -300,10 +300,10 @@ python package. This only needs to be enable once, and then you can execute the 
 
 ```bash
 echo "Running CppInterOpTests in Safari"
-emrun --no_browser --kill_exit --timeout 60 --browser-args="--headless --no-sandbox"  CppInterOpTests.html &
+emrun --no_browser --kill_exit --timeout 90 --browser-args="--headless --no-sandbox"  CppInterOpTests.html &
 python ../../../scripts/browser_tests_safari.py CppInterOpTests.html
 echo "Running DynamicLibraryManagerTests in Safari"          
-emrun --no_browser --kill_exit --timeout 60 --browser-args="--headless --no-sandbox"  DynamicLibraryManagerTests.html &
+emrun --no_browser --kill_exit --timeout 90 --browser-args="--headless --no-sandbox"  DynamicLibraryManagerTests.html &
 python ../../../scripts/browser_tests_safari.py DynamicLibraryManagerTests.html
 ```
 
@@ -316,54 +316,54 @@ cd ./chrome/opt/google/chrome/
 export PATH="$PWD:$PATH"
 cd -
 
-wget https://ftp.mozilla.org/pub/firefox/releases/138.0.1/linux-x86_64/en-GB/firefox-138.0.1.tar.xz
-tar -xJf firefox-138.0.1.tar.xz
+wget https://ftp.mozilla.org/pub/firefox/releases/159.0/linux-x86_64/en-GB/firefox-159.0.tar.xz
+tar -xJf firefox-159.0.tar.xz
 cd ./firefox
 export PATH="$PWD:$PATH"
 cd -
 
 echo "Running CppInterOpTests in Firefox"
-emrun --browser="firefox" --kill_exit --timeout 60 --browser-args="--headless"  CppInterOpTests.html
+emrun --browser="firefox" --kill_exit --timeout 90 --browser-args="--headless"  CppInterOpTests.html
 echo "Running DynamicLibraryManagerTests in Firefox"
-emrun --browser="firefox" --kill_exit --timeout 60 --browser-args="--headless"  DynamicLibraryManagerTests.html
+emrun --browser="firefox" --kill_exit --timeout 90 --browser-args="--headless"  DynamicLibraryManagerTests.html
 echo "Running CppInterOpTests in Google Chrome"
-emrun --browser="google-chrome" --kill_exit --timeout 60 --browser-args="--headless --no-sandbox"  CppInterOpTests.html
+emrun --browser="google-chrome" --kill_exit --timeout 90 --browser-args="--headless --no-sandbox"  CppInterOpTests.html
 echo "Running DynamicLibraryManagerTests in Google Chrome"          
-emrun --browser="google-chrome" --kill_exit --timeout 60 --browser-args="--headless --no-sandbox"  DynamicLibraryManagerTests.html
+emrun --browser="google-chrome" --kill_exit --timeout 90 --browser-args="--headless --no-sandbox"  DynamicLibraryManagerTests.html
 ```
 
 and on Ubuntu Arm execute the following (Google Chrome is not available on Ubuntu arm,
 so we currently only run in Firefox on this platform, unlike other plaforms)
 
 ```bash
-wget https://ftp.mozilla.org/pub/firefox/releases/138.0.1/linux-aarch64/en-GB/firefox-138.0.1.tar.xz
-tar -xJf firefox-138.0.1.tar.xz
+wget https://ftp.mozilla.org/pub/firefox/releases/159.0/linux-x86_64/en-GB/firefox-159.0.tar.xz
+tar -xJf firefox-159.0.tar.xz
 cd ./firefox
 export PATH="$PWD:$PATH"
 cd -
 
 echo "Running CppInterOpTests in Firefox"
-emrun --browser="firefox" --kill_exit --timeout 60 --browser-args="--headless"  CppInterOpTests.html
+emrun --browser="firefox" --kill_exit --timeout 90 --browser-args="--headless"  CppInterOpTests.html
 echo "Running DynamicLibraryManagerTests in Firefox"
-emrun --browser="firefox" --kill_exit --timeout 60 --browser-args="--headless"  DynamicLibraryManagerTests.html
+emrun --browser="firefox" --kill_exit --timeout 90 --browser-args="--headless"  DynamicLibraryManagerTests.html
 ```
 
 To do this on Windows x86 execute the following
 
 ```powershell
-Invoke-WebRequest -Uri "https://commondatastorage.googleapis.com/chromium-browser-snapshots/Win/1411573/chrome-win.zip" -OutFile "$PWD\chrome-win.zip" -Verbose
+Invoke-WebRequest -Uri "https://commondatastorage.googleapis.com/chromium-browser-snapshots/Win/1732565/chrome-win.zip" -OutFile "$PWD\chrome-win.zip" -Verbose
 Expand-Archive -Path "$PWD\chrome-win.zip" -DestinationPath "$PWD" -Force -Verbose
 Invoke-WebRequest -Uri "https://download.mozilla.org/?product=firefox-latest-ssl&os=win64&lang=en-US" -OutFile "firefox-setup.exe" -Verbose
 & "C:\Program Files\7-Zip\7z.exe" x "firefox-setup.exe"
 $env:PATH="$PWD\core;$PWD\chrome-win;$env:PATH"
 echo "Running CppInterOpTests in Firefox"
-python.exe $env:EMSDK/upstream/emscripten/emrun.py --browser="firefox.exe" --kill_exit --timeout 60 --browser-args="--headless"  CppInterOpTests.html
+python.exe $env:EMSDK/upstream/emscripten/emrun.py --browser="firefox.exe" --kill_exit --timeout 90 --browser-args="--headless"  CppInterOpTests.html
 echo "Running DynamicLibraryManagerTests in Firefox"
-python.exe $env:EMSDK/upstream/emscripten/emrun.py --browser="firefox.exe" --kill_exit --timeout 60 --browser-args="--headless"  DynamicLibraryManagerTests.html
+python.exe $env:EMSDK/upstream/emscripten/emrun.py --browser="firefox.exe" --kill_exit --timeout 90 --browser-args="--headless"  DynamicLibraryManagerTests.html
 echo "Running CppInterOpTests in Chromium"
-python.exe $env:EMSDK/upstream/emscripten/emrun.py --browser="chrome.exe" --kill_exit --timeout 60 --browser-args="--headless --no-sandbox"  CppInterOpTests.html
+python.exe $env:EMSDK/upstream/emscripten/emrun.py --browser="chrome.exe" --kill_exit --timeout 90 --browser-args="--headless --no-sandbox"  CppInterOpTests.html
 echo "Running DynamicLibraryManagerTests in Chromium"
-python.exe $env:EMSDK/upstream/emscripten/emrun.py --browser="chrome.exe" --kill_exit --timeout 60 --browser-args="--headless --no-sandbox"  DynamicLibraryManagerTests.html
+python.exe $env:EMSDK/upstream/emscripten/emrun.py --browser="chrome.exe" --kill_exit --timeout 90 --browser-args="--headless --no-sandbox"  DynamicLibraryManagerTests.html
 ```
 
 Assuming it passes all test you can install by executing the following
