@@ -2439,14 +2439,10 @@ AnalyzeAllocType(const clang::FunctionDecl* Fn,
   const Stmt* fnBody = Fn->getBody();
   if (!fnBody)
     return AllocType::Unknown;
-  const auto* CmpStmt = dyn_cast<clang::CompoundStmt>(fnBody);
-  // FIXME:: try catch blocks are not CompoundStmt, only edge case
-  if (!CmpStmt)
-    return AllocType::Unknown;
   AllocationTraverser Traverser(visitedFuncs);
   for (auto* parm : Fn->parameters())
     Traverser.VisitVarDecl(parm);
-  Traverser.TraverseStmt(const_cast<clang::CompoundStmt*>(CmpStmt));
+  Traverser.TraverseStmt(const_cast<clang::Stmt*>(fnBody));
   auto res = Traverser.result;
   visitedFuncs[Fn] = res;
   return res;
@@ -2662,16 +2658,9 @@ static bool AnalyzeDeallocType(
     visitedFuncs[FD] = valPerParam;
     return false;
   }
-  const auto* CmpStmt = dyn_cast<CompoundStmt>(S);
-  if (!CmpStmt) {
-    // FIXME: try catch block are not handled
-    valPerParam.assign(numParam, DeallocType::Opaque);
-    visitedFuncs[FD] = valPerParam;
-    return false;
-  }
   valPerParam.assign(numParam, DeallocType::None);
   DeallocationTraverser Traverser(valPerParam, visitedFuncs);
-  Traverser.TraverseStmt(const_cast<CompoundStmt*>(CmpStmt));
+  Traverser.TraverseStmt(const_cast<Stmt*>(S));
   visitedFuncs[FD] = valPerParam;
   return true;
 }
