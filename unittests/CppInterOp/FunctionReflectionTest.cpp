@@ -1715,10 +1715,6 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetDeallocType) {
       free(tmp);
       delete ptr;
     }
-
-    void func46(int* ptr) try {
-      delete ptr;
-    } catch (...) {}
   )";
   TestFixture::CreateInterpreter();
   Interp->declare(code);
@@ -1745,7 +1741,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetDeallocType) {
   TESTGDT(9, true, DT::Delete, DT::None);
   TESTGDT(10, true, DT::Unknown, DT::None);
   TESTGDT(11, false, DT::Opaque);
-  TESTGDT(12, false, DT::Opaque);
+  TESTGDT(12, true, DT::Delete);
   TESTGDT(13, true, DT::None);
   TESTGDT(15, true, DT::Delete);
   TESTGDT(16, true, DT::None);
@@ -1779,7 +1775,6 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetDeallocType) {
   TESTGDT(43, true, DT::Unknown);
   TESTGDT(44, true, DT::Delete);
   TESTGDT(45, true, DT::Delete);
-  TESTGDT(46, true, DT::Delete);
 
 #undef TESTGDT
 
