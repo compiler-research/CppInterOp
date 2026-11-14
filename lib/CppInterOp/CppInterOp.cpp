@@ -2436,17 +2436,13 @@ AnalyzeAllocType(const clang::FunctionDecl* Fn,
   const clang::QualType QT = Fn->getReturnType();
   if (!QT->isPointerType())
     return AllocType::None;
-  const Stmt* fnBody = Fn->getBody();
+  clang::Stmt* fnBody = Fn->getBody();
   if (!fnBody)
-    return AllocType::Unknown;
-  const auto* CmpStmt = dyn_cast<clang::CompoundStmt>(fnBody);
-  // FIXME:: try catch blocks are not CompoundStmt, only edge case
-  if (!CmpStmt)
     return AllocType::Unknown;
   AllocationTraverser Traverser(visitedFuncs);
   for (auto* parm : Fn->parameters())
     Traverser.VisitVarDecl(parm);
-  Traverser.TraverseStmt(const_cast<clang::CompoundStmt*>(CmpStmt));
+  Traverser.TraverseStmt(fnBody);
   auto res = Traverser.result;
   visitedFuncs[Fn] = res;
   return res;
@@ -2656,22 +2652,15 @@ static bool AnalyzeDeallocType(
     std::unordered_map<const FunctionDecl*,
                        std::optional<std::vector<DeallocType>>>& visitedFuncs) {
   const unsigned int numParam = FD->getNumParams();
-  const auto* S = FD->getBody();
+  clang::Stmt* S = FD->getBody();
   if (!S) {
-    valPerParam.assign(numParam, DeallocType::Opaque);
-    visitedFuncs[FD] = valPerParam;
-    return false;
-  }
-  const auto* CmpStmt = dyn_cast<CompoundStmt>(S);
-  if (!CmpStmt) {
-    // FIXME: try catch block are not handled
     valPerParam.assign(numParam, DeallocType::Opaque);
     visitedFuncs[FD] = valPerParam;
     return false;
   }
   valPerParam.assign(numParam, DeallocType::None);
   DeallocationTraverser Traverser(valPerParam, visitedFuncs);
-  Traverser.TraverseStmt(const_cast<CompoundStmt*>(CmpStmt));
+  Traverser.TraverseStmt(S);
   visitedFuncs[FD] = valPerParam;
   return true;
 }

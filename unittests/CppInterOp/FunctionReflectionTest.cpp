@@ -1741,7 +1741,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetDeallocType) {
   TESTGDT(9, true, DT::Delete, DT::None);
   TESTGDT(10, true, DT::Unknown, DT::None);
   TESTGDT(11, false, DT::Opaque);
-  TESTGDT(12, false, DT::Opaque);
+  TESTGDT(12, true, DT::Delete);
   TESTGDT(13, true, DT::None);
   TESTGDT(15, true, DT::Delete);
   TESTGDT(16, true, DT::None);
@@ -2225,7 +2225,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, FunctionReflection_GetAllocType) {
   TESTAC(13, New);
   TESTAC(14, None);
   TESTAC(15, Unknown);
-  TESTAC(16, Unknown);
+  TESTAC(16, New);
   TESTAC(17, None);
   TESTAC(18, None);
   TESTAC(19, Null);
