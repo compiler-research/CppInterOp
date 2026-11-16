@@ -36,6 +36,12 @@ if (EMSCRIPTEN)
     "SHELL:--preload-file ${ESCAPED_SYSROOT_PATH}/include@/include"
     "SHELL:--emrun"
   )
+  if (CPPINTEROP_ENABLE_CLAD)
+    string(REPLACE "@" "@@" ESCAPED_CLAD_INCLUDE_PATH "${CMAKE_BINARY_DIR}/plugins/clad/include")
+    list(APPEND CPPINTEROP_COMMON_WASM_TEST_LINK_FLAGS
+      "SHELL:--preload-file ${ESCAPED_CLAD_INCLUDE_PATH}@/include"
+    )
+  endif()
 endif()
 
 add_cppinterop_unittest(CppInterOpTests

@@ -58,25 +58,50 @@ set(_clad_extra_settings
 if (DEFINED CLAD_SOURCE_DIR)
   message(STATUS "Using local clad source directory: ${CLAD_SOURCE_DIR}")
   list(APPEND _clad_extra_settings SOURCE_DIR ${CLAD_SOURCE_DIR})
+  set(_clad_source_dir ${CLAD_SOURCE_DIR})
 else()
   list(APPEND _clad_extra_settings GIT_REPOSITORY https://github.com/vgvassilev/clad.git)
   list(APPEND _clad_extra_settings GIT_TAG v2.5)
+  set(_clad_source_dir ${CMAKE_CURRENT_BINARY_DIR}/clad-prefix/src/clad)
+endif()
+
+set(_clad_cmake_args
+  -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
+  -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}
+  -DCMAKE_C_FLAGS=${CMAKE_C_FLAGS}
+  -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}
+  -DCMAKE_CXX_FLAGS=${CLAD_CXX_FLAGS}
+  -DCMAKE_CXX_FLAGS_DEBUG=${CMAKE_CXX_FLAGS_DEBUG}
+  -DCMAKE_INSTALL_PREFIX=${clad_install_dir}
+  -DLLVM_DIR=${LLVM_DIR}
+  -DClang_DIR=${CLANG_CMAKE_DIR}
+  ${_clad_extra_cmake_args}
+)
+
+if(EMSCRIPTEN)
+  # clad renders its option and analysis tables with clad-tblgen, which a wasm
+  # build cannot run. Same contract as CPPINTEROP_TABLEGEN_EXE: hand the cross
+  # build a host tool, configured from clad's utils/clad-tblgen.
+  if(NOT CLAD_TABLEGEN_EXE)
+    message(FATAL_ERROR "Cross-compiling clad needs a native clad-tblgen: set "
+      "CLAD_TABLEGEN_EXE to one configured from clad's utils/clad-tblgen.")
+  endif()
+  list(APPEND _clad_cmake_args -DCLAD_TBLGEN=${CLAD_TABLEGEN_EXE})
+  # The emscripten clangInterpreter links lldWasm; clad must find LLD before Clang.
+  set(_clad_configure
+    CONFIGURE_COMMAND emcmake${EMCC_SUFFIX} cmake -G ${CMAKE_GENERATOR}
+      -S ${_clad_source_dir}
+      -B ${CMAKE_CURRENT_BINARY_DIR}/clad-prefix/src/clad-build
+      -DLLD_DIR=${LLD_DIR}
+      ${_clad_cmake_args})
+else()
+  set(_clad_configure CMAKE_ARGS -G ${CMAKE_GENERATOR} ${_clad_cmake_args})
 endif()
 
 ExternalProject_Add(
   clad
   UPDATE_COMMAND ""
-  CMAKE_ARGS -G ${CMAKE_GENERATOR}
-             -DCMAKE_BUILD_TYPE=${CMAKE_BUILD_TYPE}
-             -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}
-             -DCMAKE_C_FLAGS=${CMAKE_C_FLAGS}
-             -DCMAKE_CXX_COMPILER=${CMAKE_CXX_COMPILER}
-             -DCMAKE_CXX_FLAGS=${CLAD_CXX_FLAGS}
-             -DCMAKE_CXX_FLAGS_DEBUG=${CMAKE_CXX_FLAGS_DEBUG}
-             -DCMAKE_INSTALL_PREFIX=${clad_install_dir}
-             -DLLVM_DIR=${LLVM_DIR}
-             -DClang_DIR=${CLANG_CMAKE_DIR}
-             ${_clad_extra_cmake_args}
+  ${_clad_configure}
   BUILD_COMMAND ${CMAKE_COMMAND} --build . ${EXTRA_BUILD_ARGS} --parallel
   INSTALL_COMMAND ${CMAKE_COMMAND} --build . ${EXTRA_BUILD_ARGS} --target install
   BUILD_BYPRODUCTS ${CLAD_BYPRODUCTS}

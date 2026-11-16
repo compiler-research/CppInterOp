@@ -312,6 +312,15 @@ runs:
         echo "CPPINTEROP_TBLGEN_EXE=$CPPINTEROP_TBLGEN_EXE" >> $GITHUB_ENV
         popd
 
+        # clad-tblgen renders clad's option tables and cannot run in the cross build.
+        CLAD_TAG=$(sed -n 's/.*GIT_TAG \(.*\))$/\1/p' plugins/clad/CMakeLists.txt)
+        git clone --depth 1 --branch "$CLAD_TAG" https://github.com/vgvassilev/clad.git clad-src
+        CLAD_SOURCE_DIR=$PWD/clad-src
+        cmake -G Ninja -S $CLAD_SOURCE_DIR/utils/clad-tblgen -B clad_tblgen_build \
+              -DLLVM_DIR=$NATIVE_LLVM_BUILD_DIR/lib/cmake/llvm
+        cmake --build clad_tblgen_build --target clad-tblgen
+        CLAD_TBLGEN_EXE=$PWD/clad_tblgen_build/clad-tblgen
+
         # Build CppInterOp next to cling and llvm-project.
         # See native-shared site above re: stale build/ on local repro.
         rm -rf build
@@ -333,6 +342,9 @@ runs:
                 -DLLVM_ENABLE_WERROR=On                      \
                 -DSYSROOT_PATH=$SYSROOT_PATH               \
                 -DCPPINTEROP_TABLEGEN_EXE=$CPPINTEROP_TBLGEN_EXE \
+                -DCPPINTEROP_ENABLE_CLAD=ON \
+                -DCLAD_SOURCE_DIR=$CLAD_SOURCE_DIR \
+                -DCLAD_TABLEGEN_EXE=$CLAD_TBLGEN_EXE \
                 ../
         else
           emcmake cmake -G Ninja -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    \
@@ -347,6 +359,9 @@ runs:
                 -DLLVM_ENABLE_WERROR=On                      \
                 -DSYSROOT_PATH=$SYSROOT_PATH                     \
                 -DCPPINTEROP_TABLEGEN_EXE=$CPPINTEROP_TBLGEN_EXE \
+                -DCPPINTEROP_ENABLE_CLAD=ON \
+                -DCLAD_SOURCE_DIR=$CLAD_SOURCE_DIR \
+                -DCLAD_TABLEGEN_EXE=$CLAD_TBLGEN_EXE \
                 ../
         fi
         emmake ninja check-cppinterop
@@ -592,6 +607,15 @@ runs:
         echo "CPPINTEROP_TBLGEN_EXE=$env:CPPINTEROP_TBLGEN_EXE" >> $env:GITHUB_ENV
         popd
 
+        # clad-tblgen renders clad's option tables and cannot run in the cross build.
+        $env:CLAD_TAG=(Select-String -Path plugins\clad\CMakeLists.txt -Pattern 'GIT_TAG (\S+)\)').Matches[0].Groups[1].Value
+        git clone --depth 1 --branch $env:CLAD_TAG https://github.com/vgvassilev/clad.git clad-src
+        $env:CLAD_SOURCE_DIR="$env:PWD_DIR/clad-src"
+        cmake -G Ninja -S "$env:CLAD_SOURCE_DIR/utils/clad-tblgen" -B clad_tblgen_build `
+              -DLLVM_DIR="$env:NATIVE_LLVM_BUILD_DIR\lib\cmake\llvm"
+        cmake --build clad_tblgen_build --target clad-tblgen
+        $env:CLAD_TBLGEN_EXE = (Get-ChildItem -Path clad_tblgen_build -Recurse -Filter "clad-tblgen.exe" | Select-Object -First 1).FullName
+
         # Build CppInterOp next to cling and llvm-project.
         # See bash sites above re: stale build/ on local repro paths.
         # -G Ninja: emcmake's default on Windows is MinGW Makefiles, whose
@@ -617,6 +641,9 @@ runs:
                 -DLLVM_ENABLE_WERROR=On                      `
                 -DSYSROOT_PATH="$env:SYSROOT_PATH"              `
                 -DCPPINTEROP_TABLEGEN_EXE="$env:CPPINTEROP_TBLGEN_EXE" `
+                -DCPPINTEROP_ENABLE_CLAD=ON `
+                -DCLAD_SOURCE_DIR="$env:CLAD_SOURCE_DIR" `
+                -DCLAD_TABLEGEN_EXE="$env:CLAD_TBLGEN_EXE" `
                 ..\
         }
         else
@@ -633,6 +660,9 @@ runs:
                 -DLLVM_ENABLE_WERROR=On                      `
                 -DSYSROOT_PATH="$env:SYSROOT_PATH"                     `
                 -DCPPINTEROP_TABLEGEN_EXE="$env:CPPINTEROP_TBLGEN_EXE" `
+                -DCPPINTEROP_ENABLE_CLAD=ON `
+                -DCLAD_SOURCE_DIR="$env:CLAD_SOURCE_DIR" `
+                -DCLAD_TABLEGEN_EXE="$env:CLAD_TBLGEN_EXE" `
                 ..\
         }
         function Error-OnFailure {

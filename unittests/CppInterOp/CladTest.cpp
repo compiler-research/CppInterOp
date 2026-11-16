@@ -9,7 +9,9 @@
 using namespace TestUtils;
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, CladTest_Sanity) {
-  Cpp::CreateInterpreter({"-std=c++17"}, {});
+  // clad headers reach libc++ locale internals under the sysroot compat dir.
+  Cpp::CreateInterpreter(
+      {"-std=c++17", "-Xclang", "-iwithsysroot/include/compat"}, {});
 
   std::string code = R"(
     #include "clad/Differentiator/Differentiator.h"
