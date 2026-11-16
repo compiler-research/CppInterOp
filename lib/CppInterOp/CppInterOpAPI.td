@@ -129,6 +129,9 @@ def CMap_QualKind       : CTypeMap<"QualKind", "unsigned",
 def CMap_AttrKind       : CTypeMap<"AttrKind", "unsigned",
     /*ArgConv=*/"static_cast<Cpp::AttrKind>($name)",
     /*RetConv=*/"static_cast<unsigned>($result)">;
+def CMap_TemplateParmKind : CTypeMap<"TemplateParamKind", "unsigned char",
+    /*ArgConv=*/"static_cast<Cpp::TemplateParamKind>($name)",
+    /*RetConv=*/"static_cast<unsigned char>($result)">;
 def CMap_Operator       : CTypeMap<"Operator", "unsigned char",
     /*ArgConv=*/"static_cast<Cpp::Operator>($name)",
     /*RetConv=*/"static_cast<unsigned char>($result)">;
