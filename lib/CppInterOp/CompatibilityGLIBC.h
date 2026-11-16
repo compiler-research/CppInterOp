@@ -87,7 +87,8 @@ public:
     std::lock_guard<std::mutex> L(M);
     if (!QuickExitHookInstalled) {
       // Host-resident hook: live handlers still run on a real quick_exit.
-      if (::at_quick_exit(&runAllQuickExitHandlers) != 0)
+      auto* volatile Register = &::at_quick_exit;
+      if (Register(&runAllQuickExitHandlers) != 0)
         return -1;
       QuickExitHookInstalled = true;
     }
@@ -98,8 +99,9 @@ public:
   int addAtfork(void* Owner, Handler Prepare, Handler Parent, Handler Child) {
     std::lock_guard<std::mutex> L(M);
     if (!AtforkHookInstalled) {
-      if (int Err = ::pthread_atfork(&runAtforkPrepare, &runAtforkParent,
-                                     &runAtforkChild))
+      auto* volatile Register = &::pthread_atfork;
+      int Err = Register(&runAtforkPrepare, &runAtforkParent, &runAtforkChild);
+      if (Err)
         return Err;
       AtforkHookInstalled = true;
     }
