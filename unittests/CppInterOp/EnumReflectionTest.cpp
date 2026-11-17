@@ -38,6 +38,7 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, EnumReflection_IsEnumType) {
   EXPECT_TRUE(Cpp::IsEnumType(Cpp::GetVariableType(Decls[3])));
   EXPECT_TRUE(Cpp::IsEnumType(Cpp::GetVariableType(Decls[4])));
   EXPECT_TRUE(Cpp::IsEnumType(Cpp::GetVariableType(Decls[5])));
+  EXPECT_FALSE(Cpp::IsEnumType(nullptr));
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE, EnumReflection_GetIntegerTypeFromEnumScope) {
