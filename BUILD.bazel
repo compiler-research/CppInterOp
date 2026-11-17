@@ -191,6 +191,7 @@ cc_library(
         "lib/CppInterOp/DynamicLibraryManager.cpp",
         "lib/CppInterOp/DynamicLibraryManagerSymbol.cpp",
         "lib/CppInterOp/ErrorInternal.cpp",
+        "lib/CppInterOp/InputRollback.cpp",
         "lib/CppInterOp/Paths.cpp",
         "lib/CppInterOp/Tracing.cpp",
     ] + glob(["lib/CppInterOp/*.h"]),

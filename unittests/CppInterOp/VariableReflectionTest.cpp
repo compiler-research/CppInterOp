@@ -622,8 +622,9 @@ TYPED_TEST(CPPINTEROP_TEST_MODE,
            VariableReflection_GetVariableOffset_UnmaterializableDefinition) {
   // A definition whose dynamic initializer needs an undefined symbol parses
   // fine but cannot be materialized: the odr-use anchor's execution fails
-  // and the query must fail cleanly. (The anchor's flush block is
-  // clang-repl-only, hence the gate.)
+  // and the query must fail cleanly. A template keeps the initializer out of
+  // the declaring input. (The anchor's flush block is clang-repl-only, hence
+  // the gate.)
 #ifdef __EMSCRIPTEN__
   // The intentional materialization failure leaves the process-global wasm
   // dynamic-linking state broken for every later load (see issue #1071).
@@ -641,13 +642,16 @@ TYPED_TEST(CPPINTEROP_TEST_MODE,
   if (TypeParam::isOutOfProcess)
     GTEST_SKIP() << "A failed dlupdate wedges the out-of-process session";
   TestFixture::CreateInterpreter();
-  Cpp::Declare(R"(
+  ASSERT_EQ(0, Cpp::Declare(R"(
     int undefined_fn();
-    struct Unmaterializable {
+    template <class T> struct Unmaterializable {
       inline static int probe = undefined_fn();
     };
-  )");
-  Cpp::DeclRef klass = Cpp::GetNamed("Unmaterializable");
+    using UnmaterializableInt = Unmaterializable<int>;
+    static_assert(sizeof(UnmaterializableInt) > 0, "instantiate the class");
+  )"));
+  Cpp::DeclRef klass =
+      Cpp::GetUnderlyingScope(Cpp::GetNamed("UnmaterializableInt"));
   ASSERT_TRUE(klass);
   Cpp::DeclRef var = Cpp::GetNamed("probe", klass);
   ASSERT_TRUE(var);

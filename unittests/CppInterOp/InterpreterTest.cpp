@@ -27,6 +27,8 @@
 #include <algorithm>
 #include <csignal>
 #include <cstdlib>
+#include <string>
+#include <system_error>
 
 #ifndef _WIN32
 #include <sys/wait.h>
@@ -1057,6 +1059,325 @@ TYPED_TEST(CPPINTEROP_TEST_MODE, SignalHandler_MultipleInterpreters) {
 #endif // GTEST_HAS_DEATH_TEST
 
 #ifndef __EMSCRIPTEN__
+TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_FailedLinkKeepsLaterInputs) {
+#ifdef CPPINTEROP_USE_CLING
+  GTEST_SKIP() << "cling has its own declare path";
+#endif
+  if (TypeParam::isOutOfProcess)
+    GTEST_SKIP() << "the link check is in-process only";
+  TestFixture::CreateInterpreter();
+
+  const size_t Before = Cpp::GetInputCount();
+  EXPECT_NE(0, Cpp::Declare("int fl_undefined(); int fl_use = fl_undefined();",
+                            /*silent=*/true));
+  EXPECT_EQ(Before, Cpp::GetInputCount());
+
+  EXPECT_EQ(0, Cpp::Declare("int fl_later = 1;"));
+  EXPECT_EQ(0, Cpp::Process("fl_later += 1;"));
+}
+
+TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_FailedLinkRetrySameNames) {
+#ifdef CPPINTEROP_USE_CLING
+  GTEST_SKIP() << "cling has its own declare path";
+#endif
+  if (TypeParam::isOutOfProcess)
+    GTEST_SKIP() << "the link check is in-process only";
+  TestFixture::CreateInterpreter();
+
+  EXPECT_NE(0, Cpp::Declare("int fr_x = 1; int fr_h(); int fr_y = fr_h();",
+                            /*silent=*/true));
+  EXPECT_EQ(0,
+            Cpp::Declare(
+                "int fr_x = 2; int fr_h() { return 3; } int fr_y = fr_h();"));
+}
+
+TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_FailedLinkOfLazyDefinition) {
+#ifdef CPPINTEROP_USE_CLING
+  GTEST_SKIP() << "cling has its own declare path";
+#endif
+#ifdef _WIN32
+  GTEST_SKIP() << "MSBuild's canonical-error scraping treats ORC's "
+                  "JIT-session-failure stderr line as a build failure";
+#endif
+  if (TypeParam::isOutOfProcess)
+    GTEST_SKIP() << "the link check is in-process only";
+  TestFixture::CreateInterpreter();
+
+  // fll_f links only on lookup, so the check's own lookup fails.
+  EXPECT_EQ(0, Cpp::Declare("int fll_missing(); int fll_f() { return "
+                            "fll_missing(); }"));
+  EXPECT_NE(0, Cpp::Declare("int fll_x = fll_f();", /*silent=*/true));
+  EXPECT_EQ(0, Cpp::Declare("int fll_later = 1;"));
+}
+
+#ifdef __ELF__
+TYPED_TEST(CPPINTEROP_TEST_MODE,
+           Interpreter_FailedLinkCheckSkipsLinkerSymbols) {
+#ifdef CPPINTEROP_USE_CLING
+  GTEST_SKIP() << "cling has its own declare path";
+#endif
+  if (TypeParam::isOutOfProcess)
+    GTEST_SKIP() << "the link check is in-process only";
+  TestFixture::CreateInterpreter();
+
+  // The initializer makes the check run; fls_got never runs.
+  EXPECT_EQ(0, Cpp::Declare(R"(extern "C" char _GLOBAL_OFFSET_TABLE_[];
+                               void* fls_got() { return _GLOBAL_OFFSET_TABLE_; }
+                               int fls_one() { return 1; }
+                               int fls_init = fls_one();)"));
+}
+#endif
+
+TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_UndoToInputCount) {
+#ifdef CPPINTEROP_USE_CLING
+  GTEST_SKIP() << "GetInputCount is clang-repl only";
+#endif
+  TestFixture::CreateInterpreter();
+
+  const size_t Before = Cpp::GetInputCount();
+  EXPECT_EQ(0, Cpp::Declare("int uc_a = 1;"));
+  EXPECT_EQ(0, Cpp::Declare("int uc_b = uc_a;"));
+  EXPECT_EQ(0, Cpp::Undo(Cpp::GetInputCount() - Before));
+  EXPECT_EQ(Before, Cpp::GetInputCount());
+
+  EXPECT_EQ(0, Cpp::Declare("double uc_a = 0.5; double uc_b = 1.5;"));
+}
+
+TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_UndoKeepsStartupInputs) {
+#ifdef CPPINTEROP_USE_CLING
+  GTEST_SKIP() << "GetInputCount is clang-repl only";
+#endif
+  TestFixture::CreateInterpreter();
+
+  EXPECT_EQ(0, Cpp::Declare("int uks_a = 1;"));
+  const size_t Count = Cpp::GetInputCount();
+  EXPECT_NE(0, Cpp::Undo(Count));
+  EXPECT_EQ(Count, Cpp::GetInputCount());
+  EXPECT_EQ(0, Cpp::Process("uks_a += 1;"));
+}
+
+TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_UndoDropsWithdrawnWrapper) {
+#ifdef CPPINTEROP_USE_CLING
+  GTEST_SKIP() << "GetInputCount is clang-repl only";
+#endif
+  if (TypeParam::isOutOfProcess)
+    GTEST_SKIP() << "Test fails for OOP JIT builds";
+  TestFixture::CreateInterpreter();
+  Cpp::Declare("#include <new>"); // Needed by JitCall
+  Cpp::Declare("int uw_five() { return 5; }");
+  auto FD = Cpp::GetNamed("uw_five");
+  ASSERT_TRUE(FD);
+
+  // The wrapper is compiled after the checkpoint, so Undo withdraws it.
+  const size_t Before = Cpp::GetInputCount();
+  auto JC1 = Cpp::MakeFunctionCallable(Cpp::FuncRef{FD.data});
+  ASSERT_TRUE(JC1.isValid());
+  ASSERT_EQ(0, Cpp::Undo(Cpp::GetInputCount() - Before));
+
+  auto JC2 = Cpp::MakeFunctionCallable(Cpp::FuncRef{FD.data});
+  ASSERT_TRUE(JC2.isValid());
+  int r = 0;
+  JC2.Invoke(&r);
+  EXPECT_EQ(5, r);
+}
+
+TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_UndoKeepsOlderWrapper) {
+#ifdef CPPINTEROP_USE_CLING
+  GTEST_SKIP() << "GetInputCount is clang-repl only";
+#endif
+  if (TypeParam::isOutOfProcess)
+    GTEST_SKIP() << "Test fails for OOP JIT builds";
+  TestFixture::CreateInterpreter();
+  Cpp::Declare("#include <new>"); // Needed by JitCall
+  Cpp::Declare("int uk_six() { return 6; }");
+  auto FD = Cpp::GetNamed("uk_six");
+  ASSERT_TRUE(FD);
+  ASSERT_TRUE(Cpp::MakeFunctionCallable(Cpp::FuncRef{FD.data}).isValid());
+
+  const size_t Before = Cpp::GetInputCount();
+  EXPECT_EQ(0, Cpp::Declare("int uk_other = 1;"));
+  ASSERT_EQ(0, Cpp::Undo(Cpp::GetInputCount() - Before));
+
+  // The wrapper stays cached: no new input compiles it again.
+  auto JC = Cpp::MakeFunctionCallable(Cpp::FuncRef{FD.data});
+  ASSERT_TRUE(JC.isValid());
+  EXPECT_EQ(Before, Cpp::GetInputCount());
+  int r = 0;
+  JC.Invoke(&r);
+  EXPECT_EQ(6, r);
+}
+
+#if !defined(CPPINTEROP_USE_CLING) && CLANG_VERSION_MAJOR >= 22
+#define SKIP_WITHOUT_INPUT_ROLLBACK()
+#else
+#define SKIP_WITHOUT_INPUT_ROLLBACK()                                          \
+  GTEST_SKIP() << "input rollback needs clang-repl from LLVM 22"
+#endif
+
+TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_FailedParseResetsInstantiations) {
+  SKIP_WITHOUT_INPUT_ROLLBACK();
+  if (TypeParam::isOutOfProcess)
+    GTEST_SKIP() << "the link check is in-process only";
+  TestFixture::CreateInterpreter();
+
+  EXPECT_EQ(0,
+            Cpp::Declare("template <class T> T fpi_tw(T t) { return 2*t; }"));
+  EXPECT_NE(0, Cpp::Declare("int fpi_a = fpi_tw(3); int fpi_b = fpi_nope;",
+                            /*silent=*/true));
+  // The instantiation must be emitted again, or this fails to link.
+  EXPECT_EQ(0, Cpp::Process("int fpi_again = fpi_tw(3);"));
+}
+
+TYPED_TEST(CPPINTEROP_TEST_MODE,
+           Interpreter_FailedParseResetsMemberInstantiations) {
+  SKIP_WITHOUT_INPUT_ROLLBACK();
+  if (TypeParam::isOutOfProcess)
+    GTEST_SKIP() << "the link check is in-process only";
+  TestFixture::CreateInterpreter();
+
+  EXPECT_EQ(0, Cpp::Declare(R"(
+    template <class T> struct fpm_s { T f() { return T(2); } static T s; };
+    template <class T> T fpm_s<T>::s = T(3);)"));
+  EXPECT_NE(0, Cpp::Declare("int fpm_a = fpm_s<int>().f() + fpm_s<int>::s;"
+                            "int fpm_b = fpm_nope;",
+                            /*silent=*/true));
+  EXPECT_EQ(0,
+            Cpp::Process("int fpm_again = fpm_s<int>().f() + fpm_s<int>::s;"));
+}
+
+TYPED_TEST(CPPINTEROP_TEST_MODE,
+           Interpreter_FailedParseKeepsExplicitInstantiations) {
+  SKIP_WITHOUT_INPUT_ROLLBACK();
+  if (TypeParam::isOutOfProcess)
+    GTEST_SKIP() << "the link check is in-process only";
+  TestFixture::CreateInterpreter();
+
+  EXPECT_EQ(0, Cpp::Declare(R"(
+    template <class T> inline T fpe_f(T t) { return 2 * t; }
+    extern template int fpe_f<int>(int);
+    template <class T> struct fpe_s { static T s; };
+    template <class T> T fpe_s<T>::s = T(3);)"));
+  EXPECT_NE(0, Cpp::Declare("int fpe_a = fpe_f(3); template int fpe_s<int>::s;"
+                            "int fpe_b = fpe_nope;",
+                            /*silent=*/true));
+  // The extern template needs its explicit instantiation from the user.
+  EXPECT_EQ(0, Cpp::Process("template int fpe_f<int>(int);"
+                            "int fpe_again = fpe_f(3) + fpe_s<int>::s;"));
+}
+
+TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_FailedParseDropsMacros) {
+  SKIP_WITHOUT_INPUT_ROLLBACK();
+  TestFixture::CreateInterpreter();
+
+  EXPECT_NE(0, Cpp::Declare("#define FPM_X 1\nint fpm_bad = fpm_nope;",
+                            /*silent=*/true));
+  EXPECT_EQ(0, Cpp::Declare("#ifdef FPM_X\n#error kept\n#endif"));
+}
+
+TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_UndoRestoresMacro) {
+  SKIP_WITHOUT_INPUT_ROLLBACK();
+  TestFixture::CreateInterpreter();
+
+  EXPECT_EQ(0, Cpp::Declare("#define URM_X 1"));
+  const size_t Before = Cpp::GetInputCount();
+  EXPECT_EQ(0, Cpp::Declare("#undef URM_X\n#define URM_X 2\nint urm_d = 0;"));
+  EXPECT_EQ(0, Cpp::Undo(Cpp::GetInputCount() - Before));
+  EXPECT_EQ(0, Cpp::Declare("static_assert(URM_X == 1, \"restored\");"));
+}
+
+TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_UndoReentersHeaders) {
+  SKIP_WITHOUT_INPUT_ROLLBACK();
+  TestFixture::CreateInterpreter();
+
+  llvm::SmallString<128> Dir;
+  ASSERT_FALSE(llvm::sys::fs::createUniqueDirectory("undo-headers", Dir));
+  auto Write = [&](const char* Name, const char* Text) {
+    llvm::SmallString<128> P(Dir);
+    llvm::sys::path::append(P, Name);
+    std::error_code EC;
+    llvm::raw_fd_ostream(P, EC) << Text;
+    return std::string(P);
+  };
+  std::string Guard = Write("guard.h", "#ifndef URH_G\n#define URH_G\n"
+                                       "struct URHGuard { int v = 1; };\n"
+                                       "#endif\n");
+  std::string Once = Write("once.h", "#pragma once\n"
+                                     "struct URHOnce { int v = 2; };\n");
+  const std::string Include =
+      "#include \"" + Guard + "\"\n#include \"" + Once + "\"\n";
+
+  const size_t Before = Cpp::GetInputCount();
+  EXPECT_EQ(0, Cpp::Declare(Include.c_str()));
+  EXPECT_EQ(0, Cpp::Undo(Cpp::GetInputCount() - Before));
+  EXPECT_EQ(0, Cpp::Declare(Include.c_str()));
+  EXPECT_EQ(0, Cpp::Declare("int urh = URHGuard{}.v + URHOnce{}.v;"));
+  EXPECT_FALSE(llvm::sys::fs::remove_directories(Dir));
+}
+
+TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_UndoInReopenedNamespace) {
+#ifdef CPPINTEROP_USE_CLING
+  GTEST_SKIP() << "GetInputCount is clang-repl only";
+#endif
+  TestFixture::CreateInterpreter();
+
+  EXPECT_EQ(0, Cpp::Declare("namespace URN { namespace In { int keep; } }"));
+  const size_t Before = Cpp::GetInputCount();
+  EXPECT_EQ(0, Cpp::Declare("namespace URN { namespace In { int v; } }"));
+  EXPECT_EQ(0, Cpp::Undo(Cpp::GetInputCount() - Before));
+  EXPECT_FALSE(Cpp::GetNamed("v", Cpp::GetNamed("In", Cpp::GetNamed("URN"))));
+
+  EXPECT_EQ(0, Cpp::Declare("namespace URN { namespace In { double v; } }"));
+  EXPECT_EQ(0, Cpp::Declare("static_assert(sizeof(URN::In::v) == "
+                            "sizeof(double), \"new v\");"
+                            "int* urn_keep = &URN::In::keep;"));
+}
+
+TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_UndoHidesEnumerators) {
+#ifdef CPPINTEROP_USE_CLING
+  GTEST_SKIP() << "GetInputCount is clang-repl only";
+#endif
+  TestFixture::CreateInterpreter();
+
+  EXPECT_EQ(0, Cpp::Declare("namespace UHE {}"));
+  const size_t Before = Cpp::GetInputCount();
+  EXPECT_EQ(0, Cpp::Declare("enum UHE1 { UHE_A = 1 };"
+                            "namespace UHE { enum E1 { UHE_B = 1 }; }"));
+  EXPECT_EQ(0, Cpp::Undo(Cpp::GetInputCount() - Before));
+
+  EXPECT_EQ(0, Cpp::Declare("enum UHE2 { UHE_A = 2 };"
+                            "namespace UHE { enum E2 { UHE_B = 2 }; }"));
+  EXPECT_EQ(0, Cpp::Declare("static_assert(UHE_A == 2 && UHE::UHE_B == 2, "
+                            "\"new enumerators\");"));
+}
+
+TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_UndoDefinitionKeepsDeclaration) {
+#ifdef CPPINTEROP_USE_CLING
+  GTEST_SKIP() << "GetInputCount is clang-repl only";
+#endif
+  TestFixture::CreateInterpreter();
+
+  EXPECT_EQ(0, Cpp::Declare("int udk_f(); extern int udk_x;"));
+  const size_t Before = Cpp::GetInputCount();
+  EXPECT_EQ(0, Cpp::Declare("int udk_f() { return 1; } int udk_x = 1;"));
+  EXPECT_EQ(0, Cpp::Undo(Cpp::GetInputCount() - Before));
+  EXPECT_EQ(0, Cpp::Declare("int udk_f() { return 2; } int udk_x = 2;"));
+}
+
+TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_UndoRedeclarations) {
+#ifdef CPPINTEROP_USE_CLING
+  GTEST_SKIP() << "GetInputCount is clang-repl only";
+#endif
+  TestFixture::CreateInterpreter();
+
+  EXPECT_EQ(0, Cpp::Declare("int urd_f(); int urd_f(); typedef int urd_t;"));
+  const size_t Before = Cpp::GetInputCount();
+  EXPECT_EQ(0, Cpp::Declare("int urd_f(); typedef int urd_t;"));
+  EXPECT_EQ(0, Cpp::Declare("int urd_f();"));
+  EXPECT_EQ(0, Cpp::Undo(Cpp::GetInputCount() - Before));
+  EXPECT_EQ(0,
+            Cpp::Process("int urd_f() { return 3; } urd_t urd_x = urd_f();"));
+}
+
 TYPED_TEST(CPPINTEROP_TEST_MODE, Interpreter_WrapperCacheIsPerInterpreter) {
   if (TypeParam::isOutOfProcess)
     GTEST_SKIP() << "Test fails for OOP JIT builds";
