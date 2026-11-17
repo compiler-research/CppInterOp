@@ -4910,8 +4910,9 @@ void make_narg_call_with_return(compat::Interpreter& I, const FunctionDecl* FD,
   // }
   //
   if (const auto* CD = dyn_cast<CXXConstructorDecl>(FD)) {
-    if (N <= 1 && llvm::isa<UsingShadowDecl>(FD)) {
-      auto SpecMemKind = I.getCI()->getSema().getSpecialMember(CD);
+    if (N <= 1 && CD->isInheritingConstructor()) {
+      auto SpecMemKind = I.getCI()->getSema().getSpecialMember(
+          CD->getInheritedConstructor().getConstructor());
       if ((N == 0 && SpecMemKind == CXXSpecialMemberKind::DefaultConstructor) ||
           (N == 1 && (SpecMemKind == CXXSpecialMemberKind::CopyConstructor ||
                       SpecMemKind == CXXSpecialMemberKind::MoveConstructor))) {
@@ -5383,6 +5384,13 @@ int get_wrapper_code(compat::Interpreter& I, const FunctionDecl* FD,
   // wrapper's argument arity (see make_narg_call).
   unsigned min_args = FD->getMinRequiredExplicitArguments();
   unsigned num_params = FD->getNumNonObjectParams();
+  // Clang synthesizes an inheriting constructor without default arguments.
+  // Calls through it use those of the inherited constructor.
+  const auto* CD = dyn_cast<CXXConstructorDecl>(FD);
+  if (CD && CD->isInheritingConstructor())
+    min_args = CD->getInheritedConstructor()
+                   .getConstructor()
+                   ->getMinRequiredArguments();
   //
   //  Make the wrapper name.
   //
@@ -5726,8 +5734,18 @@ CPPINTEROP_API JitCall MakeFunctionCallable(InterpRef I, ConstFuncRef func) {
   }
 
   if (const auto* Ctor = dyn_cast<CXXConstructorDecl>(D)) {
-    if (auto Wrapper =
-            make_wrapper(*interp, cast<FunctionDecl>(D), isUsingShadow))
+    // A constructor inherited with `using Base::Base` constructs the class
+    // that holds the using-declaration, so wrap that class's inheriting
+    // constructor.
+    const FunctionDecl* WrapFD = Ctor;
+    const auto* CUSD = dyn_cast<ConstructorUsingShadowDecl>(InputD);
+    if (CUSD && !Ctor->isDeleted()) {
+      compat::SynthesizingCodeRAII RAII(interp);
+      WrapFD = interp->getCI()->getSema().findInheritingConstructor(
+          SourceLocation(), const_cast<CXXConstructorDecl*>(Ctor),
+          const_cast<ConstructorUsingShadowDecl*>(CUSD));
+    }
+    if (auto Wrapper = make_wrapper(*interp, WrapFD, isUsingShadow))
       return INTEROP_RETURN(JitCall(JitCall::kConstructorCall, Wrapper,
                                     wrap<ConstFuncRef>(Ctor)));
     // FIXME: else error we failed to compile the wrapper.

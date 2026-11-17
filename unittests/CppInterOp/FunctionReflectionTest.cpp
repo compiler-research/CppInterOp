@@ -283,6 +283,97 @@ TYPED_TEST(CPPINTEROP_TEST_MODE,
   Cpp::Destruct(object, Decls[1]);
 }
 
+TYPED_TEST(CPPINTEROP_TEST_MODE,
+           FunctionReflection_MakeFunctionCallable_InheritedConstructor) {
+#ifdef __EMSCRIPTEN__
+  GTEST_SKIP() << "Test fails for Emscripten builds";
+#endif
+#if defined(CPPINTEROP_USE_CLING) && defined(_WIN32)
+  GTEST_SKIP() << "Disabled on Cling/Windows.";
+#endif
+  if (TypeParam::isOutOfProcess)
+    GTEST_SKIP() << "Test fails for OOP JIT builds";
+
+  std::vector<Decl*> Decls, DerivedDecls;
+  std::string code = R"(
+    int derivMemCtors = 0;
+    int derivDtors = 0;
+    struct DerivMem {
+      DerivMem() { ++derivMemCtors; }
+    };
+    struct Base {
+      Base(int) {}
+      Base(const Base&, int = 12) {}
+      virtual ~Base() {}
+    };
+    struct Derived : Base {
+      DerivMem mem;
+      using Base::Base;
+      ~Derived() override { ++derivDtors; }
+    };
+    )";
+
+  GetAllTopLevelDecls(code, Decls, /*filter_implicitGenerated=*/false,
+                      /*interpreter_args=*/{"-include", "new"});
+  Cpp::DeclRef BaseScope = Cpp::GetNamed("Base");
+  Cpp::DeclRef DerivedScope = Cpp::GetNamed("Derived");
+  ASSERT_TRUE(BaseScope);
+  ASSERT_TRUE(DerivedScope);
+  auto* MemCtors = reinterpret_cast<int*>(
+      Cpp::GetVariableOffset(Cpp::GetNamed("derivMemCtors")));
+  auto* Dtors = reinterpret_cast<int*>(
+      Cpp::GetVariableOffset(Cpp::GetNamed("derivDtors")));
+  ASSERT_TRUE(MemCtors);
+  ASSERT_TRUE(Dtors);
+
+  Decl* IntShadow = nullptr;
+  Decl* CopyShadow = nullptr;
+  GetAllSubDecls(Cpp::unwrap<Decl>(DerivedScope), DerivedDecls);
+  for (auto* D : DerivedDecls)
+    if (llvm::isa<ConstructorUsingShadowDecl>(D))
+      (Cpp::GetFunctionNumArgs(D) == 1 ? IntShadow : CopyShadow) = D;
+  ASSERT_TRUE(IntShadow);
+  ASSERT_TRUE(CopyShadow);
+
+  int one = 1;
+  std::array<void*, 1> args1 = {(void*)&one};
+  Cpp::JitCall IntCall = Cpp::MakeFunctionCallable(IntShadow);
+  ASSERT_EQ(IntCall.getKind(), Cpp::JitCall::kConstructorCall);
+  void* object = nullptr;
+  IntCall.Invoke(&object, {args1.data(), 1});
+  ASSERT_TRUE(object);
+  EXPECT_EQ(*MemCtors, 1);
+  EXPECT_TRUE(Cpp::Destruct(object, DerivedScope));
+  EXPECT_EQ(*Dtors, 1);
+
+  Cpp::JitCall BaseCall =
+      Cpp::MakeFunctionCallable(FindMethod(BaseScope, "Base", 1));
+  ASSERT_EQ(BaseCall.getKind(), Cpp::JitCall::kConstructorCall);
+  void* base = nullptr;
+  BaseCall.Invoke(&base, {args1.data(), 1});
+  ASSERT_TRUE(base);
+  EXPECT_EQ(*MemCtors, 1);
+
+  Cpp::JitCall CopyCall = Cpp::MakeFunctionCallable(CopyShadow);
+  ASSERT_EQ(CopyCall.getKind(), Cpp::JitCall::kConstructorCall);
+  int three = 3;
+  std::array<void*, 2> args2 = {base, (void*)&three};
+  object = nullptr;
+  CopyCall.Invoke(&object, {args2.data(), 2});
+  ASSERT_TRUE(object);
+  EXPECT_EQ(*MemCtors, 2);
+  EXPECT_TRUE(Cpp::Destruct(object, DerivedScope));
+  EXPECT_EQ(*Dtors, 2);
+
+  // Excluded for a single argument ([over.match.funcs]).
+  object = nullptr;
+  CopyCall.Invoke(&object, {args2.data(), 1});
+  EXPECT_FALSE(object);
+
+  EXPECT_TRUE(Cpp::Destruct(base, BaseScope));
+  EXPECT_EQ(*Dtors, 2);
+}
+
 // A using-promoted method still belongs to its declaring base class. When that
 // base sits at a non-zero offset inside the derived object (multiple
 // inheritance), callers adjust `this` with
