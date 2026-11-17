@@ -6413,6 +6413,8 @@ std::string ObjToString(const char* TyRef, void* obj) {
 static Decl* InstantiateTemplate(TemplateDecl* TemplateD,
                                  TemplateArgumentListInfo& TLI, Sema& S,
                                  bool instantiate_body) {
+  // Errors from Sema calls outside an input would fail the next input.
+  compat::DiagnosticsEngineRAII DiagsRAII(S.getDiagnostics());
   // This is not right but we don't have a lot of options to choose from as a
   // template instantiation requires a valid source location.
   SourceLocation fakeLoc = GetValidSLoc(S);
