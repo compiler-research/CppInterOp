@@ -266,6 +266,10 @@ typedef struct CppInterOpStringArray {
   size_t size;
 } CppInterOpStringArray;
 
+/// Callback run by InvokeProtected. Receives the caller's \c arg verbatim.
+/// Plain C signature so the setjmp frame stays inside InvokeProtected.
+typedef void (*CppProtectedCallFn)(void* arg);
+
 /// Holds information for instantiating a template.
 /// Standard-layout, C-compatible.
 typedef struct TemplateArgInfo {
@@ -286,6 +290,7 @@ namespace Cpp {
 using ::CppInterOpArray;
 using ::CppInterOpStringArray;
 using ::TemplateArgInfo;
+using ProtectedCallFn = ::CppProtectedCallFn;
 
 static_assert(sizeof(DeclRef) == sizeof(ConstDeclRef),
               "Const/mutable handle ABI mismatch");
