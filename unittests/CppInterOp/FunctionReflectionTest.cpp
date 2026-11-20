@@ -4,6 +4,7 @@
 #include "../../lib/CppInterOp/Unwrap.h"
 
 #include "clang/AST/ASTContext.h"
+#include "clang/AST/DeclTemplate.h"
 #include "clang/AST/PrettyPrinter.h"
 #include "clang/Basic/Version.h"
 #include "clang/Frontend/CompilerInstance.h"
@@ -12,6 +13,7 @@
 #include <CppInterOp/CppInterOpTypes.h>
 #include <cstdint>
 #include <llvm/ADT/ArrayRef.h>
+#include <llvm/ADT/StringRef.h>
 #include <llvm/Support/Casting.h>
 #include <llvm/Support/raw_ostream.h>
 
@@ -3147,6 +3149,88 @@ TYPED_TEST(CPPINTEROP_TEST_MODE,
             "void consume(A0)");
   EXPECT_EQ(Cpp::GetFunctionSignature(ambiguous_candidates[1]),
             "void consume(B0)");
+}
+
+TYPED_TEST(CPPINTEROP_TEST_MODE,
+           FunctionReflection_BestOverloadFunctionMatchIllFormedBody) {
+  // A match whose body turns out to be ill-formed when instantiated is
+  // rejected, and the diagnostics from instantiating the body are available
+  // from GetLastOverloadMatchDiagnostics rather than printed.
+  std::vector<Decl*> Decls;
+  std::string code = R"(
+  template <typename T> int failing_assert(T) {
+    static_assert(sizeof(T) == 0, "failing_assert is ill-formed");
+    return 0;
+  }
+  template <typename T> struct Nested {
+    static int get() { return T::missing; }
+  };
+  template <typename T> int nested_error(T) { return Nested<T>::get(); }
+  // the warning is enabled explicitly, since it is disabled by default in
+  // some configurations (e.g. cling on Windows)
+  #pragma clang diagnostic push
+  #pragma clang diagnostic warning "-Wdeprecated-declarations"
+  template <typename T> struct Old {
+    [[deprecated("use something else")]] static int get() { return 1; }
+  };
+  template <typename T> int warns(T) { return Old<T>::get(); }
+  #pragma clang diagnostic pop
+  template <typename T> int fine(T) { return 1; }
+  )";
+  GetAllTopLevelDecls(code, Decls);
+
+  auto Candidates = [&Decls](llvm::StringRef name) {
+    std::vector<Cpp::FuncRef> candidates;
+    for (auto* D : Decls)
+      if (auto* FTD = llvm::dyn_cast<FunctionTemplateDecl>(D);
+          FTD && FTD->getName() == name)
+        candidates.emplace_back(D);
+    EXPECT_EQ(candidates.size(), 1);
+    return candidates;
+  };
+
+  std::vector<Cpp::TemplateArgInfo> args = {Cpp::GetType("int").data};
+  std::vector<Cpp::FuncRef> ambiguous_candidates;
+
+  // a failing static_assert leaves the specialization valid, but the body is
+  // ill-formed
+  auto failing_assert = Candidates("failing_assert");
+  EXPECT_FALSE(Cpp::BestOverloadFunctionMatch(failing_assert, {}, args,
+                                              ambiguous_candidates));
+  EXPECT_TRUE(ambiguous_candidates.empty());
+  std::string diags = Cpp::GetLastOverloadMatchDiagnostics();
+  EXPECT_NE(diags.find("error"), std::string::npos) << diags;
+  EXPECT_NE(diags.find("failing_assert is ill-formed"), std::string::npos)
+      << diags;
+  // the rejected specialization stays rejected
+  EXPECT_FALSE(Cpp::BestOverloadFunctionMatch(failing_assert, {}, args,
+                                              ambiguous_candidates));
+  EXPECT_FALSE(
+      Cpp::InstantiateTemplate(Cpp::unwrap<Decl>(failing_assert[0]), args)
+          .data);
+
+  // an error in a nested instantiation
+  EXPECT_FALSE(Cpp::BestOverloadFunctionMatch(Candidates("nested_error"), {},
+                                              args, ambiguous_candidates));
+  diags = Cpp::GetLastOverloadMatchDiagnostics();
+  EXPECT_NE(diags.find("error"), std::string::npos) << diags;
+  EXPECT_NE(diags.find("Nested<int>::get"), std::string::npos) << diags;
+
+  // warnings do not reject the match, and are reported as well
+  auto warns = Candidates("warns");
+  EXPECT_TRUE(
+      Cpp::BestOverloadFunctionMatch(warns, {}, args, ambiguous_candidates));
+  diags = Cpp::GetLastOverloadMatchDiagnostics();
+  EXPECT_NE(diags.find("warning"), std::string::npos) << diags;
+  EXPECT_NE(diags.find("use something else"), std::string::npos) << diags;
+  // no body is instantiated for an already defined match
+  EXPECT_TRUE(
+      Cpp::BestOverloadFunctionMatch(warns, {}, args, ambiguous_candidates));
+  EXPECT_EQ(Cpp::GetLastOverloadMatchDiagnostics(), "");
+
+  EXPECT_TRUE(Cpp::BestOverloadFunctionMatch(Candidates("fine"), {}, args,
+                                             ambiguous_candidates));
+  EXPECT_EQ(Cpp::GetLastOverloadMatchDiagnostics(), "");
 }
 
 TYPED_TEST(CPPINTEROP_TEST_MODE,
