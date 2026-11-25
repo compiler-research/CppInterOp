@@ -135,59 +135,89 @@ endif(LLVM_LINK_LLVM_DYLIB)
 # Generate .inc files from CppInterOp.td using cppinterop-tblgen.
 # The .td source lives here; generated output goes to the build tree's
 # include/CppInterOp/ so that CppInterOp.h can #include them.
-#
-# For cross-compilation (Emscripten), set CPPINTEROP_TABLEGEN_EXE to a
-# pre-built native cppinterop-tblgen binary, or build one in a native
-# build directory first.
 set(CPPINTEROP_TD_DIR ${CMAKE_CURRENT_SOURCE_DIR})
 set(CPPINTEROP_TD_FILE ${CPPINTEROP_TD_DIR}/CppInterOp.td)
 set(CPPINTEROP_TD_DEPS ${CPPINTEROP_TD_FILE}
-                        ${CPPINTEROP_TD_DIR}/CppInterOpAPI.td)
+                      ${CPPINTEROP_TD_DIR}/CppInterOpAPI.td)
+set(CPPINTEROP_TD_DEPS cppinterop-tblgen ${CPPINTEROP_TD_DEPS})
 
-if(CPPINTEROP_TABLEGEN_EXE)
-  # Cross-compilation: use the provided native binary.
-  set(CPPINTEROP_TBLGEN_CMD ${CPPINTEROP_TABLEGEN_EXE})
-  set(CPPINTEROP_TBLGEN_DEPS ${CPPINTEROP_TD_DEPS})
-elseif(NOT EMSCRIPTEN)
-  # Native build: use the just-built target.
+if(EMSCRIPTEN)
+  # Emscripten build: tblgen is a .js file that must be run via Node.js
+  set(CPPINTEROP_TBLGEN_CMD $ENV{EMSDK_NODE} $<TARGET_FILE:cppinterop-tblgen>)
+else()
+  # Native build: use the just-built native binary directly.
   set(CPPINTEROP_TBLGEN_CMD $<TARGET_FILE:cppinterop-tblgen>)
-  set(CPPINTEROP_TBLGEN_DEPS cppinterop-tblgen ${CPPINTEROP_TD_DEPS})
 endif()
+set(CPPINTEROP_TBLGEN_DEPS cppinterop-tblgen ${CPPINTEROP_TD_DEPS})
 
 if(CPPINTEROP_TBLGEN_CMD)
   file(MAKE_DIRECTORY ${CPPINTEROP_GEN_DIR})
 
-  add_custom_command(
-    OUTPUT ${CPPINTEROP_GEN_DIR}/CppInterOpAPI.inc
-    COMMAND ${CPPINTEROP_TBLGEN_CMD}
-      -I${CPPINTEROP_TD_DIR} -gen-cppinterop-api
-      ${CPPINTEROP_TD_FILE} -o ${CPPINTEROP_GEN_DIR}/CppInterOpAPI.inc
-    DEPENDS ${CPPINTEROP_TBLGEN_DEPS}
-    COMMENT "Generating CppInterOpAPI.inc...")
+  if(EMSCRIPTEN)
+    add_custom_command(
+      OUTPUT ${CPPINTEROP_GEN_DIR}/CXCppInterOpImpl.inc
+      COMMAND ${CPPINTEROP_TBLGEN_CMD}
+        -I/lib/CppInterOp/ -gen-cx-cppinterop-impl
+        /lib/CppInterOp/CppInterOp.td >> ${CPPINTEROP_GEN_DIR}/CXCppInterOpImpl.inc
+      DEPENDS ${CPPINTEROP_TBLGEN_DEPS}
+      COMMENT "Generating CXCppInterOpImpl.inc...")
 
-  add_custom_command(
-    OUTPUT ${CPPINTEROP_GEN_DIR}/CppInterOpDecl.inc
-    COMMAND ${CPPINTEROP_TBLGEN_CMD}
-      -I${CPPINTEROP_TD_DIR} -gen-cppinterop-decl
-      ${CPPINTEROP_TD_FILE} -o ${CPPINTEROP_GEN_DIR}/CppInterOpDecl.inc
-    DEPENDS ${CPPINTEROP_TBLGEN_DEPS}
-    COMMENT "Generating CppInterOpDecl.inc...")
+    add_custom_command(
+      OUTPUT ${CPPINTEROP_GEN_DIR}/CXCppInterOpDecl.inc
+      COMMAND ${CPPINTEROP_TBLGEN_CMD}
+        -I/lib/CppInterOp/ -gen-cx-cppinterop-decl
+        /lib/CppInterOp/CppInterOp.td >> ${CPPINTEROP_GEN_DIR}/CXCppInterOpDecl.inc
+      DEPENDS ${CPPINTEROP_TBLGEN_DEPS}
+      COMMENT "Generating CXCppInterOpDecl.inc...")
 
-  add_custom_command(
-    OUTPUT ${CPPINTEROP_GEN_DIR}/CXCppInterOpDecl.inc
-    COMMAND ${CPPINTEROP_TBLGEN_CMD}
-      -I${CPPINTEROP_TD_DIR} -gen-cx-cppinterop-decl
-      ${CPPINTEROP_TD_FILE} -o ${CPPINTEROP_GEN_DIR}/CXCppInterOpDecl.inc
-    DEPENDS ${CPPINTEROP_TBLGEN_DEPS}
-    COMMENT "Generating CXCppInterOpDecl.inc...")
+    add_custom_command(
+      OUTPUT ${CPPINTEROP_GEN_DIR}/CppInterOpDecl.inc
+      COMMAND ${CPPINTEROP_TBLGEN_CMD}
+        -I/lib/CppInterOp/ -gen-cppinterop-decl
+        /lib/CppInterOp/CppInterOp.td >> ${CPPINTEROP_GEN_DIR}/CppInterOpDecl.inc
+      DEPENDS ${CPPINTEROP_TBLGEN_DEPS}
+      COMMENT "Generating CppInterOpDecl.inc...")
 
-  add_custom_command(
-    OUTPUT ${CPPINTEROP_GEN_DIR}/CXCppInterOpImpl.inc
-    COMMAND ${CPPINTEROP_TBLGEN_CMD}
-      -I${CPPINTEROP_TD_DIR} -gen-cx-cppinterop-impl
-      ${CPPINTEROP_TD_FILE} -o ${CPPINTEROP_GEN_DIR}/CXCppInterOpImpl.inc
-    DEPENDS ${CPPINTEROP_TBLGEN_DEPS}
-    COMMENT "Generating CXCppInterOpImpl.inc...")
+    add_custom_command(
+      OUTPUT ${CPPINTEROP_GEN_DIR}/CppInterOpAPI.inc
+      COMMAND ${CPPINTEROP_TBLGEN_CMD}
+        -I/lib/CppInterOp/ -gen-cppinterop-api
+        /lib/CppInterOp/CppInterOp.td >> ${CPPINTEROP_GEN_DIR}/CppInterOpAPI.inc
+      DEPENDS ${CPPINTEROP_TBLGEN_DEPS}
+      COMMENT "Generating CppInterOpAPI.inc...")
+  else()
+    add_custom_command(
+      OUTPUT ${CPPINTEROP_GEN_DIR}/CXCppInterOpImpl.inc
+      COMMAND ${CPPINTEROP_TBLGEN_CMD}
+        -I${CPPINTEROP_TD_DIR} -gen-cx-cppinterop-impl
+        ${CPPINTEROP_TD_FILE} -o ${CPPINTEROP_GEN_DIR}/CXCppInterOpImpl.inc
+      DEPENDS ${CPPINTEROP_TBLGEN_DEPS}
+      COMMENT "Generating CXCppInterOpImpl.inc...")
+
+    add_custom_command(
+      OUTPUT ${CPPINTEROP_GEN_DIR}/CXCppInterOpDecl.inc
+      COMMAND ${CPPINTEROP_TBLGEN_CMD}
+        -I${CPPINTEROP_TD_DIR} -gen-cx-cppinterop-decl
+        ${CPPINTEROP_TD_FILE} -o ${CPPINTEROP_GEN_DIR}/CXCppInterOpDecl.inc
+      DEPENDS ${CPPINTEROP_TBLGEN_DEPS}
+      COMMENT "Generating CXCppInterOpDecl.inc...")
+
+    add_custom_command(
+      OUTPUT ${CPPINTEROP_GEN_DIR}/CppInterOpDecl.inc
+      COMMAND ${CPPINTEROP_TBLGEN_CMD}
+        -I${CPPINTEROP_TD_DIR} -gen-cppinterop-decl
+        ${CPPINTEROP_TD_FILE} -o ${CPPINTEROP_GEN_DIR}/CppInterOpDecl.inc
+      DEPENDS ${CPPINTEROP_TBLGEN_DEPS}
+      COMMENT "Generating CppInterOpDecl.inc...")
+
+    add_custom_command(
+      OUTPUT ${CPPINTEROP_GEN_DIR}/CppInterOpAPI.inc
+      COMMAND ${CPPINTEROP_TBLGEN_CMD}
+        -I${CPPINTEROP_TD_DIR} -gen-cppinterop-api
+        ${CPPINTEROP_TD_FILE} -o ${CPPINTEROP_GEN_DIR}/CppInterOpAPI.inc
+      DEPENDS ${CPPINTEROP_TBLGEN_DEPS}
+      COMMENT "Generating CppInterOpAPI.inc...")
+  endif()
 
   add_custom_target(CppInterOpTableGen DEPENDS
     ${CPPINTEROP_GEN_DIR}/CppInterOpAPI.inc

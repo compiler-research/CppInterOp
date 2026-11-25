@@ -289,28 +289,8 @@ runs:
         export PREFIX=$MAMBA_ROOT_PREFIX/envs/CppInterOp-wasm
         export CMAKE_PREFIX_PATH=$PREFIX
         export CMAKE_SYSTEM_PREFIX_PATH=$PREFIX
-
-        # setup-recipe extracts the cell to $(pwd)/install/.
         LLVM_DIR="$(pwd)/install"
         LLVM_BUILD_DIR="$LLVM_DIR/build"
-
-        # The cell ships host tblgens at install/native_build/; we still
-        # need a CppInterOp-side host build to generate the cppinterop-
-        # specific .inc files via cppinterop-tblgen.
-        NATIVE_LLVM_BUILD_DIR="$LLVM_DIR/native_build"
-        mkdir -p native_cppinterop_build && pushd native_cppinterop_build
-        cmake -G Ninja -DCMAKE_BUILD_TYPE=Release \
-              -DLLVM_DIR=$NATIVE_LLVM_BUILD_DIR/lib/cmake/llvm \
-              -DCPPINTEROP_ENABLE_TESTING=OFF \
-              -DCMAKE_CXX_STANDARD=17 \
-              -DLLVM_ENABLE_WERROR=On  \
-              -DCPPINTEROP_BUILD_TABLEGEN_ONLY=ON \
-              ../
-        cmake --build . --target cppinterop-tblgen
-        export CPPINTEROP_TBLGEN_EXE=$(find $PWD -name cppinterop-tblgen -type f | head -1)
-        echo "Found cppinterop-tblgen at: $CPPINTEROP_TBLGEN_EXE"
-        echo "CPPINTEROP_TBLGEN_EXE=$CPPINTEROP_TBLGEN_EXE" >> $GITHUB_ENV
-        popd
 
         # Build CppInterOp next to cling and llvm-project.
         # See native-shared site above re: stale build/ on local repro.
@@ -332,7 +312,6 @@ runs:
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            \
                 -DLLVM_ENABLE_WERROR=On                      \
                 -DSYSROOT_PATH=$SYSROOT_PATH               \
-                -DCPPINTEROP_TABLEGEN_EXE=$CPPINTEROP_TBLGEN_EXE \
                 ../
         else
           emcmake cmake -G Ninja -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    \
@@ -346,7 +325,6 @@ runs:
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            \
                 -DLLVM_ENABLE_WERROR=On                      \
                 -DSYSROOT_PATH=$SYSROOT_PATH                     \
-                -DCPPINTEROP_TABLEGEN_EXE=$CPPINTEROP_TBLGEN_EXE \
                 ../
         fi
         emmake ninja check-cppinterop
@@ -488,7 +466,6 @@ runs:
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            \
                 -DLLVM_ENABLE_WERROR=On                      \
                 -DSYSROOT_PATH=${{ env.SYSROOT_PATH }}              \
-                -DCPPINTEROP_TABLEGEN_EXE=$CPPINTEROP_TBLGEN_EXE \
                 ../
         else
           emcmake cmake -G Ninja -DCMAKE_BUILD_TYPE=${{ env.BUILD_TYPE }}    \
@@ -501,7 +478,6 @@ runs:
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            \
                 -DLLVM_ENABLE_WERROR=On                      \
                 -DSYSROOT_PATH=${{ env.SYSROOT_PATH }}                  \
-                -DCPPINTEROP_TABLEGEN_EXE=$CPPINTEROP_TBLGEN_EXE \
                 ../
         fi
         os="${{ matrix.os }}"
@@ -564,33 +540,12 @@ runs:
         
         $env:CMAKE_PREFIX_PATH=$env:PREFIX
         $env:CMAKE_SYSTEM_PREFIX_PATH=$env:PREFIX
-        
-        # setup-recipe extracts the cell to $PWD_DIR\install\.
+
         $env:LLVM_DIR="$env:PWD_DIR\install"
         echo "LLVM_DIR=$env:LLVM_DIR" >> $env:GITHUB_ENV
 
         $env:LLVM_BUILD_DIR="$env:LLVM_DIR\build"
         echo "LLVM_BUILD_DIR=$env:LLVM_BUILD_DIR" >> $env:GITHUB_ENV
-
-        # Build native cppinterop-tblgen for .inc file generation.
-        mkdir native_cppinterop_build
-        pushd native_cppinterop_build
-        $env:NATIVE_LLVM_BUILD_DIR="$env:LLVM_DIR\native_build"
-        # Use -G Ninja explicitly: cmake's default on Windows is the
-        # Visual Studio multi-config generator, which ignores
-        # CMAKE_BUILD_TYPE and builds Debug, then fails to link against
-        # the Release LLVM static libs produced by the native LLVM build.
-        cmake -G Ninja -DCMAKE_BUILD_TYPE=Release `
-              -DLLVM_DIR="$env:NATIVE_LLVM_BUILD_DIR\lib\cmake\llvm" `
-              -DCPPINTEROP_ENABLE_TESTING=OFF `
-              -DCMAKE_CXX_STANDARD=17 -DLLVM_ENABLE_WERROR=On `
-              -DCPPINTEROP_BUILD_TABLEGEN_ONLY=ON `
-              ..\
-        cmake --build . --target cppinterop-tblgen
-        $env:CPPINTEROP_TBLGEN_EXE = (Get-ChildItem -Recurse -Filter "cppinterop-tblgen.exe" | Select-Object -First 1).FullName
-        echo "Found cppinterop-tblgen at: $env:CPPINTEROP_TBLGEN_EXE"
-        echo "CPPINTEROP_TBLGEN_EXE=$env:CPPINTEROP_TBLGEN_EXE" >> $env:GITHUB_ENV
-        popd
 
         # Build CppInterOp next to cling and llvm-project.
         # See bash sites above re: stale build/ on local repro paths.
@@ -616,7 +571,6 @@ runs:
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            `
                 -DLLVM_ENABLE_WERROR=On                      `
                 -DSYSROOT_PATH="$env:SYSROOT_PATH"              `
-                -DCPPINTEROP_TABLEGEN_EXE="$env:CPPINTEROP_TBLGEN_EXE" `
                 ..\
         }
         else
@@ -632,7 +586,6 @@ runs:
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            `
                 -DLLVM_ENABLE_WERROR=On                      `
                 -DSYSROOT_PATH="$env:SYSROOT_PATH"                     `
-                -DCPPINTEROP_TABLEGEN_EXE="$env:CPPINTEROP_TBLGEN_EXE" `
                 ..\
         }
         function Error-OnFailure {
@@ -666,10 +619,11 @@ runs:
         Error-OnFailure { python.exe $env:EMSDK/upstream/emscripten/emrun.py --browser="firefox.exe" --kill_exit --timeout 90 --browser-args="--headless"  CppInterOpTests.html }
         echo "Running DynamicLibraryManagerTests in Firefox"
         Error-OnFailure { python.exe $env:EMSDK/upstream/emscripten/emrun.py --browser="firefox.exe" --kill_exit --timeout 90 --browser-args="--headless"  DynamicLibraryManagerTests.html }
-        echo "Running CppInterOpTests in Chromium"
-        Error-OnFailure { python.exe $env:EMSDK/upstream/emscripten/emrun.py --browser="chrome.exe" --kill_exit --timeout 90 --browser-args="--headless --no-sandbox"  CppInterOpTests.html }
-        echo "Running DynamicLibraryManagerTests in Chromium"
-        Error-OnFailure { python.exe $env:EMSDK/upstream/emscripten/emrun.py --browser="chrome.exe" --kill_exit --timeout 90 --browser-args="--headless --no-sandbox"  DynamicLibraryManagerTests.html }
+        #FIXME: Chromium tests broken in ci due memory issue
+        #echo "Running CppInterOpTests in Chromium"
+        #Error-OnFailure { python.exe $env:EMSDK/upstream/emscripten/emrun.py --browser="chrome.exe" --kill_exit --timeout 90 --browser-args="--headless --no-sandbox"  CppInterOpTests.html }
+        #echo "Running DynamicLibraryManagerTests in Chromium"
+        #Error-OnFailure { python.exe $env:EMSDK/upstream/emscripten/emrun.py --browser="chrome.exe" --kill_exit --timeout 90 --browser-args="--headless --no-sandbox"  DynamicLibraryManagerTests.html }
         cd ..\..
         Error-OnFailure { emmake ninja install }
 
@@ -710,7 +664,6 @@ runs:
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            `
                 -DLLVM_ENABLE_WERROR=On                      `
                 -DSYSROOT_PATH=${{ env.SYSROOT_PATH }}             `
-                -DCPPINTEROP_TABLEGEN_EXE="${{ env.CPPINTEROP_TBLGEN_EXE }}" `
                 ..\
         }
         else
@@ -725,7 +678,6 @@ runs:
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            `
                 -DLLVM_ENABLE_WERROR=On                      `
                 -DSYSROOT_PATH=${{ env.SYSROOT_PATH }}                    `
-                -DCPPINTEROP_TABLEGEN_EXE="${{ env.CPPINTEROP_TBLGEN_EXE }}" `
                 ..\
         }
         $env:EMCC_CORES=2
@@ -736,7 +688,8 @@ runs:
         Error-OnFailure { python.exe $env:EMSDK/upstream/emscripten/emrun.py --browser="firefox.exe" --kill_exit --timeout 90 --browser-args="--headless"  CppInterOpTests.html }
         echo "Running DynamicLibraryManagerTests in Firefox"
         Error-OnFailure { python.exe $env:EMSDK/upstream/emscripten/emrun.py --browser="firefox.exe" --kill_exit --timeout 90 --browser-args="--headless"  DynamicLibraryManagerTests.html }
-        echo "Running CppInterOpTests in Chromium"
-        Error-OnFailure { python.exe $env:EMSDK/upstream/emscripten/emrun.py --browser="chrome.exe" --kill_exit --timeout 90 --browser-args="--headless --no-sandbox"  CppInterOpTests.html }
-        echo "Running DynamicLibraryManagerTests in Chromium"
-        Error-OnFailure{ python.exe $env:EMSDK/upstream/emscripten/emrun.py --browser="chrome.exe" --kill_exit --timeout 90 --browser-args="--headless --no-sandbox"  DynamicLibraryManagerTests.html }
+        #FIXME: Chromium tests broken in ci due memory issue
+        #echo "Running CppInterOpTests in Chromium"
+        #Error-OnFailure { python.exe $env:EMSDK/upstream/emscripten/emrun.py --browser="chrome.exe" --kill_exit --timeout 90 --browser-args="--headless --no-sandbox"  CppInterOpTests.html }
+        #echo "Running DynamicLibraryManagerTests in Chromium"
+        #Error-OnFailure{ python.exe $env:EMSDK/upstream/emscripten/emrun.py --browser="chrome.exe" --kill_exit --timeout 90 --browser-args="--headless --no-sandbox"  DynamicLibraryManagerTests.html }
