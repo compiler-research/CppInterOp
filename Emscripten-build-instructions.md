@@ -1,7 +1,5 @@
 # Wasm Build Instructions
 
-It should be noted that the wasm build of CppInterOp is still experimental and subject to change.  
-
 ## CppInterOp Wasm Build Instructions
 
 This document first starts with the instructions on how to build a wasm build of CppInterOp. Before we start it should be noted that  
@@ -30,7 +28,7 @@ and to activate the emsdk environment on Linux and osx execute (we are defining 
 ```bash
 ./emsdk/emsdk activate 6.0.8
 source ./emsdk/emsdk_env.sh
-export SYSROOT_PATH=$EMSDK/emsdk/upstream/emscripten/cache/sysroot
+export SYSROOT_PATH=$EMSDK/upstream/emscripten/cache/sysroot
 ```
 
 and on Windows execute in Powershell
@@ -41,8 +39,7 @@ and on Windows execute in Powershell
 $env:SYSROOT_PATH="$env:EMSDK/upstream/emscripten/cache/sysroot"
 ```
 
-Now clone the 22.x release of the LLVM project repository and CppInterOp (the building of the emscripten version of llvm can be
-avoided by executing micromamba install llvm -c <https://repo.mamba.pm/emscripten-forge> and setting the LLVM_BUILD_DIR/$env:LLVM_BUILD_DIR appropriately)
+Now clone the 23.x release of the LLVM project repository and CppInterOp
 
 ```bash
 git clone --depth=1 --branch release/23.x https://github.com/llvm/llvm-project.git
@@ -69,13 +66,6 @@ git apply -v emscripten-clang23-1-enable_exception_handling.patch
 We are now in a position to build an emscripten build of llvm by executing the following on Linux
 and osx
 ```bash
-mkdir native_build
-cd native_build
-cmake -DLLVM_ENABLE_PROJECTS=clang -DLLVM_TARGETS_TO_BUILD=host -DCMAKE_BUILD_TYPE=Release ../llvm/
-cmake --build . --target llvm-tblgen clang-tblgen --parallel $(nproc --all)
-export NATIVE_LLVM_BUILD_DIR=$PWD
-export NATIVE_LLVM_BIN_DIR=$PWD/bin/
-cd ..
 mkdir build
 cd build
 emcmake cmake -G Ninja -DCMAKE_BUILD_TYPE=Release \
@@ -95,11 +85,11 @@ emcmake cmake -G Ninja -DCMAKE_BUILD_TYPE=Release \
                         -DLLVM_BUILD_TOOLS=OFF                          \
                         -DLLVM_ENABLE_LIBPFM=OFF                        \
                         -DCLANG_BUILD_TOOLS=OFF                         \
-                        -DLLVM_NATIVE_TOOL_DIR=$NATIVE_LLVM_BIN_DIR              \
                         -DCMAKE_C_FLAGS_RELEASE="-Oz -g0 -DNDEBUG -mno-tail-call" \
                         -DCMAKE_CXX_FLAGS_RELEASE="-Oz -g0 -DNDEBUG -mno-tail-call" \
 			-DCMAKE_EXE_LINKER_FLAGS="-mno-tail-call" \
                         -DLLVM_ENABLE_LTO=Full \
+			-DCROSS_TOOLCHAIN_FLAGS_NATIVE="-DCMAKE_C_COMPILER=clang;-DCMAKE_CXX_COMPILER=clang++" \
                         ../llvm
 EMCC_CFLAGS="-fwasm-exceptions" emmake ninja ClangReplInterpreterTests
 node ./tools/clang/unittests/Interpreter/ClangReplInterpreterTests.js
@@ -108,14 +98,6 @@ node ./tools/clang/unittests/Interpreter/ClangReplInterpreterTests.js
 or executing
 
 ```powershell
-mkdir native_build
-cd native_build
-cmake -DLLVM_ENABLE_PROJECTS=clang -DLLVM_TARGETS_TO_BUILD=host -DCMAKE_BUILD_TYPE=Release -G Ninja ../llvm/
-cmake --build . --target llvm-tblgen clang-tblgen --parallel $(nproc --all)
-$env:PWD_DIR= $PWD.Path
-$env:NATIVE_LLVM_BUILD_DIR="$env:PWD_DIR"
-$env:NATIVE_LLVM_BIN_DIR="$env:PWD_DIR/bin/"
-cd ..
 mkdir build
 cd build
 emcmake cmake -G Ninja -DCMAKE_BUILD_TYPE=Release `
@@ -135,11 +117,11 @@ emcmake cmake -G Ninja -DCMAKE_BUILD_TYPE=Release `
                         -DLLVM_BUILD_TOOLS=OFF                          `
                         -DLLVM_ENABLE_LIBPFM=OFF                        `
                         -DCLANG_BUILD_TOOLS=OFF                         `
-                        -DLLVM_NATIVE_TOOL_DIR="$env:NATIVE_LLVM_BIN_DIR"        `
                         -DCMAKE_C_FLAGS_RELEASE="-Oz -g0 -DNDEBUG -mno-tail-call" `
                         -DCMAKE_CXX_FLAGS_RELEASE="-Oz -g0 -DNDEBUG -mno-tail-call" `
 			-DCMAKE_EXE_LINKER_FLAGS="-mno-tail-call" `
                         -DLLVM_ENABLE_LTO=Full `
+			-DCROSS_TOOLCHAIN_FLAGS_NATIVE="-DCMAKE_C_COMPILER=clang;-DCMAKE_CXX_COMPILER=clang++" `
                         ..\llvm
 $env:EMCC_CFLAGS="-fwasm-exceptions"
 emmake ninja ClangReplInterpreterTests
@@ -185,41 +167,7 @@ $env:CMAKE_PREFIX_PATH=$env:PREFIX
 $env:CMAKE_SYSTEM_PREFIX_PATH=$env:PREFIX
 ```
 
-on Windows. efore building the Emscripten version of CppInterOp, we need
-to build ``cppinterop-tblgen`` natively. This tool generates ``.inc`` files
-from ``.td`` definitions and must run on the host (not under Emscripten).
-We use the native LLVM build from the earlier step since it has the required
-``libLLVMTableGen`` library.
-
-On Linux and osx:
-
-```bash
-mkdir native_cppinterop_build
-cd native_cppinterop_build
-cmake -G Ninja -DCMAKE_BUILD_TYPE=Release \
-      -DLLVM_DIR=$NATIVE_LLVM_BUILD_DIR/lib/cmake/llvm \
-      -DCMAKE_CXX_STANDARD=17 \
-      -DCPPINTEROP_BUILD_TABLEGEN_ONLY=ON \
-       ../
-cmake --build . --target cppinterop-tblgen
-export CPPINTEROP_TBLGEN_EXE=$(find $PWD -name cppinterop-tblgen -type f | head -1)
-cd ..
-```
-
-On Windows:
-
-```powershell
-mkdir native_cppinterop_build
-cd native_cppinterop_build
-cmake -G Ninja -DCMAKE_BUILD_TYPE=Release `
-      -DLLVM_DIR="$env:NATIVE_LLVM_BUILD_DIR\lib\cmake\llvm" `
-      -DCMAKE_CXX_STANDARD=17 `
-      -DCPPINTEROP_BUILD_TABLEGEN_ONLY=ON `
-..\
-cmake --build . --target cppinterop-tblgen
-$env:CPPINTEROP_TBLGEN_EXE = (Get-ChildItem -Recurse -Filter "cppinterop-tblgen.exe" | Select-Object -First 1).FullName
-cd ..
-```
+on Windows.
 
 Now to build and test your Emscripten build of CppInterOp using node on Linux and osx execute the following
 (BUILD_SHARED_LIBS=ON is only needed if building xeus-cpp, as CppInterOp can be built as an Emscripten static library)
@@ -235,7 +183,6 @@ emcmake cmake -G Ninja -DCMAKE_BUILD_TYPE=Release    \
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            \
                 -DCMAKE_INSTALL_PREFIX=$PREFIX         \
                 -DSYSROOT_PATH=$SYSROOT_PATH                                   \
-                -DCPPINTEROP_TABLEGEN_EXE=$CPPINTEROP_TBLGEN_EXE \
                 ../
 emmake ninja check-cppinterop
 ```
@@ -255,7 +202,6 @@ emcmake cmake -G Ninja -DCMAKE_BUILD_TYPE=Release    `
                 -DCMAKE_FIND_ROOT_PATH_MODE_PACKAGE=ON            `
                 -DLLVM_ENABLE_WERROR=On                      `
                 -DSYSROOT_PATH="$env:SYSROOT_PATH"                     `
-                -DCPPINTEROP_TABLEGEN_EXE="$env:CPPINTEROP_TBLGEN_EXE" `
                 ..\
 emmake ninja check-cppinterop
 ```
