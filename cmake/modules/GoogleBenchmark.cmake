@@ -35,7 +35,7 @@ ExternalProject_Add(
   googlebenchmark
   GIT_REPOSITORY https://github.com/google/benchmark.git
   GIT_SHALLOW FALSE
-  GIT_TAG v1.9.5
+  GIT_TAG v1.10.0
   UPDATE_COMMAND ""
   CMAKE_ARGS    -DCMAKE_BUILD_TYPE=$<CONFIG>
                 -DCMAKE_C_COMPILER=${CMAKE_C_COMPILER}
